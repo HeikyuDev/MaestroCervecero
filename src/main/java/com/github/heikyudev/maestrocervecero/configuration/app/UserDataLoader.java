@@ -1,8 +1,11 @@
 package com.github.heikyudev.maestrocervecero.configuration.app;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
 import com.github.heikyudev.maestrocervecero.persistence.repository.IUsuarioRepository;
+import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;

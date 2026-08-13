@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 
 /**
  * Bitácora global de transacciones del sistema: un registro plano e independiente
- * de cada acción de negocio relevante (crear/editar/eliminar sobre cualquier entidad).
+ * de cada acción de negocio relevante (crear/editar/eliminar/anular sobre cualquier entidad).
  * <p>
  * A propósito NO extiende de {@link AuditableEntity}: esta tabla ES el historial en sí
  * mismo, no un registro de negocio que necesite (a su vez) ser auditado a nivel de fila.
@@ -46,10 +46,10 @@ public class AuditLogEntity {
     @Column(nullable = false)
     private AccionAuditoria accion;
 
-    // Nombre de la entidad/tabla afectada (ej: "UsuarioEntity"). Nullable porque
-    // las acciones de seguridad (LOGIN_EXITOSO/LOGOUT) no afectan ninguna entidad de negocio.
-    @Column(name = "entidad_afectada")
-    private String entidadAfectada;
+    // Nombre del concepto que intervino en la transacción.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ConceptoAuditoria conceptoAuditoria;
 
     // Id del registro afectado. String para no atarnos al tipo de PK de cada entidad (Long, UUID, etc).
     @Column(name = "entidad_id")
@@ -58,10 +58,6 @@ public class AuditLogEntity {
     @Column(name = "fecha_hora", nullable = false)
     private LocalDateTime fechaHora;
 
-    // Detalle libre de la operación (puede ser texto plano o un JSON serializado).
-    @Lob
-    @Column(name = "detalles")
-    private String detalles;
 
     // IP remota desde la que se ejecutó la acción. Nullable: si el hilo que audita
     // no tiene una request HTTP asociada, no hay IP que capturar (ver RequestUtils).

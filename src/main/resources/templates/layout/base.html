@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(contenido, opcionActiva)" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maestro Cervecero</title>
+    <link rel="icon" type="image/x-icon" th:href="@{/img/logo-32x32.ico}" />
+
+    <!-- CDN Tailwind CSS (Motor JIT en desarrollo) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col h-screen overflow-hidden font-sans antialiased">
+
+<!-- Header Reutilizable -->
+<div th:replace="~{fragments/header :: header}"></div>
+
+<div class="flex flex-1 overflow-hidden">
+
+    <!-- Sidebar Reutilizable con parámetro de opción activa -->
+    <div th:replace="~{fragments/sidebar :: sidebar(${opcionActiva})}"></div>
+
+    <!-- Contenido Central Inyectado Dinámicamente -->
+    <main class="flex-1 overflow-y-auto p-8 bg-slate-50">
+
+        <!-- Alerta Flash: Éxito (teal) -->
+        <div th:if="${mensaje != null and tipo == 'success'}"
+             class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-teal-50 border-teal-200 text-teal-800"
+             role="alert">
+            <i class="bi bi-check-circle-fill text-xl text-teal-500"></i>
+            <span class="text-sm font-medium" th:text="${mensaje}">Operación exitosa</span>
+        </div>
+
+        <!-- Alerta Flash: Warning (amber) -->
+        <div th:if="${mensaje != null and tipo == 'warning'}"
+             class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-amber-50 border-amber-200 text-amber-800"
+             role="alert">
+            <i class="bi bi-exclamation-triangle-fill text-xl text-amber-500"></i>
+            <span class="text-sm font-medium" th:text="${mensaje}">Advertencia</span>
+        </div>
+
+        <!-- Alerta Flash: Error (rose) -->
+        <div th:if="${mensaje != null and (tipo == 'danger' or tipo == 'error')}"
+             class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-rose-50 border-rose-200 text-rose-800"
+             role="alert">
+            <i class="bi bi-x-circle-fill text-xl text-rose-500"></i>
+            <span class="text-sm font-medium" th:text="${mensaje}">Error</span>
+        </div>
+
+        <!-- Alerta Flash: Info (blue) - default -->
+        <div th:if="${mensaje != null and tipo == 'info'}"
+             class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-blue-50 border-blue-200 text-blue-800"
+             role="alert">
+            <i class="bi bi-info-circle-fill text-xl text-blue-500"></i>
+            <span class="text-sm font-medium" th:text="${mensaje}">Información</span>
+        </div>
+
+        <!-- Inyección del contenido de cada vista -->
+        <div th:replace="${contenido}"></div>
+    </main>
+</div>
+
+</body>
+</html>

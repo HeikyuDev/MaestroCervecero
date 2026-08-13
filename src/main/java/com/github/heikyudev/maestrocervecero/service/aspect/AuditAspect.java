@@ -1,7 +1,7 @@
-package com.github.heikyudev.maestrocervecero.aspect;
+package com.github.heikyudev.maestrocervecero.service.aspect;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
-import com.github.heikyudev.maestrocervecero.service.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.service.interfaces.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.util.RequestUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,15 +46,17 @@ public class AuditAspect {
         AuditLogEntity auditLogEntity = AuditLogEntity.builder()
                 .username(obtenerUsernameActual())
                 .accion(auditableAction.accion())
-                .entidadAfectada(auditableAction.entidadAfectada())
+                .conceptoAuditoria(auditableAction.conceptoAuditoria())
                 .entidadId(extraerId(resultado))
                 .fechaHora(LocalDateTime.now())
-                .detalles("Método ejecutado: " + joinPoint.getSignature().toShortString())
                 .ipAddress(RequestUtils.obtenerIpCliente())
                 .build();
 
+        // Este metodo guardar espera la entidad ya hecha, para realizar el guardado asíncrono
+        // desde otro hilo de la aplicacion
         auditLogService.guardar(auditLogEntity);
 
+        // Devuelve el Objeto que se ha creado/modificado
         return resultado;
     }
 

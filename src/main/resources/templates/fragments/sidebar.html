@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<aside th:fragment="sidebar(opcionActiva)"
+    class="w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col justify-between select-none">
+
+    <nav class="p-4 space-y-1">
+        <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Navegación</p>
+
+        <!-- DASHBOARD (Todos los usuarios autenticados) -->
+        <a th:href="@{/home}"
+            th:classappend="${opcionActiva == 'dashboard'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-speedometer2 text-lg"></i>
+            <span>Dashboard</span>
+        </a>
+
+        <!--
+            GESTIÓN DE USUARIOS (Solo Administrador)
+            Rol enum: ADMINISTRADOR → tiene permisos USUARIO_*, PAIS_*, PROVINCIA_*, LOCALIDAD_*
+        -->
+        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/usuarios}"
+            th:classappend="${opcionActiva == 'usuarios'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-people text-lg"></i>
+            <span>Gestión de Usuarios</span>
+        </a>
+
+        <!-- GESTIÓN DE PAISES (Solo Administrador)-->
+        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/paises}"
+            th:classappend="${opcionActiva == 'paises'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-globe text-lg"></i>
+            <span>Gestión de Paises</span>
+        </a>
+
+        <!--
+            GESTIÓN DE RECETAS (Gerente DE Producción)
+            Rol enum: GERENTE_DE_PRODUCCION → tiene permisos RECETA_*
+            ADMINISTRADOR NO tiene permisos de recetas, así que no lo incluimos.
+        -->
+        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/recetas}"
+            th:classappend="${opcionActiva == 'recetas'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-journal-bookmark text-lg"></i>
+            <span>Gestión de Recetas</span>
+        </a>
+
+        <!--
+            GESTIÓN DE INSUMOS (Gerente DE Producción, Encargado DE Depósito)
+            Ambos roles tienen permisos de insumos en el enum.
+            ADMINISTRADOR NO tiene permisos de insumos.
+        -->
+        <a sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ENCARGADO_DE_DEPOSITO')" th:href="@{/insumos}"
+            th:classappend="${opcionActiva == 'insumos'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-box-seam text-lg"></i>
+            <span>Gestión de Insumos</span>
+        </a>
+
+        <!--
+            CONTROL DE LOTES (Operario DE Producción, Gerente DE Producción)
+            Ambos roles tienen permisos de lotes en el enum.
+        -->
+        <a sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION')" th:href="@{/lotes}"
+            th:classappend="${opcionActiva == 'lotes'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-droplet-half text-lg"></i>
+            <span>Control de Lotes</span>
+        </a>
+
+        <!--
+            ÓRDENES DE COMPRA (Gerente DE Compras)
+            Rol enum: GERENTE_DE_COMPRAS → tiene permisos ORDEN_COMPRA_*
+        -->
+        <a sec:authorize="hasRole('GERENTE_DE_COMPRAS')" th:href="@{/ordenes-compra}"
+            th:classappend="${opcionActiva == 'compras'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-cart3 text-lg"></i>
+            <span>Órdenes de Compra</span>
+        </a>
+
+        <!--
+            BITÁCORA AUDITORÍA (Solo Administrador)
+        -->
+        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/auditoria}"
+            th:classappend="${opcionActiva == 'auditoria'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+            <i class="bi bi-shield-check text-lg"></i>
+            <span>Bitácora Auditoría</span>
+        </a>
+    </nav>
+
+    <!-- Footer del Sidebar -->
+    <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
+        System v1.0 &copy; 2026
+    </div>
+</aside>
+
+</html>

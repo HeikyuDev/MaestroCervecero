@@ -1,4 +1,4 @@
-package com.github.heikyudev.maestrocervecero.service;
+package com.github.heikyudev.maestrocervecero.service.interfaces;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
 

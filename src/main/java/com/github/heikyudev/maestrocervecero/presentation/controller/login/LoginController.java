@@ -30,6 +30,6 @@ public class LoginController {
         if (redirect != null && !redirect.isBlank()) {
             model.addAttribute("redirect", redirect);
         }
-        return "/login";
+        return "login";
     }
 }

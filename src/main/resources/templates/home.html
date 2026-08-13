@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#home-content}, 'dashboard')}">
+<body>
+
+<div id="home-content" class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Panel de Control</h1>
+        <p class="text-sm text-slate-500">Bienvenido al sistema de gestión de producción cervecera.</p>
+    </div>
+
+    <!-- =====================================================================
+         TARJETAS DE RESUMEN DEL DASHBOARD
+         Cada tarjeta se muestra/oculta según el rol del usuario autenticado.
+         Para agregar una nueva tarjeta:
+         1. Copiá un bloque <div sec:authorize="..."> existente
+         2. Cambiá el hasRole/hasAnyRole al rol que corresponda
+         3. Ajustá el ícono, título, valor y colores
+         ===================================================================== -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+        <!-- Estado del Sistema (Todos los autenticados) -->
+        <div class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Estado del Sistema</span>
+                <span class="p-2 bg-teal-50 text-teal-600 rounded-lg"><i class="bi bi-check-circle-fill"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800">Operativo</p>
+            <p class="text-xs text-slate-400 mt-1">Todos los servicios activos</p>
+        </div>
+
+        <!-- Usuarios Activos (Solo ADMINISTRADOR) -->
+        <div sec:authorize="hasRole('ADMINISTRADOR')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Usuarios Activos</span>
+                <span class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i class="bi bi-people-fill"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${usuariosActivos != null} ? ${usuariosActivos} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">Cuentas habilitadas</p>
+        </div>
+
+        <!-- Lotes Pendientes (GERENTE_DE_PRODUCCION, OPERARIO_DE_PRODUCCION) -->
+        <div sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lotes Pendientes</span>
+                <span class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i class="bi bi-droplet-half"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${lotesPendientes != null} ? ${lotesPendientes} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">En proceso de producción</p>
+        </div>
+
+        <!-- Recetas Registradas (GERENTE_DE_PRODUCCION) -->
+        <div sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Recetas</span>
+                <span class="p-2 bg-violet-50 text-violet-600 rounded-lg"><i class="bi bi-journal-bookmark-fill"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${totalRecetas != null} ? ${totalRecetas} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">Recetas registradas</p>
+        </div>
+
+        <!-- Insumos en Stock (GERENTE_DE_PRODUCCION, ENCARGADO_DE_DEPOSITO) -->
+        <div sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ENCARGADO_DE_DEPOSITO')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Insumos</span>
+                <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="bi bi-box-seam-fill"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${totalInsumos != null} ? ${totalInsumos} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">Tipos en inventario</p>
+        </div>
+
+        <!-- Barriles Disponibles (GERENTE_DE_PRODUCCION, OPERARIO_DE_PRODUCCION) -->
+        <div sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Barriles</span>
+                <span class="p-2 bg-sky-50 text-sky-600 rounded-lg"><i class="bi bi-archive-fill"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${barrilesDisponibles != null} ? ${barrilesDisponibles} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">Disponibles para despacho</p>
+        </div>
+
+        <!-- Órdenes de Compra Pendientes (GERENTE_DE_COMPRAS) -->
+        <div sec:authorize="hasRole('GERENTE_DE_COMPRAS')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Órdenes de Compra</span>
+                <span class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i class="bi bi-cart3"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${ordenesPendientes != null} ? ${ordenesPendientes} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">Pendientes de finalización</p>
+        </div>
+
+        <!-- Auditoría: Eventos Recientes (Solo ADMINISTRADOR) -->
+        <div sec:authorize="hasRole('ADMINISTRADOR')" class="p-6 bg-white border border-slate-200 rounded-xl shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Auditoría</span>
+                <span class="p-2 bg-slate-100 text-slate-600 rounded-lg"><i class="bi bi-shield-check"></i></span>
+            </div>
+            <p class="text-2xl font-bold text-slate-800" th:text="${eventosAuditoria != null} ? ${eventosAuditoria} : '--'">--</p>
+            <p class="text-xs text-slate-400 mt-1">Eventos últimas 24h</p>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>

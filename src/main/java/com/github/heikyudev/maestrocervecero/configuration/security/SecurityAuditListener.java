@@ -2,7 +2,8 @@ package com.github.heikyudev.maestrocervecero.configuration.security;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
-import com.github.heikyudev.maestrocervecero.service.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.service.interfaces.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.util.RequestUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -47,10 +48,14 @@ public class SecurityAuditListener {
         AuditLogEntity auditLogEntity = AuditLogEntity.builder()
                 .username(username)
                 .accion(accion)
+                .conceptoAuditoria(ConceptoAuditoria.SESION)
                 .fechaHora(LocalDateTime.now())
                 .ipAddress(RequestUtils.obtenerIpCliente())
                 .build();
 
+        // Al finalizar de contruir el Objeto de Auditoria
+        // El hilo principal delega la ejecucion del guardado de forma
+        // Asincrona, para no bloquear el hilo principal
         auditLogService.guardar(auditLogEntity);
     }
 }

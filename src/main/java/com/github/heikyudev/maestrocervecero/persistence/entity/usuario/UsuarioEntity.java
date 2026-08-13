@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.usuario;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SoftDelete;
@@ -24,7 +25,7 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @SoftDelete
-public class UsuarioEntity {
+public class UsuarioEntity extends AuditableEntity<String>{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -61,4 +62,9 @@ public class UsuarioEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Rol rol;
+
+    // ======== DATOS DEL USUARIO ====
+    private String nombre;
+    private String correo;
+    private String telefono;
 }

@@ -2,7 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
 import com.github.heikyudev.maestrocervecero.persistence.repository.IAuditLogRepository;
-import com.github.heikyudev.maestrocervecero.service.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.service.interfaces.IAuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AuditLogServiceImpl implements IAuditLogService {
 
+    // Repositorio de bitácoras de auditoría
     private final IAuditLogRepository auditLogRepository;
 
     @Override
@@ -33,7 +34,6 @@ public class AuditLogServiceImpl implements IAuditLogService {
         if (auditLogEntity.getFechaHora() == null) {
             auditLogEntity.setFechaHora(LocalDateTime.now());
         }
-
         // Atrapamos cualquier falla acá adentro: un problema al auditar NO debe
         // hacer fallar (ni siquiera enterarse) al método de negocio que la disparó.
         try {

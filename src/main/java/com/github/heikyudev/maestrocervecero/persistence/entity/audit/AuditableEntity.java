@@ -27,6 +27,10 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @MappedSuperclass
+// Este es el Supervisor el cual basandose en las etiquetas de Spring Data JPA completa automáticamente estos campos.
+// si es @createdBy sabe que tiene que llamar al bean auditorAware para obtener el username del usuario actual.
+// si es un @LastModifiedBy sabe que tiene que llamar al bean auditorAware para obtener el username del usuario actual.
+// su es un @createdDate tiene que utilizar la fecha del servidor.
 @EntityListeners(AuditingEntityListener.class)
 public abstract class AuditableEntity<U> {
 

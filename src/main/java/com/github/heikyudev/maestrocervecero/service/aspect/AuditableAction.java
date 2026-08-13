@@ -1,6 +1,7 @@
-package com.github.heikyudev.maestrocervecero.aspect;
+package com.github.heikyudev.maestrocervecero.service.aspect;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -13,7 +14,7 @@ import java.lang.annotation.Target;
  * <p>
  * Uso típico:
  * <pre>
- *   {@code @AuditableAction(accion = AccionAuditoria.REGISTRAR, entidadAfectada = "UsuarioEntity")}
+     *   {@code @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = "INSUMO")}
  *   public UsuarioEntity crear(UsuarioEntity usuario) { ... }
  * </pre>
  */
@@ -21,9 +22,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AuditableAction {
 
-    // Qué tipo de operación de negocio representa el método (REGISTRAR, MODIFICAR, ELIMINAR, ANULAR).
+    // Propiedades que estas obligado a pasarle a la anotacion cuando la utilices
+
+    // Qué tipo de operación de negocio representa el método (REGISTRAR, MODIFICAR, ELIMINAR, ANULAR, LOGIN, LOGOUT).
     AccionAuditoria accion();
 
-    // Nombre de la entidad/tabla afectada, para dejarlo asentado en la bitácora.
-    String entidadAfectada();
+    // Nombre del concepto Afectado, para dejarlo asentado en la bitácora.
+    ConceptoAuditoria conceptoAuditoria();
 }

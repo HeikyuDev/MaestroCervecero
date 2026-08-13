@@ -30,8 +30,6 @@ public class UserDetailServiceImpl implements UserDetailsService{
     // RequiredArgsConstructor, el cual crea un constructor con los campos finales
     private final IUsuarioRepository usuarioRepository;
 
-
-
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // Si el usuario no existe, esta excepción NUNCA llega tal cual a la vista de login:
