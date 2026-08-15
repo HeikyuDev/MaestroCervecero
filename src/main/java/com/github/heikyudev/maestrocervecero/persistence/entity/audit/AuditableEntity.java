@@ -4,7 +4,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -26,6 +28,8 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
+@SuperBuilder
+@NoArgsConstructor
 @MappedSuperclass
 // Este es el Supervisor el cual basandose en las etiquetas de Spring Data JPA completa automáticamente estos campos.
 // si es @createdBy sabe que tiene que llamar al bean auditorAware para obtener el username del usuario actual.
