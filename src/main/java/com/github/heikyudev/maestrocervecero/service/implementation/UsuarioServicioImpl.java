@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
-import com.github.heikyudev.maestrocervecero.persistence.repository.IUsuarioRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.UsuarioFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;

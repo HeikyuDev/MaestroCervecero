@@ -1,4 +1,4 @@
-package com.github.heikyudev.maestrocervecero.persistence.repository;
+package com.github.heikyudev.maestrocervecero.persistence.repository.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
 import org.springframework.data.domain.Page;

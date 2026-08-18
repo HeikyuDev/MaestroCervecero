@@ -4,7 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
-import com.github.heikyudev.maestrocervecero.persistence.repository.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;

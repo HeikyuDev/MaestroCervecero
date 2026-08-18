@@ -1,4 +1,4 @@
-package com.github.heikyudev.maestrocervecero.persistence.repository;
+package com.github.heikyudev.maestrocervecero.persistence.repository.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

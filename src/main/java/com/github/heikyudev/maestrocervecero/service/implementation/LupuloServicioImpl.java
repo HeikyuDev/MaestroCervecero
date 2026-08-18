@@ -4,7 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
-import com.github.heikyudev.maestrocervecero.persistence.repository.ILupuloRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.LupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;

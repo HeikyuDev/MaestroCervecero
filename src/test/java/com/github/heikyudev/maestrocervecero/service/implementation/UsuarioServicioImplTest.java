@@ -2,7 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
-import com.github.heikyudev.maestrocervecero.persistence.repository.IUsuarioRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.UsuarioFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;

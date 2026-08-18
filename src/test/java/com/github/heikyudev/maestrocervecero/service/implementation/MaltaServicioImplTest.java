@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
-import com.github.heikyudev.maestrocervecero.persistence.repository.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;

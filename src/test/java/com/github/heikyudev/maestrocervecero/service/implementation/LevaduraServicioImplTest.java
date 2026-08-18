@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
-import com.github.heikyudev.maestrocervecero.persistence.repository.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;

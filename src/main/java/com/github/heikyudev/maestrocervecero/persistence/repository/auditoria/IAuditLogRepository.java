@@ -1,4 +1,4 @@
-package com.github.heikyudev.maestrocervecero.persistence.repository;
+package com.github.heikyudev.maestrocervecero.persistence.repository.auditoria;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

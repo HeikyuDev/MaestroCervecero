@@ -1,8 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
-import com.github.heikyudev.maestrocervecero.persistence.repository.IUsuarioRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;

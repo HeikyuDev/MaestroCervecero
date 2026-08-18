@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
-import com.github.heikyudev.maestrocervecero.persistence.repository.ILupuloRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.LupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;

@@ -4,7 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
-import com.github.heikyudev.maestrocervecero.persistence.repository.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;

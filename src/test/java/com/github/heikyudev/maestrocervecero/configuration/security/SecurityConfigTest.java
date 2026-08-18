@@ -1,6 +1,6 @@
 package com.github.heikyudev.maestrocervecero.configuration.security;
 
-import com.github.heikyudev.maestrocervecero.persistence.repository.IUsuarioRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import com.github.heikyudev.maestrocervecero.service.implementation.UserDetailServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
