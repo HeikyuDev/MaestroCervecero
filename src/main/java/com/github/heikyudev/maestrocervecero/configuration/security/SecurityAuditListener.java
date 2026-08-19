@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.configuration.security;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
-import com.github.heikyudev.maestrocervecero.service.interfaces.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.util.RequestUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;

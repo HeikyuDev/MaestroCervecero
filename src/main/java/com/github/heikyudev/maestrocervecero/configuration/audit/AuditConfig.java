@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.configuration.audit;
 
+import com.github.heikyudev.maestrocervecero.service.implementation.auditoria.AuditLogServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -8,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * Prende el motor de "JPA Auditing" (control de fila) y habilita la ejecución
- * asíncrona que usa {@link com.github.heikyudev.maestrocervecero.service.implementation.AuditLogServiceImpl}
+ * asíncrona que usa {@link AuditLogServiceImpl}
  * para no bloquear el hilo de la request al escribir en la bitácora global.
  */
 @Configuration

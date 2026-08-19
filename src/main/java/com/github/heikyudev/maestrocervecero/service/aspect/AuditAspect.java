@@ -1,7 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.aspect;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditLogEntity;
-import com.github.heikyudev.maestrocervecero.service.interfaces.IAuditLogService;
+import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.util.RequestUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

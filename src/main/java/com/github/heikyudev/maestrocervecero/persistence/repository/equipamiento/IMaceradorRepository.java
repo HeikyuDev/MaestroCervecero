@@ -1,0 +1,21 @@
+package com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento;
+
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface IMaceradorRepository extends JpaRepository<MaceradorEntity, Long> {
+
+    // Creo que voy a tener Bloqueos compartidos
+    // Por ejemplo si dos lotes quieren utiliza el mimso macerador
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id")
+    Optional<MaceradorEntity> buscarPorIdParaIniciarLote(@Param("id") Long id);
+}

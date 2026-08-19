@@ -1,6 +1,6 @@
 package com.github.heikyudev.maestrocervecero.configuration.security;
 
-import com.github.heikyudev.maestrocervecero.service.implementation.UserDetailServiceImpl;
+import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;

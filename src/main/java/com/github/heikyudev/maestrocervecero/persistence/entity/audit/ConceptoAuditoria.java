@@ -2,11 +2,13 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.audit;
 
 public enum ConceptoAuditoria {
     SESION,
-    INSUMO,
     MALTA,
     LUPULO,
     LEVADURA,
-    EQUIPAMIENTO,
+    MACERADOR,
+    OLLA_DE_HERVOR,
+    MOLINO,
+    FERMENTADOR,
     RECETA,
     ETAPA_CONTROL,
     PARAMETRO_CONTROL,
