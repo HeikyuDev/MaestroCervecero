@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.proveedor;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.PresentacionComercialFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -22,8 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PresentacionComercialServicioImpl implements IPresentacionComercialServicio {
 
-    // Inyecto el repositorio gracias a LOMBOK
+    // Inyecto los repositorios gracias a LOMBOK
     private final IPresentacionComercialRepository presentacionComercialRepository;
+    private final ICatalogoProveedorRepository catalogoProveedorRepository;
 
     /**
      * Recupera una página de presentaciones comerciales activas registradas en el sistema.
@@ -146,6 +148,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
      * @param id Identificador clave primaria de la presentación comercial a dar de baja.
      * @return {@link PresentacionComercialResponseDTO} con los datos de la presentación comercial procesada antes de su inactivación.
      * @throws RecursoNoEncontradoException Si la presentación comercial con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la presentación comercial se encuentra asociada a al menos un ítem de catálogo de proveedor activo.
      */
     @Override
     @Transactional
@@ -155,11 +158,15 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
         PresentacionComercialEntity presentacionComercialEntity = presentacionComercialRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la presentación comercial con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        // TODO: verifica que la presentación comercial seleccionada no se encuentre asociada a Presentaciones de Insumos activas (o Catálogo de Proveedores activos).
+        // 2. Validar que la presentación comercial no esté asociada a ningún catálogo de proveedor activo
+        if (catalogoProveedorRepository.existsByPresentacionComercialId(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la presentación comercial porque se encuentra asociada al catálogo de al menos un proveedor activo");
+        }
+
+        // 3. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
         presentacionComercialRepository.delete(presentacionComercialEntity);
 
-        // 3. Retornamos el DTO de la presentación comercial dada de baja
+        // 4. Retornamos el DTO de la presentación comercial dada de baja
         return MapperPresentacionComercial.toDTO(presentacionComercialEntity);
     }
 

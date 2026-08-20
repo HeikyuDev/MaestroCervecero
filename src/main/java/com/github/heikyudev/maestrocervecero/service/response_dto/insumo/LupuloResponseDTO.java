@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Getter
 @Builder
-public class LupuloResponseDTO {
+public class LupuloResponseDTO implements InsumoResponseDTO {
 
     /**
      * Identificador único del lúpulo.

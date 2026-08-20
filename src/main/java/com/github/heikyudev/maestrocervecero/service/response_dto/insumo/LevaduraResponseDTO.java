@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Getter
 @Builder
-public class LevaduraResponseDTO {
+public class LevaduraResponseDTO implements InsumoResponseDTO {
 
     /**
      * Identificador único de la levadura.

@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Getter
 @Builder
-public class MaltaResponseDTO {
+public class MaltaResponseDTO implements InsumoResponseDTO {
 
     /**
      * Identificador único de la malta.

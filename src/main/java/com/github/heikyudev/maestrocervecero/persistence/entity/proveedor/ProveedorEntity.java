@@ -52,7 +52,9 @@ public class ProveedorEntity extends AuditableEntity<String> {
     @JoinColumn(name = "localidad_id", nullable = false)
     private LocalidadEntity localidad;
 
-    @OneToMany(mappedBy = "proveedor", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "proveedor", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    // CatalogoProveedorEntity no tiene repositorio propio: su ciclo de vida se gestiona
+    // en cascada a través del proveedor (ver javadoc de CatalogoProveedorEntity)
     @Builder.Default
     private List<CatalogoProveedorEntity> catalogoProveedor = new ArrayList<>();
 }
