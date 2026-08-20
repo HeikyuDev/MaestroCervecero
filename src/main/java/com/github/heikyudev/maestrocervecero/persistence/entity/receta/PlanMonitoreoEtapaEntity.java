@@ -46,5 +46,5 @@ public class PlanMonitoreoEtapaEntity {
 
     @OneToMany(mappedBy = "planMonitoreoEtapa", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
-    private List<DetalleParametroControlEntity> detalleParametroControlList = new ArrayList<>();
+    private List<DetalleParametroControlEntity> detallesParametroControl = new ArrayList<>();
 }
