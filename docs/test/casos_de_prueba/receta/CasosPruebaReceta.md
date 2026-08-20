@@ -78,4 +78,6 @@ Valida el versionado, los fallos por reglas de negocio y la existencia del regis
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BR-01**|Baja de receta inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No llama a `delete()`.|
-|**CP-BR-02**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Invoca `delete(entity)` y retorna DTO de la receta dada de baja.|
+|**CP-BR-02**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe en BD, sin órdenes de producción pendientes asociadas)|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO de la receta dada de baja.|
+|**CP-BR-03**|Baja rechazada por orden de producción pendiente asociada|`id: 1L` (Existe en BD); existe una orden de producción en estado `PENDIENTE` asociada a alguna versión (histórica o activa) de la receta|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `delete()`.|
+|**CP-BR-04**|Baja permitida con órdenes asociadas en otro estado|`id: 1L` (Existe en BD); tiene órdenes `FINALIZADA`/`ANULADA` asociadas, pero ninguna `PENDIENTE`|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO de la receta dada de baja.|

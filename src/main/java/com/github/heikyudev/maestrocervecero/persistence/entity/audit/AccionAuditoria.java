@@ -2,7 +2,7 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.audit;
 
 /**
  * Tipos de acción que puede registrar la bitácora global de auditoría.
- * Incluye tanto acciones de negocio (CREAR/MODIFICAR/ELIMINAR/ANULAR)
+ * Incluye tanto acciones de negocio (CREAR/MODIFICAR/ELIMINAR/ANULAR/FINALIZAR)
  * como acciones de seguridad (LOGIN_EXITOSO/LOGOUT).
  */
 public enum AccionAuditoria {
@@ -10,6 +10,7 @@ public enum AccionAuditoria {
     MODIFICAR,
     ELIMINAR,
     ANULAR,
+    FINALIZAR,
     LOGIN_EXITOSO,
     LOGOUT
 }

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SoftDelete;
@@ -18,7 +19,7 @@ import org.hibernate.annotations.SoftDelete;
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @SoftDelete
-public class LocalidadEntity {
+public class LocalidadEntity extends AuditableEntity<String> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

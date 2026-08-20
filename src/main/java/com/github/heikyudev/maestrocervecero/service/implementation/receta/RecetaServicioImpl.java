@@ -15,10 +15,12 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.PlanMonit
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_produccion.IOrdenProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
@@ -57,6 +59,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
     private final ILevaduraRepository levaduraRepository;
     private final IEtapaControlRepository etapaControlRepository;
     private final IParametroControlRepository parametroControlRepository;
+    private final IOrdenProduccionRepository ordenProduccionRepository;
 
     /**
      * Recupera una página de recetas activas registradas en el sistema.
@@ -191,6 +194,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * @param id Identificador clave primaria de la receta a dar de baja.
      * @return {@link RecetaResponseDTO} con los datos de la receta procesada antes de su inactivación.
      * @throws RecursoNoEncontradoException Si la receta con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la receta tiene una orden de producción en estado {@code PENDIENTE} asociada a alguna de sus versiones.
      */
     @Override
     @Transactional
@@ -200,12 +204,16 @@ public class RecetaServicioImpl implements IRecetaServicio {
         RecetaEntity recetaEntity = recetaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id));
 
-        // TODO: verificar que la receta seleccionada no se encuentre asociada a Órdenes de Producción "Pendientes".
+        // 2. Validar que ninguna versión de la receta (histórica o activa) tenga una orden de
+        //    producción en estado PENDIENTE asociada
+        if (ordenProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(id, EstadoOrden.PENDIENTE)) {
+            throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una orden de producción en estado PENDIENTE asociada");
+        }
 
-        // 2. Ejecutar la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
+        // 3. Ejecutar la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
         recetaRepository.delete(recetaEntity);
 
-        // 3. Retornar el DTO de la receta dada de baja
+        // 4. Retornar el DTO de la receta dada de baja
         return MapperReceta.toDTO(recetaEntity);
     }
 

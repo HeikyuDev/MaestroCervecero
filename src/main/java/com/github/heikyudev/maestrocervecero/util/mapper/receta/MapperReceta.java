@@ -67,18 +67,26 @@ public class MapperReceta {
         return recetaEntity.getVersiones().stream()
                 .filter(VersionRecetaEntity::isEsUltimaVersion)
                 .findFirst()
-                .map(MapperReceta::mapVersion)
+                .map(MapperReceta::toDTO)
                 .orElse(null);
     }
 
     /**
      * Mapea una instancia de {@link VersionRecetaEntity} a {@link VersionRecetaResponseDTO},
      * incluyendo sus detalles de malta, lúpulo, levadura y planes de monitoreo.
+     * <p>
+     * Público para que otros módulos que referencian directamente una versión de receta
+     * (por ejemplo, {@code MapperOrdenProduccion}) puedan reutilizar este mapeo sin duplicarlo.
+     * </p>
      *
      * @param versionRecetaEntity Entidad de versión de receta a convertir.
-     * @return Objeto DTO correspondiente.
+     * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
      */
-    private static VersionRecetaResponseDTO mapVersion(VersionRecetaEntity versionRecetaEntity) {
+    public static VersionRecetaResponseDTO toDTO(VersionRecetaEntity versionRecetaEntity) {
+        if (versionRecetaEntity == null) {
+            return null;
+        }
+
         return VersionRecetaResponseDTO.builder()
                 .id(versionRecetaEntity.getId())
                 .nombre(versionRecetaEntity.getNombre())

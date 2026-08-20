@@ -9,11 +9,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLu
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_produccion.IOrdenProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
@@ -74,6 +76,8 @@ class RecetaServicioImplTest {
     private IEtapaControlRepository etapaControlRepository;
     @Mock
     private IParametroControlRepository parametroControlRepository;
+    @Mock
+    private IOrdenProduccionRepository ordenProduccionRepository;
 
     @InjectMocks
     private RecetaServicioImpl recetaServicio;
@@ -928,14 +932,51 @@ class RecetaServicioImplTest {
     @Test
     @DisplayName("CP-BR-02: bajaReceta elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
     void bajaReceta_debeEliminarYRetornarRecetaExistente() {
+        // === PREPARACION DE DATOS ===
         RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
         when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntity));
+        when(ordenProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoOrden.PENDIENTE)).thenReturn(false);
 
+        // === EJECUCION ===
         RecetaResponseDTO resultado = recetaServicio.bajaReceta(1L);
 
+        // === ASSERTS ===
         // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
         assertThat(resultado.getId()).isEqualTo(1L);
         verify(recetaRepository).findById(1L);
+        verify(ordenProduccionRepository).existsByVersionReceta_Receta_IdAndEstado(1L, EstadoOrden.PENDIENTE);
+        verify(recetaRepository).delete(recetaEntity);
+    }
+
+    @Test
+    @DisplayName("CP-BR-03: bajaReceta lanza ReglaNegocioException y no elimina cuando hay una orden de producción PENDIENTE asociada")
+    void bajaReceta_debeRechazarConOrdenDeProduccionPendienteAsociada() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntity));
+        when(ordenProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoOrden.PENDIENTE)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> recetaServicio.bajaReceta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la receta porque tiene una orden de producción en estado PENDIENTE asociada");
+
+        verify(recetaRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("CP-BR-04: bajaReceta permite la baja cuando existen órdenes de producción asociadas pero ninguna en estado PENDIENTE")
+    void bajaReceta_debePermitirBajaConOrdenesDeProduccionEnOtroEstado() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntity));
+        when(ordenProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoOrden.PENDIENTE)).thenReturn(false);
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.bajaReceta(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getId()).isEqualTo(1L);
         verify(recetaRepository).delete(recetaEntity);
     }
 
@@ -943,7 +984,7 @@ class RecetaServicioImplTest {
 
     private void verifyNoRepositoryInteractions() {
         verifyNoInteractions(recetaRepository, versionRecetaRepository, maltaRepository, lupuloRepository,
-                levaduraRepository, etapaControlRepository, parametroControlRepository);
+                levaduraRepository, etapaControlRepository, parametroControlRepository, ordenProduccionRepository);
     }
 
     private void mockearInsumosYPlanesMonitoreo(VersionRecetaFormDTO versionFormDTO) {
