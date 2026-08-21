@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Línea de detalle que asocia una {@link LevaduraEntity} específica a una
@@ -15,7 +14,6 @@ import org.hibernate.annotations.SoftDelete;
 @Getter
 @Setter
 @Builder
-@SoftDelete
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
@@ -29,11 +27,11 @@ public class DetalleLevaduraEntity {
     @Column(nullable = false)
     private Double cantidad;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "version_receta_id", nullable = false)
     private VersionRecetaEntity versionReceta;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "levadura_id", nullable = false)
     private LevaduraEntity levadura;
 }

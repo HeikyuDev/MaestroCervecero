@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.proveedor;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.PresentacionComercialFormDTO;
@@ -30,8 +31,8 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     /**
      * Recupera una página de presentaciones comerciales activas registradas en el sistema.
      * <p>
-     * Las presentaciones comerciales eliminadas lógicamente son excluidas automáticamente por
-     * el {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las presentaciones comerciales dadas de baja son excluidas por la condición
+     * {@code estado = 'ACTIVO'} aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -89,6 +90,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
                 .nombre(presentacionComercialFormDTO.getNombre())
                 .cantidad(presentacionComercialFormDTO.getCantidad())
                 .unidadDeMedida(presentacionComercialFormDTO.getUnidadDeMedida())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -140,13 +142,13 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     /**
      * Procesa la baja lógica de una presentación comercial existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link PresentacionComercialEntity}
-     * está anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de
-     * borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la presentación comercial con
+     * {@link Estado#BAJA} y persiste el cambio. A partir de ese momento, todas las consultas
+     * del repositorio dejan de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la presentación comercial a dar de baja.
-     * @return {@link PresentacionComercialResponseDTO} con los datos de la presentación comercial procesada antes de su inactivación.
+     * @return {@link PresentacionComercialResponseDTO} con los datos de la presentación comercial ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la presentación comercial con el ID especificado no existe o ya fue dada de baja.
      * @throws ReglaNegocioException Si la presentación comercial se encuentra asociada a al menos un ítem de catálogo de proveedor activo.
      */
@@ -163,8 +165,9 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
             throw new ReglaNegocioException("No se puede dar de baja la presentación comercial porque se encuentra asociada al catálogo de al menos un proveedor activo");
         }
 
-        // 3. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        presentacionComercialRepository.delete(presentacionComercialEntity);
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        presentacionComercialEntity.setEstado(Estado.BAJA);
+        presentacionComercialRepository.save(presentacionComercialEntity);
 
         // 4. Retornamos el DTO de la presentación comercial dada de baja
         return MapperPresentacionComercial.toDTO(presentacionComercialEntity);

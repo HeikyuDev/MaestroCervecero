@@ -25,6 +25,7 @@ public class MapperCatalogoProveedor {
                 .id(catalogoProveedorEntity.getId())
                 .presentacionComercial(MapperPresentacionComercial.toDTO(catalogoProveedorEntity.getPresentacionComercial()))
                 .insumo(MapperInsumo.toDTO(catalogoProveedorEntity.getInsumo()))
+                .seleccionado(catalogoProveedorEntity.isSeleccionado())
                 .build();
     }
 }

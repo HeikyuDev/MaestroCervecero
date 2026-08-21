@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.proveedor;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Entidad intermedia que representa un artículo específico en el catálogo de un proveedor.
@@ -12,6 +11,12 @@ import org.hibernate.annotations.SoftDelete;
  * ofrecido por qué proveedor.
  * No posee un repositorio propio; su ciclo de vida se gestiona a través de la
  * entidad {@link ProveedorEntity}.
+ * <p>
+ * Nunca se elimina físicamente: la combinación (proveedor, presentación comercial, insumo) es
+ * estable en el tiempo, así que sacar y volver a ofrecer el mismo ítem es literalmente prender
+ * y apagar {@code seleccionado} sobre la misma fila, no crear una nueva. Esto preserva la
+ * referencia de las {@code DetalleCompraEntity} históricas que apunten a este ítem.
+ * </p>
  */
 @Entity
 @Table(name = "catalogo_proveedor")
@@ -20,7 +25,6 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class CatalogoProveedorEntity {
 
@@ -32,16 +36,23 @@ public class CatalogoProveedorEntity {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "proveedor_id", nullable = false)
     private ProveedorEntity proveedor;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "presentacion_comercial_id", nullable = false)
-    // El catalogo SI O SI necesita una presentacion comercial, por eso optional = false
     private PresentacionComercialEntity presentacionComercial;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "insumo_id", nullable = false)
     private InsumoEntity insumo;
+
+    /**
+     * Indica si el proveedor ofrece actualmente este ítem. {@code false} cuando el usuario lo
+     * saca del catálogo; se vuelve a poner en {@code true} si el mismo ítem se vuelve a
+     * seleccionar más adelante, en vez de crear una fila nueva.
+     */
+    @Column(nullable = false)
+    private boolean seleccionado;
 }

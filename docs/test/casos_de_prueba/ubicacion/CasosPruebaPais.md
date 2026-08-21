@@ -18,7 +18,7 @@
 |---|---|---|---|---|
 |**CP-AP-01**|Nombre de país duplicado|`nombre: "Argentina"` (Existe en BD)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AP-02**|Nombre duplicado Case-Insensitive|`nombre: "argentina"` (Existe `"Argentina"`)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-AP-03**|Alta exitosa _(Camino feliz)_|`nombre: "Uruguay"` (Único)|`existsByNombreIgnoreCase` $\rightarrow$ **FALSE**|Persiste la entidad con `nombre = "Uruguay"` y retorna DTO.|
+|**CP-AP-03**|Alta exitosa _(Camino feliz)_|`nombre: "Uruguay"` (Único)|`existsByNombreIgnoreCase` $\rightarrow$ **FALSE**|Persiste la entidad con `nombre = "Uruguay"` y `estado = ACTIVO`, y retorna DTO.|
 
 ### 4. `modificarPais(Long id, PaisFormDTO paisFormDTO)`
 
@@ -33,6 +33,6 @@
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BP-01**|Baja de país inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `provinciaRepository` ni llama a `delete()`.|
-|**CP-BP-02**|Baja de país con provincias activas|`id: 1L` (Existe con 2 provincias activas)|`existsByPaisId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `delete()`.|
-|**CP-BP-03**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe y sin provincias asociadas)|`existsByPaisId(1L)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO del país dado de baja.|
+|**CP-BP-01**|Baja de país inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `provinciaRepository` ni llama a `save()`.|
+|**CP-BP-02**|Baja de país con provincias activas|`id: 1L` (Existe con 2 provincias activas)|`existsByPaisId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
+|**CP-BP-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe y sin provincias asociadas)|`existsByPaisId(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del país dado de baja.|

@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
@@ -30,8 +31,8 @@ public class MolinoServicioImpl implements IMolinoServicio {
     /**
      * Recupera una página de Molinos activos registrados en el sistema.
      * <p>
-     * Los molinos eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los molinos dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -84,6 +85,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
                 descripcion(molinoFormDTO.getDescripcion()).
                 rendimientoMolienda(molinoFormDTO.getRendimientoMolienda()).
                 estadoOperativo(EstadoOperativo.DISPONIBLE).
+                estado(Estado.ACTIVO).
                 build();
 
         // 4. Guardar la entidad en la base de datos.
@@ -129,9 +131,13 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
     /**
      * Da de baja un molino existente en el sistema.
+     * <p>
+     * En lugar de eliminar el registro, marca al molino con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
+     * </p>
      *
      * @param id ID del molino a dar de baja.
-     * @return {@link MolinoResponseDTO} con los datos del molino dado de baja.
+     * @return {@link MolinoResponseDTO} con los datos del molino ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
      */
     @Override
@@ -143,8 +149,9 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // TODO: Validar que el molino no esté asociado a lotes Pendientes o en Ejecuciion
 
-        // 2. Dar de baja el molino.
-        molinoRepository.delete(molinoEntity);
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        molinoEntity.setEstado(Estado.BAJA);
+        molinoRepository.save(molinoEntity);
 
         // 3. Retornar el DTO del molino dado de baja
         return MapperMolino.toDTO(molinoEntity);

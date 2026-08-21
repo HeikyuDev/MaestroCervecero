@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.proveedor;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ubicacion.MapperLocalidad;
@@ -31,8 +32,10 @@ public class MapperProveedor {
                 .direccion(proveedorEntity.getDireccion())
                 .localidad(MapperLocalidad.toDTO(proveedorEntity.getLocalidad()))
                 .catalogoProveedor(proveedorEntity.getCatalogoProveedor().stream()
+                        .filter(CatalogoProveedorEntity::isSeleccionado)
                         .map(MapperCatalogoProveedor::toDTO)
                         .toList())
+                .estado(proveedorEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(proveedorEntity.getCreatedBy())
                 .createdDate(proveedorEntity.getCreatedDate())

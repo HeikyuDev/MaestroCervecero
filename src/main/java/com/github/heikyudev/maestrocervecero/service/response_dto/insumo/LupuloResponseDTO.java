@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,10 +13,6 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar un lúpulo.
- * <p>
- * Excluye intencionalmente cualquier atributo de estado o borrado lógico
- * (soft delete): la capa de servicio solo expone lúpulos activos.
- * </p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +44,11 @@ public class LupuloResponseDTO implements InsumoResponseDTO {
      * Porcentaje de alfa ácidos (AA%). Positivo, mayor a 0.
      */
     private Integer aa;
+
+    /**
+     * Estado lógico del lúpulo (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

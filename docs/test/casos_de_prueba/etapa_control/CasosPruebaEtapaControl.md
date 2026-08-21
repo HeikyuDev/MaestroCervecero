@@ -22,7 +22,7 @@
 |**CP-AC-04**|Nombre duplicado para la misma etapa|`nombre: "Control Densidad"`, `etapaAControlar: MACERACION` (Ya existe)|`existsByNombre...AndEtapa...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AC-05**|Nombre duplicado Case-Insensitive para la misma etapa|`nombre: "control densidad"`, `etapaAControlar: MACERACION` (Existe `"Control Densidad"`)|`existsByNombre...AndEtapa...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AC-06**|Mismo nombre pero para diferente etapa controlable|`nombre: "Control Densidad"`, `etapaAControlar: FERMENTACION` (Existe `"Control Densidad"` pero en `MACERACION`)|`existsByNombre...AndEtapa...` $\rightarrow$ **FALSE**|Permite el alta, persiste la entidad y retorna DTO.|
-|**CP-AC-07**|Alta exitosa _(Camino feliz)_|`nombre: "Control Temperatura Fermentación"`, `etapaAControlar: TipoEtapa.FERMENTACION` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad y retorna `EtapaControlResponseDTO`.|
+|**CP-AC-07**|Alta exitosa _(Camino feliz)_|`nombre: "Control Temperatura Fermentación"`, `etapaAControlar: TipoEtapa.FERMENTACION` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estado = ACTIVO` y retorna `EtapaControlResponseDTO`.|
 
 ### 4. `modificarEtapaControl(Long id, EtapaControlFormDTO etapaControlFormDTO)`
 
@@ -38,5 +38,6 @@
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BC-01**|Baja de etapa de control inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la etapa de control con ID: 99". No llama a `delete()`.|
-|**CP-BC-02**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Invoca `delete(entity)` y retorna DTO de la etapa de control dada de baja.|
+|**CP-BC-01**|Baja de etapa de control inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la etapa de control con ID: 99". No llama a `save()`.|
+|**CP-BC-02**|Baja de etapa asociada a un plan de monitoreo de una receta activa|`id: 1L` (Existe, referenciada por un `PlanMonitoreoEtapaEntity` cuya receta está ACTIVA)|`existsPlanMonitoreoActivoAsociado(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
+|**CP-BC-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD, sin planes de monitoreo activos asociados)|`existsPlanMonitoreoActivoAsociado(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la etapa de control dada de baja.|

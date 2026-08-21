@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 
 /**
@@ -27,4 +28,9 @@ public interface InsumoResponseDTO {
      * @return Unidad de medida del insumo.
      */
     UnidadDeMedida getUnidadDeMedida();
+
+    /**
+     * @return Estado lógico del insumo (activo o dado de baja).
+     */
+    Estado getEstado();
 }

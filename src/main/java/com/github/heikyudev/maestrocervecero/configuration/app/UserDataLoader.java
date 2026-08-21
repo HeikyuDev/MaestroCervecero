@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.configuration.app;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +27,15 @@ public class UserDataLoader implements CommandLineRunner {
             UsuarioEntity adminUser = UsuarioEntity.builder()
                     .username("admin")
                     .password(passwordEncoder.encode("admin"))
+                    .nombre("Administrador")
+                    .correo("admin@maestrocervecero.com")
+                    .telefono("0000000000")
                     .accountNonExpired(true)
                     .accountNonLocked(true)
                     .credentialsNonExpired(true)
                     .isEnabled(true)
                     .rol(Rol.ADMINISTRADOR)
+                    .estado(Estado.ACTIVO)
                     .build();
             usuarioRepository.save(adminUser);
             System.out.println(">>> Usuario 'admin' creado exitosamente por defecto.");

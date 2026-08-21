@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,10 +13,6 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una levadura.
- * <p>
- * Excluye intencionalmente cualquier atributo de estado o borrado lógico
- * (soft delete): la capa de servicio solo expone levaduras activas.
- * </p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +44,11 @@ public class LevaduraResponseDTO implements InsumoResponseDTO {
      * Cantidad de células por gramo de la levadura. Positiva, mayor a 0.
      */
     private Double cantidadCelulasPorGramo;
+
+    /**
+     * Estado lógico de la levadura (activa o dada de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

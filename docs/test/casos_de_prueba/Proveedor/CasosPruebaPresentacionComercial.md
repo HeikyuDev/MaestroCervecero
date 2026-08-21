@@ -23,7 +23,7 @@
 |**CP-APC-05**|Nombre duplicado|`nombre: "Bolsa de 25 Kg"` (Existe en BD), `cantidad: 25.0`, `unidadDeMedida: KILOGRAMO`|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-APC-06**|Nombre duplicado Case-Insensitive|`nombre: "bolsa de 25 kg"` (Existe `"Bolsa de 25 Kg"`), `cantidad: 25.0`|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-APC-07**|Precedencia de la validación de cantidad|`nombre: "Bolsa de 25 Kg"` (Existe en BD), `cantidad: 0.0`|`validarCantidad` se ejecuta antes que `existsByNombreIgnoreCase`|Lanza `ReglaNegocioException` (no `RecursoDuplicadoException`). No invoca `existsByNombreIgnoreCase`.|
-|**CP-APC-08**|Alta exitosa _(Camino feliz)_|`nombre: "Paquete de 100 gm"` (Único), `cantidad: 100.0`, `unidadDeMedida: GRAMO`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `nombre`, `cantidad` y `unidadDeMedida` asignados, y retorna DTO.|
+|**CP-APC-08**|Alta exitosa _(Camino feliz)_|`nombre: "Paquete de 100 gm"` (Único), `cantidad: 100.0`, `unidadDeMedida: GRAMO`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `nombre`, `cantidad`, `unidadDeMedida` y `estado = ACTIVO` asignados, y retorna DTO.|
 |**CP-APC-09**|Alta con unidad de medida TONELADA|`nombre: "Pallet de 1 Tn"` (Único), `cantidad: 1.0`, `unidadDeMedida: TONELADA`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad y retorna DTO con `unidadDeMedida = TONELADA`.|
 |**CP-APC-10**|Mismo nombre con distinta unidad de medida|`nombre: "Bolsa de 25 Kg"` (Existe en BD), `cantidad: 25000.0`, `unidadDeMedida: GRAMO`|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. La unicidad es solo por nombre, sin considerar la unidad de medida.|
 
@@ -44,6 +44,6 @@
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BPC-01**|Baja de presentación comercial inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `catalogoProveedorRepository` ni llama a `delete()`.|
-|**CP-BPC-02**|Baja de presentación asociada a un catálogo de proveedor|`id: 1L` (Existe y asociada al catálogo de 1 proveedor activo)|`existsByPresentacionComercialId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `delete()`.|
-|**CP-BPC-03**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe y sin catálogos asociados)|`existsByPresentacionComercialId(1L)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO de la presentación comercial dada de baja.|
+|**CP-BPC-01**|Baja de presentación comercial inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `catalogoProveedorRepository` ni llama a `save()`.|
+|**CP-BPC-02**|Baja de presentación asociada a un catálogo de proveedor|`id: 1L` (Existe y asociada al catálogo de 1 proveedor activo)|`existsByPresentacionComercialId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
+|**CP-BPC-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe y sin catálogos asociados)|`existsByPresentacionComercialId(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la presentación comercial dada de baja.|

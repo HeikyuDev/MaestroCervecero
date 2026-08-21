@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -45,6 +46,11 @@ public class MolinoResponseDTO {
      * Rendimiento del molino (Kilos Por Hora)
      */
     private Double rendimientoMolienda;
+
+    /**
+     * Estado lógico del molino (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

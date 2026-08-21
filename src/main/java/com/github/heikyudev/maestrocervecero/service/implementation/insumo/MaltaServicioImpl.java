@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
@@ -29,8 +30,8 @@ public class MaltaServicioImpl implements IMaltaServicio {
     /**
      * Recupera una página de maltas activas registradas en el sistema.
      * <p>
-     * Las maltas eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las maltas dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -90,6 +91,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
                 .unidadDeMedida(UnidadDeMedida.KILOGRAMO)
                 .tipo(maltaFormDTO.getTipo())
                 .rendimiento(maltaFormDTO.getRendimiento())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -141,13 +143,12 @@ public class MaltaServicioImpl implements IMaltaServicio {
     /**
      * Procesa la baja lógica de una malta existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link MaltaEntity} hereda la
-     * anotación {@code @SoftDelete} de {@code InsumoEntity}, Hibernate ejecuta un UPDATE
-     * sobre el flag de borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la malta con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la malta a dar de baja.
-     * @return {@link MaltaResponseDTO} con los datos de la malta procesada antes de su inactivación.
+     * @return {@link MaltaResponseDTO} con los datos de la malta ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la malta con el ID especificado no existe o ya fue dada de baja.
      */
     @Override
@@ -158,9 +159,10 @@ public class MaltaServicioImpl implements IMaltaServicio {
         MaltaEntity maltaEntity = maltaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la malta con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         // TODO: validar dependencias de Stock/Recetas cuando esos módulos existan
-        maltaRepository.delete(maltaEntity);
+        maltaEntity.setEstado(Estado.BAJA);
+        maltaRepository.save(maltaEntity);
 
         // 3. Retornamos el DTO de la malta dada de baja en lugar de null
         return MapperMalta.toDTO(maltaEntity);

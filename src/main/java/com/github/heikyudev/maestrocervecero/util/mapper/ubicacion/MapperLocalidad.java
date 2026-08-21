@@ -24,6 +24,7 @@ public class MapperLocalidad {
                 .nombre(localidadEntity.getNombre())
                 .codigoPostal(localidadEntity.getCodigoPostal())
                 .provincia(MapperProvincia.toDTO(localidadEntity.getProvincia()))
+                .estado(localidadEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(localidadEntity.getCreatedBy())
                 .createdDate(localidadEntity.getCreatedDate())

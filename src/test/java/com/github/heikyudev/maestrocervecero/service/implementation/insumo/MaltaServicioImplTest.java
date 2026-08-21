@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
@@ -52,7 +53,7 @@ class MaltaServicioImplTest {
         MaltaEntity otraMaltaEntity = crearMaltaEntity(2L, "Caramelo 60", TipoMalta.CARAMELO, 75);
 
         // Cuando maltaRepository.findAll(pageable) sea llamado, retorna una página con las maltas activas
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(maltaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(maltaEntity, otraMaltaEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -98,9 +99,9 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dada de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para maltas dadas de baja
         when(maltaRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> maltaServicio.buscarPorId(99L))
@@ -200,6 +201,8 @@ class MaltaServicioImplTest {
         assertThat(entidadCapturada.getRendimiento()).isEqualTo(80);
         // La unidad de medida es fija por regla de negocio y la asigna el service, no el FormDTO
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
+        // El alta siempre debe registrar a la malta como ACTIVA, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Chocolate");
@@ -360,8 +363,8 @@ class MaltaServicioImplTest {
     // ==================== bajaMalta ====================
 
     @Test
-    @DisplayName("bajaMalta lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaMalta_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("bajaMalta lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaMalta_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(maltaRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> maltaServicio.bajaMalta(99L))
@@ -369,21 +372,24 @@ class MaltaServicioImplTest {
                 .hasMessage("No se encontró la malta con ID: 99");
 
         verify(maltaRepository).findById(99L);
-        verify(maltaRepository, never()).delete(any());
+        verify(maltaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("bajaMalta elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaMalta_debeEliminarYRetornarMaltaExistente() {
+    @DisplayName("bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaMalta_debeMarcarBajaYRetornarMaltaExistente() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(maltaRepository.save(maltaEntity)).thenReturn(maltaEntity);
 
         MaltaResponseDTO resultado = maltaServicio.bajaMalta(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(maltaEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertMaltaDTO(maltaEntity, resultado);
         verify(maltaRepository).findById(1L);
-        verify(maltaRepository).delete(maltaEntity);
+        verify(maltaRepository).save(maltaEntity);
+        verify(maltaRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -395,6 +401,7 @@ class MaltaServicioImplTest {
                 .unidadDeMedida(UnidadDeMedida.KILOGRAMO)
                 .tipo(tipo)
                 .rendimiento(rendimiento)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -412,5 +419,6 @@ class MaltaServicioImplTest {
         assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
         assertThat(dto.getTipo()).isEqualTo(entidad.getTipo());
         assertThat(dto.getRendimiento()).isEqualTo(entidad.getRendimiento());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

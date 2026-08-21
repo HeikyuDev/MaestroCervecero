@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -52,6 +53,11 @@ public class OllaHervorResponseDTO {
      * Perdida por trub de la olla de hervor en Litros.
      */
     private Double perdidaPorTrub;
+
+    /**
+     * Estado lógico de la olla de hervor (activa o dada de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

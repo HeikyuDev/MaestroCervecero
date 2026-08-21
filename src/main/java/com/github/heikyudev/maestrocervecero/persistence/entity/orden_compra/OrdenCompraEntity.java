@@ -2,7 +2,6 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import jakarta.persistence.*;
@@ -56,11 +55,11 @@ public class OrdenCompraEntity extends AuditableEntity<String> {
     @JoinColumn(name = "orden_produccion_id", nullable = false)
     private OrdenProduccionEntity ordenProduccion;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "proveedor_id", nullable = false)
     private ProveedorEntity proveedor;
 
-    @OneToMany(mappedBy = "ordenCompra", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "ordenCompra",fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<DetalleCompraEntity> detallesCompra = new ArrayList<>();
 

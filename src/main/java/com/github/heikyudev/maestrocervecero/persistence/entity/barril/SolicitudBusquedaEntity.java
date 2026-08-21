@@ -33,6 +33,10 @@ public class SolicitudBusquedaEntity extends AuditableEntity<String> {
 
     private String observaciones;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "despacho_barril_id", nullable = false)
+    private DespachoBarrilEntity despachoBarril;
+
     @Column(nullable = false)
     private boolean buscado;
 }

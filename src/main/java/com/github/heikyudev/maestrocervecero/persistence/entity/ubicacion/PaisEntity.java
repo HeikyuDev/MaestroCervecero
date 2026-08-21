@@ -1,9 +1,10 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
+
 
 /***
  * Representa un país.
@@ -21,7 +22,6 @@ import org.hibernate.annotations.SoftDelete;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@SoftDelete
 public class PaisEntity extends AuditableEntity<String> {
 
     @Id
@@ -31,4 +31,8 @@ public class PaisEntity extends AuditableEntity<String> {
 
     @Column(nullable = false)
     private String nombre;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

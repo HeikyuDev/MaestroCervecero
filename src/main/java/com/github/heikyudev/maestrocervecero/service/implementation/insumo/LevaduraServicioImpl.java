@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
@@ -29,8 +30,8 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     /**
      * Recupera una página de levaduras activas registradas en el sistema.
      * <p>
-     * Las levaduras eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las levaduras dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -90,6 +91,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
                 .unidadDeMedida(UnidadDeMedida.GRAMO)
                 .tipo(levaduraFormDTO.getTipo())
                 .cantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -141,13 +143,12 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     /**
      * Procesa la baja lógica de una levadura existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link LevaduraEntity} hereda la
-     * anotación {@code @SoftDelete} de {@code InsumoEntity}, Hibernate ejecuta un UPDATE
-     * sobre el flag de borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la levadura con {@link Estado#BAJA} y persiste
+     * el cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la levadura a dar de baja.
-     * @return {@link LevaduraResponseDTO} con los datos de la levadura procesada antes de su inactivación.
+     * @return {@link LevaduraResponseDTO} con los datos de la levadura ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la levadura con el ID especificado no existe o ya fue dada de baja.
      */
     @Override
@@ -158,9 +159,10 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         LevaduraEntity levaduraEntity = levaduraRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la levadura con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         // TODO: validar dependencias de Stock/Recetas cuando esos módulos existan
-        levaduraRepository.delete(levaduraEntity);
+        levaduraEntity.setEstado(Estado.BAJA);
+        levaduraRepository.save(levaduraEntity);
 
         // 3. Retornamos el DTO de la levadura dada de baja en lugar de null
         return MapperLevadura.toDTO(levaduraEntity);

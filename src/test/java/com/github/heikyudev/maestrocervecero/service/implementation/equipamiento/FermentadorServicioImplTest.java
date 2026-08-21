@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.equipamient
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
@@ -55,7 +56,7 @@ class FermentadorServicioImplTest {
         FermentadorEntity otraFermentadorEntity = crearFermentadorEntity(2L, "FERM-02", 120.0, 90.0);
 
         // Cuando fermentadorRepository.findAll(pageable) sea llamado, retorna una página con los fermentadores activos
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(fermentadorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(fermentadorEntity, otraFermentadorEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -101,9 +102,9 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para fermentadores dados de baja
         when(fermentadorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fermentadorServicio.buscarPorId(99L))
@@ -192,6 +193,8 @@ class FermentadorServicioImplTest {
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
+        // El alta siempre debe registrar al fermentador como ACTIVO, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("FERM-02");
@@ -298,22 +301,25 @@ class FermentadorServicioImplTest {
     // ==================== bajaFermentador ====================
 
     @Test
-    @DisplayName("bajaFermentador elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaFermentador_debeEliminarYRetornarFermentadorExistente() {
+    @DisplayName("bajaFermentador marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaFermentador_debeMarcarBajaYRetornarFermentadorExistente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         FermentadorResponseDTO resultado = fermentadorServicio.bajaFermentador(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(fermentadorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertFermentadorDTO(fermentadorEntity, resultado);
         verify(fermentadorRepository).findById(1L);
-        verify(fermentadorRepository).delete(fermentadorEntity);
+        verify(fermentadorRepository).save(fermentadorEntity);
+        verify(fermentadorRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("bajaFermentador lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaFermentador_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("bajaFermentador lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaFermentador_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(fermentadorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(99L))
@@ -321,7 +327,7 @@ class FermentadorServicioImplTest {
                 .hasMessage("No se encontró el Fermentador con ID:99");
 
         verify(fermentadorRepository).findById(99L);
-        verify(fermentadorRepository, never()).delete(any());
+        verify(fermentadorRepository, never()).save(any());
     }
 
     // ==================== helpers ====================
@@ -335,6 +341,7 @@ class FermentadorServicioImplTest {
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -355,5 +362,6 @@ class FermentadorServicioImplTest {
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getCapacidadTotal()).isEqualTo(entidad.getCapacidadTotal());
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

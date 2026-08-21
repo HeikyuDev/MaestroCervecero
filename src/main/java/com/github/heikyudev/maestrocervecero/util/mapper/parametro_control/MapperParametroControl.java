@@ -25,6 +25,7 @@ public class MapperParametroControl {
                 .descripcion(parametroControlEntity.getDescripcion())
                 .valorMinimo(parametroControlEntity.getValorMinimo())
                 .valorMaximo(parametroControlEntity.getValorMaximo())
+                .estado(parametroControlEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(parametroControlEntity.getCreatedBy())
                 .createdDate(parametroControlEntity.getCreatedDate())

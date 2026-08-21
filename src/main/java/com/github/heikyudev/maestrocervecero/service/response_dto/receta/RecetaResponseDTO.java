@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.receta;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -28,6 +29,11 @@ public class RecetaResponseDTO {
      * Última versión de la receta.
      */
     private VersionRecetaResponseDTO version;
+
+    /**
+     * Estado lógico de la receta (activa o dada de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

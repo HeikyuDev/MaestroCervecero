@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.usuario;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.UsuarioFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -83,6 +84,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
                 .correo(usuarioFormDTO.getCorreo())
                 .telefono(usuarioFormDTO.getTelefono())
                 .rol(usuarioFormDTO.getRol())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 3. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -132,16 +134,16 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
     }
 
     /**
-     * Procesa la baja de un usuario existente en el sistema.
+     * Procesa la baja lógica de un usuario existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Si la entidad {@link UsuarioEntity} utiliza
-     * anotaciones de borrado lógico (Soft Delete), Hibernate ejecutará la actualización correspondiente en lugar
-     * de una eliminación física.
+     * En lugar de eliminar el registro, marca al usuario con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio (incluyendo el login,
+     * a través de {@code findUserEntityByUsername}) dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del usuario a dar de baja.
-     * @return {@link UsuarioResponseDTO} con los datos del usuario procesado antes de su inactivación.
-     * @throws RecursoNoEncontradoException Si el usuario con el ID especificado no existe en el sistema.
+     * @return {@link UsuarioResponseDTO} con los datos del usuario ya marcado como dado de baja.
+     * @throws RecursoNoEncontradoException Si el usuario con el ID especificado no existe o ya fue dado de baja.
      */
     @Override
     @Transactional
@@ -151,10 +153,11 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         UsuarioEntity usuarioEntity = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete (@SoftDelete o @SQLDelete)
-        usuarioRepository.delete(usuarioEntity);
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        usuarioEntity.setEstado(Estado.BAJA);
+        usuarioRepository.save(usuarioEntity);
 
-        // 3. Retornamos el DTO del usuario dado de baja en lugar de null
+        // 3. Retornamos el DTO del usuario dado de baja
         return MapperUsuario.toDTO(usuarioEntity);
     }
 }

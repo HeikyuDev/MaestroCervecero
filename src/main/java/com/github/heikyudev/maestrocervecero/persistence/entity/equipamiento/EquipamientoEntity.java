@@ -1,6 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento;
 
-import org.hibernate.annotations.SoftDelete;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 
@@ -40,7 +40,6 @@ import lombok.experimental.SuperBuilder;
 @Entity
 @Table(name = "equipamiento")
 @Inheritance(strategy = InheritanceType.JOINED)
-@SoftDelete
 @Getter
 @Setter
 @SuperBuilder
@@ -53,7 +52,10 @@ public abstract class EquipamientoEntity extends AuditableEntity<String> {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "identificador_interno", nullable = false, unique = true)
+    // Sin unique = true a nivel de columna: la unicidad se valida en el service, scopeada
+    // a equipamientos ACTIVOS (ver IEquipamientoRepository). Un identificador usado por un
+    // equipo dado de BAJA queda libre para un equipo nuevo.
+    @Column(name = "identificador_interno", nullable = false)
     private String identificadorInterno;
 
     @Column(name = "descripcion")
@@ -62,4 +64,8 @@ public abstract class EquipamientoEntity extends AuditableEntity<String> {
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_operativo", nullable = false)
     private EstadoOperativo estadoOperativo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

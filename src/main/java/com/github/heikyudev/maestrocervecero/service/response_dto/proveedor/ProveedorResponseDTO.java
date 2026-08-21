@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.proveedor;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,10 +12,6 @@ import java.util.List;
 
 /**
  * DTO de respuesta para representar un proveedor.
- * <p>
- * Excluye intencionalmente cualquier atributo de estado o borrado lógico
- * (soft delete): la capa de servicio solo expone proveedores activos.
- * </p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -66,6 +63,11 @@ public class ProveedorResponseDTO {
      * Catálogo de productos que ofrece el proveedor (insumo + presentación comercial).
      */
     private List<CatalogoProveedorResponseDTO> catalogoProveedor;
+
+    /**
+     * Estado lógico del proveedor (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

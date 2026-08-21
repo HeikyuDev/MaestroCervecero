@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -56,6 +57,11 @@ public class MaceradorResponseDTO {
      * Eficiencia del proceso de maceración, representada como un porcentaje (0-100).
      */
     private Double eficienciaMaceracion;
+
+    /**
+     * Estado lógico del macerador (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

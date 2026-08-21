@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LupuloFormDTO;
@@ -29,8 +30,8 @@ public class LupuloServicioImpl implements ILupuloServicio {
     /**
      * Recupera una página de lúpulos activos registrados en el sistema.
      * <p>
-     * Los lúpulos eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los lúpulos dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -89,6 +90,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
                 .unidadDeMedida(UnidadDeMedida.GRAMO)
                 .formato(lupuloFormDTO.getFormato())
                 .aa(lupuloFormDTO.getAa())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -140,13 +142,12 @@ public class LupuloServicioImpl implements ILupuloServicio {
     /**
      * Procesa la baja lógica de un lúpulo existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link LupuloEntity} hereda la
-     * anotación {@code @SoftDelete} de {@code InsumoEntity}, Hibernate ejecuta un UPDATE
-     * sobre el flag de borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca al lúpulo con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del lúpulo a dar de baja.
-     * @return {@link LupuloResponseDTO} con los datos del lúpulo procesado antes de su inactivación.
+     * @return {@link LupuloResponseDTO} con los datos del lúpulo ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el lúpulo con el ID especificado no existe o ya fue dado de baja.
      */
     @Override
@@ -157,9 +158,10 @@ public class LupuloServicioImpl implements ILupuloServicio {
         LupuloEntity lupuloEntity = lupuloRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lúpulo con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         // TODO: validar dependencias de Stock/Recetas cuando esos módulos existan
-        lupuloRepository.delete(lupuloEntity);
+        lupuloEntity.setEstado(Estado.BAJA);
+        lupuloRepository.save(lupuloEntity);
 
         // 3. Retornamos el DTO del lúpulo dado de baja en lugar de null
         return MapperLupulo.toDTO(lupuloEntity);

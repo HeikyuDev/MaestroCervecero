@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,10 +13,6 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una malta.
- * <p>
- * Excluye intencionalmente cualquier atributo de estado o borrado lógico
- * (soft delete): la capa de servicio solo expone maltas activas.
- * </p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,6 +44,11 @@ public class MaltaResponseDTO implements InsumoResponseDTO {
      * Rendimiento potencial en porcentaje (entre 0 y 100 inclusive).
      */
     private Integer rendimiento;
+
+    /**
+     * Estado lógico de la malta (activa o dada de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

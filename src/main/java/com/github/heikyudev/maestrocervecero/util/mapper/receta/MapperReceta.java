@@ -47,6 +47,7 @@ public class MapperReceta {
                 .id(recetaEntity.getId())
                 .contadorLotes(recetaEntity.getContadorLotes())
                 .version(mapVersionActual(recetaEntity))
+                .estado(recetaEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(recetaEntity.getCreatedBy())
                 .createdDate(recetaEntity.getCreatedDate())

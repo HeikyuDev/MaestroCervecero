@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
@@ -31,8 +32,8 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     /**
      * Recupera una página de Maceradores activos registrados en el sistema.
      * <p>
-     * Los maceradores eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los maceradores dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -97,6 +98,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
                 .capacidadUtil(maceradorFormDTO.getCapacidadUtil())
                 .espacioMuerto(maceradorFormDTO.getEspacioMuerto())
                 .eficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion())
+                .estado(Estado.ACTIVO)
                 .build();
 
         return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
@@ -153,13 +155,12 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     /**
      * Procesa la baja lógica de un macerador existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link MaceradorEntity} hereda la
-     * anotación {@code @SoftDelete} de {@code EquipamientoEntity}, Hibernate ejecuta un UPDATE
-     * sobre el flag de borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca al macerador con {@link Estado#BAJA} y persiste
+     * el cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del macerador a dar de baja.
-     * @return {@link MaceradorResponseDTO} con los datos del macerador procesado antes de su inactivación.
+     * @return {@link MaceradorResponseDTO} con los datos del macerador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el macerador con el ID especificado no existe o ya fue dado de baja.
      */
     @Override
@@ -173,8 +174,9 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // TODO: Validar que el Macerador no esté asociado a lotes Pendientes o en Ejecuciion
 
-        // 2. Dar de baja el macerador
-        maceradorRepository.delete(maceradorEntity);
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        maceradorEntity.setEstado(Estado.BAJA);
+        maceradorRepository.save(maceradorEntity);
 
         // 3. Retornar el DTO del macerador dado de baja
         return MapperMacerador.toDTO(maceradorEntity);

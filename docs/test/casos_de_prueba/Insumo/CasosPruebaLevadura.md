@@ -25,7 +25,7 @@
 | **CP-AL-03** | Células por gramo negativa *(Límite inf.)* | `celulas: -1.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo <= 0` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
 | **CP-AL-04** | Nombre duplicado | `celulas: 1.0E10`, `nombre: "SafAle US-05"` (Existe en BD) | `existsByNombreIgnoreCase` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException`. No ejecuta `save()`. |
 | **CP-AL-05** | Nombre duplicado Case-Insensitive | `celulas: 1.0E10`, `nombre: "safale us-05"` (Existe `"SafAle US-05"`) | `existsByNombreIgnoreCase` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException`. No ejecuta `save()`. |
-| **CP-AL-06** | Alta exitosa y asignación de `GRAMO` *(Camino feliz)* | `celulas: 1.0E10`, `nombre: "SafLager W-34/70"` (Único), `tipo: LAGER` | Todas las validaciones $\rightarrow$ **FALSE** | Persiste la entidad asignando fijamente `unidadDeMedida = GRAMO` y retorna DTO. |
+| **CP-AL-06** | Alta exitosa y asignación de `GRAMO` *(Camino feliz)* | `celulas: 1.0E10`, `nombre: "SafLager W-34/70"` (Único), `tipo: LAGER` | Todas las validaciones $\rightarrow$ **FALSE** | Persiste la entidad asignando fijamente `unidadDeMedida = GRAMO` y `estado = ACTIVO`, y retorna DTO. |
 | **CP-AL-07** | Células por gramo en límite inferior válido | `celulas: 0.1` (Mayor a cero), `nombre: "Belle Saison"` | `cantidadCelulasPorGramo <= 0` $\rightarrow$ **FALSE** | Persiste con éxito y retorna DTO con `cantidadCelulasPorGramo = 0.1`. |
 
 ---
@@ -46,5 +46,5 @@
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-BL-01** | Baja de levadura inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la levadura con ID: 99". No llama a `delete()`. |
-| **CP-BL-02** | Baja exitosa *(Soft Delete)* | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Invoca `delete(entity)` y retorna DTO de la levadura dada de baja. |
+| **CP-BL-01** | Baja de levadura inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la levadura con ID: 99". No llama a `save()`. |
+| **CP-BL-02** | Baja exitosa *(Baja lógica vía Estado)* | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la levadura dada de baja. |

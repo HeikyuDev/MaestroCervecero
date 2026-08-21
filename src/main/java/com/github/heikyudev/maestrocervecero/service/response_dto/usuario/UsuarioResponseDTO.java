@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -42,6 +43,11 @@ public class UsuarioResponseDTO {
      * Rol del usuario.
      */
     private Rol rol;
+
+    /**
+     * Estado lógico del usuario (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

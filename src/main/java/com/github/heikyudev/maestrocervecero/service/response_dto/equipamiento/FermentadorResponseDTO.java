@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento;
 
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -46,6 +47,11 @@ public class FermentadorResponseDTO {
      * Capacidad util del fermentador en litros.
      */
     private Double capacidadUtil;
+
+    /**
+     * Estado lógico del fermentador (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

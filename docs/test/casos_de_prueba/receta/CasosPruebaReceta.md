@@ -53,7 +53,7 @@ Se concentran las reglas de negocio de la versión inicial. En todos los casos d
 |**CP-AR-33**|Máximo planificado superior al límite teórico| `valorMaximo: 110.0`; parámetro con `valorMaximo: 100.0`                                               |`valorMaximo > parametroControl.getValorMaximo()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No ejecuta `save()`.|
 |**CP-AR-34**|Rango planificado en los límites teóricos _(Límite válido)_| `valorMinimo: 0.0`, `valorMaximo: 100.0`, `valorIdeal: 0.0`; parámetro con límites `0.0` y `100.0`     |Todas las validaciones de rango $\rightarrow$ **FALSE**|Persiste el detalle de parámetro de control y retorna DTO.|
 |**CP-AR-35**|Alta sin plan de monitoreo _(Opcional)_| DTO válido con `planesMonitoreo: null`                                                                 |`Optional.ofNullable(planesMonitoreo)` $\rightarrow$ **Vacío**|Persiste la receta sin planes de monitoreo. No consulta `etapaControlRepository`.|
-|**CP-AR-36**|Alta exitosa _(Camino feliz)_| DTO válido: 2 maltas, 3 lúpulos (1 HERVOR), 1 levadura, 1 plan de monitoreo, `nombre: "IPA Nueva"` (Único) |Todas las validaciones $\rightarrow$ **FALSE**|Persiste la receta con 1 versión en `esUltimaVersion = true` y retorna DTO.|
+|**CP-AR-36**|Alta exitosa _(Camino feliz)_| DTO válido: 2 maltas, 3 lúpulos (1 HERVOR), 1 levadura, 1 plan de monitoreo, `nombre: "IPA Nueva"` (Único) |Todas las validaciones $\rightarrow$ **FALSE**|Persiste la receta con `estado = ACTIVO` y 1 versión en `esUltimaVersion = true`, y retorna DTO.|
 
 ### 4. `modificarReceta(Long id, RecetaFormDTO recetaFormDTO)`
 
@@ -77,7 +77,7 @@ Valida el versionado, los fallos por reglas de negocio y la existencia del regis
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BR-01**|Baja de receta inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No llama a `delete()`.|
-|**CP-BR-02**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe en BD, sin órdenes de producción pendientes asociadas)|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO de la receta dada de baja.|
-|**CP-BR-03**|Baja rechazada por orden de producción pendiente asociada|`id: 1L` (Existe en BD); existe una orden de producción en estado `PENDIENTE` asociada a alguna versión (histórica o activa) de la receta|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `delete()`.|
-|**CP-BR-04**|Baja permitida con órdenes asociadas en otro estado|`id: 1L` (Existe en BD); tiene órdenes `FINALIZADA`/`ANULADA` asociadas, pero ninguna `PENDIENTE`|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO de la receta dada de baja.|
+|**CP-BR-01**|Baja de receta inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No llama a `save()`.|
+|**CP-BR-02**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD, sin órdenes de producción pendientes asociadas)|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la receta dada de baja.|
+|**CP-BR-03**|Baja rechazada por orden de producción pendiente asociada|`id: 1L` (Existe en BD); existe una orden de producción en estado `PENDIENTE` asociada a alguna versión (histórica o activa) de la receta|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
+|**CP-BR-04**|Baja permitida con órdenes asociadas en otro estado|`id: 1L` (Existe en BD); tiene órdenes `FINALIZADA`/`ANULADA` asociadas, pero ninguna `PENDIENTE`|`existsByVersionReceta_Receta_IdAndEstado(1L, PENDIENTE)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la receta dada de baja.|

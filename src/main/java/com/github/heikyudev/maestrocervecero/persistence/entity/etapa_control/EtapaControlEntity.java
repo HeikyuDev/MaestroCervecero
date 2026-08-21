@@ -1,16 +1,15 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 @Entity
 @Table(name = "etapa_control")
 @Getter
 @Setter
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Builder
 @NoArgsConstructor
@@ -30,5 +29,9 @@ public class EtapaControlEntity extends AuditableEntity<String> {
     @Column(name = "etapa_a_controlar", nullable = false)
     @Enumerated(EnumType.STRING)
     private TipoEtapa etapaAControlar;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 
 }

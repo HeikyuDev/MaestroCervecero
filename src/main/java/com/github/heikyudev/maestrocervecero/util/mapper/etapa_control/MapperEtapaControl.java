@@ -24,6 +24,7 @@ public class MapperEtapaControl {
                 .nombre(etapaControlEntity.getNombre())
                 .descripcion(etapaControlEntity.getDescripcion())
                 .etapaAControlar(etapaControlEntity.getEtapaAControlar())
+                .estado(etapaControlEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(etapaControlEntity.getCreatedBy())
                 .createdDate(etapaControlEntity.getCreatedDate())

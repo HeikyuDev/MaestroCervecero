@@ -28,6 +28,7 @@ public class MapperMacerador {
                 .capacidadUtil(maceradorEntity.getCapacidadUtil())
                 .espacioMuerto(maceradorEntity.getEspacioMuerto())
                 .eficienciaMaceracion(maceradorEntity.getEficienciaMaceracion())
+                .estado(maceradorEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(maceradorEntity.getCreatedBy())
                 .createdDate(maceradorEntity.getCreatedDate())

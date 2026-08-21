@@ -1,9 +1,9 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Representa los diversos parámetros de control utilizados para realizar una futura medición en el sistema.
@@ -13,7 +13,6 @@ import org.hibernate.annotations.SoftDelete;
 @Table(name = "parametro_control")
 @Getter
 @Setter
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 @Builder
 @NoArgsConstructor
@@ -35,5 +34,9 @@ public class ParametroControlEntity extends AuditableEntity<String> {
 
     @Column(name = "valor_maximo", nullable = false)
     private Double valorMaximo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 
 }

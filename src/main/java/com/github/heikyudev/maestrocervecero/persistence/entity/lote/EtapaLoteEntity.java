@@ -46,7 +46,7 @@ public class EtapaLoteEntity {
     @Column(name = "fecha_finalizacion")
     private LocalDateTime fechaFinalizacion;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false) // EAGER: EquipamientoEntity tiene @SoftDelete
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) // EAGER: EquipamientoEntity tiene @SoftDelete
     @JoinColumn(name = "equipamiento_id", nullable = false)
     private EquipamientoEntity equipamiento;
 

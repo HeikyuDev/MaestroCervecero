@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.PlanMonit
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
@@ -64,8 +65,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
     /**
      * Recupera una página de recetas activas registradas en el sistema.
      * <p>
-     * Las recetas eliminadas lógicamente son excluidas automáticamente por el {@code @SoftDelete}
-     * de Hibernate sobre la entidad.
+     * Las recetas dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'} aplicada
+     * en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -125,7 +126,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         }
 
         // 3. Crear el contenedor de la receta y su versión inicial (cascada hacia todos los detalles)
-        RecetaEntity recetaEntity = RecetaEntity.builder().build();
+        RecetaEntity recetaEntity = RecetaEntity.builder().estado(Estado.ACTIVO).build();
         VersionRecetaEntity versionRecetaEntity = construirVersion(versionFormDTO, recetaEntity);
         recetaEntity.getVersiones().add(versionRecetaEntity);
 
@@ -186,13 +187,12 @@ public class RecetaServicioImpl implements IRecetaServicio {
     /**
      * Procesa la baja lógica de una receta existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link RecetaEntity} está anotada
-     * con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de borrado en lugar de
-     * una eliminación física.
+     * En lugar de eliminar el registro, marca a la receta con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la receta a dar de baja.
-     * @return {@link RecetaResponseDTO} con los datos de la receta procesada antes de su inactivación.
+     * @return {@link RecetaResponseDTO} con los datos de la receta ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la receta con el ID especificado no existe o ya fue dada de baja.
      * @throws ReglaNegocioException Si la receta tiene una orden de producción en estado {@code PENDIENTE} asociada a alguna de sus versiones.
      */
@@ -210,8 +210,9 @@ public class RecetaServicioImpl implements IRecetaServicio {
             throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una orden de producción en estado PENDIENTE asociada");
         }
 
-        // 3. Ejecutar la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        recetaRepository.delete(recetaEntity);
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        recetaEntity.setEstado(Estado.BAJA);
+        recetaRepository.save(recetaEntity);
 
         // 4. Retornar el DTO de la receta dada de baja
         return MapperReceta.toDTO(recetaEntity);

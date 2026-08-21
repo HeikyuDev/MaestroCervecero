@@ -1,9 +1,10 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
+
 
 /**
  * Representa una localidad, ciudad o pueblo específico dentro de una provincia.
@@ -18,7 +19,6 @@ import org.hibernate.annotations.SoftDelete;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@SoftDelete
 public class LocalidadEntity extends AuditableEntity<String> {
 
     @Id
@@ -32,9 +32,11 @@ public class LocalidadEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String codigoPostal;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    // Se utiliza EAGER ya que la provincia tiene la anotacion del Softdelete
-    // Se utiliza optional = false ya que una localidad siempre debe pertenecer a una provincia
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "provincia_id", nullable = false)
     private ProvinciaEntity provincia;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

@@ -2,9 +2,9 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +22,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@SoftDelete
 public class ProveedorEntity extends AuditableEntity<String> {
 
     @Id
@@ -48,13 +47,15 @@ public class ProveedorEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String direccion;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false) // (Un Proveedor debe tener una localidad)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) // (Un Proveedor debe tener una localidad)
     @JoinColumn(name = "localidad_id", nullable = false)
     private LocalidadEntity localidad;
 
     @OneToMany(mappedBy = "proveedor", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    // CatalogoProveedorEntity no tiene repositorio propio: su ciclo de vida se gestiona
-    // en cascada a través del proveedor (ver javadoc de CatalogoProveedorEntity)
     @Builder.Default
     private List<CatalogoProveedorEntity> catalogoProveedor = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

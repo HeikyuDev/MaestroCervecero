@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.etapa_control;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.etapa_control.EtapaControlFormDTO;
@@ -51,7 +52,7 @@ class EtapaControlServicioImplTest {
         EtapaControlEntity otraEtapaControlEntity = crearEtapaControlEntity(2L, "Control Temperatura", "Medición de temperatura", TipoEtapa.FERMENTACION);
 
         // Cuando etapaControlRepository.findAll(pageable) sea llamado, retorna una página con las etapas activas
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(etapaControlRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(etapaControlEntity, otraEtapaControlEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -97,9 +98,9 @@ class EtapaControlServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dada de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para etapas de control dadas de baja
         when(etapaControlRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> etapaControlServicio.buscarPorId(99L))
@@ -225,6 +226,8 @@ class EtapaControlServicioImplTest {
         assertThat(entidadCapturada.getNombre()).isEqualTo("Control Temperatura Fermentación");
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Descripción de prueba");
         assertThat(entidadCapturada.getEtapaAControlar()).isEqualTo(TipoEtapa.FERMENTACION);
+        // El alta siempre debe registrar a la etapa de control como ACTIVA, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Control Temperatura Fermentación");
@@ -325,8 +328,8 @@ class EtapaControlServicioImplTest {
     // ==================== bajaEtapaControl ====================
 
     @Test
-    @DisplayName("CP-BC-01: bajaEtapaControl lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaEtapaControl_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("CP-BC-01: bajaEtapaControl lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaEtapaControl_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(etapaControlRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> etapaControlServicio.bajaEtapaControl(99L))
@@ -334,21 +337,42 @@ class EtapaControlServicioImplTest {
                 .hasMessage("No se encontró la etapa de control con ID: 99");
 
         verify(etapaControlRepository).findById(99L);
-        verify(etapaControlRepository, never()).delete(any());
+        verify(etapaControlRepository, never()).existsPlanMonitoreoActivoAsociado(any());
+        verify(etapaControlRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BC-02: bajaEtapaControl elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaEtapaControl_debeEliminarYRetornarEtapaControlExistente() {
+    @DisplayName("CP-BC-02: bajaEtapaControl lanza ReglaNegocioException y no persiste cuando está asociada a un plan de monitoreo de una receta activa")
+    void bajaEtapaControl_debeRechazarConPlanMonitoreoActivoAsociado() {
         EtapaControlEntity etapaControlEntity = crearEtapaControlEntity(1L, "Control Densidad", "Medición de densidad", TipoEtapa.MACERACION);
         when(etapaControlRepository.findById(1L)).thenReturn(Optional.of(etapaControlEntity));
+        when(etapaControlRepository.existsPlanMonitoreoActivoAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> etapaControlServicio.bajaEtapaControl(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la etapa de control porque está asociada al plan de monitoreo de una receta activa");
+
+        verify(etapaControlRepository).existsPlanMonitoreoActivoAsociado(1L);
+        verify(etapaControlRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BC-03: bajaEtapaControl marca el estado como BAJA, persiste y retorna el DTO cuando no tiene planes de monitoreo activos asociados")
+    void bajaEtapaControl_debeMarcarBajaYRetornarEtapaControlExistente() {
+        EtapaControlEntity etapaControlEntity = crearEtapaControlEntity(1L, "Control Densidad", "Medición de densidad", TipoEtapa.MACERACION);
+        when(etapaControlRepository.findById(1L)).thenReturn(Optional.of(etapaControlEntity));
+        when(etapaControlRepository.existsPlanMonitoreoActivoAsociado(1L)).thenReturn(false);
+        when(etapaControlRepository.save(etapaControlEntity)).thenReturn(etapaControlEntity);
 
         EtapaControlResponseDTO resultado = etapaControlServicio.bajaEtapaControl(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(etapaControlEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertEtapaControlDTO(etapaControlEntity, resultado);
         verify(etapaControlRepository).findById(1L);
-        verify(etapaControlRepository).delete(etapaControlEntity);
+        verify(etapaControlRepository).existsPlanMonitoreoActivoAsociado(1L);
+        verify(etapaControlRepository).save(etapaControlEntity);
+        verify(etapaControlRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -359,6 +383,7 @@ class EtapaControlServicioImplTest {
                 .nombre(nombre)
                 .descripcion(descripcion)
                 .etapaAControlar(etapaAControlar)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -375,5 +400,6 @@ class EtapaControlServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEtapaAControlar()).isEqualTo(entidad.getEtapaAControlar());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

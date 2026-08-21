@@ -26,6 +26,7 @@ public class MapperUsuario {
                 .telefono(usuarioEntity.getTelefono())
                 .correo(usuarioEntity.getCorreo())
                 .rol(usuarioEntity.getRol())
+                .estado(usuarioEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(usuarioEntity.getCreatedBy())
                 .createdDate(usuarioEntity.getCreatedDate())

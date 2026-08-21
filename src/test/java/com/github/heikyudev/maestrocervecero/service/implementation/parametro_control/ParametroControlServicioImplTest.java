@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.parametro_control;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.parametro_control.ParametroControlFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -50,7 +51,7 @@ class ParametroControlServicioImplTest {
         ParametroControlEntity otroParametroControlEntity = crearParametroControlEntity(2L, "Densidad", "Control de densidad", 1.010, 1.060);
 
         // Cuando parametroControlRepository.findAll(pageable) sea llamado, retorna una página con los parámetros activos
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(parametroControlRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(parametroControlEntity, otroParametroControlEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -96,9 +97,9 @@ class ParametroControlServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para parámetros dados de baja
         when(parametroControlRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> parametroControlServicio.buscarPorId(99L))
@@ -221,6 +222,8 @@ class ParametroControlServicioImplTest {
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Descripción de prueba");
         assertThat(entidadCapturada.getValorMinimo()).isEqualTo(65.0);
         assertThat(entidadCapturada.getValorMaximo()).isEqualTo(68.0);
+        // El alta siempre debe registrar al parámetro de control como ACTIVO, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Temperatura");
@@ -375,8 +378,8 @@ class ParametroControlServicioImplTest {
     // ==================== bajaParametroControl ====================
 
     @Test
-    @DisplayName("CP-BP-01: bajaParametroControl lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaParametroControl_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("CP-BP-01: bajaParametroControl lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaParametroControl_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(parametroControlRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> parametroControlServicio.bajaParametroControl(99L))
@@ -384,21 +387,42 @@ class ParametroControlServicioImplTest {
                 .hasMessage("No se encontró el parámetro de control con ID: 99");
 
         verify(parametroControlRepository).findById(99L);
-        verify(parametroControlRepository, never()).delete(any());
+        verify(parametroControlRepository, never()).existsPlanMonitoreoActivoAsociado(any());
+        verify(parametroControlRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BP-02: bajaParametroControl elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaParametroControl_debeEliminarYRetornarParametroControlExistente() {
+    @DisplayName("CP-BP-02: bajaParametroControl lanza ReglaNegocioException y no persiste cuando está asociado a un plan de monitoreo de una receta activa")
+    void bajaParametroControl_debeRechazarConPlanMonitoreoActivoAsociado() {
         ParametroControlEntity parametroControlEntity = crearParametroControlEntity(1L, "Temperatura", "Control de temperatura", 65.0, 68.0);
         when(parametroControlRepository.findById(1L)).thenReturn(Optional.of(parametroControlEntity));
+        when(parametroControlRepository.existsPlanMonitoreoActivoAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> parametroControlServicio.bajaParametroControl(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el parámetro de control porque está asociado al plan de monitoreo de una receta activa");
+
+        verify(parametroControlRepository).existsPlanMonitoreoActivoAsociado(1L);
+        verify(parametroControlRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BP-03: bajaParametroControl marca el estado como BAJA, persiste y retorna el DTO cuando no tiene planes de monitoreo activos asociados")
+    void bajaParametroControl_debeMarcarBajaYRetornarParametroControlExistente() {
+        ParametroControlEntity parametroControlEntity = crearParametroControlEntity(1L, "Temperatura", "Control de temperatura", 65.0, 68.0);
+        when(parametroControlRepository.findById(1L)).thenReturn(Optional.of(parametroControlEntity));
+        when(parametroControlRepository.existsPlanMonitoreoActivoAsociado(1L)).thenReturn(false);
+        when(parametroControlRepository.save(parametroControlEntity)).thenReturn(parametroControlEntity);
 
         ParametroControlResponseDTO resultado = parametroControlServicio.bajaParametroControl(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(parametroControlEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertParametroControlDTO(parametroControlEntity, resultado);
         verify(parametroControlRepository).findById(1L);
-        verify(parametroControlRepository).delete(parametroControlEntity);
+        verify(parametroControlRepository).existsPlanMonitoreoActivoAsociado(1L);
+        verify(parametroControlRepository).save(parametroControlEntity);
+        verify(parametroControlRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -410,6 +434,7 @@ class ParametroControlServicioImplTest {
                 .descripcion(descripcion)
                 .valorMinimo(valorMinimo)
                 .valorMaximo(valorMaximo)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -428,5 +453,6 @@ class ParametroControlServicioImplTest {
         assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getValorMinimo()).isEqualTo(entidad.getValorMinimo());
         assertThat(dto.getValorMaximo()).isEqualTo(entidad.getValorMaximo());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

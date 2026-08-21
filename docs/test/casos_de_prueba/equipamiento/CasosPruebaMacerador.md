@@ -12,7 +12,7 @@ Aquí se concentran las principales reglas de validación del negocio
 |**CP-04**|Eficiencia sobre el máximo _(Límite sup.)_|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: 100.1`, `id: "MAC-01"`|`eficiencia > 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-05**|Identificador interno duplicado|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-01"` (Existe en BD)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-06**|Identificador duplicado Case-Insensitive|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "mac-01"` (Existe `"MAC-01"`)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-07**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y retorna DTO.|
+|**CP-07**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y `estado = ACTIVO`, y retorna DTO.|
 |**CP-08**|Eficiencia en límite inferior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 40.0`, `id: "MAC-03"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 40.0`.|
 |**CP-09**|Eficiencia en límite superior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 100.0`, `id: "MAC-04"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 100.0`.|
 
@@ -38,8 +38,8 @@ Valida la modificación, fallos por reglas de negocio y existencia del registro.
 
 |**ID**|**Nombre del Caso**|**Escenario**|**Condición**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BM-01**|Baja de macerador inexistente|`id: 99L` (no existe en BD)|`findById(99L)` vacío|Lanza `RecursoNoEncontradoException`|
-|**CP-BM-02**|Baja exitosa _(Soft Delete)_|`id: 1L` (existe en BD)|`findById(1L)` presente|Invoca `delete(entity)` y retorna DTO|
+|**CP-BM-01**|Baja de macerador inexistente|`id: 99L` (no existe en BD)|`findById(99L)` vacío|Lanza `RecursoNoEncontradoException`. No llama a `save()`.|
+|**CP-BM-02**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (existe en BD)|`findById(1L)` presente|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO|
 
 ### 5. Pruebas para `buscarTodos(Pageable pageable)`
 

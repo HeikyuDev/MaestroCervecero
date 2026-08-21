@@ -19,8 +19,8 @@
 |**CP-APR-01**|País asociado inexistente|`idPais: 99L` (No existe en BD), `nombre: "Misiones"`|`paisRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "El país no existe". No valida duplicación ni ejecuta `save()`.|
 |**CP-APR-02**|Nombre duplicado en el mismo país|`idPais: 1L` (Existe), `nombre: "Misiones"` (Ya registrada en ese país)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-APR-03**|Nombre duplicado Case-Insensitive|`idPais: 1L`, `nombre: "misiones"` (Existe `"Misiones"` en ese país)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-APR-04**|Mismo nombre en distinto país _(Válido)_|`idPais: 2L` (Existe), `nombre: "Misiones"` (Registrada solo en el `idPais: 1L`)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **FALSE**|Persiste la entidad asociada al país 2 y retorna DTO.|
-|**CP-APR-05**|Alta exitosa _(Camino feliz)_|`idPais: 1L` (Existe), `nombre: "Corrientes"` (Único en ese país)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `nombre` y `pais` asignados, y retorna DTO.|
+|**CP-APR-04**|Mismo nombre en distinto país _(Válido)_|`idPais: 2L` (Existe), `nombre: "Misiones"` (Registrada solo en el `idPais: 1L`)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **FALSE**|Persiste la entidad asociada al país 2, con `estado = ACTIVO`, y retorna DTO.|
+|**CP-APR-05**|Alta exitosa _(Camino feliz)_|`idPais: 1L` (Existe), `nombre: "Corrientes"` (Único en ese país)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `nombre`, `pais` y `estado = ACTIVO` asignados, y retorna DTO.|
 
 ### 4. `modificarProvincia(Long id, ProvinciaFormDTO provinciaFormDTO)`
 
@@ -37,6 +37,6 @@
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BPR-01**|Baja de provincia inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `localidadRepository` ni llama a `delete()`.|
-|**CP-BPR-02**|Baja de provincia con localidades activas|`id: 1L` (Existe con 2 localidades activas)|`existsByProvinciaId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `delete()`.|
-|**CP-BPR-03**|Baja exitosa _(Soft Delete)_|`id: 1L` (Existe y sin localidades asociadas)|`existsByProvinciaId(1L)` $\rightarrow$ **FALSE**|Invoca `delete(entity)` y retorna DTO de la provincia dada de baja.|
+|**CP-BPR-01**|Baja de provincia inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `localidadRepository` ni llama a `save()`.|
+|**CP-BPR-02**|Baja de provincia con localidades activas|`id: 1L` (Existe con 2 localidades activas)|`existsByProvinciaId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
+|**CP-BPR-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe y sin localidades asociadas)|`existsByProvinciaId(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la provincia dada de baja.|

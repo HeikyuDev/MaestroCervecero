@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
@@ -56,7 +57,7 @@ class PresentacionComercialServicioImplTest {
         PresentacionComercialEntity terceraPresentacionEntity = crearPresentacionComercialEntity(3L, "Pallet de 1 Tn", 1.0, UnidadDeMedida.TONELADA);
 
         // Cuando presentacionComercialRepository.findAll(pageable) sea llamado, retorna una página con las presentaciones activas
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(presentacionComercialRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(presentacionEntity, otraPresentacionEntity, terceraPresentacionEntity), pageable, 3));
 
         // === EJECUCION ===
@@ -103,9 +104,9 @@ class PresentacionComercialServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dada de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para presentaciones dadas de baja
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> presentacionComercialServicio.buscarPorId(99L))
@@ -240,6 +241,8 @@ class PresentacionComercialServicioImplTest {
         assertThat(entidadCapturada.getNombre()).isEqualTo("Paquete de 100 gm");
         assertThat(entidadCapturada.getCantidad()).isEqualTo(100.0);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
+        // El alta siempre debe registrar a la presentación comercial como ACTIVA, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Paquete de 100 gm");
@@ -423,8 +426,8 @@ class PresentacionComercialServicioImplTest {
     // ==================== bajaPresentacionComercial ====================
 
     @Test
-    @DisplayName("CP-BPC-01: bajaPresentacionComercial lanza RecursoNoEncontradoException y no consulta catálogos ni elimina cuando el ID no existe")
-    void bajaPresentacionComercial_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("CP-BPC-01: bajaPresentacionComercial lanza RecursoNoEncontradoException y no consulta catálogos ni persiste cuando el ID no existe")
+    void bajaPresentacionComercial_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> presentacionComercialServicio.bajaPresentacionComercial(99L))
@@ -433,11 +436,11 @@ class PresentacionComercialServicioImplTest {
 
         verify(presentacionComercialRepository).findById(99L);
         verifyNoInteractions(catalogoProveedorRepository);
-        verify(presentacionComercialRepository, never()).delete(any());
+        verify(presentacionComercialRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BPC-02: bajaPresentacionComercial lanza ReglaNegocioException y no elimina cuando está asociada a un catálogo de proveedor activo")
+    @DisplayName("CP-BPC-02: bajaPresentacionComercial lanza ReglaNegocioException y no persiste cuando está asociada a un catálogo de proveedor activo")
     void bajaPresentacionComercial_debeRechazarConCatalogoDeProveedorAsociado() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
@@ -448,23 +451,26 @@ class PresentacionComercialServicioImplTest {
                 .hasMessage("No se puede dar de baja la presentación comercial porque se encuentra asociada al catálogo de al menos un proveedor activo");
 
         verify(catalogoProveedorRepository).existsByPresentacionComercialId(1L);
-        verify(presentacionComercialRepository, never()).delete(any());
+        verify(presentacionComercialRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BPC-03: bajaPresentacionComercial elimina lógicamente (soft-delete) y retorna el DTO cuando no tiene catálogos asociados")
-    void bajaPresentacionComercial_debeEliminarYRetornarPresentacionComercialExistente() {
+    @DisplayName("CP-BPC-03: bajaPresentacionComercial marca el estado como BAJA, persiste y retorna el DTO cuando no tiene catálogos asociados")
+    void bajaPresentacionComercial_debeMarcarBajaYRetornarPresentacionComercialExistente() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
         when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(presentacionEntity)).thenReturn(presentacionEntity);
 
         PresentacionComercialResponseDTO resultado = presentacionComercialServicio.bajaPresentacionComercial(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(presentacionEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertPresentacionComercialDTO(presentacionEntity, resultado);
         verify(presentacionComercialRepository).findById(1L);
         verify(catalogoProveedorRepository).existsByPresentacionComercialId(1L);
-        verify(presentacionComercialRepository).delete(presentacionEntity);
+        verify(presentacionComercialRepository).save(presentacionEntity);
+        verify(presentacionComercialRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -475,6 +481,7 @@ class PresentacionComercialServicioImplTest {
                 .nombre(nombre)
                 .cantidad(cantidad)
                 .unidadDeMedida(unidadDeMedida)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -491,5 +498,6 @@ class PresentacionComercialServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getCantidad()).isEqualTo(entidad.getCantidad());
         assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

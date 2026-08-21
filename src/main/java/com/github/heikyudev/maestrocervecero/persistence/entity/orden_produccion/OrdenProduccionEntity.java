@@ -1,7 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import jakarta.persistence.*;
@@ -9,8 +8,6 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Representa una orden de producción: la puesta en marcha de una {@link VersionRecetaEntity}
@@ -55,7 +52,7 @@ public class OrdenProduccionEntity extends AuditableEntity<String> {
     @Enumerated(EnumType.STRING)
     private EstadoOrden estado;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "version_receta_id", nullable = false)
     private VersionRecetaEntity versionReceta;
 }

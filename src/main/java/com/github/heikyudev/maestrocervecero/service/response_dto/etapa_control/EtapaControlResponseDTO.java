@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.etapa_control;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,6 +37,12 @@ public class EtapaControlResponseDTO {
      * Tipo de etapa que se controla (Maceración, Hervidor, Fermentación, Maduración).
      */
     private TipoEtapa etapaAControlar;
+
+    /**
+     * Estado lógico de la etapa de control (activa o dada de baja).
+     */
+    private Estado estado;
+
     // === AUDITABLE ENTITY ===
 
     /**

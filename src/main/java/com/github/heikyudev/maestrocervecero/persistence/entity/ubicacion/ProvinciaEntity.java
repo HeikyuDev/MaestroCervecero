@@ -1,9 +1,9 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Representa una provincia, estado o división administrativa principal dentro de un país.
@@ -20,7 +20,6 @@ import org.hibernate.annotations.SoftDelete;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@SoftDelete
 public class ProvinciaEntity extends AuditableEntity<String> {
 
     @Id
@@ -31,9 +30,11 @@ public class ProvinciaEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String nombre;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    // Se utiliza EAGER ya que el pais tiene la anotacion del Softdelete
-    // Se utiliza optional = false ya que una provincia siempre debe pertenecer a un pais
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "pais_id", nullable = false)
     private PaisEntity pais;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

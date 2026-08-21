@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
@@ -31,8 +32,8 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     /**
      * Recupera una página de Ollas de Hervor activas registrados en el sistema.
      * <p>
-     * Las ollas eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las ollas de hervor dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -100,6 +101,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
                 .capacidadUtil(ollaHervorFormDTO.getCapacidadUtil())
                 .porcentajeEvaporacion(ollaHervorFormDTO.getPorcentajeEvaporacion())
                 .perdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 6. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
@@ -162,13 +164,13 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     /**
      * Procesa la baja lógica de una olla de hervor existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link OllaHervorEntity} hereda la
-     * anotación {@code @SoftDelete} de {@code EquipamientoEntity}, Hibernate ejecuta un UPDATE
-     * sobre el flag de borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la olla de hervor con {@link Estado#BAJA} y
+     * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan
+     * de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la olla de hervor a dar de baja.
-     * @return {@link OllaHervorResponseDTO} con los datos de la olla de hervor procesado antes de su inactivación.
+     * @return {@link OllaHervorResponseDTO} con los datos de la olla de hervor ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la olla de hervor con el ID especificado no existe o ya fue dado de baja.
      */
     @Override
@@ -181,8 +183,9 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // TODO: Validar que la olla de hervor no esté asociada a lotes Pendientes o en Ejecuciion
 
-        // 2. Dar de baja la olla de hervor
-        ollaHervorRepository.delete(ollaHervorEntity);
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        ollaHervorEntity.setEstado(Estado.BAJA);
+        ollaHervorRepository.save(ollaHervorEntity);
 
         // 3. Retornar el DTO de la olla de hervor dada de baja
         return MapperOllaHervor.toDTO(ollaHervorEntity);

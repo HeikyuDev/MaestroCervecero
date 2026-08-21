@@ -25,6 +25,7 @@ public class MapperLevadura {
                 .unidadDeMedida(levaduraEntity.getUnidadDeMedida())
                 .tipo(levaduraEntity.getTipo())
                 .cantidadCelulasPorGramo(levaduraEntity.getCantidadCelulasPorGramo())
+                .estado(levaduraEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(levaduraEntity.getCreatedBy())
                 .createdDate(levaduraEntity.getCreatedDate())

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.equipamient
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
@@ -55,7 +56,7 @@ class MolinoServicioImplTest {
         MolinoEntity otroMolinoEntity = crearMolinoEntity(2L, "MOL-02", 120.0);
 
         // Cuando molinoRepository.findAll(pageable) sea llamado, retorna una página con los molinos activos
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(molinoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(molinoEntity, otroMolinoEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -101,9 +102,9 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para molinos dados de baja
         when(molinoRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> molinoServicio.buscarPorId(99L))
@@ -191,6 +192,8 @@ class MolinoServicioImplTest {
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Molino de prueba");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(50.0);
+        // El alta siempre debe registrar al molino como ACTIVO, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-02");
@@ -315,22 +318,25 @@ class MolinoServicioImplTest {
     // ==================== bajaMolino ====================
 
     @Test
-    @DisplayName("CP-BM-02: bajaMolino elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaMolino_debeEliminarYRetornarMolinoExistente() {
+    @DisplayName("CP-BM-02: bajaMolino marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaMolino_debeMarcarBajaYRetornarMolinoExistente() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
         MolinoResponseDTO resultado = molinoServicio.bajaMolino(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(molinoEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertMolinoDTO(molinoEntity, resultado);
         verify(molinoRepository).findById(1L);
-        verify(molinoRepository).delete(molinoEntity);
+        verify(molinoRepository).save(molinoEntity);
+        verify(molinoRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("CP-BM-01: bajaMolino lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaMolino_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("CP-BM-01: bajaMolino lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaMolino_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(molinoRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(99L))
@@ -338,7 +344,7 @@ class MolinoServicioImplTest {
                 .hasMessage("No se encontró el Molino con ID:99");
 
         verify(molinoRepository).findById(99L);
-        verify(molinoRepository, never()).delete(any());
+        verify(molinoRepository, never()).save(any());
     }
 
     // ==================== helpers ====================
@@ -350,6 +356,7 @@ class MolinoServicioImplTest {
                 .descripcion("Molino de prueba")
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .rendimientoMolienda(rendimientoMolienda)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -367,5 +374,6 @@ class MolinoServicioImplTest {
         assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getRendimientoMolienda()).isEqualTo(entidad.getRendimientoMolienda());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

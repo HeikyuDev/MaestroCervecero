@@ -2,9 +2,9 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.cliente;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 @Entity
 @Table(name = "cliente")
@@ -13,7 +13,6 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 public class ClienteEntity extends AuditableEntity<String> {
 
@@ -34,7 +33,11 @@ public class ClienteEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String direccion;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "localidad_id", nullable = false)
     private LocalidadEntity localidad;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

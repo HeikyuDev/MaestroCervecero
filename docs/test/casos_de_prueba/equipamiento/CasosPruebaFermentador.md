@@ -20,7 +20,7 @@
 |**CP-AF-02**|Capacidad útil igual a total _(Límite)_|`capTotal: 100.0`, `capUtil: 100.0`, `idInterno: "FERM-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
 |**CP-AF-03**|Identificador interno duplicado|`capTotal: 100.0`, `capUtil: 80.0`, `idInterno: "FERM-01"` (Existe en BD)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AF-04**|Identificador duplicado Case-Insensitive|`capTotal: 100.0`, `capUtil: 80.0`, `idInterno: "ferm-01"` (Existe `"FERM-01"`)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-AF-05**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `idInterno: "FERM-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y retorna DTO.|
+|**CP-AF-05**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `idInterno: "FERM-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y `estado = ACTIVO`, y retorna DTO.|
 
 ### 4. `modificarFermentador(Long id, FermentadorFormDTO fermentadorFormDTO)`
 
@@ -36,5 +36,5 @@
 
 | **ID**       | **Nombre del Caso**             | **Datos de Entrada (Escenario)** | **Condición Evaluada**                             | **Resultado Esperado**                                              |
 | ------------ | ------------------------------- | -------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
-| **CP-BF-01** | Baja de fermentador inexistente | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException`. No llama a `delete()`.        |
-| **CP-BF-02** | Baja exitosa _(Soft Delete)_    | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Invoca `delete(entity)` y retorna DTO del fermentador dado de baja. |
+| **CP-BF-01** | Baja de fermentador inexistente | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException`. No llama a `save()`.        |
+| **CP-BF-02** | Baja exitosa _(Baja lógica vía Estado)_    | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del fermentador dado de baja. |

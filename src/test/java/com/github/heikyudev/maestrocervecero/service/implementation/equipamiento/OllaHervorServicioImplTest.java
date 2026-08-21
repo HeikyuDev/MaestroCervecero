@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.equipamient
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
@@ -55,7 +56,7 @@ class OllaHervorServicioImplTest {
         OllaHervorEntity otraOllaHervorEntity = crearOllaHervorEntity(2L, "OLLA-02", 120.0, 90.0, 12.0, 4.0);
 
         // Cuando ollaHervorRepository.findAll(pageable) sea llamado, retorna una página con las ollas activas
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(ollaHervorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(ollaHervorEntity, otraOllaHervorEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -101,9 +102,9 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para ollas de hervor dadas de baja
         when(ollaHervorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ollaHervorServicio.buscarPorId(99L))
@@ -233,6 +234,8 @@ class OllaHervorServicioImplTest {
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(entidadCapturada.getPorcentajeEvaporacion()).isEqualTo(10.0);
         assertThat(entidadCapturada.getPerdidaPorTrub()).isEqualTo(3.0);
+        // El alta siempre debe registrar a la olla de hervor como ACTIVA, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("OLLA-02");
@@ -393,22 +396,25 @@ class OllaHervorServicioImplTest {
     // ==================== bajaOllaHervor ====================
 
     @Test
-    @DisplayName("bajaOllaHervor elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaOllaHervor_debeEliminarYRetornarOllaHervorExistente() {
+    @DisplayName("bajaOllaHervor marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaOllaHervor_debeMarcarBajaYRetornarOllaHervorExistente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.bajaOllaHervor(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(ollaHervorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertOllaHervorDTO(ollaHervorEntity, resultado);
         verify(ollaHervorRepository).findById(1L);
-        verify(ollaHervorRepository).delete(ollaHervorEntity);
+        verify(ollaHervorRepository).save(ollaHervorEntity);
+        verify(ollaHervorRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("bajaOllaHervor lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaOllaHervor_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("bajaOllaHervor lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaOllaHervor_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(ollaHervorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(99L))
@@ -416,7 +422,7 @@ class OllaHervorServicioImplTest {
                 .hasMessage("No se encontró la Olla de Hervor con ID:99");
 
         verify(ollaHervorRepository).findById(99L);
-        verify(ollaHervorRepository, never()).delete(any());
+        verify(ollaHervorRepository, never()).save(any());
     }
 
     // ==================== helpers ====================
@@ -432,6 +438,7 @@ class OllaHervorServicioImplTest {
                 .capacidadUtil(capacidadUtil)
                 .porcentajeEvaporacion(porcentajeEvaporacion)
                 .perdidaPorTrub(perdidaPorTrub)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -456,5 +463,6 @@ class OllaHervorServicioImplTest {
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
         assertThat(dto.getPorcentajeEvaporacion()).isEqualTo(entidad.getPorcentajeEvaporacion());
         assertThat(dto.getPerdidaPorTrub()).isEqualTo(entidad.getPerdidaPorTrub());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

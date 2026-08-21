@@ -1,10 +1,8 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +25,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SoftDelete
-// ¿Porque no extiende de Auditable entity?? Porque esto es parte de la receta.
 public class PlanMonitoreoEtapaEntity {
 
     @Id
@@ -36,11 +32,11 @@ public class PlanMonitoreoEtapaEntity {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "version_receta_id", nullable = false)
     private VersionRecetaEntity versionReceta;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "etapa_control_id", nullable = false)
     private EtapaControlEntity etapaControl;
 

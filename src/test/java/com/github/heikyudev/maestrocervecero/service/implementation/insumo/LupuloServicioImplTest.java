@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LupuloFormDTO;
@@ -52,7 +53,7 @@ class LupuloServicioImplTest {
         LupuloEntity otroLupuloEntity = crearLupuloEntity(2L, "Saaz", FormatoLupulo.FLOR, 3);
 
         // Cuando lupuloRepository.findAll(pageable) sea llamado, retorna una página con los lúpulos activos
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(lupuloRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(lupuloEntity, otroLupuloEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -98,9 +99,9 @@ class LupuloServicioImplTest {
     }
 
     @Test
-    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para lúpulos dados de baja
         when(lupuloRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lupuloServicio.buscarPorId(99L))
@@ -200,6 +201,8 @@ class LupuloServicioImplTest {
         assertThat(entidadCapturada.getAa()).isEqualTo(12);
         // La unidad de medida es fija por regla de negocio y la asigna el service, no el FormDTO
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
+        // El alta siempre debe registrar al lúpulo como ACTIVO, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Mosaic");
@@ -334,8 +337,8 @@ class LupuloServicioImplTest {
     // ==================== bajaLupulo ====================
 
     @Test
-    @DisplayName("bajaLupulo lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaLupulo_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("bajaLupulo lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaLupulo_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(lupuloRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lupuloServicio.bajaLupulo(99L))
@@ -343,21 +346,24 @@ class LupuloServicioImplTest {
                 .hasMessage("No se encontró el lúpulo con ID: 99");
 
         verify(lupuloRepository).findById(99L);
-        verify(lupuloRepository, never()).delete(any());
+        verify(lupuloRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("bajaLupulo elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaLupulo_debeEliminarYRetornarLupuloExistente() {
+    @DisplayName("bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaLupulo_debeMarcarBajaYRetornarLupuloExistente() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
 
         LupuloResponseDTO resultado = lupuloServicio.bajaLupulo(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(lupuloEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertLupuloDTO(lupuloEntity, resultado);
         verify(lupuloRepository).findById(1L);
-        verify(lupuloRepository).delete(lupuloEntity);
+        verify(lupuloRepository).save(lupuloEntity);
+        verify(lupuloRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -369,6 +375,7 @@ class LupuloServicioImplTest {
                 .unidadDeMedida(UnidadDeMedida.GRAMO)
                 .formato(formato)
                 .aa(aa)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -386,5 +393,6 @@ class LupuloServicioImplTest {
         assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
         assertThat(dto.getFormato()).isEqualTo(entidad.getFormato());
         assertThat(dto.getAa()).isEqualTo(entidad.getAa());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

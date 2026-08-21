@@ -60,7 +60,7 @@ public class LimpiezaBarrilEntity extends AuditableEntity<String> {
     /**
      * Barril que fue sometido al proceso de limpieza.
      */
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barril_id", nullable = false)
     private BarrilEntity barril;
 }

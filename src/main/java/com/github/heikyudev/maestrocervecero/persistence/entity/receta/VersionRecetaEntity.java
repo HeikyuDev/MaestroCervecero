@@ -2,9 +2,6 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
-
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,7 +20,6 @@ import java.util.List;
 @Setter
 @Builder
 @NoArgsConstructor
-@SoftDelete
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class VersionRecetaEntity {
@@ -66,7 +62,7 @@ public class VersionRecetaEntity {
     @Column(name = "es_ultima_version", nullable = false)
     private boolean esUltimaVersion;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "receta_id", nullable = false)
     private RecetaEntity receta;
 

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
@@ -52,7 +53,7 @@ class LevaduraServicioImplTest {
         LevaduraEntity otraLevaduraEntity = crearLevaduraEntity(2L, "SafLager W-34/70", TipoLevadura.LAGER, 6.0E9);
 
         // Cuando levaduraRepository.findAll(pageable) sea llamado, retorna una página con las levaduras activas
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(levaduraRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(levaduraEntity, otraLevaduraEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -98,9 +99,9 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dada de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para levaduras dadas de baja
         when(levaduraRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> levaduraServicio.buscarPorId(99L))
@@ -200,6 +201,8 @@ class LevaduraServicioImplTest {
         assertThat(entidadCapturada.getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
         // La unidad de medida es fija por regla de negocio y la asigna el service, no el FormDTO
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
+        // El alta siempre debe registrar a la levadura como ACTIVA, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("SafLager W-34/70");
@@ -334,8 +337,8 @@ class LevaduraServicioImplTest {
     // ==================== bajaLevadura ====================
 
     @Test
-    @DisplayName("bajaLevadura lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaLevadura_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("bajaLevadura lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaLevadura_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(levaduraRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> levaduraServicio.bajaLevadura(99L))
@@ -343,21 +346,24 @@ class LevaduraServicioImplTest {
                 .hasMessage("No se encontró la levadura con ID: 99");
 
         verify(levaduraRepository).findById(99L);
-        verify(levaduraRepository, never()).delete(any());
+        verify(levaduraRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("bajaLevadura elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaLevadura_debeEliminarYRetornarLevaduraExistente() {
+    @DisplayName("bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaLevadura_debeMarcarBajaYRetornarLevaduraExistente() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(levaduraRepository.save(levaduraEntity)).thenReturn(levaduraEntity);
 
         LevaduraResponseDTO resultado = levaduraServicio.bajaLevadura(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(levaduraEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertLevaduraDTO(levaduraEntity, resultado);
         verify(levaduraRepository).findById(1L);
-        verify(levaduraRepository).delete(levaduraEntity);
+        verify(levaduraRepository).save(levaduraEntity);
+        verify(levaduraRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -369,6 +375,7 @@ class LevaduraServicioImplTest {
                 .unidadDeMedida(UnidadDeMedida.GRAMO)
                 .tipo(tipo)
                 .cantidadCelulasPorGramo(cantidadCelulasPorGramo)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -386,5 +393,6 @@ class LevaduraServicioImplTest {
         assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
         assertThat(dto.getTipo()).isEqualTo(entidad.getTipo());
         assertThat(dto.getCantidadCelulasPorGramo()).isEqualTo(entidad.getCantidadCelulasPorGramo());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

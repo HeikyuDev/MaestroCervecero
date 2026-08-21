@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.ProvinciaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IPaisRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IProvinciaRepository;
@@ -61,7 +62,7 @@ class ProvinciaServicioImplTest {
         ProvinciaEntity terceraProvinciaEntity = crearProvinciaEntity(3L, "Formosa", paisEntity);
 
         // Cuando provinciaRepository.findAll(pageable) sea llamado, retorna una página con las provincias activas
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(provinciaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(provinciaEntity, otraProvinciaEntity, terceraProvinciaEntity), pageable, 3));
 
         // === EJECUCION ===
@@ -109,9 +110,9 @@ class ProvinciaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dada de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para provincias dadas de baja
         when(provinciaRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> provinciaServicio.buscarPorId(99L))
@@ -219,6 +220,8 @@ class ProvinciaServicioImplTest {
         ProvinciaEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("Corrientes");
         assertThat(entidadCapturada.getPais()).isEqualTo(paisEntity);
+        // El alta siempre debe registrar a la provincia como ACTIVA, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Corrientes");
@@ -350,8 +353,8 @@ class ProvinciaServicioImplTest {
     // ==================== bajaProvincia ====================
 
     @Test
-    @DisplayName("CP-BPR-01: bajaProvincia lanza RecursoNoEncontradoException y no consulta localidades ni elimina cuando el ID no existe")
-    void bajaProvincia_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("CP-BPR-01: bajaProvincia lanza RecursoNoEncontradoException y no consulta localidades ni persiste cuando el ID no existe")
+    void bajaProvincia_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(provinciaRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> provinciaServicio.bajaProvincia(99L))
@@ -360,11 +363,11 @@ class ProvinciaServicioImplTest {
 
         verify(provinciaRepository).findById(99L);
         verifyNoInteractions(localidadRepository);
-        verify(provinciaRepository, never()).delete(any());
+        verify(provinciaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BPR-02: bajaProvincia lanza ReglaNegocioException y no elimina cuando la provincia tiene localidades activas asociadas")
+    @DisplayName("CP-BPR-02: bajaProvincia lanza ReglaNegocioException y no persiste cuando la provincia tiene localidades activas asociadas")
     void bajaProvincia_debeRechazarConLocalidadesActivasAsociadas() {
         PaisEntity paisEntity = crearPaisEntity(1L, "Argentina");
         ProvinciaEntity provinciaEntity = crearProvinciaEntity(1L, "Misiones", paisEntity);
@@ -376,24 +379,27 @@ class ProvinciaServicioImplTest {
                 .hasMessage("No se puede dar de baja la provincia porque tiene localidades activas asociadas");
 
         verify(localidadRepository).existsByProvinciaId(1L);
-        verify(provinciaRepository, never()).delete(any());
+        verify(provinciaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BPR-03: bajaProvincia elimina lógicamente (soft-delete) y retorna el DTO cuando no tiene localidades asociadas")
-    void bajaProvincia_debeEliminarYRetornarProvinciaExistente() {
+    @DisplayName("CP-BPR-03: bajaProvincia marca el estado como BAJA, persiste y retorna el DTO cuando no tiene localidades asociadas")
+    void bajaProvincia_debeMarcarBajaYRetornarProvinciaExistente() {
         PaisEntity paisEntity = crearPaisEntity(1L, "Argentina");
         ProvinciaEntity provinciaEntity = crearProvinciaEntity(1L, "Misiones", paisEntity);
         when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity));
         when(localidadRepository.existsByProvinciaId(1L)).thenReturn(false);
+        when(provinciaRepository.save(provinciaEntity)).thenReturn(provinciaEntity);
 
         ProvinciaResponseDTO resultado = provinciaServicio.bajaProvincia(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(provinciaEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertProvinciaDTO(provinciaEntity, resultado);
         verify(provinciaRepository).findById(1L);
         verify(localidadRepository).existsByProvinciaId(1L);
-        verify(provinciaRepository).delete(provinciaEntity);
+        verify(provinciaRepository).save(provinciaEntity);
+        verify(provinciaRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -402,6 +408,7 @@ class ProvinciaServicioImplTest {
         return PaisEntity.builder()
                 .id(id)
                 .nombre(nombre)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -410,6 +417,7 @@ class ProvinciaServicioImplTest {
                 .id(id)
                 .nombre(nombre)
                 .pais(pais)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -425,5 +433,6 @@ class ProvinciaServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getPais().getId()).isEqualTo(entidad.getPais().getId());
         assertThat(dto.getPais().getNombre()).isEqualTo(entidad.getPais().getNombre());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

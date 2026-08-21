@@ -36,7 +36,7 @@ public class LoteInsumoEntity {
     @Column(name = "fecha_vencimiento", nullable = false)
     private LocalDate fechaVencimiento;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "insumo_id", nullable = false)
     // Un insumo corresponde a un lote de insumo
     private InsumoEntity insumo;

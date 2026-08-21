@@ -23,6 +23,7 @@ public class MapperProvincia {
                 .id(provinciaEntity.getId())
                 .nombre(provinciaEntity.getNombre())
                 .pais(MapperPais.toDTO(provinciaEntity.getPais()))
+                .estado(provinciaEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(provinciaEntity.getCreatedBy())
                 .createdDate(provinciaEntity.getCreatedDate())

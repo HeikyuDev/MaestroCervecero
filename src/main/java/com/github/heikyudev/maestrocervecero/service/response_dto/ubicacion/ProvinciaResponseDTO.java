@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,10 +10,6 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una provincia.
- * <p>
- * Excluye intencionalmente cualquier atributo de estado o borrado lógico
- * (soft delete): la capa de servicio solo expone provincias activas.
- * </p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,6 +31,11 @@ public class ProvinciaResponseDTO {
      * País al que pertenece la provincia.
      */
     private PaisResponseDTO pais;
+
+    /**
+     * Estado lógico de la provincia (activa o dada de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.parametro_control;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -41,6 +42,11 @@ public class ParametroControlResponseDTO {
      * Valor máximo aceptable para el parámetro de control.
      */
     private Double valorMaximo;
+
+    /**
+     * Estado lógico del parámetro de control (activo o dado de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

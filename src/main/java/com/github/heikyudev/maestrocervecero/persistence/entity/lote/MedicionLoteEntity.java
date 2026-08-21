@@ -43,7 +43,7 @@ public class MedicionLoteEntity extends AuditableEntity<String> {
     @Column(name = "hay_alerta", nullable = false)
     private boolean hayAlerta;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "detalle_parametro_control_id", nullable = false) // Una medicion SI O SI se tiene que asicar a un DetalleParametroControlEntity, ya que es el que define el parámetro de control que se está midiendo.
     private DetalleParametroControlEntity detalleParametroControl;
 

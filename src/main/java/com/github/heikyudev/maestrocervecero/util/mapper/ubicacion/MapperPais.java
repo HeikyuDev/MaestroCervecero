@@ -22,6 +22,7 @@ public class MapperPais {
         return PaisResponseDTO.builder()
                 .id(paisEntity.getId())
                 .nombre(paisEntity.getNombre())
+                .estado(paisEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(paisEntity.getCreatedBy())
                 .createdDate(paisEntity.getCreatedDate())

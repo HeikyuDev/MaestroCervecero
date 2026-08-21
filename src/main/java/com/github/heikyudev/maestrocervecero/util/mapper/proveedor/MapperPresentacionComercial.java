@@ -25,6 +25,7 @@ public class MapperPresentacionComercial {
                 .nombre(presentacionComercialEntity.getNombre())
                 .cantidad(presentacionComercialEntity.getCantidad())
                 .unidadDeMedida(presentacionComercialEntity.getUnidadDeMedida())
+                .estado(presentacionComercialEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(presentacionComercialEntity.getCreatedBy())
                 .createdDate(presentacionComercialEntity.getCreatedDate())

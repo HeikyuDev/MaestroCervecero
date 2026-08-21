@@ -1,9 +1,9 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Representa un barril físico utilizado para almacenar cerveza, resultado del proceso de envasado de un lote.
@@ -16,7 +16,6 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 public class BarrilEntity extends AuditableEntity<String> {
 
@@ -59,5 +58,10 @@ public class BarrilEntity extends AuditableEntity<String> {
     @Enumerated(EnumType.STRING)
     private EstadoOperativoBarril estadoOperativo;
 
-
+    /**
+     * Estado general del barril, que indica si está activo o inactivo en el sistema.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

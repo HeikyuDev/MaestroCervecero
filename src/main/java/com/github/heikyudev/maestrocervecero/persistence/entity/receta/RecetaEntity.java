@@ -1,7 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
-import org.hibernate.annotations.SoftDelete;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 
@@ -23,12 +23,9 @@ import java.util.List;
  * anterior. Esto evita que un cambio en la receta afecte retroactivamente lotes
  * de producción que ya se iniciaron con una versión previa.
  * <p>
- * {@code @SoftDelete}: reemplaza el campo "estado" del diagrama de clases — no se
- * modela como enum propio, se delega directamente en el borrado lógico de Hibernate.
  */
 @Entity
 @Table(name = "receta")
-@SoftDelete
 @Getter
 @Setter
 @Builder
@@ -49,4 +46,8 @@ public class RecetaEntity extends AuditableEntity<String> {
     @Builder.Default
     @OneToMany(mappedBy = "receta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<VersionRecetaEntity> versiones = new ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

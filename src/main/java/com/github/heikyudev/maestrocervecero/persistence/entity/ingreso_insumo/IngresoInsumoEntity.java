@@ -49,7 +49,7 @@ public class IngresoInsumoEntity extends AuditableEntity<String> {
     private EstadoTransaccion estado;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "detalle_compra_id") // EN este caso un detalle de compra PUEDE SER NULO, Ya que se pueden hacer ingresos de insumo directos
+    @JoinColumn(name = "detalle_compra_id")
     private DetalleCompraEntity detalleCompra;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

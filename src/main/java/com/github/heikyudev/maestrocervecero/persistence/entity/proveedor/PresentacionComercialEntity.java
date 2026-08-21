@@ -1,10 +1,11 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
+
 
 /**
  * Representa el "empaque" o la presentación en la que se comercializa un insumo.
@@ -20,7 +21,6 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 public class PresentacionComercialEntity extends AuditableEntity<String> {
 
@@ -34,6 +34,10 @@ public class PresentacionComercialEntity extends AuditableEntity<String> {
 
     @Column(nullable = false)
     private Double cantidad;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 
     @Column(name = "unidad_de_medida",nullable = false)
     @Enumerated(EnumType.STRING)

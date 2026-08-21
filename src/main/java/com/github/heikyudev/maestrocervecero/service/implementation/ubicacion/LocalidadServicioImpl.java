@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.ProvinciaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IProvinciaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.LocalidadFormDTO;
@@ -30,8 +31,8 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     /**
      * Recupera una página de localidades activas registradas en el sistema.
      * <p>
-     * Las localidades eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las localidades dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -96,6 +97,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
                 .nombre(localidadFormDTO.getNombre())
                 .codigoPostal(localidadFormDTO.getCodigoPostal())
                 .provincia(provinciaEntity)
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -152,13 +154,13 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     /**
      * Procesa la baja lógica de una localidad existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link LocalidadEntity} está
-     * anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de
-     * borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la localidad con {@link Estado#BAJA} y
+     * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan
+     * de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la localidad a dar de baja.
-     * @return {@link LocalidadResponseDTO} con los datos de la localidad procesada antes de su inactivación.
+     * @return {@link LocalidadResponseDTO} con los datos de la localidad ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la localidad con el ID especificado no existe o ya fue dada de baja.
      */
     @Override
@@ -169,9 +171,10 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
         LocalidadEntity localidadEntity = localidadRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         // TODO: verifica que la localidad seleccionada no se encuentre asociada a Proveedores o Clientes en estado activo.
-        localidadRepository.delete(localidadEntity);
+        localidadEntity.setEstado(Estado.BAJA);
+        localidadRepository.save(localidadEntity);
 
         // 3. Retornamos el DTO de la localidad dada de baja
         return MapperLocalidad.toDTO(localidadEntity);

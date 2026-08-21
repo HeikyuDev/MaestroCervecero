@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.equipamient
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
@@ -54,7 +55,7 @@ class MaceradorServicioImplTest {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
 
         // Cuando maceradorRepository.findAll(pageable) sea llamado, retorna una página con el macerador activo
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(maceradorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(maceradorEntity), pageable, 1));
 
         // === EJECUCION ===
@@ -99,9 +100,9 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para maceradores dados de baja
         when(maceradorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> maceradorServicio.buscarPorId(99L))
@@ -214,6 +215,8 @@ class MaceradorServicioImplTest {
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(entidadCapturada.getEspacioMuerto()).isEqualTo(5.0);
         assertThat(entidadCapturada.getEficienciaMaceracion()).isEqualTo(75.0);
+        // El alta siempre debe registrar al macerador como ACTIVO, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MAC-02");
@@ -347,22 +350,25 @@ class MaceradorServicioImplTest {
     // ==================== bajaMacerador ====================
 
     @Test
-    @DisplayName("bajaMacerador elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaMacerador_debeEliminarYRetornarMaceradorExistente() {
+    @DisplayName("bajaMacerador marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaMacerador_debeMarcarBajaYRetornarMaceradorExistente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         MaceradorResponseDTO resultado = maceradorServicio.bajaMacerador(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(maceradorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertMaceradorDTO(maceradorEntity, resultado);
         verify(maceradorRepository).findById(1L);
-        verify(maceradorRepository).delete(maceradorEntity);
+        verify(maceradorRepository).save(maceradorEntity);
+        verify(maceradorRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("bajaMacerador lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaMacerador_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("bajaMacerador lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaMacerador_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(maceradorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(99L))
@@ -370,7 +376,7 @@ class MaceradorServicioImplTest {
                 .hasMessage("No se encontró el Macerador con ID:99");
 
         verify(maceradorRepository).findById(99L);
-        verify(maceradorRepository, never()).delete(any());
+        verify(maceradorRepository, never()).save(any());
     }
 
     // ==================== helpers ====================
@@ -386,6 +392,7 @@ class MaceradorServicioImplTest {
                 .capacidadUtil(capacidadUtil)
                 .espacioMuerto(espacioMuerto)
                 .eficienciaMaceracion(eficienciaMaceracion)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -410,5 +417,6 @@ class MaceradorServicioImplTest {
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
         assertThat(dto.getEspacioMuerto()).isEqualTo(entidad.getEspacioMuerto());
         assertThat(dto.getEficienciaMaceracion()).isEqualTo(entidad.getEficienciaMaceracion());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

@@ -4,21 +4,11 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEnt
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Línea de detalle que asocia un {@link LupuloEntity} específico a una
  * {@link VersionRecetaEntity}: cantidad planificada (en gramos), momento de uso
  * y, según ese uso, la etapa correspondiente y/o el tiempo de hervor.
- * <p>
- * Reglas de negocio (aplicadas por el service, no por esta entidad):
- * <ul>
- *   <li>{@code uso = HERVOR}: {@code etapaDeUso = HERVIDO}, {@code tiempoDeHervor}
- *       obligatorio (mayor a cero, no supera la duración de hervido de la versión).</li>
- *   <li>{@code uso = WHIRLPOOL}: {@code etapaDeUso = HERVIDO}, sin tiempo de hervor.</li>
- *   <li>{@code uso = DRY_HOP}: el usuario elige {@code etapaDeUso} entre
- *       {@code FERMENTACION} o {@code MADURACION}, sin tiempo de hervor.</li>
- * </ul>
  */
 @Entity
 @Table(name = "detalle_lupulo")
@@ -28,7 +18,6 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-@SoftDelete
 public class DetalleLupuloEntity {
 
     @Id
@@ -53,11 +42,11 @@ public class DetalleLupuloEntity {
     @Column(name = "tiempo_de_hervor", nullable = false)
     private Double tiempoDeHervor;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "version_receta_id", nullable = false)
     private VersionRecetaEntity versionReceta;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "lupulo_id", nullable = false)
     private LupuloEntity lupulo;
 }

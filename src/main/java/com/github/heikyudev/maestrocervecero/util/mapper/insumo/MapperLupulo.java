@@ -25,6 +25,7 @@ public class MapperLupulo {
                 .unidadDeMedida(lupuloEntity.getUnidadDeMedida())
                 .formato(lupuloEntity.getFormato())
                 .aa(lupuloEntity.getAa())
+                .estado(lupuloEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(lupuloEntity.getCreatedBy())
                 .createdDate(lupuloEntity.getCreatedDate())

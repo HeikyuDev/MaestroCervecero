@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IPaisRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IProvinciaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.PaisFormDTO;
@@ -30,8 +31,8 @@ public class PaisServicioImpl implements IPaisServicio {
     /**
      * Recupera una página de países activos registrados en el sistema.
      * <p>
-     * Los países eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los países dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -82,6 +83,7 @@ public class PaisServicioImpl implements IPaisServicio {
         // 2. Creo la entidad que se va a almacenar en la base de datos
         PaisEntity paisEntity = PaisEntity.builder()
                 .nombre(paisFormDTO.getNombre())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 3. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -125,13 +127,12 @@ public class PaisServicioImpl implements IPaisServicio {
     /**
      * Procesa la baja lógica de un país existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link PaisEntity} está
-     * anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de
-     * borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca al país con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del país a dar de baja.
-     * @return {@link PaisResponseDTO} con los datos del país procesado antes de su inactivación.
+     * @return {@link PaisResponseDTO} con los datos del país ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el país con el ID especificado no existe o ya fue dado de baja.
      * @throws ReglaNegocioException Si el país tiene al menos una provincia activa asociada.
      */
@@ -148,8 +149,9 @@ public class PaisServicioImpl implements IPaisServicio {
             throw new ReglaNegocioException("No se puede dar de baja el país porque tiene provincias activas asociadas");
         }
 
-        // 3. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        paisRepository.delete(paisEntity);
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        paisEntity.setEstado(Estado.BAJA);
+        paisRepository.save(paisEntity);
 
         // 4. Retornamos el DTO del país dado de baja
         return MapperPais.toDTO(paisEntity);

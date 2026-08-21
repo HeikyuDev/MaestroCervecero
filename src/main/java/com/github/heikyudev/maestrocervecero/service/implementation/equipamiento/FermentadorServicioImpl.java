@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
@@ -32,8 +33,8 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     /**
      * Recupera una página de Fermentadores activos registrados en el sistema.
      * <p>
-     * Las fermentadores eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los fermentadores dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -88,6 +89,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
                 .capacidadTotal(fermentadorFormDTO.getCapacidadTotal())
                 .capacidadUtil(fermentadorFormDTO.getCapacidadUtil())
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente.
@@ -135,13 +137,12 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     /**
      * Procesa la baja lógica de un Fermentador existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link FermentadorEntity} hereda la
-     * anotación {@code @SoftDelete} de {@code EquipamientoEntity}, Hibernate ejecuta un UPDATE
-     * sobre el flag de borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca al fermentador con {@link Estado#BAJA} y persiste
+     * el cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del fermentador a dar de baja.
-     * @return {@link FermentadorResponseDTO} con los datos del fermentador procesado antes de su inactivación.
+     * @return {@link FermentadorResponseDTO} con los datos del fermentador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el fermentador con el ID especificado no existe o ya fue dado de baja.
      */
     @Override
@@ -154,8 +155,9 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // TODO: Validar que el fermentador no esté asociado a lotes Pendientes o en Ejecuciion
 
-        // 2. Dar de baja el fermentador (soft delete)
-        fermentadorRepository.delete(fermentadorEntity);
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        fermentadorEntity.setEstado(Estado.BAJA);
+        fermentadorRepository.save(fermentadorEntity);
 
         // 3. Retornar el DTO de el fermentador  dada de baja
         return MapperFermentador.toDTO(fermentadorEntity);

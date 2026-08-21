@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.etapa_contr
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.etapa_control.EtapaControlFormDTO;
@@ -37,8 +38,8 @@ public class EtapaControlServicioImpl implements IEtapaControlServicio {
     /**
      * Recupera una página de etapas de control activas registradas en el sistema.
      * <p>
-     * Las etapas de control eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las etapas de control dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -97,6 +98,7 @@ public class EtapaControlServicioImpl implements IEtapaControlServicio {
                 .nombre(etapaControlFormDTO.getNombre())
                 .descripcion(etapaControlFormDTO.getDescripcion())
                 .etapaAControlar(etapaControlFormDTO.getEtapaAControlar())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
@@ -149,14 +151,15 @@ public class EtapaControlServicioImpl implements IEtapaControlServicio {
     /**
      * Procesa la baja lógica de una etapa de control existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link EtapaControlEntity} está
-     * anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de borrado en
-     * lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la etapa de control con {@link Estado#BAJA} y
+     * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan
+     * de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la etapa de control a dar de baja.
-     * @return {@link EtapaControlResponseDTO} con los datos de la etapa de control procesada antes de su inactivación.
+     * @return {@link EtapaControlResponseDTO} con los datos de la etapa de control ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la etapa de control con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la etapa de control está asociada a un plan de monitoreo de una receta activa.
      */
     @Override
     @Transactional
@@ -166,12 +169,16 @@ public class EtapaControlServicioImpl implements IEtapaControlServicio {
         EtapaControlEntity etapaControlEntity = etapaControlRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de control con ID: " + id));
 
-        // TODO: Implementar validaciones para verificar que la etapa de control no se encuentre asociada a planes de monitoreo de recetas activas
+        // 2. Validar que la etapa de control no esté asociada a un plan de monitoreo de una receta activa
+        if (etapaControlRepository.existsPlanMonitoreoActivoAsociado(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la etapa de control porque está asociada al plan de monitoreo de una receta activa");
+        }
 
-        // 2. Ejecutar la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        etapaControlRepository.delete(etapaControlEntity);
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        etapaControlEntity.setEstado(Estado.BAJA);
+        etapaControlRepository.save(etapaControlEntity);
 
-        // 3. Retornar el DTO de la etapa de control dada de baja
+        // 4. Retornar el DTO de la etapa de control dada de baja
         return MapperEtapaControl.toDTO(etapaControlEntity);
     }
 

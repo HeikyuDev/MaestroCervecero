@@ -1,19 +1,47 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.ProvinciaEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
 
 /**
  * Repositorio JPA de las provincias ({@link ProvinciaEntity}).
  * <p>
- * El filtrado de registros eliminados lógicamente (soft delete) es aplicado
- * automáticamente por Hibernate gracias a la anotación {@code @SoftDelete} declarada
- * en la entidad: todas las consultas derivadas operan solo sobre provincias activas.
+ * La entidad ya no utiliza {@code @SoftDelete}: el filtrado de provincias dadas de baja se
+ * realiza explícitamente en cada consulta mediante la condición {@code estado = 'ACTIVO'}.
+ * Los métodos heredados de {@link JpaRepository} ({@code findById}, {@code findAll}) se
+ * sobrescriben con esa misma condición para que todo el código existente que ya los invoca
+ * (sin cambios), incluido {@code LocalidadServicioImpl}, siga viendo únicamente provincias activas.
  * </p>
  */
 @Repository
 public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Long> {
+
+    /**
+     * Busca una provincia activa por su ID.
+     *
+     * @param id El ID de la provincia a buscar.
+     * @return Un Optional que contiene la provincia si está activa, o vacío en caso contrario.
+     */
+    @Override
+    @Query("SELECT pr FROM ProvinciaEntity pr WHERE pr.id = :id AND pr.estado = 'ACTIVO'")
+    Optional<ProvinciaEntity> findById(@Param("id") Long id);
+
+    /**
+     * Obtiene una página de provincias activas.
+     * @param pageable La configuración de paginación.
+     * @return Una página de provincias activas.
+     */
+    @Override
+    @Query(value = "SELECT pr FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO'",
+            countQuery = "SELECT COUNT(pr) FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO'")
+    Page<ProvinciaEntity> findAll(Pageable pageable);
 
     /**
      * Verifica si existe una provincia activa con el nombre dado (ignorando mayúsculas y
@@ -27,7 +55,8 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      * @param idPais El ID del país al que debe pertenecer la provincia.
      * @return {@code true} si ya existe una provincia activa con ese nombre en ese país, {@code false} en caso contrario.
      */
-    boolean existsByNombreIgnoreCaseAndPaisId(String nombre, Long idPais);
+    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE UPPER(pr.nombre) = UPPER(:nombre) AND pr.pais.id = :idPais AND pr.estado = 'ACTIVO'")
+    boolean existsByNombreIgnoreCaseAndPaisId(@Param("nombre") String nombre, @Param("idPais") Long idPais);
 
     /**
      * Verifica si existe una provincia activa con el nombre dado (ignorando mayúsculas y
@@ -43,7 +72,8 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      * @param id El ID de la provincia a excluir de la verificación.
      * @return {@code true} si otra provincia activa ya posee ese nombre en ese país, {@code false} en caso contrario.
      */
-    boolean existsByNombreIgnoreCaseAndPaisIdAndIdNot(String nombre, Long idPais, Long id);
+    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE UPPER(pr.nombre) = UPPER(:nombre) AND pr.pais.id = :idPais AND pr.id <> :id AND pr.estado = 'ACTIVO'")
+    boolean existsByNombreIgnoreCaseAndPaisIdAndIdNot(@Param("nombre") String nombre, @Param("idPais") Long idPais, @Param("id") Long id);
 
     /**
      * Verifica si existe alguna provincia activa asociada al país indicado.
@@ -55,5 +85,6 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      * @param idPais El ID del país a verificar.
      * @return {@code true} si existe al menos una provincia activa asociada a ese país, {@code false} en caso contrario.
      */
-    boolean existsByPaisId(Long idPais);
+    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE pr.pais.id = :idPais AND pr.estado = 'ACTIVO'")
+    boolean existsByPaisId(@Param("idPais") Long idPais);
 }

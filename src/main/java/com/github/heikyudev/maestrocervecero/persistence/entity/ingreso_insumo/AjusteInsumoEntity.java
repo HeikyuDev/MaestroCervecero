@@ -28,6 +28,14 @@ public class AjusteInsumoEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String observacion;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "motivo_ajuste_id", nullable = false)
+    private MotivoAjusteEntity motivoAjuste;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "lote_insumo_id", nullable = false)
+    private LoteInsumoEntity loteInsumo;
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private EstadoTransaccion estado;

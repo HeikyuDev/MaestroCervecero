@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Representa la configuración detallada de un parámetro de control dentro de una etapa específica
@@ -24,7 +23,6 @@ import org.hibernate.annotations.SoftDelete;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SoftDelete
 public class DetalleParametroControlEntity {
 
     @Id
@@ -41,11 +39,11 @@ public class DetalleParametroControlEntity {
     @Column(name = "valor_ideal", nullable = false)
     private Double valorIdeal;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "plan_monitoreo_etapa_id", nullable = false)
     private PlanMonitoreoEtapaEntity planMonitoreoEtapa;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "parametro_control_id", nullable = false)
     private ParametroControlEntity parametroControl;
 }

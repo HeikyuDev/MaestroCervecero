@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.proveedor;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,10 +11,6 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una presentación comercial.
- * <p>
- * Excluye intencionalmente cualquier atributo de estado o borrado lógico
- * (soft delete): la capa de servicio solo expone presentaciones comerciales activas.
- * </p>
  */
 @NoArgsConstructor
 @AllArgsConstructor
@@ -40,6 +37,11 @@ public class PresentacionComercialResponseDTO {
      * Unidad de medida de la cantidad (GRAMO, KILOGRAMO, TONELADA).
      */
     private UnidadDeMedida unidadDeMedida;
+
+    /**
+     * Estado lógico de la presentación comercial (activa o dada de baja).
+     */
+    private Estado estado;
 
     // === AUDITABLE ENTITY ===
 

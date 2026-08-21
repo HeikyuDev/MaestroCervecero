@@ -1,22 +1,19 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
+import org.springframework.security.core.userdetails.UserDetails;
 
 /**
  * Entidad de persistencia de los usuarios del ERP. Cumple doble función: es el registro
  * de negocio en la tabla {@code usuarios}, y es la fuente de datos que
- * {@code UserDetailServiceImpl} traduce a un {@link org.springframework.security.core.userdetails.UserDetails}
+ * {@code UserDetailServiceImpl} traduce a un {@link UserDetails}
  * en cada login (por eso trae, además de las credenciales, los flags de estado de cuenta
  * que ese contrato exige).
- * <p>
- * {@code @SoftDelete}: Hibernate agrega automáticamente {@code WHERE deleted = false} a
- * TODAS las queries generadas sobre esta entidad (incluida la que usa el login para buscar
- * por username). Esto implica que un usuario dado de baja lógica queda excluido del login
- * sin que haya que codificar esa exclusión a mano en ningún lado.
  */
+
 @Entity
 @Table(name = "usuarios")
 @Getter
@@ -24,7 +21,6 @@ import org.hibernate.annotations.SoftDelete;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@SoftDelete
 public class UsuarioEntity extends AuditableEntity<String>{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,8 +59,15 @@ public class UsuarioEntity extends AuditableEntity<String>{
     @Column(nullable = false)
     private Rol rol;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
+
     // ======== DATOS DEL USUARIO ====
+    @Column(nullable = false)
     private String nombre;
+    @Column(nullable = false)
     private String correo;
+    @Column(nullable = false)
     private String telefono;
 }

@@ -20,7 +20,7 @@
 |**CP-AM-02**|Rendimiento de molienda igual a cero _(Límite)_|`rendimiento: 0.0`, `idInterno: "MOL-01"`|`rendimientoMolienda <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
 |**CP-AM-03**|Identificador interno duplicado|`rendimiento: 50.0`, `idInterno: "MOL-01"` (Existe en BD)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AM-04**|Identificador duplicado Case-Insensitive|`rendimiento: 50.0`, `idInterno: "mol-01"` (Existe `"MOL-01"`)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-AM-05**|Alta exitosa _(Camino feliz)_|`rendimiento: 50.0`, `idInterno: "MOL-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y retorna DTO.|
+|**CP-AM-05**|Alta exitosa _(Camino feliz)_|`rendimiento: 50.0`, `idInterno: "MOL-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y `estado = ACTIVO`, y retorna DTO.|
 |**CP-AM-06**|Rendimiento en límite inferior válido|`rendimiento: 0.1` (Mayor a 0), `idInterno: "MOL-03"`|`rendimientoMolienda <= 0` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `rendimientoMolienda = 0.1`.|
 
 ### 4. `modificarMolino(Long id, MolinoFormDTO molinoFormDTO)`
@@ -37,5 +37,5 @@
 
 | **ID**       | **Nombre del Caso**          | **Datos de Entrada (Escenario)** | **Condición Evaluada**                             | **Resultado Esperado**                                         |
 | ------------ | ---------------------------- | -------------------------------- | -------------------------------------------------- | -------------------------------------------------------------- |
-| **CP-BM-01** | Baja de molino inexistente   | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException`. No llama a `delete()`.   |
-| **CP-BM-02** | Baja exitosa _(Soft Delete)_ | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Invoca `delete(entity)` y retorna DTO del molino dado de baja. |
+| **CP-BM-01** | Baja de molino inexistente   | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException`. No llama a `save()`.   |
+| **CP-BM-02** | Baja exitosa _(Baja lógica vía Estado)_ | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del molino dado de baja. |

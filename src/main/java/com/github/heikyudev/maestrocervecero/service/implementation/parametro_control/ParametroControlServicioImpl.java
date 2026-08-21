@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.parametro_c
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.parametro_control.ParametroControlFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -27,8 +28,8 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
     /**
      * Recupera una página de parámetros de control activos registrados en el sistema.
      * <p>
-     * Los parámetros de control eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los parámetros de control dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -84,6 +85,7 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
                 .descripcion(parametroControlFormDTO.getDescripcion())
                 .valorMinimo(parametroControlFormDTO.getValorMinimo())
                 .valorMaximo(parametroControlFormDTO.getValorMaximo())
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
@@ -135,14 +137,15 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
     /**
      * Procesa la baja lógica de un parámetro de control existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link ParametroControlEntity} está
-     * anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de borrado en
-     * lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca al parámetro de control con {@link Estado#BAJA} y
+     * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan de
+     * encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del parámetro de control a dar de baja.
-     * @return {@link ParametroControlResponseDTO} con los datos del parámetro de control procesado antes de su inactivación.
+     * @return {@link ParametroControlResponseDTO} con los datos del parámetro de control ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el parámetro de control con el ID especificado no existe o ya fue dado de baja.
+     * @throws ReglaNegocioException Si el parámetro de control está asociado a un plan de monitoreo de una receta activa.
      */
     @Override
     @Transactional
@@ -152,12 +155,16 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
         ParametroControlEntity parametroControlEntity = parametroControlRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el parámetro de control con ID: " + id));
 
-        // TODO: Implementar validacion el cual verifica que el parámetro de control seleccionado no se encuentre asociado a planes de monitoreo de recetas activas
+        // 2. Validar que el parámetro de control no esté asociado a un plan de monitoreo de una receta activa
+        if (parametroControlRepository.existsPlanMonitoreoActivoAsociado(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el parámetro de control porque está asociado al plan de monitoreo de una receta activa");
+        }
 
-        // 2. Ejecutar la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        parametroControlRepository.delete(parametroControlEntity);
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        parametroControlEntity.setEstado(Estado.BAJA);
+        parametroControlRepository.save(parametroControlEntity);
 
-        // 3. Retornar el DTO del parámetro de control dado de baja
+        // 4. Retornar el DTO del parámetro de control dado de baja
         return MapperParametroControl.toDTO(parametroControlEntity);
     }
 

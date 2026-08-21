@@ -67,14 +67,14 @@ public class DespachoBarrilEntity extends AuditableEntity<String> {
     /**
      * Cliente al que se le despachó el barril.
      */
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
     private ClienteEntity cliente;
 
     /**
      * Barril específico que fue despachado.
      */
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barril_id", nullable = false)
     private BarrilEntity barril;
 }

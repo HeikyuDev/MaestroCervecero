@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.UsuarioFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -54,7 +55,7 @@ class UsuarioServicioImplTest {
         UsuarioEntity otroUsuarioEntity = crearUsuarioEntity(2L, "maria", "hash2", "Maria Lopez", "maria@mail.com", "2222", Rol.ADMINISTRADOR);
 
         // Cuando usuarioRepository.findAll(pageable) sea llamado, retorna una página con los usuarios activos
-        // (el filtrado de soft-deleted es automático por @SoftDelete de Hibernate sobre la entidad)
+        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
         when(usuarioRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(usuarioEntity, otroUsuarioEntity), pageable, 2));
 
         // === EJECUCION ===
@@ -100,9 +101,9 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está soft-deleted")
+    @DisplayName("CP-BI-02: buscarPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja")
     void buscarPorId_debeLanzarExcepcionSiNoExiste() {
-        // @SoftDelete hace que findById devuelva Optional.empty() también para registros eliminados lógicamente
+        // findById filtra por estado = ACTIVO, por lo que devuelve Optional.empty() también para usuarios dados de baja
         when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> usuarioServicio.buscarPorId(99L))
@@ -155,6 +156,8 @@ class UsuarioServicioImplTest {
         assertThat(entidadCapturada.getCorreo()).isEqualTo("carlos@mail.com");
         assertThat(entidadCapturada.getTelefono()).isEqualTo("3333");
         assertThat(entidadCapturada.getRol()).isEqualTo(Rol.GERENTE_DE_PRODUCCION);
+        // El alta siempre debe registrar al usuario como ACTIVO, sin importar lo que traiga el FormDTO
+        assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getUsername()).isEqualTo("carlos_cervecero");
@@ -321,8 +324,8 @@ class UsuarioServicioImplTest {
     // ==================== bajaUsuario ====================
 
     @Test
-    @DisplayName("CP-BU-01: bajaUsuario lanza RecursoNoEncontradoException y no elimina cuando el ID no existe")
-    void bajaUsuario_debeLanzarExcepcionYNoEliminarSiNoExiste() {
+    @DisplayName("CP-BU-01: bajaUsuario lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    void bajaUsuario_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> usuarioServicio.bajaUsuario(99L))
@@ -330,21 +333,24 @@ class UsuarioServicioImplTest {
                 .hasMessage("No se encontró el usuario con ID: 99");
 
         verify(usuarioRepository).findById(99L);
-        verify(usuarioRepository, never()).delete(any());
+        verify(usuarioRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BU-02: bajaUsuario elimina lógicamente (soft-delete) y retorna el DTO cuando el ID existe")
-    void bajaUsuario_debeEliminarYRetornarUsuarioExistente() {
+    @DisplayName("CP-BU-02: bajaUsuario marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaUsuario_debeMarcarBajaYRetornarUsuarioExistente() {
         UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
+        when(usuarioRepository.save(usuarioEntity)).thenReturn(usuarioEntity);
 
         UsuarioResponseDTO resultado = usuarioServicio.bajaUsuario(1L);
 
-        // El borrado físico a nivel repositorio es convertido a UPDATE por el @SoftDelete de Hibernate
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(usuarioEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertUsuarioDTO(usuarioEntity, resultado);
         verify(usuarioRepository).findById(1L);
-        verify(usuarioRepository).delete(usuarioEntity);
+        verify(usuarioRepository).save(usuarioEntity);
+        verify(usuarioRepository, never()).delete(any());
     }
 
     // ==================== helpers ====================
@@ -358,6 +364,7 @@ class UsuarioServicioImplTest {
                 .correo(correo)
                 .telefono(telefono)
                 .rol(rol)
+                .estado(Estado.ACTIVO)
                 .build();
     }
 
@@ -379,6 +386,7 @@ class UsuarioServicioImplTest {
         assertThat(dto.getCorreo()).isEqualTo(entidad.getCorreo());
         assertThat(dto.getTelefono()).isEqualTo(entidad.getTelefono());
         assertThat(dto.getRol()).isEqualTo(entidad.getRol());
+        assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
         assertThat(dto.getCreatedBy()).isEqualTo(entidad.getCreatedBy());
         assertThat(dto.getCreatedDate()).isEqualTo(entidad.getCreatedDate());
         assertThat(dto.getLastModifiedBy()).isEqualTo(entidad.getLastModifiedBy());

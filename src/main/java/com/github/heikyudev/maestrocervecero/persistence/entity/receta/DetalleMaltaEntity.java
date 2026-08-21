@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 /**
  * Línea de detalle que asocia una {@link MaltaEntity} específica a una
@@ -17,9 +16,6 @@ import org.hibernate.annotations.SoftDelete;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-// IMPORTANTE, Ya que si se elimina un detalle de malta, no se quiere que
-// se borre físicamente de la base de datos, sino que se marque como eliminado lógicamente.
-@SoftDelete
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class DetalleMaltaEntity {
 
@@ -31,12 +27,12 @@ public class DetalleMaltaEntity {
     @Column(nullable = false)
     private Double cantidad;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     // VERSION RECETA TIENE SOFTDELETE?? SI ENTONCES EL FETCH TIENE QUE SER EAGER
     @JoinColumn(name = "version_receta_id", nullable = false)
     private VersionRecetaEntity versionReceta;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "malta_id", nullable = false)
     private MaltaEntity malta;
 }

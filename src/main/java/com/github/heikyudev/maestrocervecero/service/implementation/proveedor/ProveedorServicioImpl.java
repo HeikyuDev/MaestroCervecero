@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Catalo
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
@@ -27,6 +28,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,8 +46,8 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     /**
      * Recupera una página de proveedores activos registrados en el sistema.
      * <p>
-     * Los proveedores eliminados lógicamente son excluidos automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Los proveedores dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -104,6 +108,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
                 .email(proveedorFormDTO.getEmail())
                 .direccion(proveedorFormDTO.getDireccion())
                 .localidad(localidadEntity)
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Construyo el catálogo validando que cada presentación comercial e insumo referenciados existan
@@ -114,13 +119,17 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     }
 
     /**
-     * Actualiza la información de un proveedor existente en la base de datos, reemplazando
-     * por completo su catálogo de productos.
+     * Actualiza la información de un proveedor existente en la base de datos, sincronizando
+     * su catálogo de productos con el enviado en el formulario.
      * <p>
      * Localiza el proveedor por su ID, verifica que la razón social y el CUIT no colisionen
-     * con los de otro proveedor activo, y que la localidad seleccionada exista. Valida el
-     * nuevo catálogo antes de dar de baja lógica el catálogo actual, para no perder los
-     * datos existentes si el nuevo catálogo es inválido.
+     * con los de otro proveedor activo, y que la localidad seleccionada exista. El catálogo no
+     * se reemplaza por completo: se calcula la diferencia entre el catálogo actual y el deseado
+     * (por combinación presentación comercial + insumo). Los ítems seleccionados que el usuario
+     * sacó se deseleccionan (nunca se eliminan físicamente, para preservar la referencia de las
+     * {@code DetalleCompraEntity} históricas); los ítems del formulario que coinciden con uno ya
+     * existente (activo o previamente deseleccionado) reactivan esa misma fila en lugar de
+     * duplicarla; solo las combinaciones nuevas para ese proveedor se agregan como filas nuevas.
      * </p>
      *
      * @param id Identificador clave primaria del proveedor a modificar.
@@ -144,15 +153,12 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         LocalidadEntity localidadEntity = localidadRepository.findById(proveedorFormDTO.getIdLocalidad())
                 .orElseThrow(() -> new RecursoNoEncontradoException("La localidad no existe"));
 
-        // 4. Construyo el nuevo catálogo ANTES de tocar el actual: si alguna presentación comercial
-        //    o insumo referenciado no existe, el catálogo actual permanece intacto
-        List<CatalogoProveedorEntity> nuevoCatalogo = construirCatalogo(proveedorFormDTO.getCatalogoProveedor(), proveedorEntity);
+        // 4. Construyo el catálogo deseado (validando que cada presentación comercial e insumo
+        //    referenciados existan) y sincronizo el catálogo actual contra él
+        List<CatalogoProveedorEntity> catalogoDeseado = construirCatalogo(proveedorFormDTO.getCatalogoProveedor(), proveedorEntity);
+        sincronizarCatalogo(proveedorEntity.getCatalogoProveedor(), catalogoDeseado);
 
-        // 5. Doy de baja lógica el catálogo actual y lo reemplazo por el nuevo
-        catalogoProveedorRepository.deleteAll(proveedorEntity.getCatalogoProveedor());
-        proveedorEntity.setCatalogoProveedor(nuevoCatalogo);
-
-        // 6. Aplico los cambios sobre la entidad administrada por persistencia
+        // 5. Aplico los cambios sobre la entidad administrada por persistencia
         proveedorEntity.setRazonSocial(proveedorFormDTO.getRazonSocial());
         proveedorEntity.setNombreComercial(proveedorFormDTO.getNombreComercial());
         proveedorEntity.setCuit(proveedorFormDTO.getCuit());
@@ -161,20 +167,19 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         proveedorEntity.setDireccion(proveedorFormDTO.getDireccion());
         proveedorEntity.setLocalidad(localidadEntity);
 
-        // 7. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
     }
 
     /**
      * Procesa la baja lógica de un proveedor existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link ProveedorEntity} está
-     * anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de
-     * borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca al proveedor con {@link Estado#BAJA} y persiste
+     * el cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del proveedor a dar de baja.
-     * @return {@link ProveedorResponseDTO} con los datos del proveedor procesado antes de su inactivación.
+     * @return {@link ProveedorResponseDTO} con los datos del proveedor ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el proveedor con el ID especificado no existe o ya fue dado de baja.
      */
     @Override
@@ -185,9 +190,10 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         ProveedorEntity proveedorEntity = proveedorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
-        // 2. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
+        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         // TODO: Falta modulo de ordenes de compra, verifica que el proveedor seleccionado no posea Órdenes de Compra en estado "Pendiente".
-        proveedorRepository.delete(proveedorEntity);
+        proveedorEntity.setEstado(Estado.BAJA);
+        proveedorRepository.save(proveedorEntity);
 
         // 3. Retornamos el DTO del proveedor dado de baja
         return MapperProveedor.toDTO(proveedorEntity);
@@ -248,8 +254,64 @@ public class ProveedorServicioImpl implements IProveedorServicio {
                             .proveedor(proveedorEntity)
                             .presentacionComercial(presentacionComercialEntity)
                             .insumo(insumoEntity)
+                            .seleccionado(true)
                             .build();
                 })
                 .toList();
+    }
+
+    /**
+     * Sincroniza el catálogo actual de un proveedor contra el catálogo deseado, mutando la
+     * lista actual en lugar de reemplazarla por completo.
+     * <p>
+     * Nunca se elimina físicamente un ítem del catálogo. La combinación (presentación comercial,
+     * insumo) es la identidad estable de un ítem: si el usuario lo saca, se pone
+     * {@code seleccionado = false} sobre la misma fila; si más adelante vuelve a seleccionar ese
+     * mismo ítem, se reactiva esa misma fila ({@code seleccionado = true}) en lugar de crear una
+     * nueva, preservando la referencia de las {@code DetalleCompraEntity} históricas que la
+     * apunten. Solo se crea una fila nueva para combinaciones que nunca existieron en el
+     * catálogo de ese proveedor.
+     * </p>
+     *
+     * @param catalogoActual Catálogo actualmente persistido del proveedor (se muta en el lugar).
+     * @param catalogoDeseado Catálogo construido a partir del FormDTO.
+     */
+    private void sincronizarCatalogo(List<CatalogoProveedorEntity> catalogoActual, List<CatalogoProveedorEntity> catalogoDeseado) {
+        Set<List<Long>> clavesDeseadas = catalogoDeseado.stream()
+                .map(ProveedorServicioImpl::claveCatalogo)
+                .collect(Collectors.toSet());
+
+        // Ítems seleccionados que el usuario sacó del catálogo: se deseleccionan, nunca se eliminan físicamente
+        catalogoActual.stream()
+                .filter(CatalogoProveedorEntity::isSeleccionado)
+                .filter(item -> !clavesDeseadas.contains(claveCatalogo(item)))
+                .forEach(item -> item.setSeleccionado(false));
+
+        // Índice del catálogo actual (seleccionado o no) por clave, para reactivar en vez de duplicar
+        Map<List<Long>, CatalogoProveedorEntity> actualesPorClave = catalogoActual.stream()
+                .collect(Collectors.toMap(ProveedorServicioImpl::claveCatalogo, item -> item, (a, b) -> a));
+
+        for (CatalogoProveedorEntity itemDeseado : catalogoDeseado) {
+            CatalogoProveedorEntity itemExistente = actualesPorClave.get(claveCatalogo(itemDeseado));
+            if (itemExistente != null) {
+                // Ya existe esa combinación (activa o previamente deseleccionada): se reactiva
+                itemExistente.setSeleccionado(true);
+            } else {
+                // Combinación nueva para este proveedor: se agrega como ítem nuevo
+                catalogoActual.add(itemDeseado);
+            }
+        }
+    }
+
+    /**
+     * Clave de identidad de un ítem de catálogo, usada para detectar coincidencias entre el
+     * catálogo actual y el deseado: dos ítems representan el mismo producto si referencian la
+     * misma presentación comercial y el mismo insumo.
+     *
+     * @param item Ítem de catálogo del cual obtener la clave.
+     * @return Lista con el ID de la presentación comercial y el ID del insumo.
+     */
+    private static List<Long> claveCatalogo(CatalogoProveedorEntity item) {
+        return List.of(item.getPresentacionComercial().getId(), item.getInsumo().getId());
     }
 }

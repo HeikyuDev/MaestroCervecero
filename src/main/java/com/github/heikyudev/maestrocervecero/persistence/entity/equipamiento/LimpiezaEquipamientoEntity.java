@@ -34,7 +34,7 @@ public class LimpiezaEquipamientoEntity extends AuditableEntity<String> {
     @Column(name = "motivo_anulacion")
     private String motivoAnulacion;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false) // EAGER: EquipamientoEntity tiene @SoftDelete y optional falas eporque una limpieza SI O SI necesita un equipamiento asociado.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) // EAGER: EquipamientoEntity tiene @SoftDelete y optional falas eporque una limpieza SI O SI necesita un equipamiento asociado.
     @JoinColumn(name = "equipamiento_id", nullable = false)
     private EquipamientoEntity equipamiento;
 }

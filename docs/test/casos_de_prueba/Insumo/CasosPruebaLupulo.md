@@ -21,7 +21,7 @@
 |**CP-AL-03**|Alfa ácidos negativo _(Límite inf.)_|`aa: -1`, `nombre: "Cascade"`|`aa <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
 |**CP-AL-04**|Nombre duplicado|`aa: 6`, `nombre: "Citra"` (Existe en BD)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AL-05**|Nombre duplicado Case-Insensitive|`aa: 6`, `nombre: "citra"` (Existe `"Citra"`)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-AL-06**|Alta exitosa y asignación de `GRAMO` _(Camino feliz)_|`aa: 12`, `nombre: "Mosaic"` (Único), `formato: PELLET`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad asignando fijamente `unidadDeMedida = GRAMO` y retorna DTO.|
+|**CP-AL-06**|Alta exitosa y asignación de `GRAMO` _(Camino feliz)_|`aa: 12`, `nombre: "Mosaic"` (Único), `formato: PELLET`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad asignando fijamente `unidadDeMedida = GRAMO` y `estado = ACTIVO`, y retorna DTO.|
 |**CP-AL-07**|Alfa ácidos en límite inferior entero válido|`aa: 1`, `nombre: "Saaz"`|`aa <= 0` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `aa = 1`.|
 
 ### 4. `modificarLupulo(Long id, LupuloFormDTO formDTO)`
@@ -38,5 +38,5 @@
 
 | **ID**       | **Nombre del Caso**          | **Datos de Entrada (Escenario)** | **Condición Evaluada**                             | **Resultado Esperado**                                                                                         |
 | ------------ | ---------------------------- | -------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **CP-BL-01** | Baja de lúpulo inexistente   | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el lúpulo con ID: 99". No llama a `delete()`. |
-| **CP-BL-02** | Baja exitosa _(Soft Delete)_ | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Invoca `delete(entity)` y retorna DTO del lúpulo dado de baja.                                                 |
+| **CP-BL-01** | Baja de lúpulo inexistente   | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el lúpulo con ID: 99". No llama a `save()`. |
+| **CP-BL-02** | Baja exitosa _(Baja lógica vía Estado)_ | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del lúpulo dado de baja.                                                 |

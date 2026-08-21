@@ -39,7 +39,7 @@ public class EnvasadoLoteEntity extends AuditableEntity<String> {
     @JoinColumn(name = "etapa_lote_id", nullable = false)
     private EtapaLoteEntity etapaLote;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barril_id", nullable = false)
     private BarrilEntity barril;
 }

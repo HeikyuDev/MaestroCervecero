@@ -67,7 +67,7 @@ public class FraccionamientoBarrilEntity extends AuditableEntity<String> {
     /**
      * Barril del cual se extrajo la cerveza.
      */
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "barril_id", nullable = false)
     private BarrilEntity barril;
 }

@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.ProvinciaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IPaisRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IProvinciaRepository;
@@ -33,8 +34,8 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
     /**
      * Recupera una página de provincias activas registradas en el sistema.
      * <p>
-     * Las provincias eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Las provincias dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
+     * aplicada en el repositorio.
      * </p>
      *
      * @param pageable Configuración de paginación y ordenamiento.
@@ -92,6 +93,7 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
         ProvinciaEntity provinciaEntity = ProvinciaEntity.builder()
                 .nombre(provinciaFormDTO.getNombre())
                 .pais(paisEntity)
+                .estado(Estado.ACTIVO)
                 .build();
 
         // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
@@ -141,13 +143,13 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
     /**
      * Procesa la baja lógica de una provincia existente en el sistema.
      * <p>
-     * Invoca el método de eliminación del repositorio. Como {@link ProvinciaEntity} está
-     * anotada con {@code @SoftDelete}, Hibernate ejecuta un UPDATE sobre el flag de
-     * borrado en lugar de una eliminación física.
+     * En lugar de eliminar el registro, marca a la provincia con {@link Estado#BAJA} y
+     * persiste el cambio. A partir de ese momento, todas las consultas del repositorio dejan
+     * de encontrarla.
      * </p>
      *
      * @param id Identificador clave primaria de la provincia a dar de baja.
-     * @return {@link ProvinciaResponseDTO} con los datos de la provincia procesada antes de su inactivación.
+     * @return {@link ProvinciaResponseDTO} con los datos de la provincia ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la provincia con el ID especificado no existe o ya fue dada de baja.
      * @throws ReglaNegocioException Si la provincia tiene al menos una localidad activa asociada.
      */
@@ -164,8 +166,9 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
             throw new ReglaNegocioException("No se puede dar de baja la provincia porque tiene localidades activas asociadas");
         }
 
-        // 3. Ejecutamos la baja. Hibernate aplicará automáticamente la anotación de Soft Delete
-        provinciaRepository.delete(provinciaEntity);
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        provinciaEntity.setEstado(Estado.BAJA);
+        provinciaRepository.save(provinciaEntity);
 
         // 4. Retornamos el DTO de la provincia dada de baja
         return MapperProvincia.toDTO(provinciaEntity);

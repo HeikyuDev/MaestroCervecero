@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SoftDelete;
@@ -13,7 +14,6 @@ import org.hibernate.annotations.SoftDelete;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-@SoftDelete
 public class MotivoAjusteEntity extends AuditableEntity<String> {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,4 +26,8 @@ public class MotivoAjusteEntity extends AuditableEntity<String> {
     @Column(name = "tipo_ajuste",nullable = false)
     @Enumerated(EnumType.STRING)
     private TipoAjuste tipoAjuste;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Estado estado;
 }

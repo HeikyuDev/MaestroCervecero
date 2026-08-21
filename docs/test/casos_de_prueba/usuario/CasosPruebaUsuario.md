@@ -21,7 +21,7 @@
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
 | **CP-AU-01** | Username duplicado | `username: "juanperez"` (Ya existe en BD), `password: "123456"` | `existsByUsername` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException` con mensaje "El Username ya esta registrado". No encripta ni persiste. |
-| **CP-AU-02** | Alta exitosa y encriptación de contraseña *(Camino feliz)* | `username: "carlos_cervecero"` (Único), `password: "ClaveSegura123"` | `existsByUsername` $\rightarrow$ **FALSE** | Encripta password con `passwordEncoder`, persiste entidad y retorna `UsuarioResponseDTO`. |
+| **CP-AU-02** | Alta exitosa y encriptación de contraseña *(Camino feliz)* | `username: "carlos_cervecero"` (Único), `password: "ClaveSegura123"` | `existsByUsername` $\rightarrow$ **FALSE** | Encripta password con `passwordEncoder`, persiste entidad con `estado = ACTIVO` y retorna `UsuarioResponseDTO`. |
 
 ---
 
@@ -43,5 +43,5 @@
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-BU-01** | Baja de usuario inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el usuario con ID: 99". No llama a `delete()`. |
-| **CP-BU-02** | Baja exitosa *(Soft Delete)* | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Invoca `delete(entity)` y retorna DTO del usuario dado de baja. |
+| **CP-BU-01** | Baja de usuario inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el usuario con ID: 99". No llama a `save()`. |
+| **CP-BU-02** | Baja exitosa *(Baja lógica vía Estado)* | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del usuario dado de baja. |
