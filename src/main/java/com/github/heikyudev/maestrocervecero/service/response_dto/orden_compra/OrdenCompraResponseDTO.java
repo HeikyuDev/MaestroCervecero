@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_produccion.OrdenProduccionResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -69,7 +69,7 @@ public class OrdenCompraResponseDTO {
     /**
      * Proveedor seleccionado para esta compra.
      */
-    private ProveedorResponseDTO proveedor;
+    private VersionProveedorResponseDTO proveedor;
 
     /**
      * Detalle de los ítems del catálogo del proveedor solicitados en esta compra.

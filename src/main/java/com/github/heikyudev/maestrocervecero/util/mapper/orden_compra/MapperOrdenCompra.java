@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.util.mapper.orden_compra;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.orden_produccion.MapperOrdenProduccion;
-import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperProveedor;
+import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperVersionProveedor;
 
 /**
  * MapperOrdenCompra tiene la responsabilidad de mapear la entidad OrdenCompraEntity a OrdenCompraResponseDTO.
@@ -31,7 +31,7 @@ public class MapperOrdenCompra {
                 .fechaAnulacion(ordenCompraEntity.getFechaAnulacion())
                 .motivoAnulacion(ordenCompraEntity.getMotivoAnulacion())
                 .ordenProduccion(MapperOrdenProduccion.toDTO(ordenCompraEntity.getOrdenProduccion()))
-                .proveedor(MapperProveedor.toDTO(ordenCompraEntity.getProveedor()))
+                .proveedor(MapperVersionProveedor.toDTO(ordenCompraEntity.getVersionProveedor()))
                 .detallesCompra(ordenCompraEntity.getDetallesCompra().stream()
                         .map(MapperDetalleCompra::toDTO)
                         .toList())

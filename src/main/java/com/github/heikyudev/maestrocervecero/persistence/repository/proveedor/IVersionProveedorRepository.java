@@ -1,0 +1,58 @@
+package com.github.heikyudev.maestrocervecero.persistence.repository.proveedor;
+
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+/**
+ * Repositorio JPA de las versiones de proveedor ({@link VersionProveedorEntity}).
+ * <p>
+ * {@link VersionProveedorEntity} no tiene {@code estado} propio: la unicidad de la razón social
+ * y el CUIT se valida contra el proveedor contenedor activo ({@code proveedor.estado = 'ACTIVO'}),
+ * de modo que la razón social o el CUIT de un proveedor dado de baja quedan libres para un
+ * proveedor nuevo.
+ * </p>
+ */
+@Repository
+public interface IVersionProveedorRepository extends JpaRepository<VersionProveedorEntity, Long> {
+
+    /**
+     * Verifica si existe una versión de proveedor activa, marcada como última versión, con la
+     * razón social (ignorando mayúsculas y minúsculas) o el CUIT dados, perteneciente a un
+     * proveedor activo.
+     * <p>
+     * La razón social y el CUIT de un proveedor son, en rigor, los de su última versión activa:
+     * por eso la unicidad se valida contra {@code esUltimaVersion = true} y no contra todo el
+     * historial.
+     * </p>
+     *
+     * @param razonSocial La razón social a buscar.
+     * @param cuit El CUIT a buscar.
+     * @return {@code true} si ya existe un proveedor activo con esa razón social o ese CUIT, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE (UPPER(v.razonSocial) = UPPER(:razonSocial) OR v.cuit = :cuit) " +
+            "AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
+    boolean existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(@Param("razonSocial") String razonSocial, @Param("cuit") String cuit);
+
+    /**
+     * Verifica si existe una versión de proveedor activa, marcada como última versión, con la
+     * razón social (ignorando mayúsculas y minúsculas) o el CUIT dados, perteneciente a un
+     * proveedor activo, excluyendo de la búsqueda al proveedor con el ID indicado.
+     * <p>
+     * Se utiliza en la modificación para permitir conservar la propia razón social o el propio
+     * CUIT actuales sin que la validación de unicidad falle contra el mismo registro.
+     * </p>
+     *
+     * @param razonSocial La razón social a buscar.
+     * @param cuit El CUIT a buscar.
+     * @param proveedorId El ID del proveedor a excluir de la verificación.
+     * @return {@code true} si otro proveedor activo ya posee esa razón social o ese CUIT, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE (UPPER(v.razonSocial) = UPPER(:razonSocial) OR v.cuit = :cuit) " +
+            "AND v.esUltimaVersion = true AND v.proveedor.id <> :proveedorId AND v.proveedor.estado = 'ACTIVO'")
+    boolean existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(@Param("razonSocial") String razonSocial, @Param("cuit") String cuit, @Param("proveedorId") Long proveedorId);
+}

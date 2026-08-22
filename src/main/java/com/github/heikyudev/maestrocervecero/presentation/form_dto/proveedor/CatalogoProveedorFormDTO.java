@@ -6,7 +6,7 @@ import lombok.*;
  * DTO de formulario para un ítem del catálogo de un proveedor.
  * <p>
  * Representa la asociación entre un insumo y la presentación comercial en la que
- * el proveedor lo ofrece. Se utiliza embebido dentro de {@link ProveedorFormDTO}.
+ * el proveedor lo ofrece. Se utiliza embebido dentro de {@link VersionProveedorFormDTO}.
  * </p>
  */
 @Getter

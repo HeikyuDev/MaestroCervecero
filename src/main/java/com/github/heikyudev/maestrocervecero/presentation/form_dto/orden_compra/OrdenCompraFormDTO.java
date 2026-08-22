@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -40,6 +41,7 @@ public class OrdenCompraFormDTO {
 
     /**
      * Identificador del proveedor seleccionado para esta compra.
+     * Siempre se utiliza la ultima version.
      * <p>
      * Se espera que este identificador corresponda a un {@link ProveedorEntity} existente.
      * </p>

@@ -1,8 +1,11 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor;
 
-import lombok.*;
-
-import java.util.List;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * DTO de formulario para el alta y la modificación de un proveedor.
@@ -18,43 +21,12 @@ import java.util.List;
 public class ProveedorFormDTO {
 
     /**
-     * Razón social del proveedor.
+     * Datos de la versión de proveedor a crear.
+     * <p>
+     * {@link ProveedorEntity} no tiene datos propios más allá de su historial de versiones: toda
+     * modificación de un proveedor se traduce en una nueva {@link VersionProveedorEntity}, nunca en
+     * una actualización de la anterior.
+     * </p>
      */
-    private String razonSocial;
-
-    /**
-     * Nombre comercial del proveedor.
-     */
-    private String nombreComercial;
-
-    /**
-     * CUIT del proveedor.
-     */
-    private String cuit;
-
-    /**
-     * Teléfono de contacto del proveedor.
-     */
-    private String telefono;
-
-    /**
-     * Correo electrónico de contacto del proveedor.
-     */
-    private String email;
-
-    /**
-     * Dirección (calle y número) del proveedor.
-     */
-    private String direccion;
-
-    /**
-     * Identificador de la localidad del proveedor. A partir de la localidad se asocia
-     * transitivamente la provincia y el país.
-     */
-    private Long idLocalidad;
-
-    /**
-     * Catálogo de productos que ofrece el proveedor (insumo + presentación comercial).
-     */
-    private List<CatalogoProveedorFormDTO> catalogoProveedor;
+    private VersionProveedorFormDTO version;
 }

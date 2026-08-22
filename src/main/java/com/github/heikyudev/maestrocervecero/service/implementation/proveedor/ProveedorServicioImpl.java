@@ -6,18 +6,23 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IProveedorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IVersionProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.CatalogoProveedorFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.ProveedorFormDTO;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.VersionProveedorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperProveedor;
@@ -27,21 +32,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class ProveedorServicioImpl implements IProveedorServicio {
 
-    // Inyecto los repositorios gracias a LOMBOK
     private final IProveedorRepository proveedorRepository;
+    private final IVersionProveedorRepository versionProveedorRepository;
     private final ILocalidadRepository localidadRepository;
-    private final IPresentacionComercialRepository presentacionComercialRepository;
     private final IInsumoRepository insumoRepository;
-    private final ICatalogoProveedorRepository catalogoProveedorRepository;
+    private final IPresentacionComercialRepository presentacionComercialRepository;
+    private final IOrdenCompraRepository ordenCompraRepository;
 
     /**
      * Recupera una página de proveedores activos registrados en el sistema.
@@ -56,7 +56,6 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<ProveedorResponseDTO> buscarTodos(Pageable pageable) {
-        // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
         return proveedorRepository.findAll(pageable).map(MapperProveedor::toDTO);
     }
 
@@ -70,248 +69,181 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     @Override
     @Transactional(readOnly = true)
     public ProveedorResponseDTO buscarPorId(Long id) {
-        // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperProveedor.toDTO(proveedorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El proveedor no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id)));
     }
 
     /**
-     * Registra un nuevo proveedor en el sistema, junto con su catálogo de productos.
+     * Registra un nuevo proveedor en el sistema junto con su versión inicial.
      * <p>
-     * Valida que la razón social y el CUIT no estén duplicados entre los proveedores activos,
-     * que la localidad seleccionada exista, y que cada ítem del catálogo referencie una
-     * presentación comercial y un insumo activos. Registra el evento en la auditoría.
+     * {@link ProveedorEntity} no tiene datos propios: toda la información (razón social, CUIT,
+     * datos de contacto, localidad y catálogo de productos) se registra en la primera
+     * {@link VersionProveedorEntity}, marcada como {@code esUltimaVersion = true}. Gracias al
+     * {@code CascadeType.ALL} declarado en las relaciones, persistir el proveedor persiste en
+     * cascada toda la versión y su catálogo.
      * </p>
      *
-     * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor.
+     * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor y su versión inicial.
      * @return {@link ProveedorResponseDTO} representativo del proveedor guardado en la base de datos.
-     * @throws RecursoNoEncontradoException Si no existe una localidad activa, una presentación comercial activa o un insumo activo con alguno de los ID especificados.
      * @throws RecursoDuplicadoException Si la razón social o el CUIT provistos ya pertenecen a un proveedor activo.
+     * @throws RecursoNoEncontradoException Si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PROVEEDOR)
     public ProveedorResponseDTO altaProveedor(ProveedorFormDTO proveedorFormDTO) {
-        // 1. Validar que la razón social y el CUIT no estén registrados en otro proveedor
-        validarRazonSocialYCuitUnicos(proveedorFormDTO.getRazonSocial(), proveedorFormDTO.getCuit());
+        VersionProveedorFormDTO versionFormDTO = proveedorFormDTO.getVersion();
 
-        // 2. Verificar que la localidad seleccionada exista
-        LocalidadEntity localidadEntity = localidadRepository.findById(proveedorFormDTO.getIdLocalidad())
-                .orElseThrow(() -> new RecursoNoEncontradoException("La localidad no existe"));
+        // 1. Validar si la razón social o el CUIT ya están registrados en otro proveedor activo
+        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())) {
+            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '"
+                    + versionFormDTO.getRazonSocial() + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+        }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos
-        ProveedorEntity proveedorEntity = ProveedorEntity.builder()
-                .razonSocial(proveedorFormDTO.getRazonSocial())
-                .nombreComercial(proveedorFormDTO.getNombreComercial())
-                .cuit(proveedorFormDTO.getCuit())
-                .telefono(proveedorFormDTO.getTelefono())
-                .email(proveedorFormDTO.getEmail())
-                .direccion(proveedorFormDTO.getDireccion())
-                .localidad(localidadEntity)
-                .estado(Estado.ACTIVO)
-                .build();
+        // 2. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
+        ProveedorEntity proveedorEntity = ProveedorEntity.builder().estado(Estado.ACTIVO).build();
+        VersionProveedorEntity versionProveedorEntity = construirVersion(versionFormDTO, proveedorEntity);
+        proveedorEntity.getVersiones().add(versionProveedorEntity);
 
-        // 4. Construyo el catálogo validando que cada presentación comercial e insumo referenciados existan
-        proveedorEntity.setCatalogoProveedor(construirCatalogo(proveedorFormDTO.getCatalogoProveedor(), proveedorEntity));
-
-        // 5. Guardo la entidad en la base de datos (cascada persiste el catálogo) y devuelvo el DTO correspondiente
+        // 3. Guardar el proveedor en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
     }
 
     /**
-     * Actualiza la información de un proveedor existente en la base de datos, sincronizando
-     * su catálogo de productos con el enviado en el formulario.
+     * Modifica un proveedor existente registrando una nueva versión con los datos actualizados.
      * <p>
-     * Localiza el proveedor por su ID, verifica que la razón social y el CUIT no colisionen
-     * con los de otro proveedor activo, y que la localidad seleccionada exista. El catálogo no
-     * se reemplaza por completo: se calcula la diferencia entre el catálogo actual y el deseado
-     * (por combinación presentación comercial + insumo). Los ítems seleccionados que el usuario
-     * sacó se deseleccionan (nunca se eliminan físicamente, para preservar la referencia de las
-     * {@code DetalleCompraEntity} históricas); los ítems del formulario que coinciden con uno ya
-     * existente (activo o previamente deseleccionado) reactivan esa misma fila en lugar de
-     * duplicarla; solo las combinaciones nuevas para ese proveedor se agregan como filas nuevas.
+     * Por diseño, {@link ProveedorEntity} nunca actualiza una versión existente: "modificar un
+     * proveedor" crea una nueva {@link VersionProveedorEntity} con {@code esUltimaVersion = true}
+     * y desactiva la anterior, para no afectar retroactivamente las órdenes de compra que ya
+     * referencian un ítem del catálogo de la versión previa.
      * </p>
      *
      * @param id Identificador clave primaria del proveedor a modificar.
-     * @param proveedorFormDTO DTO con la información actualizada.
-     * @return {@link ProveedorResponseDTO} representativo del proveedor con los cambios aplicados.
-     * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si no existe una localidad activa, una presentación comercial activa o un insumo activo con alguno de los ID especificados.
-     * @throws RecursoDuplicadoException Si la nueva razón social o el nuevo CUIT ya se encuentran asignados a otro proveedor activo.
+     * @param proveedorFormDTO DTO que contiene los nuevos datos de la versión del proveedor.
+     * @return {@link ProveedorResponseDTO} representativo del proveedor con la nueva versión aplicada.
+     * @throws RecursoDuplicadoException Si la nueva razón social o el nuevo CUIT ya pertenecen a otro proveedor activo.
+     * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PROVEEDOR)
     public ProveedorResponseDTO modificarProveedor(Long id, ProveedorFormDTO proveedorFormDTO) {
-        // 1. Localizar el proveedor existente. Si no existe, se dispara RecursoNoEncontradoException
+        VersionProveedorFormDTO versionFormDTO = proveedorFormDTO.getVersion();
+
+        // 1. Validar duplicación excluyendo el propio proveedor, de modo que conservar la razón
+        //    social o el CUIT actuales no falle contra el mismo registro
+        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), id)) {
+            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '"
+                    + versionFormDTO.getRazonSocial() + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+        }
+
+        // 2. Localizar el proveedor existente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
         ProveedorEntity proveedorEntity = proveedorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El proveedor no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
-        // 2. Validar duplicación de razón social y CUIT excluyendo el propio ID
-        validarRazonSocialYCuitUnicos(proveedorFormDTO.getRazonSocial(), proveedorFormDTO.getCuit(), id);
+        // 3. Construir la nueva versión primero: si la localidad, algún insumo o alguna
+        //    presentación comercial no existen, esto lanza antes de tocar la versión anterior
+        VersionProveedorEntity nuevaVersionProveedorEntity = construirVersion(versionFormDTO, proveedorEntity);
 
-        // 3. Verificar que la localidad seleccionada exista
-        LocalidadEntity localidadEntity = localidadRepository.findById(proveedorFormDTO.getIdLocalidad())
-                .orElseThrow(() -> new RecursoNoEncontradoException("La localidad no existe"));
+        // 4. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y
+        //    registrar la nueva
+        proveedorEntity.getVersiones().stream()
+                .filter(VersionProveedorEntity::isEsUltimaVersion)
+                .forEach(version -> version.setEsUltimaVersion(false));
+        proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
 
-        // 4. Construyo el catálogo deseado (validando que cada presentación comercial e insumo
-        //    referenciados existan) y sincronizo el catálogo actual contra él
-        List<CatalogoProveedorEntity> catalogoDeseado = construirCatalogo(proveedorFormDTO.getCatalogoProveedor(), proveedorEntity);
-        sincronizarCatalogo(proveedorEntity.getCatalogoProveedor(), catalogoDeseado);
-
-        // 5. Aplico los cambios sobre la entidad administrada por persistencia
-        proveedorEntity.setRazonSocial(proveedorFormDTO.getRazonSocial());
-        proveedorEntity.setNombreComercial(proveedorFormDTO.getNombreComercial());
-        proveedorEntity.setCuit(proveedorFormDTO.getCuit());
-        proveedorEntity.setTelefono(proveedorFormDTO.getTelefono());
-        proveedorEntity.setEmail(proveedorFormDTO.getEmail());
-        proveedorEntity.setDireccion(proveedorFormDTO.getDireccion());
-        proveedorEntity.setLocalidad(localidadEntity);
-
-        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 5. Persistir el proveedor con la nueva versión y retornar el DTO de respuesta correspondiente
         return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
     }
 
     /**
      * Procesa la baja lógica de un proveedor existente en el sistema.
      * <p>
-     * En lugar de eliminar el registro, marca al proveedor con {@link Estado#BAJA} y persiste
-     * el cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
+     * En lugar de eliminar el registro, marca al proveedor con {@link Estado#BAJA} y persiste el
+     * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
      * </p>
      *
      * @param id Identificador clave primaria del proveedor a dar de baja.
      * @return {@link ProveedorResponseDTO} con los datos del proveedor ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el proveedor con el ID especificado no existe o ya fue dado de baja.
+     * @throws ReglaNegocioException Si el proveedor tiene una orden de compra en estado {@code PENDIENTE} asociada a alguna de sus versiones.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.PROVEEDOR)
     public ProveedorResponseDTO bajaProveedor(Long id) {
-        // 1. Buscamos el proveedor. Si no existe, se dispara RecursoNoEncontradoException
+        // 1. Buscar el proveedor. Si no existe, se dispara RecursoNoEncontradoException
         ProveedorEntity proveedorEntity = proveedorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
-        // TODO: Falta modulo de ordenes de compra, verifica que el proveedor seleccionado no posea Órdenes de Compra en estado "Pendiente".
+        // 2. Validar que ninguna versión del proveedor (histórica o activa) tenga una orden de
+        //    compra en estado PENDIENTE asociada
+        if (ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(id, EstadoOrden.PENDIENTE)) {
+            throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene una orden de compra en estado PENDIENTE asociada");
+        }
+
+        // 3. Ejecutamos la baja lógica: cambiamos el estado, persistimos el cambio y retornamos
+        //    el DTO del proveedor dado de baja
         proveedorEntity.setEstado(Estado.BAJA);
-        proveedorRepository.save(proveedorEntity);
+        return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
+    }
 
-        // 3. Retornamos el DTO del proveedor dado de baja
-        return MapperProveedor.toDTO(proveedorEntity);
+    // === CONSTRUCCIÓN DEL ÁRBOL DE ENTIDADES DE LA VERSIÓN ===
+
+    /**
+     * Construye la {@link VersionProveedorEntity} completa a partir del DTO de formulario,
+     * resolviendo la localidad referenciada e incluyendo el catálogo de productos.
+     *
+     * @param versionFormDTO Datos de la versión de proveedor a construir.
+     * @param proveedorEntity Proveedor contenedor al que pertenece esta versión.
+     * @return Entidad de versión de proveedor, marcada como última versión activa, con su catálogo vinculado.
+     * @throws RecursoNoEncontradoException Si no existe una localidad activa con el ID indicado.
+     */
+    private VersionProveedorEntity construirVersion(VersionProveedorFormDTO versionFormDTO, ProveedorEntity proveedorEntity) {
+        LocalidadEntity localidadEntity = localidadRepository.findById(versionFormDTO.getIdLocalidad())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + versionFormDTO.getIdLocalidad()));
+
+        VersionProveedorEntity versionProveedorEntity = VersionProveedorEntity.builder()
+                .razonSocial(versionFormDTO.getRazonSocial())
+                .nombreComercial(versionFormDTO.getNombreComercial())
+                .cuit(versionFormDTO.getCuit())
+                .telefono(versionFormDTO.getTelefono())
+                .email(versionFormDTO.getEmail())
+                .direccion(versionFormDTO.getDireccion())
+                .esUltimaVersion(true)
+                .proveedor(proveedorEntity)
+                .localidad(localidadEntity)
+                .build();
+
+        versionProveedorEntity.getCatalogoProveedor().addAll(versionFormDTO.getCatalogoProveedor().stream()
+                .map(detalle -> construirItemCatalogo(detalle, versionProveedorEntity))
+                .toList());
+
+        return versionProveedorEntity;
     }
 
     /**
-     * Valida que la razón social y el CUIT indicados no estén registrados en otro proveedor activo.
+     * Construye el ítem de catálogo a partir del DTO de formulario, resolviendo la presentación
+     * comercial y el insumo referenciados por sus identificadores.
      *
-     * @param razonSocial Razón social a validar.
-     * @param cuit CUIT a validar.
-     * @throws RecursoDuplicadoException Si la razón social o el CUIT ya pertenecen a un proveedor activo.
+     * @param catalogoFormDTO Datos del ítem de catálogo.
+     * @param versionProveedorEntity Versión de proveedor a la que pertenece este ítem.
+     * @return Entidad de ítem de catálogo vinculada a la presentación comercial, al insumo y a la versión de proveedor.
+     * @throws RecursoNoEncontradoException Si no existe una presentación comercial activa o un insumo activo con el ID indicado.
      */
-    private void validarRazonSocialYCuitUnicos(String razonSocial, String cuit) {
-        if (proveedorRepository.existsByRazonSocialIgnoreCase(razonSocial)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor con la razón social '" + razonSocial + "'");
-        }
-        if (proveedorRepository.existsByCuit(cuit)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'");
-        }
-    }
+    private CatalogoProveedorEntity construirItemCatalogo(CatalogoProveedorFormDTO catalogoFormDTO, VersionProveedorEntity versionProveedorEntity) {
+        PresentacionComercialEntity presentacionComercialEntity = presentacionComercialRepository.findById(catalogoFormDTO.getIdPresentacionComercial())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la presentación comercial con ID: " + catalogoFormDTO.getIdPresentacionComercial()));
 
-    /**
-     * Valida que la razón social y el CUIT indicados no estén registrados en otro proveedor
-     * activo, excluyendo de la verificación al proveedor con el ID indicado.
-     *
-     * @param razonSocial Razón social a validar.
-     * @param cuit CUIT a validar.
-     * @param id ID del proveedor a excluir de la verificación.
-     * @throws RecursoDuplicadoException Si la razón social o el CUIT ya pertenecen a otro proveedor activo.
-     */
-    private void validarRazonSocialYCuitUnicos(String razonSocial, String cuit, Long id) {
-        if (proveedorRepository.existsByRazonSocialIgnoreCaseAndIdNot(razonSocial, id)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor con la razón social '" + razonSocial + "'");
-        }
-        if (proveedorRepository.existsByCuitAndIdNot(cuit, id)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'");
-        }
-    }
+        InsumoEntity insumoEntity = insumoRepository.findById(catalogoFormDTO.getIdInsumo())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + catalogoFormDTO.getIdInsumo()));
 
-    /**
-     * Construye la lista de ítems de catálogo asociados a un proveedor, validando que cada
-     * presentación comercial y cada insumo referenciados existan.
-     *
-     * @param catalogoFormDTO Lista de ítems de catálogo a construir.
-     * @param proveedorEntity Proveedor al que se asocian los ítems del catálogo.
-     * @return Lista de {@link CatalogoProveedorEntity} construidos.
-     * @throws RecursoNoEncontradoException Si alguna presentación comercial o algún insumo referenciado no existe.
-     */
-    private List<CatalogoProveedorEntity> construirCatalogo(List<CatalogoProveedorFormDTO> catalogoFormDTO, ProveedorEntity proveedorEntity) {
-        return catalogoFormDTO.stream()
-                .map(itemFormDTO -> {
-                    PresentacionComercialEntity presentacionComercialEntity = presentacionComercialRepository.findById(itemFormDTO.getIdPresentacionComercial())
-                            .orElseThrow(() -> new RecursoNoEncontradoException("La presentación comercial no existe"));
-                    InsumoEntity insumoEntity = insumoRepository.findById(itemFormDTO.getIdInsumo())
-                            .orElseThrow(() -> new RecursoNoEncontradoException("El insumo no existe"));
-
-                    return CatalogoProveedorEntity.builder()
-                            .proveedor(proveedorEntity)
-                            .presentacionComercial(presentacionComercialEntity)
-                            .insumo(insumoEntity)
-                            .seleccionado(true)
-                            .build();
-                })
-                .toList();
-    }
-
-    /**
-     * Sincroniza el catálogo actual de un proveedor contra el catálogo deseado, mutando la
-     * lista actual en lugar de reemplazarla por completo.
-     * <p>
-     * Nunca se elimina físicamente un ítem del catálogo. La combinación (presentación comercial,
-     * insumo) es la identidad estable de un ítem: si el usuario lo saca, se pone
-     * {@code seleccionado = false} sobre la misma fila; si más adelante vuelve a seleccionar ese
-     * mismo ítem, se reactiva esa misma fila ({@code seleccionado = true}) en lugar de crear una
-     * nueva, preservando la referencia de las {@code DetalleCompraEntity} históricas que la
-     * apunten. Solo se crea una fila nueva para combinaciones que nunca existieron en el
-     * catálogo de ese proveedor.
-     * </p>
-     *
-     * @param catalogoActual Catálogo actualmente persistido del proveedor (se muta en el lugar).
-     * @param catalogoDeseado Catálogo construido a partir del FormDTO.
-     */
-    private void sincronizarCatalogo(List<CatalogoProveedorEntity> catalogoActual, List<CatalogoProveedorEntity> catalogoDeseado) {
-        Set<List<Long>> clavesDeseadas = catalogoDeseado.stream()
-                .map(ProveedorServicioImpl::claveCatalogo)
-                .collect(Collectors.toSet());
-
-        // Ítems seleccionados que el usuario sacó del catálogo: se deseleccionan, nunca se eliminan físicamente
-        catalogoActual.stream()
-                .filter(CatalogoProveedorEntity::isSeleccionado)
-                .filter(item -> !clavesDeseadas.contains(claveCatalogo(item)))
-                .forEach(item -> item.setSeleccionado(false));
-
-        // Índice del catálogo actual (seleccionado o no) por clave, para reactivar en vez de duplicar
-        Map<List<Long>, CatalogoProveedorEntity> actualesPorClave = catalogoActual.stream()
-                .collect(Collectors.toMap(ProveedorServicioImpl::claveCatalogo, item -> item, (a, b) -> a));
-
-        for (CatalogoProveedorEntity itemDeseado : catalogoDeseado) {
-            CatalogoProveedorEntity itemExistente = actualesPorClave.get(claveCatalogo(itemDeseado));
-            if (itemExistente != null) {
-                // Ya existe esa combinación (activa o previamente deseleccionada): se reactiva
-                itemExistente.setSeleccionado(true);
-            } else {
-                // Combinación nueva para este proveedor: se agrega como ítem nuevo
-                catalogoActual.add(itemDeseado);
-            }
-        }
-    }
-
-    /**
-     * Clave de identidad de un ítem de catálogo, usada para detectar coincidencias entre el
-     * catálogo actual y el deseado: dos ítems representan el mismo producto si referencian la
-     * misma presentación comercial y el mismo insumo.
-     *
-     * @param item Ítem de catálogo del cual obtener la clave.
-     * @return Lista con el ID de la presentación comercial y el ID del insumo.
-     */
-    private static List<Long> claveCatalogo(CatalogoProveedorEntity item) {
-        return List.of(item.getPresentacionComercial().getId(), item.getInsumo().getId());
+        return CatalogoProveedorEntity.builder()
+                .presentacionComercial(presentacionComercialEntity)
+                .insumo(insumoEntity)
+                .version(versionProveedorEntity)
+                .build();
     }
 }

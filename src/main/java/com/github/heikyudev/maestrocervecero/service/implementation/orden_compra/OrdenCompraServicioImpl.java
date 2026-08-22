@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.Ord
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
@@ -111,21 +112,20 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
             throw new ReglaNegocioException("Solo se pueden asociar órdenes de compra a órdenes de producción en estado PENDIENTE");
         }
 
-        // 4. Localizar el proveedor seleccionado
-        ProveedorEntity proveedorEntity = proveedorRepository.findById(ordenCompraFormDTO.getIdProveedor())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + ordenCompraFormDTO.getIdProveedor()));
+        // 4. Localizar la última versión activa del proveedor seleccionado
+        VersionProveedorEntity versionProveedorEntity = obtenerVersionActiva(ordenCompraFormDTO.getIdProveedor());
 
         // 5. Crear la entidad de la orden de compra a partir del DTO de formulario
         OrdenCompraEntity ordenCompraEntity = OrdenCompraEntity.builder()
                 .fechaEntregaEstimada(fechaEntregaEstimada)
                 .estado(EstadoOrden.PENDIENTE)
                 .ordenProduccion(ordenProduccionEntity)
-                .proveedor(proveedorEntity)
+                .versionProveedor(versionProveedorEntity)
                 .build();
 
         // 6. Construir el detalle de la compra, validando cada ítem contra el proveedor y la receta
         Set<Long> idsInsumosDeReceta = resolverInsumosDeReceta(ordenProduccionEntity.getVersionReceta());
-        ordenCompraEntity.setDetallesCompra(construirDetallesCompra(detallesCompraFormDTO, ordenCompraEntity, proveedorEntity.getId(), idsInsumosDeReceta));
+        ordenCompraEntity.setDetallesCompra(construirDetallesCompra(detallesCompraFormDTO, ordenCompraEntity, versionProveedorEntity.getId(), idsInsumosDeReceta));
 
         // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperOrdenCompra.toDTO(ordenCompraRepository.save(ordenCompraEntity));
@@ -268,7 +268,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
             CatalogoProveedorEntity catalogoProveedorEntity = catalogoProveedorRepository.findById(detalleCompraFormDTO.getIdCatalogoProveedor())
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de catálogo con ID: " + detalleCompraFormDTO.getIdCatalogoProveedor()));
 
-            if (!catalogoProveedorEntity.getProveedor().getId().equals(idProveedor)) {
+            if (!catalogoProveedorEntity.getVersion().getId().equals(idProveedor)) {
                 throw new ReglaNegocioException("El ítem de catálogo con ID " + detalleCompraFormDTO.getIdCatalogoProveedor() + " no pertenece al proveedor seleccionado");
             }
 
@@ -285,5 +285,22 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
 
         return detallesCompraEntity;
+    }
+
+    /**
+     * Resuelve la última versión activa ({@code esUltimaVersion = true}) del proveedor indicado.
+     *
+     * @param idProveedor Identificador del proveedor cuya última versión activa se quiere obtener.
+     * @return Entidad de la última versión activa del proveedor.
+     * @throws RecursoNoEncontradoException Si el proveedor no existe, o si no tiene ninguna versión activa.
+     */
+    private VersionProveedorEntity obtenerVersionActiva(Long idProveedor) {
+        ProveedorEntity proveedorEntity = proveedorRepository.findById(idProveedor)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + idProveedor));
+
+        return proveedorEntity.getVersiones().stream()
+                .filter(VersionProveedorEntity::isEsUltimaVersion)
+                .findFirst()
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró una versión activa para el proveedor con ID: " + idProveedor));
     }
 }

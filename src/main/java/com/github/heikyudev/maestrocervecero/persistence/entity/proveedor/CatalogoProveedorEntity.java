@@ -6,16 +6,17 @@ import lombok.*;
 
 /**
  * Entidad intermedia que representa un artículo específico en el catálogo de un proveedor.
- * Funciona como la tabla de unión entre {@link ProveedorEntity}, {@link InsumoEntity} y
+ * Funciona como la tabla de unión entre {@link VersionProveedorEntity}, {@link InsumoEntity} y
  * {@link PresentacionComercialEntity}, definiendo qué insumo, en qué presentación, es
  * ofrecido por qué proveedor.
  * No posee un repositorio propio; su ciclo de vida se gestiona a través de la
- * entidad {@link ProveedorEntity}.
+ * entidad {@link VersionProveedorEntity}.
  * <p>
- * Nunca se elimina físicamente: la combinación (proveedor, presentación comercial, insumo) es
- * estable en el tiempo, así que sacar y volver a ofrecer el mismo ítem es literalmente prender
- * y apagar {@code seleccionado} sobre la misma fila, no crear una nueva. Esto preserva la
- * referencia de las {@code DetalleCompraEntity} históricas que apunten a este ítem.
+ * Al estar scopeada a una versión puntual del proveedor, cada modificación del catálogo
+ * (agregar o sacar un ítem) se resuelve creando una nueva {@link VersionProveedorEntity} con
+ * su propio catálogo, en vez de mutar las filas existentes. Así, un {@code DetalleCompraEntity}
+ * que referencia un ítem de una versión anterior nunca pierde esa referencia, aunque el
+ * proveedor haya modificado su catálogo después.
  * </p>
  */
 @Entity
@@ -28,17 +29,14 @@ import lombok.*;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class CatalogoProveedorEntity {
 
-    // No va a tener repository, porque no va a tener un CRUD propio, sino que se va a manejar desde el proveedor
-    // Por lo tanto al crear al proveedor creo sus catalogos, Por lo tanto Bidireccionalidad
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "proveedor_id", nullable = false)
-    private ProveedorEntity proveedor;
+    @JoinColumn(name = "version_proveedor_id", nullable = false)
+    private VersionProveedorEntity version;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "presentacion_comercial_id", nullable = false)
@@ -48,11 +46,4 @@ public class CatalogoProveedorEntity {
     @JoinColumn(name = "insumo_id", nullable = false)
     private InsumoEntity insumo;
 
-    /**
-     * Indica si el proveedor ofrece actualmente este ítem. {@code false} cuando el usuario lo
-     * saca del catálogo; se vuelve a poner en {@code true} si el mismo ítem se vuelve a
-     * seleccionar más adelante, en vez de crear una fila nueva.
-     */
-    @Column(nullable = false)
-    private boolean seleccionado;
 }

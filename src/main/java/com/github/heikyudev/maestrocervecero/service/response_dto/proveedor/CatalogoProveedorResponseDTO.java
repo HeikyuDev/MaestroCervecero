@@ -30,9 +30,4 @@ public class CatalogoProveedorResponseDTO {
      * polimórficamente en tiempo de ejecución.
      */
     private InsumoResponseDTO insumo;
-
-    /**
-     * Indica si el proveedor ofrece actualmente este ítem.
-     */
-    private boolean seleccionado;
 }

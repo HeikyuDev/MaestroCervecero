@@ -65,6 +65,9 @@ public abstract class EquipamientoEntity extends AuditableEntity<String> {
     @Column(name = "estado_operativo", nullable = false)
     private EstadoOperativo estadoOperativo;
 
+    @Column(name = "usos_maximos_antes_mantenimiento", nullable = false)
+    private Integer usosMaximosAntesMantenimiento;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Estado estado;

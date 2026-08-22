@@ -1,16 +1,15 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.proveedor;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
-import com.github.heikyudev.maestrocervecero.util.mapper.ubicacion.MapperLocalidad;
+import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
 
 /**
- * MapperProveedor tiene la responsabilidad de mapear la entidad ProveedorEntity a
- * ProveedorResponseDTO, incluyendo su localidad y su catálogo de productos.
+ * MapperProveedor tiene la responsabilidad de mapear la entidad {@link ProveedorEntity}
+ * a {@link ProveedorResponseDTO}.
  */
 public class MapperProveedor {
-
     /**
      * Mapea una instancia de {@link ProveedorEntity} a {@link ProveedorResponseDTO}.
      *
@@ -21,26 +20,30 @@ public class MapperProveedor {
         if (proveedorEntity == null) {
             return null;
         }
-
         return ProveedorResponseDTO.builder()
                 .id(proveedorEntity.getId())
-                .razonSocial(proveedorEntity.getRazonSocial())
-                .nombreComercial(proveedorEntity.getNombreComercial())
-                .cuit(proveedorEntity.getCuit())
-                .telefono(proveedorEntity.getTelefono())
-                .email(proveedorEntity.getEmail())
-                .direccion(proveedorEntity.getDireccion())
-                .localidad(MapperLocalidad.toDTO(proveedorEntity.getLocalidad()))
-                .catalogoProveedor(proveedorEntity.getCatalogoProveedor().stream()
-                        .filter(CatalogoProveedorEntity::isSeleccionado)
-                        .map(MapperCatalogoProveedor::toDTO)
-                        .toList())
+                .version(mapVersionActual(proveedorEntity))
                 .estado(proveedorEntity.getEstado())
-                // === AUDITABLE ENTITY ===
+                // AUDITABLE ENTITY
                 .createdBy(proveedorEntity.getCreatedBy())
                 .createdDate(proveedorEntity.getCreatedDate())
                 .lastModifiedBy(proveedorEntity.getLastModifiedBy())
                 .lastModifiedDate(proveedorEntity.getLastModifiedDate())
                 .build();
+    }
+
+
+    /**
+     * Mapea la versión actual del proveedor a {@link VersionProveedorResponseDTO}.
+     *
+     * @param proveedorEntity Entidad de proveedor que contiene las versiones.
+     * @return Objeto DTO correspondiente a la versión actual o {@code null} si no hay versiones.
+     */
+    private static VersionProveedorResponseDTO mapVersionActual(ProveedorEntity proveedorEntity) {
+        return proveedorEntity.getVersiones().stream()
+                .filter(VersionProveedorEntity::isEsUltimaVersion)
+                .findFirst()
+                .map(MapperVersionProveedor::toDTO)
+                .orElse(null);
     }
 }

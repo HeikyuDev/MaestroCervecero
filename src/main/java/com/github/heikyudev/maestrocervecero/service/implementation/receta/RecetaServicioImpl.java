@@ -172,15 +172,18 @@ public class RecetaServicioImpl implements IRecetaServicio {
         RecetaEntity recetaEntity = recetaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id));
 
-        // 4. Desactivar la versión actualmente activa (si existe) y registrar la nueva versión
+        // 4. Construir la nueva versión primero: si alguna malta, lúpulo, levadura, etapa de
+        //    control o parámetro de control no existe, esto lanza antes de tocar la versión anterior
+        VersionRecetaEntity nuevaVersionRecetaEntity = construirVersion(versionFormDTO, recetaEntity);
+
+        // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa (si
+        //    existe) y registrar la nueva
         recetaEntity.getVersiones().stream()
                 .filter(VersionRecetaEntity::isEsUltimaVersion)
                 .forEach(version -> version.setEsUltimaVersion(false));
-
-        VersionRecetaEntity nuevaVersionRecetaEntity = construirVersion(versionFormDTO, recetaEntity);
         recetaEntity.getVersiones().add(nuevaVersionRecetaEntity);
 
-        // 5. Persistir la receta con la nueva versión y retornar el DTO de respuesta correspondiente
+        // 6. Persistir la receta con la nueva versión y retornar el DTO de respuesta correspondiente
         return MapperReceta.toDTO(recetaRepository.save(recetaEntity));
     }
 

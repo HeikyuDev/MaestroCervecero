@@ -14,5 +14,6 @@ import lombok.Getter;
 public enum EstadoOperativo {
     DISPONIBLE,
     EN_USO,
-    EN_LIMPIEZA
+    EN_LIMPIEZA,
+    EN_MANTENIMIENTO
 }

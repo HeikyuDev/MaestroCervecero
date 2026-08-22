@@ -8,21 +8,22 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "limpieza_equipamiento")
+@Table(name = "mantenimiento_equipamiento")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-public class LimpiezaEquipamientoEntity extends AuditableEntity<String> {
+@Builder
+public class MantenimientoEquipamientoEntity extends AuditableEntity<String> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "fecha_limpieza", nullable = false)
-    private LocalDateTime fechaLimpieza;
+    @Column(name = "fecha_mantenimiento", nullable = false)
+    private LocalDateTime fechaMantenimiento;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

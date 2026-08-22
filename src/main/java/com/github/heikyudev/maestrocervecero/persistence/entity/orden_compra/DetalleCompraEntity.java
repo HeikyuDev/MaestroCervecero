@@ -37,7 +37,7 @@ public class DetalleCompraEntity {
     @JoinColumn(name = "orden_compra_id", nullable = false)
     private OrdenCompraEntity ordenCompra;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "catalogo_proveedor_id", nullable = false)
     private CatalogoProveedorEntity catalogoProveedor;
 }
