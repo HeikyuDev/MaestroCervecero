@@ -232,7 +232,7 @@ class OllaHervorServicioImplTest {
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
-        assertThat(entidadCapturada.getPorcentajeEvaporacion()).isEqualTo(10.0);
+        assertThat(entidadCapturada.getEvaporacion()).isEqualTo(10.0);
         assertThat(entidadCapturada.getPerdidaPorTrub()).isEqualTo(3.0);
         // El alta siempre debe registrar a la olla de hervor como ACTIVA, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
@@ -252,7 +252,7 @@ class OllaHervorServicioImplTest {
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO);
 
-        assertThat(resultado.getPorcentajeEvaporacion()).isEqualTo(0.0);
+        assertThat(resultado.getEvaporacion()).isEqualTo(0.0);
         verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
     }
 
@@ -265,7 +265,7 @@ class OllaHervorServicioImplTest {
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO);
 
-        assertThat(resultado.getPorcentajeEvaporacion()).isEqualTo(100.0);
+        assertThat(resultado.getEvaporacion()).isEqualTo(100.0);
         verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
     }
 
@@ -369,7 +369,7 @@ class OllaHervorServicioImplTest {
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("OLLA-NUEVA");
         assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
-        assertThat(resultado.getPorcentajeEvaporacion()).isEqualTo(10.0);
+        assertThat(resultado.getEvaporacion()).isEqualTo(10.0);
         assertThat(resultado.getPerdidaPorTrub()).isEqualTo(3.0);
         verify(ollaHervorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-NUEVA", 1L);
@@ -428,7 +428,7 @@ class OllaHervorServicioImplTest {
     // ==================== helpers ====================
 
     private static OllaHervorEntity crearOllaHervorEntity(Long id, String identificadorInterno, Double capacidadTotal,
-                                                            Double capacidadUtil, Double porcentajeEvaporacion, Double perdidaPorTrub) {
+                                                            Double capacidadUtil, Double evaporacion, Double perdidaPorTrub) {
         return OllaHervorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
@@ -436,20 +436,20 @@ class OllaHervorServicioImplTest {
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
-                .porcentajeEvaporacion(porcentajeEvaporacion)
+                .evaporacion(evaporacion)
                 .perdidaPorTrub(perdidaPorTrub)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
     private static OllaHervorFormDTO ollaHervorFormDTO(String identificadorInterno, Double capacidadTotal,
-                                                         Double capacidadUtil, Double porcentajeEvaporacion, Double perdidaPorTrub) {
+                                                       Double capacidadUtil, Double evaporacion, Double perdidaPorTrub) {
         return OllaHervorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Olla de hervor de prueba")
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
-                .porcentajeEvaporacion(porcentajeEvaporacion)
+                .evaporacion(evaporacion)
                 .perdidaPorTrub(perdidaPorTrub)
                 .build();
     }
@@ -461,7 +461,7 @@ class OllaHervorServicioImplTest {
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getCapacidadTotal()).isEqualTo(entidad.getCapacidadTotal());
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
-        assertThat(dto.getPorcentajeEvaporacion()).isEqualTo(entidad.getPorcentajeEvaporacion());
+        assertThat(dto.getEvaporacion()).isEqualTo(entidad.getEvaporacion());
         assertThat(dto.getPerdidaPorTrub()).isEqualTo(entidad.getPerdidaPorTrub());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }

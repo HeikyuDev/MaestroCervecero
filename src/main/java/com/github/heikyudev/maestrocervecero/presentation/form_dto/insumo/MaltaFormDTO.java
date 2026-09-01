@@ -29,7 +29,7 @@ public class MaltaFormDTO {
     private TipoMalta tipo;
 
     /**
-     * Rendimiento potencial en porcentaje. Regla de negocio: entre 0 y 100 inclusive.
+     * Potencial de Extracto en porcentaje. Regla de negocio: entre 0 y 100 inclusive.
      */
-    private Integer rendimiento;
+    private Integer potencialExtracto;
 }

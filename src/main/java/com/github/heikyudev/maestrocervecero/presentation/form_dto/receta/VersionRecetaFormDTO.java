@@ -34,7 +34,7 @@ public class VersionRecetaFormDTO {
     /**
      * Relación de empaste de la receta en litros por kilogramo.
      */
-    private Integer relacionDeEmpaste;
+    private Double relacionDeEmpaste;
 
     /**
      * Densidad Original Objetivo de la receta.

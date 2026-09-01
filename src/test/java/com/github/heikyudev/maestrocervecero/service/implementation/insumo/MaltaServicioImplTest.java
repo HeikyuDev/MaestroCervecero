@@ -198,7 +198,7 @@ class MaltaServicioImplTest {
         MaltaEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("Chocolate");
         assertThat(entidadCapturada.getTipo()).isEqualTo(TipoMalta.BASE);
-        assertThat(entidadCapturada.getRendimiento()).isEqualTo(80);
+        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(80);
         // La unidad de medida es fija por regla de negocio y la asigna el service, no el FormDTO
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
         // El alta siempre debe registrar a la malta como ACTIVA, sin importar lo que traiga el FormDTO
@@ -207,7 +207,7 @@ class MaltaServicioImplTest {
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Chocolate");
         assertThat(resultado.getTipo()).isEqualTo(TipoMalta.BASE);
-        assertThat(resultado.getRendimiento()).isEqualTo(80);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(80);
         assertThat(resultado.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
         verify(maltaRepository).existsByNombreIgnoreCase("Chocolate");
     }
@@ -231,10 +231,10 @@ class MaltaServicioImplTest {
         ArgumentCaptor<MaltaEntity> captor = ArgumentCaptor.forClass(MaltaEntity.class);
         verify(maltaRepository).save(captor.capture());
         MaltaEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getRendimiento()).isEqualTo(0);
+        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(0);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
 
-        assertThat(resultado.getRendimiento()).isEqualTo(0);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(0);
         assertThat(resultado.getNombre()).isEqualTo("Malta Roasted");
     }
 
@@ -257,10 +257,10 @@ class MaltaServicioImplTest {
         ArgumentCaptor<MaltaEntity> captor = ArgumentCaptor.forClass(MaltaEntity.class);
         verify(maltaRepository).save(captor.capture());
         MaltaEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getRendimiento()).isEqualTo(100);
+        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(100);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
 
-        assertThat(resultado.getRendimiento()).isEqualTo(100);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(100);
         assertThat(resultado.getNombre()).isEqualTo("Malta Pale Ale");
     }
 
@@ -331,13 +331,13 @@ class MaltaServicioImplTest {
         MaltaEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("Pilsen Nacional");
         assertThat(entidadCapturada.getTipo()).isEqualTo(TipoMalta.BASE);
-        assertThat(entidadCapturada.getRendimiento()).isEqualTo(82);
+        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(82);
         // La unidad de medida es fija por regla de negocio: no se toca durante la modificación
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
 
         assertThat(resultado.getNombre()).isEqualTo("Pilsen Nacional");
         assertThat(resultado.getTipo()).isEqualTo(TipoMalta.BASE);
-        assertThat(resultado.getRendimiento()).isEqualTo(82);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(82);
         assertThat(resultado.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
         verify(maltaRepository).findById(1L);
         verify(maltaRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
@@ -356,7 +356,7 @@ class MaltaServicioImplTest {
         MaltaResponseDTO resultado = maltaServicio.modificarMalta(1L, maltaFormDTO);
 
         assertThat(resultado.getNombre()).isEqualTo("pilsen");
-        assertThat(resultado.getRendimiento()).isEqualTo(85);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(85);
         verify(maltaRepository).save(maltaEntity);
     }
 
@@ -400,16 +400,16 @@ class MaltaServicioImplTest {
                 .nombre(nombre)
                 .unidadDeMedida(UnidadDeMedida.KILOGRAMO)
                 .tipo(tipo)
-                .rendimiento(rendimiento)
+                .potencialExtracto(rendimiento)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
-    private static MaltaFormDTO maltaFormDTO(String nombre, TipoMalta tipo, Integer rendimiento) {
+    private static MaltaFormDTO maltaFormDTO(String nombre, TipoMalta tipo, Integer potencialExtracto) {
         return MaltaFormDTO.builder()
                 .nombre(nombre)
                 .tipo(tipo)
-                .rendimiento(rendimiento)
+                .potencialExtracto(potencialExtracto)
                 .build();
     }
 
@@ -418,7 +418,7 @@ class MaltaServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
         assertThat(dto.getTipo()).isEqualTo(entidad.getTipo());
-        assertThat(dto.getRendimiento()).isEqualTo(entidad.getRendimiento());
+        assertThat(dto.getPotencialExtracto()).isEqualTo(entidad.getPotencialExtracto());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

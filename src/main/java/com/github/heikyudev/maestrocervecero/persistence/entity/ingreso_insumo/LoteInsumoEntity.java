@@ -53,6 +53,11 @@ public class LoteInsumoEntity {
         this.cantidadActual += cantidad;
     }
 
+    // Reversa un ingreso anulado: descuenta de la cantidad actual lo que ese ingreso había sumado
+    public void anularIngreso(double cantidad) {
+        this.cantidadActual -= cantidad;
+    }
+
     public void reservar(double cantidad) {
         if (cantidad > getCantidadDisponible()) {
             throw new ReglaNegocioException("Stock disponible insuficiente para reservar");

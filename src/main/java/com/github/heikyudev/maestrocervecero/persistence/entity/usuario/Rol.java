@@ -57,13 +57,13 @@ public enum Rol {
             Permiso.COSTO_FIJO_MODIFICAR,
             Permiso.COSTO_FIJO_ELIMINAR,
             Permiso.COSTO_FIJO_CONSULTAR,
-            Permiso.MERMA_INSUMO_REGISTRAR,
-            Permiso.MERMA_INSUMO_ANULAR,
-            Permiso.MERMA_INSUMO_CONSULTAR,
-            Permiso.CLIENTE_CREAR,
-            Permiso.CLIENTE_MODIFICAR,
-            Permiso.CLIENTE_ELIMINAR,
-            Permiso.CLIENTE_CONSULTAR
+            Permiso.MOTIVO_AJUSTE_CREAR,
+            Permiso.MOTIVO_AJUSTE_MODIFICAR,
+            Permiso.MOTIVO_AJUSTE_ELIMINAR,
+            Permiso.MOTIVO_AJUSTE_CONSULTAR,
+            Permiso.AJUSTE_STOCK_REGISTRAR,
+            Permiso.AJUSTE_STOCK_ANULAR,
+            Permiso.AJUSTE_STOCK_CONSULTAR
     )),
 
     OPERARIO_DE_PRODUCCION(Set.of(
@@ -89,15 +89,15 @@ public enum Rol {
             Permiso.LIMPIEZA_EQUIPAMIENTO_REGISTRAR,
             Permiso.LIMPIEZA_EQUIPAMIENTO_CONSULTAR,
             Permiso.LIMPIEZA_EQUIPAMIENTO_ANULAR,
-            Permiso.DESPACHO_BARRIL_REGISTRAR,
-            Permiso.DESPACHO_BARRIL_ANULAR,
-            Permiso.DESPACHO_BARRIL_CONSULTAR,
-            Permiso.DEVOLUCION_BARRIL_REGISTRAR,
-            Permiso.DEVOLUCION_BARRIL_ANULAR,
-            Permiso.DEVOLUCION_BARRIL_CONSULTAR,
+            Permiso.LIMPIEZA_BARRIL_REGISTRAR,
+            Permiso.LIMPIEZA_BARRIL_ANULAR,
+            Permiso.LIMPIEZA_BARRIL_CONSULTAR,
             Permiso.FRACCIONAMIENTO_BARRIL_REGISTRAR,
             Permiso.FRACCIONAMIENTO_BARRIL_CONSULTAR,
-            Permiso.FRACCIONAMIENTO_BARRIL_ANULAR
+            Permiso.FRACCIONAMIENTO_BARRIL_ANULAR,
+            Permiso.MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR,
+            Permiso.MANTENIMIENTO_EQUIPAMIENTO_ANULAR,
+            Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR
     )),
 
     GERENTE_DE_COMPRAS(Set.of(
@@ -123,6 +123,23 @@ public enum Rol {
             Permiso.INGRESO_INSUMO_CONSULTAR,
             Permiso.CONSUMO_INSUMO_CONSULTAR,
             Permiso.ORDEN_COMPRA_CONSULTAR
+    )),
+
+    GERENTE_COMERCIAL(Set.of(
+            Permiso.CLIENTE_CREAR,
+            Permiso.CLIENTE_MODIFICAR,
+            Permiso.CLIENTE_ELIMINAR,
+            Permiso.CLIENTE_CONSULTAR,
+            Permiso.PRESENTACION_COMERCIAL_CREAR,
+            Permiso.PRESENTACION_COMERCIAL_MODIFICAR,
+            Permiso.PRESENTACION_COMERCIAL_ELIMINAR,
+            Permiso.PRESENTACION_COMERCIAL_CONSULTAR,
+            Permiso.DESPACHO_BARRIL_REGISTRAR,
+            Permiso.DESPACHO_BARRIL_ANULAR,
+            Permiso.DESPACHO_BARRIL_CONSULTAR,
+            Permiso.DEVOLUCION_BARRIL_REGISTRAR,
+            Permiso.DEVOLUCION_BARRIL_ANULAR,
+            Permiso.DEVOLUCION_BARRIL_CONSULTAR
     )),
 
     ADMINISTRADOR(Set.of(

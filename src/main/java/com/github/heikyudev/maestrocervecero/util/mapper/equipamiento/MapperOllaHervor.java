@@ -26,7 +26,7 @@ public class MapperOllaHervor {
                 .estadoOperativo(ollaHervorEntity.getEstadoOperativo())
                 .capacidadTotal(ollaHervorEntity.getCapacidadTotal())
                 .capacidadUtil(ollaHervorEntity.getCapacidadUtil())
-                .porcentajeEvaporacion(ollaHervorEntity.getPorcentajeEvaporacion())
+                .evaporacion(ollaHervorEntity.getEvaporacion())
                 .perdidaPorTrub(ollaHervorEntity.getPerdidaPorTrub())
                 .estado(ollaHervorEntity.getEstado())
                 // === AUDITABLE ENTITY ===

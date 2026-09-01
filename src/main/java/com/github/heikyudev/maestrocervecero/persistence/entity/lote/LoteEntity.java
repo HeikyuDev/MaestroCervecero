@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.DetalleCostoDirectoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -60,4 +61,8 @@ public class LoteEntity extends AuditableEntity<String> {
     @OneToMany(mappedBy = "lote", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @Builder.Default
     private List<EtapaLoteEntity> etapas = new ArrayList<>();
+
+    @OneToMany(mappedBy = "lote", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<DetalleCostoDirectoEntity> detallesCostoDirecto = new ArrayList<>();
 }

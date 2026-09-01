@@ -37,6 +37,6 @@ public class MaltaEntity extends InsumoEntity {
     @Column(name = "tipo", nullable = false)
     private TipoMalta tipo;
 
-    @Column(name = "rendimiento", nullable = false)
-    private Integer rendimiento;
+    @Column(name = "potencial_extracto", nullable = false)
+    private Integer potencialExtracto;
 }

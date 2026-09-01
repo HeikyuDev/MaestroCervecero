@@ -41,9 +41,9 @@ public class MaltaResponseDTO implements InsumoResponseDTO {
     private TipoMalta tipo;
 
     /**
-     * Rendimiento potencial en porcentaje (entre 0 y 100 inclusive).
+     * Potencial de Extracto en porcentaje (entre 0 y 100 inclusive).
      */
-    private Integer rendimiento;
+    private Integer potencialExtracto;
 
     /**
      * Estado lógico de la malta (activa o dada de baja).

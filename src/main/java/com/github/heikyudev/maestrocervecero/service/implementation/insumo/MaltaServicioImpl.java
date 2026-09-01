@@ -77,7 +77,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MALTA)
     public MaltaResponseDTO altaMalta(MaltaFormDTO maltaFormDTO) {
         // 1. Validar la regla de negocio del rendimiento
-        validarRendimiento(maltaFormDTO.getRendimiento());
+        validarRendimiento(maltaFormDTO.getPotencialExtracto());
 
         // 2. Validar si el nombre ya está registrado en otra malta (case-insensitive)
         if (maltaRepository.existsByNombreIgnoreCase(maltaFormDTO.getNombre())) {
@@ -90,7 +90,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
                 .nombre(maltaFormDTO.getNombre())
                 .unidadDeMedida(UnidadDeMedida.KILOGRAMO)
                 .tipo(maltaFormDTO.getTipo())
-                .rendimiento(maltaFormDTO.getRendimiento())
+                .potencialExtracto(maltaFormDTO.getPotencialExtracto())
                 .estado(Estado.ACTIVO)
                 .build();
 
@@ -118,7 +118,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MALTA)
     public MaltaResponseDTO modificarMalta(Long id, MaltaFormDTO maltaFormDTO) {
         // 1. Validar la regla de negocio del rendimiento antes de consultar la base de datos
-        validarRendimiento(maltaFormDTO.getRendimiento());
+        validarRendimiento(maltaFormDTO.getPotencialExtracto());
 
         // 2. Localizar la malta existente. Si no existe, se dispara RecursoNoEncontradoException
         MaltaEntity maltaEntity = maltaRepository.findById(id)
@@ -134,7 +134,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
         //    La unidad de medida no se toca: es fija por regla de negocio (KILOGRAMO).
         maltaEntity.setNombre(maltaFormDTO.getNombre());
         maltaEntity.setTipo(maltaFormDTO.getTipo());
-        maltaEntity.setRendimiento(maltaFormDTO.getRendimiento());
+        maltaEntity.setPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
         // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperMalta.toDTO(maltaRepository.save(maltaEntity));

@@ -24,7 +24,7 @@ public class MapperMalta {
                 .nombre(maltaEntity.getNombre())
                 .unidadDeMedida(maltaEntity.getUnidadDeMedida())
                 .tipo(maltaEntity.getTipo())
-                .rendimiento(maltaEntity.getRendimiento())
+                .potencialExtracto(maltaEntity.getPotencialExtracto())
                 .estado(maltaEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(maltaEntity.getCreatedBy())

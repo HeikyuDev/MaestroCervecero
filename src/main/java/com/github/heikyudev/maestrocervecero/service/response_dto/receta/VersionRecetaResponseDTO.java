@@ -31,7 +31,7 @@ public class VersionRecetaResponseDTO {
     /**
      * Relación de empaste de la receta.
      */
-    private Integer relacionDeEmpaste;
+    private Double relacionDeEmpaste;
 
     /**
      * Densidad original objetivo de la receta.

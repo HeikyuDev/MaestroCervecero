@@ -181,7 +181,7 @@ class RecetaServicioImplTest {
     @Test
     @DisplayName("CP-AR-03: altaReceta lanza ReglaNegocioException cuando la relación de empaste es cero (límite)")
     void altaReceta_debeRechazarRelacionDeEmpasteCero() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().relacionDeEmpaste(0).build());
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().relacionDeEmpaste(0.0).build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -1030,7 +1030,7 @@ class RecetaServicioImplTest {
         return VersionRecetaFormDTO.builder()
                 .nombre("IPA Clásica")
                 .volumenBase(20.0)
-                .relacionDeEmpaste(3)
+                .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
                 .ibuObjetivo(40)
@@ -1106,7 +1106,7 @@ class RecetaServicioImplTest {
                 .id(id)
                 .nombre(nombre)
                 .volumenBase(20.0)
-                .relacionDeEmpaste(3)
+                .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
                 .ibuObjetivo(40)

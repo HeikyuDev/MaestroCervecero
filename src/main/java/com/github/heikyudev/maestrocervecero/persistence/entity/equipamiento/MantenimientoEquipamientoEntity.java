@@ -29,6 +29,8 @@ public class MantenimientoEquipamientoEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private EstadoTransaccion estado;
 
+    private String observaciones;
+
     @Column(name = "fecha_anulacion")
     private LocalDateTime fechaAnulacion;
 

@@ -81,7 +81,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
         // 2. Validar que el porcentaje de evaporación esté entre 0 y 100
-        validarPorcentajeEvaporacion(ollaHervorFormDTO.getPorcentajeEvaporacion());
+        validarPorcentajeEvaporacion(ollaHervorFormDTO.getEvaporacion());
 
         // 3. Validar que la pérdida por trub no sea negativa
         validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
@@ -99,7 +99,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .capacidadTotal(ollaHervorFormDTO.getCapacidadTotal())
                 .capacidadUtil(ollaHervorFormDTO.getCapacidadUtil())
-                .porcentajeEvaporacion(ollaHervorFormDTO.getPorcentajeEvaporacion())
+                .evaporacion(ollaHervorFormDTO.getEvaporacion())
                 .perdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub())
                 .estado(Estado.ACTIVO)
                 .build();
@@ -133,7 +133,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
         // 2. Validar que el porcentaje de evaporación esté entre 0 y 100
-        validarPorcentajeEvaporacion(ollaHervorFormDTO.getPorcentajeEvaporacion());
+        validarPorcentajeEvaporacion(ollaHervorFormDTO.getEvaporacion());
 
         // 3. Validar que la pérdida por trub no sea negativa
         validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
@@ -154,7 +154,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         ollaHervorEntity.setDescripcion(ollaHervorFormDTO.getDescripcion());
         ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
-        ollaHervorEntity.setPorcentajeEvaporacion(ollaHervorFormDTO.getPorcentajeEvaporacion());
+        ollaHervorEntity.setEvaporacion(ollaHervorFormDTO.getEvaporacion());
         ollaHervorEntity.setPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
 
         // 7. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente

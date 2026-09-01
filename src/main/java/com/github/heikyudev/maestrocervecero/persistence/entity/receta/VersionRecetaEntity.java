@@ -36,7 +36,7 @@ public class VersionRecetaEntity {
     private Double volumenBase;
 
     @Column(name = "relacion_de_empaste", nullable = false)
-    private Integer relacionDeEmpaste;
+    private Double relacionDeEmpaste;
 
     @Column(name = "og_objetivo", nullable = false)
     private Double ogObjetivo;

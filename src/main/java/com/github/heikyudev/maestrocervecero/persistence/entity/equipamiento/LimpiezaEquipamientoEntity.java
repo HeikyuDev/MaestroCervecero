@@ -24,6 +24,8 @@ public class LimpiezaEquipamientoEntity extends AuditableEntity<String> {
     @Column(name = "fecha_limpieza", nullable = false)
     private LocalDateTime fechaLimpieza;
 
+    private String observaciones;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoTransaccion estado;

@@ -43,9 +43,9 @@ public class OllaHervorFormDTO {
     private Double capacidadUtil;
 
     /**
-     * Porcetanje de evaporacion de la olla de hervor.
+     * evaporacion de la olla de hervor. Litros por Hora
      */
-    private Double porcentajeEvaporacion;
+    private Double evaporacion;
 
     /**
      * Perdida por trub de la olla de hervor en Litros.

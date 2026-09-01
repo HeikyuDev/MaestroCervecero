@@ -30,8 +30,8 @@ public class OllaHervorEntity extends EquipamientoEntity {
     @Column(name = "capacidad_util", nullable = false)
     private Double capacidadUtil;
 
-    @Column(name = "porcentaje_evaporacion", nullable = false)
-    private Double porcentajeEvaporacion;
+    @Column(name = "evaporacion", nullable = false)
+    private Double evaporacion;
 
     @Column(name = "perdida_por_trub", nullable = false)
     private Double perdidaPorTrub;
