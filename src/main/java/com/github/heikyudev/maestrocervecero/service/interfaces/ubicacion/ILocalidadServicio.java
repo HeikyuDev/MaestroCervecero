@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.LocalidadFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,6 +62,7 @@ public interface ILocalidadServicio {
      * @param id El ID de la localidad a eliminar.
      * @return La localidad eliminada.
      * @throws RecursoNoEncontradoException Si no existe una localidad activa con el ID especificado.
+     * @throws ReglaNegocioException Si la localidad se encuentra asociada a al menos un proveedor activo o a al menos un cliente activo.
      */
     LocalidadResponseDTO bajaLocalidad(Long id);
 }

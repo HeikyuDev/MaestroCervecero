@@ -55,4 +55,19 @@ public interface IVersionProveedorRepository extends JpaRepository<VersionProvee
             "WHERE (UPPER(v.razonSocial) = UPPER(:razonSocial) OR v.cuit = :cuit) " +
             "AND v.esUltimaVersion = true AND v.proveedor.id <> :proveedorId AND v.proveedor.estado = 'ACTIVO'")
     boolean existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(@Param("razonSocial") String razonSocial, @Param("cuit") String cuit, @Param("proveedorId") Long proveedorId);
+
+    /**
+     * Verifica si existe una versión de proveedor activa, marcada como última versión, cuya
+     * localidad sea la indicada, perteneciente a un proveedor activo.
+     * <p>
+     * Se utiliza para impedir la baja de una localidad que todavía está referenciada por la
+     * última versión de al menos un proveedor activo.
+     * </p>
+     *
+     * @param idLocalidad El ID de la localidad a verificar.
+     * @return {@code true} si existe al menos un proveedor activo cuya última versión utiliza esa localidad, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE v.localidad.id = :idLocalidad AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
+    boolean existsByLocalidadIdAndEsUltimaVersionTrue(@Param("idLocalidad") Long idLocalidad);
 }

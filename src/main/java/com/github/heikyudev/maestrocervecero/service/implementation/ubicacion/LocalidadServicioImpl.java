@@ -5,12 +5,15 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAu
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.ProvinciaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.repository.cliente.IClienteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IVersionProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.IProvinciaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.LocalidadFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ubicacion.MapperLocalidad;
@@ -27,6 +30,8 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     // Inyecto los repositorios gracias a LOMBOK
     private final ILocalidadRepository localidadRepository;
     private final IProvinciaRepository provinciaRepository;
+    private final IVersionProveedorRepository versionProveedorRepository;
+    private final IClienteRepository clienteRepository;
 
     /**
      * Recupera una página de localidades activas registradas en el sistema.
@@ -162,6 +167,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
      * @param id Identificador clave primaria de la localidad a dar de baja.
      * @return {@link LocalidadResponseDTO} con los datos de la localidad ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la localidad con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la localidad se encuentra asociada a al menos un proveedor activo (por la última versión de su ficha) o a al menos un cliente activo.
      */
     @Override
     @Transactional
@@ -171,12 +177,21 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
         LocalidadEntity localidadEntity = localidadRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + id));
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
-        // TODO: verifica que la localidad seleccionada no se encuentre asociada a Proveedores o Clientes en estado activo.
+        // 2. Validar que la localidad no esté asociada a ningún proveedor activo
+        if (versionProveedorRepository.existsByLocalidadIdAndEsUltimaVersionTrue(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la localidad porque se encuentra asociada a al menos un proveedor activo");
+        }
+
+        // 3. Validar que la localidad no esté asociada a ningún cliente activo
+        if (clienteRepository.existsByLocalidadId(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la localidad porque se encuentra asociada a al menos un cliente activo");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         localidadEntity.setEstado(Estado.BAJA);
         localidadRepository.save(localidadEntity);
 
-        // 3. Retornamos el DTO de la localidad dada de baja
+        // 5. Retornamos el DTO de la localidad dada de baja
         return MapperLocalidad.toDTO(localidadEntity);
     }
 }
