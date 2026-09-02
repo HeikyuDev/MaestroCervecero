@@ -33,5 +33,7 @@ public enum ConceptoAuditoria {
     DEVOLUCION_BARRIL,
     FRACCIONAMIENTO_BARRIL,
     MERMA_INSUMO,
+    MOTIVO_AJUSTE,
+    AJUSTE_INSUMO,
     USUARIO,
 }
