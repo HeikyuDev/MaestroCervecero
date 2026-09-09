@@ -1,9 +1,9 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -37,7 +37,7 @@ public class OrdenCompraEntity extends AuditableEntity<String> {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private EstadoOrden estado;
+    private EstadoSolicitud estado;
 
     @Column(name = "fecha_finalizacion")
     private LocalDateTime fechaFinalizacion;
@@ -52,8 +52,8 @@ public class OrdenCompraEntity extends AuditableEntity<String> {
     private String motivoAnulacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "orden_produccion_id", nullable = false)
-    private OrdenProduccionEntity ordenProduccion;
+    @JoinColumn(name = "planificacion_produccion_id", nullable = false)
+    private PlanificacionProduccionEntity planificacionProduccion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "version_proveedor_id", nullable = false)

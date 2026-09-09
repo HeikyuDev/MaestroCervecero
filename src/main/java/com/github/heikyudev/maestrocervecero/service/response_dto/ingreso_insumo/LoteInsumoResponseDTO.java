@@ -28,7 +28,7 @@ public class LoteInsumoResponseDTO {
     private Double cantidadActual;
 
     /**
-     * Cantidad del lote reservada para órdenes de producción.
+     * Cantidad del lote reservada para planificaciones de producción.
      */
     private Double cantidadReservada;
 

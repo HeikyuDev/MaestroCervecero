@@ -1,7 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -24,5 +24,5 @@ public interface IOrdenCompraRepository extends JpaRepository<OrdenCompraEntity,
      * @param estado Estado de la orden de compra a buscar.
      * @return {@code true} si existe al menos una orden de compra en ese estado asociada a alguna versión del proveedor, {@code false} en caso contrario.
      */
-    boolean existsByVersionProveedor_Proveedor_IdAndEstado(Long idProveedor, EstadoOrden estado);
+    boolean existsByVersionProveedor_Proveedor_IdAndEstado(Long idProveedor, EstadoSolicitud estado);
 }

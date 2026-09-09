@@ -7,7 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Provee
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
@@ -507,7 +507,7 @@ class ProveedorServicioImplTest {
         // === PREPARACION DE DATOS ===
         ProveedorEntity proveedorEntity = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntity));
-        when(ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoOrden.PENDIENTE)).thenReturn(false);
+        when(ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
         when(proveedorRepository.save(proveedorEntity)).thenReturn(proveedorEntity);
 
         // === EJECUCION ===
@@ -518,7 +518,7 @@ class ProveedorServicioImplTest {
         assertThat(proveedorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertThat(resultado.getId()).isEqualTo(1L);
         verify(proveedorRepository).findById(1L);
-        verify(ordenCompraRepository).existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoOrden.PENDIENTE);
+        verify(ordenCompraRepository).existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoSolicitud.PENDIENTE);
         verify(proveedorRepository).save(proveedorEntity);
         verify(proveedorRepository, never()).delete(any());
     }
@@ -529,7 +529,7 @@ class ProveedorServicioImplTest {
         // === PREPARACION DE DATOS ===
         ProveedorEntity proveedorEntity = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntity));
-        when(ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoOrden.PENDIENTE)).thenReturn(true);
+        when(ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(true);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> proveedorServicio.bajaProveedor(1L))
@@ -545,7 +545,7 @@ class ProveedorServicioImplTest {
         // === PREPARACION DE DATOS ===
         ProveedorEntity proveedorEntity = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntity));
-        when(ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoOrden.PENDIENTE)).thenReturn(false);
+        when(ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
         when(proveedorRepository.save(proveedorEntity)).thenReturn(proveedorEntity);
 
         // === EJECUCION ===

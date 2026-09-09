@@ -9,7 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Provee
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
@@ -180,7 +180,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
 
         // 2. Validar que ninguna versión del proveedor (histórica o activa) tenga una orden de
         //    compra en estado PENDIENTE asociada
-        if (ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(id, EstadoOrden.PENDIENTE)) {
+        if (ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(id, EstadoSolicitud.PENDIENTE)) {
             throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene una orden de compra en estado PENDIENTE asociada");
         }
 

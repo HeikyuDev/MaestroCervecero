@@ -2,7 +2,7 @@ package com.github.heikyudev.maestrocervecero.util.mapper.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
-import com.github.heikyudev.maestrocervecero.util.mapper.orden_produccion.MapperOrdenProduccion;
+import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanificacionProduccion;
 import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperVersionProveedor;
 
 /**
@@ -12,7 +12,7 @@ public class MapperOrdenCompra {
 
     /**
      * Mapea una instancia de {@link OrdenCompraEntity} a {@link OrdenCompraResponseDTO},
-     * incluyendo la orden de producción, el proveedor y el detalle de la compra.
+     * incluyendo la planificación de producción, el proveedor y el detalle de la compra.
      *
      * @param ordenCompraEntity Entidad de orden de compra a convertir.
      * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
@@ -30,7 +30,7 @@ public class MapperOrdenCompra {
                 .motivoFinalizacion(ordenCompraEntity.getMotivoFinalizacion())
                 .fechaAnulacion(ordenCompraEntity.getFechaAnulacion())
                 .motivoAnulacion(ordenCompraEntity.getMotivoAnulacion())
-                .ordenProduccion(MapperOrdenProduccion.toDTO(ordenCompraEntity.getOrdenProduccion()))
+                .planificacionProduccion(MapperPlanificacionProduccion.toDTO(ordenCompraEntity.getPlanificacionProduccion()))
                 .proveedor(MapperVersionProveedor.toDTO(ordenCompraEntity.getVersionProveedor()))
                 .detallesCompra(ordenCompraEntity.getDetallesCompra().stream()
                         .map(MapperDetalleCompra::toDTO)

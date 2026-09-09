@@ -7,7 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.L
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoIngreso;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IIngresoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
@@ -88,7 +88,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de detalle de compra con ID: " + ingresoInsumoPorCompraFormDTO.getIdDetalleCompra()));
 
         // 2. Validar que la orden de compra de ese ítem se encuentre en estado PENDIENTE
-        if (detalleCompraEntity.getOrdenCompra().getEstado() != EstadoOrden.PENDIENTE) {
+        if (detalleCompraEntity.getOrdenCompra().getEstado() != EstadoSolicitud.PENDIENTE) {
             throw new ReglaNegocioException("Solo se pueden registrar ingresos de ítems de órdenes de compra en estado PENDIENTE");
         }
 

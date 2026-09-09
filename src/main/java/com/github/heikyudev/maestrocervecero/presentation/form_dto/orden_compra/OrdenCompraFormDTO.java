@@ -1,6 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import lombok.AllArgsConstructor;
@@ -30,14 +30,14 @@ public class OrdenCompraFormDTO {
     private LocalDate fechaEntregaEstimada;
 
     /**
-     * Identificador de la orden de producción que impulsa esta compra.
+     * Identificador de la planificación de producción que impulsa esta compra.
      * <p>
-     * Se espera que este identificador corresponda a una {@link OrdenProduccionEntity}
-     * existente: la orden de compra siempre está vinculada a una orden de producción, ya que
+     * Se espera que este identificador corresponda a una {@link PlanificacionProduccionEntity}
+     * existente: la orden de compra siempre está vinculada a una planificación de producción, ya que
      * es la que determina qué insumos (a través de su versión de receta) pueden solicitarse.
      * </p>
      */
-    private Long idOrdenProduccion;
+    private Long idPlanificacionProduccion;
 
     /**
      * Identificador del proveedor seleccionado para esta compra.

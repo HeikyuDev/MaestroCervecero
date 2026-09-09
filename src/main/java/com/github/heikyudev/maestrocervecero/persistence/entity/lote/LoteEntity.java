@@ -2,7 +2,7 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.DetalleCostoDirectoEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -55,8 +55,8 @@ public class LoteEntity extends AuditableEntity<String> {
     private String motivoAnulacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "orden_produccion_id", nullable = false)
-    private OrdenProduccionEntity ordenProduccion;
+    @JoinColumn(name = "planificacion_produccion_id", nullable = false)
+    private PlanificacionProduccionEntity planificacionProduccion;
 
     @OneToMany(mappedBy = "lote", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @Builder.Default

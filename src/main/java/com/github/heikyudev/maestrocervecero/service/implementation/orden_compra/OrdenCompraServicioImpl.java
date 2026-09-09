@@ -4,14 +4,14 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.orden_produccion.OrdenProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.orden_produccion.IOrdenProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IProveedorRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.AnulacionOrdenCompraFormDTO;
@@ -43,7 +43,7 @@ import java.util.stream.Stream;
 public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
 
     private final IOrdenCompraRepository ordenCompraRepository;
-    private final IOrdenProduccionRepository ordenProduccionRepository;
+    private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IProveedorRepository proveedorRepository;
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
 
@@ -80,16 +80,16 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     /**
      * Registra una nueva orden de compra en el sistema.
      * <p>
-     * La compra está siempre impulsada por una orden de producción pendiente: solo se pueden
+     * La compra está siempre impulsada por una planificación de producción pendiente: solo se pueden
      * solicitar ítems del catálogo del proveedor seleccionado cuyo insumo forme parte de la
-     * versión de receta asociada a esa orden de producción. El costo unitario de cada ítem se
+     * versión de receta asociada a esa planificación de producción. El costo unitario de cada ítem se
      * define recién en esta transacción; el catálogo del proveedor no fija precio.
      * </p>
      *
      * @param ordenCompraFormDTO Objeto DTO que contiene los datos de creación de la orden de compra.
      * @return {@link OrdenCompraResponseDTO} representativo de la orden de compra guardada en la base de datos, en estado {@code PENDIENTE}.
-     * @throws ReglaNegocioException Si la fecha de entrega estimada no fue informada o es anterior a la fecha actual, si algún ítem tiene cantidad o costo unitario nulo o menor o igual a cero, si la orden de producción no se encuentra en estado {@code PENDIENTE}, si algún ítem del catálogo no pertenece al proveedor seleccionado, o si el insumo de algún ítem no forma parte de la versión de receta de la orden de producción.
-     * @throws RecursoNoEncontradoException Si la orden de producción, el proveedor o algún ítem del catálogo referenciado no existen.
+     * @throws ReglaNegocioException Si la fecha de entrega estimada no fue informada o es anterior a la fecha actual, si algún ítem tiene cantidad o costo unitario nulo o menor o igual a cero, si la planificación de producción no se encuentra en estado {@code PENDIENTE}, si algún ítem del catálogo no pertenece al proveedor seleccionado, o si el insumo de algún ítem no forma parte de la versión de receta de la planificación de producción.
+     * @throws RecursoNoEncontradoException Si la planificación de producción, el proveedor o algún ítem del catálogo referenciado no existen.
      */
     @Override
     @Transactional
@@ -105,11 +105,11 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         List<DetalleCompraFormDTO> detallesCompraFormDTO = ordenCompraFormDTO.getDetallesCompra();
         detallesCompraFormDTO.forEach(this::validarCantidadYCosto);
 
-        // 3. Localizar la orden de producción y validar que se encuentre en estado PENDIENTE
-        OrdenProduccionEntity ordenProduccionEntity = ordenProduccionRepository.findById(ordenCompraFormDTO.getIdOrdenProduccion())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de producción con ID: " + ordenCompraFormDTO.getIdOrdenProduccion()));
-        if (ordenProduccionEntity.getEstado() != EstadoOrden.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden asociar órdenes de compra a órdenes de producción en estado PENDIENTE");
+        // 3. Localizar la planificación de producción y validar que se encuentre en estado PENDIENTE
+        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(ordenCompraFormDTO.getIdPlanificacionProduccion())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + ordenCompraFormDTO.getIdPlanificacionProduccion()));
+        if (planificacionProduccionEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
+            throw new ReglaNegocioException("Solo se pueden asociar órdenes de compra a planificaciones de producción en estado PENDIENTE");
         }
 
         // 4. Localizar la última versión activa del proveedor seleccionado
@@ -118,13 +118,13 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         // 5. Crear la entidad de la orden de compra a partir del DTO de formulario
         OrdenCompraEntity ordenCompraEntity = OrdenCompraEntity.builder()
                 .fechaEntregaEstimada(fechaEntregaEstimada)
-                .estado(EstadoOrden.PENDIENTE)
-                .ordenProduccion(ordenProduccionEntity)
+                .estado(EstadoSolicitud.PENDIENTE)
+                .planificacionProduccion(planificacionProduccionEntity)
                 .versionProveedor(versionProveedorEntity)
                 .build();
 
         // 6. Construir el detalle de la compra, validando cada ítem contra el proveedor y la receta
-        Set<Long> idsInsumosDeReceta = resolverInsumosDeReceta(ordenProduccionEntity.getVersionReceta());
+        Set<Long> idsInsumosDeReceta = resolverInsumosDeReceta(planificacionProduccionEntity.getVersionReceta());
         ordenCompraEntity.setDetallesCompra(construirDetallesCompra(detallesCompraFormDTO, ordenCompraEntity, versionProveedorEntity.getId(), idsInsumosDeReceta));
 
         // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
@@ -158,7 +158,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + id));
 
         // 3. Validar que la orden se encuentre en estado PENDIENTE
-        if (ordenCompraEntity.getEstado() != EstadoOrden.PENDIENTE) {
+        if (ordenCompraEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
             throw new ReglaNegocioException("Solo se pueden anular órdenes de compra en estado PENDIENTE");
         }
 
@@ -167,7 +167,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         // 4. Aplicar la anulación sobre la entidad administrada por persistencia
         ordenCompraEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
         ordenCompraEntity.setFechaAnulacion(LocalDateTime.now());
-        ordenCompraEntity.setEstado(EstadoOrden.ANULADA);
+        ordenCompraEntity.setEstado(EstadoSolicitud.ANULADA);
 
         // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperOrdenCompra.toDTO(ordenCompraRepository.save(ordenCompraEntity));
@@ -200,7 +200,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + id));
 
         // 3. Validar que la orden se encuentre en estado PENDIENTE
-        if (ordenCompraEntity.getEstado() != EstadoOrden.PENDIENTE) {
+        if (ordenCompraEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
             throw new ReglaNegocioException("Solo se pueden finalizar órdenes de compra en estado PENDIENTE");
         }
 
@@ -210,7 +210,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         // 4. Aplicar la finalización forzada sobre la entidad administrada por persistencia
         ordenCompraEntity.setMotivoFinalizacion(finalizacionFormDTO.getMotivoFinalizacion());
         ordenCompraEntity.setFechaFinalizacion(LocalDateTime.now());
-        ordenCompraEntity.setEstado(EstadoOrden.FINALIZADA);
+        ordenCompraEntity.setEstado(EstadoSolicitud.FINALIZADA);
 
         // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperOrdenCompra.toDTO(ordenCompraRepository.save(ordenCompraEntity));
@@ -251,12 +251,12 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     /**
      * Construye el detalle de una orden de compra a partir del DTO de formulario, validando
      * para cada ítem que el catálogo referenciado exista, que pertenezca al proveedor
-     * seleccionado y que su insumo forme parte de la versión de receta de la orden de producción.
+     * seleccionado y que su insumo forme parte de la versión de receta de la planificación de producción.
      *
      * @param detallesCompraFormDTO Ítems solicitados en el formulario.
      * @param ordenCompraEntity Orden de compra a la cual se asocia cada detalle construido.
      * @param idProveedor ID del proveedor seleccionado en la orden de compra.
-     * @param idsInsumosDeReceta IDs de los insumos que forman parte de la versión de receta de la orden de producción.
+     * @param idsInsumosDeReceta IDs de los insumos que forman parte de la versión de receta de la planificación de producción.
      * @return Lista de entidades {@link DetalleCompraEntity} lista para persistir mediante cascada.
      * @throws RecursoNoEncontradoException Si algún ítem del catálogo referenciado no existe.
      * @throws ReglaNegocioException Si algún ítem del catálogo no pertenece al proveedor seleccionado, o si su insumo no forma parte de la versión de receta.
@@ -273,7 +273,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
             }
 
             if (!idsInsumosDeReceta.contains(catalogoProveedorEntity.getInsumo().getId())) {
-                throw new ReglaNegocioException("El insumo del ítem de catálogo con ID " + detalleCompraFormDTO.getIdCatalogoProveedor() + " no forma parte de la versión de receta de la orden de producción seleccionada");
+                throw new ReglaNegocioException("El insumo del ítem de catálogo con ID " + detalleCompraFormDTO.getIdCatalogoProveedor() + " no forma parte de la versión de receta de la planificación de producción seleccionada");
             }
 
             detallesCompraEntity.add(DetalleCompraEntity.builder()

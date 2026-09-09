@@ -77,7 +77,7 @@ public class MapperReceta {
      * incluyendo sus detalles de malta, lúpulo, levadura y planes de monitoreo.
      * <p>
      * Público para que otros módulos que referencian directamente una versión de receta
-     * (por ejemplo, {@code MapperOrdenProduccion}) puedan reutilizar este mapeo sin duplicarlo.
+     * (por ejemplo, {@code MapperPlanificacionProduccion}) puedan reutilizar este mapeo sin duplicarlo.
      * </p>
      *
      * @param versionRecetaEntity Entidad de versión de receta a convertir.

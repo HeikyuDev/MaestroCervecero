@@ -1,8 +1,8 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoOrden;
-import com.github.heikyudev.maestrocervecero.service.response_dto.orden_produccion.OrdenProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,7 +35,7 @@ public class OrdenCompraResponseDTO {
     /**
      * Estado actual de la orden de compra (PENDIENTE, FINALIZADA, ANULADA).
      */
-    private EstadoOrden estado;
+    private EstadoSolicitud estado;
 
     /**
      * Fecha y hora en la que se finalizó la orden de compra (finalización normal o forzada).
@@ -62,9 +62,9 @@ public class OrdenCompraResponseDTO {
     private String motivoAnulacion;
 
     /**
-     * Orden de producción que impulsa esta compra.
+     * Planificación de producción que impulsa esta compra.
      */
-    private OrdenProduccionResponseDTO ordenProduccion;
+    private PlanificacionProduccionResponseDTO planificacionProduccion;
 
     /**
      * Proveedor seleccionado para esta compra.

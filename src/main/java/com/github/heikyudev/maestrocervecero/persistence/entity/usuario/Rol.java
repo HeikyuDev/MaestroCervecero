@@ -38,10 +38,10 @@ public enum Rol {
             Permiso.PARAMETRO_CONTROL_MODIFICAR,
             Permiso.PARAMETRO_CONTROL_ELIMINAR,
             Permiso.PARAMETRO_CONTROL_CONSULTAR,
-            Permiso.ORDEN_PRODUCCION_REGISTRAR,
-            Permiso.ORDEN_PRODUCCION_FINALIZAR,
-            Permiso.ORDEN_PRODUCCION_ANULAR,
-            Permiso.ORDEN_PRODUCCION_CONSULTAR,
+            Permiso.PLANIFICACION_PRODUCCION_REGISTRAR,
+            Permiso.PLANIFICACION_PRODUCCION_FINALIZAR,
+            Permiso.PLANIFICACION_PRODUCCION_ANULAR,
+            Permiso.PLANIFICACION_PRODUCCION_CONSULTAR,
             Permiso.LOTE_REGISTRAR,
             Permiso.LOTE_ANULAR,
             Permiso.LOTE_CONSULTAR,
@@ -114,7 +114,7 @@ public enum Rol {
             Permiso.ORDEN_COMPRA_ANULAR,
             Permiso.ORDEN_COMPRA_FINALIZAR,
             Permiso.ORDEN_COMPRA_CONSULTAR,
-            Permiso.ORDEN_PRODUCCION_CONSULTAR
+            Permiso.PLANIFICACION_PRODUCCION_CONSULTAR
     )),
 
     ENCARGADO_DE_DEPOSITO(Set.of(
