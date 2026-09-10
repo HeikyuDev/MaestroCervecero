@@ -173,7 +173,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @param aa Porcentaje de alfa ácidos a validar.
      * @throws ReglaNegocioException Si el porcentaje de alfa ácidos es nulo o no es positivo (mayor a 0).
      */
-    private static void validarAlfaAcidos(Integer aa) {
+    private static void validarAlfaAcidos(Double aa) {
         if (aa == null || aa <= 0) {
             throw new ReglaNegocioException("El porcentaje de alfa ácidos debe ser mayor a 0");
         }

@@ -5,6 +5,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 @Entity
@@ -36,6 +38,12 @@ public class LoteInsumoEntity {
     @Column(name = "fecha_vencimiento", nullable = false)
     private LocalDate fechaVencimiento;
 
+    // Costo Promedio Ponderado (PPP): sube cuando entra stock a un precio distinto,
+    // manteniendo el valor monetario total exactamente reversible ante una anulación.
+    @Column(name = "costo_unitario_ppp", nullable = false, precision = 14, scale = 4)
+    @Builder.Default
+    private BigDecimal costoUnitarioPPP = BigDecimal.ZERO;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "insumo_id", nullable = false)
     // Un insumo corresponde a un lote de insumo
@@ -49,13 +57,31 @@ public class LoteInsumoEntity {
                 - (this.cantidadReservada != null ? this.cantidadReservada : 0.0);
     }
 
-    public void sumarIngreso(double cantidad) {
+    // Suma cantidad al lote y actualiza el PPP (promedio ponderado por valor monetario total)
+    public void sumarIngreso(double cantidad, BigDecimal costoUnitario) {
+        BigDecimal valorActual = this.costoUnitarioPPP.multiply(BigDecimal.valueOf(this.cantidadActual));
+        BigDecimal valorNuevo = costoUnitario.multiply(BigDecimal.valueOf(cantidad));
+
         this.cantidadActual += cantidad;
+
+        if (this.cantidadActual != 0) {
+            this.costoUnitarioPPP = valorActual.add(valorNuevo)
+                    .divide(BigDecimal.valueOf(this.cantidadActual), 4, RoundingMode.HALF_UP);
+        }
     }
 
-    // Reversa un ingreso anulado: descuenta de la cantidad actual lo que ese ingreso había sumado
-    public void anularIngreso(double cantidad) {
+    // Reversa un ingreso anulado: descuenta de la cantidad actual lo que ese ingreso había sumado,
+    // y revierte exactamente su aporte al PPP usando el costo original de ese ingreso (no el PPP actual)
+    public void anularIngreso(double cantidad, BigDecimal costoUnitario) {
+        BigDecimal valorActual = this.costoUnitarioPPP.multiply(BigDecimal.valueOf(this.cantidadActual));
+        BigDecimal valorARevertir = costoUnitario.multiply(BigDecimal.valueOf(cantidad));
+
         this.cantidadActual -= cantidad;
+
+        if (this.cantidadActual > 0) {
+            this.costoUnitarioPPP = valorActual.subtract(valorARevertir)
+                    .divide(BigDecimal.valueOf(this.cantidadActual), 4, RoundingMode.HALF_UP);
+        }
     }
 
     public void reservar(double cantidad) {

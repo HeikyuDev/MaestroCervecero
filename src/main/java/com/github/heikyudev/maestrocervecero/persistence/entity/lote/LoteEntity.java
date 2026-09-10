@@ -48,11 +48,11 @@ public class LoteEntity extends AuditableEntity<String> {
     @Column(name = "fecha_finalizacion")
     private LocalDateTime fechaFinalizacion;
 
-    @Column(name = "fecha_anulacion")
-    private LocalDateTime fechaAnulacion;
+    @Column(name = "fecha_cancelacion")
+    private LocalDateTime fechaCancelacion;
 
-    @Column(name = "motivo_anulacion")
-    private String motivoAnulacion;
+    @Column(name = "motivo_cancelacion")
+    private String motivoCancelacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "planificacion_produccion_id", nullable = false)

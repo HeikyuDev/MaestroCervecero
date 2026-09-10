@@ -34,7 +34,7 @@ import lombok.experimental.SuperBuilder;
 public class LupuloEntity extends InsumoEntity {
 
     @Column(name = "alfa_acidos", nullable = false)
-    private Integer aa;
+    private Double aa;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "formato", nullable = false)

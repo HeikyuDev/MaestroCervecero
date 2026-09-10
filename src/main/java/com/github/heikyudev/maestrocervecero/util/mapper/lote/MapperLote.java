@@ -31,7 +31,7 @@ public class MapperLote {
                 .fechaFinalizacionEstimada(loteEntity.getFechaFinalizacionEstimada())
                 .fechaInicio(loteEntity.getFechaInicio())
                 .fechaFinalizacion(loteEntity.getFechaFinalizacion())
-                .motivoAnulacion(loteEntity.getMotivoAnulacion())
+                .motivoCancelacion(loteEntity.getMotivoCancelacion())
                 .planificacionProduccion(MapperPlanificacionProduccion.toDTO(loteEntity.getPlanificacionProduccion()))
                 .etapas(loteEntity.getEtapas().stream()
                         .map(MapperEtapaLote::toDTO)

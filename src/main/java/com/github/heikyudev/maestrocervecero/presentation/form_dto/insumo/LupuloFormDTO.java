@@ -31,5 +31,5 @@ public class LupuloFormDTO {
     /**
      * Porcentaje de alfa ácidos (AA%). Regla de negocio: positivo, mayor a 0.
      */
-    private Integer aa;
+    private Double aa;
 }

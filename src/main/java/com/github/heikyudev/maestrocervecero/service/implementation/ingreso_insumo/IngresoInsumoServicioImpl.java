@@ -28,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -115,7 +116,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 6. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
         //    persistirlo
-        loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida);
+        loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, detalleCompraEntity.getCostoUnitario());
 
         // 7. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
         IngresoInsumoEntity ingresoInsumoEntity = IngresoInsumoEntity.builder()
@@ -169,7 +170,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 6. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
         //    persistirlo
-        loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida);
+        loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, ingresoInsumoDirectoFormDTO.getCostoUnitario());
 
         // 7. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
         IngresoInsumoEntity ingresoInsumoEntity = IngresoInsumoEntity.builder()
@@ -224,7 +225,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 5. Recién si todas las validaciones pasaron, descontar la cantidad anulada del lote y
         //    persistirlo
-        loteInsumoEntity.anularIngreso(ingresoInsumoEntity.getCantidadRecibida());
+        loteInsumoEntity.anularIngreso(ingresoInsumoEntity.getCantidadRecibida(), ingresoInsumoEntity.getCostoUnitario());
         loteInsumoRepository.save(loteInsumoEntity);
 
         // 6. Aplicar la anulación sobre el ingreso y persistirlo
@@ -251,14 +252,15 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
-     * Suma la cantidad recibida a un lote de insumo (nuevo o existente) y lo persiste.
+     * Suma la cantidad recibida a un lote de insumo (nuevo o existente), actualiza su PPP y lo persiste.
      *
      * @param loteInsumoEntity Lote de insumo a actualizar.
      * @param cantidadRecibida Cantidad a sumar.
+     * @param costoUnitario Costo unitario al que se recibió esta cantidad.
      * @return El lote de insumo persistido.
      */
-    private LoteInsumoEntity sumarIngresoAlLote(LoteInsumoEntity loteInsumoEntity, double cantidadRecibida) {
-        loteInsumoEntity.sumarIngreso(cantidadRecibida);
+    private LoteInsumoEntity sumarIngresoAlLote(LoteInsumoEntity loteInsumoEntity, double cantidadRecibida, BigDecimal costoUnitario) {
+        loteInsumoEntity.sumarIngreso(cantidadRecibida, costoUnitario);
         return loteInsumoRepository.save(loteInsumoEntity);
     }
 

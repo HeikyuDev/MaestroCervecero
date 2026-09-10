@@ -37,7 +37,7 @@ public class LoteResponseDTO {
     private Double volumenObjetivo;
 
     /**
-     * Estado del lote (PENDIENTE, EN_EJECUCION, FINALIZADO, ANULADO).
+     * Estado del lote (PENDIENTE, EN_EJECUCION, FINALIZADO, CANCELADO).
      */
     private EstadoLote estado;
 
@@ -62,9 +62,9 @@ public class LoteResponseDTO {
     private LocalDateTime fechaFinalizacion;
 
     /**
-     * Motivo de anulación del lote. Nulo salvo que el lote haya sido anulado.
+     * Motivo de cancelación del lote. Nulo salvo que el lote haya sido cancelado.
      */
-    private String motivoAnulacion;
+    private String motivoCancelacion;
 
     /**
      * Planificación de producción a la que está asociado el lote.

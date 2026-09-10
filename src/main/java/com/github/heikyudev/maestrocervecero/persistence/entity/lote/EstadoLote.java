@@ -4,5 +4,5 @@ public enum EstadoLote {
     PENDIENTE,
     EN_EJECUCION,
     FINALIZADO,
-    ANULADO
+    CANCELADO
 }

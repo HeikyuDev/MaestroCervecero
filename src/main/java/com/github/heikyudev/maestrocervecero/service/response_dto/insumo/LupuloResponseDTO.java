@@ -43,7 +43,7 @@ public class LupuloResponseDTO implements InsumoResponseDTO {
     /**
      * Porcentaje de alfa ácidos (AA%). Positivo, mayor a 0.
      */
-    private Integer aa;
+    private Double aa;
 
     /**
      * Estado lógico del lúpulo (activo o dado de baja).

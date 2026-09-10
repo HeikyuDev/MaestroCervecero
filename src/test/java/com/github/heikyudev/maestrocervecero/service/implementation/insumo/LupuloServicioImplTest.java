@@ -49,8 +49,8 @@ class LupuloServicioImplTest {
     void buscarTodos_debeRetornarPaginaMapeada() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
-        LupuloEntity otroLupuloEntity = crearLupuloEntity(2L, "Saaz", FormatoLupulo.FLOR, 3);
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        LupuloEntity otroLupuloEntity = crearLupuloEntity(2L, "Saaz", FormatoLupulo.FLOR, 3.0);
 
         // Cuando lupuloRepository.findAll(pageable) sea llamado, retorna una página con los lúpulos activos
         // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
@@ -87,7 +87,7 @@ class LupuloServicioImplTest {
     @DisplayName("buscarPorId retorna el DTO del lúpulo cuando el ID existe")
     void buscarPorId_debeRetornarLupuloExistente() {
         // === PREPARACION DE DATOS ===
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
 
         // === EJECUCION ===
@@ -128,7 +128,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("altaLupulo lanza ReglaNegocioException cuando el porcentaje de alfa ácidos es igual a cero (valor límite)")
     void altaLupulo_debeRechazarAlfaAcidosCero() {
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 0);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 0.0);
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -140,7 +140,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("altaLupulo lanza ReglaNegocioException cuando el porcentaje de alfa ácidos es negativo")
     void altaLupulo_debeRechazarAlfaAcidosNegativo() {
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, -1);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, -1.0);
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -152,7 +152,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("altaLupulo lanza RecursoDuplicadoException y no persiste cuando el nombre ya existe")
     void altaLupulo_debeRechazarNombreDuplicado() {
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Citra", FormatoLupulo.PELLET, 6);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Citra", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.existsByNombreIgnoreCase("Citra")).thenReturn(true);
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
@@ -166,7 +166,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("altaLupulo lanza RecursoDuplicadoException cuando el nombre ya existe con distinto case (case-insensitive)")
     void altaLupulo_debeRechazarNombreDuplicadoCaseInsensitive() {
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("citra", FormatoLupulo.PELLET, 6);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("citra", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.existsByNombreIgnoreCase("citra")).thenReturn(true);
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
@@ -181,7 +181,7 @@ class LupuloServicioImplTest {
     @DisplayName("altaLupulo persiste y retorna el DTO asignando fijamente GRAMO como unidad de medida (camino feliz)")
     void altaLupulo_debePersistirYRetornarDTOCuandoDatosSonValidos() {
         // === PREPARACION DE DATOS ===
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Mosaic", FormatoLupulo.PELLET, 12);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Mosaic", FormatoLupulo.PELLET, 12.0);
         when(lupuloRepository.existsByNombreIgnoreCase("Mosaic")).thenReturn(false);
         when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> {
             LupuloEntity entidadGuardada = invocation.getArgument(0);
@@ -198,7 +198,7 @@ class LupuloServicioImplTest {
         LupuloEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("Mosaic");
         assertThat(entidadCapturada.getFormato()).isEqualTo(FormatoLupulo.PELLET);
-        assertThat(entidadCapturada.getAa()).isEqualTo(12);
+        assertThat(entidadCapturada.getAa()).isEqualTo(12.0);
         // La unidad de medida es fija por regla de negocio y la asigna el service, no el FormDTO
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
         // El alta siempre debe registrar al lúpulo como ACTIVO, sin importar lo que traiga el FormDTO
@@ -207,7 +207,7 @@ class LupuloServicioImplTest {
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Mosaic");
         assertThat(resultado.getFormato()).isEqualTo(FormatoLupulo.PELLET);
-        assertThat(resultado.getAa()).isEqualTo(12);
+        assertThat(resultado.getAa()).isEqualTo(12.0);
         assertThat(resultado.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
         verify(lupuloRepository).existsByNombreIgnoreCase("Mosaic");
     }
@@ -216,7 +216,7 @@ class LupuloServicioImplTest {
     @DisplayName("altaLupulo persiste con éxito cuando el porcentaje de alfa ácidos está en el límite inferior entero válido")
     void altaLupulo_debePersistirConAlfaAcidosEnLimiteInferiorValido() {
         // === PREPARACION DE DATOS ===
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Saaz", FormatoLupulo.FLOR, 1);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Saaz", FormatoLupulo.FLOR, 1.0);
         when(lupuloRepository.existsByNombreIgnoreCase("Saaz")).thenReturn(false);
         when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> {
             LupuloEntity entidadGuardada = invocation.getArgument(0);
@@ -231,10 +231,10 @@ class LupuloServicioImplTest {
         ArgumentCaptor<LupuloEntity> captor = ArgumentCaptor.forClass(LupuloEntity.class);
         verify(lupuloRepository).save(captor.capture());
         LupuloEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getAa()).isEqualTo(1);
+        assertThat(entidadCapturada.getAa()).isEqualTo(1.0);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
 
-        assertThat(resultado.getAa()).isEqualTo(1);
+        assertThat(resultado.getAa()).isEqualTo(1.0);
         assertThat(resultado.getNombre()).isEqualTo("Saaz");
     }
 
@@ -243,7 +243,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("modificarLupulo lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de alfa ácidos es inválido")
     void modificarLupulo_debeRechazarAlfaAcidosInvalido() {
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 0);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 0.0);
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -256,7 +256,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("modificarLupulo lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarLupulo_debeLanzarExcepcionSiNoExiste() {
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 6);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(99L, lupuloFormDTO))
@@ -272,8 +272,8 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("modificarLupulo lanza RecursoDuplicadoException y no persiste cuando el nombre está en uso por otro lúpulo")
     void modificarLupulo_debeRechazarNombreEnUsoPorOtroLupulo() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Citra", FormatoLupulo.PELLET, 6);
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Citra", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Citra", 1L)).thenReturn(true);
 
@@ -290,8 +290,8 @@ class LupuloServicioImplTest {
     @DisplayName("modificarLupulo actualiza los datos, conserva GRAMO y persiste cuando el ID existe y el nombre está libre (camino feliz)")
     void modificarLupulo_debeActualizarLupuloExistente() {
         // === PREPARACION DE DATOS ===
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade Modificado", FormatoLupulo.FLOR, 8);
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade Modificado", FormatoLupulo.FLOR, 8.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade Modificado", 1L)).thenReturn(false);
         when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
@@ -305,13 +305,13 @@ class LupuloServicioImplTest {
         LupuloEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("Cascade Modificado");
         assertThat(entidadCapturada.getFormato()).isEqualTo(FormatoLupulo.FLOR);
-        assertThat(entidadCapturada.getAa()).isEqualTo(8);
+        assertThat(entidadCapturada.getAa()).isEqualTo(8.0);
         // La unidad de medida es fija por regla de negocio: no se toca durante la modificación
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
 
         assertThat(resultado.getNombre()).isEqualTo("Cascade Modificado");
         assertThat(resultado.getFormato()).isEqualTo(FormatoLupulo.FLOR);
-        assertThat(resultado.getAa()).isEqualTo(8);
+        assertThat(resultado.getAa()).isEqualTo(8.0);
         assertThat(resultado.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
         verify(lupuloRepository).findById(1L);
         verify(lupuloRepository).existsByNombreIgnoreCaseAndIdNot("Cascade Modificado", 1L);
@@ -320,9 +320,9 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("modificarLupulo permite conservar el propio nombre actual al actualizar otros campos")
     void modificarLupulo_debePermitirConservarNombrePropio() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         // Mismo nombre (distinto case): el AndIdNot excluye el propio ID y no debe fallar
-        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("cascade", FormatoLupulo.PELLET, 9);
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("cascade", FormatoLupulo.PELLET, 9.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("cascade", 1L)).thenReturn(false);
         when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
@@ -330,7 +330,7 @@ class LupuloServicioImplTest {
         LupuloResponseDTO resultado = lupuloServicio.modificarLupulo(1L, lupuloFormDTO);
 
         assertThat(resultado.getNombre()).isEqualTo("cascade");
-        assertThat(resultado.getAa()).isEqualTo(9);
+        assertThat(resultado.getAa()).isEqualTo(9.0);
         verify(lupuloRepository).save(lupuloEntity);
     }
 
@@ -352,7 +352,7 @@ class LupuloServicioImplTest {
     @Test
     @DisplayName("bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
     void bajaLupulo_debeMarcarBajaYRetornarLupuloExistente() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6);
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
 
@@ -368,7 +368,7 @@ class LupuloServicioImplTest {
 
     // ==================== helpers ====================
 
-    private static LupuloEntity crearLupuloEntity(Long id, String nombre, FormatoLupulo formato, Integer aa) {
+    private static LupuloEntity crearLupuloEntity(Long id, String nombre, FormatoLupulo formato, Double aa) {
         return LupuloEntity.builder()
                 .id(id)
                 .nombre(nombre)
@@ -379,7 +379,7 @@ class LupuloServicioImplTest {
                 .build();
     }
 
-    private static LupuloFormDTO lupuloFormDTO(String nombre, FormatoLupulo formato, Integer aa) {
+    private static LupuloFormDTO lupuloFormDTO(String nombre, FormatoLupulo formato, Double aa) {
         return LupuloFormDTO.builder()
                 .nombre(nombre)
                 .formato(formato)

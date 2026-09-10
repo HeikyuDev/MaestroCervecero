@@ -167,13 +167,15 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      * @throws ReglaNegocioException Si el ajuste es de tipo EGRESO y la cantidad supera la cantidad disponible del lote de insumo.
      */
     private LoteInsumoEntity aplicarAjusteAlLote(LoteInsumoEntity loteInsumoEntity, TipoAjuste tipoAjuste, double cantidad) {
+        // Un ajuste no tiene costo de compra propio: se aplica al PPP actual del lote,
+        // lo que lo deja matemáticamente sin cambios (es una corrección de cantidad, no una compra)
         if (tipoAjuste == TipoAjuste.EGRESO) {
             if (cantidad > loteInsumoEntity.getCantidadDisponible()) {
                 throw new ReglaNegocioException("La cantidad a descontar no puede superar la cantidad disponible del lote de insumo");
             }
-            loteInsumoEntity.anularIngreso(cantidad);
+            loteInsumoEntity.anularIngreso(cantidad, loteInsumoEntity.getCostoUnitarioPPP());
         } else {
-            loteInsumoEntity.sumarIngreso(cantidad);
+            loteInsumoEntity.sumarIngreso(cantidad, loteInsumoEntity.getCostoUnitarioPPP());
         }
         return loteInsumoRepository.save(loteInsumoEntity);
     }
@@ -195,9 +197,9 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
             if (cantidad > loteInsumoEntity.getCantidadDisponible()) {
                 throw new ReglaNegocioException("No se puede anular el ajuste: su cantidad supera la cantidad disponible del lote de insumo");
             }
-            loteInsumoEntity.anularIngreso(cantidad);
+            loteInsumoEntity.anularIngreso(cantidad, loteInsumoEntity.getCostoUnitarioPPP());
         } else {
-            loteInsumoEntity.sumarIngreso(cantidad);
+            loteInsumoEntity.sumarIngreso(cantidad, loteInsumoEntity.getCostoUnitarioPPP());
         }
         return loteInsumoRepository.save(loteInsumoEntity);
     }
