@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
@@ -28,20 +29,24 @@ public class MaltaServicioImpl implements IMaltaServicio {
     private final IMaltaRepository maltaRepository;
 
     /**
-     * Recupera una página de maltas activas registradas en el sistema.
+     * Recupera una página de maltas activas registradas en el sistema, filtradas opcionalmente
+     * por nombre (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o tipo
+     * (coincidencia exacta).
      * <p>
      * Las maltas dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre de la malta, o {@code null} para no filtrar por nombre.
+     * @param tipo Tipo de malta exacto a filtrar, o {@code null} para no filtrar por tipo.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link MaltaResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<MaltaResponseDTO> buscarTodos(Pageable pageable) {
+    public Page<MaltaResponseDTO> filtrarMaltas(String nombre, TipoMalta tipo, Pageable pageable) {
         // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return maltaRepository.findAll(pageable).map(MapperMalta::toDTO);
+        return maltaRepository.filtrarMaltas(nombre, tipo, pageable).map(MapperMalta::toDTO);
     }
 
     /**

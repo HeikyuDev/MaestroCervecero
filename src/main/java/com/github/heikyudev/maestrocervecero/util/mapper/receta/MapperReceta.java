@@ -184,11 +184,15 @@ public class MapperReceta {
     /**
      * Mapea una instancia de {@link DetalleParametroControlEntity} a {@link DetalleParametroControlResponseDTO},
      * incluyendo la información del parámetro de control asociado.
+     * <p>
+     * Público para que otros módulos que referencian directamente un detalle de parámetro de
+     * control (por ejemplo, {@code MapperMedicionLote}) puedan reutilizar este mapeo sin duplicarlo.
+     * </p>
      *
      * @param detalleParametroControlEntity Entidad de detalle de parámetro de control a convertir.
      * @return Objeto DTO correspondiente.
      */
-    private static DetalleParametroControlResponseDTO mapDetalleParametroControl(DetalleParametroControlEntity detalleParametroControlEntity) {
+    public static DetalleParametroControlResponseDTO mapDetalleParametroControl(DetalleParametroControlEntity detalleParametroControlEntity) {
         return DetalleParametroControlResponseDTO.builder()
                 .id(detalleParametroControlEntity.getId())
                 .valorMinimo(detalleParametroControlEntity.getValorMinimo())

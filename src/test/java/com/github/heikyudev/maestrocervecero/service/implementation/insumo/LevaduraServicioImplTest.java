@@ -42,43 +42,60 @@ class LevaduraServicioImplTest {
     @InjectMocks
     private LevaduraServicioImpl levaduraServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarLevaduras ====================
 
     @Test
-    @DisplayName("buscarTodos retorna una página de levaduras correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FLv-01: filtrarLevaduras retorna una página de levaduras correctamente mapeada a DTO cuando se filtra por nombre y tipo")
+    void filtrarLevaduras_debeRetornarPaginaMapeadaFiltrandoPorNombreYTipo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
-        LevaduraEntity otraLevaduraEntity = crearLevaduraEntity(2L, "SafLager W-34/70", TipoLevadura.LAGER, 6.0E9);
-
-        // Cuando levaduraRepository.findAll(pageable) sea llamado, retorna una página con las levaduras activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(levaduraRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(levaduraEntity, otraLevaduraEntity), pageable, 2));
+        LevaduraEntity otraLevaduraEntity = crearLevaduraEntity(2L, "SafAle US-05", TipoLevadura.ALE, 1.2E10);
+        when(levaduraRepository.filtrarLevaduras("SafAle", TipoLevadura.ALE, pageable))
+                .thenReturn(new PageImpl<>(List.of(levaduraEntity, otraLevaduraEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<LevaduraResponseDTO> resultado = levaduraServicio.buscarTodos(pageable);
+        Page<LevaduraResponseDTO> resultado = levaduraServicio.filtrarLevaduras("SafAle", TipoLevadura.ALE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertLevaduraDTO(levaduraEntity, resultado.getContent().get(0));
         assertLevaduraDTO(otraLevaduraEntity, resultado.getContent().get(1));
-        verify(levaduraRepository).findAll(pageable);
+        verify(levaduraRepository).filtrarLevaduras("SafAle", TipoLevadura.ALE, pageable);
     }
 
     @Test
-    @DisplayName("buscarTodos retorna una página vacía cuando no hay levaduras registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FLv-02: filtrarLevaduras propaga nombre y tipo nulos sin restringir esos criterios")
+    void filtrarLevaduras_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(levaduraRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
+        LevaduraEntity otraLevaduraEntity = crearLevaduraEntity(2L, "SafLager W-34/70", TipoLevadura.LAGER, 6.0E9);
+        when(levaduraRepository.filtrarLevaduras(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(levaduraEntity, otraLevaduraEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<LevaduraResponseDTO> resultado = levaduraServicio.buscarTodos(pageable);
+        Page<LevaduraResponseDTO> resultado = levaduraServicio.filtrarLevaduras(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(levaduraRepository).filtrarLevaduras(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FLv-03: filtrarLevaduras retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarLevaduras_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(levaduraRepository.filtrarLevaduras("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<LevaduraResponseDTO> resultado = levaduraServicio.filtrarLevaduras("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(levaduraRepository).findAll(pageable);
+        verify(levaduraRepository).filtrarLevaduras("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

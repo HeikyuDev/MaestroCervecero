@@ -228,29 +228,37 @@ public class LoteServicioImpl implements ILoteServicio {
         // 3. Bloquear y validar que el equipamiento asociado al lote se encuentre DISPONIBLE
         EquipamientoDelLote equipamiento = bloquearYValidarEquipamientoDisponible(lote);
 
-        // 4. Calcular la cantidad requerida de cada insumo, escalada al volumen objetivo del lote
+        // 4. Calcular la cantidad requerida de cada insumo, escalada al volumen objetivo del lote,
+        //    y asociarla a la etapa donde efectivamente se va a usar: Maceración para la malta,
+        //    Fermentación para la levadura, y la etapa configurada en cada detalle para el lúpulo
+        //    (HERVIDO para HERVOR/WHIRLPOOL, FERMENTACION o MADURACION para DRY_HOP).
         VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
         double volumenObjetivo = lote.getVolumenObjetivo();
+        EtapaLoteEntity etapaMaceracion = obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaFermentacion = obtenerEtapaPorTipo(lote, TipoEtapa.FERMENTACION);
 
         List<RequerimientoInsumo> todosLosRequerimientos = new ArrayList<>();
-        todosLosRequerimientos.addAll(calcularRequerimientosMalta(versionReceta, volumenObjetivo, equipamiento.macerador()));
-        todosLosRequerimientos.addAll(calcularRequerimientosLupulo(versionReceta, volumenObjetivo));
-        todosLosRequerimientos.addAll(calcularRequerimientosLevadura(versionReceta, volumenObjetivo));
+        todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, equipamiento.macerador()), etapaMaceracion));
+        todosLosRequerimientos.addAll(calcularRequerimientosLupulo(versionReceta, volumenObjetivo, lote));
+        todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosLevadura(versionReceta, volumenObjetivo), etapaFermentacion));
 
-        // Este paso es necesario ya unifica los requerimientos de insumo POR INSUMO, evitando
-        // tener requerimeintos para un mismo insumo.
-        Map<Long, RequerimientoInsumo> requerimientosPorInsumo = new LinkedHashMap<>();
+        // Este paso unifica los requerimientos POR INSUMO Y POR ETAPA: un mismo insumo (típicamente
+        // un lúpulo) puede usarse en más de una etapa dentro de la misma receta (por ejemplo, HERVOR
+        // en Hervido y DRY_HOP en Maduración), y cada uso genera una reserva separada, atada a su
+        // propia etapa — nunca se fusionan entre etapas distintas, solo dentro de la misma.
+        Map<String, RequerimientoInsumo> requerimientosPorInsumoYEtapa = new LinkedHashMap<>();
         for (RequerimientoInsumo requerimiento : todosLosRequerimientos) {
-            requerimientosPorInsumo.merge(requerimiento.insumo().getId(), requerimiento,
-                    (existente, nuevo) -> new RequerimientoInsumo(existente.insumo(), existente.cantidadRequerida() + nuevo.cantidadRequerida()));
+            String clave = requerimiento.insumo().getId() + "-" + requerimiento.etapa().getId();
+            requerimientosPorInsumoYEtapa.merge(clave, requerimiento,
+                    (existente, nuevo) -> new RequerimientoInsumo(existente.insumo(), existente.etapa(), existente.cantidadRequerida() + nuevo.cantidadRequerida()));
         }
 
-        // 5. Validar que el stock disponible de cada insumo alcance la cantidad escalada, antes de
-        //    reservar nada
-        Map<Long, List<LoteInsumoEntity>> stockPorInsumo = obtenerYValidarStockDisponible(requerimientosPorInsumo.values());
+        // 5. Validar que el stock disponible de cada insumo alcance la cantidad escalada (sumada
+        //    entre todas las etapas que lo requieran), antes de reservar nada
+        Map<Long, List<LoteInsumoEntity>> stockPorInsumo = obtenerYValidarStockDisponible(requerimientosPorInsumoYEtapa.values());
 
         // 6. Reservar la cantidad escalada de cada insumo aplicando la regla FEFO
-        List<ReservaInsumoEntity> reservas = reservarInsumosFEFO(lote, requerimientosPorInsumo.values(), stockPorInsumo);
+        List<ReservaInsumoEntity> reservas = reservarInsumosFEFO(requerimientosPorInsumoYEtapa.values(), stockPorInsumo);
         reservaInsumoRepository.saveAll(reservas);
 
         // 7 y 8. Registrar la fecha y hora de inicio general del lote, y cambiar su estado a EN_EJECUCION
@@ -412,7 +420,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * una reserva liberada deja de existir, no se conserva con algún indicador de "liberada".
      */
     private void liberarReservasDelLote(LoteEntity lote) {
-        List<ReservaInsumoEntity> reservas = reservaInsumoRepository.findByLoteId(lote.getId());
+        List<ReservaInsumoEntity> reservas = reservaInsumoRepository.findByEtapaLote_Lote_Id(lote.getId());
 
         for (ReservaInsumoEntity reserva : reservas) {
             LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaLiberarReserva(reserva.getLoteInsumo().getId())
@@ -600,7 +608,7 @@ public class LoteServicioImpl implements ILoteServicio {
         double kgMaltaTotal = puntosDensidadObjetivo / (extractoPotencialPromedio * (macerador.getEficienciaMaceracion() / 100.0) * REFERENCIA_AZUCAR_PURA_PUNTOS_POR_KG_POR_L);
 
         return detallesMalta.stream()
-                .map(detalle -> new RequerimientoInsumo(detalle.getMalta(), kgMaltaTotal * (detalle.getCantidad() / cantidadTotalBase)))
+                .map(detalle -> new RequerimientoInsumo(detalle.getMalta(), null, kgMaltaTotal * (detalle.getCantidad() / cantidadTotalBase)))
                 .toList();
     }
 
@@ -611,7 +619,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * DRY_HOP, al ser exclusivamente aromáticos, escalan de forma lineal respecto al volumen base
      * de la receta (Paso 7).
      */
-    private List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo) {
+    private List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo, LoteEntity lote) {
         List<DetalleLupuloEntity> detallesLupulo = versionReceta.getDetallesLupulo();
         List<RequerimientoInsumo> requerimientos = new ArrayList<>();
 
@@ -636,13 +644,13 @@ public class LoteServicioImpl implements ILoteServicio {
 
             for (DetalleLupuloEntity detalle : detallesHervor) {
                 double proporcion = detalle.getCantidad() / cantidadTotalBaseHervor;
-                requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), gramosTotalHervor * proporcion));
+                requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), obtenerEtapaPorTipo(lote, detalle.getEtapaDeUso()), gramosTotalHervor * proporcion));
             }
         }
 
         detallesLupulo.stream()
                 .filter(detalle -> detalle.getUso() != UsoLupulo.HERVOR)
-                .forEach(detalle -> requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(),
+                .forEach(detalle -> requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), obtenerEtapaPorTipo(lote, detalle.getEtapaDeUso()),
                         detalle.getCantidad() * (volumenObjetivo / versionReceta.getVolumenBase()))));
 
         return requerimientos;
@@ -672,15 +680,32 @@ public class LoteServicioImpl implements ILoteServicio {
                     double proporcion = detalle.getCantidad() / cantidadTotalBase;
                     double celulasMillones = celulasTotalesMillones * proporcion;
                     double gramos = (celulasMillones * 1_000_000) / detalle.getLevadura().getCantidadCelulasPorGramo();
-                    return new RequerimientoInsumo(detalle.getLevadura(), gramos);
+                    return new RequerimientoInsumo(detalle.getLevadura(), null, gramos);
                 })
+                .toList();
+    }
+
+    /**
+     * Devuelve una copia de los requerimientos con la etapa indicada asociada a cada uno.
+     * <p>
+     * {@code calcularRequerimientosMalta}/{@code calcularRequerimientosLevadura} no conocen la
+     * etapa del lote (se reutilizan también desde {@link #registrarLote(LoteFormDTO)}, donde las
+     * etapas todavía no existen), así que la asociación se hace acá, ya dentro de
+     * {@link #iniciarLote(Long)}, donde sí sabemos qué etapa corresponde a cada insumo.
+     * </p>
+     */
+    private static List<RequerimientoInsumo> asociarEtapa(List<RequerimientoInsumo> requerimientos, EtapaLoteEntity etapa) {
+        return requerimientos.stream()
+                .map(requerimiento -> new RequerimientoInsumo(requerimiento.insumo(), etapa, requerimiento.cantidadRequerida()))
                 .toList();
     }
 
     /**
      * Para cada insumo requerido, busca (bloqueando para escritura) sus lotes de insumo
      * ordenados por FEFO y valida que la suma de cantidad disponible entre todos ellos alcance la
-     * cantidad requerida. No reserva nada todavía.
+     * cantidad requerida SUMADA ENTRE TODAS LAS ETAPAS que lo necesiten (el mismo insumo puede
+     * tener requerimientos separados por etapa, pero el stock físico que lo cubre es uno solo,
+     * compartido). No reserva nada todavía.
      * <p>
      * Evalúa TODOS los insumos antes de lanzar, en vez de cortar en el primero que falla: así el
      * usuario ve de una sola vez la lista completa de insumos con stock insuficiente, sin tener que
@@ -688,20 +713,29 @@ public class LoteServicioImpl implements ILoteServicio {
      * </p>
      */
     private Map<Long, List<LoteInsumoEntity>> obtenerYValidarStockDisponible(Collection<RequerimientoInsumo> requerimientos) {
+        Map<Long, InsumoEntity> insumoPorId = new LinkedHashMap<>();
+        Map<Long, Double> cantidadRequeridaPorInsumo = new LinkedHashMap<>();
+        for (RequerimientoInsumo requerimiento : requerimientos) {
+            insumoPorId.putIfAbsent(requerimiento.insumo().getId(), requerimiento.insumo());
+            cantidadRequeridaPorInsumo.merge(requerimiento.insumo().getId(), requerimiento.cantidadRequerida(), Double::sum);
+        }
+
         Map<Long, List<LoteInsumoEntity>> stockPorInsumo = new LinkedHashMap<>();
         List<String> faltantes = new ArrayList<>();
 
-        for (RequerimientoInsumo requerimiento : requerimientos) {
+        for (Map.Entry<Long, Double> entry : cantidadRequeridaPorInsumo.entrySet()) {
+            Long idInsumo = entry.getKey();
+            double cantidadRequeridaTotal = entry.getValue();
             List<LoteInsumoEntity> lotesDisponibles = loteInsumoRepository
-                    .buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(requerimiento.insumo().getId());
+                    .buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(idInsumo);
 
             double totalDisponible = lotesDisponibles.stream().mapToDouble(LoteInsumoEntity::getCantidadDisponible).sum();
-            if (totalDisponible < requerimiento.cantidadRequerida()) {
-                faltantes.add("'" + requerimiento.insumo().getNombre() + "' (se requieren " + requerimiento.cantidadRequerida()
+            if (totalDisponible < cantidadRequeridaTotal) {
+                faltantes.add("'" + insumoPorId.get(idInsumo).getNombre() + "' (se requieren " + cantidadRequeridaTotal
                         + " y solo hay " + totalDisponible + " disponibles)");
             }
 
-            stockPorInsumo.put(requerimiento.insumo().getId(), lotesDisponibles);
+            stockPorInsumo.put(idInsumo, lotesDisponibles);
         }
 
         if (!faltantes.isEmpty()) {
@@ -712,12 +746,14 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Reserva la cantidad requerida de cada insumo aplicando FEFO: recorre los lotes de insumo ya
-     * ordenados por fecha de vencimiento ascendente, tomando de cada uno la cantidad disponible
-     * que haga falta hasta cubrir el requerimiento, generando una {@link ReservaInsumoEntity} por
-     * cada lote de insumo que contribuye.
+     * Reserva la cantidad requerida de cada (insumo, etapa) aplicando FEFO: recorre los lotes de
+     * insumo ya ordenados por fecha de vencimiento ascendente (compartidos entre todas las etapas
+     * que requieran ese mismo insumo, así que se van agotando de forma acumulativa a medida que se
+     * procesa cada requerimiento), tomando de cada uno la cantidad disponible que haga falta hasta
+     * cubrir el requerimiento, generando una {@link ReservaInsumoEntity} por cada lote de insumo
+     * que contribuye, asociada a la etapa de ESE requerimiento puntual.
      */
-    private List<ReservaInsumoEntity> reservarInsumosFEFO(LoteEntity lote, Collection<RequerimientoInsumo> requerimientos, Map<Long, List<LoteInsumoEntity>> stockPorInsumo) {
+    private List<ReservaInsumoEntity> reservarInsumosFEFO(Collection<RequerimientoInsumo> requerimientos, Map<Long, List<LoteInsumoEntity>> stockPorInsumo) {
         List<ReservaInsumoEntity> reservas = new ArrayList<>();
         for (RequerimientoInsumo requerimiento : requerimientos) {
             double cantidadRestante = requerimiento.cantidadRequerida();
@@ -736,10 +772,9 @@ public class LoteServicioImpl implements ILoteServicio {
                 loteInsumoRepository.save(loteInsumo);
 
                 reservas.add(ReservaInsumoEntity.builder()
-                        .lote(lote)
+                        .etapaLote(requerimiento.etapa())
                         .loteInsumo(loteInsumo)
                         .cantidadReservada(cantidadAReservar)
-                        .costoUnitarioPPP(loteInsumo.getCostoUnitarioPPP())
                         .build());
                 cantidadRestante -= cantidadAReservar;
             }
@@ -798,10 +833,12 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Requerimiento escalado de un insumo puntual (una malta, un lúpulo o una levadura
-     * específicos), previo a agregarse por insumo cuando el mismo insumo aparece más de una vez
-     * entre los distintos cálculos.
+     * específicos) para una etapa concreta del lote. {@code etapa} puede ser {@code null} cuando
+     * el requerimiento se calcula fuera del contexto de {@link #iniciarLote(Long)} (por ejemplo, al
+     * validar capacidad del macerador en {@link #registrarLote(LoteFormDTO)}, donde las etapas del
+     * lote todavía no existen) — en ese caso solo se usa {@code cantidadRequerida}, nunca la etapa.
      */
-    private record RequerimientoInsumo(InsumoEntity insumo, double cantidadRequerida) {
+    private record RequerimientoInsumo(InsumoEntity insumo, EtapaLoteEntity etapa, double cantidadRequerida) {
     }
 
     /**

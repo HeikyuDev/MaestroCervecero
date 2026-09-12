@@ -1,9 +1,10 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarLupulos(String nombre, FormatoLupulo formato, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 2 lúpulos activos|`findAll(pageable)` contiene elementos|Retorna `Page<LupuloResponseDTO>` con 2 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<LupuloResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FL-01**|Filtra por nombre y formato informados|`nombre: "Cascade"`, `formato: PELLET`, `pageable: PageRequest.of(0, 10)`, BD con 2 lúpulos activos que cumplen ambos criterios|`filtrarLupulos("Cascade", PELLET, pageable)` contiene elementos|Retorna `Page<LupuloResponseDTO>` con 2 elementos mapeados.|
+|**CP-FL-02**|Nombre y formato nulos no restringen la búsqueda|`nombre: null`, `formato: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<LupuloResponseDTO>` con todos los lúpulos activos (equivalente a no filtrar).|
+|**CP-FL-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `formato: null`, `pageable: PageRequest.of(0, 10)`|`filtrarLupulos("Inexistente", null, pageable)` está vacío|Retorna `Page<LupuloResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

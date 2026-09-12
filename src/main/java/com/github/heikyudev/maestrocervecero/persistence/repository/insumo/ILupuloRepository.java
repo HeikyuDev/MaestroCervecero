@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,9 +16,9 @@ import java.util.Optional;
  * <p>
  * La entidad ya no utiliza {@code @SoftDelete}: el filtrado de lúpulos dados de baja se
  * realiza explícitamente en cada consulta mediante la condición {@code estado = 'ACTIVO'}.
- * Los métodos heredados de {@link JpaRepository} ({@code findById}, {@code findAll}) se
- * sobrescriben con esa misma condición para que todo el código existente que ya los invoca
- * (sin cambios) siga viendo únicamente lúpulos activos.
+ * El método heredado de {@link JpaRepository} ({@code findById}) se sobrescribe con esa misma
+ * condición para que todo el código existente que ya lo invoca (sin cambios) siga viendo
+ * únicamente lúpulos activos.
  * </p>
  */
 @Repository
@@ -34,14 +35,22 @@ public interface ILupuloRepository extends JpaRepository<LupuloEntity, Long> {
     Optional<LupuloEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de lúpulos activos.
+     * Obtiene una página de lúpulos activos, filtrados opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y/o formato (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre del lúpulo, o {@code null} para no filtrar por nombre.
+     * @param formato Formato exacto a filtrar, o {@code null} para no filtrar por formato.
      * @param pageable La configuración de paginación.
-     * @return Una página de lúpulos activos.
+     * @return Una página de lúpulos activos que cumplen los criterios indicados.
      */
-    @Override
-    @Query(value = "SELECT l FROM LupuloEntity l WHERE l.estado = 'ACTIVO'",
-            countQuery = "SELECT COUNT(l) FROM LupuloEntity l WHERE l.estado = 'ACTIVO'")
-    Page<LupuloEntity> findAll(Pageable pageable);
+    @Query(value = "SELECT l FROM LupuloEntity l WHERE l.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:formato IS NULL OR l.formato = :formato)",
+            countQuery = "SELECT COUNT(l) FROM LupuloEntity l WHERE l.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:formato IS NULL OR l.formato = :formato)")
+    Page<LupuloEntity> filtrarLupulos(@Param("nombre") String nombre, @Param("formato") FormatoLupulo formato, Pageable pageable);
 
     /**
      * Verifica si existe un lúpulo activo con el nombre dado, ignorando mayúsculas y minúsculas.

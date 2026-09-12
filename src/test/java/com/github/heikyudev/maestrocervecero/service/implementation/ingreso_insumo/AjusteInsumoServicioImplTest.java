@@ -6,11 +6,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.M
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IAjusteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IMotivoAjusteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AjusteInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AnularAjusteInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -33,6 +35,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,6 +53,9 @@ class AjusteInsumoServicioImplTest {
 
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
+
+    @Mock
+    private IReservaInsumoRepository reservaInsumoRepository;
 
     @InjectMocks
     private AjusteInsumoServicioImpl ajusteInsumoServicio;
@@ -143,7 +149,7 @@ class AjusteInsumoServicioImplTest {
     void registrarAjusteInsumo_debeRechazarLoteInsumoInexistente() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 99L, 10.0, "Observación");
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
-        when(loteInsumoRepository.findById(99L)).thenReturn(Optional.empty());
+        when(loteInsumoRepository.buscarPorIdParaAjustar(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -157,7 +163,7 @@ class AjusteInsumoServicioImplTest {
     void registrarAjusteInsumo_debeRechazarCantidadNula() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, null, "Observación");
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -171,7 +177,7 @@ class AjusteInsumoServicioImplTest {
     void registrarAjusteInsumo_debeRechazarCantidadEnCero() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 0.0, "Observación");
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -185,7 +191,7 @@ class AjusteInsumoServicioImplTest {
     void registrarAjusteInsumo_debeRechazarCantidadNegativa() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, -5.0, "Observación");
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -195,15 +201,15 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-06: registrarAjusteInsumo lanza ReglaNegocioException con motivo EGRESO cuando la cantidad supera la disponible del lote")
-    void registrarAjusteInsumo_debeRechazarEgresoQueSuperaCantidadDisponible() {
+    @DisplayName("CP-RA-06: registrarAjusteInsumo lanza ReglaNegocioException con motivo EGRESO cuando la cantidad supera la cantidad actual del lote")
+    void registrarAjusteInsumo_debeRechazarEgresoQueSuperaCantidadActual() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 15.0, "Rotura de lote");
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 10.0, 0.0)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 10.0, 0.0)));
 
         assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a descontar no puede superar la cantidad disponible del lote de insumo");
+                .hasMessage("La cantidad a descontar no puede superar la cantidad actual del lote de insumo");
 
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(ajusteInsumoRepository);
@@ -216,7 +222,7 @@ class AjusteInsumoServicioImplTest {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 10.0, "Rotura de lote");
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 10.0, 0.0);
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
         when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> {
             AjusteInsumoEntity entidadGuardada = invocation.getArgument(0);
@@ -241,7 +247,7 @@ class AjusteInsumoServicioImplTest {
         // disponible = 5.0 - 3.0 = 2.0, pero la cantidad del ajuste (100.0) no debe compararse contra eso
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 5.0, 3.0);
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
         when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -261,7 +267,7 @@ class AjusteInsumoServicioImplTest {
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0);
         MotivoAjusteEntity motivoEntity = motivoAjusteEntity(1L, TipoAjuste.INGRESO);
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
         when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> {
             AjusteInsumoEntity entidadGuardada = invocation.getArgument(0);
@@ -295,7 +301,7 @@ class AjusteInsumoServicioImplTest {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 5.0, "Rotura de lote");
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0);
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
-        when(loteInsumoRepository.findById(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
         when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> {
             AjusteInsumoEntity entidadGuardada = invocation.getArgument(0);
@@ -309,6 +315,55 @@ class AjusteInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(loteEntity.getCantidadActual()).isEqualTo(15.0);
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-RA-11: registrarAjusteInsumo con EGRESO que excede la cantidad disponible reparte el excedente proporcionalmente entre las reservas activas del lote de insumo")
+    void registrarAjusteInsumo_debeRepartirExcedenteProporcionalmenteEntreReservas() {
+        // === PREPARACION DE DATOS ===
+        // disponible = 20.0 - 12.0 = 8.0; se pide descontar 14.0 → excedente de 6.0 sobre lo reservado
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 14.0, "Rotura parcial de lote");
+        LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 12.0);
+        // reservaA tiene 2/3 de lo reservado (8.0), reservaB 1/3 (4.0)
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(4.0).build();
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
+        when(reservaInsumoRepository.buscarPorLoteInsumoIdParaReducir(1L)).thenReturn(List.of(reservaA, reservaB));
+        when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ajusteInsumoServicio.registrarAjusteInsumo(formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteEntity.getCantidadActual()).isEqualTo(6.0);
+        assertThat(loteEntity.getCantidadReservada()).isEqualTo(6.0);
+        // reservaA pierde 6.0 * (8/12) = 4.0 → queda en 4.0; reservaB pierde 6.0 * (4/12) = 2.0 → queda en 2.0
+        assertThat(reservaA.getCantidadReservada()).isCloseTo(4.0, within(0.001));
+        assertThat(reservaB.getCantidadReservada()).isCloseTo(2.0, within(0.001));
+        verify(reservaInsumoRepository).saveAll(List.of(reservaA, reservaB));
+    }
+
+    @Test
+    @DisplayName("CP-RA-12: registrarAjusteInsumo con EGRESO dentro de la cantidad disponible no interactúa con las reservas de insumo")
+    void registrarAjusteInsumo_noDebeTocarReservasSiNoExcedeDisponible() {
+        // === PREPARACION DE DATOS ===
+        // disponible = 20.0 - 12.0 = 8.0; se pide descontar 5.0, no la excede
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 5.0, "Rotura menor");
+        LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 12.0);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
+        when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ajusteInsumoServicio.registrarAjusteInsumo(formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteEntity.getCantidadActual()).isEqualTo(15.0);
+        assertThat(loteEntity.getCantidadReservada()).isEqualTo(12.0);
+        verifyNoInteractions(reservaInsumoRepository);
     }
 
     // ==================== anularAjusteInsumo ====================
@@ -367,16 +422,17 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AA-05: anularAjusteInsumo lanza ReglaNegocioException al revertir un INGRESO cuya cantidad supera la disponible del lote")
-    void anularAjusteInsumo_debeRechazarReversionDeIngresoQueSuperaCantidadDisponible() {
+    @DisplayName("CP-AA-05: anularAjusteInsumo lanza ReglaNegocioException al revertir un INGRESO cuya cantidad supera la cantidad actual del lote")
+    void anularAjusteInsumo_debeRechazarReversionDeIngresoQueSuperaCantidadActual() {
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 15.0, 0.0);
         AjusteInsumoEntity ajusteEntity = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 20.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), loteEntity);
         AnularAjusteInsumoFormDTO formDTO = anularFormDTO("Error de carga");
         when(ajusteInsumoRepository.findById(1L)).thenReturn(Optional.of(ajusteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
 
         assertThatThrownBy(() -> ajusteInsumoServicio.anularAjusteInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede anular el ajuste: su cantidad supera la cantidad disponible del lote de insumo");
+                .hasMessage("La cantidad a descontar no puede superar la cantidad actual del lote de insumo");
 
         verify(loteInsumoRepository, never()).save(any());
         verify(ajusteInsumoRepository, never()).save(any());
@@ -390,6 +446,7 @@ class AjusteInsumoServicioImplTest {
         AjusteInsumoEntity ajusteEntity = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 10.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), loteEntity);
         AnularAjusteInsumoFormDTO formDTO = anularFormDTO("Error de carga");
         when(ajusteInsumoRepository.findById(1L)).thenReturn(Optional.of(ajusteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
         when(ajusteInsumoRepository.save(ajusteEntity)).thenReturn(ajusteEntity);
 
@@ -414,6 +471,7 @@ class AjusteInsumoServicioImplTest {
         AjusteInsumoEntity ajusteEntity = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 10.0, motivoAjusteEntity(1L, TipoAjuste.EGRESO), loteEntity);
         AnularAjusteInsumoFormDTO formDTO = anularFormDTO("Error de carga");
         when(ajusteInsumoRepository.findById(1L)).thenReturn(Optional.of(ajusteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
         when(ajusteInsumoRepository.save(ajusteEntity)).thenReturn(ajusteEntity);
 
@@ -424,6 +482,33 @@ class AjusteInsumoServicioImplTest {
         assertThat(loteEntity.getCantidadActual()).isEqualTo(15.0);
         assertThat(ajusteEntity.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+    }
+
+    @Test
+    @DisplayName("CP-AA-08: anularAjusteInsumo al revertir un INGRESO que excede la cantidad disponible reparte el excedente proporcionalmente entre las reservas activas (mismo mecanismo que un EGRESO nuevo)")
+    void anularAjusteInsumo_debeRepartirExcedenteProporcionalmenteAlRevertirIngreso() {
+        // === PREPARACION DE DATOS ===
+        // disponible = 20.0 - 12.0 = 8.0; se revierte un INGRESO de 14.0 → excedente de 6.0 sobre lo reservado
+        LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 12.0);
+        AjusteInsumoEntity ajusteEntity = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 14.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), loteEntity);
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(4.0).build();
+        AnularAjusteInsumoFormDTO formDTO = anularFormDTO("Error de carga");
+        when(ajusteInsumoRepository.findById(1L)).thenReturn(Optional.of(ajusteEntity));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
+        when(reservaInsumoRepository.buscarPorLoteInsumoIdParaReducir(1L)).thenReturn(List.of(reservaA, reservaB));
+        when(ajusteInsumoRepository.save(ajusteEntity)).thenReturn(ajusteEntity);
+
+        // === EJECUCION ===
+        ajusteInsumoServicio.anularAjusteInsumo(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteEntity.getCantidadActual()).isEqualTo(6.0);
+        assertThat(loteEntity.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(reservaA.getCantidadReservada()).isCloseTo(4.0, within(0.001));
+        assertThat(reservaB.getCantidadReservada()).isCloseTo(2.0, within(0.001));
+        verify(reservaInsumoRepository).saveAll(List.of(reservaA, reservaB));
     }
 
     // ==================== helpers de construcción ====================

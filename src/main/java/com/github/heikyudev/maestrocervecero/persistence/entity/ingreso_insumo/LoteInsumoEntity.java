@@ -99,4 +99,8 @@ public class LoteInsumoEntity {
         this.cantidadActual -= cantidad;
         this.cantidadReservada -= cantidad;
     }
+
+    public void consumirDirecto(double cantidad) {
+        this.cantidadActual -= cantidad;
+    }
 }

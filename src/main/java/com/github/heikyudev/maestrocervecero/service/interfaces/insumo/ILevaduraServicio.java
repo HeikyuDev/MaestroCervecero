@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -19,12 +20,16 @@ import org.springframework.data.domain.Pageable;
 public interface ILevaduraServicio {
 
     /**
-     * Obtiene una página de levaduras activas.
+     * Obtiene una página de levaduras activas, filtradas opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y/o tipo (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
      *
+     * @param nombre Texto a buscar dentro del nombre de la levadura, o {@code null} para no filtrar por nombre.
+     * @param tipo Tipo de levadura exacto a filtrar, o {@code null} para no filtrar por tipo.
      * @param pageable La configuración de paginación.
-     * @return Una página de levaduras activas en formato DTO.
+     * @return Una página de levaduras activas que cumplen los criterios indicados, en formato DTO.
      */
-    Page<LevaduraResponseDTO> buscarTodos(Pageable pageable);
+    Page<LevaduraResponseDTO> filtrarLevaduras(String nombre, TipoLevadura tipo, Pageable pageable);
 
     /**
      * Obtiene una levadura activa por su ID.

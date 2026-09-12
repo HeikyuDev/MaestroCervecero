@@ -830,8 +830,8 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-IL-17: iniciarLote suma el requerimiento cuando el mismo lúpulo aparece en dos detalles (WHIRLPOOL + DRY_HOP)")
-    void iniciarLote_debeSumarRequerimientoDeMismoInsumoEnDosDetalles() {
+    @DisplayName("CP-IL-17: iniciarLote NO fusiona el requerimiento cuando el mismo lúpulo aparece en dos detalles de etapas distintas (WHIRLPOOL en Hervido + DRY_HOP en Maduración): genera 2 reservas separadas, cada una atada a su propia etapa")
+    void iniciarLote_debeGenerarReservasSeparadasPorEtapaParaElMismoInsumo() {
         // === PREPARACION DE DATOS ===
         LupuloEntity lupulo = crearLupulo(23L, "LupuloDoble", 5, FormatoLupulo.FLOR);
         DetalleLupuloEntity whirlpool = detalleLupulo(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, 0.0, lupulo);
@@ -851,12 +851,24 @@ class LoteServicioImplTest {
         loteServicio.iniciarLote(1L);
 
         // === ASSERTS ===
+        // El stock físico es compartido (WHIRLPOOL y DRY_HOP consumen del mismo lote de insumo), así
+        // que la cantidad reservada total sigue siendo 15.0 — pero repartida en 2 reservas distintas,
+        // una por etapa (Hervido y Maduración), no fusionadas en una sola.
         assertThat(stockLupulo.getCantidadReservada()).isCloseTo(15.0, within(0.01));
         List<ReservaInsumoEntity> reservasLupulo = captor.getValue().stream()
                 .filter(r -> r.getLoteInsumo().getInsumo().getId().equals(23L))
                 .toList();
-        assertThat(reservasLupulo).hasSize(1);
-        assertThat(reservasLupulo.get(0).getCantidadReservada()).isCloseTo(15.0, within(0.01));
+        assertThat(reservasLupulo).hasSize(2);
+        assertThat(reservasLupulo.stream().mapToDouble(ReservaInsumoEntity::getCantidadReservada).sum()).isCloseTo(15.0, within(0.01));
+
+        ReservaInsumoEntity reservaHervido = reservasLupulo.stream()
+                .filter(r -> r.getEtapaLote().getEtapa() == TipoEtapa.HERVIDO)
+                .findFirst().orElseThrow();
+        ReservaInsumoEntity reservaMaduracion = reservasLupulo.stream()
+                .filter(r -> r.getEtapaLote().getEtapa() == TipoEtapa.MADURACION)
+                .findFirst().orElseThrow();
+        assertThat(reservaHervido.getCantidadReservada()).isCloseTo(10.0, within(0.01));
+        assertThat(reservaMaduracion.getCantidadReservada()).isCloseTo(5.0, within(0.01));
     }
 
     @Test
@@ -1074,12 +1086,13 @@ class LoteServicioImplTest {
         mockearEquipamientoParaIniciar(lote);
 
         MaltaEntity malta = crearMalta(10L, "MaltaCancel", 75);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
         LoteInsumoEntity loteInsumoA = crearLoteInsumo(300L, malta, 10.0, 4.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
         LoteInsumoEntity loteInsumoB = crearLoteInsumo(301L, malta, 10.0, 6.0, LocalDate.now().plusDays(60), BigDecimal.TEN);
-        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(1L).lote(lote).loteInsumo(loteInsumoA).cantidadReservada(4.0).costoUnitarioPPP(BigDecimal.TEN).build();
-        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(2L).lote(lote).loteInsumo(loteInsumoB).cantidadReservada(6.0).costoUnitarioPPP(BigDecimal.TEN).build();
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(1L).etapaLote(etapaMaceracion).loteInsumo(loteInsumoA).cantidadReservada(4.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(2L).etapaLote(etapaMaceracion).loteInsumo(loteInsumoB).cantidadReservada(6.0).build();
         List<ReservaInsumoEntity> reservas = List.of(reservaA, reservaB);
-        when(reservaInsumoRepository.findByLoteId(1L)).thenReturn(reservas);
+        when(reservaInsumoRepository.findByEtapaLote_Lote_Id(1L)).thenReturn(reservas);
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(300L)).thenReturn(Optional.of(loteInsumoA));
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(301L)).thenReturn(Optional.of(loteInsumoB));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));

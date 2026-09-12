@@ -42,43 +42,60 @@ class LupuloServicioImplTest {
     @InjectMocks
     private LupuloServicioImpl lupuloServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarLupulos ====================
 
     @Test
-    @DisplayName("buscarTodos retorna una página de lúpulos correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FL-01: filtrarLupulos retorna una página de lúpulos correctamente mapeada a DTO cuando se filtra por nombre y formato")
+    void filtrarLupulos_debeRetornarPaginaMapeadaFiltrandoPorNombreYFormato() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
-        LupuloEntity otroLupuloEntity = crearLupuloEntity(2L, "Saaz", FormatoLupulo.FLOR, 3.0);
-
-        // Cuando lupuloRepository.findAll(pageable) sea llamado, retorna una página con los lúpulos activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(lupuloRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(lupuloEntity, otroLupuloEntity), pageable, 2));
+        LupuloEntity otroLupuloEntity = crearLupuloEntity(2L, "Cascade Orgánico", FormatoLupulo.PELLET, 6.5);
+        when(lupuloRepository.filtrarLupulos("Cascade", FormatoLupulo.PELLET, pageable))
+                .thenReturn(new PageImpl<>(List.of(lupuloEntity, otroLupuloEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<LupuloResponseDTO> resultado = lupuloServicio.buscarTodos(pageable);
+        Page<LupuloResponseDTO> resultado = lupuloServicio.filtrarLupulos("Cascade", FormatoLupulo.PELLET, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertLupuloDTO(lupuloEntity, resultado.getContent().get(0));
         assertLupuloDTO(otroLupuloEntity, resultado.getContent().get(1));
-        verify(lupuloRepository).findAll(pageable);
+        verify(lupuloRepository).filtrarLupulos("Cascade", FormatoLupulo.PELLET, pageable);
     }
 
     @Test
-    @DisplayName("buscarTodos retorna una página vacía cuando no hay lúpulos registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FL-02: filtrarLupulos propaga nombre y formato nulos sin restringir esos criterios")
+    void filtrarLupulos_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(lupuloRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        LupuloEntity otroLupuloEntity = crearLupuloEntity(2L, "Saaz", FormatoLupulo.FLOR, 3.0);
+        when(lupuloRepository.filtrarLupulos(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(lupuloEntity, otroLupuloEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<LupuloResponseDTO> resultado = lupuloServicio.buscarTodos(pageable);
+        Page<LupuloResponseDTO> resultado = lupuloServicio.filtrarLupulos(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(lupuloRepository).filtrarLupulos(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-03: filtrarLupulos retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarLupulos_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(lupuloRepository.filtrarLupulos("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<LupuloResponseDTO> resultado = lupuloServicio.filtrarLupulos("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(lupuloRepository).findAll(pageable);
+        verify(lupuloRepository).filtrarLupulos("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

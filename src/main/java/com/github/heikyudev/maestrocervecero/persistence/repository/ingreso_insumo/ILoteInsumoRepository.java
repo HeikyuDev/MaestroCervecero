@@ -61,4 +61,34 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT li FROM LoteInsumoEntity li WHERE li.id = :id")
     Optional<LoteInsumoEntity> buscarPorIdParaLiberarReserva(@Param("id") Long id);
+
+    /**
+     * Busca, bloqueándolo para escritura, un lote de insumo por su ID.
+     * <p>
+     * Se usa al registrar un consumo de insumo (reservado o directo), para evitar que otra
+     * operación concurrente (otro consumo, un ajuste) modifique el mismo lote de insumo al mismo
+     * tiempo mientras se descuenta su stock.
+     * </p>
+     *
+     * @param id El ID del lote de insumo.
+     * @return Un Optional que contiene el lote de insumo si existe, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.id = :id")
+    Optional<LoteInsumoEntity> buscarPorIdParaConsumir(@Param("id") Long id);
+
+    /**
+     * Busca, bloqueándolo para escritura, un lote de insumo por su ID.
+     * <p>
+     * Se usa al registrar o anular un ajuste de insumo, para evitar que otra operación
+     * concurrente (un consumo, otro ajuste) modifique el mismo lote de insumo al mismo tiempo
+     * mientras se ajusta su stock.
+     * </p>
+     *
+     * @param id El ID del lote de insumo.
+     * @return Un Optional que contiene el lote de insumo si existe, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.id = :id")
+    Optional<LoteInsumoEntity> buscarPorIdParaAjustar(@Param("id") Long id);
 }

@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,9 +16,9 @@ import java.util.Optional;
  * <p>
  * La entidad ya no utiliza {@code @SoftDelete}: el filtrado de maltas dadas de baja se
  * realiza explícitamente en cada consulta mediante la condición {@code estado = 'ACTIVO'}.
- * Los métodos heredados de {@link JpaRepository} ({@code findById}, {@code findAll}) se
- * sobrescriben con esa misma condición para que todo el código existente que ya los invoca
- * (sin cambios) siga viendo únicamente maltas activas.
+ * El método heredado de {@link JpaRepository} ({@code findById}) se sobrescribe con esa misma
+ * condición para que todo el código existente que ya lo invoca (sin cambios) siga viendo
+ * únicamente maltas activas.
  * </p>
  */
 @Repository
@@ -34,14 +35,22 @@ public interface IMaltaRepository extends JpaRepository<MaltaEntity, Long> {
     Optional<MaltaEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de maltas activas.
+     * Obtiene una página de maltas activas, filtradas opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y/o tipo (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre de la malta, o {@code null} para no filtrar por nombre.
+     * @param tipo Tipo de malta exacto a filtrar, o {@code null} para no filtrar por tipo.
      * @param pageable La configuración de paginación.
-     * @return Una página de maltas activas.
+     * @return Una página de maltas activas que cumplen los criterios indicados.
      */
-    @Override
-    @Query(value = "SELECT m FROM MaltaEntity m WHERE m.estado = 'ACTIVO'",
-            countQuery = "SELECT COUNT(m) FROM MaltaEntity m WHERE m.estado = 'ACTIVO'")
-    Page<MaltaEntity> findAll(Pageable pageable);
+    @Query(value = "SELECT m FROM MaltaEntity m WHERE m.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(m.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:tipo IS NULL OR m.tipo = :tipo)",
+            countQuery = "SELECT COUNT(m) FROM MaltaEntity m WHERE m.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(m.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:tipo IS NULL OR m.tipo = :tipo)")
+    Page<MaltaEntity> filtrarMaltas(@Param("nombre") String nombre, @Param("tipo") TipoMalta tipo, Pageable pageable);
 
     /**
      * Verifica si existe una malta activa con el nombre dado, ignorando mayúsculas y minúsculas.

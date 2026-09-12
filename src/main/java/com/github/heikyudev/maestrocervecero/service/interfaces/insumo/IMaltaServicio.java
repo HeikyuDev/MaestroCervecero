@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -19,12 +20,16 @@ import org.springframework.data.domain.Pageable;
 public interface IMaltaServicio {
 
     /**
-     * Obtiene una página de maltas activas.
+     * Obtiene una página de maltas activas, filtradas opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y/o tipo (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
      *
+     * @param nombre Texto a buscar dentro del nombre de la malta, o {@code null} para no filtrar por nombre.
+     * @param tipo Tipo de malta exacto a filtrar, o {@code null} para no filtrar por tipo.
      * @param pageable La configuración de paginación.
-     * @return Una página de maltas activas en formato DTO.
+     * @return Una página de maltas activas que cumplen los criterios indicados, en formato DTO.
      */
-    Page<MaltaResponseDTO> buscarTodos(Pageable pageable);
+    Page<MaltaResponseDTO> filtrarMaltas(String nombre, TipoMalta tipo, Pageable pageable);
 
     /**
      * Obtiene una malta activa por su ID.

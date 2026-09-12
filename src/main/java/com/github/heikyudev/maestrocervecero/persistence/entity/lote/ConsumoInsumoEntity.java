@@ -1,10 +1,12 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.LoteInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -25,6 +27,9 @@ public class ConsumoInsumoEntity extends AuditableEntity<String> {
     @Column(name = "cantidad_consumida", nullable = false)
     private Double cantidadConsumida;
 
+    @Column(name = "costo_unitario_ppp", nullable = false, precision = 14, scale = 4)
+    private BigDecimal costoUnitarioPPP;
+
     @Column(name = "fecha_anulacion")
     private LocalDate fechaAnulacion;
 
@@ -34,12 +39,13 @@ public class ConsumoInsumoEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private EstadoTransaccion estado;
+    
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "etapa_lote_id", nullable = false)
     private EtapaLoteEntity etapaLote;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "reserva_insumo_id", nullable = false)
-    private ReservaInsumoEntity reservaInsumo;
+    @JoinColumn(name = "lote_insumo_id", nullable = false)
+    private LoteInsumoEntity loteInsumo;
 }

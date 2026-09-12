@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,9 +16,9 @@ import java.util.Optional;
  * <p>
  * La entidad ya no utiliza {@code @SoftDelete}: el filtrado de levaduras dadas de baja se
  * realiza explícitamente en cada consulta mediante la condición {@code estado = 'ACTIVO'}.
- * Los métodos heredados de {@link JpaRepository} ({@code findById}, {@code findAll}) se
- * sobrescriben con esa misma condición para que todo el código existente que ya los invoca
- * (sin cambios) siga viendo únicamente levaduras activas.
+ * El método heredado de {@link JpaRepository} ({@code findById}) se sobrescribe con esa misma
+ * condición para que todo el código existente que ya lo invoca (sin cambios) siga viendo
+ * únicamente levaduras activas.
  * </p>
  */
 @Repository
@@ -34,14 +35,22 @@ public interface ILevaduraRepository extends JpaRepository<LevaduraEntity, Long>
     Optional<LevaduraEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de levaduras activas.
+     * Obtiene una página de levaduras activas, filtradas opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y/o tipo (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre de la levadura, o {@code null} para no filtrar por nombre.
+     * @param tipo Tipo de levadura exacto a filtrar, o {@code null} para no filtrar por tipo.
      * @param pageable La configuración de paginación.
-     * @return Una página de levaduras activas.
+     * @return Una página de levaduras activas que cumplen los criterios indicados.
      */
-    @Override
-    @Query(value = "SELECT lv FROM LevaduraEntity lv WHERE lv.estado = 'ACTIVO'",
-            countQuery = "SELECT COUNT(lv) FROM LevaduraEntity lv WHERE lv.estado = 'ACTIVO'")
-    Page<LevaduraEntity> findAll(Pageable pageable);
+    @Query(value = "SELECT lv FROM LevaduraEntity lv WHERE lv.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(lv.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:tipo IS NULL OR lv.tipo = :tipo)",
+            countQuery = "SELECT COUNT(lv) FROM LevaduraEntity lv WHERE lv.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(lv.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:tipo IS NULL OR lv.tipo = :tipo)")
+    Page<LevaduraEntity> filtrarLevaduras(@Param("nombre") String nombre, @Param("tipo") TipoLevadura tipo, Pageable pageable);
 
     /**
      * Verifica si existe una levadura activa con el nombre dado, ignorando mayúsculas y minúsculas.

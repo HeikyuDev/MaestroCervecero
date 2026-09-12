@@ -42,43 +42,60 @@ class MaltaServicioImplTest {
     @InjectMocks
     private MaltaServicioImpl maltaServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarMaltas ====================
 
     @Test
-    @DisplayName("buscarTodos retorna una página de maltas correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FM-01: filtrarMaltas retorna una página de maltas correctamente mapeada a DTO cuando se filtra por nombre y tipo")
+    void filtrarMaltas_debeRetornarPaginaMapeadaFiltrandoPorNombreYTipo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
-        MaltaEntity otraMaltaEntity = crearMaltaEntity(2L, "Caramelo 60", TipoMalta.CARAMELO, 75);
-
-        // Cuando maltaRepository.findAll(pageable) sea llamado, retorna una página con las maltas activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(maltaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(maltaEntity, otraMaltaEntity), pageable, 2));
+        MaltaEntity otraMaltaEntity = crearMaltaEntity(2L, "Pilsen Nacional", TipoMalta.BASE, 78);
+        when(maltaRepository.filtrarMaltas("Pilsen", TipoMalta.BASE, pageable))
+                .thenReturn(new PageImpl<>(List.of(maltaEntity, otraMaltaEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<MaltaResponseDTO> resultado = maltaServicio.buscarTodos(pageable);
+        Page<MaltaResponseDTO> resultado = maltaServicio.filtrarMaltas("Pilsen", TipoMalta.BASE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertMaltaDTO(maltaEntity, resultado.getContent().get(0));
         assertMaltaDTO(otraMaltaEntity, resultado.getContent().get(1));
-        verify(maltaRepository).findAll(pageable);
+        verify(maltaRepository).filtrarMaltas("Pilsen", TipoMalta.BASE, pageable);
     }
 
     @Test
-    @DisplayName("buscarTodos retorna una página vacía cuando no hay maltas registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FM-02: filtrarMaltas propaga nombre y tipo nulos sin restringir esos criterios")
+    void filtrarMaltas_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(maltaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
+        MaltaEntity otraMaltaEntity = crearMaltaEntity(2L, "Caramelo 60", TipoMalta.CARAMELO, 75);
+        when(maltaRepository.filtrarMaltas(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(maltaEntity, otraMaltaEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<MaltaResponseDTO> resultado = maltaServicio.buscarTodos(pageable);
+        Page<MaltaResponseDTO> resultado = maltaServicio.filtrarMaltas(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(maltaRepository).filtrarMaltas(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FM-03: filtrarMaltas retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarMaltas_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(maltaRepository.filtrarMaltas("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<MaltaResponseDTO> resultado = maltaServicio.filtrarMaltas("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(maltaRepository).findAll(pageable);
+        verify(maltaRepository).filtrarMaltas("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

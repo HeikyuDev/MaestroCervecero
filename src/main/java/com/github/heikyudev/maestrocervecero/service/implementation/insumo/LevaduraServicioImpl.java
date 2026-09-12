@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
@@ -28,20 +29,24 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     private final ILevaduraRepository levaduraRepository;
 
     /**
-     * Recupera una página de levaduras activas registradas en el sistema.
+     * Recupera una página de levaduras activas registradas en el sistema, filtradas
+     * opcionalmente por nombre (coincidencia parcial, sin distinguir mayúsculas/minúsculas)
+     * y/o tipo (coincidencia exacta).
      * <p>
      * Las levaduras dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre de la levadura, o {@code null} para no filtrar por nombre.
+     * @param tipo Tipo de levadura exacto a filtrar, o {@code null} para no filtrar por tipo.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link LevaduraResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LevaduraResponseDTO> buscarTodos(Pageable pageable) {
+    public Page<LevaduraResponseDTO> filtrarLevaduras(String nombre, TipoLevadura tipo, Pageable pageable) {
         // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return levaduraRepository.findAll(pageable).map(MapperLevadura::toDTO);
+        return levaduraRepository.filtrarLevaduras(nombre, tipo, pageable).map(MapperLevadura::toDTO);
     }
 
     /**

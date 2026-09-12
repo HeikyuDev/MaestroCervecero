@@ -1,9 +1,10 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarLevaduras(String nombre, TipoLevadura tipo, Pageable pageable)`
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-BT-01** | Consulta con registros existentes | `pageable: PageRequest.of(0, 10)`, BD con 2 levaduras activas | `findAll(pageable)` contiene elementos | Retorna `Page<LevaduraResponseDTO>` con 2 elementos mapeados. |
-| **CP-BT-02** | Consulta sin registros existentes | `pageable: PageRequest.of(0, 10)`, BD vacía | `findAll(pageable)` está vacío | Retorna `Page<LevaduraResponseDTO>` vacía (`getContent().isEmpty() == true`). |
+| **CP-FLv-01** | Filtra por nombre y tipo informados | `nombre: "SafAle"`, `tipo: ALE`, `pageable: PageRequest.of(0, 10)`, BD con 2 levaduras activas que cumplen ambos criterios | `filtrarLevaduras("SafAle", ALE, pageable)` contiene elementos | Retorna `Page<LevaduraResponseDTO>` con 2 elementos mapeados. |
+| **CP-FLv-02** | Nombre y tipo nulos no restringen la búsqueda | `nombre: null`, `tipo: null`, `pageable: PageRequest.of(0, 10)` | El service propaga ambos parámetros nulos tal cual al repositorio | Retorna `Page<LevaduraResponseDTO>` con todas las levaduras activas (equivalente a no filtrar). |
+| **CP-FLv-03** | Consulta sin coincidencias | `nombre: "Inexistente"`, `tipo: null`, `pageable: PageRequest.of(0, 10)` | `filtrarLevaduras("Inexistente", null, pageable)` está vacío | Retorna `Page<LevaduraResponseDTO>` vacía (`getContent().isEmpty() == true`). |
 
 ---
 

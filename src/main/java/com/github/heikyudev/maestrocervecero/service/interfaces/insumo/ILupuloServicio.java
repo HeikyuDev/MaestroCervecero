@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -19,12 +20,16 @@ import org.springframework.data.domain.Pageable;
 public interface ILupuloServicio {
 
     /**
-     * Obtiene una página de lúpulos activos.
+     * Obtiene una página de lúpulos activos, filtrados opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y/o formato (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
      *
+     * @param nombre Texto a buscar dentro del nombre del lúpulo, o {@code null} para no filtrar por nombre.
+     * @param formato Formato exacto a filtrar, o {@code null} para no filtrar por formato.
      * @param pageable La configuración de paginación.
-     * @return Una página de lúpulos activos en formato DTO.
+     * @return Una página de lúpulos activos que cumplen los criterios indicados, en formato DTO.
      */
-    Page<LupuloResponseDTO> buscarTodos(Pageable pageable);
+    Page<LupuloResponseDTO> filtrarLupulos(String nombre, FormatoLupulo formato, Pageable pageable);
 
     /**
      * Obtiene un lúpulo activo por su ID.

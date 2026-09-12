@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
@@ -28,19 +29,23 @@ public class LupuloServicioImpl implements ILupuloServicio {
     private final ILupuloRepository lupuloRepository;
 
     /**
-     * Recupera una página de lúpulos activos registrados en el sistema.
+     * Recupera una página de lúpulos activos registrados en el sistema, filtrados opcionalmente
+     * por nombre (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o formato
+     * (coincidencia exacta).
      * <p>
      * Los lúpulos dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre del lúpulo, o {@code null} para no filtrar por nombre.
+     * @param formato Formato exacto a filtrar, o {@code null} para no filtrar por formato.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link LupuloResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LupuloResponseDTO> buscarTodos(Pageable pageable) {
-        return lupuloRepository.findAll(pageable).map(MapperLupulo::toDTO);
+    public Page<LupuloResponseDTO> filtrarLupulos(String nombre, FormatoLupulo formato, Pageable pageable) {
+        return lupuloRepository.filtrarLupulos(nombre, formato, pageable).map(MapperLupulo::toDTO);
     }
 
     /**
