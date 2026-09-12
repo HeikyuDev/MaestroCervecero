@@ -1,9 +1,14 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarMedicionesLote(Long idEtapaLote, Long idDetalleParametroControl, EstadoTransaccion estado, LocalDateTime fechaMedicionDesde, LocalDateTime fechaMedicionHasta, Pageable pageable)`
+
+`idEtapaLote` e `idDetalleParametroControl` son **obligatorios**: definen el contexto fijo de la pantalla de gestión de mediciones (una etapa de un lote puntual y un detalle de parámetro de control puntual — nunca tiene sentido mezclar mediciones de distintos parámetros o distintos lotes en la misma vista), y son las mismas relaciones directas de `MedicionLoteEntity`.
+
+`estado` es un criterio de negocio legítimo para el usuario (a diferencia de una baja lógica, acá "ver lo anulado" tiene valor real): si no lo especifica, el service asume `REGISTRADO` por defecto — nunca deja pasar `null` sin filtrar, a diferencia del resto de los criterios opcionales de otros módulos. El rango de fechas (`fechaMedicionDesde`/`fechaMedicionHasta`) sí sigue la regla habitual: nulo no acota.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 2 mediciones|`findAll(pageable)` contiene elementos|Retorna `Page<MedicionLoteResponseDTO>` con 2 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<MedicionLoteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FML-01**|Filtra por los 2 criterios obligatorios más estado y rango de fechas informados|`idEtapaLote: 1L`, `idDetalleParametroControl: 5L`, `estado: REGISTRADO`, `fechaMedicionDesde/Hasta` acotando la fecha de medición, `pageable: PageRequest.of(0, 10)`, BD con 2 mediciones que cumplen todos los criterios|`filtrarMedicionesLote(...)` contiene elementos|Retorna `Page<MedicionLoteResponseDTO>` con 2 elementos mapeados.|
+|**CP-FML-02**|Estado nulo asume REGISTRADO por defecto; el rango de fechas nulo sí queda sin acotar|`idEtapaLote: 1L`, `idDetalleParametroControl: 5L`, `estado: null`, `fechaMedicionDesde/Hasta: null`, `pageable: PageRequest.of(0, 10)`|El service reemplaza `estado: null` por `REGISTRADO` antes de llamar al repositorio, y propaga el rango de fechas nulo tal cual|Retorna `Page<MedicionLoteResponseDTO>` con las mediciones registradas de esa etapa de lote y detalle. Se verifica que el repositorio se invoque con `REGISTRADO`, no con `null`.|
+|**CP-FML-03**|El usuario puede elegir explícitamente ver las mediciones anuladas|`idEtapaLote: 1L`, `idDetalleParametroControl: 5L`, `estado: ANULADO`, fechas `null`, `pageable: PageRequest.of(0, 10)`|`filtrarMedicionesLote(1L, 5L, ANULADO, null, null, pageable)` está vacío (sin anuladas en este escenario)|Retorna `Page<MedicionLoteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

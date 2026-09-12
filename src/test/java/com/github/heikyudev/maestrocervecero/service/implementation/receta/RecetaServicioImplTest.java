@@ -4,8 +4,15 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.Et
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleParametroControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.PlanMonitoreoEtapaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
@@ -16,8 +23,10 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_contro
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IPlanMonitoreoEtapaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLevaduraFormDTO;
@@ -30,6 +39,8 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.Versio
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleParametroControlResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -43,6 +54,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -79,46 +91,157 @@ class RecetaServicioImplTest {
     private IParametroControlRepository parametroControlRepository;
     @Mock
     private IPlanificacionProduccionRepository planificacionProduccionRepository;
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
+    @Mock
+    private IPlanMonitoreoEtapaRepository planMonitoreoEtapaRepository;
 
     @InjectMocks
     private RecetaServicioImpl recetaServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarRecetas ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de recetas correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FR-01: filtrarRecetas retorna una página de recetas correctamente mapeada a DTO cuando se filtra por nombre")
+    void filtrarRecetas_debeRetornarPaginaMapeadaFiltrandoPorNombre() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        RecetaEntity receta1 = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
+        RecetaEntity receta2 = crearRecetaEntityConVersionActiva(2L, "IPA Doble");
+        when(recetaRepository.filtrarRecetas("IPA", pageable))
+                .thenReturn(new PageImpl<>(List.of(receta1, receta2), pageable, 2));
+
+        // === EJECUCION ===
+        Page<RecetaResponseDTO> resultado = recetaServicio.filtrarRecetas("IPA", pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        assertThat(resultado.getContent()).hasSize(2);
+        assertThat(resultado.getContent().get(0).getVersion().getNombre()).isEqualTo("IPA Clásica");
+        assertThat(resultado.getContent().get(1).getVersion().getNombre()).isEqualTo("IPA Doble");
+        verify(recetaRepository).filtrarRecetas("IPA", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FR-02: filtrarRecetas propaga nombre nulo sin restringir ese criterio")
+    void filtrarRecetas_debePropagarNombreNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         RecetaEntity receta1 = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
         RecetaEntity receta2 = crearRecetaEntityConVersionActiva(2L, "Stout Imperial");
-        RecetaEntity receta3 = crearRecetaEntityConVersionActiva(3L, "Pale Ale");
-        when(recetaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(receta1, receta2, receta3), pageable, 3));
+        when(recetaRepository.filtrarRecetas(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(receta1, receta2), pageable, 2));
 
         // === EJECUCION ===
-        Page<RecetaResponseDTO> resultado = recetaServicio.buscarTodos(pageable);
+        Page<RecetaResponseDTO> resultado = recetaServicio.filtrarRecetas(null, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertThat(resultado.getContent()).hasSize(3);
-        assertThat(resultado.getContent().get(0).getVersion().getNombre()).isEqualTo("IPA Clásica");
-        assertThat(resultado.getContent().get(1).getVersion().getNombre()).isEqualTo("Stout Imperial");
-        verify(recetaRepository).findAll(pageable);
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(recetaRepository).filtrarRecetas(null, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay recetas registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FR-03: filtrarRecetas retorna una página vacía cuando ninguna receta cumple el criterio")
+    void filtrarRecetas_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(recetaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(recetaRepository.filtrarRecetas("Inexistente", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<RecetaResponseDTO> resultado = recetaServicio.buscarTodos(pageable);
+        Page<RecetaResponseDTO> resultado = recetaServicio.filtrarRecetas("Inexistente", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(recetaRepository).findAll(pageable);
+        verify(recetaRepository).filtrarRecetas("Inexistente", pageable);
+    }
+
+    // ==================== filtrarDetallesParametroControl ====================
+
+    @Test
+    @DisplayName("CP-FDPC-01: filtrarDetallesParametroControl retorna los detalles configurados en el plan de monitoreo indicado")
+    void filtrarDetallesParametroControl_debeRetornarDetallesDelPlanIndicado() {
+        // === PREPARACION DE DATOS ===
+        EtapaControlEntity etapaControl = EtapaControlEntity.builder().id(1L).nombre("Fermentación Inicial").etapaAControlar(TipoEtapa.FERMENTACION).estado(Estado.ACTIVO).build();
+        ParametroControlEntity parametroControl = ParametroControlEntity.builder().id(1L).nombre("pH").valorMinimo(0.0).valorMaximo(14.0).estado(Estado.ACTIVO).build();
+        DetalleParametroControlEntity detalle = DetalleParametroControlEntity.builder().id(1L).valorMinimo(4.0).valorMaximo(5.5).valorIdeal(5.0).parametroControl(parametroControl).build();
+        PlanMonitoreoEtapaEntity plan = PlanMonitoreoEtapaEntity.builder().id(1L).etapaControl(etapaControl).detallesParametroControl(List.of(detalle)).build();
+        when(planMonitoreoEtapaRepository.findById(1L)).thenReturn(Optional.of(plan));
+
+        // === EJECUCION ===
+        List<DetalleParametroControlResponseDTO> resultado = recetaServicio.filtrarDetallesParametroControl(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getId()).isEqualTo(1L);
+        assertThat(resultado.get(0).getValorIdeal()).isEqualTo(5.0);
+        assertThat(resultado.get(0).getParametroControl().getNombre()).isEqualTo("pH");
+    }
+
+    @Test
+    @DisplayName("CP-FDPC-02: filtrarDetallesParametroControl lanza RecursoNoEncontradoException si el plan de monitoreo de etapa no existe")
+    void filtrarDetallesParametroControl_debeLanzarExcepcionSiPlanNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(planMonitoreoEtapaRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> recetaServicio.filtrarDetallesParametroControl(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el plan de monitoreo de etapa con ID: 99");
+    }
+
+    // ==================== filtrarPlanesMonitoreo ====================
+
+    @Test
+    @DisplayName("CP-FPM-01: filtrarPlanesMonitoreo retorna únicamente los planes cuya etapa a controlar coincide con el tipo de etapa del lote")
+    void filtrarPlanesMonitoreo_debeRetornarSoloLosPlanesQueCoincidenConLaEtapa() {
+        // === PREPARACION DE DATOS ===
+        EtapaControlEntity etapaControlFermentacion = EtapaControlEntity.builder().id(1L).nombre("Fermentación Inicial").etapaAControlar(TipoEtapa.FERMENTACION).estado(Estado.ACTIVO).build();
+        EtapaControlEntity etapaControlMaceracion = EtapaControlEntity.builder().id(2L).nombre("Maceración").etapaAControlar(TipoEtapa.MACERACION).estado(Estado.ACTIVO).build();
+        PlanMonitoreoEtapaEntity planFermentacion = PlanMonitoreoEtapaEntity.builder().id(1L).etapaControl(etapaControlFermentacion).detallesParametroControl(List.of()).build();
+        PlanMonitoreoEtapaEntity planMaceracion = PlanMonitoreoEtapaEntity.builder().id(2L).etapaControl(etapaControlMaceracion).detallesParametroControl(List.of()).build();
+        VersionRecetaEntity versionReceta = crearVersionRecetaConPlanes(List.of(planFermentacion, planMaceracion));
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta);
+        EtapaLoteEntity etapaLote = EtapaLoteEntity.builder().id(1L).etapa(TipoEtapa.FERMENTACION).estado(EstadoEtapaLote.EN_CURSO).lote(lote).build();
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+
+        // === EJECUCION ===
+        List<PlanMonitoreoEtapaResponseDTO> resultado = recetaServicio.filtrarPlanesMonitoreo(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getId()).isEqualTo(1L);
+        assertThat(resultado.get(0).getEtapaControl().getEtapaAControlar()).isEqualTo(TipoEtapa.FERMENTACION);
+    }
+
+    @Test
+    @DisplayName("CP-FPM-02: filtrarPlanesMonitoreo lanza RecursoNoEncontradoException si la etapa de lote no existe")
+    void filtrarPlanesMonitoreo_debeLanzarExcepcionSiEtapaLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> recetaServicio.filtrarPlanesMonitoreo(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la etapa de lote con ID: 99");
+    }
+
+    @Test
+    @DisplayName("CP-FPM-03: filtrarPlanesMonitoreo retorna una lista vacía cuando ningún plan de la receta corresponde al tipo de etapa del lote")
+    void filtrarPlanesMonitoreo_debeRetornarListaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        EtapaControlEntity etapaControlMaceracion = EtapaControlEntity.builder().id(2L).nombre("Maceración").etapaAControlar(TipoEtapa.MACERACION).estado(Estado.ACTIVO).build();
+        PlanMonitoreoEtapaEntity planMaceracion = PlanMonitoreoEtapaEntity.builder().id(2L).etapaControl(etapaControlMaceracion).detallesParametroControl(List.of()).build();
+        VersionRecetaEntity versionReceta = crearVersionRecetaConPlanes(List.of(planMaceracion));
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta);
+        EtapaLoteEntity etapaLote = EtapaLoteEntity.builder().id(1L).etapa(TipoEtapa.FERMENTACION).estado(EstadoEtapaLote.EN_CURSO).lote(lote).build();
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+
+        // === EJECUCION ===
+        List<PlanMonitoreoEtapaResponseDTO> resultado = recetaServicio.filtrarPlanesMonitoreo(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).isEmpty();
     }
 
     // ==================== buscarPorId ====================
@@ -1129,5 +1252,31 @@ class RecetaServicioImplTest {
 
     private static RecetaEntity crearRecetaEntityConVersionActiva(Long id, String nombre) {
         return crearRecetaEntityConVersiones(id, crearVersionRecetaEntity(id, nombre, true));
+    }
+
+    private static VersionRecetaEntity crearVersionRecetaConPlanes(List<PlanMonitoreoEtapaEntity> planes) {
+        VersionRecetaEntity versionReceta = crearVersionRecetaEntity(1L, "IPA Test", true);
+        versionReceta.setPlanesMonitoreo(planes);
+        return versionReceta;
+    }
+
+    private static LoteEntity crearLoteConVersionReceta(VersionRecetaEntity versionReceta) {
+        PlanificacionProduccionEntity planificacion = PlanificacionProduccionEntity.builder()
+                .id(1L)
+                .estado(EstadoSolicitud.PENDIENTE)
+                .fechaInicioEstimada(LocalDate.now())
+                .fechaFinalizacionEstimada(LocalDate.now().plusDays(30))
+                .cantidadAProducir(100.0)
+                .versionReceta(versionReceta)
+                .build();
+        return LoteEntity.builder()
+                .id(1L)
+                .identificadorInterno("IPA Test-1")
+                .volumenObjetivo(20.0)
+                .estado(EstadoLote.EN_EJECUCION)
+                .fechaInicioEstimada(LocalDate.now())
+                .fechaFinalizacionEstimada(LocalDate.now().plusDays(20))
+                .planificacionProduccion(planificacion)
+                .build();
     }
 }

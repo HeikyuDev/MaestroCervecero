@@ -40,43 +40,60 @@ class ParametroControlServicioImplTest {
     @InjectMocks
     private ParametroControlServicioImpl parametroControlServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarParametrosControl ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de parámetros de control correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FPC-01: filtrarParametrosControl retorna una página de parámetros de control correctamente mapeada a DTO cuando se filtra por nombre")
+    void filtrarParametrosControl_debeRetornarPaginaMapeadaFiltrandoPorNombre() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        ParametroControlEntity parametroControlEntity = crearParametroControlEntity(1L, "Temperatura", "Control de temperatura", 65.0, 68.0);
-        ParametroControlEntity otroParametroControlEntity = crearParametroControlEntity(2L, "Densidad", "Control de densidad", 1.010, 1.060);
-
-        // Cuando parametroControlRepository.findAll(pageable) sea llamado, retorna una página con los parámetros activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(parametroControlRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(parametroControlEntity, otroParametroControlEntity), pageable, 2));
+        ParametroControlEntity parametroControlEntity = crearParametroControlEntity(1L, "Temperatura Maceración", "Control de temperatura", 65.0, 68.0);
+        ParametroControlEntity otroParametroControlEntity = crearParametroControlEntity(2L, "Temperatura Fermentación", "Control de temperatura", 18.0, 22.0);
+        when(parametroControlRepository.filtrarParametrosControl("Temperatura", pageable))
+                .thenReturn(new PageImpl<>(List.of(parametroControlEntity, otroParametroControlEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<ParametroControlResponseDTO> resultado = parametroControlServicio.buscarTodos(pageable);
+        Page<ParametroControlResponseDTO> resultado = parametroControlServicio.filtrarParametrosControl("Temperatura", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertParametroControlDTO(parametroControlEntity, resultado.getContent().get(0));
         assertParametroControlDTO(otroParametroControlEntity, resultado.getContent().get(1));
-        verify(parametroControlRepository).findAll(pageable);
+        verify(parametroControlRepository).filtrarParametrosControl("Temperatura", pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay parámetros de control registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FPC-02: filtrarParametrosControl propaga nombre nulo sin restringir ese criterio")
+    void filtrarParametrosControl_debePropagarNombreNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(parametroControlRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        ParametroControlEntity parametroControlEntity = crearParametroControlEntity(1L, "Temperatura", "Control de temperatura", 65.0, 68.0);
+        ParametroControlEntity otroParametroControlEntity = crearParametroControlEntity(2L, "Densidad", "Control de densidad", 1.010, 1.060);
+        when(parametroControlRepository.filtrarParametrosControl(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(parametroControlEntity, otroParametroControlEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<ParametroControlResponseDTO> resultado = parametroControlServicio.buscarTodos(pageable);
+        Page<ParametroControlResponseDTO> resultado = parametroControlServicio.filtrarParametrosControl(null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(parametroControlRepository).filtrarParametrosControl(null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FPC-03: filtrarParametrosControl retorna una página vacía cuando ningún registro cumple el criterio")
+    void filtrarParametrosControl_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(parametroControlRepository.filtrarParametrosControl("Inexistente", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<ParametroControlResponseDTO> resultado = parametroControlServicio.filtrarParametrosControl("Inexistente", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(parametroControlRepository).findAll(pageable);
+        verify(parametroControlRepository).filtrarParametrosControl("Inexistente", pageable);
     }
 
     // ==================== buscarPorId ====================

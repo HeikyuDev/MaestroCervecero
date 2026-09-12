@@ -65,41 +65,64 @@ class MedicionLoteServicioImplTest {
 
     private static final LocalDateTime FECHA_MEDICION = LocalDateTime.now().minusMinutes(5);
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarMedicionesLote ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de mediciones correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FML-01: filtrarMedicionesLote retorna una página de mediciones correctamente mapeada a DTO cuando se filtra por los 5 criterios")
+    void filtrarMedicionesLote_debeRetornarPaginaMapeadaFiltrandoPorLosCincoCriterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         MedicionLoteEntity medicion1 = crearMedicionLoteBase(1L, 5.5);
         MedicionLoteEntity medicion2 = crearMedicionLoteBase(2L, 5.6);
-        when(medicionLoteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(medicion1, medicion2), pageable, 2));
+        LocalDateTime desde = FECHA_MEDICION.minusMinutes(1);
+        LocalDateTime hasta = FECHA_MEDICION.plusMinutes(1);
+        when(medicionLoteRepository.filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, desde, hasta, pageable))
+                .thenReturn(new PageImpl<>(List.of(medicion1, medicion2), pageable, 2));
 
         // === EJECUCION ===
-        Page<MedicionLoteResponseDTO> resultado = medicionLoteServicio.buscarTodos(pageable);
+        Page<MedicionLoteResponseDTO> resultado = medicionLoteServicio.filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, desde, hasta, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertThat(resultado.getContent()).hasSize(2);
         assertThat(resultado.getContent().get(0).getValorMedido()).isEqualTo(5.5);
         assertThat(resultado.getContent().get(1).getValorMedido()).isEqualTo(5.6);
-        verify(medicionLoteRepository).findAll(pageable);
+        verify(medicionLoteRepository).filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, desde, hasta, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay mediciones registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FML-02: filtrarMedicionesLote asume REGISTRADO por defecto cuando el estado es nulo, y propaga el rango de fechas nulo sin acotar")
+    void filtrarMedicionesLote_debeAsumirRegistradoPorDefectoYPropagarFechasNulas() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(medicionLoteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        MedicionLoteEntity medicion1 = crearMedicionLoteBase(1L, 5.5);
+        MedicionLoteEntity medicion2 = crearMedicionLoteBase(2L, 5.6);
+        when(medicionLoteRepository.filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(medicion1, medicion2), pageable, 2));
 
         // === EJECUCION ===
-        Page<MedicionLoteResponseDTO> resultado = medicionLoteServicio.buscarTodos(pageable);
+        Page<MedicionLoteResponseDTO> resultado = medicionLoteServicio.filtrarMedicionesLote(1L, 5L, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        // Verifica que el service haya reemplazado el estado nulo por REGISTRADO antes de consultar
+        verify(medicionLoteRepository).filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FML-03: filtrarMedicionesLote permite ver explícitamente las mediciones anuladas cuando el usuario elige ese estado")
+    void filtrarMedicionesLote_debePermitirElegirEstadoAnulado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(medicionLoteRepository.filtrarMedicionesLote(1L, 5L, EstadoTransaccion.ANULADO, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<MedicionLoteResponseDTO> resultado = medicionLoteServicio.filtrarMedicionesLote(1L, 5L, EstadoTransaccion.ANULADO, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(medicionLoteRepository).findAll(pageable);
+        verify(medicionLoteRepository).filtrarMedicionesLote(1L, 5L, EstadoTransaccion.ANULADO, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

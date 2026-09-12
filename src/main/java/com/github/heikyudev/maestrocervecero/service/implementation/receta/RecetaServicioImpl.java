@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.receta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
@@ -21,8 +22,10 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_contro
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IPlanMonitoreoEtapaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLevaduraFormDTO;
@@ -37,6 +40,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleParametroControlResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
 import lombok.RequiredArgsConstructor;
@@ -61,21 +66,79 @@ public class RecetaServicioImpl implements IRecetaServicio {
     private final IEtapaControlRepository etapaControlRepository;
     private final IParametroControlRepository parametroControlRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
+    private final IPlanMonitoreoEtapaRepository planMonitoreoEtapaRepository;
 
     /**
-     * Recupera una página de recetas activas registradas en el sistema.
+     * Recupera una página de recetas activas registradas en el sistema, filtradas opcionalmente
+     * por el nombre de su versión vigente (coincidencia parcial, sin distinguir
+     * mayúsculas/minúsculas).
      * <p>
      * Las recetas dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'} aplicada
      * en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre de la versión vigente, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link RecetaResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<RecetaResponseDTO> buscarTodos(Pageable pageable) {
-        return recetaRepository.findAll(pageable).map(MapperReceta::toDTO);
+    public Page<RecetaResponseDTO> filtrarRecetas(String nombre, Pageable pageable) {
+        return recetaRepository.filtrarRecetas(nombre, pageable).map(MapperReceta::toDTO);
+    }
+
+    /**
+     * Obtiene los detalles de parámetro de control configurados en un plan de monitoreo de etapa.
+     * <p>
+     * {@code idPlanMonitoreoEtapa} lo elige el usuario, típicamente entre las opciones devueltas
+     * por {@link #filtrarPlanesMonitoreo(Long)} (que ya vienen correctamente acotadas a la etapa
+     * actual del lote) — por eso este método no necesita volver a validar la correspondencia con
+     * ninguna etapa.
+     * </p>
+     *
+     * @param idPlanMonitoreoEtapa El ID del plan de monitoreo de etapa elegido por el usuario.
+     * @return Los detalles de parámetro de control configurados en ese plan, en formato DTO.
+     * @throws RecursoNoEncontradoException Si el plan de monitoreo de etapa referenciado no existe.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<DetalleParametroControlResponseDTO> filtrarDetallesParametroControl(Long idPlanMonitoreoEtapa) {
+        PlanMonitoreoEtapaEntity planMonitoreoEtapa = planMonitoreoEtapaRepository.findById(idPlanMonitoreoEtapa)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el plan de monitoreo de etapa con ID: " + idPlanMonitoreoEtapa));
+
+        return planMonitoreoEtapa.getDetallesParametroControl().stream()
+                .map(MapperReceta::mapDetalleParametroControl)
+                .toList();
+    }
+
+    /**
+     * Obtiene los planes de monitoreo configurados para la etapa (tipo) de una etapa de lote
+     * determinada, dentro de la versión de receta que está utilizando el lote en ejecución.
+     * <p>
+     * {@code idEtapaLote} no lo tipea el usuario: lo determina el sistema según en qué etapa de
+     * qué lote se está parado. A partir de esa única etapa de lote, tanto el tipo de etapa a
+     * controlar como la versión de receta vigente para ese lote (navegando
+     * {@code etapaLote.lote.planificacionProduccion.versionReceta}) se derivan solos.
+     * </p>
+     *
+     * @param idEtapaLote El ID de la etapa de lote actual.
+     * @return Los planes de monitoreo de esa versión de receta cuya etapa a controlar coincide con
+     *         el tipo de etapa del lote indicado, en formato DTO. Vacía si no hay ninguno configurado.
+     * @throws RecursoNoEncontradoException Si la etapa de lote referenciada no existe.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlanMonitoreoEtapaResponseDTO> filtrarPlanesMonitoreo(Long idEtapaLote) {
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
+
+        VersionRecetaEntity versionReceta = etapaLote.getLote().getPlanificacionProduccion().getVersionReceta();
+
+        return versionReceta.getPlanesMonitoreo().stream()
+                .filter(plan -> plan.getEtapaControl().getEtapaAControlar() == etapaLote.getEtapa())
+                .map(MapperReceta::mapPlanMonitoreoEtapa)
+                .toList();
     }
 
     /**

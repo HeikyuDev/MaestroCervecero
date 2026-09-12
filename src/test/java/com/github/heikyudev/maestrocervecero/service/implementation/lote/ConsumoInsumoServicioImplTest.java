@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.LoteInsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ConsumoInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
@@ -21,7 +22,10 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReserv
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +61,8 @@ class ConsumoInsumoServicioImplTest {
     private ILoteInsumoRepository loteInsumoRepository;
     @Mock
     private IReservaInsumoRepository reservaInsumoRepository;
+    @Mock
+    private IEscaladoInsumoServicio escaladoInsumoServicio;
 
     @InjectMocks
     private ConsumoInsumoServicioImpl consumoInsumoServicio;
@@ -628,6 +634,56 @@ class ConsumoInsumoServicioImplTest {
         verifyNoInteractions(reservaInsumoRepository);
     }
 
+    // ==================== filtrarInsumosRequeridos ====================
+
+    @Test
+    @DisplayName("CP-FIR-01: filtrarInsumosRequeridos lanza RecursoNoEncontradoException si la etapa de lote no existe")
+    void filtrarInsumosRequeridos_debeLanzarExcepcionSiEtapaLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.filtrarInsumosRequeridos(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la etapa de lote con ID: 99");
+        verifyNoInteractions(escaladoInsumoServicio, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FIR-02: filtrarInsumosRequeridos — camino feliz: mapea los requerimientos de la etapa (ya acotados por el servicio de escalado) junto con su cantidad consumida (ya acotada por el repositorio a REGISTRADO)")
+    void filtrarInsumosRequeridos_debeMapearLosRequerimientosConSuCantidadConsumida() {
+        // === PREPARACION DE DATOS ===
+        // El acotado por etapa (calcularRequerimientosEtapa) y por estado REGISTRADO
+        // (findByEtapaLoteIdAndEstado) es responsabilidad de los colaboradores, no de este método:
+        // acá solo se verifica que el resultado de ambos se mapee y sume correctamente.
+        MaltaEntity malta = maltaEntity(1L);
+        LevaduraEntity levadura = levaduraEntity(2L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaMaceracion = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaceracion));
+        when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion)).thenReturn(List.of(
+                new RequerimientoInsumo(malta, etapaMaceracion, 500.0),
+                new RequerimientoInsumo(levadura, etapaMaceracion, 10.0)));
+
+        LoteInsumoEntity loteInsumoMalta1 = loteInsumoEntity(10L, malta, 300.0, 0.0);
+        LoteInsumoEntity loteInsumoMalta2 = loteInsumoEntity(11L, malta, 300.0, 0.0);
+        ConsumoInsumoEntity consumoMalta1 = consumoInsumoEntity(loteInsumoMalta1, 200.0, EstadoTransaccion.REGISTRADO);
+        ConsumoInsumoEntity consumoMalta2 = consumoInsumoEntity(loteInsumoMalta2, 50.0, EstadoTransaccion.REGISTRADO);
+        when(consumoInsumoRepository.findByEtapaLoteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(consumoMalta1, consumoMalta2));
+
+        // === EJECUCION ===
+        List<InsumoRequeridoResponseDTO> resultado = consumoInsumoServicio.filtrarInsumosRequeridos(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(2);
+        InsumoRequeridoResponseDTO dtoMalta = resultado.stream().filter(dto -> dto.getInsumo().getId().equals(1L)).findFirst().orElseThrow();
+        InsumoRequeridoResponseDTO dtoLevadura = resultado.stream().filter(dto -> dto.getInsumo().getId().equals(2L)).findFirst().orElseThrow();
+        assertThat(dtoMalta.getCantidadRequerida()).isEqualTo(500.0);
+        assertThat(dtoMalta.getCantidadConsumida()).isEqualTo(250.0);
+        assertThat(dtoLevadura.getCantidadRequerida()).isEqualTo(10.0);
+        assertThat(dtoLevadura.getCantidadConsumida()).isEqualTo(0.0);
+    }
+
     // ==================== helpers de construcción ====================
 
     private static ConsumoInsumoFormDTO formDTOBase(Long idEtapaLote, Long idLoteInsumo, Double cantidadConsumida) {
@@ -640,6 +696,19 @@ class ConsumoInsumoServicioImplTest {
 
     private static MaltaEntity maltaEntity(Long id) {
         return MaltaEntity.builder().id(id).nombre("Malta Pilsen").estado(Estado.ACTIVO).build();
+    }
+
+    private static LevaduraEntity levaduraEntity(Long id) {
+        return LevaduraEntity.builder().id(id).nombre("Levadura Ale").estado(Estado.ACTIVO).build();
+    }
+
+    private static ConsumoInsumoEntity consumoInsumoEntity(LoteInsumoEntity loteInsumo, double cantidadConsumida, EstadoTransaccion estado) {
+        return ConsumoInsumoEntity.builder()
+                .cantidadConsumida(cantidadConsumida)
+                .costoUnitarioPPP(BigDecimal.TEN)
+                .estado(estado)
+                .loteInsumo(loteInsumo)
+                .build();
     }
 
     private static VersionRecetaEntity crearVersionRecetaConMalta(MaltaEntity malta) {

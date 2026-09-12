@@ -30,19 +30,23 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     private final IEquipamientoRepository equipamientoRepository;
 
     /**
-     * Recupera una página de Maceradores activos registrados en el sistema.
+     * Recupera una página de Maceradores activos registrados en el sistema, filtrados
+     * opcionalmente por identificador interno (coincidencia parcial, sin distinguir
+     * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta).
      * <p>
      * Los maceradores dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link MaceradorResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<MaceradorResponseDTO> buscarTodos(Pageable pageable) {
-        return maceradorRepository.findAll(pageable).map(MapperMacerador::toDTO);
+    public Page<MaceradorResponseDTO> filtrarMaceradores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
+        return maceradorRepository.filtrarMaceradores(identificadorInterno, estadoOperativo, pageable).map(MapperMacerador::toDTO);
     }
 
     /**

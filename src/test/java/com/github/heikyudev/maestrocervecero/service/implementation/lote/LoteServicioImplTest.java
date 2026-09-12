@@ -44,6 +44,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.Cancelac
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -100,6 +102,12 @@ class LoteServicioImplTest {
     private ILoteInsumoRepository loteInsumoRepository;
     @Mock
     private IReservaInsumoRepository reservaInsumoRepository;
+    // Spy con la implementación real: el escalado de insumos ya se prueba de forma independiente
+    // en EscaladoInsumoServicioImplTest, así que acá no tiene sentido mockearlo — se necesita el
+    // cálculo real para que estos tests sigan verificando el mismo comportamiento de extremo a
+    // extremo que verificaban antes de extraer esta lógica a su propio servicio.
+    @Spy
+    private IEscaladoInsumoServicio escaladoInsumoServicio = new EscaladoInsumoServicioImpl();
 
     @InjectMocks
     private LoteServicioImpl loteServicio;

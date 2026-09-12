@@ -26,19 +26,21 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
     private final IParametroControlRepository parametroControlRepository;
 
     /**
-     * Recupera una página de parámetros de control activos registrados en el sistema.
+     * Recupera una página de parámetros de control activos registrados en el sistema, filtrados
+     * opcionalmente por nombre (coincidencia parcial, sin distinguir mayúsculas/minúsculas).
      * <p>
      * Los parámetros de control dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre del parámetro de control, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ParametroControlResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ParametroControlResponseDTO> buscarTodos(Pageable pageable) {
-        return parametroControlRepository.findAll(pageable).map(MapperParametroControl::toDTO);
+    public Page<ParametroControlResponseDTO> filtrarParametrosControl(String nombre, Pageable pageable) {
+        return parametroControlRepository.filtrarParametrosControl(nombre, pageable).map(MapperParametroControl::toDTO);
     }
 
     /**

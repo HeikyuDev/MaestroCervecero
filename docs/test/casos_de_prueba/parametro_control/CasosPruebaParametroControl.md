@@ -1,9 +1,10 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarParametrosControl(String nombre, Pageable pageable)`
 
-| **ID**       | **Nombre del Caso**               | **Datos de Entrada (Escenario)**                               | **Condición Evaluada**                 | **Resultado Esperado**                                                                |
-| ------------ | --------------------------------- | -------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------- |
-| **CP-BT-01** | Consulta con registros existentes | `pageable: PageRequest.of(0, 10)`, BD con 2 parámetros activos | `findAll(pageable)` contiene elementos | Retorna `Page<ParametroControlResponseDTO>` con 2 elementos mapeados.                 |
-| **CP-BT-02** | Consulta sin registros existentes | `pageable: PageRequest.of(0, 10)`, BD vacía                    | `findAll(pageable)` está vacío         | Retorna `Page<ParametroControlResponseDTO>` vacía (`getContent().isEmpty() == true`). |
+| **ID**        | **Nombre del Caso**                        | **Datos de Entrada (Escenario)**                                                                            | **Condición Evaluada**                                              | **Resultado Esperado**                                                                                  |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **CP-FPC-01** | Filtra por nombre informado                 | `nombre: "Temperatura"`, `pageable: PageRequest.of(0, 10)`, BD con 2 parámetros activos que contienen "Temperatura" en el nombre | `filtrarParametrosControl("Temperatura", pageable)` contiene elementos | Retorna `Page<ParametroControlResponseDTO>` con 2 elementos mapeados.                                       |
+| **CP-FPC-02** | Nombre nulo no restringe la búsqueda        | `nombre: null`, `pageable: PageRequest.of(0, 10)`                                                              | El service propaga `nombre: null` tal cual al repositorio            | Retorna `Page<ParametroControlResponseDTO>` con todos los parámetros activos (equivalente a no filtrar).   |
+| **CP-FPC-03** | Consulta sin coincidencias                  | `nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`                                                      | `filtrarParametrosControl("Inexistente", pageable)` está vacío        | Retorna `Page<ParametroControlResponseDTO>` vacía (`getContent().isEmpty() == true`).                       |
 
 ### 2. `buscarPorId(Long id)`
 

@@ -45,43 +45,60 @@ class FermentadorServicioImplTest {
     @InjectMocks
     private FermentadorServicioImpl fermentadorServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarFermentadores ====================
 
     @Test
-    @DisplayName("buscarTodos retorna una página de fermentadores correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FF-01: filtrarFermentadores retorna una página de fermentadores correctamente mapeada a DTO cuando se filtra por identificador interno y estado operativo")
+    void filtrarFermentadores_debeRetornarPaginaMapeadaFiltrandoPorIdentificadorYEstado() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         FermentadorEntity otraFermentadorEntity = crearFermentadorEntity(2L, "FERM-02", 120.0, 90.0);
-
-        // Cuando fermentadorRepository.findAll(pageable) sea llamado, retorna una página con los fermentadores activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(fermentadorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(fermentadorEntity, otraFermentadorEntity), pageable, 2));
+        when(fermentadorRepository.filtrarFermentadores("FERM", EstadoOperativo.DISPONIBLE, pageable))
+                .thenReturn(new PageImpl<>(List.of(fermentadorEntity, otraFermentadorEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<FermentadorResponseDTO> resultado = fermentadorServicio.buscarTodos(pageable);
+        Page<FermentadorResponseDTO> resultado = fermentadorServicio.filtrarFermentadores("FERM", EstadoOperativo.DISPONIBLE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertFermentadorDTO(fermentadorEntity, resultado.getContent().get(0));
         assertFermentadorDTO(otraFermentadorEntity, resultado.getContent().get(1));
-        verify(fermentadorRepository).findAll(pageable);
+        verify(fermentadorRepository).filtrarFermentadores("FERM", EstadoOperativo.DISPONIBLE, pageable);
     }
 
     @Test
-    @DisplayName("buscarTodos retorna una página vacía cuando no hay fermentadores registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FF-02: filtrarFermentadores propaga identificador interno y estado operativo nulos sin restringir esos criterios")
+    void filtrarFermentadores_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(fermentadorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
+        FermentadorEntity otraFermentadorEntity = crearFermentadorEntity(2L, "FERM-02", 120.0, 90.0);
+        when(fermentadorRepository.filtrarFermentadores(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(fermentadorEntity, otraFermentadorEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<FermentadorResponseDTO> resultado = fermentadorServicio.buscarTodos(pageable);
+        Page<FermentadorResponseDTO> resultado = fermentadorServicio.filtrarFermentadores(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(fermentadorRepository).filtrarFermentadores(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FF-03: filtrarFermentadores retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarFermentadores_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(fermentadorRepository.filtrarFermentadores("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<FermentadorResponseDTO> resultado = fermentadorServicio.filtrarFermentadores("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(fermentadorRepository).findAll(pageable);
+        verify(fermentadorRepository).filtrarFermentadores("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

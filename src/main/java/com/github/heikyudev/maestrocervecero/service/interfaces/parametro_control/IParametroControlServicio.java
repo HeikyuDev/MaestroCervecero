@@ -8,12 +8,15 @@ import org.springframework.data.domain.Pageable;
 public interface IParametroControlServicio {
 
     /**
-     * Obtiene una página de parámetros de control activos.
+     * Obtiene una página de parámetros de control activos, filtrados opcionalmente por nombre
+     * (coincidencia parcial, sin distinguir mayúsculas/minúsculas). Un parámetro nulo no
+     * restringe por ese criterio.
      *
+     * @param nombre Texto a buscar dentro del nombre del parámetro de control, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de parámetros de control activos en formato DTO.
+     * @return Una página de parámetros de control activos que cumplen el criterio indicado, en formato DTO.
      */
-    Page<ParametroControlResponseDTO> buscarTodos(Pageable pageable);
+    Page<ParametroControlResponseDTO> filtrarParametrosControl(String nombre, Pageable pageable);
 
     /**
      * Obtiene un parámetro de control activo por su ID.

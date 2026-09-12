@@ -1,9 +1,10 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarOllasHervor(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 2 ollas activas|`findAll(pageable)` contiene elementos|Retorna `Page<OllaHervorResponseDTO>` con 2 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<OllaHervorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FOH-01**|Filtra por identificador interno y estado operativo informados|`identificadorInterno: "OLLA"`, `estadoOperativo: DISPONIBLE`, `pageable: PageRequest.of(0, 10)`, BD con 2 ollas activas que cumplen ambos criterios|`filtrarOllasHervor("OLLA", DISPONIBLE, pageable)` contiene elementos|Retorna `Page<OllaHervorResponseDTO>` con 2 elementos mapeados.|
+|**CP-FOH-02**|Identificador interno y estado operativo nulos no restringen la búsqueda|`identificadorInterno: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<OllaHervorResponseDTO>` con todas las ollas de hervor activas (equivalente a no filtrar).|
+|**CP-FOH-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarOllasHervor("Inexistente", null, pageable)` está vacío|Retorna `Page<OllaHervorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

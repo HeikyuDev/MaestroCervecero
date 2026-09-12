@@ -25,13 +25,21 @@ import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperInsumo;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperConsumoInsumo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Implementación de {@link IConsumoInsumoServicio}.
@@ -44,6 +52,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     private final IEtapaLoteRepository etapaLoteRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
     private final IReservaInsumoRepository reservaInsumoRepository;
+    private final IEscaladoInsumoServicio escaladoInsumoServicio;
 
     /**
      * Recupera una página de consumos de insumo registrados en el sistema.
@@ -196,6 +205,34 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                 .build();
 
         return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo));
+    }
+
+    /**
+     * Obtiene, para una etapa de lote determinada, cuánto requiere de cada insumo según el
+     * escalado de la receta y cuánto de eso ya fue consumido.
+     *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan consumos.
+     * @return Un DTO por cada insumo requerido en esa etapa, con su cantidad requerida y consumida.
+     * @throws RecursoNoEncontradoException Si no existe una etapa de lote con el ID especificado.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<InsumoRequeridoResponseDTO> filtrarInsumosRequeridos(Long idEtapaLote) {
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
+
+        List<RequerimientoInsumo> requerimientos = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaLote);
+
+        Map<Long, Double> cantidadConsumidaPorInsumo = consumoInsumoRepository.findByEtapaLoteIdAndEstado(idEtapaLote, EstadoTransaccion.REGISTRADO).stream()
+                .collect(Collectors.groupingBy(consumo -> consumo.getLoteInsumo().getInsumo().getId(), Collectors.summingDouble(ConsumoInsumoEntity::getCantidadConsumida)));
+
+        return requerimientos.stream()
+                .map(requerimiento -> InsumoRequeridoResponseDTO.builder()
+                        .insumo(MapperInsumo.toDTO(requerimiento.insumo()))
+                        .cantidadRequerida(requerimiento.cantidadRequerida())
+                        .cantidadConsumida(cantidadConsumidaPorInsumo.getOrDefault(requerimiento.insumo().getId(), 0.0))
+                        .build())
+                .toList();
     }
 
     /**

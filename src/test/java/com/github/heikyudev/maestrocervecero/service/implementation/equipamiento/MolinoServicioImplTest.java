@@ -45,43 +45,60 @@ class MolinoServicioImplTest {
     @InjectMocks
     private MolinoServicioImpl molinoServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarMolinos ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de molinos correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FMo-01: filtrarMolinos retorna una página de molinos correctamente mapeada a DTO cuando se filtra por identificador interno y estado operativo")
+    void filtrarMolinos_debeRetornarPaginaMapeadaFiltrandoPorIdentificadorYEstado() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
         MolinoEntity otroMolinoEntity = crearMolinoEntity(2L, "MOL-02", 120.0);
-
-        // Cuando molinoRepository.findAll(pageable) sea llamado, retorna una página con los molinos activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(molinoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(molinoEntity, otroMolinoEntity), pageable, 2));
+        when(molinoRepository.filtrarMolinos("MOL", EstadoOperativo.DISPONIBLE, pageable))
+                .thenReturn(new PageImpl<>(List.of(molinoEntity, otroMolinoEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<MolinoResponseDTO> resultado = molinoServicio.buscarTodos(pageable);
+        Page<MolinoResponseDTO> resultado = molinoServicio.filtrarMolinos("MOL", EstadoOperativo.DISPONIBLE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertMolinoDTO(molinoEntity, resultado.getContent().get(0));
         assertMolinoDTO(otroMolinoEntity, resultado.getContent().get(1));
-        verify(molinoRepository).findAll(pageable);
+        verify(molinoRepository).filtrarMolinos("MOL", EstadoOperativo.DISPONIBLE, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay molinos registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FMo-02: filtrarMolinos propaga identificador interno y estado operativo nulos sin restringir esos criterios")
+    void filtrarMolinos_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(molinoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
+        MolinoEntity otroMolinoEntity = crearMolinoEntity(2L, "MOL-02", 120.0);
+        when(molinoRepository.filtrarMolinos(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(molinoEntity, otroMolinoEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<MolinoResponseDTO> resultado = molinoServicio.buscarTodos(pageable);
+        Page<MolinoResponseDTO> resultado = molinoServicio.filtrarMolinos(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(molinoRepository).filtrarMolinos(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMo-03: filtrarMolinos retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarMolinos_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(molinoRepository.filtrarMolinos("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<MolinoResponseDTO> resultado = molinoServicio.filtrarMolinos("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(molinoRepository).findAll(pageable);
+        verify(molinoRepository).filtrarMolinos("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

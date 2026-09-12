@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularMedicionLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.MedicionLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -8,6 +9,8 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.MedicionL
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
+
 /**
  * Interfaz que define los servicios relacionados con el registro de mediciones de parámetros de
  * control sobre las etapas de un lote en ejecución.
@@ -15,12 +18,32 @@ import org.springframework.data.domain.Pageable;
 public interface IMedicionLoteServicio {
 
     /**
-     * Obtiene una página de mediciones de lote.
+     * Obtiene una página de mediciones de lote de una etapa de lote y un detalle de parámetro de
+     * control determinados, filtradas opcionalmente por estado (coincidencia exacta) y/o por un
+     * rango de fecha y hora de medición. En el rango de fechas, cada extremo es independiente.
+     * <p>
+     * {@code idEtapaLote} e {@code idDetalleParametroControl} no son opcionales: lo determina el
+     * contexto fijo desde el que se entra a gestionar mediciones (una etapa de un lote puntual y
+     * un detalle de parámetro de control puntual — nunca tiene sentido mezclar mediciones de
+     * distintos parámetros o distintos lotes en la misma vista), nunca lo tipea el usuario.
+     * </p>
+     * <p>
+     * {@code estado} sí es un criterio de negocio legítimo para el usuario (a diferencia de una
+     * baja lógica, acá "ver lo anulado" tiene valor real): si no lo especifica, este método
+     * asume {@code REGISTRADO} por defecto; el usuario puede elegir explícitamente
+     * {@code ANULADO} si quiere revisar el historial de mediciones anuladas.
+     * </p>
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan mediciones (obligatorio).
+     * @param idDetalleParametroControl El ID del detalle de parámetro de control sobre el que se gestionan mediciones (obligatorio).
+     * @param estado El estado a filtrar, o {@code null} para asumir {@code REGISTRADO} por defecto.
+     * @param fechaMedicionDesde Límite inferior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
+     * @param fechaMedicionHasta Límite superior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param pageable La configuración de paginación.
-     * @return Una página de mediciones en formato DTO.
+     * @return Una página de mediciones que cumplen los criterios indicados, en formato DTO.
      */
-    Page<MedicionLoteResponseDTO> buscarTodos(Pageable pageable);
+    Page<MedicionLoteResponseDTO> filtrarMedicionesLote(Long idEtapaLote, Long idDetalleParametroControl, EstadoTransaccion estado,
+                                                          LocalDateTime fechaMedicionDesde, LocalDateTime fechaMedicionHasta, Pageable pageable);
 
     /**
      * Obtiene una medición de lote por su ID.

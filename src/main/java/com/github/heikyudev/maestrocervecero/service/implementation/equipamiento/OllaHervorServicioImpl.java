@@ -30,19 +30,23 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     private final IEquipamientoRepository equipamientoRepository;
 
     /**
-     * Recupera una página de Ollas de Hervor activas registrados en el sistema.
+     * Recupera una página de Ollas de Hervor activas registradas en el sistema, filtradas
+     * opcionalmente por identificador interno (coincidencia parcial, sin distinguir
+     * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta).
      * <p>
      * Las ollas de hervor dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link OllaHervorResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<OllaHervorResponseDTO> buscarTodos(Pageable pageable) {
-        return  ollaHervorRepository.findAll(pageable).map(MapperOllaHervor::toDTO);
+    public Page<OllaHervorResponseDTO> filtrarOllasHervor(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
+        return ollaHervorRepository.filtrarOllasHervor(identificadorInterno, estadoOperativo, pageable).map(MapperOllaHervor::toDTO);
     }
 
     /**

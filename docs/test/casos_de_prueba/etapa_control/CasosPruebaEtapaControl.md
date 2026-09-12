@@ -1,9 +1,10 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarEtapasControl(String nombre, TipoEtapa etapa, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 2 etapas activas|`findAll(pageable)` contiene elementos|Retorna `Page<EtapaControlResponseDTO>` con 2 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<EtapaControlResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FEC-01**|Filtra por nombre y etapa informados|`nombre: "Densidad"`, `etapa: MACERACION`, `pageable: PageRequest.of(0, 10)`, BD con 2 etapas de control activas que cumplen ambos criterios|`filtrarEtapasControl("Densidad", MACERACION, pageable)` contiene elementos|Retorna `Page<EtapaControlResponseDTO>` con 2 elementos mapeados.|
+|**CP-FEC-02**|Nombre y etapa nulos no restringen la búsqueda|`nombre: null`, `etapa: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<EtapaControlResponseDTO>` con todas las etapas de control activas (equivalente a no filtrar).|
+|**CP-FEC-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `etapa: null`, `pageable: PageRequest.of(0, 10)`|`filtrarEtapasControl("Inexistente", null, pageable)` está vacío|Retorna `Page<EtapaControlResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

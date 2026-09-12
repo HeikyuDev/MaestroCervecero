@@ -167,11 +167,16 @@ public class MapperReceta {
     /**
      * Mapea una instancia de {@link PlanMonitoreoEtapaEntity} a {@link PlanMonitoreoEtapaResponseDTO},
      * incluyendo la etapa de control y los detalles de parámetros de control asociados.
+     * <p>
+     * Público para que otros servicios que referencian directamente un plan de monitoreo de etapa
+     * (por ejemplo, {@code RecetaServicioImpl.filtrarPlanesMonitoreo}) puedan reutilizar este
+     * mapeo sin duplicarlo.
+     * </p>
      *
      * @param planMonitoreoEtapaEntity Entidad de plan de monitoreo de etapa a convertir.
      * @return Objeto DTO correspondiente.
      */
-    private static PlanMonitoreoEtapaResponseDTO mapPlanMonitoreoEtapa(PlanMonitoreoEtapaEntity planMonitoreoEtapaEntity) {
+    public static PlanMonitoreoEtapaResponseDTO mapPlanMonitoreoEtapa(PlanMonitoreoEtapaEntity planMonitoreoEtapaEntity) {
         return PlanMonitoreoEtapaResponseDTO.builder()
                 .id(planMonitoreoEtapaEntity.getId())
                 .etapaControl(MapperEtapaControl.toDTO(planMonitoreoEtapaEntity.getEtapaControl()))

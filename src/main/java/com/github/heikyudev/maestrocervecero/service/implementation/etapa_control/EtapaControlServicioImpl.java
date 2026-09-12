@@ -36,19 +36,23 @@ public class EtapaControlServicioImpl implements IEtapaControlServicio {
     private final IEtapaControlRepository etapaControlRepository;
 
     /**
-     * Recupera una página de etapas de control activas registradas en el sistema.
+     * Recupera una página de etapas de control activas registradas en el sistema, filtradas
+     * opcionalmente por nombre (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o
+     * etapa a controlar (coincidencia exacta).
      * <p>
      * Las etapas de control dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre de la etapa de control, o {@code null} para no filtrar por nombre.
+     * @param etapa Etapa a controlar exacta a filtrar, o {@code null} para no filtrar por etapa.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link EtapaControlResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<EtapaControlResponseDTO> buscarTodos(Pageable pageable) {
-        return etapaControlRepository.findAll(pageable).map(MapperEtapaControl::toDTO);
+    public Page<EtapaControlResponseDTO> filtrarEtapasControl(String nombre, TipoEtapa etapa, Pageable pageable) {
+        return etapaControlRepository.filtrarEtapasControl(nombre, etapa, pageable).map(MapperEtapaControl::toDTO);
     }
 
     /**

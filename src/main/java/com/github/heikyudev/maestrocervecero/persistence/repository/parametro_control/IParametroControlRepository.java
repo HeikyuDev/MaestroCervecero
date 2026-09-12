@@ -15,9 +15,9 @@ import java.util.Optional;
  * <p>
  * La entidad ya no utiliza {@code @SoftDelete}: el filtrado de parámetros de control dados de
  * baja se realiza explícitamente en cada consulta mediante la condición {@code estado = 'ACTIVO'}.
- * Los métodos heredados de {@link JpaRepository} ({@code findById}, {@code findAll}) se
- * sobrescriben con esa misma condición para que todo el código existente que ya los invoca
- * (sin cambios) siga viendo únicamente parámetros de control activos.
+ * El método heredado de {@link JpaRepository} ({@code findById}) se sobrescribe con esa misma
+ * condición para que todo el código existente que ya lo invoca (sin cambios) siga viendo
+ * únicamente parámetros de control activos.
  * </p>
  */
 @Repository
@@ -34,14 +34,19 @@ public interface IParametroControlRepository extends JpaRepository<ParametroCont
     Optional<ParametroControlEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de parámetros de control activos.
+     * Obtiene una página de parámetros de control activos, filtrados opcionalmente por nombre
+     * (coincidencia parcial, sin distinguir mayúsculas/minúsculas). Un parámetro nulo no
+     * restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre del parámetro de control, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de parámetros de control activos.
+     * @return Una página de parámetros de control activos que cumplen el criterio indicado.
      */
-    @Override
-    @Query(value = "SELECT pc FROM ParametroControlEntity pc WHERE pc.estado = 'ACTIVO'",
-            countQuery = "SELECT COUNT(pc) FROM ParametroControlEntity pc WHERE pc.estado = 'ACTIVO'")
-    Page<ParametroControlEntity> findAll(Pageable pageable);
+    @Query(value = "SELECT pc FROM ParametroControlEntity pc WHERE pc.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))",
+            countQuery = "SELECT COUNT(pc) FROM ParametroControlEntity pc WHERE pc.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))")
+    Page<ParametroControlEntity> filtrarParametrosControl(@Param("nombre") String nombre, Pageable pageable);
 
     /**
      * Verifica si existe un parámetro de control activo con el nombre dado, ignorando mayúsculas y minúsculas.

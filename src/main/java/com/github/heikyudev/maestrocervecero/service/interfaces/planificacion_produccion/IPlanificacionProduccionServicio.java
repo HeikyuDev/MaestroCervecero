@@ -1,11 +1,14 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.FinalizacionForzadaPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.PlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDate;
 
 /**
  * Interfaz que define los métodos para la gestión de planificaciones de producción.
@@ -19,12 +22,17 @@ import org.springframework.data.domain.Pageable;
 public interface IPlanificacionProduccionServicio {
 
     /**
-     * Obtiene una página de planificaciones de producción activas.
+     * Obtiene una página de planificaciones de producción, filtradas opcionalmente por el ID de
+     * la receta contenedora de la versión utilizada, por estado y/o por fecha de inicio estimada
+     * (los tres por coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
      *
+     * @param idReceta ID de la receta contenedora cuya versión se usó, o {@code null} para no filtrar por ella.
+     * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
+     * @param fechaInicio Fecha de inicio estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de planificaciones de producción en formato DTO.
+     * @return Una página de planificaciones de producción que cumplen los criterios indicados, en formato DTO.
      */
-    Page<PlanificacionProduccionResponseDTO> buscarTodos(Pageable pageable);
+    Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesProduccion(Long idReceta, EstadoSolicitud estado, LocalDate fechaInicio, Pageable pageable);
 
     /**
      * Obtiene una planificación de producción activa por su ID.

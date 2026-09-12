@@ -1,9 +1,10 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarFermentadores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 2 fermentadores activos|`findAll(pageable)` contiene elementos|Retorna `Page<FermentadorResponseDTO>` con 2 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<FermentadorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FF-01**|Filtra por identificador interno y estado operativo informados|`identificadorInterno: "FERM"`, `estadoOperativo: DISPONIBLE`, `pageable: PageRequest.of(0, 10)`, BD con 2 fermentadores activos que cumplen ambos criterios|`filtrarFermentadores("FERM", DISPONIBLE, pageable)` contiene elementos|Retorna `Page<FermentadorResponseDTO>` con 2 elementos mapeados.|
+|**CP-FF-02**|Identificador interno y estado operativo nulos no restringen la búsqueda|`identificadorInterno: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<FermentadorResponseDTO>` con todos los fermentadores activos (equivalente a no filtrar).|
+|**CP-FF-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarFermentadores("Inexistente", null, pageable)` está vacío|Retorna `Page<FermentadorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

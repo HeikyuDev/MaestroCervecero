@@ -34,19 +34,25 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     private final IRecetaRepository recetaRepository;
 
     /**
-     * Recupera una página de planificaciones de producción activas registradas en el sistema.
+     * Recupera una página de planificaciones de producción registradas en el sistema, filtradas
+     * opcionalmente por el ID de la receta contenedora de la versión utilizada, por estado y/o
+     * por fecha de inicio estimada (los tres por coincidencia exacta). Un parámetro nulo no
+     * restringe por ese criterio.
      * <p>
-     * Las planificaciones de producción eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
+     * Esta entidad no tiene baja lógica: no existe el concepto de "planificación inactiva", por
+     * lo que no se aplica ningún filtro adicional de estado activo/baja.
      * </p>
      *
+     * @param idReceta ID de la receta contenedora cuya versión se usó, o {@code null} para no filtrar por ella.
+     * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
+     * @param fechaInicio Fecha de inicio estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link PlanificacionProduccionResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<PlanificacionProduccionResponseDTO> buscarTodos(Pageable pageable) {
-        return planificacionProduccionRepository.findAll(pageable).map(MapperPlanificacionProduccion::toDTO);
+    public Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesProduccion(Long idReceta, EstadoSolicitud estado, LocalDate fechaInicio, Pageable pageable) {
+        return planificacionProduccionRepository.filtrarPlanificacionesProduccion(idReceta, estado, fechaInicio, pageable).map(MapperPlanificacionProduccion::toDTO);
     }
 
     /**

@@ -41,43 +41,60 @@ class EtapaControlServicioImplTest {
     @InjectMocks
     private EtapaControlServicioImpl etapaControlServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarEtapasControl ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de etapas de control correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FEC-01: filtrarEtapasControl retorna una página de etapas de control correctamente mapeada a DTO cuando se filtra por nombre y etapa")
+    void filtrarEtapasControl_debeRetornarPaginaMapeadaFiltrandoPorNombreYEtapa() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         EtapaControlEntity etapaControlEntity = crearEtapaControlEntity(1L, "Control Densidad", "Medición de densidad", TipoEtapa.MACERACION);
-        EtapaControlEntity otraEtapaControlEntity = crearEtapaControlEntity(2L, "Control Temperatura", "Medición de temperatura", TipoEtapa.FERMENTACION);
-
-        // Cuando etapaControlRepository.findAll(pageable) sea llamado, retorna una página con las etapas activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(etapaControlRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(etapaControlEntity, otraEtapaControlEntity), pageable, 2));
+        EtapaControlEntity otraEtapaControlEntity = crearEtapaControlEntity(2L, "Control Densidad Final", "Medición de densidad final", TipoEtapa.MACERACION);
+        when(etapaControlRepository.filtrarEtapasControl("Densidad", TipoEtapa.MACERACION, pageable))
+                .thenReturn(new PageImpl<>(List.of(etapaControlEntity, otraEtapaControlEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<EtapaControlResponseDTO> resultado = etapaControlServicio.buscarTodos(pageable);
+        Page<EtapaControlResponseDTO> resultado = etapaControlServicio.filtrarEtapasControl("Densidad", TipoEtapa.MACERACION, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertEtapaControlDTO(etapaControlEntity, resultado.getContent().get(0));
         assertEtapaControlDTO(otraEtapaControlEntity, resultado.getContent().get(1));
-        verify(etapaControlRepository).findAll(pageable);
+        verify(etapaControlRepository).filtrarEtapasControl("Densidad", TipoEtapa.MACERACION, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay etapas de control registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FEC-02: filtrarEtapasControl propaga nombre y etapa nulos sin restringir esos criterios")
+    void filtrarEtapasControl_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(etapaControlRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        EtapaControlEntity etapaControlEntity = crearEtapaControlEntity(1L, "Control Densidad", "Medición de densidad", TipoEtapa.MACERACION);
+        EtapaControlEntity otraEtapaControlEntity = crearEtapaControlEntity(2L, "Control Temperatura", "Medición de temperatura", TipoEtapa.FERMENTACION);
+        when(etapaControlRepository.filtrarEtapasControl(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(etapaControlEntity, otraEtapaControlEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<EtapaControlResponseDTO> resultado = etapaControlServicio.buscarTodos(pageable);
+        Page<EtapaControlResponseDTO> resultado = etapaControlServicio.filtrarEtapasControl(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(etapaControlRepository).filtrarEtapasControl(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FEC-03: filtrarEtapasControl retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarEtapasControl_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(etapaControlRepository.filtrarEtapasControl("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<EtapaControlResponseDTO> resultado = etapaControlServicio.filtrarEtapasControl("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(etapaControlRepository).findAll(pageable);
+        verify(etapaControlRepository).filtrarEtapasControl("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

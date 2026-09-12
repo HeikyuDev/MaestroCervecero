@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
 import org.springframework.data.domain.Page;
@@ -11,12 +12,16 @@ import org.springframework.data.domain.Pageable;
 public interface IMolinoServicio {
 
     /**
-     * Busca todos los molinos con paginación.
+     * Obtiene una página de molinos activos, filtrados opcionalmente por identificador interno
+     * (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o estado operativo
+     * (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
      *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Información de paginación.
-     * @return Página de MolinoResponseDTO.
+     * @return Página de MolinoResponseDTO que cumplen los criterios indicados.
      */
-    Page<MolinoResponseDTO> buscarTodos(Pageable pageable);
+    Page<MolinoResponseDTO> filtrarMolinos(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable);
 
     /**
      * Busca un molino por su ID.

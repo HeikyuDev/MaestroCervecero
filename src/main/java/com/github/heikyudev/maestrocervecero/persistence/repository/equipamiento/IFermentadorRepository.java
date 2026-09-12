@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -23,12 +24,22 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
     Optional<FermentadorEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de fermentadores activos.
+     * Obtiene una página de fermentadores activos, filtrados opcionalmente por identificador
+     * interno (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o estado operativo
+     * (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de fermentadores activos que cumplen los criterios indicados.
      */
-    @Override
-    @Query(value = "SELECT f FROM FermentadorEntity f WHERE f.estado = 'ACTIVO'",
-            countQuery = "SELECT COUNT(f) FROM FermentadorEntity f WHERE f.estado = 'ACTIVO'")
-    Page<FermentadorEntity> findAll(Pageable pageable);
+    @Query(value = "SELECT f FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' "
+            + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)",
+            countQuery = "SELECT COUNT(f) FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)")
+    Page<FermentadorEntity> filtrarFermentadores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")

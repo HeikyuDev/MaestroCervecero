@@ -16,9 +16,9 @@ import java.util.Optional;
  * <p>
  * La entidad ya no utiliza {@code @SoftDelete}: el filtrado de etapas de control dadas de baja
  * se realiza explícitamente en cada consulta mediante la condición {@code estado = 'ACTIVO'}.
- * Los métodos heredados de {@link JpaRepository} ({@code findById}, {@code findAll}) se
- * sobrescriben con esa misma condición para que todo el código existente que ya los invoca
- * (sin cambios) siga viendo únicamente etapas de control activas.
+ * El método heredado de {@link JpaRepository} ({@code findById}) se sobrescribe con esa misma
+ * condición para que todo el código existente que ya lo invoca (sin cambios) siga viendo
+ * únicamente etapas de control activas.
  * </p>
  */
 @Repository
@@ -35,14 +35,22 @@ public interface IEtapaControlRepository extends JpaRepository<EtapaControlEntit
     Optional<EtapaControlEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de etapas de control activas.
+     * Obtiene una página de etapas de control activas, filtradas opcionalmente por nombre
+     * (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o etapa a controlar
+     * (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre de la etapa de control, o {@code null} para no filtrar por nombre.
+     * @param etapa Etapa a controlar exacta a filtrar, o {@code null} para no filtrar por etapa.
      * @param pageable La configuración de paginación.
-     * @return Una página de etapas de control activas.
+     * @return Una página de etapas de control activas que cumplen los criterios indicados.
      */
-    @Override
-    @Query(value = "SELECT e FROM EtapaControlEntity e WHERE e.estado = 'ACTIVO'",
-            countQuery = "SELECT COUNT(e) FROM EtapaControlEntity e WHERE e.estado = 'ACTIVO'")
-    Page<EtapaControlEntity> findAll(Pageable pageable);
+    @Query(value = "SELECT e FROM EtapaControlEntity e WHERE e.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(e.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:etapa IS NULL OR e.etapaAControlar = :etapa)",
+            countQuery = "SELECT COUNT(e) FROM EtapaControlEntity e WHERE e.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(e.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:etapa IS NULL OR e.etapaAControlar = :etapa)")
+    Page<EtapaControlEntity> filtrarEtapasControl(@Param("nombre") String nombre, @Param("etapa") TipoEtapa etapa, Pageable pageable);
 
     /**
      * Verifica si existe una etapa de control activa con el nombre dado (ignorando mayúsculas y

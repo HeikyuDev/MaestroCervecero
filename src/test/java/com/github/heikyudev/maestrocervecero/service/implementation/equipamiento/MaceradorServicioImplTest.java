@@ -45,41 +45,57 @@ class MaceradorServicioImplTest {
     @InjectMocks
     private MaceradorServicioImpl maceradorServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarMaceradores ====================
 
     @Test
-    @DisplayName("buscarTodos retorna una página de maceradores correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FMa-01: filtrarMaceradores retorna una página de maceradores correctamente mapeada a DTO cuando se filtra por identificador interno y estado operativo")
+    void filtrarMaceradores_debeRetornarPaginaMapeadaFiltrandoPorIdentificadorYEstado() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
-
-        // Cuando maceradorRepository.findAll(pageable) sea llamado, retorna una página con el macerador activo
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(maceradorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(maceradorEntity), pageable, 1));
+        when(maceradorRepository.filtrarMaceradores("MAC", EstadoOperativo.DISPONIBLE, pageable))
+                .thenReturn(new PageImpl<>(List.of(maceradorEntity), pageable, 1));
 
         // === EJECUCION ===
-        Page<MaceradorResponseDTO> resultado = maceradorServicio.buscarTodos(pageable);
+        Page<MaceradorResponseDTO> resultado = maceradorServicio.filtrarMaceradores("MAC", EstadoOperativo.DISPONIBLE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(1);
         assertMaceradorDTO(maceradorEntity, resultado.getContent().get(0));
-        verify(maceradorRepository).findAll(pageable);
+        verify(maceradorRepository).filtrarMaceradores("MAC", EstadoOperativo.DISPONIBLE, pageable);
     }
 
     @Test
-    @DisplayName("buscarTodos retorna una página vacía cuando no hay maceradores registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FMa-02: filtrarMaceradores propaga identificador interno y estado operativo nulos sin restringir esos criterios")
+    void filtrarMaceradores_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(maceradorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.filtrarMaceradores(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(maceradorEntity), pageable, 1));
 
         // === EJECUCION ===
-        Page<MaceradorResponseDTO> resultado = maceradorServicio.buscarTodos(pageable);
+        Page<MaceradorResponseDTO> resultado = maceradorServicio.filtrarMaceradores(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        verify(maceradorRepository).filtrarMaceradores(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMa-03: filtrarMaceradores retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarMaceradores_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(maceradorRepository.filtrarMaceradores("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<MaceradorResponseDTO> resultado = maceradorServicio.filtrarMaceradores("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(maceradorRepository).findAll(pageable);
+        verify(maceradorRepository).filtrarMaceradores("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

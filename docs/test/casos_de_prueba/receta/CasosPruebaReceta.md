@@ -1,9 +1,29 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarRecetas(String nombre, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 recetas activas|`findAll(pageable)` contiene elementos|Retorna `Page<RecetaResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<RecetaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FR-01**|Filtra por el nombre de la versión vigente|`nombre: "IPA"`, `pageable: PageRequest.of(0, 10)`, BD con 2 recetas activas cuya versión vigente (`esUltimaVersion = true`) contiene "IPA" en el nombre|`filtrarRecetas("IPA", pageable)` contiene elementos|Retorna `Page<RecetaResponseDTO>` con 2 elementos mapeados.|
+|**CP-FR-02**|Nombre nulo no restringe la búsqueda|`nombre: null`, `pageable: PageRequest.of(0, 10)`|El service propaga `nombre: null` tal cual al repositorio|Retorna `Page<RecetaResponseDTO>` con todas las recetas activas (equivalente a no filtrar).|
+|**CP-FR-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`|`filtrarRecetas("Inexistente", pageable)` está vacío|Retorna `Page<RecetaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+
+### 2. `filtrarDetallesParametroControl(Long idPlanMonitoreoEtapa)`
+
+`idPlanMonitoreoEtapa` lo elige el usuario, típicamente entre las opciones que ya le devolvió `filtrarPlanesMonitoreo` (ver más abajo) — por eso este método no necesita volver a validar ninguna correspondencia con una etapa. No pagina: la lista de detalles configurados en un plan de monitoreo es siempre acotada.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FDPC-01**|Plan de monitoreo existente|`idPlanMonitoreoEtapa: 1L` (con 1 detalle configurado)|`planMonitoreoEtapaRepository.findById(1L)` → **Presente**|Retorna `List<DetalleParametroControlResponseDTO>` con el detalle mapeado.|
+|**CP-FDPC-02**|Plan de monitoreo de etapa inexistente|`idPlanMonitoreoEtapa: 99L` (No existe)|`planMonitoreoEtapaRepository.findById(99L)` → **Optional.empty()**|Lanza `RecursoNoEncontradoException`.|
+
+### 3. `filtrarPlanesMonitoreo(Long idEtapaLote)`
+
+`idEtapaLote` no lo tipea el usuario: lo determina el sistema según en qué etapa de qué lote se está parado (por ejemplo, al entrar a la futura pantalla "Registrar Medición" estando en el contexto de la etapa de Maceración de un lote). A partir de esa única etapa de lote, tanto el tipo de etapa a controlar como la versión de receta vigente para ese lote (navegando `etapaLote.lote.planificacionProduccion.versionReceta`) se derivan solos. No pagina.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FPM-01**|Filtra únicamente los planes cuya etapa a controlar coincide con la etapa del lote|`idEtapaLote: 1L` (etapa del lote: FERMENTACION), versión de receta con 2 planes de monitoreo (uno FERMENTACION, otro MACERACION)|`plan.etapaControl.etapaAControlar == etapaLote.etapa` filtra la lista|Retorna `List<PlanMonitoreoEtapaResponseDTO>` con únicamente el plan de FERMENTACION.|
+|**CP-FPM-02**|Etapa de lote inexistente|`idEtapaLote: 99L` (No existe)|`etapaLoteRepository.findById(99L)` → **Optional.empty()**|Lanza `RecursoNoEncontradoException`.|
+|**CP-FPM-03**|Ningún plan de la receta corresponde al tipo de etapa del lote|`idEtapaLote: 1L` (etapa del lote: FERMENTACION), versión de receta con 1 plan (MACERACION)|Ningún plan cumple `plan.etapaControl.etapaAControlar == etapaLote.etapa`|Retorna `List<PlanMonitoreoEtapaResponseDTO>` vacía.|
 
 ### 2. `buscarPorId(Long id)`
 

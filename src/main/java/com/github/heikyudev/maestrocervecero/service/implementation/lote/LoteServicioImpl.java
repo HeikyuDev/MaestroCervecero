@@ -17,11 +17,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionPlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
@@ -40,7 +36,9 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteForm
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import lombok.RequiredArgsConstructor;
@@ -75,21 +73,12 @@ public class LoteServicioImpl implements ILoteServicio {
 
     // Constantes fijas del sistema (ver docs/Dominio/Escalado/EscaladoDelAgua.md y EscaladoDeMalta.md)
     private static final double DESPLAZAMIENTO_GRANO_L_POR_KG = 0.7;
-    private static final double REFERENCIA_AZUCAR_PURA_PUNTOS_POR_KG_POR_L = 384.0;
     private static final int HORAS_POR_DIA = 24;
-
-    // Constantes fijas de la fórmula de Tinseth (ver docs/Dominio/Escalado/EscaladoDelLupulo.md)
-    private static final double TINSETH_CONSTANTE_FACTOR_DENSIDAD = 1.65;
-    private static final double TINSETH_BASE_FACTOR_DENSIDAD = 0.000125;
-    private static final double TINSETH_CONSTANTE_DECAIMIENTO_TIEMPO = 0.04;
-    private static final double TINSETH_DIVISOR_FACTOR_TIEMPO = 4.15;
-
-    // Divisor de conversión de puntos de gravedad a grados Plato (ver EscaladoDeLevadura.md)
-    private static final double DIVISOR_GRADOS_PLATO = 4.0;
 
     // Estados de lote que todavía ocupan un lugar en el cronograma de un fermentador
     private static final List<EstadoLote> ESTADOS_QUE_OCUPAN_FERMENTADOR = List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION);
 
+    private final IEscaladoInsumoServicio escaladoInsumoServicio;
     private final ILoteRepository loteRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IMolinoRepository molinoRepository;
@@ -232,33 +221,14 @@ public class LoteServicioImpl implements ILoteServicio {
         //    y asociarla a la etapa donde efectivamente se va a usar: Maceración para la malta,
         //    Fermentación para la levadura, y la etapa configurada en cada detalle para el lúpulo
         //    (HERVIDO para HERVOR/WHIRLPOOL, FERMENTACION o MADURACION para DRY_HOP).
-        VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
-        double volumenObjetivo = lote.getVolumenObjetivo();
-        EtapaLoteEntity etapaMaceracion = obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
-        EtapaLoteEntity etapaFermentacion = obtenerEtapaPorTipo(lote, TipoEtapa.FERMENTACION);
-
-        List<RequerimientoInsumo> todosLosRequerimientos = new ArrayList<>();
-        todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, equipamiento.macerador()), etapaMaceracion));
-        todosLosRequerimientos.addAll(calcularRequerimientosLupulo(versionReceta, volumenObjetivo, lote));
-        todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosLevadura(versionReceta, volumenObjetivo), etapaFermentacion));
-
-        // Este paso unifica los requerimientos POR INSUMO Y POR ETAPA: un mismo insumo (típicamente
-        // un lúpulo) puede usarse en más de una etapa dentro de la misma receta (por ejemplo, HERVOR
-        // en Hervido y DRY_HOP en Maduración), y cada uso genera una reserva separada, atada a su
-        // propia etapa — nunca se fusionan entre etapas distintas, solo dentro de la misma.
-        Map<String, RequerimientoInsumo> requerimientosPorInsumoYEtapa = new LinkedHashMap<>();
-        for (RequerimientoInsumo requerimiento : todosLosRequerimientos) {
-            String clave = requerimiento.insumo().getId() + "-" + requerimiento.etapa().getId();
-            requerimientosPorInsumoYEtapa.merge(clave, requerimiento,
-                    (existente, nuevo) -> new RequerimientoInsumo(existente.insumo(), existente.etapa(), existente.cantidadRequerida() + nuevo.cantidadRequerida()));
-        }
+        List<RequerimientoInsumo> requerimientos = escaladoInsumoServicio.calcularRequerimientosTotales(lote);
 
         // 5. Validar que el stock disponible de cada insumo alcance la cantidad escalada (sumada
         //    entre todas las etapas que lo requieran), antes de reservar nada
-        Map<Long, List<LoteInsumoEntity>> stockPorInsumo = obtenerYValidarStockDisponible(requerimientosPorInsumoYEtapa.values());
+        Map<Long, List<LoteInsumoEntity>> stockPorInsumo = obtenerYValidarStockDisponible(requerimientos);
 
         // 6. Reservar la cantidad escalada de cada insumo aplicando la regla FEFO
-        List<ReservaInsumoEntity> reservas = reservarInsumosFEFO(requerimientosPorInsumoYEtapa.values(), stockPorInsumo);
+        List<ReservaInsumoEntity> reservas = reservarInsumosFEFO(requerimientos, stockPorInsumo);
         reservaInsumoRepository.saveAll(reservas);
 
         // 7 y 8. Registrar la fecha y hora de inicio general del lote, y cambiar su estado a EN_EJECUCION
@@ -361,7 +331,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EtapaLoteEntity etapaMolienda = obtenerEtapaEnCursoValidando(lote, TipoEtapa.MOLIENDA);
 
         // 4. Finalizar Molienda e iniciar Maceración
-        EtapaLoteEntity etapaMaceracion = obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
         avanzarEtapa(etapaMolienda, etapaMaceracion);
 
         // 5. El molino utilizado pasa a estado EN_LIMPIEZA
@@ -390,16 +360,6 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException("La etapa actual del lote es " + etapaActual.getEtapa() + ", no " + tipoEsperado);
         }
         return etapaActual;
-    }
-
-    /**
-     * Busca, entre las 6 etapas del lote, la del tipo indicado.
-     */
-    private EtapaLoteEntity obtenerEtapaPorTipo(LoteEntity lote, TipoEtapa tipo) {
-        return lote.getEtapas().stream()
-                .filter(etapa -> etapa.getEtapa() == tipo)
-                .findFirst()
-                .orElseThrow(() -> new RecursoNoEncontradoException("El lote no tiene una etapa de " + tipo));
     }
 
     /**
@@ -585,119 +545,9 @@ public class LoteServicioImpl implements ILoteServicio {
      * volumen objetivo del lote y el rendimiento de maceración del macerador seleccionado.
      */
     private double calcularMasaMaltaEscalada(double volumenObjetivo, MaceradorEntity macerador, VersionRecetaEntity versionReceta) {
-        return calcularRequerimientosMalta(versionReceta, volumenObjetivo, macerador).stream()
+        return escaladoInsumoServicio.calcularRequerimientosMalta(versionReceta, volumenObjetivo, macerador).stream()
                 .mapToDouble(RequerimientoInsumo::cantidadRequerida)
                 .sum();
-    }
-
-    /**
-     * Calcula, para cada malta de la receta, la masa escalada necesaria para alcanzar el OG
-     * objetivo (ver docs/Dominio/Escalado/EscaladoDeMalta.md, Pasos 1 a 5): primero el total de
-     * kilos de malta necesarios para el lote completo, y luego el reparto entre las distintas
-     * maltas manteniendo la misma proporción definida en la receta.
-     */
-    private List<RequerimientoInsumo> calcularRequerimientosMalta(VersionRecetaEntity versionReceta, double volumenObjetivo, MaceradorEntity macerador) {
-        List<DetalleMaltaEntity> detallesMalta = versionReceta.getDetallesMalta();
-        double cantidadTotalBase = detallesMalta.stream().mapToDouble(DetalleMaltaEntity::getCantidad).sum();
-
-        double extractoPotencialPromedio = detallesMalta.stream()
-                .mapToDouble(detalle -> (detalle.getCantidad() / cantidadTotalBase) * (detalle.getMalta().getPotencialExtracto() / 100.0))
-                .sum();
-
-        double puntosDensidadObjetivo = (versionReceta.getOgObjetivo() - 1) * 1000 * volumenObjetivo;
-        double kgMaltaTotal = puntosDensidadObjetivo / (extractoPotencialPromedio * (macerador.getEficienciaMaceracion() / 100.0) * REFERENCIA_AZUCAR_PURA_PUNTOS_POR_KG_POR_L);
-
-        return detallesMalta.stream()
-                .map(detalle -> new RequerimientoInsumo(detalle.getMalta(), null, kgMaltaTotal * (detalle.getCantidad() / cantidadTotalBase)))
-                .toList();
-    }
-
-    /**
-     * Calcula, para cada lúpulo de la receta, la masa escalada necesaria
-     * (ver docs/Dominio/Escalado/EscaladoDelLupulo.md): los lúpulos de uso HERVOR se calculan con
-     * la fórmula de Tinseth para alcanzar el IBU objetivo (Pasos 1 a 6); los de uso WHIRLPOOL o
-     * DRY_HOP, al ser exclusivamente aromáticos, escalan de forma lineal respecto al volumen base
-     * de la receta (Paso 7).
-     */
-    private List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo, LoteEntity lote) {
-        List<DetalleLupuloEntity> detallesLupulo = versionReceta.getDetallesLupulo();
-        List<RequerimientoInsumo> requerimientos = new ArrayList<>();
-
-        List<DetalleLupuloEntity> detallesHervor = detallesLupulo.stream()
-                .filter(detalle -> detalle.getUso() == UsoLupulo.HERVOR)
-                .toList();
-
-        if (!detallesHervor.isEmpty()) {
-            double cantidadTotalBaseHervor = detallesHervor.stream().mapToDouble(DetalleLupuloEntity::getCantidad).sum();
-            double factorDensidad = TINSETH_CONSTANTE_FACTOR_DENSIDAD * Math.pow(TINSETH_BASE_FACTOR_DENSIDAD, versionReceta.getOgObjetivo() - 1);
-
-            double k = detallesHervor.stream()
-                    .mapToDouble(detalle -> {
-                        double proporcion = detalle.getCantidad() / cantidadTotalBaseHervor;
-                        double factorTiempo = (1 - Math.exp(-TINSETH_CONSTANTE_DECAIMIENTO_TIEMPO * detalle.getTiempoDeHervor())) / TINSETH_DIVISOR_FACTOR_TIEMPO;
-                        double utilizacion = factorDensidad * factorTiempo * detalle.getLupulo().getFormato().getFactorCorreccionUtilizacion();
-                        return proporcion * (detalle.getLupulo().getAa() / 100.0) * utilizacion;
-                    })
-                    .sum();
-
-            double gramosTotalHervor = (versionReceta.getIbuObjetivo() * volumenObjetivo) / (1000 * k);
-
-            for (DetalleLupuloEntity detalle : detallesHervor) {
-                double proporcion = detalle.getCantidad() / cantidadTotalBaseHervor;
-                requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), obtenerEtapaPorTipo(lote, detalle.getEtapaDeUso()), gramosTotalHervor * proporcion));
-            }
-        }
-
-        detallesLupulo.stream()
-                .filter(detalle -> detalle.getUso() != UsoLupulo.HERVOR)
-                .forEach(detalle -> requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), obtenerEtapaPorTipo(lote, detalle.getEtapaDeUso()),
-                        detalle.getCantidad() * (volumenObjetivo / versionReceta.getVolumenBase()))));
-
-        return requerimientos;
-    }
-
-    /**
-     * Calcula, para cada levadura de la receta, la masa escalada necesaria
-     * (ver docs/Dominio/Escalado/EscaladoDeLevadura.md): primero la cantidad total de células
-     * viables necesarias (según los grados Plato del OG objetivo y la tasa de inoculación
-     * promedio ponderada de la mezcla), luego el reparto entre las distintas levaduras, y
-     * finalmente la conversión a gramos según la concentración celular propia de cada una.
-     */
-    private List<RequerimientoInsumo> calcularRequerimientosLevadura(VersionRecetaEntity versionReceta, double volumenObjetivo) {
-        List<DetalleLevaduraEntity> detallesLevadura = versionReceta.getDetallesLevadura();
-        double cantidadTotalBase = detallesLevadura.stream().mapToDouble(DetalleLevaduraEntity::getCantidad).sum();
-
-        double gradosPlato = ((versionReceta.getOgObjetivo() - 1) * 1000) / DIVISOR_GRADOS_PLATO;
-        double tasaPromedio = detallesLevadura.stream()
-                .mapToDouble(detalle -> (detalle.getCantidad() / cantidadTotalBase) * detalle.getLevadura().getTipo().getTasaInoculacion())
-                .sum();
-
-        double volumenObjetivoMl = volumenObjetivo * 1000;
-        double celulasTotalesMillones = volumenObjetivoMl * gradosPlato * tasaPromedio;
-
-        return detallesLevadura.stream()
-                .map(detalle -> {
-                    double proporcion = detalle.getCantidad() / cantidadTotalBase;
-                    double celulasMillones = celulasTotalesMillones * proporcion;
-                    double gramos = (celulasMillones * 1_000_000) / detalle.getLevadura().getCantidadCelulasPorGramo();
-                    return new RequerimientoInsumo(detalle.getLevadura(), null, gramos);
-                })
-                .toList();
-    }
-
-    /**
-     * Devuelve una copia de los requerimientos con la etapa indicada asociada a cada uno.
-     * <p>
-     * {@code calcularRequerimientosMalta}/{@code calcularRequerimientosLevadura} no conocen la
-     * etapa del lote (se reutilizan también desde {@link #registrarLote(LoteFormDTO)}, donde las
-     * etapas todavía no existen), así que la asociación se hace acá, ya dentro de
-     * {@link #iniciarLote(Long)}, donde sí sabemos qué etapa corresponde a cada insumo.
-     * </p>
-     */
-    private static List<RequerimientoInsumo> asociarEtapa(List<RequerimientoInsumo> requerimientos, EtapaLoteEntity etapa) {
-        return requerimientos.stream()
-                .map(requerimiento -> new RequerimientoInsumo(requerimiento.insumo(), etapa, requerimiento.cantidadRequerida()))
-                .toList();
     }
 
     /**
@@ -829,16 +679,6 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException(etiqueta + " '" + equipamiento.getIdentificadorInterno()
                     + "' no se encuentra disponible (estado actual: " + equipamiento.getEstadoOperativo() + ")");
         }
-    }
-
-    /**
-     * Requerimiento escalado de un insumo puntual (una malta, un lúpulo o una levadura
-     * específicos) para una etapa concreta del lote. {@code etapa} puede ser {@code null} cuando
-     * el requerimiento se calcula fuera del contexto de {@link #iniciarLote(Long)} (por ejemplo, al
-     * validar capacidad del macerador en {@link #registrarLote(LoteFormDTO)}, donde las etapas del
-     * lote todavía no existen) — en ese caso solo se usa {@code cantidadRequerida}, nunca la etapa.
-     */
-    private record RequerimientoInsumo(InsumoEntity insumo, EtapaLoteEntity etapa, double cantidadRequerida) {
     }
 
     /**

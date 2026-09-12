@@ -45,43 +45,60 @@ class OllaHervorServicioImplTest {
     @InjectMocks
     private OllaHervorServicioImpl ollaHervorServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarOllasHervor ====================
 
     @Test
-    @DisplayName("buscarTodos retorna una página de ollas de hervor correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FOH-01: filtrarOllasHervor retorna una página de ollas de hervor correctamente mapeada a DTO cuando se filtra por identificador interno y estado operativo")
+    void filtrarOllasHervor_debeRetornarPaginaMapeadaFiltrandoPorIdentificadorYEstado() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         OllaHervorEntity otraOllaHervorEntity = crearOllaHervorEntity(2L, "OLLA-02", 120.0, 90.0, 12.0, 4.0);
-
-        // Cuando ollaHervorRepository.findAll(pageable) sea llamado, retorna una página con las ollas activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(ollaHervorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(ollaHervorEntity, otraOllaHervorEntity), pageable, 2));
+        when(ollaHervorRepository.filtrarOllasHervor("OLLA", EstadoOperativo.DISPONIBLE, pageable))
+                .thenReturn(new PageImpl<>(List.of(ollaHervorEntity, otraOllaHervorEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<OllaHervorResponseDTO> resultado = ollaHervorServicio.buscarTodos(pageable);
+        Page<OllaHervorResponseDTO> resultado = ollaHervorServicio.filtrarOllasHervor("OLLA", EstadoOperativo.DISPONIBLE, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertOllaHervorDTO(ollaHervorEntity, resultado.getContent().get(0));
         assertOllaHervorDTO(otraOllaHervorEntity, resultado.getContent().get(1));
-        verify(ollaHervorRepository).findAll(pageable);
+        verify(ollaHervorRepository).filtrarOllasHervor("OLLA", EstadoOperativo.DISPONIBLE, pageable);
     }
 
     @Test
-    @DisplayName("buscarTodos retorna una página vacía cuando no hay ollas de hervor registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FOH-02: filtrarOllasHervor propaga identificador interno y estado operativo nulos sin restringir esos criterios")
+    void filtrarOllasHervor_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(ollaHervorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        OllaHervorEntity otraOllaHervorEntity = crearOllaHervorEntity(2L, "OLLA-02", 120.0, 90.0, 12.0, 4.0);
+        when(ollaHervorRepository.filtrarOllasHervor(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(ollaHervorEntity, otraOllaHervorEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<OllaHervorResponseDTO> resultado = ollaHervorServicio.buscarTodos(pageable);
+        Page<OllaHervorResponseDTO> resultado = ollaHervorServicio.filtrarOllasHervor(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(ollaHervorRepository).filtrarOllasHervor(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FOH-03: filtrarOllasHervor retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarOllasHervor_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ollaHervorRepository.filtrarOllasHervor("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<OllaHervorResponseDTO> resultado = ollaHervorServicio.filtrarOllasHervor("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(ollaHervorRepository).findAll(pageable);
+        verify(ollaHervorRepository).filtrarOllasHervor("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

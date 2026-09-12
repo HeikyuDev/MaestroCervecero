@@ -41,9 +41,10 @@ Valida la modificación, fallos por reglas de negocio y existencia del registro.
 |**CP-BM-01**|Baja de macerador inexistente|`id: 99L` (no existe en BD)|`findById(99L)` vacío|Lanza `RecursoNoEncontradoException`. No llama a `save()`.|
 |**CP-BM-02**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (existe en BD)|`findById(1L)` presente|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO|
 
-### 5. Pruebas para `buscarTodos(Pageable pageable)`
+### 5. Pruebas para `filtrarMaceradores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Escenario**|**Resultado Esperado**|
 |---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|Base de datos con 3 maceradores activos|Retorna `Page<MaceradorResponseDTO>` con 3 elementos|
-|**CP-BT-02**|Consulta sin registros|Base de datos vacía|Retorna `Page<MaceradorResponseDTO>` vacía (`getContent().isEmpty() == true`)|
+|**CP-FMa-01**|Filtra por identificador interno y estado operativo informados|`identificadorInterno: "MAC"`, `estadoOperativo: DISPONIBLE`, BD con 1 macerador activo que cumple ambos criterios|Retorna `Page<MaceradorResponseDTO>` con 1 elemento mapeado|
+|**CP-FMa-02**|Identificador interno y estado operativo nulos no restringen la búsqueda|`identificadorInterno: null`, `estadoOperativo: null`|Retorna `Page<MaceradorResponseDTO>` con todos los maceradores activos (equivalente a no filtrar)|
+|**CP-FMa-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`|Retorna `Page<MaceradorResponseDTO>` vacía (`getContent().isEmpty() == true`)|
