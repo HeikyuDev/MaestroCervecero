@@ -60,7 +60,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     @Transactional(readOnly = true)
     public MaceradorResponseDTO buscarPorId(Long id) {
         return MapperMacerador.toDTO(maceradorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Macerador con ID:" + id)));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id)));
     }
 
 
@@ -140,7 +140,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 4. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Macerador con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
         // TODO: Validar que el Macerador no esté asociado a lotes Pendientes o en Ejecuciion
 
@@ -174,16 +174,15 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 1. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Macerador con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
         // TODO: Validar que el Macerador no esté asociado a lotes Pendientes o en Ejecuciion
 
         // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         maceradorEntity.setEstado(Estado.BAJA);
-        maceradorRepository.save(maceradorEntity);
 
         // 3. Retornar el DTO del macerador dado de baja
-        return MapperMacerador.toDTO(maceradorEntity);
+        return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
     }
 
     /**
@@ -193,6 +192,9 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @throws ReglaNegocioException Si la eficiencia de maceración no está entre 40 y 100 inclusive.
      */
     public static void validarEficienciaMaceracion(Double eficienciaMaceracion) {
+        if (eficienciaMaceracion == null) {
+            throw new ReglaNegocioException("La eficiencia de maceración es obligatoria.");
+        }
         if (eficienciaMaceracion < 40 || eficienciaMaceracion > 100) {
             throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
         }

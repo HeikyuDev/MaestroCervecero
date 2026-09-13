@@ -6,15 +6,17 @@ Aquí se concentran las principales reglas de validación del negocio
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-01**|Capacidad útil mayor a total|`capacidadTotal: 100.0`, `capacidadUtil: 120.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-02**|Capacidad útil igual a total _(Límite)_|`capacidadTotal: 100.0`, `capacidadUtil: 100.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-03**|Eficiencia bajo el mínimo _(Límite inf.)_|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: 39.9`, `id: "MAC-01"`|`eficiencia < 40` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-04**|Eficiencia sobre el máximo _(Límite sup.)_|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: 100.1`, `id: "MAC-01"`|`eficiencia > 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-05**|Identificador interno duplicado|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-01"` (Existe en BD)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-06**|Identificador duplicado Case-Insensitive|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "mac-01"` (Existe `"MAC-01"`)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
-|**CP-07**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y `estado = ACTIVO`, y retorna DTO.|
-|**CP-08**|Eficiencia en límite inferior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 40.0`, `id: "MAC-03"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 40.0`.|
-|**CP-09**|Eficiencia en límite superior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 100.0`, `id: "MAC-04"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 100.0`.|
+|**CP-01**|Capacidad total nula|`capacidadTotal: null`, `capacidadUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadTotal == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La capacidad total y la capacidad util son obligatorias."). No consulta la BD.|
+|**CP-02**|Capacidad útil mayor a total|`capacidadTotal: 100.0`, `capacidadUtil: 120.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-03**|Capacidad útil igual a total _(Límite)_|`capacidadTotal: 100.0`, `capacidadUtil: 100.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-04**|Eficiencia de maceración nula|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: null`, `id: "MAC-01"`|`eficienciaMaceracion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La eficiencia de maceración es obligatoria."). No consulta la BD.|
+|**CP-05**|Eficiencia bajo el mínimo _(Límite inf.)_|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: 39.9`, `id: "MAC-01"`|`eficiencia < 40` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-06**|Eficiencia sobre el máximo _(Límite sup.)_|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: 100.1`, `id: "MAC-01"`|`eficiencia > 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-07**|Identificador interno duplicado|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-01"` (Existe en BD)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
+|**CP-08**|Identificador duplicado Case-Insensitive|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "mac-01"` (Existe `"MAC-01"`)|`existsByIdentificador...` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
+|**CP-09**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y `estado = ACTIVO`, y retorna DTO.|
+|**CP-10**|Eficiencia en límite inferior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 40.0`, `id: "MAC-03"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 40.0`.|
+|**CP-11**|Eficiencia en límite superior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 100.0`, `id: "MAC-04"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 100.0`.|
 
 ### 2. Pruebas para `modificarMacerador(Long id, MaceradorFormDTO)`
 

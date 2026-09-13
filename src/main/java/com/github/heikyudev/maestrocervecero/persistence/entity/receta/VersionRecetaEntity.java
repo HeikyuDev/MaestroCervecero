@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.receta;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.versionado.VersionadoEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class VersionRecetaEntity {
+public class VersionRecetaEntity implements VersionadoEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

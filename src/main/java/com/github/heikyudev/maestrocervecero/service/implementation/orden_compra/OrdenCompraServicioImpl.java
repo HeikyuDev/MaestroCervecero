@@ -24,6 +24,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOrdenCompraServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.orden_compra.MapperOrdenCompra;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -298,9 +299,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         ProveedorEntity proveedorEntity = proveedorRepository.findById(idProveedor)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + idProveedor));
 
-        return proveedorEntity.getVersiones().stream()
-                .filter(VersionProveedorEntity::isEsUltimaVersion)
-                .findFirst()
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró una versión activa para el proveedor con ID: " + idProveedor));
+        return MetodosVersionado.obtenerVersionActiva(proveedorEntity.getVersiones(),
+                () -> new RecursoNoEncontradoException("No se encontró una versión activa para el proveedor con ID: " + idProveedor));
     }
 }

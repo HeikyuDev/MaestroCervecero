@@ -34,11 +34,11 @@ class ReservaInsumoServicioImplTest {
     @InjectMocks
     private ReservaInsumoServicioImpl reservaInsumoServicio;
 
-    // ==================== buscarPorEtapaEInsumo ====================
+    // ==================== filtrarLotesInsumoReservados ====================
 
     @Test
-    @DisplayName("CP-BE-01: buscarPorEtapaEInsumo retorna las reservas de insumo de esa etapa para ese insumo, mapeadas a DTO")
-    void buscarPorEtapaEInsumo_debeRetornarReservasMapeadas() {
+    @DisplayName("CP-FLR-01: filtrarLotesInsumoReservados retorna las reservas de insumo de esa etapa para ese insumo, mapeadas a DTO")
+    void filtrarLotesInsumoReservados_debeRetornarReservasMapeadas() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote();
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, lote);
@@ -47,29 +47,29 @@ class ReservaInsumoServicioImplTest {
         LoteInsumoEntity loteInsumoB = loteInsumoEntity(11L, malta, "LOTE-B");
         ReservaInsumoEntity reservaA = reservaInsumoEntity(100L, etapaLote, loteInsumoA, 8.0);
         ReservaInsumoEntity reservaB = reservaInsumoEntity(101L, etapaLote, loteInsumoB, 4.0);
-        when(reservaInsumoRepository.findByEtapaLoteIdAndLoteInsumo_Insumo_Id(1L, 1L)).thenReturn(List.of(reservaA, reservaB));
+        when(reservaInsumoRepository.filtrarLotesInsumoReservados(1L, 1L)).thenReturn(List.of(reservaA, reservaB));
 
         // === EJECUCION ===
-        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.buscarPorEtapaEInsumo(1L, 1L);
+        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.filtrarLotesInsumoReservados(1L, 1L);
 
         // === ASSERTS ===
         assertThat(resultado).hasSize(2);
         assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadReservada).containsExactly(8.0, 4.0);
-        verify(reservaInsumoRepository).findByEtapaLoteIdAndLoteInsumo_Insumo_Id(1L, 1L);
+        verify(reservaInsumoRepository).filtrarLotesInsumoReservados(1L, 1L);
     }
 
     @Test
-    @DisplayName("CP-BE-02: buscarPorEtapaEInsumo retorna una lista vacía cuando no hay reservas de ese insumo en esa etapa")
-    void buscarPorEtapaEInsumo_debeRetornarListaVaciaSinReservas() {
+    @DisplayName("CP-FLR-02: filtrarLotesInsumoReservados retorna una lista vacía cuando no hay reservas de ese insumo en esa etapa")
+    void filtrarLotesInsumoReservados_debeRetornarListaVaciaSinReservas() {
         // === PREPARACION DE DATOS ===
-        when(reservaInsumoRepository.findByEtapaLoteIdAndLoteInsumo_Insumo_Id(1L, 1L)).thenReturn(List.of());
+        when(reservaInsumoRepository.filtrarLotesInsumoReservados(1L, 1L)).thenReturn(List.of());
 
         // === EJECUCION ===
-        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.buscarPorEtapaEInsumo(1L, 1L);
+        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.filtrarLotesInsumoReservados(1L, 1L);
 
         // === ASSERTS ===
         assertThat(resultado).isEmpty();
-        verify(reservaInsumoRepository).findByEtapaLoteIdAndLoteInsumo_Insumo_Id(1L, 1L);
+        verify(reservaInsumoRepository).filtrarLotesInsumoReservados(1L, 1L);
     }
 
     // ==================== helpers de construcción ====================

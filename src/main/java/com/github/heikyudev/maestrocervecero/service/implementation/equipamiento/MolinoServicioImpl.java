@@ -60,7 +60,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
     @Transactional(readOnly = true)
     public MolinoResponseDTO buscarPorId(Long id) {
         return MapperMolino.toDTO(molinoRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Molino con ID:" + id)));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id)));
     }
 
     /**
@@ -120,7 +120,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 3. Buscar el molino existente por su ID.
         MolinoEntity molinoEntity = molinoRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Molino con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
         // TODO: Validar que el molino no esté asociado a lotes Pendientes o en Ejecuciion
 
@@ -149,16 +149,15 @@ public class MolinoServicioImpl implements IMolinoServicio {
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO bajaMolino(Long id) {
         MolinoEntity molinoEntity = molinoRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Molino con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
         // TODO: Validar que el molino no esté asociado a lotes Pendientes o en Ejecuciion
 
         // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         molinoEntity.setEstado(Estado.BAJA);
-        molinoRepository.save(molinoEntity);
 
         // 3. Retornar el DTO del molino dado de baja
-        return MapperMolino.toDTO(molinoEntity);
+        return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 
     /**
@@ -168,6 +167,9 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @throws ReglaNegocioException Si el rendimiento de molienda es menor o igual a 0.
      */
     public static void validarRendimientoMolienda(Double rendimientoMolienda) {
+        if (rendimientoMolienda == null) {
+            throw new ReglaNegocioException("El rendimiento de molienda es obligatorio.");
+        }
         if (rendimientoMolienda <= 0) {
             throw new ReglaNegocioException("El rendimiento de molienda debe ser mayor a 0.");
         }

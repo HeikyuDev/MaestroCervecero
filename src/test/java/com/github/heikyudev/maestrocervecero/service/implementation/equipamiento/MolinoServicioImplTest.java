@@ -126,14 +126,27 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Molino con ID:99");
+                .hasMessage("No se encontró el molino con ID: 99");
         verify(molinoRepository).findById(99L);
     }
 
     // ==================== altaMolino ====================
 
     @Test
-    @DisplayName("CP-AM-01: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es negativo")
+    @DisplayName("CP-AM-01: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es nulo")
+    void altaMolino_debeRechazarRendimientoNulo() {
+        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", null);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda es obligatorio.");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-02: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es negativo")
     void altaMolino_debeRechazarRendimientoNegativo() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", -1.0);
 
@@ -147,7 +160,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AM-02: altaMolino lanza ReglaNegocioException cuando el rendimiento de molienda es igual a cero (valor límite)")
+    @DisplayName("CP-AM-03: altaMolino lanza ReglaNegocioException cuando el rendimiento de molienda es igual a cero (valor límite)")
     void altaMolino_debeRechazarRendimientoIgualACero() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 0.0);
 
@@ -160,7 +173,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AM-03: altaMolino lanza RecursoDuplicadoException y no persiste cuando el identificador interno ya existe")
+    @DisplayName("CP-AM-04: altaMolino lanza RecursoDuplicadoException y no persiste cuando el identificador interno ya existe")
     void altaMolino_debeRechazarIdentificadorDuplicado() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(true);
@@ -174,7 +187,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AM-04: altaMolino lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
+    @DisplayName("CP-AM-05: altaMolino lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
     void altaMolino_debeRechazarIdentificadorDuplicadoCaseInsensitive() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("mol-01", 50.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("mol-01")).thenReturn(true);
@@ -187,7 +200,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AM-05: altaMolino persiste y retorna el DTO correspondiente cuando los datos son válidos (camino feliz)")
+    @DisplayName("CP-AM-06: altaMolino persiste y retorna el DTO correspondiente cuando los datos son válidos (camino feliz)")
     void altaMolino_debePersistirYRetornarDTOCuandoDatosSonValidos() {
         // === PREPARACION DE DATOS ===
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-02", 50.0);
@@ -220,7 +233,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AM-06: altaMolino persiste con éxito cuando el rendimiento de molienda está en el límite inferior válido")
+    @DisplayName("CP-AM-07: altaMolino persiste con éxito cuando el rendimiento de molienda está en el límite inferior válido")
     void altaMolino_debePersistirConRendimientoEnLimiteInferiorValido() {
         // === PREPARACION DE DATOS ===
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-03", 0.1);
@@ -282,7 +295,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(99L, molinoFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Molino con ID:99");
+                .hasMessage("No se encontró el molino con ID: 99");
 
         verify(molinoRepository).findById(99L);
         verify(molinoRepository, never()).save(any());
@@ -358,7 +371,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Molino con ID:99");
+                .hasMessage("No se encontró el molino con ID: 99");
 
         verify(molinoRepository).findById(99L);
         verify(molinoRepository, never()).save(any());

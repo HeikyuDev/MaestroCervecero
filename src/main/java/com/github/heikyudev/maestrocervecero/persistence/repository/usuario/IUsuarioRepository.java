@@ -67,7 +67,7 @@ public interface IUsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
      * @param username El nombre de usuario a buscar.
      * @return true si existe un usuario activo con el nombre de usuario dado, false en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u WHERE u.username = :username AND u.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u WHERE UPPER(u.username) = UPPER(:username) AND u.estado = 'ACTIVO'")
     boolean existsByUsername(@Param("username") String username);
 
 }

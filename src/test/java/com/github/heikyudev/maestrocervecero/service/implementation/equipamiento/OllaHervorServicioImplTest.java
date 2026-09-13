@@ -126,7 +126,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró la Olla de Hervor con ID:99");
+                .hasMessage("No se encontró la olla de hervor con ID: 99");
         verify(ollaHervorRepository).findById(99L);
     }
 
@@ -154,6 +154,32 @@ class OllaHervorServicioImplTest {
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de evaporación es nulo")
+    void altaOllaHervor_debeRechazarEvaporacionNula() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, null, 3.0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje de evaporación es obligatorio.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la pérdida por trub es nula")
+    void altaOllaHervor_debeRechazarPerdidaPorTrubNula() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, null);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub es obligatoria.");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -363,7 +389,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(99L, ollaHervorFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró la Olla de Hervor con ID:99");
+                .hasMessage("No se encontró la olla de hervor con ID: 99");
 
         verify(ollaHervorRepository).findById(99L);
         verify(ollaHervorRepository, never()).save(any());
@@ -436,7 +462,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró la Olla de Hervor con ID:99");
+                .hasMessage("No se encontró la olla de hervor con ID: 99");
 
         verify(ollaHervorRepository).findById(99L);
         verify(ollaHervorRepository, never()).save(any());

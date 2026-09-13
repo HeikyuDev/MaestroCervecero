@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "consumo_insumo")
@@ -31,7 +31,7 @@ public class ConsumoInsumoEntity extends AuditableEntity<String> {
     private BigDecimal costoUnitarioPPP;
 
     @Column(name = "fecha_anulacion")
-    private LocalDate fechaAnulacion;
+    private LocalDateTime fechaAnulacion;
 
     @Column(name = "motivo_anulacion")
     private String motivoAnulacion;
@@ -39,7 +39,11 @@ public class ConsumoInsumoEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private EstadoTransaccion estado;
-    
+
+    @Column(name = "tipo_consumo", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private TipoConsumo tipoConsumo;
+
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "etapa_lote_id", nullable = false)

@@ -18,18 +18,23 @@ import java.util.Optional;
 public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, Long> {
 
     /**
-     * Busca el lote de insumo de un insumo con una identificación de lote de proveedor
-     * determinada.
+     * Busca, bloqueándolo para escritura, el lote de insumo de un insumo con una identificación
+     * de lote de proveedor determinada.
      * <p>
      * Se usa para decidir, al registrar un ingreso, si corresponde unificar la cantidad recibida
-     * en un lote ya existente o crear uno nuevo.
+     * en un lote ya existente o crear uno nuevo. El bloqueo evita que dos ingresos concurrentes
+     * del mismo insumo y la misma identificación de lote de proveedor (por ejemplo, dos operarios
+     * cargando el mismo remito) decidan ambos que el lote no existe y creen cada uno el suyo,
+     * duplicando lo que debería ser un único lote físico.
      * </p>
      *
      * @param idInsumo El ID del insumo.
      * @param identificacionLoteProveedor Identificación del lote asignada por el proveedor.
      * @return Un Optional que contiene el lote si existe, o vacío en caso contrario.
      */
-    Optional<LoteInsumoEntity> findByInsumoIdAndIdentificacionLoteProveedor(Long idInsumo, String identificacionLoteProveedor);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo AND li.identificacionLoteProveedor = :identificacionLoteProveedor")
+    Optional<LoteInsumoEntity> buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(@Param("idInsumo") Long idInsumo, @Param("identificacionLoteProveedor") String identificacionLoteProveedor);
 
     /**
      * Busca, bloqueándolos para escritura, todos los lotes de insumo de un insumo determinado,
@@ -91,4 +96,20 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT li FROM LoteInsumoEntity li WHERE li.id = :id")
     Optional<LoteInsumoEntity> buscarPorIdParaAjustar(@Param("id") Long id);
+
+    /**
+     * Busca los lotes de insumo de un insumo determinado que todavía tienen cantidad disponible
+     * (cantidad actual menos la reservada), ordenados por fecha de vencimiento ascendente (FEFO).
+     * <p>
+     * Se usa para mostrarle al operario, al registrar un consumo directo, entre qué lotes de
+     * insumo físico puede elegir. No bloquea: es una consulta de solo lectura para armar una lista
+     * en pantalla; el lote que el operario finalmente elija se vuelve a buscar (bloqueado) recién
+     * al confirmar el consumo, con {@link #buscarPorIdParaConsumir(Long)}.
+     * </p>
+     *
+     * @param idInsumo El ID del insumo.
+     * @return Los lotes de insumo de ese insumo con cantidad disponible mayor a cero.
+     */
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo AND (li.cantidadActual - li.cantidadReservada) > 0 ORDER BY li.fechaVencimiento ASC")
+    List<LoteInsumoEntity> filtrarLotesInsumoDisponibles(@Param("idInsumo") Long idInsumo);
 }

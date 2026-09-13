@@ -41,8 +41,19 @@ public interface IOllaHervorRepository extends JpaRepository<OllaHervorEntity, L
                     + "AND (:estadoOperativo IS NULL OR o.estadoOperativo = :estadoOperativo)")
     Page<OllaHervorEntity> filtrarOllasHervor(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
+    /**
+     * Busca, bloqueándola para escritura, una olla de hervor por su ID.
+     * <p>
+     * Se usa cada vez que una operación de lote necesita cambiar su estado operativo (al iniciar
+     * un lote, al finalizar la etapa que la usó, o al cancelar el lote), para evitar que otra
+     * operación concurrente la modifique al mismo tiempo.
+     * </p>
+     *
+     * @param id El ID de la olla de hervor.
+     * @return Un Optional que contiene la olla de hervor si existe y está activa, o vacío en caso contrario.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
-    Optional<OllaHervorEntity> buscarPorIdParaIniciarLote(@Param("id") Long id);
+    Optional<OllaHervorEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 
 }

@@ -18,7 +18,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionPlanificacionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
@@ -37,14 +39,17 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.CancelacionLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -97,11 +102,13 @@ class LoteServicioImplTest {
     @Mock
     private IRecetaRepository recetaRepository;
     @Mock
-    private IConfiguracionPlanificacionProduccionRepository configuracionPlanificacionProduccionRepository;
+    private IConfiguracionProduccionRepository configuracionProduccionRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
     @Mock
     private IReservaInsumoRepository reservaInsumoRepository;
+    @Mock
+    private IConsumoInsumoServicio consumoInsumoServicio;
     // Spy con la implementación real: el escalado de insumos ya se prueba de forma independiente
     // en EscaladoInsumoServicioImplTest, así que acá no tiene sentido mockearlo — se necesita el
     // cálculo real para que estos tests sigan verificando el mismo comportamiento de extremo a
@@ -362,7 +369,7 @@ class LoteServicioImplTest {
         mockearEquipamientoBase();
         RecetaEntity receta = crearReceta(5L, 3L);
         when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta));
-        when(configuracionPlanificacionProduccionRepository.findById(ConfiguracionPlanificacionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
         LoteFormDTO formDTO = loteFormDTOBase();
 
         // === EJECUCION Y ASSERTS ===
@@ -531,7 +538,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBase(EstadoLote.PENDIENTE);
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        when(molinoRepository.buscarPorIdParaIniciarLote(1L)).thenReturn(Optional.empty());
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
@@ -1149,11 +1156,11 @@ class LoteServicioImplTest {
         // contemplar el caso igual: forzamos la etapa de Maceración a FINALIZADA manualmente.
         findEtapa(lote, TipoEtapa.MACERACION).setEstado(EstadoEtapaLote.FINALIZADA);
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        lenient().when(molinoRepository.buscarPorIdParaIniciarLote(1L))
+        lenient().when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L))
                 .thenReturn(Optional.of((MolinoEntity) findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento()));
-        lenient().when(ollaHervorRepository.buscarPorIdParaIniciarLote(3L))
+        lenient().when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(3L))
                 .thenReturn(Optional.of((OllaHervorEntity) findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento()));
-        lenient().when(fermentadorRepository.buscarPorIdParaIniciarLote(4L))
+        lenient().when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L))
                 .thenReturn(Optional.of((FermentadorEntity) findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento()));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1239,6 +1246,139 @@ class LoteServicioImplTest {
         verify(loteRepository).save(lote);
     }
 
+    // ==================== finalizarMaceracion ====================
+
+    @Test
+    @DisplayName("CP-FMC-01: finalizarMaceracion lanza RecursoNoEncontradoException si el lote no existe")
+    void finalizarMaceracion_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(maceradorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMC-02: finalizarMaceracion lanza ReglaNegocioException si el lote no está EN_EJECUCION")
+    void finalizarMaceracion_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(maceradorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMC-03: finalizarMaceracion lanza ReglaNegocioException si la etapa actual no es Maceración")
+    void finalizarMaceracion_debeLanzarExcepcionSiEtapaActualNoEsMaceracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(maceradorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMC-04: finalizarMaceracion lanza RecursoNoEncontradoException si no existe la configuración de producción")
+    void finalizarMaceracion_debeLanzarExcepcionSiNoExisteConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(consumoInsumoServicio, maceradorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FMC-05: finalizarMaceracion lanza ReglaNegocioException si algún insumo requerido no alcanzó el porcentaje mínimo de consumo configurado")
+    void finalizarMaceracion_debeLanzarExcepcionSiNoAlcanzaElPorcentajeMinimo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
+        etapaMaceracion.setId(2L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(7.0) // 70% < 80% requerido
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("Malta Pilsen");
+        verifyNoInteractions(maceradorRepository, reservaInsumoRepository);
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FMC-06: finalizarMaceracion — camino feliz: Maceración FINALIZADA, Hervido EN_CURSO, macerador EN_LIMPIEZA, se liberan las reservas de la etapa")
+    void finalizarMaceracion_debeAvanzarDeMaceracionAHervidoCorrectamente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
+        etapaMaceracion.setId(2L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(8.0) // exactamente 80%: alcanza (>=)
+                        .build()));
+        mockearEquipamientoParaIniciar(lote);
+
+        MaltaEntity malta = MaltaEntity.builder().id(1L).nombre("Malta Pilsen").estado(Estado.ACTIVO).build();
+        LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(malta).identificacionLoteProveedor("LOTE-A")
+                .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMaceracion).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        when(reservaInsumoRepository.findByEtapaLoteId(2L)).thenReturn(List.of(reserva));
+        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.finalizarMaceracion(1L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(etapaMaceracion.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(etapaMaceracion.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        EtapaLoteEntity etapaHervido = findEtapa(lote, TipoEtapa.HERVIDO);
+        assertThat(etapaHervido.getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        assertThat(etapaHervido.getFechaInicio()).isNotNull().isBetween(antes, despues);
+
+        // Las etapas restantes no se tocan
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.FERMENTACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MADURACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+
+        ArgumentCaptor<MaceradorEntity> maceradorCaptor = ArgumentCaptor.forClass(MaceradorEntity.class);
+        verify(maceradorRepository).save(maceradorCaptor.capture());
+        assertThat(maceradorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verify(loteInsumoRepository).save(loteInsumo);
+        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        verifyNoInteractions(molinoRepository, ollaHervorRepository, fermentadorRepository);
+        verify(loteRepository).save(lote);
+    }
+
     // ==================== helpers ====================
 
     private static EtapaLoteEntity findEtapa(LoteEntity lote, TipoEtapa tipo) {
@@ -1263,14 +1403,17 @@ class LoteServicioImplTest {
     private void mockearConfiguracionYReceta() {
         RecetaEntity receta = crearReceta(5L, 3L);
         lenient().when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta));
-        ConfiguracionPlanificacionProduccionEntity configuracion = ConfiguracionPlanificacionProduccionEntity.builder()
-                .id(ConfiguracionPlanificacionProduccionEntity.SINGLETON_ID)
+        ConfiguracionProduccionEntity configuracion = ConfiguracionProduccionEntity.builder()
+                .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .velocidadEstandarMolienda(50.0)
                 .velocidadEstandarEnvasado(10.0)
                 .tiempoEstandarCip(30.0)
                 .capacidadLoteEstandar(20.0)
+                .porcentajeMinimoConsumoParaAvanzarEtapa(80.0)
+                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
+                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
                 .build();
-        lenient().when(configuracionPlanificacionProduccionRepository.findById(ConfiguracionPlanificacionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
+        lenient().when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
     }
 
     private void mockearEquipamientoParaIniciar(LoteEntity lote) {
@@ -1278,10 +1421,10 @@ class LoteServicioImplTest {
         MaceradorEntity macerador = (MaceradorEntity) findEtapa(lote, TipoEtapa.MACERACION).getEquipamiento();
         OllaHervorEntity ollaHervor = (OllaHervorEntity) findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento();
         FermentadorEntity fermentador = (FermentadorEntity) findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento();
-        lenient().when(molinoRepository.buscarPorIdParaIniciarLote(molino.getId())).thenReturn(Optional.of(molino));
-        lenient().when(maceradorRepository.buscarPorIdParaIniciarLote(macerador.getId())).thenReturn(Optional.of(macerador));
-        lenient().when(ollaHervorRepository.buscarPorIdParaIniciarLote(ollaHervor.getId())).thenReturn(Optional.of(ollaHervor));
-        lenient().when(fermentadorRepository.buscarPorIdParaIniciarLote(fermentador.getId())).thenReturn(Optional.of(fermentador));
+        lenient().when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(molino.getId())).thenReturn(Optional.of(molino));
+        lenient().when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(macerador.getId())).thenReturn(Optional.of(macerador));
+        lenient().when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(ollaHervor.getId())).thenReturn(Optional.of(ollaHervor));
+        lenient().when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(fermentador.getId())).thenReturn(Optional.of(fermentador));
     }
 
     private static LoteFormDTO.LoteFormDTOBuilder loteFormDTOBuilderBase() {

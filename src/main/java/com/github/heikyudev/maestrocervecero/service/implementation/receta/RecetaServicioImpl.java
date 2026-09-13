@@ -44,6 +44,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.receta.Detalle
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -241,9 +242,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
         // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa (si
         //    existe) y registrar la nueva
-        recetaEntity.getVersiones().stream()
-                .filter(VersionRecetaEntity::isEsUltimaVersion)
-                .forEach(version -> version.setEsUltimaVersion(false));
+        MetodosVersionado.desactivarVersionAnterior(recetaEntity.getVersiones());
         recetaEntity.getVersiones().add(nuevaVersionRecetaEntity);
 
         // 6. Persistir la receta con la nueva versión y retornar el DTO de respuesta correspondiente

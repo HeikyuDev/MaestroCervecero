@@ -276,7 +276,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * @throws ReglaNegocioException Si ya existe un lote con esa identificación de lote de proveedor pero con una fecha de vencimiento distinta.
      */
     private LoteInsumoEntity resolverLoteInsumo(InsumoEntity insumoEntity, String identificacionLoteProveedor, LocalDate fechaVencimiento) {
-        return loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(insumoEntity.getId(), identificacionLoteProveedor)
+        return loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(insumoEntity.getId(), identificacionLoteProveedor)
                 .map(loteInsumoEntity -> {
                     if (!loteInsumoEntity.getFechaVencimiento().equals(fechaVencimiento)) {
                         throw new ReglaNegocioException("Ya existe un lote del insumo con la identificación de lote de proveedor '"

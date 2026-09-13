@@ -123,7 +123,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Macerador con ID:99");
+                .hasMessage("No se encontró el macerador con ID: 99");
         verify(maceradorRepository).findById(99L);
     }
 
@@ -150,6 +150,30 @@ class MaceradorServicioImplTest {
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+
+        verifyNoInteractions(maceradorRepository);
+    }
+
+    @Test
+    @DisplayName("altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es nula")
+    void altaMacerador_debeRechazarCapacidadTotalNula() {
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", null, 80.0, 5.0, 75.0);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total y la capacidad util son obligatorias.");
+
+        verifyNoInteractions(maceradorRepository);
+    }
+
+    @Test
+    @DisplayName("altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la eficiencia de maceración es nula")
+    void altaMacerador_debeRechazarEficienciaNula() {
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, null);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La eficiencia de maceración es obligatoria.");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -316,7 +340,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(99L, maceradorFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Macerador con ID:99");
+                .hasMessage("No se encontró el macerador con ID: 99");
 
         verify(maceradorRepository).findById(99L);
         verify(maceradorRepository, never()).save(any());
@@ -389,7 +413,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Macerador con ID:99");
+                .hasMessage("No se encontró el macerador con ID: 99");
 
         verify(maceradorRepository).findById(99L);
         verify(maceradorRepository, never()).save(any());

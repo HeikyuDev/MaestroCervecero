@@ -9,7 +9,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMa
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
-import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
@@ -93,7 +92,7 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
             // Paso 6: reparto del total entre los lúpulos de HERVOR, manteniendo su proporción.
             for (DetalleLupuloEntity detalle : detallesHervor) {
                 double proporcion = detalle.getCantidad() / cantidadTotalBaseHervor;
-                requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), obtenerEtapaPorTipo(lote, detalle.getEtapaDeUso()), gramosTotalHervor * proporcion));
+                requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), lote.obtenerEtapaPorTipo(detalle.getEtapaDeUso()), gramosTotalHervor * proporcion));
             }
         }
 
@@ -101,7 +100,7 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
         // que no usan Tinseth — escalan linealmente respecto al volumen base de la receta.
         detallesLupulo.stream()
                 .filter(detalle -> detalle.getUso() != UsoLupulo.HERVOR)
-                .forEach(detalle -> requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), obtenerEtapaPorTipo(lote, detalle.getEtapaDeUso()),
+                .forEach(detalle -> requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), lote.obtenerEtapaPorTipo(detalle.getEtapaDeUso()),
                         detalle.getCantidad() * (volumenObjetivo / versionReceta.getVolumenBase()))));
 
         return requerimientos;
@@ -144,19 +143,11 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
     }
 
     @Override
-    public EtapaLoteEntity obtenerEtapaPorTipo(LoteEntity lote, TipoEtapa tipo) {
-        return lote.getEtapas().stream()
-                .filter(etapa -> etapa.getEtapa() == tipo)
-                .findFirst()
-                .orElseThrow(() -> new RecursoNoEncontradoException("El lote no tiene una etapa de " + tipo));
-    }
-
-    @Override
     public List<RequerimientoInsumo> calcularRequerimientosTotales(LoteEntity lote) {
         VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
         double volumenObjetivo = lote.getVolumenObjetivo();
-        EtapaLoteEntity etapaMaceracion = obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
-        EtapaLoteEntity etapaFermentacion = obtenerEtapaPorTipo(lote, TipoEtapa.FERMENTACION);
+        EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaFermentacion = lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION);
 
         List<RequerimientoInsumo> todosLosRequerimientos = new ArrayList<>();
         todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, resolverMacerador(etapaMaceracion)), etapaMaceracion));

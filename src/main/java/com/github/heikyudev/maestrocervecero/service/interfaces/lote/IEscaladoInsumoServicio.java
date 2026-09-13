@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mac
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 
 import java.util.List;
@@ -72,16 +71,6 @@ public interface IEscaladoInsumoServicio {
      * @return Una nueva lista de requerimientos, cada uno con la misma cantidad requerida y la etapa indicada.
      */
     List<RequerimientoInsumo> asociarEtapa(List<RequerimientoInsumo> requerimientos, EtapaLoteEntity etapa);
-
-    /**
-     * Busca, entre las 6 etapas del lote, la del tipo indicado.
-     *
-     * @param lote El lote sobre el que buscar.
-     * @param tipo El tipo de etapa buscado.
-     * @return La etapa del lote correspondiente a ese tipo.
-     * @throws RecursoNoEncontradoException Si el lote no tiene una etapa de ese tipo.
-     */
-    EtapaLoteEntity obtenerEtapaPorTipo(LoteEntity lote, TipoEtapa tipo);
 
     /**
      * Calcula el requerimiento total de insumos de un lote, escalado al volumen objetivo,

@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanificacionProduccion;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -212,9 +213,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         RecetaEntity recetaEntity = recetaRepository.findById(idReceta)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + idReceta));
 
-        return recetaEntity.getVersiones().stream()
-                .filter(VersionRecetaEntity::isEsUltimaVersion)
-                .findFirst()
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró una versión activa para la receta con ID: " + idReceta));
+        return MetodosVersionado.obtenerVersionActiva(recetaEntity.getVersiones(),
+                () -> new RecursoNoEncontradoException("No se encontró una versión activa para la receta con ID: " + idReceta));
     }
 }

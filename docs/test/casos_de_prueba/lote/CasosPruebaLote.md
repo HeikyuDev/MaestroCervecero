@@ -46,7 +46,7 @@ Escenario base salvo indicación contraria: lote registrado en `PENDIENTE` con s
 |**CP-IL-01**|Lote no encontrado|`id: 99L` (no existe)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`.|
 |**CP-IL-02**|Lote en estado EN_EJECUCION|Lote existente con `estado: EN_EJECUCION`|`estado != PENDIENTE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
 |**CP-IL-03**|Lote en estado CANCELADO|Lote existente con `estado: CANCELADO`|`estado != PENDIENTE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
-|**CP-IL-04**|Molino no encontrado al iniciar|`molinoRepository.buscarPorIdParaIniciarLote(id)` $\rightarrow$ **Optional.empty()**|Equipo dado de baja después de registrar el lote|Lanza `RecursoNoEncontradoException`.|
+|**CP-IL-04**|Molino no encontrado al iniciar|`molinoRepository.buscarPorIdParaCambiarEstadoOperativo(id)` $\rightarrow$ **Optional.empty()**|Equipo dado de baja después de registrar el lote|Lanza `RecursoNoEncontradoException`.|
 |**CP-IL-05**|Molino no disponible|Molino con `estadoOperativo: EN_USO`|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` mencionando "El molino".|
 |**CP-IL-06**|Macerador no disponible|Macerador con `estadoOperativo: EN_LIMPIEZA`|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` mencionando "El macerador".|
 |**CP-IL-07**|Olla de hervor no disponible|Olla con `estadoOperativo: EN_MANTENIMIENTO`|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` mencionando "La olla de hervor".|
@@ -91,3 +91,20 @@ No solicita ningún dato al usuario. Escenario base salvo indicación contraria:
 |**CP-FM-02**|Lote no está EN_EJECUCION|Lote existente con `estado: PENDIENTE`|`estado != EN_EJECUCION` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con el molino.|
 |**CP-FM-03**|La etapa actual no es Molienda|Etapa Maceración `EN_CURSO` (no Molienda)|`etapaActual.getEtapa() != MOLIENDA` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con el molino.|
 |**CP-FM-04**|Avance exitoso _(Camino feliz)_|Etapa Molienda `EN_CURSO`, resto `PENDIENTE`|Todas las validaciones $\rightarrow$ **FALSE**|Molienda pasa a `FINALIZADA` con `fechaFinalizacion` seteada; Maceración pasa a `EN_CURSO` con `fechaInicio` seteada; las otras 4 etapas siguen en `PENDIENTE`; el Molino se persiste con `estadoOperativo = EN_LIMPIEZA`; no se toca Macerador/Olla de Hervor/Fermentador.|
+
+### 7. `finalizarMaceracion(Long id)`
+
+No solicita ningún dato al usuario. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, etapa actual Maceración `EN_CURSO`.
+
+Valida, además de lo habitual, que el consumo de CADA insumo requerido de la etapa alcance el porcentaje mínimo configurado en `ConfiguracionProduccionEntity.porcentajeMinimoConsumoParaAvanzarEtapa` (Sección 2 de esa configuración): reutiliza `ConsumoInsumoServicio.filtrarInsumosRequeridos(idEtapaMaceracion)` (mismos datos que ve el operario en la pantalla de gestión de consumos) en vez de recalcular esa lógica acá. La comparación es `cantidadConsumida >= cantidadRequerida * (porcentajeMinimo / 100)`, insumo por insumo — no en total agregado, para que un consumo de más de un insumo no tape el olvido de otro.
+
+Al finalizar, además de avanzar la etapa y pasar el macerador a `EN_LIMPIEZA`, libera las reservas de insumo que hayan quedado sin consumir de la etapa de Maceración puntual (`IReservaInsumoRepository.findByEtapaLoteId`, no las de todo el lote).
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FMC-01**|Lote no encontrado|`id: 99L` (no existe)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. `verifyNoInteractions(maceradorRepository, consumoInsumoServicio)`.|
+|**CP-FMC-02**|Lote no está EN_EJECUCION|Lote existente con `estado: PENDIENTE`|`estado != EN_EJECUCION` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con el macerador ni con `consumoInsumoServicio`.|
+|**CP-FMC-03**|La etapa actual no es Maceración|Etapa Molienda `EN_CURSO` (no Maceración)|`etapaActual.getEtapa() != MACERACION` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con el macerador ni con `consumoInsumoServicio`.|
+|**CP-FMC-04**|No existe la configuración de producción|`configuracionProduccionRepository.findById(SINGLETON_ID)` $\rightarrow$ **Optional.empty()**|La configuración no existe|Lanza `RecursoNoEncontradoException`. Sin interacciones con el macerador ni con `consumoInsumoServicio`.|
+|**CP-FMC-05**|Algún insumo requerido no alcanza el porcentaje mínimo|`porcentajeMinimoConsumoParaAvanzarEtapa: 80.0`; Malta Pilsen con `cantidadRequerida: 10.0`, `cantidadConsumida: 7.0` (70%)|`7.0 < 10.0 * 0.80` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` mencionando "Malta Pilsen". Sin interacciones con el macerador ni con las reservas. No se llama a `loteRepository.save()`.|
+|**CP-FMC-06**|Avance exitoso _(Camino feliz)_|`porcentajeMinimoConsumoParaAvanzarEtapa: 80.0`; Malta Pilsen con `cantidadRequerida: 10.0`, `cantidadConsumida: 8.0` (exactamente 80%, límite); 1 reserva de `2.0` sobre un lote de insumo con `cantidadReservada: 2.0`|`8.0 >= 10.0 * 0.80` $\rightarrow$ **TRUE** (alcanza); resto de validaciones $\rightarrow$ **FALSE**|Maceración pasa a `FINALIZADA` con `fechaFinalizacion` seteada; Hervido pasa a `EN_CURSO` con `fechaInicio` seteada; las otras 4 etapas siguen en `PENDIENTE`; el Macerador se persiste con `estadoOperativo = EN_LIMPIEZA`; la reserva se libera (el lote de insumo queda con `cantidadReservada = 0.0` y se persiste, y la reserva se elimina); no se toca Molino/Olla de Hervor/Fermentador.|

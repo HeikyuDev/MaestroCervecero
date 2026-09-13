@@ -108,7 +108,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El usuario no existe");
+                .hasMessage("No se encontró el usuario con ID: 99");
         verify(usuarioRepository).findById(99L);
     }
 
@@ -179,7 +179,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(99L, usuarioFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El usuario no existe");
+                .hasMessage("No se encontró el usuario con ID: 99");
 
         verify(usuarioRepository).findById(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de username ni a persistir

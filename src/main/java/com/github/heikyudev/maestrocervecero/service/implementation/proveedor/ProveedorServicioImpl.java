@@ -26,6 +26,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperProveedor;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -149,9 +150,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
 
         // 4. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y
         //    registrar la nueva
-        proveedorEntity.getVersiones().stream()
-                .filter(VersionProveedorEntity::isEsUltimaVersion)
-                .forEach(version -> version.setEsUltimaVersion(false));
+        MetodosVersionado.desactivarVersionAnterior(proveedorEntity.getVersiones());
         proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
 
         // 5. Persistir el proveedor con la nueva versión y retornar el DTO de respuesta correspondiente

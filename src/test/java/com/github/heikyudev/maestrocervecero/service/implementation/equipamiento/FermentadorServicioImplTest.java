@@ -126,7 +126,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Fermentador con ID:99");
+                .hasMessage("No se encontró el fermentador con ID: 99");
         verify(fermentadorRepository).findById(99L);
     }
 
@@ -262,7 +262,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(99L, fermentadorFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Fermentador con ID:99");
+                .hasMessage("No se encontró el fermentador con ID: 99");
 
         verify(fermentadorRepository).findById(99L);
         verify(fermentadorRepository, never()).save(any());
@@ -341,7 +341,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el Fermentador con ID:99");
+                .hasMessage("No se encontró el fermentador con ID: 99");
 
         verify(fermentadorRepository).findById(99L);
         verify(fermentadorRepository, never()).save(any());

@@ -60,7 +60,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     @Transactional(readOnly = true)
     public OllaHervorResponseDTO buscarPorId(Long id) {
         return MapperOllaHervor.toDTO(ollaHervorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la Olla de Hervor con ID:" + id)));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id)));
     }
 
     /**
@@ -149,7 +149,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 5. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la Olla de Hervor con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
         // TODO: Validar que la olla de hervor no esté asociada a lotes Pendientes o en Ejecuciion
 
@@ -183,16 +183,15 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     public OllaHervorResponseDTO bajaOllaHervor(Long id) {
         // 1. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la Olla de Hervor con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
         // TODO: Validar que la olla de hervor no esté asociada a lotes Pendientes o en Ejecuciion
 
         // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         ollaHervorEntity.setEstado(Estado.BAJA);
-        ollaHervorRepository.save(ollaHervorEntity);
 
         // 3. Retornar el DTO de la olla de hervor dada de baja
-        return MapperOllaHervor.toDTO(ollaHervorEntity);
+        return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 
     /**
@@ -202,6 +201,9 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @throws ReglaNegocioException Si el porcentaje de evaporación no está entre 0 y 100.
      */
     public static void validarPorcentajeEvaporacion(Double porcentajeEvaporacion) {
+        if (porcentajeEvaporacion == null) {
+            throw new ReglaNegocioException("El porcentaje de evaporación es obligatorio.");
+        }
         if (porcentajeEvaporacion < 0 || porcentajeEvaporacion > 100) {
             throw new ReglaNegocioException("El porcentaje de evaporación debe estar entre 0 y 100.");
         }
@@ -214,6 +216,9 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @throws ReglaNegocioException Si la pérdida por trub es negativa.
      */
     public static void validarPerdidaPorTrub(Double perdidaPorTrub) {
+        if (perdidaPorTrub == null) {
+            throw new ReglaNegocioException("La pérdida por trub es obligatoria.");
+        }
         if (perdidaPorTrub < 0) {
             throw new ReglaNegocioException("La pérdida por trub no puede ser negativa.");
         }

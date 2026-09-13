@@ -3,6 +3,8 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.DetalleCostoDirectoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -65,4 +67,20 @@ public class LoteEntity extends AuditableEntity<String> {
     @OneToMany(mappedBy = "lote", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @Builder.Default
     private List<DetalleCostoDirectoEntity> detallesCostoDirecto = new ArrayList<>();
+
+    // == METODOS DE DOMINIO ==
+
+    /**
+     * Busca, entre las etapas de este lote, la del tipo indicado.
+     *
+     * @param tipo El tipo de etapa buscado.
+     * @return La etapa del lote correspondiente a ese tipo.
+     * @throws RecursoNoEncontradoException Si el lote no tiene una etapa de ese tipo.
+     */
+    public EtapaLoteEntity obtenerEtapaPorTipo(TipoEtapa tipo) {
+        return this.etapas.stream()
+                .filter(etapa -> etapa.getEtapa() == tipo)
+                .findFirst()
+                .orElseThrow(() -> new RecursoNoEncontradoException("El lote no tiene una etapa de " + tipo));
+    }
 }

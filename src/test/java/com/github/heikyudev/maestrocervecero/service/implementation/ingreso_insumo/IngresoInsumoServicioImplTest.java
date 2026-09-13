@@ -261,7 +261,7 @@ class IngresoInsumoServicioImplTest {
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", LocalDate.now().plusMonths(3), 10.0, 0.0);
         when(detalleCompraRepository.findById(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
-        when(loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -283,7 +283,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         when(detalleCompraRepository.findById(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
-        when(loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
         when(loteInsumoRepository.save(any(LoteInsumoEntity.class))).thenAnswer(invocation -> {
             LoteInsumoEntity lote = invocation.getArgument(0);
             lote.setId(1L);
@@ -330,7 +330,7 @@ class IngresoInsumoServicioImplTest {
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", fechaVencimiento, 50.0, 0.0);
         when(detalleCompraRepository.findById(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
-        when(loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
         when(loteInsumoRepository.save(loteExistente)).thenReturn(loteExistente);
         when(ingresoInsumoRepository.save(any(IngresoInsumoEntity.class))).thenAnswer(invocation -> {
             IngresoInsumoEntity ingreso = invocation.getArgument(0);
@@ -451,7 +451,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", LocalDate.now().plusMonths(3), 10.0, 0.0);
         when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -472,7 +472,7 @@ class IngresoInsumoServicioImplTest {
                 .costoUnitario(new BigDecimal("8.75"))
                 .build();
         when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
         when(loteInsumoRepository.save(any(LoteInsumoEntity.class))).thenAnswer(invocation -> {
             LoteInsumoEntity lote = invocation.getArgument(0);
             lote.setId(1L);
@@ -516,7 +516,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", fechaVencimiento, 50.0, 0.0);
         when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.findByInsumoIdAndIdentificacionLoteProveedor(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
         when(loteInsumoRepository.save(loteExistente)).thenReturn(loteExistente);
         when(ingresoInsumoRepository.save(any(IngresoInsumoEntity.class))).thenAnswer(invocation -> {
             IngresoInsumoEntity ingreso = invocation.getArgument(0);

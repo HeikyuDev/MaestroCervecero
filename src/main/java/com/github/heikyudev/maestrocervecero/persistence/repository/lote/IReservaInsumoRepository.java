@@ -32,6 +32,20 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
     List<ReservaInsumoEntity> findByEtapaLote_Lote_Id(Long loteId);
 
     /**
+     * Busca todas las reservas de insumo de una etapa de lote puntual, sin importar de qué
+     * insumo ni de qué lote de insumo físico provenga cada una.
+     * <p>
+     * Se usa al finalizar una etapa, para liberar las reservas que hayan quedado sin consumir de
+     * ella (a diferencia de {@link #findByEtapaLote_Lote_Id(Long)}, que libera las de TODO el
+     * lote al cancelarlo).
+     * </p>
+     *
+     * @param idEtapaLote El ID de la etapa de lote cuyas reservas se quieren buscar.
+     * @return Las reservas de insumo de esa etapa.
+     */
+    List<ReservaInsumoEntity> findByEtapaLoteId(Long idEtapaLote);
+
+    /**
      * Busca, bloqueándolas para escritura, todas las reservas de insumo activas sobre un lote de
      * insumo físico determinado, sin importar a qué lote de producción pertenezca cada una.
      * <p>
@@ -77,5 +91,6 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * @param idInsumo El ID del insumo.
      * @return Las reservas de insumo de esa etapa para ese insumo.
      */
-    List<ReservaInsumoEntity> findByEtapaLoteIdAndLoteInsumo_Insumo_Id(Long idEtapaLote, Long idInsumo);
+    @Query("SELECT r FROM ReservaInsumoEntity r WHERE r.etapaLote.id = :idEtapaLote AND r.loteInsumo.insumo.id = :idInsumo")
+    List<ReservaInsumoEntity> filtrarLotesInsumoReservados(@Param("idEtapaLote") Long idEtapaLote, @Param("idInsumo") Long idInsumo);
 }

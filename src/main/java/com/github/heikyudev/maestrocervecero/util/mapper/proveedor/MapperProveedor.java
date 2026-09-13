@@ -1,9 +1,9 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 
 /**
  * MapperProveedor tiene la responsabilidad de mapear la entidad {@link ProveedorEntity}
@@ -40,9 +40,7 @@ public class MapperProveedor {
      * @return Objeto DTO correspondiente a la versión actual o {@code null} si no hay versiones.
      */
     private static VersionProveedorResponseDTO mapVersionActual(ProveedorEntity proveedorEntity) {
-        return proveedorEntity.getVersiones().stream()
-                .filter(VersionProveedorEntity::isEsUltimaVersion)
-                .findFirst()
+        return MetodosVersionado.buscarVersionActiva(proveedorEntity.getVersiones())
                 .map(MapperVersionProveedor::toDTO)
                 .orElse(null);
     }

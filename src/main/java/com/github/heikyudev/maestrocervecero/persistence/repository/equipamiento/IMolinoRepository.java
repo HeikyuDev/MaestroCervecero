@@ -41,7 +41,18 @@ public interface IMolinoRepository extends JpaRepository<MolinoEntity, Long> {
                     + "AND (:estadoOperativo IS NULL OR mo.estadoOperativo = :estadoOperativo)")
     Page<MolinoEntity> filtrarMolinos(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
+    /**
+     * Busca, bloqueándolo para escritura, un molino por su ID.
+     * <p>
+     * Se usa cada vez que una operación de lote necesita cambiar su estado operativo (al iniciar
+     * un lote, al finalizar la etapa que lo usó, o al cancelar el lote), para evitar que otra
+     * operación concurrente lo modifique al mismo tiempo.
+     * </p>
+     *
+     * @param id El ID del molino.
+     * @return Un Optional que contiene el molino si existe y está activo, o vacío en caso contrario.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
-    Optional<MolinoEntity> buscarPorIdParaIniciarLote(@Param("id") Long id);
+    Optional<MolinoEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 }

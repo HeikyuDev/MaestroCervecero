@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
@@ -20,6 +21,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insu
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IConsumoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -37,6 +39,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -55,15 +58,21 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     private final IEscaladoInsumoServicio escaladoInsumoServicio;
 
     /**
-     * Recupera una página de consumos de insumo registrados en el sistema.
+     * Filtra los consumos de insumo de una etapa de lote puntual.
      *
+     * @param idEtapaLote El ID de la etapa de lote (obligatorio).
+     * @param tipoConsumo El tipo de consumo a filtrar, o {@code null} para no filtrar por él.
+     * @param idInsumo El ID del insumo requerido a filtrar, o {@code null} para no filtrar por él.
+     * @param estado El estado transaccional a filtrar, o {@code null} para asumir {@code REGISTRADO}.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ConsumoInsumoResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ConsumoInsumoResponseDTO> buscarTodos(Pageable pageable) {
-        return consumoInsumoRepository.findAll(pageable).map(MapperConsumoInsumo::toDTO);
+    public Page<ConsumoInsumoResponseDTO> filtrarConsumosInsumo(Long idEtapaLote, TipoConsumo tipoConsumo, Long idInsumo, EstadoTransaccion estado, Pageable pageable) {
+        EstadoTransaccion estadoEfectivo = estado != null ? estado : EstadoTransaccion.REGISTRADO;
+        return consumoInsumoRepository.filtrarConsumosInsumo(idEtapaLote, tipoConsumo, idInsumo, estadoEfectivo, pageable)
+                .map(MapperConsumoInsumo::toDTO);
     }
 
     /**
@@ -139,6 +148,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                 .cantidadConsumida(cantidadConsumida)
                 .costoUnitarioPPP(loteInsumo.getCostoUnitarioPPP())
                 .estado(EstadoTransaccion.REGISTRADO)
+                .tipoConsumo(TipoConsumo.RESERVADO)
                 .etapaLote(etapaLote)
                 .loteInsumo(loteInsumo)
                 .build();
@@ -200,6 +210,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                 .cantidadConsumida(cantidadConsumida)
                 .costoUnitarioPPP(loteInsumo.getCostoUnitarioPPP())
                 .estado(EstadoTransaccion.REGISTRADO)
+                .tipoConsumo(TipoConsumo.DIRECTO)
                 .etapaLote(etapaLote)
                 .loteInsumo(loteInsumo)
                 .build();
@@ -233,6 +244,75 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                         .cantidadConsumida(cantidadConsumidaPorInsumo.getOrDefault(requerimiento.insumo().getId(), 0.0))
                         .build())
                 .toList();
+    }
+
+    /**
+     * Anula un consumo de insumo existente, devolviendo el stock que había descontado.
+     *
+     * @param id El ID del consumo de insumo a anular.
+     * @param anularConsumoInsumoFormDTO Los datos de la anulación (motivo).
+     * @return El consumo de insumo anulado.
+     * @throws RecursoNoEncontradoException Si el consumo de insumo, el lote de insumo, o (para uno
+     *                                      RESERVADO) la reserva puntual no existen.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el consumo no
+     *                               se encuentra en estado REGISTRADO, si el lote asociado no se
+     *                               encuentra en estado EN_EJECUCION, o si la etapa no se encuentra
+     *                               en estado EN_CURSO.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.CONSUMO_INSUMO)
+    public ConsumoInsumoResponseDTO anularConsumoInsumo(Long id, AnularConsumoInsumoFormDTO anularConsumoInsumoFormDTO) {
+        // 1. Validar que se haya informado el motivo de anulación
+        if (anularConsumoInsumoFormDTO.getMotivoAnulacion() == null || anularConsumoInsumoFormDTO.getMotivoAnulacion().isBlank()) {
+            throw new ReglaNegocioException("El motivo de anulación es obligatorio");
+        }
+
+        // 2. Validar que el consumo de insumo esté registrado en el sistema
+        ConsumoInsumoEntity consumoInsumo = consumoInsumoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el consumo de insumo con ID: " + id));
+
+        // 3. Validar que el consumo se encuentre en estado REGISTRADO
+        if (consumoInsumo.getEstado() != EstadoTransaccion.REGISTRADO) {
+            throw new ReglaNegocioException("Solo se pueden anular consumos de insumo en estado REGISTRADO");
+        }
+
+        // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION
+        if (consumoInsumo.getEtapaLote().getLote().getEstado() != EstadoLote.EN_EJECUCION) {
+            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder anular un consumo de insumo");
+        }
+
+        // 5. Validar que la etapa se encuentre en curso
+        if (consumoInsumo.getEtapaLote().getEstado() != EstadoEtapaLote.EN_CURSO) {
+            throw new ReglaNegocioException("La etapa debe estar en curso para poder anular un consumo de insumo");
+        }
+
+        // 6. Recuperar el lote de insumo bloqueado para escritura (no alcanza con navegar la
+        //    relación perezosa del consumo: hay que releerlo con lock, ya que esta anulación va a
+        //    mutar su stock) y revertir en él la cantidad consumida
+        LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaConsumir(consumoInsumo.getLoteInsumo().getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + consumoInsumo.getLoteInsumo().getId()));
+
+        if (consumoInsumo.getTipoConsumo() == TipoConsumo.RESERVADO) {
+            // Un consumo reservado descontó, además del lote de insumo, la reserva puntual de esa
+            // etapa: hay que devolvérsela también a ella (bloqueada), no solo al lote de insumo
+            ReservaInsumoEntity reserva = reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(
+                            consumoInsumo.getEtapaLote().getId(), loteInsumo.getId())
+                    .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la reserva de insumo de esta etapa para este lote de insumo"));
+            reserva.setCantidadReservada(reserva.getCantidadReservada() + consumoInsumo.getCantidadConsumida());
+            reservaInsumoRepository.save(reserva);
+            loteInsumo.revertirConsumo(consumoInsumo.getCantidadConsumida());
+        } else {
+            loteInsumo.revertirConsumoDirecto(consumoInsumo.getCantidadConsumida());
+        }
+        loteInsumoRepository.save(loteInsumo);
+
+        // 7. Aplicar la anulación sobre el consumo y persistir
+        consumoInsumo.setEstado(EstadoTransaccion.ANULADO);
+        consumoInsumo.setFechaAnulacion(LocalDateTime.now());
+        consumoInsumo.setMotivoAnulacion(anularConsumoInsumoFormDTO.getMotivoAnulacion());
+
+        return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo));
     }
 
     /**

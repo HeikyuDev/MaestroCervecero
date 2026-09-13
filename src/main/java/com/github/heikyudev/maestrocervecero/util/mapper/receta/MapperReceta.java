@@ -19,6 +19,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLevadura;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLupulo;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperMalta;
 import com.github.heikyudev.maestrocervecero.util.mapper.parametro_control.MapperParametroControl;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 
 /**
  * MapperReceta tiene la responsabilidad de mapear la entidad RecetaEntity a RecetaResponseDTO.
@@ -65,9 +66,7 @@ public class MapperReceta {
      * versión marcada como activa.
      */
     private static VersionRecetaResponseDTO mapVersionActual(RecetaEntity recetaEntity) {
-        return recetaEntity.getVersiones().stream()
-                .filter(VersionRecetaEntity::isEsUltimaVersion)
-                .findFirst()
+        return MetodosVersionado.buscarVersionActiva(recetaEntity.getVersiones())
                 .map(MapperReceta::toDTO)
                 .orElse(null);
     }

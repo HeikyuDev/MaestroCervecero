@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
@@ -19,6 +20,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insu
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IConsumoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -39,6 +41,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,39 +70,59 @@ class ConsumoInsumoServicioImplTest {
     @InjectMocks
     private ConsumoInsumoServicioImpl consumoInsumoServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarConsumosInsumo ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de consumos de insumo correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FCI-01: filtrarConsumosInsumo con los 3 criterios opcionales informados retorna una página mapeada")
+    void filtrarConsumosInsumo_debeRetornarPaginaMapeadaConCriteriosInformados() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         ConsumoInsumoEntity consumo1 = crearConsumoBase(1L, 5.0);
         ConsumoInsumoEntity consumo2 = crearConsumoBase(2L, 3.0);
-        when(consumoInsumoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(consumo1, consumo2), pageable, 2));
+        when(consumoInsumoRepository.filtrarConsumosInsumo(1L, TipoConsumo.RESERVADO, 7L, EstadoTransaccion.REGISTRADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(consumo1, consumo2), pageable, 2));
 
         // === EJECUCION ===
-        Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.buscarTodos(pageable);
+        Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.filtrarConsumosInsumo(1L, TipoConsumo.RESERVADO, 7L, EstadoTransaccion.REGISTRADO, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertThat(resultado.getContent()).hasSize(2);
-        verify(consumoInsumoRepository).findAll(pageable);
+        verify(consumoInsumoRepository).filtrarConsumosInsumo(1L, TipoConsumo.RESERVADO, 7L, EstadoTransaccion.REGISTRADO, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay consumos de insumo registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FCI-02: filtrarConsumosInsumo con estado nulo asume REGISTRADO por defecto, propagando tipoConsumo e idInsumo nulos tal cual")
+    void filtrarConsumosInsumo_debeAsumirRegistradoPorDefecto() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(consumoInsumoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(consumoInsumoRepository.filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.REGISTRADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.buscarTodos(pageable);
+        Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.filtrarConsumosInsumo(1L, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(consumoInsumoRepository).findAll(pageable);
+        verify(consumoInsumoRepository).filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.REGISTRADO, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FCI-03: filtrarConsumosInsumo permite al usuario elegir explícitamente ver los consumos ANULADOs")
+    void filtrarConsumosInsumo_debePermitirElegirAnulados() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        ConsumoInsumoEntity consumoAnulado = crearConsumoBase(1L, 5.0);
+        consumoAnulado.setEstado(EstadoTransaccion.ANULADO);
+        when(consumoInsumoRepository.filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.ANULADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(consumoAnulado), pageable, 1));
+
+        // === EJECUCION ===
+        Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.ANULADO, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(consumoInsumoRepository).filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.ANULADO, pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -684,6 +707,199 @@ class ConsumoInsumoServicioImplTest {
         assertThat(dtoLevadura.getCantidadConsumida()).isEqualTo(0.0);
     }
 
+    // ==================== anularConsumoInsumo ====================
+
+    @Test
+    @DisplayName("CP-AC-01: anularConsumoInsumo lanza ReglaNegocioException si el motivo de anulación es nulo")
+    void anularConsumoInsumo_debeLanzarExcepcionSiMotivoEsNulo() {
+        // === PREPARACION DE DATOS ===
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion(null).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación es obligatorio");
+        verifyNoInteractions(consumoInsumoRepository, loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-02: anularConsumoInsumo lanza ReglaNegocioException si el motivo de anulación está vacío")
+    void anularConsumoInsumo_debeLanzarExcepcionSiMotivoEstaVacio() {
+        // === PREPARACION DE DATOS ===
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("   ").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación es obligatorio");
+        verifyNoInteractions(consumoInsumoRepository, loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-03: anularConsumoInsumo lanza RecursoNoEncontradoException si el consumo no existe")
+    void anularConsumoInsumo_debeLanzarExcepcionSiNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(consumoInsumoRepository.findById(99L)).thenReturn(Optional.empty());
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(99L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el consumo de insumo con ID: 99");
+        verify(consumoInsumoRepository, never()).save(any());
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-04: anularConsumoInsumo lanza ReglaNegocioException si el consumo ya está ANULADO")
+    void anularConsumoInsumo_debeLanzarExcepcionSiYaEstaAnulado() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoEntity consumo = crearConsumoBase(1L, 5.0);
+        consumo.setEstado(EstadoTransaccion.ANULADO);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden anular consumos de insumo en estado REGISTRADO");
+        verify(consumoInsumoRepository, never()).save(any());
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-05: anularConsumoInsumo lanza ReglaNegocioException si el lote asociado no está EN_EJECUCION")
+    void anularConsumoInsumo_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoEntity consumo = crearConsumoBase(1L, 5.0);
+        consumo.getEtapaLote().getLote().setEstado(EstadoLote.FINALIZADO);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote debe encontrarse en estado EN_EJECUCION para poder anular un consumo de insumo");
+        verify(consumoInsumoRepository, never()).save(any());
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-06: anularConsumoInsumo lanza ReglaNegocioException si la etapa no está EN_CURSO")
+    void anularConsumoInsumo_debeLanzarExcepcionSiEtapaNoEstaEnCurso() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoEntity consumo = crearConsumoBase(1L, 5.0);
+        consumo.getEtapaLote().setEstado(EstadoEtapaLote.FINALIZADA);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa debe estar en curso para poder anular un consumo de insumo");
+        verify(consumoInsumoRepository, never()).save(any());
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-07: anularConsumoInsumo lanza RecursoNoEncontradoException si el lote de insumo ya no existe")
+    void anularConsumoInsumo_debeLanzarExcepcionSiLoteInsumoNoExiste() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoEntity consumo = crearConsumoBase(1L, 5.0);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(consumo.getLoteInsumo().getId())).thenReturn(Optional.empty());
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote de insumo con ID: " + consumo.getLoteInsumo().getId());
+        verify(consumoInsumoRepository, never()).save(any());
+        verifyNoInteractions(reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AC-08: anularConsumoInsumo (RESERVADO) lanza RecursoNoEncontradoException si ya no existe la reserva puntual de esa etapa para ese lote de insumo")
+    void anularConsumoInsumo_debeLanzarExcepcionSiNoExisteLaReservaParaUnConsumoReservado() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 2.0);
+        ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 10L)).thenReturn(Optional.empty());
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la reserva de insumo de esta etapa para este lote de insumo");
+        verify(loteInsumoRepository, never()).save(any());
+        verify(consumoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-09: anularConsumoInsumo (RESERVADO) — camino feliz: devuelve la cantidad a la reserva puntual y a la cantidad actual y reservada del lote de insumo")
+    void anularConsumoInsumo_debeAnularCorrectamenteUnConsumoReservado() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 2.0);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 2.0);
+        ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 10L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Registrado por error").build();
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.anularConsumoInsumo(1L, formDTO);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(10.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(consumo.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(consumo.getFechaAnulacion()).isNotNull().isBetween(antes, despues);
+        assertThat(consumo.getMotivoAnulacion()).isEqualTo("Registrado por error");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(resultado.getMotivoAnulacion()).isEqualTo("Registrado por error");
+        verify(reservaInsumoRepository).save(reserva);
+        verify(loteInsumoRepository).save(loteInsumo);
+    }
+
+    @Test
+    @DisplayName("CP-AC-10: anularConsumoInsumo (DIRECTO) — camino feliz: devuelve la cantidad únicamente a la cantidad actual del lote de insumo, sin interactuar con reservas")
+    void anularConsumoInsumo_debeAnularCorrectamenteUnConsumoDirecto() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 0.0);
+        ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.DIRECTO, loteInsumo, etapaLote);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Registrado por error").build();
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.anularConsumoInsumo(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(10.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(consumo.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        verify(loteInsumoRepository).save(loteInsumo);
+        verifyNoInteractions(reservaInsumoRepository);
+    }
+
     // ==================== helpers de construcción ====================
 
     private static ConsumoInsumoFormDTO formDTOBase(Long idEtapaLote, Long idLoteInsumo, Double cantidadConsumida) {
@@ -769,6 +985,18 @@ class ConsumoInsumoServicioImplTest {
                 .etapa(tipo)
                 .estado(estado)
                 .lote(lote)
+                .build();
+    }
+
+    private static ConsumoInsumoEntity crearConsumoParaAnular(Long id, double cantidadConsumida, TipoConsumo tipoConsumo, LoteInsumoEntity loteInsumo, EtapaLoteEntity etapaLote) {
+        return ConsumoInsumoEntity.builder()
+                .id(id)
+                .cantidadConsumida(cantidadConsumida)
+                .costoUnitarioPPP(BigDecimal.TEN)
+                .estado(EstadoTransaccion.REGISTRADO)
+                .tipoConsumo(tipoConsumo)
+                .etapaLote(etapaLote)
+                .loteInsumo(loteInsumo)
                 .build();
     }
 

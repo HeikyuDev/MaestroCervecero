@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.versionado.VersionadoEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,7 +25,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-public class VersionProveedorEntity {
+public class VersionProveedorEntity implements VersionadoEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

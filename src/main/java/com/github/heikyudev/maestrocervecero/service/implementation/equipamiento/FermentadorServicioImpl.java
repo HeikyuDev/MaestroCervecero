@@ -61,7 +61,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     @Transactional(readOnly = true)
     public FermentadorResponseDTO buscarPorId(Long id) {
         return MapperFermentador.toDTO(fermentadorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Fermentador con ID:" + id)));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id)));
     }
 
 
@@ -124,7 +124,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // 3. Buscar el fermentador existente por su ID.
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Fermentador con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
         // TODO: Validar que el fermentador no esté asociado a lotes Pendientes o en Ejecuciion
 
@@ -155,16 +155,15 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     public FermentadorResponseDTO bajaFermentador(Long id) {
 
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el Fermentador con ID:" + id));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
         // TODO: Validar que el fermentador no esté asociado a lotes Pendientes o en Ejecuciion
 
         // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         fermentadorEntity.setEstado(Estado.BAJA);
-        fermentadorRepository.save(fermentadorEntity);
 
-        // 3. Retornar el DTO de el fermentador  dada de baja
-        return MapperFermentador.toDTO(fermentadorEntity);
+        // 3. Retornar el DTO del fermentador dado de baja
+        return MapperFermentador.toDTO(fermentadorRepository.save(fermentadorEntity));
     }
 
 }

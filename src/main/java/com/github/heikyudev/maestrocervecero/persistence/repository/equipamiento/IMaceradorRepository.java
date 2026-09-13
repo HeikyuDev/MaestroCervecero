@@ -41,9 +41,18 @@ public interface IMaceradorRepository extends JpaRepository<MaceradorEntity, Lon
                     + "AND (:estadoOperativo IS NULL OR m.estadoOperativo = :estadoOperativo)")
     Page<MaceradorEntity> filtrarMaceradores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
-    // Creo que voy a tener Bloqueos compartidos
-    // Por ejemplo si dos lotes quieren utiliza el mimso macerador
+    /**
+     * Busca, bloqueándolo para escritura, un macerador por su ID.
+     * <p>
+     * Se usa cada vez que una operación de lote necesita cambiar su estado operativo (al iniciar
+     * un lote, al finalizar la etapa que lo usó, o al cancelar el lote), para evitar que otra
+     * operación concurrente lo modifique al mismo tiempo.
+     * </p>
+     *
+     * @param id El ID del macerador.
+     * @return Un Optional que contiene el macerador si existe y está activo, o vacío en caso contrario.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
-    Optional<MaceradorEntity> buscarPorIdParaIniciarLote(@Param("id") Long id);
+    Optional<MaceradorEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 }

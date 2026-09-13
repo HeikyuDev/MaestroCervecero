@@ -1,7 +1,11 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import org.springframework.data.domain.Page;
@@ -17,12 +21,27 @@ import java.util.List;
 public interface IConsumoInsumoServicio {
 
     /**
-     * Obtiene una página de consumos de insumo.
+     * Filtra los consumos de insumo de una etapa de lote puntual.
+     * <p>
+     * {@code idEtapaLote} no lo tipea el usuario: lo determina el contexto de la pantalla de
+     * gestión de consumos, igual que en {@code filtrarInsumosRequeridos}. No tiene sentido mostrar
+     * consumos de otros lotes o de otras etapas mezclados: el usuario solo debe ver los que él
+     * mismo registró en la etapa en la que está parado.
+     * </p>
+     * <p>
+     * {@code estado} sigue la misma regla que en {@code filtrarMedicionesLote}: si no se
+     * especifica, el service asume {@code REGISTRADO} por defecto.
+     * </p>
      *
+     * @param idEtapaLote El ID de la etapa de lote (obligatorio).
+     * @param tipoConsumo El tipo de consumo a filtrar (RESERVADO/DIRECTO), o {@code null} para no filtrar por él.
+     * @param idInsumo El ID del insumo requerido a filtrar (útil cuando la etapa requiere más de
+     *                 uno), o {@code null} para no filtrar por él.
+     * @param estado El estado transaccional a filtrar, o {@code null} para asumir {@code REGISTRADO}.
      * @param pageable La configuración de paginación.
-     * @return Una página de consumos en formato DTO.
+     * @return Una página de consumos en formato DTO que cumplen los criterios indicados.
      */
-    Page<ConsumoInsumoResponseDTO> buscarTodos(Pageable pageable);
+    Page<ConsumoInsumoResponseDTO> filtrarConsumosInsumo(Long idEtapaLote, TipoConsumo tipoConsumo, Long idInsumo, EstadoTransaccion estado, Pageable pageable);
 
     /**
      * Obtiene un consumo de insumo por su ID.
@@ -72,4 +91,28 @@ public interface IConsumoInsumoServicio {
      * @return Un DTO por cada insumo requerido en esa etapa, con su cantidad requerida y consumida.
      */
     List<InsumoRequeridoResponseDTO> filtrarInsumosRequeridos(Long idEtapaLote);
+
+    /**
+     * Anula un consumo de insumo existente, devolviendo el stock que había descontado.
+     * <p>
+     * Qué se revierte depende de por qué camino se registró el consumo ({@code
+     * ConsumoInsumoEntity.tipoConsumo}): uno {@code RESERVADO} devuelve la cantidad tanto a la
+     * cantidad actual como a la reservada del lote de insumo, y además a la reserva puntual de esa
+     * etapa; uno {@code DIRECTO} devuelve la cantidad únicamente a la cantidad actual.
+     * </p>
+     * <p>
+     * No existe la baja lógica para este registro: un consumo solo puede pasar de
+     * {@code REGISTRADO} a {@code ANULADO}, nunca eliminarse.
+     * </p>
+     *
+     * @param id El ID del consumo de insumo a anular.
+     * @param anularConsumoInsumoFormDTO Los datos de la anulación (motivo).
+     * @return El consumo de insumo anulado.
+     * @throws RecursoNoEncontradoException Si el consumo de insumo con el ID especificado no existe.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el consumo no se
+     *                               encuentra en estado {@code REGISTRADO}, si el lote asociado no
+     *                               se encuentra en estado {@code EN_EJECUCION}, o si la etapa no se
+     *                               encuentra en estado {@code EN_CURSO}.
+     */
+    ConsumoInsumoResponseDTO anularConsumoInsumo(Long id, AnularConsumoInsumoFormDTO anularConsumoInsumoFormDTO);
 }

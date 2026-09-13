@@ -174,33 +174,6 @@ class EscaladoInsumoServicioImplTest {
         assertThat(resultado.get(0).insumo()).isEqualTo(malta);
     }
 
-    // ==================== obtenerEtapaPorTipo ====================
-
-    @Test
-    @DisplayName("CP-EI-OE-01: obtenerEtapaPorTipo retorna la etapa del lote que corresponde al tipo indicado")
-    void obtenerEtapaPorTipo_debeRetornarLaEtapaCorrespondiente() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = crearLoteConEtapas();
-
-        // === EJECUCION ===
-        EtapaLoteEntity resultado = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.HERVIDO);
-
-        // === ASSERTS ===
-        assertThat(resultado.getEtapa()).isEqualTo(TipoEtapa.HERVIDO);
-    }
-
-    @Test
-    @DisplayName("CP-EI-OE-02: obtenerEtapaPorTipo lanza RecursoNoEncontradoException si el lote no tiene una etapa del tipo indicado")
-    void obtenerEtapaPorTipo_debeLanzarExcepcionSiNoExisteLaEtapa() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity loteSinEtapas = LoteEntity.builder().id(1L).etapas(new ArrayList<>()).build();
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> escaladoInsumoServicio.obtenerEtapaPorTipo(loteSinEtapas, TipoEtapa.MACERACION))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El lote no tiene una etapa de MACERACION");
-    }
-
     // ==================== calcularRequerimientosTotales ====================
 
     @Test
@@ -253,7 +226,7 @@ class EscaladoInsumoServicioImplTest {
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
-        EtapaLoteEntity etapaMaceracion = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
 
         // === EJECUCION ===
         List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion);
@@ -278,7 +251,7 @@ class EscaladoInsumoServicioImplTest {
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
-        EtapaLoteEntity etapaFermentacion = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.FERMENTACION);
+        EtapaLoteEntity etapaFermentacion = lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION);
 
         // === EJECUCION ===
         List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaFermentacion);
@@ -306,7 +279,7 @@ class EscaladoInsumoServicioImplTest {
                         detalleLupulo(10.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 15.0, centennial)))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 100.0);
-        EtapaLoteEntity etapaHervido = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.HERVIDO);
+        EtapaLoteEntity etapaHervido = lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO);
 
         // === EJECUCION ===
         List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaHervido);
@@ -333,7 +306,7 @@ class EscaladoInsumoServicioImplTest {
                 .detallesLupulo(List.of())
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
-        EtapaLoteEntity etapaEnvasado = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.ENVASADO);
+        EtapaLoteEntity etapaEnvasado = lote.obtenerEtapaPorTipo(TipoEtapa.ENVASADO);
 
         // === EJECUCION ===
         List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaEnvasado);
@@ -355,7 +328,7 @@ class EscaladoInsumoServicioImplTest {
                 .detallesLupulo(List.of(whirlpool, dryHop))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0); // volumenObjetivo = volumenBase → ratio 1:1
-        EtapaLoteEntity etapaMaduracion = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.MADURACION);
+        EtapaLoteEntity etapaMaduracion = lote.obtenerEtapaPorTipo(TipoEtapa.MADURACION);
 
         // === EJECUCION ===
         List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaduracion);

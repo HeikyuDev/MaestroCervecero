@@ -29,20 +29,13 @@ Lógica extraída de `LoteServicioImpl` sin cambios (ver docs/Dominio/Escalado/E
 |---|---|---|---|---|
 |**CP-EI-AE-01**|Copia cada requerimiento con la etapa indicada, sin alterar la cantidad requerida|1 requerimiento sin etapa (`cantidadRequerida: 3.5`), etapa de Maceración|Copia con la misma cantidad y el mismo insumo, etapa reemplazada|Retorna 1 requerimiento con `etapa` igual a la etapa indicada, `cantidadRequerida = 3.5` (sin cambios) e `insumo` sin cambios.|
 
-### 5. `obtenerEtapaPorTipo(LoteEntity lote, TipoEtapa tipo)`
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-EI-OE-01**|Etapa encontrada|Lote con sus 6 etapas, `tipo: HERVIDO`|`lote.getEtapas().stream().filter(...).findFirst()` $\rightarrow$ **Presente**|Retorna la `EtapaLoteEntity` cuyo `etapa` es `HERVIDO`.|
-|**CP-EI-OE-02**|Etapa no encontrada|Lote sin etapas, `tipo: MACERACION`|`lote.getEtapas().stream().filter(...).findFirst()` $\rightarrow$ **vacío**|Lanza `RecursoNoEncontradoException` con mensaje "El lote no tiene una etapa de MACERACION".|
-
-### 6. `calcularRequerimientosTotales(LoteEntity lote)`
+### 5. `calcularRequerimientosTotales(LoteEntity lote)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-EI-CT-01**|NO fusiona el requerimiento cuando el mismo lúpulo aparece en dos detalles de etapas distintas (WHIRLPOOL en Hervido + DRY_HOP en Maduración): mantiene 2 requerimientos separados, cada uno atado a su propia etapa|Lote sin maltas ni levaduras en la receta, un único lúpulo con un detalle WHIRLPOOL (10g base, etapa Hervido) y un detalle DRY_HOP (5g base, etapa Maduración), `volumenObjetivo = volumenBase` (ratio 1:1)|El merge por clave `insumo-etapa` mantiene ambos requerimientos separados porque sus etapas difieren|Retorna 2 requerimientos para ese lúpulo: `10.0g` asociado a la etapa Hervido y `5.0g` asociado a la etapa Maduración.|
 
-### 7. `calcularRequerimientosEtapa(EtapaLoteEntity etapaLote)`
+### 6. `calcularRequerimientosEtapa(EtapaLoteEntity etapaLote)`
 
 Variante acotada de `calcularRequerimientosTotales`, pensada para consultas de una única etapa puntual (la usa `ConsumoInsumoServicio.filtrarInsumosRequeridos`): evita calcular las categorías de insumo que no aplican a la etapa pedida en vez de calcular las 6 etapas completas y descartar el resto. La malta solo se calcula si la etapa es Maceración; la levadura, solo si es Fermentación; el lúpulo se calcula (agrupando, como siempre, todos los HERVOR de la receta para la fórmula de Tinseth) únicamente si algún detalle de la receta apunta a esta etapa puntual, y de ahí se descarta lo que no sea de ella.
 

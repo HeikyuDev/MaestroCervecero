@@ -41,7 +41,18 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
                     + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)")
     Page<FermentadorEntity> filtrarFermentadores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
+    /**
+     * Busca, bloqueándolo para escritura, un fermentador por su ID.
+     * <p>
+     * Se usa cada vez que una operación de lote necesita cambiar su estado operativo (al iniciar
+     * un lote, al finalizar la etapa que lo usó, o al cancelar el lote), para evitar que otra
+     * operación concurrente lo modifique al mismo tiempo.
+     * </p>
+     *
+     * @param id El ID del fermentador.
+     * @return Un Optional que contiene el fermentador si existe y está activo, o vacío en caso contrario.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
-    Optional<FermentadorEntity> buscarPorIdParaIniciarLote(@Param("id") Long id);
+    Optional<FermentadorEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 }

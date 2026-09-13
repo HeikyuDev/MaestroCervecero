@@ -29,6 +29,7 @@ public class MapperConsumoInsumo {
                 .fechaAnulacion(consumoInsumoEntity.getFechaAnulacion())
                 .motivoAnulacion(consumoInsumoEntity.getMotivoAnulacion())
                 .estado(consumoInsumoEntity.getEstado())
+                .tipoConsumo(consumoInsumoEntity.getTipoConsumo())
                 .etapaLote(MapperEtapaLote.toDTO(consumoInsumoEntity.getEtapaLote()))
                 .loteInsumo(MapperLoteInsumo.toDTO(consumoInsumoEntity.getLoteInsumo()))
                 // === AUDITABLE ENTITY ===

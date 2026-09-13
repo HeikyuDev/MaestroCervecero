@@ -10,7 +10,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "lote_insumo")
+@Table(name = "lote_insumo", uniqueConstraints = @UniqueConstraint(columnNames = {"insumo_id", "identificacion_lote_proveedor"}))
 @Getter
 @Setter
 @Builder
@@ -102,5 +102,18 @@ public class LoteInsumoEntity {
 
     public void consumirDirecto(double cantidad) {
         this.cantidadActual -= cantidad;
+    }
+
+    // Reversa un consumo reservado anulado: devuelve la cantidad tanto a la actual como a la
+    // reservada (inverso exacto de ejecutarConsumo)
+    public void revertirConsumo(double cantidad) {
+        this.cantidadActual += cantidad;
+        this.cantidadReservada += cantidad;
+    }
+
+    // Reversa un consumo directo anulado: devuelve la cantidad solo a la actual (inverso exacto
+    // de consumirDirecto)
+    public void revertirConsumoDirecto(double cantidad) {
+        this.cantidadActual += cantidad;
     }
 }

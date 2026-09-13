@@ -109,4 +109,33 @@ public interface ILoteServicio {
      *                               etapa actual (EN_CURSO) no es Molienda.
      */
     LoteResponseDTO finalizarMolienda(Long id);
+
+    /**
+     * Finaliza la etapa de Maceración del lote y da paso al Hervido.
+     * <p>
+     * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote.
+     * </p>
+     * <ul>
+     *     <li>Valida que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+     *     mínimo de consumo configurado por el gerente de producción — evita avanzar de etapa por
+     *     error sin haber registrado consumos, o habiéndolos registrado de forma incompleta.</li>
+     *     <li>La etapa de Maceración se desmarca como etapa actual (pasa a FINALIZADA) y se
+     *     registra su fecha y hora de fin.</li>
+     *     <li>La etapa de Hervido se marca como etapa actual (pasa a EN_CURSO) y se registra su
+     *     fecha y hora de inicio.</li>
+     *     <li>El macerador utilizado pasa a estado "En Limpieza".</li>
+     *     <li>Se liberan las reservas de insumo que hayan quedado sin consumir de la etapa de
+     *     Maceración.</li>
+     * </ul>
+     *
+     * @param id El ID del lote cuya Maceración se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Maceración, o si algún insumo
+     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
+     *                               consumo configurado.
+     */
+    LoteResponseDTO finalizarMaceracion(Long id);
 }

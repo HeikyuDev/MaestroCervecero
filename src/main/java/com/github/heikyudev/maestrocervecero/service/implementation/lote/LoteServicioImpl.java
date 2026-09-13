@@ -15,7 +15,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionPlanificacionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
@@ -28,7 +28,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.CancelacionLoteFormDTO;
@@ -36,6 +36,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteForm
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
@@ -86,9 +87,10 @@ public class LoteServicioImpl implements ILoteServicio {
     private final IOllaHervorRepository ollaHervorRepository;
     private final IFermentadorRepository fermentadorRepository;
     private final IRecetaRepository recetaRepository;
-    private final IConfiguracionPlanificacionProduccionRepository configuracionPlanificacionProduccionRepository;
+    private final IConfiguracionProduccionRepository configuracionProduccionRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
     private final IReservaInsumoRepository reservaInsumoRepository;
+    private final IConsumoInsumoServicio consumoInsumoServicio;
 
     /**
      * Recupera una página de lotes registrados en el sistema.
@@ -331,17 +333,94 @@ public class LoteServicioImpl implements ILoteServicio {
         EtapaLoteEntity etapaMolienda = obtenerEtapaEnCursoValidando(lote, TipoEtapa.MOLIENDA);
 
         // 4. Finalizar Molienda e iniciar Maceración
-        EtapaLoteEntity etapaMaceracion = escaladoInsumoServicio.obtenerEtapaPorTipo(lote, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
         avanzarEtapa(etapaMolienda, etapaMaceracion);
 
         // 5. El molino utilizado pasa a estado EN_LIMPIEZA
         Long idMolino = etapaMolienda.getEquipamiento().getId();
-        MolinoEntity molino = molinoRepository.buscarPorIdParaIniciarLote(idMolino)
+        MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolino)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolino));
         molino.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         molinoRepository.save(molino);
 
         return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
+     * Finaliza la etapa de Maceración del lote y da paso al Hervido.
+     *
+     * @param id El ID del lote cuya Maceración se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Maceración, o si algún insumo
+     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
+     *                               consumo configurado.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteResponseDTO finalizarMaceracion(Long id) {
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+
+        // 2. Validar que el lote se encuentre en estado EN_EJECUCION
+        if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
+            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+        }
+
+        // 3. Validar que la etapa actual (EN_CURSO) sea Maceración
+        EtapaLoteEntity etapaMaceracion = obtenerEtapaEnCursoValidando(lote, TipoEtapa.MACERACION);
+
+        // 4. Validar que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+        //    mínimo configurado
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
+        validarPorcentajeMinimoConsumido(etapaMaceracion, configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa());
+
+        // 5. Finalizar Maceración e iniciar Hervido
+        EtapaLoteEntity etapaHervido = lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO);
+        avanzarEtapa(etapaMaceracion, etapaHervido);
+
+        // 6. El macerador utilizado pasa a estado EN_LIMPIEZA
+        Long idMacerador = etapaMaceracion.getEquipamiento().getId();
+        MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMacerador)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMacerador));
+        macerador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
+        maceradorRepository.save(macerador);
+
+        // 7. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Maceración
+        liberarReservasDeLaEtapa(etapaMaceracion);
+
+        return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
+     * Valida que la cantidad consumida de CADA insumo requerido por una etapa alcance el
+     * porcentaje mínimo configurado sobre su cantidad requerida (escalada), para evitar que se
+     * avance de etapa por error sin haber registrado consumos, o habiéndolos registrado de forma
+     * incompleta.
+     * <p>
+     * Reutiliza {@link IConsumoInsumoServicio#filtrarInsumosRequeridos(Long)} para obtener, por
+     * insumo, cuánto requiere la etapa y cuánto ya se consumió — la misma fuente que usa la
+     * pantalla de gestión de consumos, evitando recalcular o duplicar esa lógica acá.
+     * </p>
+     *
+     * @throws ReglaNegocioException Si algún insumo requerido no alcanza el porcentaje mínimo.
+     */
+    private void validarPorcentajeMinimoConsumido(EtapaLoteEntity etapa, double porcentajeMinimo) {
+        List<String> insumosInsuficientes = consumoInsumoServicio.filtrarInsumosRequeridos(etapa.getId()).stream()
+                .filter(insumoRequerido -> insumoRequerido.getCantidadConsumida() < insumoRequerido.getCantidadRequerida() * (porcentajeMinimo / 100.0))
+                .map(insumoRequerido -> insumoRequerido.getInsumo().getNombre())
+                .toList();
+
+        if (!insumosInsuficientes.isEmpty()) {
+            throw new ReglaNegocioException("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el "
+                    + porcentajeMinimo + "% mínimo de consumo requerido: " + String.join(", ", insumosInsuficientes));
+        }
     }
 
     /**
@@ -374,14 +453,30 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Libera todas las reservas de insumo de un lote: por cada {@link ReservaInsumoEntity}, revierte
-     * la cantidad reservada sobre su {@link LoteInsumoEntity} (bloqueándolo para escritura, para
-     * evitar que otra operación concurrente lo modifique al mismo tiempo) y elimina la reserva —
-     * una reserva liberada deja de existir, no se conserva con algún indicador de "liberada".
+     * Libera todas las reservas de insumo de un lote, sin importar a cuál de sus etapas esté
+     * asociada cada una. Se usa al cancelar un lote.
      */
     private void liberarReservasDelLote(LoteEntity lote) {
-        List<ReservaInsumoEntity> reservas = reservaInsumoRepository.findByEtapaLote_Lote_Id(lote.getId());
+        liberarReservas(reservaInsumoRepository.findByEtapaLote_Lote_Id(lote.getId()));
+    }
 
+    /**
+     * Libera las reservas de insumo de una única etapa de lote (a diferencia de
+     * {@link #liberarReservasDelLote(LoteEntity)}, que libera las de TODO el lote): se usa al
+     * finalizar una etapa, para devolver a stock lo que haya quedado reservado sin consumir de
+     * ella, sin tocar las reservas de las demás etapas del mismo lote.
+     */
+    private void liberarReservasDeLaEtapa(EtapaLoteEntity etapa) {
+        liberarReservas(reservaInsumoRepository.findByEtapaLoteId(etapa.getId()));
+    }
+
+    /**
+     * Libera un conjunto de reservas de insumo: por cada una, revierte la cantidad reservada
+     * sobre su {@link LoteInsumoEntity} (bloqueándolo para escritura, para evitar que otra
+     * operación concurrente lo modifique al mismo tiempo) y elimina la reserva — una reserva
+     * liberada deja de existir, no se conserva con algún indicador de "liberada".
+     */
+    private void liberarReservas(List<ReservaInsumoEntity> reservas) {
         for (ReservaInsumoEntity reserva : reservas) {
             LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaLiberarReserva(reserva.getLoteInsumo().getId())
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + reserva.getLoteInsumo().getId()));
@@ -442,7 +537,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoMolino = resolverEstadoOperativoAlCancelar(estadoMolino);
         if (nuevoEstadoMolino != null) {
             Long idMolinoFinal = idMolino;
-            MolinoEntity molino = molinoRepository.buscarPorIdParaIniciarLote(idMolinoFinal)
+            MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolinoFinal)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolinoFinal));
             molino.setEstadoOperativo(nuevoEstadoMolino);
             molinoRepository.save(molino);
@@ -451,7 +546,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoMacerador = resolverEstadoOperativoAlCancelar(estadoMacerador);
         if (nuevoEstadoMacerador != null) {
             Long idMaceradorFinal = idMacerador;
-            MaceradorEntity macerador = maceradorRepository.buscarPorIdParaIniciarLote(idMaceradorFinal)
+            MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMaceradorFinal)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMaceradorFinal));
             macerador.setEstadoOperativo(nuevoEstadoMacerador);
             maceradorRepository.save(macerador);
@@ -460,7 +555,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoOllaHervor = resolverEstadoOperativoAlCancelar(estadoOllaHervor);
         if (nuevoEstadoOllaHervor != null) {
             Long idOllaHervorFinal = idOllaHervor;
-            OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaIniciarLote(idOllaHervorFinal)
+            OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervorFinal)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + idOllaHervorFinal));
             ollaHervor.setEstadoOperativo(nuevoEstadoOllaHervor);
             ollaHervorRepository.save(ollaHervor);
@@ -469,7 +564,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoFermentador = resolverEstadoOperativoAlCancelar(estadoFermentador);
         if (nuevoEstadoFermentador != null) {
             Long idFermentadorFinal = idFermentador;
-            FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaIniciarLote(idFermentadorFinal)
+            FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentadorFinal)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentadorFinal));
             fermentador.setEstadoOperativo(nuevoEstadoFermentador);
             fermentadorRepository.save(fermentador);
@@ -657,13 +752,13 @@ public class LoteServicioImpl implements ILoteServicio {
         final Long idOllaHervorFinal = idOllaHervor;
         final Long idFermentadorFinal = idFermentador;
 
-        MolinoEntity molino = molinoRepository.buscarPorIdParaIniciarLote(idMolinoFinal)
+        MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolinoFinal)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolinoFinal));
-        MaceradorEntity macerador = maceradorRepository.buscarPorIdParaIniciarLote(idMaceradorFinal)
+        MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMaceradorFinal)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMaceradorFinal));
-        OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaIniciarLote(idOllaHervorFinal)
+        OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervorFinal)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + idOllaHervorFinal));
-        FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaIniciarLote(idFermentadorFinal)
+        FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentadorFinal)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentadorFinal));
 
         validarDisponible(molino, "El molino");
@@ -756,8 +851,8 @@ public class LoteServicioImpl implements ILoteServicio {
         double horasMolienda = masaMaltaEscalada / molino.getRendimientoMolienda();
         double horasMaceracionYHervido = (versionReceta.getDuracionMaceracion() + versionReceta.getDuracionHervido()) / 60.0;
 
-        ConfiguracionPlanificacionProduccionEntity configuracion = configuracionPlanificacionProduccionRepository
-                .findById(ConfiguracionPlanificacionProduccionEntity.SINGLETON_ID)
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de planificación de producción"));
         double horasEnvasado = volumenObjetivo / configuracion.getVelocidadEstandarEnvasado();
 

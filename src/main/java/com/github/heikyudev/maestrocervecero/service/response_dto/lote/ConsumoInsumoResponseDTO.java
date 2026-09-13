@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.LoteInsumoResponseDTO;
 import lombok.AllArgsConstructor;
@@ -8,7 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -39,7 +39,7 @@ public class ConsumoInsumoResponseDTO {
     /**
      * Fecha de anulación del consumo. Nula salvo que haya sido anulado.
      */
-    private LocalDate fechaAnulacion;
+    private LocalDateTime fechaAnulacion;
 
     /**
      * Motivo de anulación del consumo. Nulo salvo que haya sido anulado.
@@ -50,6 +50,12 @@ public class ConsumoInsumoResponseDTO {
      * Estado del consumo (REGISTRADO o ANULADO).
      */
     private EstadoTransaccion estado;
+
+    /**
+     * Camino por el que se registró el consumo (RESERVADO o DIRECTO): determina qué se revierte
+     * si el consumo se anula.
+     */
+    private TipoConsumo tipoConsumo;
 
     /**
      * Etapa de lote sobre la que se registró este consumo.

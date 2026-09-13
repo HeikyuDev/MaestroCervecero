@@ -24,8 +24,8 @@ public class ReservaInsumoServicioImpl implements IReservaInsumoServicio {
      */
     @Override
     @Transactional(readOnly = true)
-    public List<ReservaInsumoResponseDTO> buscarPorEtapaEInsumo(Long idEtapaLote, Long idInsumo) {
-        return reservaInsumoRepository.findByEtapaLoteIdAndLoteInsumo_Insumo_Id(idEtapaLote, idInsumo).stream()
+    public List<ReservaInsumoResponseDTO> filtrarLotesInsumoReservados(Long idEtapaLote, Long idInsumo) {
+        return reservaInsumoRepository.filtrarLotesInsumoReservados(idEtapaLote, idInsumo).stream()
                 .map(MapperReservaInsumo::toDTO)
                 .toList();
     }

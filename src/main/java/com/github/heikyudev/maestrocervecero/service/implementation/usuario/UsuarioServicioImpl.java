@@ -52,7 +52,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
     public UsuarioResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(usuarioRepository.findById(id).
-                orElseThrow(() -> new RecursoNoEncontradoException("El usuario no existe")));
+                orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario con ID: " + id)));
     }
 
 
@@ -110,7 +110,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
     public UsuarioResponseDTO modificarUsuario(Long id, UsuarioFormDTO usuarioFormDTO) {
 
         UsuarioEntity usuarioEntity = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El usuario no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario con ID: " + id));
 
         // 1. Se valida duplicación ÚNICAMENTE si el username cambió respecto al actual
         if (!usuarioEntity.getUsername().equalsIgnoreCase(usuarioFormDTO.getUsername())) {
