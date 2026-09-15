@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -36,11 +37,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class FermentadorServicioImplTest {
 
+    private static final int USOS_MAXIMOS_ANTES_MANTENIMIENTO = 500;
+
     @Mock
     private IFermentadorRepository fermentadorRepository;
 
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private FermentadorServicioImpl fermentadorServicio;
@@ -210,6 +216,7 @@ class FermentadorServicioImplTest {
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
+        assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         // El alta siempre debe registrar al fermentador como ACTIVO, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
@@ -218,7 +225,34 @@ class FermentadorServicioImplTest {
         assertThat(resultado.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FERM-02");
+    }
+
+    @Test
+    @DisplayName("CP-AF-06: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son nulos")
+    void altaFermentador_debeRechazarUsosMaximosAntesMantenimientoNulo() {
+        FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0, null);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-07: altaFermentador lanza ReglaNegocioException cuando los usos máximos antes de mantenimiento son iguales a cero (valor límite)")
+    void altaFermentador_debeRechazarUsosMaximosAntesMantenimientoIgualACero() {
+        FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0, 0);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
     }
 
     // ==================== modificarFermentador ====================
@@ -276,6 +310,7 @@ class FermentadorServicioImplTest {
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-NUEVO", 100.0, 80.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-NUEVO", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         // === EJECUCION ===
@@ -289,12 +324,14 @@ class FermentadorServicioImplTest {
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Fermentador de prueba");
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
+        assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
 
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("FERM-NUEVO");
         assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         verify(fermentadorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-NUEVO", 1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
     }
 
     @Test
@@ -305,6 +342,7 @@ class FermentadorServicioImplTest {
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("ferm-01", 100.0, 80.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("ferm-01", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         FermentadorResponseDTO resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO);
@@ -315,6 +353,52 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).save(fermentadorEntity);
     }
 
+    @Test
+    @DisplayName("CP-MF-06: modificarFermentador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    void modificarFermentador_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0, 0);
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MF-07: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador está asociado a un lote pendiente")
+    void modificarFermentador_debeRechazarAsociacionALotePendiente() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
+        FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 1L)).thenReturn(false);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar el fermentador porque está asociado a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-08: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador se encuentra en uso")
+    void modificarFermentador_debeRechazarSiEstaEnUso() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0, EstadoOperativo.EN_USO);
+        FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 1L)).thenReturn(false);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar el fermentador porque se encuentra en uso.");
+
+        verify(fermentadorRepository, never()).save(any());
+    }
+
     // ==================== bajaFermentador ====================
 
     @Test
@@ -322,6 +406,7 @@ class FermentadorServicioImplTest {
     void bajaFermentador_debeMarcarBajaYRetornarFermentadorExistente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         FermentadorResponseDTO resultado = fermentadorServicio.bajaFermentador(1L);
@@ -330,6 +415,7 @@ class FermentadorServicioImplTest {
         assertThat(fermentadorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertFermentadorDTO(fermentadorEntity, resultado);
         verify(fermentadorRepository).findById(1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository).save(fermentadorEntity);
         verify(fermentadorRepository, never()).delete(any());
     }
@@ -347,28 +433,69 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador está asociado a un lote pendiente")
+    void bajaFermentador_debeRechazarAsociacionALotePendiente() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque está asociado a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-04: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador se encuentra en uso")
+    void bajaFermentador_debeRechazarSiEstaEnUso() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_USO);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque se encuentra en uso.");
+
+        verify(fermentadorRepository, never()).save(any());
+    }
+
     // ==================== helpers ====================
 
     private static FermentadorEntity crearFermentadorEntity(Long id, String identificadorInterno, Double capacidadTotal,
                                                               Double capacidadUtil) {
+        return crearFermentadorEntity(id, identificadorInterno, capacidadTotal, capacidadUtil, EstadoOperativo.DISPONIBLE);
+    }
+
+    private static FermentadorEntity crearFermentadorEntity(Long id, String identificadorInterno, Double capacidadTotal,
+                                                              Double capacidadUtil, EstadoOperativo estadoOperativo) {
         return FermentadorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Fermentador de prueba")
-                .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .estadoOperativo(estadoOperativo)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
+                .usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
     private static FermentadorFormDTO fermentadorFormDTO(String identificadorInterno, Double capacidadTotal,
                                                            Double capacidadUtil) {
+        return fermentadorFormDTO(identificadorInterno, capacidadTotal, capacidadUtil, USOS_MAXIMOS_ANTES_MANTENIMIENTO);
+    }
+
+    private static FermentadorFormDTO fermentadorFormDTO(String identificadorInterno, Double capacidadTotal,
+                                                           Double capacidadUtil, Integer usosMaximosAntesMantenimiento) {
         return FermentadorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Fermentador de prueba")
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
+                .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .build();
     }
 
@@ -379,6 +506,7 @@ class FermentadorServicioImplTest {
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getCapacidadTotal()).isEqualTo(entidad.getCapacidadTotal());
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
+        assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

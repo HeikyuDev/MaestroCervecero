@@ -49,6 +49,11 @@ public class FermentadorResponseDTO {
     private Double capacidadUtil;
 
     /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
+
+    /**
      * Estado lógico del fermentador (activo o dado de baja).
      */
     private Estado estado;

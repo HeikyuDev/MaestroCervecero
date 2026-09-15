@@ -24,6 +24,7 @@ public class MapperFermentador {
                 .estadoOperativo(fermentadorEntity.getEstadoOperativo())
                 .capacidadTotal(fermentadorEntity.getCapacidadTotal())
                 .capacidadUtil(fermentadorEntity.getCapacidadUtil())
+                .usosMaximosAntesMantenimiento(fermentadorEntity.getUsosMaximosAntesMantenimiento())
                 .estado(fermentadorEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(fermentadorEntity.getCreatedBy())

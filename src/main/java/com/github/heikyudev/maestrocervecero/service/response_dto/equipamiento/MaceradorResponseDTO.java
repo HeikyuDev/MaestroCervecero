@@ -59,6 +59,11 @@ public class MaceradorResponseDTO {
     private Double eficienciaMaceracion;
 
     /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
+
+    /**
      * Estado lógico del macerador (activo o dado de baja).
      */
     private Estado estado;

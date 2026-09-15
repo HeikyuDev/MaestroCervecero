@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mol
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -15,6 +16,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMolinoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperMolino;
+import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +29,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
     private final IMolinoRepository molinoRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
      * Recupera una página de Molinos activos registrados en el sistema, filtrados opcionalmente
@@ -69,7 +72,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param molinoFormDTO Datos del molino a crear.
      * @return {@link MolinoResponseDTO} con los datos del molino creado.
      * @throws RecursoDuplicadoException Si ya existe un equipamiento con el mismo identificador interno.
-     * @throws ReglaNegocioException      Si el rendimiento de molienda es menor o igual a 0.
+     * @throws ReglaNegocioException      Si el rendimiento de molienda es menor o igual a 0, o si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
      */
     @Override
     @Transactional
@@ -78,21 +81,25 @@ public class MolinoServicioImpl implements IMolinoServicio {
         // 1. Validar que el rendimiento de molienda sea mayor a 0.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 2. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
+        // 2. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 3. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(molinoFormDTO.getIdentificadorInterno())) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 3. Crear la entidad MolinoEntity.
+        // 4. Crear la entidad MolinoEntity.
         MolinoEntity molinoEntity = MolinoEntity.builder().
                 identificadorInterno(molinoFormDTO.getIdentificadorInterno()).
                 descripcion(molinoFormDTO.getDescripcion()).
                 rendimientoMolienda(molinoFormDTO.getRendimientoMolienda()).
+                usosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento()).
                 estadoOperativo(EstadoOperativo.DISPONIBLE).
                 estado(Estado.ACTIVO).
                 build();
 
-        // 4. Guardar la entidad en la base de datos.
+        // 5. Guardar la entidad en la base de datos.
         return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 
@@ -104,7 +111,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @return {@link MolinoResponseDTO} con los datos del molino modificado.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno.
-     * @throws ReglaNegocioException         Si el rendimiento de molienda es menor o igual a 0.
+     * @throws ReglaNegocioException         Si el rendimiento de molienda es menor o igual a 0, si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el molino está asociado a un lote pendiente, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -113,23 +120,35 @@ public class MolinoServicioImpl implements IMolinoServicio {
         // 1. Validar que el rendimiento de molienda sea mayor a 0.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 2. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
+        // 2. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 3. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(molinoFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 3. Buscar el molino existente por su ID.
+        // 4. Buscar el molino existente por su ID.
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // TODO: Validar que el molino no esté asociado a lotes Pendientes o en Ejecuciion
+        // 5. Validar que el molino no esté asociado a un lote pendiente.
+        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
+            throw new ReglaNegocioException("No se puede modificar el molino porque está asociado a un lote pendiente.");
+        }
 
-        // 4. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
+        // 6. Validar que el molino no se encuentre actualmente en uso.
+        if (molinoEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
+            throw new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso.");
+        }
+
+        // 7. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
         molinoEntity.setIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
         molinoEntity.setDescripcion(molinoFormDTO.getDescripcion());
         molinoEntity.setRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
+        molinoEntity.setUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 5. Guardar la entidad actualizada en la base de datos.
+        // 8. Guardar la entidad actualizada en la base de datos.
         return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 
@@ -143,20 +162,30 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param id ID del molino a dar de baja.
      * @return {@link MolinoResponseDTO} con los datos del molino ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
+     * @throws ReglaNegocioException Si el molino está asociado a un lote pendiente, o si se encuentra en uso.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO bajaMolino(Long id) {
+        // 1. Buscar el molino existente por su ID.
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // TODO: Validar que el molino no esté asociado a lotes Pendientes o en Ejecuciion
+        // 2. Validar que el molino no esté asociado a un lote pendiente.
+        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque está asociado a un lote pendiente.");
+        }
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Validar que el molino no se encuentre actualmente en uso.
+        if (molinoEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque se encuentra en uso.");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         molinoEntity.setEstado(Estado.BAJA);
 
-        // 3. Retornar el DTO del molino dado de baja
+        // 5. Retornar el DTO del molino dado de baja
         return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 

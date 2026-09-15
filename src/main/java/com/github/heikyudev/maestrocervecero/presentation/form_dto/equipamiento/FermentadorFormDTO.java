@@ -39,4 +39,9 @@ public class FermentadorFormDTO {
      * Capacidad util del fermentador en litros.
      */
     private Double capacidadUtil;
+
+    /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
 }

@@ -49,5 +49,10 @@ public class MaceradorFormDTO {
      * Eficiencia de maceración del macerador en porcentaje (entre 0 y 100 inclusive).
      */
     private Double eficienciaMaceracion;
+
+    /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
 }
 

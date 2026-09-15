@@ -17,6 +17,8 @@ Aquí se concentran las principales reglas de validación del negocio
 |**CP-09**|Alta exitosa _(Camino feliz)_|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-02"` (Único)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estadoOperativo = DISPONIBLE` y `estado = ACTIVO`, y retorna DTO.|
 |**CP-10**|Eficiencia en límite inferior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 40.0`, `id: "MAC-03"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 40.0`.|
 |**CP-11**|Eficiencia en límite superior válido|`capTotal: 100.0`, `capUtil: 80.0`, `eficiencia: 100.0`, `id: "MAC-04"`|`eficiencia < 40 \| eficiencia > 100` $ $\rightarr$ **FALSE**|Persiste la entidad y retorna DTO con `eficiencia = 100.0`.|
+|**CP-12**|Usos máximos antes de mantenimiento nulo|`usosMaximosAntesMantenimiento: null` (resto válido)|`usosMaximosAntesMantenimiento == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los usos máximos antes de mantenimiento son obligatorios."). No consulta la BD.|
+|**CP-13**|Usos máximos antes de mantenimiento igual a cero _(Límite)_|`usosMaximosAntesMantenimiento: 0` (resto válido)|`usosMaximosAntesMantenimiento <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los usos máximos antes de mantenimiento deben ser mayores a 0."). No consulta la BD.|
 
 ### 2. Pruebas para `modificarMacerador(Long id, MaceradorFormDTO)`
 
@@ -29,6 +31,9 @@ Valida la modificación, fallos por reglas de negocio y existencia del registro.
 | **CP-MM-03** | Falla por identificador en uso por otro macerador | `id: 1L`, `identificador: "MAC-EXISTENTE"` | `validarIdentificadorInterno` $\rightarrow$ **Falla** | Lanza `RecursoDuplicadoException`                  |
 | **CP-MM-04** | Macerador no encontrado por ID                    | `id: 99L` (no existe en BD), DTO válido    | `findById(id)` $\rightarrow$ **Optional.empty()**     | Lanza `RecursoNoEncontradoException`               |
 | **CP-MM-05** | Modificación exitosa _(Camino Feliz)_             | `id: 1L` (existe), DTO válido              | Validaciones OK y macerador encontrado                | Actualiza campos, guarda y retorna DTO actualizado |
+| **CP-MM-06** | Falla por usos máximos antes de mantenimiento inválidos | `id: 1L`, `usosMaximosAntesMantenimiento: 0` | `usosMaximosAntesMantenimiento <= 0` $\rightarrow$ **Falla** | Lanza `ReglaNegocioException` |
+| **CP-MM-07** | Asociado a lote pendiente | `id: 1L` (existe), DTO válido | `existsLotePendienteAsociado(1L)` $\rightarrow$ **TRUE** | El sistema verifica que el macerador seleccionado no se encuentre asociado a un lote de producción en estado "Pendiente". Si se encuentra asociado, informa que no puede ser modificado y se termina el caso de uso. Lanza `ReglaNegocioException`. No persiste. |
+| **CP-MM-08** | Se encuentra en uso | `id: 1L` (existe, sin lote pendiente), `estadoOperativo: EN_USO`, DTO válido | `maceradorEntity.getEstadoOperativo() == EN_USO` $\rightarrow$ **TRUE** | El sistema verifica que el macerador seleccionado no se encuentre en estado operativo "En Uso". Si se encuentra en uso, informa que el equipamiento se encuentra en uso y no puede ser modificado, finalizando el caso de uso. Lanza `ReglaNegocioException`. No persiste. |
 ### 3. Pruebas para `buscarPorId(Long id)`
 
 |**ID**|**Nombre del Caso**|**Escenario**|**Condición**|**Resultado Esperado**|
@@ -41,7 +46,9 @@ Valida la modificación, fallos por reglas de negocio y existencia del registro.
 |**ID**|**Nombre del Caso**|**Escenario**|**Condición**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BM-01**|Baja de macerador inexistente|`id: 99L` (no existe en BD)|`findById(99L)` vacío|Lanza `RecursoNoEncontradoException`. No llama a `save()`.|
-|**CP-BM-02**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (existe en BD)|`findById(1L)` presente|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO|
+|**CP-BM-02**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (existe en BD, sin lote pendiente y no está en uso)|`findById(1L)` presente|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO|
+|**CP-BM-03**|Asociado a lote pendiente|`id: 1L` (existe en BD)|`existsLotePendienteAsociado(1L)` $\rightarrow$ **TRUE**|El sistema verifica que el macerador seleccionado no se encuentre asociado a un lote de producción en estado "Pendiente". Si se encuentra asociado, informa que no puede ser dado de baja y se termina el caso de uso. Lanza `ReglaNegocioException`. No llama a `save()`.|
+|**CP-BM-04**|Se encuentra en uso|`id: 1L` (existe en BD, sin lote pendiente), `estadoOperativo: EN_USO`|`maceradorEntity.getEstadoOperativo() == EN_USO` $\rightarrow$ **TRUE**|El sistema verifica que el macerador seleccionado no se encuentre en estado operativo "En Uso". Si se encuentra en uso, informa que el equipamiento se encuentra en uso y no puede ser dado de baja, finalizando el caso de uso. Lanza `ReglaNegocioException`. No llama a `save()`.|
 
 ### 5. Pruebas para `filtrarMaceradores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable)`
 

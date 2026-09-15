@@ -51,4 +51,9 @@ public class OllaHervorFormDTO {
      * Perdida por trub de la olla de hervor en Litros.
      */
     private Double perdidaPorTrub;
+
+    /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
 }

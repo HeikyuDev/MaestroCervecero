@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mac
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -36,11 +37,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class MaceradorServicioImplTest {
 
+    private static final int USOS_MAXIMOS_ANTES_MANTENIMIENTO = 500;
+
     @Mock
     private IMaceradorRepository maceradorRepository;
 
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private MaceradorServicioImpl maceradorServicio;
@@ -255,12 +261,14 @@ class MaceradorServicioImplTest {
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(entidadCapturada.getEspacioMuerto()).isEqualTo(5.0);
         assertThat(entidadCapturada.getEficienciaMaceracion()).isEqualTo(75.0);
+        assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         // El alta siempre debe registrar al macerador como ACTIVO, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MAC-02");
         assertThat(resultado.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MAC-02");
     }
 
@@ -288,6 +296,30 @@ class MaceradorServicioImplTest {
 
         assertThat(resultado.getEficienciaMaceracion()).isEqualTo(100.0);
         verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-12: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son nulos")
+    void altaMacerador_debeRechazarUsosMaximosAntesMantenimientoNulo() {
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 75.0, null);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+
+        verifyNoInteractions(maceradorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-13: altaMacerador lanza ReglaNegocioException cuando los usos máximos antes de mantenimiento son iguales a cero (valor límite)")
+    void altaMacerador_debeRechazarUsosMaximosAntesMantenimientoIgualACero() {
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 75.0, 0);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(maceradorRepository);
     }
 
     // ==================== modificarMacerador ====================
@@ -354,6 +386,7 @@ class MaceradorServicioImplTest {
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-NUEVO", 100.0, 80.0, 5.0, 85.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-NUEVO", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         // === EJECUCION ===
@@ -365,8 +398,10 @@ class MaceradorServicioImplTest {
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(resultado.getEspacioMuerto()).isEqualTo(5.0);
         assertThat(resultado.getEficienciaMaceracion()).isEqualTo(85.0);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(maceradorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-NUEVO", 1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository).save(maceradorEntity);
     }
 
@@ -378,6 +413,7 @@ class MaceradorServicioImplTest {
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("mac-01", 100.0, 80.0, 5.0, 85.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("mac-01", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         MaceradorResponseDTO resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO);
@@ -387,6 +423,51 @@ class MaceradorServicioImplTest {
         verify(maceradorRepository).save(maceradorEntity);
     }
 
+    @Test
+    @DisplayName("CP-MM-06: modificarMacerador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    void modificarMacerador_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 75.0, 0);
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(maceradorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MM-07: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador está asociado a un lote pendiente")
+    void modificarMacerador_debeRechazarAsociacionALotePendiente() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 85.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 1L)).thenReturn(false);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar el macerador porque está asociado a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-08: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador se encuentra en uso")
+    void modificarMacerador_debeRechazarSiEstaEnUso() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0, EstadoOperativo.EN_USO);
+        MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 85.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 1L)).thenReturn(false);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar el macerador porque se encuentra en uso.");
+
+        verify(maceradorRepository, never()).save(any());
+    }
+
     // ==================== bajaMacerador ====================
 
     @Test
@@ -394,6 +475,7 @@ class MaceradorServicioImplTest {
     void bajaMacerador_debeMarcarBajaYRetornarMaceradorExistente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         MaceradorResponseDTO resultado = maceradorServicio.bajaMacerador(1L);
@@ -402,6 +484,7 @@ class MaceradorServicioImplTest {
         assertThat(maceradorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertMaceradorDTO(maceradorEntity, resultado);
         verify(maceradorRepository).findById(1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository).save(maceradorEntity);
         verify(maceradorRepository, never()).delete(any());
     }
@@ -419,25 +502,66 @@ class MaceradorServicioImplTest {
         verify(maceradorRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador está asociado a un lote pendiente")
+    void bajaMacerador_debeRechazarAsociacionALotePendiente() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el macerador porque está asociado a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-04: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador se encuentra en uso")
+    void bajaMacerador_debeRechazarSiEstaEnUso() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_USO);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el macerador porque se encuentra en uso.");
+
+        verify(maceradorRepository, never()).save(any());
+    }
+
     // ==================== helpers ====================
 
     private static MaceradorEntity crearMaceradorEntity(Long id, String identificadorInterno, Double capacidadTotal,
                                                           Double capacidadUtil, Double espacioMuerto, Double eficienciaMaceracion) {
+        return crearMaceradorEntity(id, identificadorInterno, capacidadTotal, capacidadUtil, espacioMuerto, eficienciaMaceracion, EstadoOperativo.DISPONIBLE);
+    }
+
+    private static MaceradorEntity crearMaceradorEntity(Long id, String identificadorInterno, Double capacidadTotal,
+                                                          Double capacidadUtil, Double espacioMuerto, Double eficienciaMaceracion,
+                                                          EstadoOperativo estadoOperativo) {
         return MaceradorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Macerador de prueba")
-                .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .estadoOperativo(estadoOperativo)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
                 .espacioMuerto(espacioMuerto)
                 .eficienciaMaceracion(eficienciaMaceracion)
+                .usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
     private static MaceradorFormDTO maceradorFormDTO(String identificadorInterno, Double capacidadTotal,
                                                        Double capacidadUtil, Double espacioMuerto, Double eficienciaMaceracion) {
+        return maceradorFormDTO(identificadorInterno, capacidadTotal, capacidadUtil, espacioMuerto, eficienciaMaceracion, USOS_MAXIMOS_ANTES_MANTENIMIENTO);
+    }
+
+    private static MaceradorFormDTO maceradorFormDTO(String identificadorInterno, Double capacidadTotal, Double capacidadUtil,
+                                                       Double espacioMuerto, Double eficienciaMaceracion, Integer usosMaximosAntesMantenimiento) {
         return MaceradorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Macerador de prueba")
@@ -445,6 +569,7 @@ class MaceradorServicioImplTest {
                 .capacidadUtil(capacidadUtil)
                 .espacioMuerto(espacioMuerto)
                 .eficienciaMaceracion(eficienciaMaceracion)
+                .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .build();
     }
 
@@ -457,6 +582,7 @@ class MaceradorServicioImplTest {
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
         assertThat(dto.getEspacioMuerto()).isEqualTo(entidad.getEspacioMuerto());
         assertThat(dto.getEficienciaMaceracion()).isEqualTo(entidad.getEficienciaMaceracion());
+        assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

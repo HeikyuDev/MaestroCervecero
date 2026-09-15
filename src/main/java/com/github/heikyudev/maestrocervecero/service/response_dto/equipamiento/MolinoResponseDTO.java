@@ -48,6 +48,11 @@ public class MolinoResponseDTO {
     private Double rendimientoMolienda;
 
     /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
+
+    /**
      * Estado lógico del molino (activo o dado de baja).
      */
     private Estado estado;

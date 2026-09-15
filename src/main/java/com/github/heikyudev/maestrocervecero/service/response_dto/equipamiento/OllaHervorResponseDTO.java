@@ -55,6 +55,11 @@ public class OllaHervorResponseDTO {
     private Double perdidaPorTrub;
 
     /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
+
+    /**
      * Estado lógico de la olla de hervor (activa o dada de baja).
      */
     private Estado estado;

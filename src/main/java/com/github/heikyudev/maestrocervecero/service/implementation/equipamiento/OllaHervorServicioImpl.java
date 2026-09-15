@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Oll
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -28,6 +29,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
     private final IOllaHervorRepository ollaHervorRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
      * Recupera una página de Ollas de Hervor activas registradas en el sistema, filtradas
@@ -74,6 +76,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @throws ReglaNegocioException Si la capacidad util es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si el porcentaje de evaporacion no esta entre 0 y 100.
      * @throws ReglaNegocioException Si la perdida por trub es negativa.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a una olla de hervor activa.
      */
     @Override
@@ -90,12 +93,15 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 3. Validar que la pérdida por trub no sea negativa
         validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
 
-        // 4. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
+        // 4. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 5. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(ollaHervorFormDTO.getIdentificadorInterno())) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 5. Crear la entidad OllaHervorEntity a partir del DTO de formulario
+        // 6. Crear la entidad OllaHervorEntity a partir del DTO de formulario
         OllaHervorEntity ollaHervorEntity = OllaHervorEntity.builder()
                 .identificadorInterno(ollaHervorFormDTO.getIdentificadorInterno())
                 .descripcion(ollaHervorFormDTO.getDescripcion())
@@ -105,10 +111,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
                 .capacidadUtil(ollaHervorFormDTO.getCapacidadUtil())
                 .evaporacion(ollaHervorFormDTO.getEvaporacion())
                 .perdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub())
+                .usosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento())
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 6. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
+        // 7. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 
@@ -126,6 +133,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @throws ReglaNegocioException      Si la capacidad util es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException      Si el porcentaje de evaporacion no esta entre 0 y 100.
      * @throws ReglaNegocioException      Si la perdida por trub es negativa.
+     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si la olla de hervor está asociada a un lote pendiente, o si se encuentra en uso.
      * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
      * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
      */
@@ -142,26 +150,38 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 3. Validar que la pérdida por trub no sea negativa
         validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
 
-        // 4. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
+        // 4. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 5. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(ollaHervorFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 5. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 6. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
-        // TODO: Validar que la olla de hervor no esté asociada a lotes Pendientes o en Ejecuciion
+        // 7. Validar que la olla de hervor no esté asociada a un lote pendiente.
+        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
+            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque está asociada a un lote pendiente.");
+        }
 
-        // 6. Actualizar los campos de la entidad con los valores del DTO de formulario
+        // 8. Validar que la olla de hervor no se encuentre actualmente en uso.
+        if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
+            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso.");
+        }
+
+        // 9. Actualizar los campos de la entidad con los valores del DTO de formulario
         ollaHervorEntity.setIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
         ollaHervorEntity.setDescripcion(ollaHervorFormDTO.getDescripcion());
         ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
         ollaHervorEntity.setEvaporacion(ollaHervorFormDTO.getEvaporacion());
         ollaHervorEntity.setPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
+        ollaHervorEntity.setUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 7. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
+        // 10. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 
@@ -176,6 +196,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @param id Identificador clave primaria de la olla de hervor a dar de baja.
      * @return {@link OllaHervorResponseDTO} con los datos de la olla de hervor ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la olla de hervor con el ID especificado no existe o ya fue dado de baja.
+     * @throws ReglaNegocioException Si la olla de hervor está asociada a un lote pendiente, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -185,12 +206,20 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
-        // TODO: Validar que la olla de hervor no esté asociada a lotes Pendientes o en Ejecuciion
+        // 2. Validar que la olla de hervor no esté asociada a un lote pendiente.
+        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque está asociada a un lote pendiente.");
+        }
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Validar que la olla de hervor no se encuentre actualmente en uso.
+        if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
+            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque se encuentra en uso.");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         ollaHervorEntity.setEstado(Estado.BAJA);
 
-        // 3. Retornar el DTO de la olla de hervor dada de baja
+        // 5. Retornar el DTO de la olla de hervor dada de baja
         return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 

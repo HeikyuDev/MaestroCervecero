@@ -26,6 +26,7 @@ public class MapperMolino {
                 .descripcion(molinoEntity.getDescripcion())
                 .estadoOperativo(molinoEntity.getEstadoOperativo())
                 .rendimientoMolienda(molinoEntity.getRendimientoMolienda())
+                .usosMaximosAntesMantenimiento(molinoEntity.getUsosMaximosAntesMantenimiento())
                 .estado(molinoEntity.getEstado())
                 // === AUDITABLE ENTITY ===
                 .createdBy(molinoEntity.getCreatedBy())

@@ -24,4 +24,19 @@ public class MetodosEquipamiento {
         }
     }
 
+    /**
+     * Valida que los usos máximos antes de mantenimiento hayan sido informados y que sean mayores a 0.
+     *
+     * @param usosMaximosAntesMantenimiento Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     * @throws ReglaNegocioException Si es nulo, o si es menor o igual a 0.
+     */
+    public static void validarUsosMaximosAntesMantenimiento(Integer usosMaximosAntesMantenimiento) {
+        if (usosMaximosAntesMantenimiento == null) {
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios.");
+        }
+        if (usosMaximosAntesMantenimiento <= 0) {
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+        }
+    }
+
 }

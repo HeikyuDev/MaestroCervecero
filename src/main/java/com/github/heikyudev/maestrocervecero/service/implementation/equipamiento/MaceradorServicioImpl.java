@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mac
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -28,6 +29,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
     private final IMaceradorRepository maceradorRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
      * Recupera una página de Maceradores activos registrados en el sistema, filtrados
@@ -74,6 +76,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @return {@link MaceradorResponseDTO} representativo del macerador guardado en la base de datos.
      * @throws ReglaNegocioException Si la capacidad util es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si la eficiencia de maceracion no se encuentra entre 40 y 100 inclusive.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a un macerador activo.
      */
     @Override
@@ -87,12 +90,15 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         // 2. Validar eficiencia de maceracion
         validarEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
 
-        // 3. Validar que el identificador interno no esté duplicado
+        // 3. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 4. Validar que el identificador interno no esté duplicado
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(maceradorFormDTO.getIdentificadorInterno())) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + maceradorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 4. Creo la entidad que se va a almacenar en la base de datos.
+        // 5. Creo la entidad que se va a almacenar en la base de datos.
         MaceradorEntity maceradorEntity = MaceradorEntity.builder()
                 .identificadorInterno(maceradorFormDTO.getIdentificadorInterno())
                 .descripcion(maceradorFormDTO.getDescripcion())
@@ -102,6 +108,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
                 .capacidadUtil(maceradorFormDTO.getCapacidadUtil())
                 .espacioMuerto(maceradorFormDTO.getEspacioMuerto())
                 .eficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion())
+                .usosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento())
                 .estado(Estado.ACTIVO)
                 .build();
 
@@ -121,6 +128,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @return {@link MaceradorResponseDTO} representativo del macerador con los cambios aplicados.
      * @throws ReglaNegocioException Si la capacidad util es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si la eficiencia de maceracion no se encuentra entre 40 y 100 inclusive.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el macerador está asociado a un lote pendiente, o si se encuentra en uso.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a un macerador activo.
      */
     @Override
@@ -133,26 +141,38 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         // 2. Validar eficiencia de maceracion
         validarEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
 
-        // 3. Validar que el identificador interno no esté duplicado
+        // 3. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 4. Validar que el identificador interno no esté duplicado
         if(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(maceradorFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + maceradorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 4. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 5. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
-        // TODO: Validar que el Macerador no esté asociado a lotes Pendientes o en Ejecuciion
+        // 6. Validar que el macerador no esté asociado a un lote pendiente.
+        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
+            throw new ReglaNegocioException("No se puede modificar el macerador porque está asociado a un lote pendiente.");
+        }
 
-        // 5. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 7. Validar que el macerador no se encuentre actualmente en uso.
+        if (maceradorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
+            throw new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso.");
+        }
+
+        // 8. Aplico los cambios sobre la entidad administrada por persistencia.
         maceradorEntity.setIdentificadorInterno(maceradorFormDTO.getIdentificadorInterno());
         maceradorEntity.setDescripcion(maceradorFormDTO.getDescripcion());
         maceradorEntity.setCapacidadTotal(maceradorFormDTO.getCapacidadTotal());
         maceradorEntity.setCapacidadUtil(maceradorFormDTO.getCapacidadUtil());
         maceradorEntity.setEspacioMuerto(maceradorFormDTO.getEspacioMuerto());
         maceradorEntity.setEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
+        maceradorEntity.setUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 9. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
     }
 
@@ -166,6 +186,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @param id Identificador clave primaria del macerador a dar de baja.
      * @return {@link MaceradorResponseDTO} con los datos del macerador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el macerador con el ID especificado no existe o ya fue dado de baja.
+     * @throws ReglaNegocioException Si el macerador está asociado a un lote pendiente, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -176,12 +197,20 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
-        // TODO: Validar que el Macerador no esté asociado a lotes Pendientes o en Ejecuciion
+        // 2. Validar que el macerador no esté asociado a un lote pendiente.
+        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el macerador porque está asociado a un lote pendiente.");
+        }
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Validar que el macerador no se encuentre actualmente en uso.
+        if (maceradorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
+            throw new ReglaNegocioException("No se puede dar de baja el macerador porque se encuentra en uso.");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         maceradorEntity.setEstado(Estado.BAJA);
 
-        // 3. Retornar el DTO del macerador dado de baja
+        // 5. Retornar el DTO del macerador dado de baja
         return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
     }
 

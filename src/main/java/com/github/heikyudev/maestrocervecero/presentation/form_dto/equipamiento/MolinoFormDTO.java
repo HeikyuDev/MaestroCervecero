@@ -33,4 +33,9 @@ public class MolinoFormDTO {
      * Rendimiento del molino (Kilos Por Hora)
      */
     private Double rendimientoMolienda;
+
+    /**
+     * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
+     */
+    private Integer usosMaximosAntesMantenimiento;
 }

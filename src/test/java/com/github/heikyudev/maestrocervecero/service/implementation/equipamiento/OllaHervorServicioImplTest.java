@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Oll
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -36,11 +37,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class OllaHervorServicioImplTest {
 
+    private static final int USOS_MAXIMOS_ANTES_MANTENIMIENTO = 500;
+
     @Mock
     private IOllaHervorRepository ollaHervorRepository;
 
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private OllaHervorServicioImpl ollaHervorServicio;
@@ -277,12 +283,14 @@ class OllaHervorServicioImplTest {
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(entidadCapturada.getEvaporacion()).isEqualTo(10.0);
         assertThat(entidadCapturada.getPerdidaPorTrub()).isEqualTo(3.0);
+        assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         // El alta siempre debe registrar a la olla de hervor como ACTIVA, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("OLLA-02");
         assertThat(resultado.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("OLLA-02");
     }
 
@@ -323,6 +331,32 @@ class OllaHervorServicioImplTest {
 
         assertThat(resultado.getPerdidaPorTrub()).isEqualTo(0.0);
         verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AO-14: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son nulos")
+    void altaOllaHervor_debeRechazarUsosMaximosAntesMantenimientoNulo() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0, null);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-15: altaOllaHervor lanza ReglaNegocioException cuando los usos máximos antes de mantenimiento son iguales a cero (valor límite)")
+    void altaOllaHervor_debeRechazarUsosMaximosAntesMantenimientoIgualACero() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0, 0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
     }
 
     // ==================== modificarOllaHervor ====================
@@ -403,6 +437,7 @@ class OllaHervorServicioImplTest {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-NUEVA", 100.0, 80.0, 10.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-NUEVA", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         // === EJECUCION ===
@@ -414,8 +449,10 @@ class OllaHervorServicioImplTest {
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(resultado.getEvaporacion()).isEqualTo(10.0);
         assertThat(resultado.getPerdidaPorTrub()).isEqualTo(3.0);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(ollaHervorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-NUEVA", 1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository).save(ollaHervorEntity);
     }
 
@@ -427,6 +464,7 @@ class OllaHervorServicioImplTest {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("olla-01", 100.0, 80.0, 10.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("olla-01", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO);
@@ -436,6 +474,52 @@ class OllaHervorServicioImplTest {
         verify(ollaHervorRepository).save(ollaHervorEntity);
     }
 
+    @Test
+    @DisplayName("CP-MO-08: modificarOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    void modificarOllaHervor_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0, 0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MO-09: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor está asociada a un lote pendiente")
+    void modificarOllaHervor_debeRechazarAsociacionALotePendiente() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 1L)).thenReturn(false);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar la olla de hervor porque está asociada a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-10: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor se encuentra en uso")
+    void modificarOllaHervor_debeRechazarSiEstaEnUso() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0, EstadoOperativo.EN_USO);
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 1L)).thenReturn(false);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar la olla de hervor porque se encuentra en uso.");
+
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
     // ==================== bajaOllaHervor ====================
 
     @Test
@@ -443,6 +527,7 @@ class OllaHervorServicioImplTest {
     void bajaOllaHervor_debeMarcarBajaYRetornarOllaHervorExistente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.bajaOllaHervor(1L);
@@ -451,6 +536,7 @@ class OllaHervorServicioImplTest {
         assertThat(ollaHervorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertOllaHervorDTO(ollaHervorEntity, resultado);
         verify(ollaHervorRepository).findById(1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository).save(ollaHervorEntity);
         verify(ollaHervorRepository, never()).delete(any());
     }
@@ -468,25 +554,66 @@ class OllaHervorServicioImplTest {
         verify(ollaHervorRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor está asociada a un lote pendiente")
+    void bajaOllaHervor_debeRechazarAsociacionALotePendiente() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque está asociada a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-04: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor se encuentra en uso")
+    void bajaOllaHervor_debeRechazarSiEstaEnUso() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_USO);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque se encuentra en uso.");
+
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
     // ==================== helpers ====================
 
     private static OllaHervorEntity crearOllaHervorEntity(Long id, String identificadorInterno, Double capacidadTotal,
                                                             Double capacidadUtil, Double evaporacion, Double perdidaPorTrub) {
+        return crearOllaHervorEntity(id, identificadorInterno, capacidadTotal, capacidadUtil, evaporacion, perdidaPorTrub, EstadoOperativo.DISPONIBLE);
+    }
+
+    private static OllaHervorEntity crearOllaHervorEntity(Long id, String identificadorInterno, Double capacidadTotal,
+                                                            Double capacidadUtil, Double evaporacion, Double perdidaPorTrub,
+                                                            EstadoOperativo estadoOperativo) {
         return OllaHervorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Olla de hervor de prueba")
-                .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .estadoOperativo(estadoOperativo)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
                 .evaporacion(evaporacion)
                 .perdidaPorTrub(perdidaPorTrub)
+                .usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
     private static OllaHervorFormDTO ollaHervorFormDTO(String identificadorInterno, Double capacidadTotal,
                                                        Double capacidadUtil, Double evaporacion, Double perdidaPorTrub) {
+        return ollaHervorFormDTO(identificadorInterno, capacidadTotal, capacidadUtil, evaporacion, perdidaPorTrub, USOS_MAXIMOS_ANTES_MANTENIMIENTO);
+    }
+
+    private static OllaHervorFormDTO ollaHervorFormDTO(String identificadorInterno, Double capacidadTotal, Double capacidadUtil,
+                                                         Double evaporacion, Double perdidaPorTrub, Integer usosMaximosAntesMantenimiento) {
         return OllaHervorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Olla de hervor de prueba")
@@ -494,6 +621,7 @@ class OllaHervorServicioImplTest {
                 .capacidadUtil(capacidadUtil)
                 .evaporacion(evaporacion)
                 .perdidaPorTrub(perdidaPorTrub)
+                .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .build();
     }
 
@@ -506,6 +634,7 @@ class OllaHervorServicioImplTest {
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
         assertThat(dto.getEvaporacion()).isEqualTo(entidad.getEvaporacion());
         assertThat(dto.getPerdidaPorTrub()).isEqualTo(entidad.getPerdidaPorTrub());
+        assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

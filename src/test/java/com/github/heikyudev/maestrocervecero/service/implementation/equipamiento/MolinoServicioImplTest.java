@@ -5,6 +5,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mol
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -36,11 +37,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class MolinoServicioImplTest {
 
+    private static final int USOS_MAXIMOS_ANTES_MANTENIMIENTO = 500;
+
     @Mock
     private IMolinoRepository molinoRepository;
 
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private MolinoServicioImpl molinoServicio;
@@ -222,6 +228,7 @@ class MolinoServicioImplTest {
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Molino de prueba");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(50.0);
+        assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         // El alta siempre debe registrar al molino como ACTIVO, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
@@ -229,6 +236,7 @@ class MolinoServicioImplTest {
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-02");
         assertThat(resultado.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(50.0);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MOL-02");
     }
 
@@ -254,6 +262,32 @@ class MolinoServicioImplTest {
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(0.1);
     }
 
+    @Test
+    @DisplayName("CP-AM-08: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son nulos")
+    void altaMolino_debeRechazarUsosMaximosAntesMantenimientoNulo() {
+        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, null);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-09: altaMolino lanza ReglaNegocioException cuando los usos máximos antes de mantenimiento son iguales a cero (valor límite)")
+    void altaMolino_debeRechazarUsosMaximosAntesMantenimientoIgualACero() {
+        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, 0);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
     // ==================== modificarMolino ====================
 
     @Test
@@ -271,7 +305,20 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-02: modificarMolino lanza RecursoDuplicadoException y no busca ni persiste cuando el identificador está en uso por otro equipamiento")
+    @DisplayName("CP-MM-02: modificarMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    void modificarMolino_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, 0);
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MM-03: modificarMolino lanza RecursoDuplicadoException y no busca ni persiste cuando el identificador está en uso por otro equipamiento")
     void modificarMolino_debeRechazarIdentificadorEnUsoPorOtroEquipamiento() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-EXISTENTE", 50.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L)).thenReturn(true);
@@ -287,7 +334,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-03: modificarMolino lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    @DisplayName("CP-MM-04: modificarMolino lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarMolino_debeLanzarExcepcionSiNoExiste() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 99L)).thenReturn(false);
@@ -302,13 +349,47 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-04: modificarMolino actualiza los datos y persiste cuando el ID existe y el identificador está libre (camino feliz)")
+    @DisplayName("CP-MM-05: modificarMolino lanza ReglaNegocioException y no persiste cuando el molino está asociado a un lote pendiente")
+    void modificarMolino_debeRechazarAsociacionALotePendiente() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 100.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 1L)).thenReturn(false);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar el molino porque está asociado a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-06: modificarMolino lanza ReglaNegocioException y no persiste cuando el molino se encuentra en uso")
+    void modificarMolino_debeRechazarSiEstaEnUso() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0, EstadoOperativo.EN_USO);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 100.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 1L)).thenReturn(false);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar el molino porque se encuentra en uso.");
+
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-07: modificarMolino actualiza los datos y persiste cuando el ID existe y el identificador está libre (camino feliz)")
     void modificarMolino_debeActualizarMolinoExistente() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-VIEJO", 90.0);
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-NUEVO", 100.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-NUEVO", 1L)).thenReturn(false);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
         // === EJECUCION ===
@@ -321,21 +402,25 @@ class MolinoServicioImplTest {
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-NUEVO");
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Molino de prueba");
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(100.0);
+        assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
 
         assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-NUEVO");
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(100.0);
+        assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(molinoRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-NUEVO", 1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
     }
 
     @Test
-    @DisplayName("CP-MM-05: modificarMolino permite conservar el propio identificador actual al actualizar otros campos")
+    @DisplayName("CP-MM-08: modificarMolino permite conservar el propio identificador actual al actualizar otros campos")
     void modificarMolino_debePermitirConservarIdentificadorPropio() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         // Mismo identificador (distinto case): el AndIdNot excluye el propio ID y no debe fallar
         MolinoFormDTO molinoFormDTO = molinoFormDTO("mol-01", 100.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("mol-01", 1L)).thenReturn(false);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
         MolinoResponseDTO resultado = molinoServicio.modificarMolino(1L, molinoFormDTO);
@@ -346,23 +431,6 @@ class MolinoServicioImplTest {
     }
 
     // ==================== bajaMolino ====================
-
-    @Test
-    @DisplayName("CP-BM-02: bajaMolino marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
-    void bajaMolino_debeMarcarBajaYRetornarMolinoExistente() {
-        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
-        when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
-
-        MolinoResponseDTO resultado = molinoServicio.bajaMolino(1L);
-
-        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
-        assertThat(molinoEntity.getEstado()).isEqualTo(Estado.BAJA);
-        assertMolinoDTO(molinoEntity, resultado);
-        verify(molinoRepository).findById(1L);
-        verify(molinoRepository).save(molinoEntity);
-        verify(molinoRepository, never()).delete(any());
-    }
 
     @Test
     @DisplayName("CP-BM-01: bajaMolino lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
@@ -377,24 +445,82 @@ class MolinoServicioImplTest {
         verify(molinoRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino está asociado a un lote pendiente")
+    void bajaMolino_debeRechazarAsociacionALotePendiente() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el molino porque está asociado a un lote pendiente.");
+
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-03: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino se encuentra en uso")
+    void bajaMolino_debeRechazarSiEstaEnUso() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_USO);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el molino porque se encuentra en uso.");
+
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-04: bajaMolino marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    void bajaMolino_debeMarcarBajaYRetornarMolinoExistente() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
+
+        MolinoResponseDTO resultado = molinoServicio.bajaMolino(1L);
+
+        // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
+        assertThat(molinoEntity.getEstado()).isEqualTo(Estado.BAJA);
+        assertMolinoDTO(molinoEntity, resultado);
+        verify(molinoRepository).findById(1L);
+        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(molinoRepository).save(molinoEntity);
+        verify(molinoRepository, never()).delete(any());
+    }
+
     // ==================== helpers ====================
 
     private static MolinoEntity crearMolinoEntity(Long id, String identificadorInterno, Double rendimientoMolienda) {
+        return crearMolinoEntity(id, identificadorInterno, rendimientoMolienda, EstadoOperativo.DISPONIBLE);
+    }
+
+    private static MolinoEntity crearMolinoEntity(Long id, String identificadorInterno, Double rendimientoMolienda, EstadoOperativo estadoOperativo) {
         return MolinoEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Molino de prueba")
-                .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .estadoOperativo(estadoOperativo)
                 .rendimientoMolienda(rendimientoMolienda)
+                .usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
     private static MolinoFormDTO molinoFormDTO(String identificadorInterno, Double rendimientoMolienda) {
+        return molinoFormDTO(identificadorInterno, rendimientoMolienda, USOS_MAXIMOS_ANTES_MANTENIMIENTO);
+    }
+
+    private static MolinoFormDTO molinoFormDTO(String identificadorInterno, Double rendimientoMolienda, Integer usosMaximosAntesMantenimiento) {
         return MolinoFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
                 .descripcion("Molino de prueba")
                 .rendimientoMolienda(rendimientoMolienda)
+                .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .build();
     }
 
@@ -404,6 +530,7 @@ class MolinoServicioImplTest {
         assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getRendimientoMolienda()).isEqualTo(entidad.getRendimientoMolienda());
+        assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }
