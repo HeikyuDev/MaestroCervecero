@@ -19,5 +19,10 @@ public enum EstadoOperativoBarril {
     /**
      * El barril ha sido devuelto y se encuentra en proceso de limpieza.
      */
-    EN_LIMPIEZA
+    EN_LIMPIEZA,
+
+    /***
+     * El barril esta en proceso de mantenimiento, no puede ser utilizado hasta que se complete el mantenimiento.
+     */
+    EN_MANTENIMIENTO
 }

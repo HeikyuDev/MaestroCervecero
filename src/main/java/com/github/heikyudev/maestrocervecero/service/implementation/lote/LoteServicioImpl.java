@@ -399,6 +399,162 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
+     * Finaliza la etapa de Hervido del lote y da paso a la Fermentación.
+     *
+     * @param id El ID del lote cuyo Hervido se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Hervido, o si algún insumo requerido
+     *                               de la etapa no alcanzó el porcentaje mínimo de consumo
+     *                               configurado.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteResponseDTO finalizarHervido(Long id) {
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+
+        // 2. Validar que el lote se encuentre en estado EN_EJECUCION
+        if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
+            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+        }
+
+        // 3. Validar que la etapa actual (EN_CURSO) sea Hervido
+        EtapaLoteEntity etapaHervido = obtenerEtapaEnCursoValidando(lote, TipoEtapa.HERVIDO);
+
+        // 4. Validar que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+        //    mínimo configurado
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
+        validarPorcentajeMinimoConsumido(etapaHervido, configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa());
+
+        // 5. Finalizar Hervido e iniciar Fermentación
+        EtapaLoteEntity etapaFermentacion = lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION);
+        avanzarEtapa(etapaHervido, etapaFermentacion);
+
+        // 6. La olla de hervor utilizada pasa a estado EN_LIMPIEZA
+        Long idOllaHervor = etapaHervido.getEquipamiento().getId();
+        OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervor)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + idOllaHervor));
+        ollaHervor.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
+        ollaHervorRepository.save(ollaHervor);
+
+        // 7. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Hervido
+        liberarReservasDeLaEtapa(etapaHervido);
+
+        return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
+     * Finaliza la etapa de Fermentación del lote y da paso a la Maduración.
+     * <p>
+     * A diferencia de las demás transiciones de etapa, no cambia el estado operativo de ningún
+     * equipamiento: el fermentador es compartido por Fermentación, Maduración y Envasado, así que
+     * sigue {@code EN_USO} sin interrupción hasta que termine la última de esas tres etapas.
+     * </p>
+     *
+     * @param id El ID del lote cuya Fermentación se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Fermentación, o si algún insumo
+     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
+     *                               consumo configurado.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteResponseDTO finalizarFermentacion(Long id) {
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+
+        // 2. Validar que el lote se encuentre en estado EN_EJECUCION
+        if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
+            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+        }
+
+        // 3. Validar que la etapa actual (EN_CURSO) sea Fermentación
+        EtapaLoteEntity etapaFermentacion = obtenerEtapaEnCursoValidando(lote, TipoEtapa.FERMENTACION);
+
+        // 4. Validar que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+        //    mínimo configurado
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
+        validarPorcentajeMinimoConsumido(etapaFermentacion, configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa());
+
+        // 5. Finalizar Fermentación e iniciar Maduración (el fermentador, compartido por ambas
+        //    etapas, sigue EN_USO sin cambios)
+        EtapaLoteEntity etapaMaduracion = lote.obtenerEtapaPorTipo(TipoEtapa.MADURACION);
+        avanzarEtapa(etapaFermentacion, etapaMaduracion);
+
+        // 6. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Fermentación
+        liberarReservasDeLaEtapa(etapaFermentacion);
+
+        return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
+     * Finaliza la etapa de Maduración del lote y da paso al Envasado.
+     * <p>
+     * Igual que {@link #finalizarFermentacion(Long)}, no cambia el estado operativo de ningún
+     * equipamiento: el fermentador es compartido por Fermentación, Maduración y Envasado, así que
+     * sigue {@code EN_USO} sin interrupción hasta que termine el Envasado. La validación del
+     * porcentaje mínimo de consumo también aplica acá: es infrecuente que Maduración requiera
+     * insumos, pero puede haberlos (por ejemplo, un lúpulo de Dry Hop).
+     * </p>
+     *
+     * @param id El ID del lote cuya Maduración se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Maduración, o si algún insumo
+     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
+     *                               consumo configurado.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteResponseDTO finalizarMaduracion(Long id) {
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+
+        // 2. Validar que el lote se encuentre en estado EN_EJECUCION
+        if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
+            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+        }
+
+        // 3. Validar que la etapa actual (EN_CURSO) sea Maduración
+        EtapaLoteEntity etapaMaduracion = obtenerEtapaEnCursoValidando(lote, TipoEtapa.MADURACION);
+
+        // 4. Validar que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+        //    mínimo configurado (infrecuente que haya alguno, pero puede haber un lúpulo de Dry Hop)
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
+        validarPorcentajeMinimoConsumido(etapaMaduracion, configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa());
+
+        // 5. Finalizar Maduración e iniciar Envasado (el fermentador, compartido por ambas etapas,
+        //    sigue EN_USO sin cambios)
+        EtapaLoteEntity etapaEnvasado = lote.obtenerEtapaPorTipo(TipoEtapa.ENVASADO);
+        avanzarEtapa(etapaMaduracion, etapaEnvasado);
+
+        // 6. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Maduración
+        liberarReservasDeLaEtapa(etapaMaduracion);
+
+        return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
      * Valida que la cantidad consumida de CADA insumo requerido por una etapa alcance el
      * porcentaje mínimo configurado sobre su cantidad requerida (escalada), para evitar que se
      * avance de etapa por error sin haber registrado consumos, o habiéndolos registrado de forma

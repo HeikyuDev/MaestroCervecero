@@ -28,10 +28,10 @@ public class BarrilEntity extends AuditableEntity<String> {
     private Long id;
 
     /**
-     * Etiqueta única asignada internamente para identificar el barril.
+     * Identificador único asignado para identificar el barril de otros Barriles.
      */
-    @Column(name = "identificador_interno", nullable = false)
-    private String identificadorInterno;
+    @Column(name = "identificador", nullable = false)
+    private String identificador;
 
     /**
      * Capacidad total del barril en litros.
@@ -53,10 +53,15 @@ public class BarrilEntity extends AuditableEntity<String> {
      * - DESPACHADO: El barril ha sido entregado a un cliente.
      * - DISPONIBLE: El barril está vacío y listo para ser utilizado.
      * - EN_LIMPIEZA: El barril se encuentra en proceso de limpieza.
+     * - EN_MANTENIMIENTO: El barril está en proceso de mantenimiento y no puede ser utilizado hasta que se complete el mantenimiento.
      */
     @Column(name = "estado_operativo",nullable = false)
     @Enumerated(EnumType.STRING)
     private EstadoOperativoBarril estadoOperativo;
+
+
+    @Column(name = "usos_maximos_antes_mantenimiento", nullable = false)
+    private Integer usosMaximosAntesMantenimiento;
 
     /**
      * Estado general del barril, que indica si está activo o inactivo en el sistema.

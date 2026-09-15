@@ -138,4 +138,95 @@ public interface ILoteServicio {
      *                               consumo configurado.
      */
     LoteResponseDTO finalizarMaceracion(Long id);
+
+    /**
+     * Finaliza la etapa de Hervido del lote y da paso a la Fermentación.
+     * <p>
+     * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote.
+     * </p>
+     * <ul>
+     *     <li>Valida que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+     *     mínimo de consumo configurado por el gerente de producción — evita avanzar de etapa por
+     *     error sin haber registrado consumos, o habiéndolos registrado de forma incompleta.</li>
+     *     <li>La etapa de Hervido se desmarca como etapa actual (pasa a FINALIZADA) y se registra
+     *     su fecha y hora de fin.</li>
+     *     <li>La etapa de Fermentación se marca como etapa actual (pasa a EN_CURSO) y se registra
+     *     su fecha y hora de inicio.</li>
+     *     <li>La olla de hervor utilizada pasa a estado "En Limpieza".</li>
+     *     <li>Se liberan las reservas de insumo que hayan quedado sin consumir de la etapa de
+     *     Hervido.</li>
+     * </ul>
+     *
+     * @param id El ID del lote cuyo Hervido se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Hervido, o si algún insumo requerido
+     *                               de la etapa no alcanzó el porcentaje mínimo de consumo
+     *                               configurado.
+     */
+    LoteResponseDTO finalizarHervido(Long id);
+
+    /**
+     * Finaliza la etapa de Fermentación del lote y da paso a la Maduración.
+     * <p>
+     * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote.
+     * A diferencia de las demás transiciones de etapa, no cambia el estado operativo de ningún
+     * equipamiento: el fermentador es compartido por Fermentación, Maduración y Envasado, así que
+     * sigue "En Uso" sin interrupción hasta que termine la última de esas tres etapas.
+     * </p>
+     * <ul>
+     *     <li>Valida que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+     *     mínimo de consumo configurado por el gerente de producción — evita avanzar de etapa por
+     *     error sin haber registrado consumos, o habiéndolos registrado de forma incompleta.</li>
+     *     <li>La etapa de Fermentación se desmarca como etapa actual (pasa a FINALIZADA) y se
+     *     registra su fecha y hora de fin.</li>
+     *     <li>La etapa de Maduración se marca como etapa actual (pasa a EN_CURSO) y se registra su
+     *     fecha y hora de inicio.</li>
+     *     <li>Se liberan las reservas de insumo que hayan quedado sin consumir de la etapa de
+     *     Fermentación.</li>
+     * </ul>
+     *
+     * @param id El ID del lote cuya Fermentación se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Fermentación, o si algún insumo
+     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
+     *                               consumo configurado.
+     */
+    LoteResponseDTO finalizarFermentacion(Long id);
+
+    /**
+     * Finaliza la etapa de Maduración del lote y da paso al Envasado.
+     * <p>
+     * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote.
+     * Igual que {@code finalizarFermentacion}, no cambia el estado operativo de ningún
+     * equipamiento: el fermentador es compartido por Fermentación, Maduración y Envasado, así que
+     * sigue "En Uso" sin interrupción hasta que termine el Envasado.
+     * </p>
+     * <ul>
+     *     <li>Valida que el consumo de cada insumo requerido de la etapa alcance el porcentaje
+     *     mínimo de consumo configurado por el gerente de producción (infrecuente que Maduración
+     *     requiera insumos, pero puede haberlos, por ejemplo un lúpulo de Dry Hop).</li>
+     *     <li>La etapa de Maduración se desmarca como etapa actual (pasa a FINALIZADA) y se
+     *     registra su fecha y hora de fin.</li>
+     *     <li>La etapa de Envasado se marca como etapa actual (pasa a EN_CURSO) y se registra su
+     *     fecha y hora de inicio.</li>
+     *     <li>Se liberan las reservas de insumo que hayan quedado sin consumir de la etapa de
+     *     Maduración.</li>
+     * </ul>
+     *
+     * @param id El ID del lote cuya Maduración se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     *                               actual (EN_CURSO) no es Maduración, o si algún insumo
+     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
+     *                               consumo configurado.
+     */
+    LoteResponseDTO finalizarMaduracion(Long id);
 }

@@ -48,6 +48,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
@@ -1376,6 +1378,399 @@ class LoteServicioImplTest {
         verify(loteInsumoRepository).save(loteInsumo);
         verify(reservaInsumoRepository).deleteAll(List.of(reserva));
         verifyNoInteractions(molinoRepository, ollaHervorRepository, fermentadorRepository);
+        verify(loteRepository).save(lote);
+    }
+
+    // ==================== finalizarHervido ====================
+
+    @Test
+    @DisplayName("CP-FH-01: finalizarHervido lanza RecursoNoEncontradoException si el lote no existe")
+    void finalizarHervido_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarHervido(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(ollaHervorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FH-02: finalizarHervido lanza ReglaNegocioException si el lote no está EN_EJECUCION")
+    void finalizarHervido_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarHervido(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(ollaHervorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FH-03: finalizarHervido lanza ReglaNegocioException si la etapa actual no es Hervido")
+    void finalizarHervido_debeLanzarExcepcionSiEtapaActualNoEsHervido() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarHervido(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(ollaHervorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FH-04: finalizarHervido lanza RecursoNoEncontradoException si no existe la configuración de producción")
+    void finalizarHervido_debeLanzarExcepcionSiNoExisteConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarHervido(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(consumoInsumoServicio, ollaHervorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FH-05: finalizarHervido lanza ReglaNegocioException si algún insumo requerido no alcanzó el porcentaje mínimo de consumo configurado")
+    void finalizarHervido_debeLanzarExcepcionSiNoAlcanzaElPorcentajeMinimo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        EtapaLoteEntity etapaHervido = findEtapa(lote, TipoEtapa.HERVIDO);
+        etapaHervido.setId(3L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(3L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(LupuloResponseDTO.builder().id(1L).nombre("Cascade").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(7.0) // 70% < 80% requerido
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarHervido(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("Cascade");
+        verifyNoInteractions(ollaHervorRepository, reservaInsumoRepository);
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FH-06: finalizarHervido — camino feliz: Hervido FINALIZADA, Fermentación EN_CURSO, olla de hervor EN_LIMPIEZA, se liberan las reservas de la etapa")
+    void finalizarHervido_debeAvanzarDeHervidoAFermentacionCorrectamente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        EtapaLoteEntity etapaHervido = findEtapa(lote, TipoEtapa.HERVIDO);
+        etapaHervido.setId(3L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(3L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(LupuloResponseDTO.builder().id(1L).nombre("Cascade").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(8.0) // exactamente 80%: alcanza (>=)
+                        .build()));
+        mockearEquipamientoParaIniciar(lote);
+
+        LupuloEntity lupulo = crearLupulo(1L, "Cascade", 5.5, FormatoLupulo.PELLET);
+        LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(lupulo).identificacionLoteProveedor("LOTE-A")
+                .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaHervido).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        when(reservaInsumoRepository.findByEtapaLoteId(3L)).thenReturn(List.of(reserva));
+        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.finalizarHervido(1L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(etapaHervido.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(etapaHervido.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        EtapaLoteEntity etapaFermentacion = findEtapa(lote, TipoEtapa.FERMENTACION);
+        assertThat(etapaFermentacion.getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        assertThat(etapaFermentacion.getFechaInicio()).isNotNull().isBetween(antes, despues);
+
+        // Las etapas restantes no se tocan
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MADURACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+
+        ArgumentCaptor<OllaHervorEntity> ollaHervorCaptor = ArgumentCaptor.forClass(OllaHervorEntity.class);
+        verify(ollaHervorRepository).save(ollaHervorCaptor.capture());
+        assertThat(ollaHervorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verify(loteInsumoRepository).save(loteInsumo);
+        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        verifyNoInteractions(molinoRepository, maceradorRepository, fermentadorRepository);
+        verify(loteRepository).save(lote);
+    }
+
+    // ==================== finalizarFermentacion ====================
+
+    @Test
+    @DisplayName("CP-FF-01: finalizarFermentacion lanza RecursoNoEncontradoException si el lote no existe")
+    void finalizarFermentacion_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarFermentacion(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FF-02: finalizarFermentacion lanza ReglaNegocioException si el lote no está EN_EJECUCION")
+    void finalizarFermentacion_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarFermentacion(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FF-03: finalizarFermentacion lanza ReglaNegocioException si la etapa actual no es Fermentación")
+    void finalizarFermentacion_debeLanzarExcepcionSiEtapaActualNoEsFermentacion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarFermentacion(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FF-04: finalizarFermentacion lanza RecursoNoEncontradoException si no existe la configuración de producción")
+    void finalizarFermentacion_debeLanzarExcepcionSiNoExisteConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarFermentacion(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FF-05: finalizarFermentacion lanza ReglaNegocioException si algún insumo requerido no alcanzó el porcentaje mínimo de consumo configurado")
+    void finalizarFermentacion_debeLanzarExcepcionSiNoAlcanzaElPorcentajeMinimo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
+        EtapaLoteEntity etapaFermentacion = findEtapa(lote, TipoEtapa.FERMENTACION);
+        etapaFermentacion.setId(4L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(4L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(LevaduraResponseDTO.builder().id(1L).nombre("Levadura Ale").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(7.0) // 70% < 80% requerido
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarFermentacion(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("Levadura Ale");
+        verifyNoInteractions(reservaInsumoRepository);
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FF-06: finalizarFermentacion — camino feliz: Fermentación FINALIZADA, Maduración EN_CURSO, ningún equipamiento cambia de estado, se liberan las reservas de la etapa")
+    void finalizarFermentacion_debeAvanzarDeFermentacionAMaduracionCorrectamente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
+        EtapaLoteEntity etapaFermentacion = findEtapa(lote, TipoEtapa.FERMENTACION);
+        etapaFermentacion.setId(4L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(4L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(LevaduraResponseDTO.builder().id(1L).nombre("Levadura Ale").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(8.0) // exactamente 80%: alcanza (>=)
+                        .build()));
+
+        LevaduraEntity levadura = crearLevadura(1L, "Levadura Ale", TipoLevadura.ALE, 2.0E10);
+        LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(levadura).identificacionLoteProveedor("LOTE-A")
+                .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaFermentacion).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        when(reservaInsumoRepository.findByEtapaLoteId(4L)).thenReturn(List.of(reserva));
+        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.finalizarFermentacion(1L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(etapaFermentacion.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(etapaFermentacion.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        EtapaLoteEntity etapaMaduracion = findEtapa(lote, TipoEtapa.MADURACION);
+        assertThat(etapaMaduracion.getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        assertThat(etapaMaduracion.getFechaInicio()).isNotNull().isBetween(antes, despues);
+
+        // Las etapas restantes no se tocan
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verify(loteInsumoRepository).save(loteInsumo);
+        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+
+        // Ningún equipamiento cambia de estado operativo: el fermentador sigue EN_USO sin interrupción
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+        verify(loteRepository).save(lote);
+    }
+
+    // ==================== finalizarMaduracion ====================
+
+    @Test
+    @DisplayName("CP-FMD-01: finalizarMaduracion lanza RecursoNoEncontradoException si el lote no existe")
+    void finalizarMaduracion_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaduracion(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMD-02: finalizarMaduracion lanza ReglaNegocioException si el lote no está EN_EJECUCION")
+    void finalizarMaduracion_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaduracion(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMD-03: finalizarMaduracion lanza ReglaNegocioException si la etapa actual no es Maduración")
+    void finalizarMaduracion_debeLanzarExcepcionSiEtapaActualNoEsMaduracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaduracion(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMD-04: finalizarMaduracion lanza RecursoNoEncontradoException si no existe la configuración de producción")
+    void finalizarMaduracion_debeLanzarExcepcionSiNoExisteConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaduracion(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FMD-05: finalizarMaduracion lanza ReglaNegocioException si algún insumo requerido (ej. un lúpulo de Dry Hop) no alcanzó el porcentaje mínimo de consumo configurado")
+    void finalizarMaduracion_debeLanzarExcepcionSiNoAlcanzaElPorcentajeMinimo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION);
+        EtapaLoteEntity etapaMaduracion = findEtapa(lote, TipoEtapa.MADURACION);
+        etapaMaduracion.setId(5L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(5L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(LupuloResponseDTO.builder().id(1L).nombre("Citra Dry Hop").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(7.0) // 70% < 80% requerido
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaduracion(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("Citra Dry Hop");
+        verifyNoInteractions(reservaInsumoRepository);
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FMD-06: finalizarMaduracion — camino feliz: Maduración FINALIZADA, Envasado EN_CURSO, ningún equipamiento cambia de estado, se liberan las reservas de la etapa")
+    void finalizarMaduracion_debeAvanzarDeMaduracionAEnvasadoCorrectamente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION);
+        EtapaLoteEntity etapaMaduracion = findEtapa(lote, TipoEtapa.MADURACION);
+        etapaMaduracion.setId(5L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(5L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(LupuloResponseDTO.builder().id(1L).nombre("Citra Dry Hop").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(8.0) // exactamente 80%: alcanza (>=)
+                        .build()));
+
+        LupuloEntity lupulo = crearLupulo(1L, "Citra Dry Hop", 12.0, FormatoLupulo.PELLET);
+        LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(lupulo).identificacionLoteProveedor("LOTE-A")
+                .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMaduracion).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        when(reservaInsumoRepository.findByEtapaLoteId(5L)).thenReturn(List.of(reserva));
+        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.finalizarMaduracion(1L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(etapaMaduracion.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(etapaMaduracion.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        EtapaLoteEntity etapaEnvasado = findEtapa(lote, TipoEtapa.ENVASADO);
+        assertThat(etapaEnvasado.getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        assertThat(etapaEnvasado.getFechaInicio()).isNotNull().isBetween(antes, despues);
+
+        // Las etapas restantes no se tocan
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.FERMENTACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verify(loteInsumoRepository).save(loteInsumo);
+        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+
+        // Ningún equipamiento cambia de estado operativo: el fermentador sigue EN_USO sin interrupción
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
         verify(loteRepository).save(lote);
     }
 
