@@ -69,4 +69,9 @@ public class BarrilEntity extends AuditableEntity<String> {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Estado estado;
+
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "fabricante_id", nullable = false)
+    private FabricanteBarrilEntity fabricante;
 }

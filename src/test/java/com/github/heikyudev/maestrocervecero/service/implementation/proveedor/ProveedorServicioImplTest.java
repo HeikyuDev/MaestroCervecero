@@ -144,13 +144,12 @@ class ProveedorServicioImplTest {
     void altaProveedor_debeRechazarRazonSocialDuplicada() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())).thenReturn(true);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial()
-                        + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+                .hasMessage("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial() + "'");
 
         verifyNoInteractions(proveedorRepository, localidadRepository, insumoRepository, presentacionComercialRepository);
     }
@@ -160,13 +159,13 @@ class ProveedorServicioImplTest {
     void altaProveedor_debeRechazarCuitDuplicado() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().cuit("30-11111111-1").build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), "30-11111111-1")).thenReturn(true);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-11111111-1")).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial()
-                        + "' o el CUIT '30-11111111-1'");
+                .hasMessage("Ya existe un proveedor activo con el CUIT '30-11111111-1'");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -176,8 +175,10 @@ class ProveedorServicioImplTest {
     void altaProveedor_debeRechazarLocalidadInexistente() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().idLocalidad(99L).build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
+                versionFormDTO.getCuit())).thenReturn(false);
         when(localidadRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO))
@@ -194,8 +195,10 @@ class ProveedorServicioImplTest {
                 .catalogoProveedor(List.of(catalogoProveedorFormDTO(PRESENTACION_ID, 99L)))
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
+                versionFormDTO.getCuit())).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(PRESENTACION_ID)).thenReturn(Optional.of(presentacionComercialEntity(PRESENTACION_ID)));
         when(insumoRepository.findById(99L)).thenReturn(Optional.empty());
@@ -214,8 +217,10 @@ class ProveedorServicioImplTest {
                 .catalogoProveedor(List.of(catalogoProveedorFormDTO(99L, INSUMO_ID)))
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
+                versionFormDTO.getCuit())).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -232,8 +237,10 @@ class ProveedorServicioImplTest {
         // === PREPARACION DE DATOS ===
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().catalogoProveedor(List.of()).build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
+                versionFormDTO.getCuit())).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(proveedorRepository.save(any(ProveedorEntity.class))).thenAnswer(invocation -> {
             ProveedorEntity entidadGuardada = invocation.getArgument(0);
@@ -286,13 +293,12 @@ class ProveedorServicioImplTest {
     void modificarProveedor_debeRechazarRazonSocialEnUsoPorOtroProveedor() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(true);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial()
-                        + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+                .hasMessage("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial() + "'");
 
         verifyNoInteractions(proveedorRepository, localidadRepository, insumoRepository, presentacionComercialRepository);
     }
@@ -302,13 +308,14 @@ class ProveedorServicioImplTest {
     void modificarProveedor_debeRechazarCuitEnUsoPorOtroProveedor() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(true);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial()
-                        + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+                .hasMessage("Ya existe un proveedor activo con el CUIT '" + versionFormDTO.getCuit() + "'");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -324,8 +331,10 @@ class ProveedorServicioImplTest {
                 .cuit("30-11111111-1")
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                "Maltería del Sur S.A.", "30-11111111-1", 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                "Maltería del Sur S.A.", 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                "30-11111111-1", 1L)).thenReturn(false);
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -345,8 +354,10 @@ class ProveedorServicioImplTest {
     void modificarProveedor_debeLanzarExcepcionSiNoExiste() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 99L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 99L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 99L)).thenReturn(false);
         when(proveedorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(99L, proveedorFormDTO))
@@ -365,8 +376,10 @@ class ProveedorServicioImplTest {
         ProveedorEntity proveedorEntityExistente = crearProveedorEntityConVersiones(1L, versionActivaPrevia);
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().idLocalidad(99L).build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 1L)).thenReturn(false);
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -391,8 +404,10 @@ class ProveedorServicioImplTest {
                 .catalogoProveedor(List.of(catalogoProveedorFormDTO(PRESENTACION_ID, 99L)))
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 1L)).thenReturn(false);
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(PRESENTACION_ID)).thenReturn(Optional.of(presentacionComercialEntity(PRESENTACION_ID)));
@@ -416,8 +431,10 @@ class ProveedorServicioImplTest {
                 .catalogoProveedor(List.of(catalogoProveedorFormDTO(99L, INSUMO_ID)))
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 1L)).thenReturn(false);
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
@@ -440,8 +457,10 @@ class ProveedorServicioImplTest {
                 .razonSocial("Maltería del Sur S.A. - Sucursal Norte")
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 1L)).thenReturn(false);
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -470,8 +489,10 @@ class ProveedorServicioImplTest {
         VersionProveedorEntity version2 = crearVersionProveedorEntity(11L, "Maltería del Sur v2", "30-11111111-1", false);
         VersionProveedorEntity version3 = crearVersionProveedorEntity(12L, "Maltería del Sur S.A.", "30-11111111-1", true);
         ProveedorEntity proveedorEntityExistente = crearProveedorEntityConVersiones(1L, version1, version2, version3);
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getRazonSocial(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
+                versionFormDTO.getCuit(), 1L)).thenReturn(false);
         when(proveedorRepository.findById(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -568,8 +589,10 @@ class ProveedorServicioImplTest {
     }
 
     private void mockearAltaExitosa(VersionProveedorFormDTO versionFormDTO) {
-        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())).thenReturn(false);
+        when(versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(
+                versionFormDTO.getRazonSocial())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
+                versionFormDTO.getCuit())).thenReturn(false);
         when(localidadRepository.findById(versionFormDTO.getIdLocalidad())).thenReturn(Optional.of(localidadEntity(versionFormDTO.getIdLocalidad())));
         mockearCatalogo(versionFormDTO);
         when(proveedorRepository.save(any(ProveedorEntity.class))).thenAnswer(invocation -> {

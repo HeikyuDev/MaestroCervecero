@@ -20,41 +20,71 @@ public interface IVersionProveedorRepository extends JpaRepository<VersionProvee
 
     /**
      * Verifica si existe una versión de proveedor activa, marcada como última versión, con la
-     * razón social (ignorando mayúsculas y minúsculas) o el CUIT dados, perteneciente a un
-     * proveedor activo.
+     * razón social dada (ignorando mayúsculas y minúsculas), perteneciente a un proveedor activo.
      * <p>
-     * La razón social y el CUIT de un proveedor son, en rigor, los de su última versión activa:
-     * por eso la unicidad se valida contra {@code esUltimaVersion = true} y no contra todo el
-     * historial.
+     * La razón social de un proveedor es, en rigor, la de su última versión activa: por eso la
+     * unicidad se valida contra {@code esUltimaVersion = true} y no contra todo el historial.
      * </p>
      *
      * @param razonSocial La razón social a buscar.
-     * @param cuit El CUIT a buscar.
-     * @return {@code true} si ya existe un proveedor activo con esa razón social o ese CUIT, {@code false} en caso contrario.
+     * @return {@code true} si ya existe un proveedor activo con esa razón social, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE (UPPER(v.razonSocial) = UPPER(:razonSocial) OR v.cuit = :cuit) " +
+            "WHERE UPPER(v.razonSocial) = UPPER(:razonSocial) " +
             "AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
-    boolean existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(@Param("razonSocial") String razonSocial, @Param("cuit") String cuit);
+    boolean existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(@Param("razonSocial") String razonSocial);
+
+    /**
+     * Verifica si existe una versión de proveedor activa, marcada como última versión, con el
+     * CUIT dado, perteneciente a un proveedor activo.
+     * <p>
+     * El CUIT de un proveedor es, en rigor, el de su última versión activa: por eso la unicidad
+     * se valida contra {@code esUltimaVersion = true} y no contra todo el historial.
+     * </p>
+     *
+     * @param cuit El CUIT a buscar.
+     * @return {@code true} si ya existe un proveedor activo con ese CUIT, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE v.cuit = :cuit " +
+            "AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
+    boolean existsByCuitAndEsUltimaVersionTrue(@Param("cuit") String cuit);
 
     /**
      * Verifica si existe una versión de proveedor activa, marcada como última versión, con la
-     * razón social (ignorando mayúsculas y minúsculas) o el CUIT dados, perteneciente a un
-     * proveedor activo, excluyendo de la búsqueda al proveedor con el ID indicado.
+     * razón social dada (ignorando mayúsculas y minúsculas), perteneciente a un proveedor activo,
+     * excluyendo de la búsqueda al proveedor con el ID indicado.
      * <p>
-     * Se utiliza en la modificación para permitir conservar la propia razón social o el propio
-     * CUIT actuales sin que la validación de unicidad falle contra el mismo registro.
+     * Se utiliza en la modificación para permitir conservar la propia razón social actual sin que
+     * la validación de unicidad falle contra el mismo registro.
      * </p>
      *
      * @param razonSocial La razón social a buscar.
-     * @param cuit El CUIT a buscar.
      * @param proveedorId El ID del proveedor a excluir de la verificación.
-     * @return {@code true} si otro proveedor activo ya posee esa razón social o ese CUIT, {@code false} en caso contrario.
+     * @return {@code true} si otro proveedor activo ya posee esa razón social, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE (UPPER(v.razonSocial) = UPPER(:razonSocial) OR v.cuit = :cuit) " +
+            "WHERE UPPER(v.razonSocial) = UPPER(:razonSocial) " +
             "AND v.esUltimaVersion = true AND v.proveedor.id <> :proveedorId AND v.proveedor.estado = 'ACTIVO'")
-    boolean existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(@Param("razonSocial") String razonSocial, @Param("cuit") String cuit, @Param("proveedorId") Long proveedorId);
+    boolean existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(@Param("razonSocial") String razonSocial, @Param("proveedorId") Long proveedorId);
+
+    /**
+     * Verifica si existe una versión de proveedor activa, marcada como última versión, con el
+     * CUIT dado, perteneciente a un proveedor activo, excluyendo de la búsqueda al proveedor con
+     * el ID indicado.
+     * <p>
+     * Se utiliza en la modificación para permitir conservar el propio CUIT actual sin que la
+     * validación de unicidad falle contra el mismo registro.
+     * </p>
+     *
+     * @param cuit El CUIT a buscar.
+     * @param proveedorId El ID del proveedor a excluir de la verificación.
+     * @return {@code true} si otro proveedor activo ya posee ese CUIT, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE v.cuit = :cuit " +
+            "AND v.esUltimaVersion = true AND v.proveedor.id <> :proveedorId AND v.proveedor.estado = 'ACTIVO'")
+    boolean existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(@Param("cuit") String cuit, @Param("proveedorId") Long proveedorId);
 
     /**
      * Verifica si existe una versión de proveedor activa, marcada como última versión, cuya

@@ -86,7 +86,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      *
      * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor y su versión inicial.
      * @return {@link ProveedorResponseDTO} representativo del proveedor guardado en la base de datos.
-     * @throws RecursoDuplicadoException Si la razón social o el CUIT provistos ya pertenecen a un proveedor activo.
+     * @throws RecursoDuplicadoException Si la razón social ya pertenece a otro proveedor activo, o si el CUIT ya pertenece a otro proveedor activo.
      * @throws RecursoNoEncontradoException Si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -95,19 +95,22 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     public ProveedorResponseDTO altaProveedor(ProveedorFormDTO proveedorFormDTO) {
         VersionProveedorFormDTO versionFormDTO = proveedorFormDTO.getVersion();
 
-        // 1. Validar si la razón social o el CUIT ya están registrados en otro proveedor activo
-        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit())) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '"
-                    + versionFormDTO.getRazonSocial() + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+        // 1. Validar que la razón social no esté registrada en otro proveedor activo
+        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(versionFormDTO.getRazonSocial())) {
+            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial() + "'");
         }
 
-        // 2. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
+        // 2. Validar que el CUIT no esté registrado en otro proveedor activo
+        if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(versionFormDTO.getCuit())) {
+            throw new RecursoDuplicadoException("Ya existe un proveedor activo con el CUIT '" + versionFormDTO.getCuit() + "'");
+        }
+
+        // 3. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
         ProveedorEntity proveedorEntity = ProveedorEntity.builder().estado(Estado.ACTIVO).build();
         VersionProveedorEntity versionProveedorEntity = construirVersion(versionFormDTO, proveedorEntity);
         proveedorEntity.getVersiones().add(versionProveedorEntity);
 
-        // 3. Guardar el proveedor en la base de datos y retornar el DTO de respuesta correspondiente
+        // 4. Guardar el proveedor en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
     }
 
@@ -123,7 +126,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * @param id Identificador clave primaria del proveedor a modificar.
      * @param proveedorFormDTO DTO que contiene los nuevos datos de la versión del proveedor.
      * @return {@link ProveedorResponseDTO} representativo del proveedor con la nueva versión aplicada.
-     * @throws RecursoDuplicadoException Si la nueva razón social o el nuevo CUIT ya pertenecen a otro proveedor activo.
+     * @throws RecursoDuplicadoException Si la nueva razón social ya pertenece a otro proveedor activo, o si el nuevo CUIT ya pertenece a otro proveedor activo.
      * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -132,28 +135,32 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     public ProveedorResponseDTO modificarProveedor(Long id, ProveedorFormDTO proveedorFormDTO) {
         VersionProveedorFormDTO versionFormDTO = proveedorFormDTO.getVersion();
 
-        // 1. Validar duplicación excluyendo el propio proveedor, de modo que conservar la razón
-        //    social o el CUIT actuales no falle contra el mismo registro
-        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseOrCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getRazonSocial(), versionFormDTO.getCuit(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '"
-                    + versionFormDTO.getRazonSocial() + "' o el CUIT '" + versionFormDTO.getCuit() + "'");
+        // 1. Validar la razón social excluyendo al propio proveedor, de modo que conservar la
+        //    razón social actual no falle contra el mismo registro
+        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getRazonSocial(), id)) {
+            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial() + "'");
         }
 
-        // 2. Localizar el proveedor existente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
+        // 2. Validar el CUIT excluyendo al propio proveedor, de modo que conservar el CUIT actual
+        //    no falle contra el mismo registro
+        if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getCuit(), id)) {
+            throw new RecursoDuplicadoException("Ya existe un proveedor activo con el CUIT '" + versionFormDTO.getCuit() + "'");
+        }
+
+        // 3. Localizar el proveedor existente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
         ProveedorEntity proveedorEntity = proveedorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
-        // 3. Construir la nueva versión primero: si la localidad, algún insumo o alguna
+        // 4. Construir la nueva versión primero: si la localidad, algún insumo o alguna
         //    presentación comercial no existen, esto lanza antes de tocar la versión anterior
         VersionProveedorEntity nuevaVersionProveedorEntity = construirVersion(versionFormDTO, proveedorEntity);
 
-        // 4. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y
+        // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y
         //    registrar la nueva
         MetodosVersionado.desactivarVersionAnterior(proveedorEntity.getVersiones());
         proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
 
-        // 5. Persistir el proveedor con la nueva versión y retornar el DTO de respuesta correspondiente
+        // 6. Persistir el proveedor con la nueva versión y retornar el DTO de respuesta correspondiente
         return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
     }
 
