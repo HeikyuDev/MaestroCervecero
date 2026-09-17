@@ -163,10 +163,10 @@ class ConsumoInsumoServicioImplTest {
     void registrarReservado_debeLanzarExcepcionSiEtapaLoteNoExiste() {
         // === PREPARACION DE DATOS ===
         when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
-        ConsumoInsumoFormDTO formDTO = formDTOBase(99L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la etapa de lote con ID: 99");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -179,10 +179,10 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.PENDIENTE);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El lote debe estar en ejecución para registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -195,10 +195,10 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.PENDIENTE, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La etapa debe estar en curso para registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -211,10 +211,10 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La etapa de tipo ENVASADO no permite registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -228,10 +228,10 @@ class ConsumoInsumoServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(99L)).thenReturn(Optional.empty());
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 99L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(99L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el lote de insumo con ID: 99");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
@@ -248,10 +248,10 @@ class ConsumoInsumoServicioImplTest {
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, maltaNoUsada, 10.0, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El insumo del lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
@@ -269,10 +269,10 @@ class ConsumoInsumoServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.empty());
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("No existe una reserva de este lote de insumo para esta etapa; utilice el registro de consumo directo");
         verifyNoInteractions(consumoInsumoRepository);
@@ -291,10 +291,10 @@ class ConsumoInsumoServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, null);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, null);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida debe ser mayor a cero");
         verifyNoInteractions(consumoInsumoRepository);
@@ -313,10 +313,10 @@ class ConsumoInsumoServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 0.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 0.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida debe ser mayor a cero");
         verify(loteInsumoRepository, never()).save(any());
@@ -334,10 +334,10 @@ class ConsumoInsumoServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, -3.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, -3.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida debe ser mayor a cero");
         verify(loteInsumoRepository, never()).save(any());
@@ -355,10 +355,10 @@ class ConsumoInsumoServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 6.5);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 6.5);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida no puede superar la cantidad reservada del lote de insumo");
         verify(loteInsumoRepository, never()).save(any());
@@ -378,10 +378,10 @@ class ConsumoInsumoServicioImplTest {
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
         when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 6.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 6.0);
 
         // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO);
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(reserva.getCantidadReservada()).isEqualTo(0.0);
@@ -410,10 +410,10 @@ class ConsumoInsumoServicioImplTest {
             guardado.setId(1L);
             return guardado;
         });
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 4.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 4.0);
 
         // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(formDTO);
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(reserva.getCantidadReservada()).isEqualTo(2.0);
@@ -431,10 +431,10 @@ class ConsumoInsumoServicioImplTest {
     void registrarDirecto_debeLanzarExcepcionSiEtapaLoteNoExiste() {
         // === PREPARACION DE DATOS ===
         when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
-        ConsumoInsumoFormDTO formDTO = formDTOBase(99L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la etapa de lote con ID: 99");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -447,10 +447,10 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.FINALIZADO);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El lote debe estar en ejecución para registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -463,10 +463,10 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.FINALIZADA, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La etapa debe estar en curso para registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -479,10 +479,10 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La etapa de tipo ENVASADO no permite registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
@@ -496,10 +496,10 @@ class ConsumoInsumoServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(99L)).thenReturn(Optional.empty());
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 99L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(99L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el lote de insumo con ID: 99");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
@@ -515,10 +515,10 @@ class ConsumoInsumoServicioImplTest {
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, maltaNoUsada, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 5.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El insumo del lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
@@ -535,10 +535,10 @@ class ConsumoInsumoServicioImplTest {
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, null);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, null);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida debe ser mayor a cero");
         verify(loteInsumoRepository, never()).save(any());
@@ -554,10 +554,10 @@ class ConsumoInsumoServicioImplTest {
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 0.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 0.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida debe ser mayor a cero");
         verify(loteInsumoRepository, never()).save(any());
@@ -573,10 +573,10 @@ class ConsumoInsumoServicioImplTest {
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, -2.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, -2.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida debe ser mayor a cero");
         verify(loteInsumoRepository, never()).save(any());
@@ -592,10 +592,10 @@ class ConsumoInsumoServicioImplTest {
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 10.5);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 10.5);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad consumida no puede superar la cantidad disponible del lote de insumo");
         verify(loteInsumoRepository, never()).save(any());
@@ -613,10 +613,10 @@ class ConsumoInsumoServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 10.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 10.0);
 
         // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO);
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.0);
@@ -643,10 +643,10 @@ class ConsumoInsumoServicioImplTest {
             guardado.setId(1L);
             return guardado;
         });
-        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 1L, 3.0);
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 3.0);
 
         // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(formDTO);
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(4.0);
@@ -902,9 +902,8 @@ class ConsumoInsumoServicioImplTest {
 
     // ==================== helpers de construcción ====================
 
-    private static ConsumoInsumoFormDTO formDTOBase(Long idEtapaLote, Long idLoteInsumo, Double cantidadConsumida) {
+    private static ConsumoInsumoFormDTO formDTOBase(Long idLoteInsumo, Double cantidadConsumida) {
         return ConsumoInsumoFormDTO.builder()
-                .idEtapaLote(idEtapaLote)
                 .idLoteInsumo(idLoteInsumo)
                 .cantidadConsumida(cantidadConsumida)
                 .build();

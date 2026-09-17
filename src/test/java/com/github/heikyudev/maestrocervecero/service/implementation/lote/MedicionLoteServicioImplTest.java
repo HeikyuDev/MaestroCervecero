@@ -163,10 +163,10 @@ class MedicionLoteServicioImplTest {
     void registrarMedicion_debeLanzarExcepcionSiEtapaLoteNoExiste() {
         // === PREPARACION DE DATOS ===
         when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(99L, 1L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class);
         verifyNoInteractions(detalleParametroControlRepository, medicionLoteRepository);
     }
@@ -180,10 +180,10 @@ class MedicionLoteServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.PENDIENTE, versionReceta);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 1L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(detalleParametroControlRepository, medicionLoteRepository);
     }
@@ -197,10 +197,10 @@ class MedicionLoteServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 1L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(detalleParametroControlRepository, medicionLoteRepository);
     }
@@ -215,10 +215,10 @@ class MedicionLoteServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 1L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(detalleParametroControlRepository, medicionLoteRepository);
     }
@@ -233,10 +233,10 @@ class MedicionLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(detalleParametroControlRepository.findById(99L)).thenReturn(Optional.empty());
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 99L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(99L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class);
         verifyNoInteractions(medicionLoteRepository);
     }
@@ -255,10 +255,10 @@ class MedicionLoteServicioImplTest {
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         DetalleParametroControlEntity detalleDeHervido = crearDetalleParametroControl(5L, planHervido, 5.0, 6.0, 5.5);
         when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalleDeHervido));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(medicionLoteRepository);
     }
@@ -276,14 +276,13 @@ class MedicionLoteServicioImplTest {
         DetalleParametroControlEntity detalle = crearDetalleParametroControl(5L, plan, 5.0, 6.0, 5.5);
         when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalle));
         MedicionLoteFormDTO formDTO = MedicionLoteFormDTO.builder()
-                .idEtapaLote(1L)
                 .idDetalleParametroControl(5L)
                 .valorMedido(5.5)
                 .fechaMedicion(LocalDateTime.now().plusHours(1))
                 .build();
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(medicionLoteRepository);
     }
@@ -301,10 +300,10 @@ class MedicionLoteServicioImplTest {
         DetalleParametroControlEntity detalle = crearDetalleParametroControl(5L, plan, 5.0, 6.0, 5.5);
         when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalle));
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(true);
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verify(medicionLoteRepository, never()).save(any());
     }
@@ -324,10 +323,10 @@ class MedicionLoteServicioImplTest {
         when(detalleParametroControlRepository.findById(7L)).thenReturn(Optional.of(detalle7));
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(7L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
         lenient().when(medicionLoteRepository.save(any(MedicionLoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 7L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(7L);
 
         // === EJECUCION ===
-        MedicionLoteResponseDTO resultado = medicionLoteServicio.registrarMedicion(formDTO);
+        MedicionLoteResponseDTO resultado = medicionLoteServicio.registrarMedicion(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(resultado).isNotNull();
@@ -349,10 +348,10 @@ class MedicionLoteServicioImplTest {
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
         ArgumentCaptor<MedicionLoteEntity> captor = ArgumentCaptor.forClass(MedicionLoteEntity.class);
         when(medicionLoteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L, 5.5);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L, 5.5);
 
         // === EJECUCION ===
-        medicionLoteServicio.registrarMedicion(formDTO);
+        medicionLoteServicio.registrarMedicion(1L, formDTO);
 
         // === ASSERTS ===
         MedicionLoteEntity guardada = captor.getValue();
@@ -379,10 +378,10 @@ class MedicionLoteServicioImplTest {
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
         ArgumentCaptor<MedicionLoteEntity> captor = ArgumentCaptor.forClass(MedicionLoteEntity.class);
         when(medicionLoteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L, 4.5);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L, 4.5);
 
         // === EJECUCION ===
-        medicionLoteServicio.registrarMedicion(formDTO);
+        medicionLoteServicio.registrarMedicion(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(captor.getValue().isHayAlerta()).isTrue();
@@ -403,10 +402,10 @@ class MedicionLoteServicioImplTest {
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
         ArgumentCaptor<MedicionLoteEntity> captor = ArgumentCaptor.forClass(MedicionLoteEntity.class);
         when(medicionLoteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L, 6.5);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L, 6.5);
 
         // === EJECUCION ===
-        medicionLoteServicio.registrarMedicion(formDTO);
+        medicionLoteServicio.registrarMedicion(1L, formDTO);
 
         // === ASSERTS ===
         assertThat(captor.getValue().isHayAlerta()).isTrue();
@@ -426,10 +425,10 @@ class MedicionLoteServicioImplTest {
         DetalleParametroControlEntity detalle = crearDetalleParametroControl(5L, plan, 5.0, 6.0, 5.5);
         when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalle));
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L, -1.0);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L, -1.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verify(medicionLoteRepository, never()).save(any());
     }
@@ -448,10 +447,10 @@ class MedicionLoteServicioImplTest {
         DetalleParametroControlEntity detalle = crearDetalleParametroControl(5L, plan, 5.0, 6.0, 5.5);
         when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalle));
         when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 5L, 15.0);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(5L, 15.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verify(medicionLoteRepository, never()).save(any());
     }
@@ -471,10 +470,10 @@ class MedicionLoteServicioImplTest {
                 .lote(lote)
                 .build();
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L, 1L);
+        MedicionLoteFormDTO formDTO = medicionFormDTOBase(1L);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(formDTO))
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(detalleParametroControlRepository, medicionLoteRepository);
     }
@@ -573,13 +572,12 @@ class MedicionLoteServicioImplTest {
 
     // ==================== helpers ====================
 
-    private static MedicionLoteFormDTO medicionFormDTOBase(Long idEtapaLote, Long idDetalleParametroControl) {
-        return medicionFormDTOBase(idEtapaLote, idDetalleParametroControl, 5.5);
+    private static MedicionLoteFormDTO medicionFormDTOBase(Long idDetalleParametroControl) {
+        return medicionFormDTOBase(idDetalleParametroControl, 5.5);
     }
 
-    private static MedicionLoteFormDTO medicionFormDTOBase(Long idEtapaLote, Long idDetalleParametroControl, double valorMedido) {
+    private static MedicionLoteFormDTO medicionFormDTOBase(Long idDetalleParametroControl, double valorMedido) {
         return MedicionLoteFormDTO.builder()
-                .idEtapaLote(idEtapaLote)
                 .idDetalleParametroControl(idDetalleParametroControl)
                 .valorMedido(valorMedido)
                 .fechaMedicion(FECHA_MEDICION)

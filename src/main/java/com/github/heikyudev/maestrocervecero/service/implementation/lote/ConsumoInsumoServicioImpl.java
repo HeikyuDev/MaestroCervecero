@@ -93,6 +93,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * Registra el consumo efectivo de un insumo, descontándolo de una reserva de insumo puntual
      * ya existente para esa etapa de lote y ese lote de insumo.
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
      * @return El consumo registrado.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados
@@ -108,10 +109,10 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.CONSUMO_INSUMO)
-    public ConsumoInsumoResponseDTO registrarConsumoInsumoReservado(ConsumoInsumoFormDTO consumoInsumoFormDTO) {
+    public ConsumoInsumoResponseDTO registrarConsumoInsumoReservado(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO) {
         // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
-        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(consumoInsumoFormDTO.getIdEtapaLote())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + consumoInsumoFormDTO.getIdEtapaLote()));
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaConsumo(etapaLote);
 
         // 2. Validar que el lote de insumo esté registrado en el sistema
@@ -163,6 +164,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * registrar un consumo directo sobre cualquier lote de insumo de ese insumo requerido por la
      * etapa, en cualquier momento.
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
      * @return El consumo registrado.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados
@@ -177,10 +179,10 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.CONSUMO_INSUMO)
-    public ConsumoInsumoResponseDTO registrarConsumoInsumoDirecto(ConsumoInsumoFormDTO consumoInsumoFormDTO) {
+    public ConsumoInsumoResponseDTO registrarConsumoInsumoDirecto(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO) {
         // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
-        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(consumoInsumoFormDTO.getIdEtapaLote())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + consumoInsumoFormDTO.getIdEtapaLote()));
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaConsumo(etapaLote);
 
         // 2. Validar que el lote de insumo esté registrado en el sistema

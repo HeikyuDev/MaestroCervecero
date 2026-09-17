@@ -19,7 +19,7 @@
 |**CP-BI-01**|Consumo de insumo encontrado|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `ConsumoInsumoResponseDTO` con los datos de la entidad.|
 |**CP-BI-02**|Consumo de insumo inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el consumo de insumo con ID: 99".|
 
-### 3. `registrarConsumoInsumoReservado(ConsumoInsumoFormDTO consumoInsumoFormDTO)`
+### 3. `registrarConsumoInsumoReservado(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -37,7 +37,7 @@
 |**CP-CR-12**|Cantidad consumida igual a la reservada _(Límite)_|Lote de insumo con `cantidadActual: 10.0`, `cantidadReservada: 6.0`; reserva de `6.0`; `cantidadConsumida: 6.0`|`cantidadConsumida > cantidadReservada` $\rightarrow$ **FALSE**|La reserva queda en `cantidadReservada = 0.0`. El lote de insumo queda con `cantidadReservada = 0.0` y `cantidadActual = 4.0`. Persiste el consumo en estado `REGISTRADO`.|
 |**CP-CR-13**|Registro exitoso con cantidad parcial _(Camino feliz)_|Lote de insumo con `cantidadActual: 10.0`, `cantidadReservada: 6.0`, `costoUnitarioPPP: 12.5`; reserva de `6.0`; `cantidadConsumida: 4.0`|Todas las validaciones $\rightarrow$ **FALSE**|La reserva y `loteInsumo.cantidadReservada` quedan en `2.0`; `loteInsumo.cantidadActual` queda en `6.0`. Persiste el consumo con `cantidadConsumida = 4.0`, `costoUnitarioPPP = 12.5` (congelado desde el lote de insumo), `tipoConsumo = RESERVADO` y `estado = REGISTRADO`.|
 
-### 4. `registrarConsumoInsumoDirecto(ConsumoInsumoFormDTO consumoInsumoFormDTO)`
+### 4. `registrarConsumoInsumoDirecto(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

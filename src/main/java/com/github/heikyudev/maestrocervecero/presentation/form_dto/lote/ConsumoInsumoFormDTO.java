@@ -21,11 +21,6 @@ import lombok.NoArgsConstructor;
 public class ConsumoInsumoFormDTO {
 
     /**
-     * ID de la etapa de lote sobre la que se registra el consumo.
-     */
-    private Long idEtapaLote;
-
-    /**
      * ID del lote de insumo físico del que se descuenta el consumo.
      */
     private Long idLoteInsumo;

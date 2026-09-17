@@ -11,9 +11,7 @@ import java.time.LocalDateTime;
  * DTO de formulario para registrar una medición de un parámetro de control sobre una etapa de un
  * lote en ejecución.
  * <p>
- * Es inmutable (no expone setters). {@code idEtapaLote} no lo completa el usuario a mano, pero
- * igual viaja en el formulario: lo determina el frontend según la etapa actualmente en curso
- * desde la que se dispara el registro.
+ * Es inmutable (no expone setters) y contiene únicamente los datos ingresados por el usuario.
  * </p>
  */
 @Getter
@@ -36,9 +34,4 @@ public class MedicionLoteFormDTO {
      * ID del detalle de parámetro de control (de la versión de receta vigente) que se está midiendo.
      */
     private Long idDetalleParametroControl;
-
-    /**
-     * ID de la etapa del lote sobre la que se registra la medición.
-     */
-    private Long idEtapaLote;
 }

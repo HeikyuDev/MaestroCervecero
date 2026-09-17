@@ -56,10 +56,11 @@ public interface IConsumoInsumoServicio {
      * Registra el consumo efectivo de un insumo, descontándolo de una reserva de insumo puntual
      * ya existente para esa etapa de lote y ese lote de insumo.
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
      * @return El consumo registrado.
      */
-    ConsumoInsumoResponseDTO registrarConsumoInsumoReservado(ConsumoInsumoFormDTO consumoInsumoFormDTO);
+    ConsumoInsumoResponseDTO registrarConsumoInsumoReservado(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO);
 
     /**
      * Registra el consumo efectivo de un insumo por fuera de cualquier reserva, descontándolo
@@ -70,10 +71,11 @@ public interface IConsumoInsumoServicio {
      * insumo del insumo requerido por la etapa, en cualquier momento.
      * </p>
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
      * @return El consumo registrado.
      */
-    ConsumoInsumoResponseDTO registrarConsumoInsumoDirecto(ConsumoInsumoFormDTO consumoInsumoFormDTO);
+    ConsumoInsumoResponseDTO registrarConsumoInsumoDirecto(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO);
 
     /**
      * Obtiene, para una etapa de lote determinada, cuánto requiere de cada insumo según el

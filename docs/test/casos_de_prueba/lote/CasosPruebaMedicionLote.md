@@ -17,7 +17,7 @@
 |**CP-BI-01**|Medición encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `MedicionLoteResponseDTO` con los datos de la entidad.|
 |**CP-BI-02**|Medición inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la medición con ID: 99".|
 
-### 3. `registrarMedicion(MedicionLoteFormDTO medicionLoteFormDTO)`
+### 3. `registrarMedicion(Long idEtapaLote, MedicionLoteFormDTO medicionLoteFormDTO)`
 
 Escenario base salvo indicación contraria: lote en `EN_EJECUCION`, etapa actual Maceración (`EN_CURSO`), con un plan de monitoreo configurado en la receta para esa etapa, un detalle de parámetro de control (rango ideal `[5.0, 6.0]`, ideal `5.5`) cuyo `ParametroControlEntity` tiene un rango real más amplio `[0.0, 14.0]`, y `fechaMedicion` en el pasado.
 

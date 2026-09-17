@@ -17,7 +17,7 @@ public interface IReservaInsumoServicio {
      * <p>
      * Devuelve TODAS las reservas de ese insumo en esa etapa, incluidas las que ya se agotaron
      * (cantidad reservada en 0, por un consumo o por una merma): mostrar solo las que todavía
-     * tienen cantidad, u ordenarlas primero, es una decisión de presentación del frontend, no un
+     * tienen cantidad, u ordenarlas primero, es una decisión de presentación de la vista, no un
      * filtro de este método.
      * </p>
      *

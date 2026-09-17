@@ -57,6 +57,7 @@ public interface IMedicionLoteServicio {
     /**
      * Registra una medición de un parámetro de control sobre una etapa de un lote.
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se registra la medición (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param medicionLoteFormDTO Los datos de la medición a registrar.
      * @return La medición registrada.
      * @throws RecursoNoEncontradoException Si el detalle de parámetro de control o la etapa de
@@ -65,7 +66,7 @@ public interface IMedicionLoteServicio {
      *                               detalle de parámetro de control no corresponde a la etapa
      *                               referenciada.
      */
-    MedicionLoteResponseDTO registrarMedicion(MedicionLoteFormDTO medicionLoteFormDTO);
+    MedicionLoteResponseDTO registrarMedicion(Long idEtapaLote, MedicionLoteFormDTO medicionLoteFormDTO);
 
     /**
      * Anula una medición de lote previamente registrada.

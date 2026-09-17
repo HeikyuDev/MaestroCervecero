@@ -91,6 +91,7 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
     /**
      * Registra una medición de un parámetro de control sobre una etapa de un lote.
      *
+     * @param idEtapaLote El ID de la etapa de lote sobre la que se registra la medición (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param medicionLoteFormDTO Los datos de la medición a registrar.
      * @return La medición registrada.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el detalle de parámetro de
@@ -108,10 +109,10 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MEDICION_LOTE)
-    public MedicionLoteResponseDTO registrarMedicion(MedicionLoteFormDTO medicionLoteFormDTO) {
+    public MedicionLoteResponseDTO registrarMedicion(Long idEtapaLote, MedicionLoteFormDTO medicionLoteFormDTO) {
         // 1. Validar que la etapa de lote esté registrada en el sistema
-        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(medicionLoteFormDTO.getIdEtapaLote())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + medicionLoteFormDTO.getIdEtapaLote()));
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         LoteEntity lote = etapaLote.getLote();

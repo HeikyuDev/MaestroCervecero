@@ -2,9 +2,11 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -105,4 +107,20 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
      */
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM BarrilEntity b WHERE b.fabricante.id = :fabricanteId AND b.estado = 'ACTIVO'")
     boolean existsByFabricanteId(@Param("fabricanteId") Long fabricanteId);
+
+    /**
+     * Busca, bloqueándolo para escritura, un barril por su ID.
+     * <p>
+     * Se usa cada vez que una operación de lote necesita cambiar el estado operativo o el
+     * contenido actual del barril (por ejemplo, al registrar o anular un envasado), para evitar
+     * que otra operación concurrente sobre el mismo barril lo modifique al mismo tiempo — dos
+     * envasados registrados en simultáneo sobre el mismo barril no deberían poder pasar ambos.
+     * </p>
+     *
+     * @param id El ID del barril.
+     * @return Un Optional que contiene el barril si existe y está activo, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM BarrilEntity b WHERE b.id = :id AND b.estado = 'ACTIVO'")
+    Optional<BarrilEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 }
