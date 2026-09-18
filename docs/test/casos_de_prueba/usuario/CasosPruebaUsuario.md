@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarUsuarios(String nombre, String correo, String username, Rol rol, Pageable pageable)`
+
+`nombre`, `correo` y `username` son coincidencia parcial, sin distinguir mayúsculas/minúsculas; `rol` es coincidencia exacta. Todos son opcionales, `null` = no filtra por ese criterio.
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-BT-01** | Consulta con registros existentes | `pageable: PageRequest.of(0, 10)`, BD con 2 usuarios activos | `findAll(pageable)` contiene elementos | Retorna `Page<UsuarioResponseDTO>` con 2 elementos mapeados. |
-| **CP-BT-02** | Consulta sin registros existentes | `pageable: PageRequest.of(0, 10)`, BD vacía | `findAll(pageable)` está vacío | Retorna `Page<UsuarioResponseDTO>` vacía (`getContent().isEmpty() == true`). |
+| **CP-FU-01** | Filtra por los 4 criterios informados | `nombre: "Juan"`, `correo: "juan"`, `username: "jperez"`, `rol: OPERARIO_DE_PRODUCCION`, `pageable: PageRequest.of(0, 10)`, BD con 2 usuarios activos que cumplen los cuatro criterios | `filtrarUsuarios("Juan", "juan", "jperez", OPERARIO_DE_PRODUCCION, pageable)` contiene elementos | Retorna `Page<UsuarioResponseDTO>` con 2 elementos mapeados. |
+| **CP-FU-02** | Los 4 parámetros nulos no restringen la búsqueda | `nombre: null`, `correo: null`, `username: null`, `rol: null`, `pageable: PageRequest.of(0, 10)` | El service propaga los 4 parámetros nulos tal cual al repositorio | Retorna `Page<UsuarioResponseDTO>` con todos los usuarios activos (equivalente a no filtrar). |
+| **CP-FU-03** | Consulta sin coincidencias | `nombre: "Inexistente"`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)` | `filtrarUsuarios("Inexistente", null, null, null, pageable)` está vacío | Retorna `Page<UsuarioResponseDTO>` vacía (`getContent().isEmpty() == true`). |
 
 ---
 

@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarPresentacionesComerciales(String nombre, Double cantidad, UnidadDeMedida unidadDeMedida, Pageable pageable)`
+
+Solo devuelve presentaciones comerciales activas (`estado = 'ACTIVO'`). `nombre` es coincidencia parcial, sin distinguir mayúsculas/minúsculas; `cantidad` y `unidadDeMedida` son coincidencia exacta. Todos opcionales.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 presentaciones comerciales activas|`findAll(pageable)` contiene elementos|Retorna `Page<PresentacionComercialResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<PresentacionComercialResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FPC-01**|Filtra por los 3 criterios informados|`nombre: "Bolsa"`, `cantidad: 25.0`, `unidadDeMedida: KILOGRAMO`, `pageable: PageRequest.of(0, 10)`, BD con 1 presentación activa que cumple los tres criterios|`filtrarPresentacionesComerciales("Bolsa", 25.0, KILOGRAMO, pageable)` contiene elementos|Retorna `Page<PresentacionComercialResponseDTO>` con 1 elemento mapeado.|
+|**CP-FPC-02**|Los 3 parámetros nulos no restringen la búsqueda|`nombre: null`, `cantidad: null`, `unidadDeMedida: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 presentaciones activas|El service propaga los 3 parámetros nulos tal cual al repositorio|Retorna `Page<PresentacionComercialResponseDTO>` con las 3 presentaciones activas (equivalente a no filtrar).|
+|**CP-FPC-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `cantidad: null`, `unidadDeMedida: null`, `pageable: PageRequest.of(0, 10)`|`filtrarPresentacionesComerciales("Inexistente", null, null, pageable)` está vacío|Retorna `Page<PresentacionComercialResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

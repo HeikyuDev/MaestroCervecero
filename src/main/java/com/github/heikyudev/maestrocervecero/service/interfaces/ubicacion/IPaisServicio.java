@@ -11,20 +11,21 @@ import org.springframework.data.domain.Pageable;
 /**
  * Interfaz que define los servicios relacionados con la gestión de países.
  * <p>
- * Todas las operaciones actúan únicamente sobre países activos: los registros con
- * baja lógica (soft delete) son filtrados automáticamente por Hibernate y no son
- * listados, ni obtenidos, ni modificables, ni re-eliminables.
+ * Todas las operaciones actúan únicamente sobre países activos: los registros con baja lógica
+ * son excluidos explícitamente por la condición {@code estado = 'ACTIVO'} de cada consulta del
+ * repositorio, y por lo tanto no son listados, ni obtenidos, ni modificables, ni re-eliminables.
  * </p>
  */
 public interface IPaisServicio {
 
     /**
-     * Obtiene una página de países activos.
+     * Filtra los países activos, opcionalmente por nombre.
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de países activos en formato DTO.
+     * @return Una página de países activos en formato DTO que cumplen el criterio indicado.
      */
-    Page<PaisResponseDTO> buscarTodos(Pageable pageable);
+    Page<PaisResponseDTO> filtrarPaises(String nombre, Pageable pageable);
 
     /**
      * Obtiene un país activo por su ID.

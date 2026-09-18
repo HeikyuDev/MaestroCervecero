@@ -11,20 +11,29 @@ import org.springframework.data.domain.Pageable;
 /**
  * Interfaz que define los servicios relacionados con la gestión de localidades.
  * <p>
- * Todas las operaciones actúan únicamente sobre localidades activas: los registros con
- * baja lógica (soft delete) son filtrados automáticamente por Hibernate y no son
- * listadas, ni obtenidas, ni modificables, ni re-eliminables.
+ * Todas las operaciones actúan únicamente sobre localidades activas: los registros con baja
+ * lógica son excluidos explícitamente por la condición {@code estado = 'ACTIVO'} de cada
+ * consulta del repositorio, y por lo tanto no son listadas, ni obtenidas, ni modificables, ni
+ * re-eliminables.
  * </p>
  */
 public interface ILocalidadServicio {
 
     /**
-     * Obtiene una página de localidades activas.
+     * Filtra las localidades activas, opcionalmente por nombre, código postal, provincia y/o país.
+     * <p>
+     * {@code idPais} filtra a través de la provincia de cada localidad (dos saltos:
+     * localidad → provincia → país), no es un campo propio de {@code LocalidadEntity}.
+     * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param codigoPostal El código postal exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idProvincia El ID de la provincia a filtrar, o {@code null} para no filtrar por ella.
+     * @param idPais El ID del país a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de localidades activas en formato DTO.
+     * @return Una página de localidades activas en formato DTO que cumplen los criterios indicados.
      */
-    Page<LocalidadResponseDTO> buscarTodos(Pageable pageable);
+    Page<LocalidadResponseDTO> filtrarLocalidades(String nombre, String codigoPostal, Long idProvincia, Long idPais, Pageable pageable);
 
     /**
      * Obtiene una localidad activa por su ID.

@@ -2,12 +2,12 @@
 
 `idEtapaLote` es **obligatorio**: no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla de gestión de envasados — no tiene sentido mostrar envasados de otros lotes o de otras etapas mezclados.
 
-`idBarril` es opcional, nulo = no filtra. `estado` sigue la misma regla que en `filtrarConsumosInsumo`/`filtrarMedicionesLote`: si no se especifica, el service asume `REGISTRADO` por defecto — nunca deja pasar `null` sin filtrar.
+`idBarril` es opcional, nulo = no filtra. `estado` no asume `REGISTRADO` por defecto: `null` muestra envasados en cualquier estado, igual que el resto de los `filtrarX` que exponen este criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-FEL-01**|Filtra por barril y estado informados|`idEtapaLote: 1L`, `idBarril: 3L`, `estado: REGISTRADO`, `pageable: PageRequest.of(0, 10)`, BD con 2 envasados que cumplen ambos criterios|`filtrarEnvasadosLote(1L, 3L, REGISTRADO, pageable)` contiene elementos|Retorna `Page<EnvasadoLoteResponseDTO>` con 2 elementos mapeados.|
-|**CP-FEL-02**|Estado nulo asume REGISTRADO por defecto; idBarril nulo se propaga tal cual (no filtra)|`idEtapaLote: 1L`, `idBarril: null`, `estado: null`, `pageable: PageRequest.of(0, 10)`|El service reemplaza `estado: null` por `REGISTRADO` antes de llamar al repositorio|Se verifica que el repositorio se invoque con `REGISTRADO`, no con `null`, y con `idBarril: null`. Retorna `Page<EnvasadoLoteResponseDTO>` con los envasados registrados de esa etapa.|
+|**CP-FEL-02**|Estado nulo no asume REGISTRADO por defecto; se propaga tal cual junto con idBarril nulo (ninguno filtra)|`idEtapaLote: 1L`, `idBarril: null`, `estado: null`, `pageable: PageRequest.of(0, 10)`, BD con 1 envasado REGISTRADO y 1 ANULADO|El service propaga los 2 parámetros nulos tal cual al repositorio|Retorna `Page<EnvasadoLoteResponseDTO>` con los 2 envasados, sin excluir el ANULADO.|
 |**CP-FEL-03**|El usuario puede elegir explícitamente ver los envasados anulados|`idEtapaLote: 1L`, `idBarril: null`, `estado: ANULADO`, `pageable: PageRequest.of(0, 10)`, 1 envasado ANULADO en BD|`filtrarEnvasadosLote(1L, null, ANULADO, pageable)` contiene elementos|Retorna `Page<EnvasadoLoteResponseDTO>` con 1 elemento.|
 
 ### 2. `buscarPorId(Long id)`

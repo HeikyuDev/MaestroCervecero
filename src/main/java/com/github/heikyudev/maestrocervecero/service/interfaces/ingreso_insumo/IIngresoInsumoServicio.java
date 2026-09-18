@@ -1,11 +1,15 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoIngreso;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AnularIngresoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.IngresoInsumoDirectoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.IngresoInsumoPorCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.IngresoInsumoResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDate;
 
 /**
  * Interfaz que define los métodos para la gestión de ingresos de insumo.
@@ -19,12 +23,23 @@ import org.springframework.data.domain.Pageable;
 public interface IIngresoInsumoServicio {
 
     /**
-     * Obtiene una página de ingresos de insumo.
+     * Filtra los ingresos de insumo, opcionalmente por insumo, identificación del lote del
+     * proveedor, estado, tipo de ingreso y/o fecha de ingreso.
+     * <p>
+     * A diferencia del resto de los módulos, {@code estado} no asume {@code REGISTRADO} por
+     * defecto: un ingreso anulado sigue siendo un registro histórico consultable, no una baja
+     * lógica que deba ocultarse — {@code null} muestra ambos estados.
+     * </p>
      *
+     * @param idInsumo El ID del insumo a filtrar, o {@code null} para no filtrar por él.
+     * @param identificacionLoteProveedor Texto a buscar dentro de la identificación del lote del proveedor, o {@code null} para no filtrar por ella.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
+     * @param tipoIngreso El tipo de ingreso exacto a filtrar (COMPRA/DIRECTO), o {@code null} para no filtrar por él.
+     * @param fechaIngreso La fecha de ingreso exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de ingresos de insumo en formato DTO.
+     * @return Una página de ingresos de insumo en formato DTO que cumplen los criterios indicados.
      */
-    Page<IngresoInsumoResponseDTO> buscarTodos(Pageable pageable);
+    Page<IngresoInsumoResponseDTO> filtrarIngresoInsumo(Long idInsumo, String identificacionLoteProveedor, EstadoTransaccion estado, TipoIngreso tipoIngreso, LocalDate fechaIngreso, Pageable pageable);
 
     /**
      * Obtiene un ingreso de insumo por su ID.

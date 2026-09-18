@@ -44,6 +44,36 @@ public interface ILocalidadRepository extends JpaRepository<LocalidadEntity, Lon
     Page<LocalidadEntity> findAll(Pageable pageable);
 
     /**
+     * Filtra las localidades activas, opcionalmente por nombre (coincidencia parcial, sin
+     * distinguir mayúsculas/minúsculas), código postal, provincia y/o país (los tres últimos por
+     * coincidencia exacta). {@code idPais} filtra a través de la provincia de cada localidad, dos
+     * saltos de relación (localidad → provincia → país). Un parámetro nulo no restringe por ese
+     * criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param codigoPostal El código postal exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idProvincia El ID de la provincia a filtrar, o {@code null} para no filtrar por ella.
+     * @param idPais El ID del país a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de localidades activas que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT l FROM LocalidadEntity l WHERE l.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:codigoPostal IS NULL OR l.codigoPostal = :codigoPostal) "
+            + "AND (:idProvincia IS NULL OR l.provincia.id = :idProvincia) "
+            + "AND (:idPais IS NULL OR l.provincia.pais.id = :idPais)",
+            countQuery = "SELECT COUNT(l) FROM LocalidadEntity l WHERE l.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:codigoPostal IS NULL OR l.codigoPostal = :codigoPostal) "
+                    + "AND (:idProvincia IS NULL OR l.provincia.id = :idProvincia) "
+                    + "AND (:idPais IS NULL OR l.provincia.pais.id = :idPais)")
+    Page<LocalidadEntity> filtrarLocalidades(@Param("nombre") String nombre,
+                                              @Param("codigoPostal") String codigoPostal,
+                                              @Param("idProvincia") Long idProvincia,
+                                              @Param("idPais") Long idPais,
+                                              Pageable pageable);
+
+    /**
      * Verifica si existe una localidad activa con el nombre dado (ignorando mayúsculas y
      * minúsculas) para la provincia indicada.
      * <p>

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.proveedor;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.PresentacionComercialFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -19,12 +20,16 @@ import org.springframework.data.domain.Pageable;
 public interface IPresentacionComercialServicio {
 
     /**
-     * Obtiene una página de presentaciones comerciales activas.
+     * Filtra las presentaciones comerciales activas, opcionalmente por nombre, cantidad y/o
+     * unidad de medida.
      *
+     * @param nombre Texto a buscar dentro del nombre de la presentación comercial, o {@code null} para no filtrar por nombre.
+     * @param cantidad Cantidad exacta a filtrar, o {@code null} para no filtrar por cantidad.
+     * @param unidadDeMedida Unidad de medida exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de presentaciones comerciales activas en formato DTO.
+     * @return Una página de presentaciones comerciales activas en formato DTO que cumplen los criterios indicados.
      */
-    Page<PresentacionComercialResponseDTO> buscarTodos(Pageable pageable);
+    Page<PresentacionComercialResponseDTO> filtrarPresentacionesComerciales(String nombre, Double cantidad, UnidadDeMedida unidadDeMedida, Pageable pageable);
 
     /**
      * Obtiene una presentación comercial activa por su ID.

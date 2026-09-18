@@ -64,41 +64,80 @@ class IngresoInsumoServicioImplTest {
     @InjectMocks
     private IngresoInsumoServicioImpl ingresoInsumoServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarIngresoInsumo ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de ingresos de insumo incluyendo tanto REGISTRADO como ANULADO")
-    void buscarTodos_debeRetornarPaginaConTodosLosEstados() {
+    @DisplayName("CP-FII-01: filtrarIngresoInsumo filtra por los 5 criterios informados")
+    void filtrar_debeFiltrarPorLosCincoCriterios() {
         // === PREPARACION DE DATOS ===
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(6), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoInsumoEntity(1L, EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA, 20.0, lote);
         Pageable pageable = PageRequest.of(0, 10);
-        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
-        IngresoInsumoEntity ingreso1 = ingresoInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 20.0, lote);
-        IngresoInsumoEntity ingreso2 = ingresoInsumoEntity(2L, EstadoTransaccion.REGISTRADO, 15.0, lote);
-        IngresoInsumoEntity ingreso3 = ingresoInsumoEntity(3L, EstadoTransaccion.ANULADO, 10.0, lote);
-        when(ingresoInsumoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(ingreso1, ingreso2, ingreso3), pageable, 3));
+        LocalDate fechaIngreso = LocalDate.of(2026, 1, 15);
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(1L, "L-1", EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA, fechaIngreso, pageable))
+                .thenReturn(new PageImpl<>(List.of(ingreso)));
 
         // === EJECUCION ===
-        Page<IngresoInsumoResponseDTO> resultado = ingresoInsumoServicio.buscarTodos(pageable);
+        Page<IngresoInsumoResponseDTO> resultado = ingresoInsumoServicio.filtrarIngresoInsumo(1L, "L-1", EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA, fechaIngreso, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertThat(resultado.getContent()).hasSize(3);
-        verify(ingresoInsumoRepository).findAll(pageable);
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(1L, "L-1", EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA, fechaIngreso, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay ingresos de insumo registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FII-02: filtrarIngresoInsumo con los 5 parámetros nulos no restringe la búsqueda, incluyendo mezcla de estados")
+    void filtrar_debePropagarCincoParametrosNulos() {
         // === PREPARACION DE DATOS ===
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(6), 50.0, 0.0);
+        IngresoInsumoEntity registrado1 = ingresoInsumoEntity(1L, EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA, 20.0, lote);
+        IngresoInsumoEntity registrado2 = ingresoInsumoEntity(2L, EstadoTransaccion.REGISTRADO, TipoIngreso.DIRECTO, 10.0, lote);
+        IngresoInsumoEntity anulado = ingresoInsumoEntity(3L, EstadoTransaccion.ANULADO, TipoIngreso.COMPRA, 5.0, lote);
         Pageable pageable = PageRequest.of(0, 10);
-        when(ingresoInsumoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(registrado1, registrado2, anulado)));
 
         // === EJECUCION ===
-        Page<IngresoInsumoResponseDTO> resultado = ingresoInsumoServicio.buscarTodos(pageable);
+        Page<IngresoInsumoResponseDTO> resultado = ingresoInsumoServicio.filtrarIngresoInsumo(null, null, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(3);
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(null, null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FII-03: filtrarIngresoInsumo permite acotar explícitamente a un solo estado")
+    void filtrar_debeAcotarPorEstado() {
+        // === PREPARACION DE DATOS ===
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(6), 50.0, 0.0);
+        IngresoInsumoEntity anulado = ingresoInsumoEntity(3L, EstadoTransaccion.ANULADO, TipoIngreso.COMPRA, 5.0, lote);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(null, null, EstadoTransaccion.ANULADO, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(anulado)));
+
+        // === EJECUCION ===
+        Page<IngresoInsumoResponseDTO> resultado = ingresoInsumoServicio.filtrarIngresoInsumo(null, null, EstadoTransaccion.ANULADO, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(1);
+        assertThat(resultado.getContent().get(0).getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(null, null, EstadoTransaccion.ANULADO, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FII-04: filtrarIngresoInsumo retorna una página vacía cuando no hay coincidencias")
+    void filtrar_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(99L, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // === EJECUCION ===
+        Page<IngresoInsumoResponseDTO> resultado = ingresoInsumoServicio.filtrarIngresoInsumo(99L, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(ingresoInsumoRepository).findAll(pageable);
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(99L, null, null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -684,12 +723,16 @@ class IngresoInsumoServicioImplTest {
     }
 
     private static IngresoInsumoEntity ingresoInsumoEntity(Long id, EstadoTransaccion estado, Double cantidadRecibida, LoteInsumoEntity loteInsumo) {
+        return ingresoInsumoEntity(id, estado, TipoIngreso.DIRECTO, cantidadRecibida, loteInsumo);
+    }
+
+    private static IngresoInsumoEntity ingresoInsumoEntity(Long id, EstadoTransaccion estado, TipoIngreso tipoIngreso, Double cantidadRecibida, LoteInsumoEntity loteInsumo) {
         return IngresoInsumoEntity.builder()
                 .id(id)
                 .fechaIngreso(LocalDate.now())
                 .cantidadRecibida(cantidadRecibida)
                 .costoUnitario(BigDecimal.TEN)
-                .tipoIngreso(TipoIngreso.DIRECTO)
+                .tipoIngreso(tipoIngreso)
                 .estado(estado)
                 .loteInsumo(loteInsumo)
                 .build();

@@ -4,12 +4,12 @@
 
 `tipoConsumo` e `idInsumo` son opcionales, nulo = no filtra. `idInsumo` sirve para acotar a un insumo requerido puntual cuando la etapa requiere más de uno (por ejemplo, dos lúpulos distintos en Hervido); la lista de insumos para armar ese combo se obtiene de `filtrarInsumosRequeridos`, no acá.
 
-`estado` sigue la misma regla que en `filtrarMedicionesLote`: si no se especifica, el service asume `REGISTRADO` por defecto — nunca deja pasar `null` sin filtrar.
+`estado` no asume `REGISTRADO` por defecto: `null` muestra consumos en cualquier estado, igual que el resto de los `filtrarX` que exponen este criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-FCI-01**|Filtra por los 3 criterios opcionales informados|`idEtapaLote: 1L`, `tipoConsumo: RESERVADO`, `idInsumo: 7L`, `estado: REGISTRADO`, `pageable: PageRequest.of(0, 10)`, BD con 2 consumos que cumplen todos los criterios|`filtrarConsumosInsumo(...)` contiene elementos|Retorna `Page<ConsumoInsumoResponseDTO>` con 2 elementos mapeados.|
-|**CP-FCI-02**|Estado nulo asume REGISTRADO por defecto; tipoConsumo e idInsumo nulos se propagan tal cual (no filtran)|`idEtapaLote: 1L`, `tipoConsumo: null`, `idInsumo: null`, `estado: null`, `pageable: PageRequest.of(0, 10)`|El service reemplaza `estado: null` por `REGISTRADO` antes de llamar al repositorio|Retorna `Page<ConsumoInsumoResponseDTO>` vacía en este escenario. Se verifica que el repositorio se invoque con `REGISTRADO`, no con `null`.|
+|**CP-FCI-02**|Estado nulo no asume REGISTRADO por defecto; se propaga tal cual junto con tipoConsumo e idInsumo nulos (ninguno filtra)|`idEtapaLote: 1L`, `tipoConsumo: null`, `idInsumo: null`, `estado: null`, `pageable: PageRequest.of(0, 10)`, BD con 1 consumo REGISTRADO y 1 ANULADO|El service propaga los 4 parámetros nulos tal cual al repositorio|Retorna `Page<ConsumoInsumoResponseDTO>` con los 2 consumos, sin excluir el ANULADO.|
 |**CP-FCI-03**|El usuario puede elegir explícitamente ver los consumos anulados|`idEtapaLote: 1L`, `tipoConsumo: null`, `idInsumo: null`, `estado: ANULADO`, `pageable: PageRequest.of(0, 10)`, 1 consumo ANULADO en BD|`filtrarConsumosInsumo(1L, null, null, ANULADO, pageable)` contiene elementos|Retorna `Page<ConsumoInsumoResponseDTO>` con 1 elemento.|
 
 ### 2. `buscarPorId(Long id)`

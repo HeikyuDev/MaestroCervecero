@@ -40,45 +40,58 @@ class MotivoAjusteServicioImplTest {
     @InjectMocks
     private MotivoAjusteServicioImpl motivoAjusteServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarMotivosAjuste ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de motivos de ajuste correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FMA-01: filtrarMotivosAjuste filtra por nombre y tipo de ajuste informados")
+    void filtrar_debeFiltrarPorNombreYTipoAjuste() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Rotura de lote", TipoAjuste.EGRESO);
-        MotivoAjusteEntity otroMotivoEntity = crearMotivoAjusteEntity(2L, "Corrección de conteo", TipoAjuste.INGRESO);
-        MotivoAjusteEntity tercerMotivoEntity = crearMotivoAjusteEntity(3L, "Derrame", TipoAjuste.EGRESO);
-
-        // Cuando motivoAjusteRepository.findAll(pageable) sea llamado, retorna una página con los motivos activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(motivoAjusteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(motivoEntity, otroMotivoEntity, tercerMotivoEntity), pageable, 3));
+        MotivoAjusteEntity motivo1 = crearMotivoAjusteEntity(1L, "Rotura de lote", TipoAjuste.EGRESO);
+        MotivoAjusteEntity motivo2 = crearMotivoAjusteEntity(2L, "Rotura por caída", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.filtrarMotivosAjuste("Rotura", TipoAjuste.EGRESO, pageable))
+                .thenReturn(new PageImpl<>(List.of(motivo1, motivo2), pageable, 2));
 
         // === EJECUCION ===
-        Page<MotivoAjusteResponseDTO> resultado = motivoAjusteServicio.buscarTodos(pageable);
+        Page<MotivoAjusteResponseDTO> resultado = motivoAjusteServicio.filtrarMotivosAjuste("Rotura", TipoAjuste.EGRESO, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertMotivoAjusteDTO(motivoEntity, resultado.getContent().get(0));
-        assertMotivoAjusteDTO(otroMotivoEntity, resultado.getContent().get(1));
-        assertMotivoAjusteDTO(tercerMotivoEntity, resultado.getContent().get(2));
-        verify(motivoAjusteRepository).findAll(pageable);
+        assertThat(resultado.getContent()).hasSize(2);
+        verify(motivoAjusteRepository).filtrarMotivosAjuste("Rotura", TipoAjuste.EGRESO, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay motivos de ajuste registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FMA-02: filtrarMotivosAjuste con nombre y tipo de ajuste nulos no restringe la búsqueda")
+    void filtrar_debePropagarNombreYTipoAjusteNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(motivoAjusteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        MotivoAjusteEntity motivo1 = crearMotivoAjusteEntity(1L, "Rotura de lote", TipoAjuste.EGRESO);
+        MotivoAjusteEntity motivo2 = crearMotivoAjusteEntity(2L, "Corrección de conteo", TipoAjuste.INGRESO);
+        when(motivoAjusteRepository.filtrarMotivosAjuste(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(motivo1, motivo2), pageable, 2));
 
         // === EJECUCION ===
-        Page<MotivoAjusteResponseDTO> resultado = motivoAjusteServicio.buscarTodos(pageable);
+        Page<MotivoAjusteResponseDTO> resultado = motivoAjusteServicio.filtrarMotivosAjuste(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(2);
+        verify(motivoAjusteRepository).filtrarMotivosAjuste(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMA-03: filtrarMotivosAjuste retorna una página vacía cuando no hay coincidencias")
+    void filtrar_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(motivoAjusteRepository.filtrarMotivosAjuste("Inexistente", null, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // === EJECUCION ===
+        Page<MotivoAjusteResponseDTO> resultado = motivoAjusteServicio.filtrarMotivosAjuste("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(motivoAjusteRepository).findAll(pageable);
+        verify(motivoAjusteRepository).filtrarMotivosAjuste("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

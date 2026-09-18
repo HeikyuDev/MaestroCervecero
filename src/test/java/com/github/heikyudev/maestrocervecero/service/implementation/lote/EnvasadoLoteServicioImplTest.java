@@ -83,19 +83,23 @@ class EnvasadoLoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FEL-02: filtrarEnvasadosLote asume REGISTRADO cuando el estado es nulo y propaga idBarril nulo sin restringir")
-    void filtrarEnvasadosLote_debeAsumirRegistradoYPropagarIdBarrilNulo() {
+    @DisplayName("CP-FEL-02: filtrarEnvasadosLote con estado nulo no asume REGISTRADO por defecto, lo propaga tal cual junto con idBarril nulo sin restringir")
+    void filtrarEnvasadosLote_debePropagarEstadoNuloSinDefault() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(envasadoLoteRepository.filtrarEnvasadosLote(1L, null, EstadoTransaccion.REGISTRADO, pageable))
-                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(3L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        EnvasadoLoteEntity registrado = crearEnvasadoLoteEntity(1L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
+        EnvasadoLoteEntity anulado = crearEnvasadoLoteEntity(2L, etapaLote, barril, 20.0, EstadoTransaccion.ANULADO);
+        when(envasadoLoteRepository.filtrarEnvasadosLote(1L, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(registrado, anulado), pageable, 2));
 
         // === EJECUCION ===
         Page<EnvasadoLoteResponseDTO> resultado = envasadoLoteServicio.filtrarEnvasadosLote(1L, null, null, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getContent()).isEmpty();
-        verify(envasadoLoteRepository).filtrarEnvasadosLote(1L, null, EstadoTransaccion.REGISTRADO, pageable);
+        assertThat(resultado.getContent()).hasSize(2);
+        verify(envasadoLoteRepository).filtrarEnvasadosLote(1L, null, null, pageable);
     }
 
     @Test

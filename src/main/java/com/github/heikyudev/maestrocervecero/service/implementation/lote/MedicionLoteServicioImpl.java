@@ -51,15 +51,14 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
      * contexto fijo desde el que se entra a gestionar mediciones, nunca lo tipea el usuario.
      * </p>
      * <p>
-     * {@code estado} sí es un criterio de negocio legítimo para el usuario: si no lo especifica,
-     * se asume {@code REGISTRADO} por defecto (nunca se filtra por baja lógica acá — este campo es
-     * {@code EstadoTransaccion}, no {@code Estado} — así que "ver lo anulado" es una elección
-     * explícita del usuario, no un criterio que se le oculte).
+     * {@code estado} sí es un criterio de negocio legítimo para el usuario (nunca se filtra por
+     * baja lógica acá — este campo es {@code EstadoTransaccion}, no {@code Estado}) y no asume
+     * {@code REGISTRADO} por defecto: {@code null} muestra mediciones en cualquier estado.
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan mediciones (obligatorio).
      * @param idDetalleParametroControl El ID del detalle de parámetro de control sobre el que se gestionan mediciones (obligatorio).
-     * @param estado El estado a filtrar, o {@code null} para asumir {@code REGISTRADO} por defecto.
+     * @param estado El estado a filtrar, o {@code null} para no filtrar por él.
      * @param fechaMedicionDesde Límite inferior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param fechaMedicionHasta Límite superior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param pageable Configuración de paginación y ordenamiento.
@@ -69,8 +68,7 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
     @Transactional(readOnly = true)
     public Page<MedicionLoteResponseDTO> filtrarMedicionesLote(Long idEtapaLote, Long idDetalleParametroControl, EstadoTransaccion estado,
                                                                  LocalDateTime fechaMedicionDesde, LocalDateTime fechaMedicionHasta, Pageable pageable) {
-        EstadoTransaccion estadoEfectivo = estado != null ? estado : EstadoTransaccion.REGISTRADO;
-        return medicionLoteRepository.filtrarMedicionesLote(idEtapaLote, idDetalleParametroControl, estadoEfectivo, fechaMedicionDesde, fechaMedicionHasta, pageable)
+        return medicionLoteRepository.filtrarMedicionesLote(idEtapaLote, idDetalleParametroControl, estado, fechaMedicionDesde, fechaMedicionHasta, pageable)
                 .map(MapperMedicionLote::toDTO);
     }
 

@@ -121,40 +121,60 @@ class LoteServicioImplTest {
     @InjectMocks
     private LoteServicioImpl loteServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarLotes ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de lotes correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FL-01: filtrarLotes retorna una página de lotes correctamente mapeada a DTO cuando se filtra por los 5 criterios")
+    void filtrarLotes_debeRetornarPaginaMapeadaFiltrandoPorLos5Criterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         LoteEntity lote1 = crearLoteMinimo(1L, "IPA-1");
         LoteEntity lote2 = crearLoteMinimo(2L, "IPA-2");
-        when(loteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(lote1, lote2), pageable, 2));
+        when(loteRepository.filtrarLotes(3L, "IPA", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 20.0, pageable))
+                .thenReturn(new PageImpl<>(List.of(lote1, lote2), pageable, 2));
 
         // === EJECUCION ===
-        Page<LoteResponseDTO> resultado = loteServicio.buscarTodos(pageable);
+        Page<LoteResponseDTO> resultado = loteServicio.filtrarLotes(3L, "IPA", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 20.0, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertThat(resultado.getContent()).hasSize(2);
         assertThat(resultado.getContent().get(0).getIdentificadorInterno()).isEqualTo("IPA-1");
-        verify(loteRepository).findAll(pageable);
+        verify(loteRepository).filtrarLotes(3L, "IPA", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 20.0, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay lotes registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FL-02: filtrarLotes propaga los 5 parámetros nulos sin restringir la búsqueda")
+    void filtrarLotes_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(loteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        LoteEntity lote1 = crearLoteMinimo(1L, "IPA-1");
+        LoteEntity lote2 = crearLoteMinimo(2L, "STOUT-1");
+        when(loteRepository.filtrarLotes(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(lote1, lote2), pageable, 2));
 
         // === EJECUCION ===
-        Page<LoteResponseDTO> resultado = loteServicio.buscarTodos(pageable);
+        Page<LoteResponseDTO> resultado = loteServicio.filtrarLotes(null, null, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(loteRepository).filtrarLotes(null, null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-03: filtrarLotes retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarLotes_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(loteRepository.filtrarLotes(null, "Inexistente", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<LoteResponseDTO> resultado = loteServicio.filtrarLotes(null, "Inexistente", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(loteRepository).findAll(pageable);
+        verify(loteRepository).filtrarLotes(null, "Inexistente", null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -1771,6 +1791,96 @@ class LoteServicioImplTest {
 
         // Ningún equipamiento cambia de estado operativo: el fermentador sigue EN_USO sin interrupción
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+        verify(loteRepository).save(lote);
+    }
+
+    // ==================== finalizarEnvasado ====================
+
+    @Test
+    @DisplayName("CP-FE-01: finalizarEnvasado lanza RecursoNoEncontradoException si el lote no existe")
+    void finalizarEnvasado_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verifyNoInteractions(fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FE-02: finalizarEnvasado lanza ReglaNegocioException si el lote no está EN_EJECUCION")
+    void finalizarEnvasado_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FE-03: finalizarEnvasado lanza ReglaNegocioException si la etapa actual no es Envasado")
+    void finalizarEnvasado_debeLanzarExcepcionSiEtapaActualNoEsEnvasado() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
+                .isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FE-04: finalizarEnvasado lanza RecursoNoEncontradoException si el fermentador ya no existe")
+    void finalizarEnvasado_debeLanzarExcepcionSiFermentadorNoExiste() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-05: finalizarEnvasado — camino feliz: Envasado FINALIZADA (sin etapa siguiente), fermentador EN_LIMPIEZA, lote FINALIZADO")
+    void finalizarEnvasado_debeFinalizarLoteCorrectamente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        EtapaLoteEntity etapaEnvasado = findEtapa(lote, TipoEtapa.ENVASADO);
+        assertThat(etapaEnvasado.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(etapaEnvasado.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+
+        // Las demás etapas no se tocan
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.FERMENTACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+        assertThat(findEtapa(lote, TipoEtapa.MADURACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
+
+        assertThat(fermentador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+        verify(fermentadorRepository).save(fermentador);
+
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(lote.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, consumoInsumoServicio, reservaInsumoRepository);
         verify(loteRepository).save(lote);
     }
 

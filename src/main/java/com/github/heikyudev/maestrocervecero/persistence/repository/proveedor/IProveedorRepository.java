@@ -43,4 +43,32 @@ public interface IProveedorRepository extends JpaRepository<ProveedorEntity, Lon
     @Query(value = "SELECT p FROM ProveedorEntity p WHERE p.estado = 'ACTIVO'",
             countQuery = "SELECT COUNT(p) FROM ProveedorEntity p WHERE p.estado = 'ACTIVO'")
     Page<ProveedorEntity> findAll(Pageable pageable);
+
+    /**
+     * Filtra los proveedores activos, opcionalmente por razón social, nombre comercial, CUIT y/o
+     * localidad, contra la versión de cada proveedor marcada como {@code esUltimaVersion = true}
+     * (la única que representa sus datos vigentes).
+     *
+     * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
+     * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
+     * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
+     * @param pageable La configuración de paginación.
+     * @return Una página de proveedores activos que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT p FROM ProveedorEntity p JOIN p.versiones v WHERE p.estado = 'ACTIVO' AND v.esUltimaVersion = true "
+            + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', :razonSocial, '%'))) "
+            + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', :nombreComercial, '%'))) "
+            + "AND (:cuit IS NULL OR v.cuit = :cuit) "
+            + "AND (:idLocalidad IS NULL OR v.localidad.id = :idLocalidad)",
+            countQuery = "SELECT COUNT(p) FROM ProveedorEntity p JOIN p.versiones v WHERE p.estado = 'ACTIVO' AND v.esUltimaVersion = true "
+                    + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', :razonSocial, '%'))) "
+                    + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', :nombreComercial, '%'))) "
+                    + "AND (:cuit IS NULL OR v.cuit = :cuit) "
+                    + "AND (:idLocalidad IS NULL OR v.localidad.id = :idLocalidad)")
+    Page<ProveedorEntity> filtrarProveedores(@Param("razonSocial") String razonSocial,
+                                              @Param("nombreComercial") String nombreComercial,
+                                              @Param("cuit") String cuit,
+                                              @Param("idLocalidad") Long idLocalidad,
+                                              Pageable pageable);
 }

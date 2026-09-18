@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.CancelacionLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
@@ -14,12 +16,23 @@ import org.springframework.data.domain.Pageable;
 public interface ILoteServicio {
 
     /**
-     * Obtiene una página de lotes.
+     * Filtra los lotes registrados, opcionalmente por receta, identificador interno, estado,
+     * etapa actualmente en curso y volumen objetivo.
+     * <p>
+     * {@code identificadorInterno} es el número autogenerado que el sistema le asigna al lote al
+     * registrarse (nombre de la receta + número de lote de esa receta), no un dato que el usuario
+     * elija — la búsqueda es por coincidencia parcial, sin distinguir mayúsculas/minúsculas.
+     * </p>
      *
+     * @param idReceta El ID de la receta a filtrar, o {@code null} para no filtrar por ella.
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estado El estado del lote a filtrar, o {@code null} para no filtrar por él.
+     * @param etapaActual El tipo de etapa actualmente en curso a filtrar, o {@code null} para no filtrar por ella.
+     * @param volumenObjetivo El volumen objetivo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de lotes en formato DTO.
+     * @return Una página de lotes en formato DTO que cumplen los criterios indicados.
      */
-    Page<LoteResponseDTO> buscarTodos(Pageable pageable);
+    Page<LoteResponseDTO> filtrarLotes(Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable);
 
     /**
      * Obtiene un lote por su ID.
@@ -229,4 +242,30 @@ public interface ILoteServicio {
      *                               consumo configurado.
      */
     LoteResponseDTO finalizarMaduracion(Long id);
+
+    /**
+     * Finaliza la etapa de Envasado del lote, dando por concluido el proceso productivo completo.
+     * <p>
+     * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote. A
+     * diferencia de las demás transiciones de etapa, Envasado es la última: no hay una etapa
+     * siguiente a la que avanzar, y en ella no se registran consumos de insumo (solo envasados,
+     * el traspaso de cerveza del fermentador a los barriles), por lo que no aplica la validación
+     * de porcentaje mínimo de consumo.
+     * </p>
+     * <ul>
+     *     <li>La etapa de Envasado se desmarca como etapa actual (pasa a FINALIZADA) y se registra
+     *     su fecha y hora de fin.</li>
+     *     <li>El lote pasa a estado "Finalizado".</li>
+     *     <li>El fermentador utilizado (compartido por Fermentación, Maduración y Envasado) pasa a
+     *     estado "En Limpieza".</li>
+     * </ul>
+     *
+     * @param id El ID del lote cuyo Envasado se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra el fermentador asociado.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, o si su
+     *                               etapa actual (EN_CURSO) no es Envasado.
+     */
+    LoteResponseDTO finalizarEnvasado(Long id);
 }

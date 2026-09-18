@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarCostosDirectosAdicionales(String nombre, Pageable pageable)`
+
+`nombre` es coincidencia parcial, sin distinguir mayúsculas/minúsculas. Es opcional, `null` = no filtra.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 costos directos adicionales activos|`findAll(pageable)` contiene elementos|Retorna `Page<CostoDirectoAdicionalResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<CostoDirectoAdicionalResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FCDA-01**|Filtra por nombre informado|`nombre: "Gas"`, `pageable: PageRequest.of(0, 10)`, BD con 1 costo directo adicional activo cuyo nombre contiene "Gas"|`filtrarCostosDirectosAdicionales("Gas", pageable)` contiene elementos|Retorna `Page<CostoDirectoAdicionalResponseDTO>` con 1 elemento mapeado.|
+|**CP-FCDA-02**|Nombre nulo no restringe la búsqueda|`nombre: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 costos directos adicionales activos|El service propaga `nombre: null` tal cual al repositorio|Retorna `Page<CostoDirectoAdicionalResponseDTO>` con los 3 costos activos (equivalente a no filtrar).|
+|**CP-FCDA-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`|`filtrarCostosDirectosAdicionales("Inexistente", pageable)` está vacío|Retorna `Page<CostoDirectoAdicionalResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

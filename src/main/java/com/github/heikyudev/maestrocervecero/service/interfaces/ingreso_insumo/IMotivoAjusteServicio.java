@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.MotivoAjusteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -17,12 +18,14 @@ import org.springframework.data.domain.Pageable;
 public interface IMotivoAjusteServicio {
 
     /**
-     * Obtiene una página de motivos de ajuste activos.
+     * Filtra los motivos de ajuste activos, opcionalmente por nombre y/o tipo de ajuste.
      *
+     * @param nombre Texto a buscar dentro del nombre del motivo de ajuste, o {@code null} para no filtrar por nombre.
+     * @param tipoAjuste Tipo de ajuste exacto a filtrar (INGRESO/EGRESO), o {@code null} para no filtrar por tipo.
      * @param pageable La configuración de paginación.
-     * @return Una página de motivos de ajuste activos en formato DTO.
+     * @return Una página de motivos de ajuste activos en formato DTO que cumplen los criterios indicados.
      */
-    Page<MotivoAjusteResponseDTO> buscarTodos(Pageable pageable);
+    Page<MotivoAjusteResponseDTO> filtrarMotivosAjuste(String nombre, TipoAjuste tipoAjuste, Pageable pageable);
 
     /**
      * Obtiene un motivo de ajuste activo por su ID.

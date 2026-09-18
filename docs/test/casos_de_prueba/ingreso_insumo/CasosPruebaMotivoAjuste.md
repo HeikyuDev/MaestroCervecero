@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarMotivosAjuste(String nombre, TipoAjuste tipoAjuste, Pageable pageable)`
+
+Solo devuelve motivos de ajuste activos (`estado = 'ACTIVO'`). `nombre` es coincidencia parcial, sin distinguir mayúsculas/minúsculas; `tipoAjuste` (INGRESO/EGRESO) es coincidencia exacta. Ambos opcionales.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 motivos de ajuste activos|`findAll(pageable)` contiene elementos|Retorna `Page<MotivoAjusteResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<MotivoAjusteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FMA-01**|Filtra por nombre y tipo de ajuste informados|`nombre: "Rotura"`, `tipoAjuste: EGRESO`, `pageable: PageRequest.of(0, 10)`, BD con 2 motivos activos que cumplen ambos criterios|`filtrarMotivosAjuste("Rotura", EGRESO, pageable)` contiene elementos|Retorna `Page<MotivoAjusteResponseDTO>` con 2 elementos mapeados.|
+|**CP-FMA-02**|Nombre y tipo de ajuste nulos no restringen la búsqueda|`nombre: null`, `tipoAjuste: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<MotivoAjusteResponseDTO>` con todos los motivos activos (equivalente a no filtrar).|
+|**CP-FMA-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `tipoAjuste: null`, `pageable: PageRequest.of(0, 10)`|`filtrarMotivosAjuste("Inexistente", null, pageable)` está vacío|Retorna `Page<MotivoAjusteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

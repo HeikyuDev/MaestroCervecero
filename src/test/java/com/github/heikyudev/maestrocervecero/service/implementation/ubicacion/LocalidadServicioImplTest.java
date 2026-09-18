@@ -53,45 +53,59 @@ class LocalidadServicioImplTest {
     @InjectMocks
     private LocalidadServicioImpl localidadServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarLocalidades ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de localidades correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FL-01: filtrarLocalidades retorna una página de localidades correctamente mapeada a DTO cuando se filtra por los 4 criterios")
+    void filtrarLocalidades_debeRetornarPaginaMapeadaFiltrandoPorLos4Criterios() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        LocalidadEntity localidadEntity = crearLocalidadEntity(1L, "Palermo", "1414", provinciaEntity(1L));
+        when(localidadRepository.filtrarLocalidades("Palermo", "1414", 1L, 1L, pageable))
+                .thenReturn(new PageImpl<>(List.of(localidadEntity), pageable, 1));
+
+        // === EJECUCION ===
+        Page<LocalidadResponseDTO> resultado = localidadServicio.filtrarLocalidades("Palermo", "1414", 1L, 1L, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertLocalidadDTO(localidadEntity, resultado.getContent().get(0));
+        verify(localidadRepository).filtrarLocalidades("Palermo", "1414", 1L, 1L, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-02: filtrarLocalidades propaga los 4 parámetros nulos sin restringir esos criterios")
+    void filtrarLocalidades_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         LocalidadEntity localidadEntity = crearLocalidadEntity(1L, "Palermo", "1414", provinciaEntity(1L));
         LocalidadEntity otraLocalidadEntity = crearLocalidadEntity(2L, "Belgrano", "1428", provinciaEntity(1L));
         LocalidadEntity terceraLocalidadEntity = crearLocalidadEntity(3L, "Recoleta", "1425", provinciaEntity(1L));
-
-        // Cuando localidadRepository.findAll(pageable) sea llamado, retorna una página con las localidades activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(localidadRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(localidadEntity, otraLocalidadEntity, terceraLocalidadEntity), pageable, 3));
+        when(localidadRepository.filtrarLocalidades(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(localidadEntity, otraLocalidadEntity, terceraLocalidadEntity), pageable, 3));
 
         // === EJECUCION ===
-        Page<LocalidadResponseDTO> resultado = localidadServicio.buscarTodos(pageable);
+        Page<LocalidadResponseDTO> resultado = localidadServicio.filtrarLocalidades(null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertLocalidadDTO(localidadEntity, resultado.getContent().get(0));
-        assertLocalidadDTO(otraLocalidadEntity, resultado.getContent().get(1));
-        assertLocalidadDTO(terceraLocalidadEntity, resultado.getContent().get(2));
-        verify(localidadRepository).findAll(pageable);
+        verify(localidadRepository).filtrarLocalidades(null, null, null, null, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay localidades registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FL-03: filtrarLocalidades retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarLocalidades_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(localidadRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(localidadRepository.filtrarLocalidades("Inexistente", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LocalidadResponseDTO> resultado = localidadServicio.buscarTodos(pageable);
+        Page<LocalidadResponseDTO> resultado = localidadServicio.filtrarLocalidades("Inexistente", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(localidadRepository).findAll(pageable);
+        verify(localidadRepository).filtrarLocalidades("Inexistente", null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

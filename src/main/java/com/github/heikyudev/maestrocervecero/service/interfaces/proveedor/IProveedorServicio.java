@@ -11,12 +11,23 @@ import org.springframework.data.domain.Pageable;
 public interface IProveedorServicio {
 
     /**
-     * Obtiene una página de proveedores activos.
+     * Filtra los proveedores activos, opcionalmente por razón social, nombre comercial, CUIT y/o
+     * localidad.
+     * <p>
+     * {@link com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity}
+     * no tiene datos propios: la razón social, el nombre comercial, el CUIT y la localidad viven
+     * en su {@code VersionProveedorEntity} marcada como {@code esUltimaVersion = true}, así que el
+     * filtrado se resuelve contra esa versión vigente, no contra el historial completo.
+     * </p>
      *
+     * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
+     * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
+     * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de proveedores activos en formato DTO.
+     * @return Una página de proveedores activos en formato DTO que cumplen los criterios indicados.
      */
-    Page<ProveedorResponseDTO> buscarTodos(Pageable pageable);
+    Page<ProveedorResponseDTO> filtrarProveedores(String razonSocial, String nombreComercial, String cuit, Long idLocalidad, Pageable pageable);
 
     /**
      * Obtiene un proveedor activo por su ID.

@@ -45,45 +45,58 @@ class PresentacionComercialServicioImplTest {
     @InjectMocks
     private PresentacionComercialServicioImpl presentacionComercialServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarPresentacionesComerciales ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de presentaciones comerciales correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FPC-01: filtrarPresentacionesComerciales filtra por los 3 criterios informados")
+    void filtrar_debeFiltrarPorLosTresCriterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
-        PresentacionComercialEntity otraPresentacionEntity = crearPresentacionComercialEntity(2L, "Paquete de 100 gm", 100.0, UnidadDeMedida.GRAMO);
-        PresentacionComercialEntity terceraPresentacionEntity = crearPresentacionComercialEntity(3L, "Pallet de 1 Tn", 1.0, UnidadDeMedida.TONELADA);
-
-        // Cuando presentacionComercialRepository.findAll(pageable) sea llamado, retorna una página con las presentaciones activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(presentacionComercialRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(presentacionEntity, otraPresentacionEntity, terceraPresentacionEntity), pageable, 3));
+        PresentacionComercialEntity presentacion = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.filtrarPresentacionesComerciales("Bolsa", 25.0, UnidadDeMedida.KILOGRAMO, pageable))
+                .thenReturn(new PageImpl<>(List.of(presentacion)));
 
         // === EJECUCION ===
-        Page<PresentacionComercialResponseDTO> resultado = presentacionComercialServicio.buscarTodos(pageable);
+        Page<PresentacionComercialResponseDTO> resultado = presentacionComercialServicio.filtrarPresentacionesComerciales("Bolsa", 25.0, UnidadDeMedida.KILOGRAMO, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertPresentacionComercialDTO(presentacionEntity, resultado.getContent().get(0));
-        assertPresentacionComercialDTO(otraPresentacionEntity, resultado.getContent().get(1));
-        assertPresentacionComercialDTO(terceraPresentacionEntity, resultado.getContent().get(2));
-        verify(presentacionComercialRepository).findAll(pageable);
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(presentacionComercialRepository).filtrarPresentacionesComerciales("Bolsa", 25.0, UnidadDeMedida.KILOGRAMO, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay presentaciones comerciales registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FPC-02: filtrarPresentacionesComerciales con los 3 parámetros nulos no restringe la búsqueda")
+    void filtrar_debePropagarTresParametrosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(presentacionComercialRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        PresentacionComercialEntity presentacion1 = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialEntity presentacion2 = crearPresentacionComercialEntity(2L, "Paquete de 100 gm", 100.0, UnidadDeMedida.GRAMO);
+        PresentacionComercialEntity presentacion3 = crearPresentacionComercialEntity(3L, "Pallet de 1 Tn", 1.0, UnidadDeMedida.TONELADA);
+        when(presentacionComercialRepository.filtrarPresentacionesComerciales(null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(presentacion1, presentacion2, presentacion3)));
 
         // === EJECUCION ===
-        Page<PresentacionComercialResponseDTO> resultado = presentacionComercialServicio.buscarTodos(pageable);
+        Page<PresentacionComercialResponseDTO> resultado = presentacionComercialServicio.filtrarPresentacionesComerciales(null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(3);
+        verify(presentacionComercialRepository).filtrarPresentacionesComerciales(null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FPC-03: filtrarPresentacionesComerciales retorna una página vacía cuando no hay coincidencias")
+    void filtrar_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(presentacionComercialRepository.filtrarPresentacionesComerciales("Inexistente", null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // === EJECUCION ===
+        Page<PresentacionComercialResponseDTO> resultado = presentacionComercialServicio.filtrarPresentacionesComerciales("Inexistente", null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(presentacionComercialRepository).findAll(pageable);
+        verify(presentacionComercialRepository).filtrarPresentacionesComerciales("Inexistente", null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

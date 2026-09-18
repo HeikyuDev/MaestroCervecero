@@ -46,15 +46,14 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      *
      * @param idEtapaLote El ID de la etapa de lote (obligatorio).
      * @param idBarril El ID del barril utilizado a filtrar, o {@code null} para no filtrar por él.
-     * @param estado El estado transaccional a filtrar, o {@code null} para asumir {@code REGISTRADO}.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link EnvasadoLoteResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
     public Page<EnvasadoLoteResponseDTO> filtrarEnvasadosLote(Long idEtapaLote, Long idBarril, EstadoTransaccion estado, Pageable pageable) {
-        EstadoTransaccion estadoEfectivo = estado != null ? estado : EstadoTransaccion.REGISTRADO;
-        return envasadoLoteRepository.filtrarEnvasadosLote(idEtapaLote, idBarril, estadoEfectivo, pageable)
+        return envasadoLoteRepository.filtrarEnvasadosLote(idEtapaLote, idBarril, estado, pageable)
                 .map(MapperEnvasadoLote::toDTO);
     }
 

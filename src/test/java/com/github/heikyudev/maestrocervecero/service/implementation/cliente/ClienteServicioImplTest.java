@@ -44,45 +44,59 @@ class ClienteServicioImplTest {
     @InjectMocks
     private ClienteServicioImpl clienteServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarClientes ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de clientes correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FC-01: filtrarClientes retorna una página de clientes correctamente mapeada a DTO cuando se filtra por nombre, dirección e idLocalidad")
+    void filtrarClientes_debeRetornarPaginaMapeadaFiltrandoPorLos3Criterios() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
+        when(clienteRepository.filtrarClientes("Juan", "Falsa", 1L, pageable))
+                .thenReturn(new PageImpl<>(List.of(clienteEntity), pageable, 1));
+
+        // === EJECUCION ===
+        Page<ClienteResponseDTO> resultado = clienteServicio.filtrarClientes("Juan", "Falsa", 1L, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertClienteDTO(clienteEntity, resultado.getContent().get(0));
+        verify(clienteRepository).filtrarClientes("Juan", "Falsa", 1L, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FC-02: filtrarClientes propaga nombre, dirección e idLocalidad nulos sin restringir esos criterios")
+    void filtrarClientes_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         ClienteEntity otroClienteEntity = crearClienteEntity(2L, "María López", "1166778899", "maria@mail.com", "Av. Siempre Viva 742", localidadEntity(2L));
         ClienteEntity tercerClienteEntity = crearClienteEntity(3L, "Carlos Gómez", "1155667788", "carlos@mail.com", "Belgrano 456", localidadEntity(1L));
-
-        // Cuando clienteRepository.findAll(pageable) sea llamado, retorna una página con los clientes activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(clienteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(clienteEntity, otroClienteEntity, tercerClienteEntity), pageable, 3));
+        when(clienteRepository.filtrarClientes(null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(clienteEntity, otroClienteEntity, tercerClienteEntity), pageable, 3));
 
         // === EJECUCION ===
-        Page<ClienteResponseDTO> resultado = clienteServicio.buscarTodos(pageable);
+        Page<ClienteResponseDTO> resultado = clienteServicio.filtrarClientes(null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertClienteDTO(clienteEntity, resultado.getContent().get(0));
-        assertClienteDTO(otroClienteEntity, resultado.getContent().get(1));
-        assertClienteDTO(tercerClienteEntity, resultado.getContent().get(2));
-        verify(clienteRepository).findAll(pageable);
+        verify(clienteRepository).filtrarClientes(null, null, null, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay clientes registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FC-03: filtrarClientes retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarClientes_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(clienteRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(clienteRepository.filtrarClientes("Inexistente", null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<ClienteResponseDTO> resultado = clienteServicio.buscarTodos(pageable);
+        Page<ClienteResponseDTO> resultado = clienteServicio.filtrarClientes("Inexistente", null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(clienteRepository).findAll(pageable);
+        verify(clienteRepository).filtrarClientes("Inexistente", null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

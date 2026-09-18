@@ -44,45 +44,56 @@ class PaisServicioImplTest {
     @InjectMocks
     private PaisServicioImpl paisServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarPaises ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de países correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FP-01: filtrarPaises retorna una página de países correctamente mapeada a DTO cuando se filtra por nombre")
+    void filtrarPaises_debeRetornarPaginaMapeadaFiltrandoPorNombre() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        PaisEntity paisEntity = crearPaisEntity(1L, "Argentina");
+        when(paisRepository.filtrarPaises("Arg", pageable)).thenReturn(new PageImpl<>(List.of(paisEntity), pageable, 1));
+
+        // === EJECUCION ===
+        Page<PaisResponseDTO> resultado = paisServicio.filtrarPaises("Arg", pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertPaisDTO(paisEntity, resultado.getContent().get(0));
+        verify(paisRepository).filtrarPaises("Arg", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FP-02: filtrarPaises propaga el nombre nulo sin restringir la búsqueda")
+    void filtrarPaises_debePropagarNombreNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         PaisEntity paisEntity = crearPaisEntity(1L, "Argentina");
         PaisEntity otroPaisEntity = crearPaisEntity(2L, "Brasil");
         PaisEntity tercerPaisEntity = crearPaisEntity(3L, "Uruguay");
-
-        // Cuando paisRepository.findAll(pageable) sea llamado, retorna una página con los países activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(paisRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(paisEntity, otroPaisEntity, tercerPaisEntity), pageable, 3));
+        when(paisRepository.filtrarPaises(null, pageable)).thenReturn(new PageImpl<>(List.of(paisEntity, otroPaisEntity, tercerPaisEntity), pageable, 3));
 
         // === EJECUCION ===
-        Page<PaisResponseDTO> resultado = paisServicio.buscarTodos(pageable);
+        Page<PaisResponseDTO> resultado = paisServicio.filtrarPaises(null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertPaisDTO(paisEntity, resultado.getContent().get(0));
-        assertPaisDTO(otroPaisEntity, resultado.getContent().get(1));
-        assertPaisDTO(tercerPaisEntity, resultado.getContent().get(2));
-        verify(paisRepository).findAll(pageable);
+        verify(paisRepository).filtrarPaises(null, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay países registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FP-03: filtrarPaises retorna una página vacía cuando ningún registro cumple el criterio")
+    void filtrarPaises_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(paisRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(paisRepository.filtrarPaises("Inexistente", pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<PaisResponseDTO> resultado = paisServicio.buscarTodos(pageable);
+        Page<PaisResponseDTO> resultado = paisServicio.filtrarPaises("Inexistente", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(paisRepository).findAll(pageable);
+        verify(paisRepository).filtrarPaises("Inexistente", pageable);
     }
 
     // ==================== buscarPorId ====================

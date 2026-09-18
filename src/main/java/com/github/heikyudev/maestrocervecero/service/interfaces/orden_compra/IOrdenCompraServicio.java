@@ -1,11 +1,14 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.AnulacionOrdenCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.FinalizacionForzadaOrdenCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.OrdenCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDate;
 
 /**
  * Interfaz que define los métodos para la gestión de órdenes de compra.
@@ -19,12 +22,17 @@ import org.springframework.data.domain.Pageable;
 public interface IOrdenCompraServicio {
 
     /**
-     * Obtiene una página de órdenes de compra activas.
+     * Filtra las órdenes de compra, opcionalmente por planificación de producción, proveedor,
+     * estado y/o fecha de entrega estimada.
      *
+     * @param idPlanificacionProduccion El ID de la planificación de producción a filtrar, o {@code null} para no filtrar por ella.
+     * @param idProveedor El ID del proveedor a filtrar, o {@code null} para no filtrar por él.
+     * @param estado El estado de la orden de compra a filtrar, o {@code null} para no filtrar por él.
+     * @param fechaEntregaEstimada La fecha de entrega estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de órdenes de compra en formato DTO.
+     * @return Una página de órdenes de compra en formato DTO que cumplen los criterios indicados.
      */
-    Page<OrdenCompraResponseDTO> buscarTodos(Pageable pageable);
+    Page<OrdenCompraResponseDTO> filtrarOrdenesCompra(Long idPlanificacionProduccion, Long idProveedor, EstadoSolicitud estado, LocalDate fechaEntregaEstimada, Pageable pageable);
 
     /**
      * Obtiene una orden de compra activa por su ID.

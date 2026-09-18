@@ -49,46 +49,59 @@ class ProvinciaServicioImplTest {
     @InjectMocks
     private ProvinciaServicioImpl provinciaServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarProvincias ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de provincias correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FPr-01: filtrarProvincias retorna una página de provincias correctamente mapeada a DTO cuando se filtra por nombre e idPais")
+    void filtrarProvincias_debeRetornarPaginaMapeadaFiltrandoPorNombreEIdPais() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        PaisEntity paisEntity = crearPaisEntity(1L, "Argentina");
+        ProvinciaEntity provinciaEntity = crearProvinciaEntity(1L, "Misiones", paisEntity);
+        when(provinciaRepository.filtrarProvincias("Mis", 1L, pageable)).thenReturn(new PageImpl<>(List.of(provinciaEntity), pageable, 1));
+
+        // === EJECUCION ===
+        Page<ProvinciaResponseDTO> resultado = provinciaServicio.filtrarProvincias("Mis", 1L, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertProvinciaDTO(provinciaEntity, resultado.getContent().get(0));
+        verify(provinciaRepository).filtrarProvincias("Mis", 1L, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FPr-02: filtrarProvincias propaga nombre e idPais nulos sin restringir esos criterios")
+    void filtrarProvincias_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         PaisEntity paisEntity = crearPaisEntity(1L, "Argentina");
         ProvinciaEntity provinciaEntity = crearProvinciaEntity(1L, "Misiones", paisEntity);
         ProvinciaEntity otraProvinciaEntity = crearProvinciaEntity(2L, "Corrientes", paisEntity);
         ProvinciaEntity terceraProvinciaEntity = crearProvinciaEntity(3L, "Formosa", paisEntity);
-
-        // Cuando provinciaRepository.findAll(pageable) sea llamado, retorna una página con las provincias activas
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(provinciaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(provinciaEntity, otraProvinciaEntity, terceraProvinciaEntity), pageable, 3));
+        when(provinciaRepository.filtrarProvincias(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(provinciaEntity, otraProvinciaEntity, terceraProvinciaEntity), pageable, 3));
 
         // === EJECUCION ===
-        Page<ProvinciaResponseDTO> resultado = provinciaServicio.buscarTodos(pageable);
+        Page<ProvinciaResponseDTO> resultado = provinciaServicio.filtrarProvincias(null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertProvinciaDTO(provinciaEntity, resultado.getContent().get(0));
-        assertProvinciaDTO(otraProvinciaEntity, resultado.getContent().get(1));
-        assertProvinciaDTO(terceraProvinciaEntity, resultado.getContent().get(2));
-        verify(provinciaRepository).findAll(pageable);
+        verify(provinciaRepository).filtrarProvincias(null, null, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay provincias registradas")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FPr-03: filtrarProvincias retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarProvincias_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(provinciaRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(provinciaRepository.filtrarProvincias("Inexistente", null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<ProvinciaResponseDTO> resultado = provinciaServicio.buscarTodos(pageable);
+        Page<ProvinciaResponseDTO> resultado = provinciaServicio.filtrarProvincias("Inexistente", null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(provinciaRepository).findAll(pageable);
+        verify(provinciaRepository).filtrarProvincias("Inexistente", null, pageable);
     }
 
     // ==================== buscarPorId ====================

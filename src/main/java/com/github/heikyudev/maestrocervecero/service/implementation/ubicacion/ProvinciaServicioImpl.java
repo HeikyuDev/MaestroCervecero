@@ -32,20 +32,21 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
     private final ILocalidadRepository localidadRepository;
 
     /**
-     * Recupera una página de provincias activas registradas en el sistema.
+     * Filtra las provincias activas, opcionalmente por nombre y/o país.
      * <p>
      * Las provincias dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param idPais El ID del país a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ProvinciaResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ProvinciaResponseDTO> buscarTodos(Pageable pageable) {
-        // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return provinciaRepository.findAll(pageable).map(MapperProvincia::toDTO);
+    public Page<ProvinciaResponseDTO> filtrarProvincias(String nombre, Long idPais, Pageable pageable) {
+        return provinciaRepository.filtrarProvincias(nombre, idPais, pageable).map(MapperProvincia::toDTO);
     }
 
     /**

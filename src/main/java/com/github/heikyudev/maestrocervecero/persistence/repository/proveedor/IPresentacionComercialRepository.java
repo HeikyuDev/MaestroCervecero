@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -42,6 +43,30 @@ public interface IPresentacionComercialRepository extends JpaRepository<Presenta
     @Query(value = "SELECT pc FROM PresentacionComercialEntity pc WHERE pc.estado = 'ACTIVO'",
             countQuery = "SELECT COUNT(pc) FROM PresentacionComercialEntity pc WHERE pc.estado = 'ACTIVO'")
     Page<PresentacionComercialEntity> findAll(Pageable pageable);
+
+    /**
+     * Filtra las presentaciones comerciales activas, opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas), cantidad y/o unidad de medida (ambas
+     * coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre de la presentación comercial, o {@code null} para no filtrar por nombre.
+     * @param cantidad Cantidad exacta a filtrar, o {@code null} para no filtrar por cantidad.
+     * @param unidadDeMedida Unidad de medida exacta a filtrar, o {@code null} para no filtrar por ella.
+     * @param pageable La configuración de paginación.
+     * @return Una página de presentaciones comerciales activas que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT pc FROM PresentacionComercialEntity pc WHERE pc.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:cantidad IS NULL OR pc.cantidad = :cantidad) "
+            + "AND (:unidadDeMedida IS NULL OR pc.unidadDeMedida = :unidadDeMedida)",
+            countQuery = "SELECT COUNT(pc) FROM PresentacionComercialEntity pc WHERE pc.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:cantidad IS NULL OR pc.cantidad = :cantidad) "
+                    + "AND (:unidadDeMedida IS NULL OR pc.unidadDeMedida = :unidadDeMedida)")
+    Page<PresentacionComercialEntity> filtrarPresentacionesComerciales(@Param("nombre") String nombre,
+                                                                        @Param("cantidad") Double cantidad,
+                                                                        @Param("unidadDeMedida") UnidadDeMedida unidadDeMedida,
+                                                                        Pageable pageable);
 
     /**
      * Verifica si existe una presentación comercial activa con el nombre dado, ignorando

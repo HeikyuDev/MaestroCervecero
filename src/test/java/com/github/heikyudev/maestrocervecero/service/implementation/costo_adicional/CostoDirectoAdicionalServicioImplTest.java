@@ -41,45 +41,59 @@ class CostoDirectoAdicionalServicioImplTest {
     @InjectMocks
     private CostoDirectoAdicionalServicioImpl costoDirectoAdicionalServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarCostosDirectosAdicionales ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de costos directos adicionales correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FCDA-01: filtrarCostosDirectosAdicionales retorna una página de costos correctamente mapeada a DTO cuando se filtra por nombre")
+    void filtrarCostosDirectosAdicionales_debeRetornarPaginaMapeadaFiltrandoPorNombre() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        CostoDirectoAdicionalEntity costoEntity = crearCostoDirectoAdicionalEntity(1L, "Gas natural", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales("Gas", pageable))
+                .thenReturn(new PageImpl<>(List.of(costoEntity), pageable, 1));
+
+        // === EJECUCION ===
+        Page<CostoDirectoAdicionalResponseDTO> resultado = costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales("Gas", pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertCostoDirectoAdicionalDTO(costoEntity, resultado.getContent().get(0));
+        verify(costoDirectoAdicionalRepository).filtrarCostosDirectosAdicionales("Gas", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FCDA-02: filtrarCostosDirectosAdicionales propaga el nombre nulo sin restringir la búsqueda")
+    void filtrarCostosDirectosAdicionales_debePropagarNombreNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         CostoDirectoAdicionalEntity costoEntity = crearCostoDirectoAdicionalEntity(1L, "Energía eléctrica", new BigDecimal("5.00"));
         CostoDirectoAdicionalEntity otroCostoEntity = crearCostoDirectoAdicionalEntity(2L, "Gas natural", new BigDecimal("3.20"));
         CostoDirectoAdicionalEntity tercerCostoEntity = crearCostoDirectoAdicionalEntity(3L, "Mantenimiento de equipos", new BigDecimal("1.75"));
-
-        // Cuando costoDirectoAdicionalRepository.findAll(pageable) sea llamado, retorna una página con los costos activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(costoDirectoAdicionalRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(costoEntity, otroCostoEntity, tercerCostoEntity), pageable, 3));
+        when(costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(costoEntity, otroCostoEntity, tercerCostoEntity), pageable, 3));
 
         // === EJECUCION ===
-        Page<CostoDirectoAdicionalResponseDTO> resultado = costoDirectoAdicionalServicio.buscarTodos(pageable);
+        Page<CostoDirectoAdicionalResponseDTO> resultado = costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertCostoDirectoAdicionalDTO(costoEntity, resultado.getContent().get(0));
-        assertCostoDirectoAdicionalDTO(otroCostoEntity, resultado.getContent().get(1));
-        assertCostoDirectoAdicionalDTO(tercerCostoEntity, resultado.getContent().get(2));
-        verify(costoDirectoAdicionalRepository).findAll(pageable);
+        verify(costoDirectoAdicionalRepository).filtrarCostosDirectosAdicionales(null, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay costos directos adicionales registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FCDA-03: filtrarCostosDirectosAdicionales retorna una página vacía cuando ningún registro cumple el criterio")
+    void filtrarCostosDirectosAdicionales_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(costoDirectoAdicionalRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales("Inexistente", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<CostoDirectoAdicionalResponseDTO> resultado = costoDirectoAdicionalServicio.buscarTodos(pageable);
+        Page<CostoDirectoAdicionalResponseDTO> resultado = costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales("Inexistente", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(costoDirectoAdicionalRepository).findAll(pageable);
+        verify(costoDirectoAdicionalRepository).filtrarCostosDirectosAdicionales("Inexistente", pageable);
     }
 
     // ==================== buscarPorId ====================

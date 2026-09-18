@@ -34,20 +34,23 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     private final IClienteRepository clienteRepository;
 
     /**
-     * Recupera una página de localidades activas registradas en el sistema.
+     * Filtra las localidades activas, opcionalmente por nombre, código postal, provincia y/o país.
      * <p>
      * Las localidades dadas de baja son excluidas por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param codigoPostal El código postal exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idProvincia El ID de la provincia a filtrar, o {@code null} para no filtrar por ella.
+     * @param idPais El ID del país a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link LocalidadResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LocalidadResponseDTO> buscarTodos(Pageable pageable) {
-        // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return localidadRepository.findAll(pageable).map(MapperLocalidad::toDTO);
+    public Page<LocalidadResponseDTO> filtrarLocalidades(String nombre, String codigoPostal, Long idProvincia, Long idPais, Pageable pageable) {
+        return localidadRepository.filtrarLocalidades(nombre, codigoPostal, idProvincia, idPais, pageable).map(MapperLocalidad::toDTO);
     }
 
     /**

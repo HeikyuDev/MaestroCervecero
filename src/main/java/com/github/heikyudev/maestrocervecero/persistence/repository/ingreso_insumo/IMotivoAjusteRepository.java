@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.MotivoAjusteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -43,6 +44,24 @@ public interface IMotivoAjusteRepository extends JpaRepository<MotivoAjusteEntit
     @Query(value = "SELECT ma FROM MotivoAjusteEntity ma WHERE ma.estado = 'ACTIVO'",
             countQuery = "SELECT COUNT(ma) FROM MotivoAjusteEntity ma WHERE ma.estado = 'ACTIVO'")
     Page<MotivoAjusteEntity> findAll(Pageable pageable);
+
+    /**
+     * Filtra los motivos de ajuste activos, opcionalmente por nombre (coincidencia parcial, sin
+     * distinguir mayúsculas/minúsculas) y/o tipo de ajuste (coincidencia exacta). Un parámetro
+     * nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre del motivo de ajuste, o {@code null} para no filtrar por nombre.
+     * @param tipoAjuste Tipo de ajuste exacto a filtrar (INGRESO/EGRESO), o {@code null} para no filtrar por tipo.
+     * @param pageable La configuración de paginación.
+     * @return Una página de motivos de ajuste activos que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT ma FROM MotivoAjusteEntity ma WHERE ma.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(ma.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:tipoAjuste IS NULL OR ma.tipoAjuste = :tipoAjuste)",
+            countQuery = "SELECT COUNT(ma) FROM MotivoAjusteEntity ma WHERE ma.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(ma.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:tipoAjuste IS NULL OR ma.tipoAjuste = :tipoAjuste)")
+    Page<MotivoAjusteEntity> filtrarMotivosAjuste(@Param("nombre") String nombre, @Param("tipoAjuste") TipoAjuste tipoAjuste, Pageable pageable);
 
     /**
      * Verifica si existe un motivo de ajuste activo con el nombre dado, ignorando mayúsculas y

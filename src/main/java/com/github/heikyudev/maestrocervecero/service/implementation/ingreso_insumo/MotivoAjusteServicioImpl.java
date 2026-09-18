@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.ingreso_ins
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.MotivoAjusteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IMotivoAjusteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.MotivoAjusteFormDTO;
@@ -25,19 +26,21 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
     private final IMotivoAjusteRepository motivoAjusteRepository;
 
     /**
-     * Recupera una página de motivos de ajuste activos registrados en el sistema.
+     * Filtra los motivos de ajuste activos, opcionalmente por nombre y/o tipo de ajuste.
      * <p>
      * Los motivos de ajuste dados de baja son excluidos por la condición
      * {@code estado = 'ACTIVO'} aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre del motivo de ajuste, o {@code null} para no filtrar por nombre.
+     * @param tipoAjuste Tipo de ajuste exacto a filtrar (INGRESO/EGRESO), o {@code null} para no filtrar por tipo.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link MotivoAjusteResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<MotivoAjusteResponseDTO> buscarTodos(Pageable pageable) {
-        return motivoAjusteRepository.findAll(pageable).map(MapperMotivoAjuste::toDTO);
+    public Page<MotivoAjusteResponseDTO> filtrarMotivosAjuste(String nombre, TipoAjuste tipoAjuste, Pageable pageable) {
+        return motivoAjusteRepository.filtrarMotivosAjuste(nombre, tipoAjuste, pageable).map(MapperMotivoAjuste::toDTO);
     }
 
     /**

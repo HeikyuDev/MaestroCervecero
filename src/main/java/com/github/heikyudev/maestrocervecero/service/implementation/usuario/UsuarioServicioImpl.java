@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
@@ -28,16 +29,19 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
     private final PasswordEncoder passwordEncoder;
 
     /**
-     * Recupera una página de usuarios registrados en el sistema.
+     * Filtra los usuarios activos, opcionalmente por nombre, correo electrónico, username y/o rol.
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param correo Texto a buscar dentro del correo electrónico, o {@code null} para no filtrar por él.
+     * @param username Texto a buscar dentro del nombre de usuario, o {@code null} para no filtrar por él.
+     * @param rol El rol exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link UsuarioResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<UsuarioResponseDTO> buscarTodos(Pageable pageable) {
-        // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return usuarioRepository.findAll(pageable).map(MapperUsuario::toDTO);
+    public Page<UsuarioResponseDTO> filtrarUsuarios(String nombre, String correo, String username, Rol rol, Pageable pageable) {
+        return usuarioRepository.filtrarUsuarios(nombre, correo, username, rol, pageable).map(MapperUsuario::toDTO);
     }
 
     /**

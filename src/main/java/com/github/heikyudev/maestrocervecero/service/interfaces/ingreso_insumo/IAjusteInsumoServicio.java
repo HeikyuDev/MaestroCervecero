@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AjusteInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AnularAjusteInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -19,12 +20,19 @@ import org.springframework.data.domain.Pageable;
 public interface IAjusteInsumoServicio {
 
     /**
-     * Obtiene una página de ajustes de insumo registrados en el sistema.
+     * Filtra los ajustes de insumo, opcionalmente por lote de insumo y/o estado transaccional.
+     * <p>
+     * A diferencia de otros módulos, {@code estado} no asume {@code REGISTRADO} por defecto: un
+     * ajuste anulado sigue siendo un registro histórico consultable, no una baja lógica que deba
+     * ocultarse — {@code null} muestra ambos estados.
+     * </p>
      *
+     * @param idLoteInsumo El ID del lote de insumo a filtrar, o {@code null} para no filtrar por él.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de ajustes de insumo en formato DTO.
+     * @return Una página de ajustes de insumo en formato DTO que cumplen los criterios indicados.
      */
-    Page<AjusteInsumoResponseDTO> buscarTodos(Pageable pageable);
+    Page<AjusteInsumoResponseDTO> filtrarAjustesInsumos(Long idLoteInsumo, EstadoTransaccion estado, Pageable pageable);
 
     /**
      * Obtiene un ajuste de insumo por su ID.

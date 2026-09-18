@@ -39,20 +39,23 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
     private final IReservaInsumoRepository reservaInsumoRepository;
 
     /**
-     * Recupera una página de ajustes de insumo registrados en el sistema.
+     * Filtra los ajustes de insumo, opcionalmente por lote de insumo y/o estado transaccional.
      * <p>
-     * A diferencia del resto de los módulos, incluye tanto los ajustes en estado
-     * {@code REGISTRADO} como los {@code ANULADO}: la anulación es un cierre excepcional del
-     * registro histórico, no una baja lógica que deba ocultarlo de las búsquedas.
+     * A diferencia del resto de los módulos, {@code estado} no asume {@code REGISTRADO} por
+     * defecto: incluye tanto los ajustes en estado {@code REGISTRADO} como los {@code ANULADO}
+     * cuando no se lo informa, ya que la anulación es un cierre excepcional del registro
+     * histórico, no una baja lógica que deba ocultarlo de las búsquedas.
      * </p>
      *
+     * @param idLoteInsumo El ID del lote de insumo a filtrar, o {@code null} para no filtrar por él.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
-     * @return Una página de ajustes de insumo en formato DTO.
+     * @return Una página de ajustes de insumo en formato DTO que cumplen los criterios indicados.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<AjusteInsumoResponseDTO> buscarTodos(Pageable pageable) {
-        return ajusteInsumoRepository.findAll(pageable).map(MapperAjusteInsumo::toDTO);
+    public Page<AjusteInsumoResponseDTO> filtrarAjustesInsumos(Long idLoteInsumo, EstadoTransaccion estado, Pageable pageable) {
+        return ajusteInsumoRepository.filtrarAjustesInsumo(idLoteInsumo, estado, pageable).map(MapperAjusteInsumo::toDTO);
     }
 
     /**

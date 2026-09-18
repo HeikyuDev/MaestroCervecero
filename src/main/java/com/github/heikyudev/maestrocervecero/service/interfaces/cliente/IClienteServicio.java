@@ -17,12 +17,15 @@ import org.springframework.data.domain.Pageable;
 public interface IClienteServicio {
 
     /**
-     * Obtiene una página de clientes activos.
+     * Filtra los clientes activos, opcionalmente por nombre, dirección y/o localidad.
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param direccion Texto a buscar dentro de la dirección, o {@code null} para no filtrar por ella.
+     * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de clientes activos en formato DTO.
+     * @return Una página de clientes activos en formato DTO que cumplen los criterios indicados.
      */
-    Page<ClienteResponseDTO> buscarTodos(Pageable pageable);
+    Page<ClienteResponseDTO> filtrarClientes(String nombre, String direccion, Long idLocalidad, Pageable pageable);
 
     /**
      * Obtiene un cliente activo por su ID.

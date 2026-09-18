@@ -1,9 +1,13 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarAjustesInsumos(Long idLoteInsumo, EstadoTransaccion estado, Pageable pageable)`
+
+`idLoteInsumo` y `estado` son coincidencia exacta, ambos opcionales. A diferencia de otros módulos, `estado` **no** asume `REGISTRADO` por defecto: un ajuste anulado sigue siendo un registro histórico consultable, no una baja lógica que deba ocultarse — `null` en `estado` muestra ambos estados.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 ajustes de insumo|`findAll(pageable)` contiene elementos|Retorna `Page<AjusteInsumoResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<AjusteInsumoResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FAI-01**|Filtra por los 2 criterios informados|`idLoteInsumo: 1L`, `estado: REGISTRADO`, `pageable: PageRequest.of(0, 10)`, BD con 1 ajuste que cumple ambos criterios|`filtrarAjustesInsumos(1L, REGISTRADO, pageable)` contiene elementos|Retorna `Page<AjusteInsumoResponseDTO>` con 1 elemento mapeado.|
+|**CP-FAI-02**|Los 2 parámetros nulos no restringen la búsqueda, incluyendo mezcla de estados|`idLoteInsumo: null`, `estado: null`, `pageable: PageRequest.of(0, 10)`, BD con 2 ajustes `REGISTRADO` y 1 `ANULADO`|El service propaga los 2 parámetros nulos tal cual al repositorio|Retorna `Page<AjusteInsumoResponseDTO>` con los 3 ajustes, sin excluir los `ANULADO` (a diferencia de `filtrarConsumosInsumo`/`filtrarMedicionesLote`/`filtrarEnvasadosLote`, que asumen `REGISTRADO` por defecto).|
+|**CP-FAI-03**|El usuario puede acotar explícitamente a un solo estado|`idLoteInsumo: null`, `estado: ANULADO`, `pageable: PageRequest.of(0, 10)`, BD con 2 ajustes `REGISTRADO` y 1 `ANULADO`|`filtrarAjustesInsumos(null, ANULADO, pageable)` contiene elementos|Retorna `Page<AjusteInsumoResponseDTO>` con 1 elemento (solo el `ANULADO`).|
+|**CP-FAI-04**|Consulta sin coincidencias|`idLoteInsumo: 99L`, `estado: null`, `pageable: PageRequest.of(0, 10)`|`filtrarAjustesInsumos(99L, null, pageable)` está vacío|Retorna `Page<AjusteInsumoResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarClientes(String nombre, String direccion, Long idLocalidad, Pageable pageable)`
+
+`nombre` y `direccion` son coincidencia parcial, sin distinguir mayúsculas/minúsculas; `idLocalidad` es coincidencia exacta. Todos son opcionales, `null` = no filtra por ese criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 clientes activos|`findAll(pageable)` contiene elementos|Retorna `Page<ClienteResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<ClienteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FC-01**|Filtra por los 3 criterios informados|`nombre: "Juan"`, `direccion: "Falsa"`, `idLocalidad: 1L`, `pageable: PageRequest.of(0, 10)`, BD con 1 cliente activo que cumple los tres criterios|`filtrarClientes("Juan", "Falsa", 1L, pageable)` contiene elementos|Retorna `Page<ClienteResponseDTO>` con 1 elemento mapeado.|
+|**CP-FC-02**|Los 3 parámetros nulos no restringen la búsqueda|`nombre: null`, `direccion: null`, `idLocalidad: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 clientes activos|El service propaga los 3 parámetros nulos tal cual al repositorio|Retorna `Page<ClienteResponseDTO>` con los 3 clientes activos (equivalente a no filtrar).|
+|**CP-FC-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `direccion: null`, `idLocalidad: null`, `pageable: PageRequest.of(0, 10)`|`filtrarClientes("Inexistente", null, null, pageable)` está vacío|Retorna `Page<ClienteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

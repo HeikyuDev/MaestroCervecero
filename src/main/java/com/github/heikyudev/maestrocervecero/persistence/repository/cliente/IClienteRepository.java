@@ -45,6 +45,30 @@ public interface IClienteRepository extends JpaRepository<ClienteEntity, Long> {
     Page<ClienteEntity> findAll(Pageable pageable);
 
     /**
+     * Filtra los clientes activos, opcionalmente por nombre y dirección (coincidencia parcial,
+     * sin distinguir mayúsculas/minúsculas) y/o localidad (coincidencia exacta). Un parámetro
+     * nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param direccion Texto a buscar dentro de la dirección, o {@code null} para no filtrar por ella.
+     * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
+     * @param pageable La configuración de paginación.
+     * @return Una página de clientes activos que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT c FROM ClienteEntity c WHERE c.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(c.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:direccion IS NULL OR UPPER(c.direccion) LIKE UPPER(CONCAT('%', :direccion, '%'))) "
+            + "AND (:idLocalidad IS NULL OR c.localidad.id = :idLocalidad)",
+            countQuery = "SELECT COUNT(c) FROM ClienteEntity c WHERE c.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(c.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:direccion IS NULL OR UPPER(c.direccion) LIKE UPPER(CONCAT('%', :direccion, '%'))) "
+                    + "AND (:idLocalidad IS NULL OR c.localidad.id = :idLocalidad)")
+    Page<ClienteEntity> filtrarClientes(@Param("nombre") String nombre,
+                                         @Param("direccion") String direccion,
+                                         @Param("idLocalidad") Long idLocalidad,
+                                         Pageable pageable);
+
+    /**
      * Verifica si existe un cliente activo con el correo electrónico dado (ignorando mayúsculas
      * y minúsculas) o el teléfono dado.
      *

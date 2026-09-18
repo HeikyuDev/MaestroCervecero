@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarProveedores(String razonSocial, String nombreComercial, String cuit, Long idLocalidad, Pageable pageable)`
+
+Los cuatro criterios se evalúan contra la versión de cada proveedor marcada `esUltimaVersion = true` (sus datos vigentes), no contra el historial completo. `razonSocial` y `nombreComercial` son coincidencia parcial, sin distinguir mayúsculas/minúsculas; `cuit` e `idLocalidad` son coincidencia exacta. Todos son opcionales, `null` = no filtra por ese criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 proveedores activos|`findAll(pageable)` contiene elementos|Retorna `Page<ProveedorResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<ProveedorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FP-01**|Filtra por los 4 criterios informados|`razonSocial: "Maltería"`, `nombreComercial: "Sur"`, `cuit: "30-11111111-1"`, `idLocalidad: 1L`, `pageable: PageRequest.of(0, 10)`, BD con 2 proveedores activos que cumplen los cuatro criterios en su versión vigente|`filtrarProveedores("Maltería", "Sur", "30-11111111-1", 1L, pageable)` contiene elementos|Retorna `Page<ProveedorResponseDTO>` con 2 elementos mapeados.|
+|**CP-FP-02**|Los 4 parámetros nulos no restringen la búsqueda|`razonSocial: null`, `nombreComercial: null`, `cuit: null`, `idLocalidad: null`, `pageable: PageRequest.of(0, 10)`|El service propaga los 4 parámetros nulos tal cual al repositorio|Retorna `Page<ProveedorResponseDTO>` con todos los proveedores activos (equivalente a no filtrar).|
+|**CP-FP-03**|Consulta sin coincidencias|`razonSocial: "Inexistente"`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`|`filtrarProveedores("Inexistente", null, null, null, pageable)` está vacío|Retorna `Page<ProveedorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

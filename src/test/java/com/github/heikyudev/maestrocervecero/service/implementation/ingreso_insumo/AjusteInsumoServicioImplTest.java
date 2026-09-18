@@ -60,41 +60,79 @@ class AjusteInsumoServicioImplTest {
     @InjectMocks
     private AjusteInsumoServicioImpl ajusteInsumoServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarAjustesInsumos ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de ajustes de insumo correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FAI-01: filtrarAjustesInsumos filtra por los 2 criterios informados")
+    void filtrar_debeFiltrarPorLosDosCriterios() {
         // === PREPARACION DE DATOS ===
-        Pageable pageable = PageRequest.of(0, 10);
         LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0);
-        AjusteInsumoEntity ajusteEntity = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 5.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), lote);
-        AjusteInsumoEntity otroAjusteEntity = ajusteInsumoEntity(2L, EstadoTransaccion.REGISTRADO, 3.0, motivoAjusteEntity(2L, TipoAjuste.EGRESO), lote);
-        AjusteInsumoEntity tercerAjusteEntity = ajusteInsumoEntity(3L, EstadoTransaccion.ANULADO, 2.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), lote);
-
-        when(ajusteInsumoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(ajusteEntity, otroAjusteEntity, tercerAjusteEntity), pageable, 3));
+        AjusteInsumoEntity ajuste = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 5.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), lote);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ajusteInsumoRepository.filtrarAjustesInsumo(1L, EstadoTransaccion.REGISTRADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(ajuste)));
 
         // === EJECUCION ===
-        Page<AjusteInsumoResponseDTO> resultado = ajusteInsumoServicio.buscarTodos(pageable);
+        Page<AjusteInsumoResponseDTO> resultado = ajusteInsumoServicio.filtrarAjustesInsumos(1L, EstadoTransaccion.REGISTRADO, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        verify(ajusteInsumoRepository).findAll(pageable);
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(ajusteInsumoRepository).filtrarAjustesInsumo(1L, EstadoTransaccion.REGISTRADO, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay ajustes de insumo registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FAI-02: filtrarAjustesInsumos con los 2 parámetros nulos no restringe la búsqueda, incluyendo mezcla de estados")
+    void filtrar_debePropagarDosParametrosNulos() {
         // === PREPARACION DE DATOS ===
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0);
+        AjusteInsumoEntity registrado1 = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 5.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), lote);
+        AjusteInsumoEntity registrado2 = ajusteInsumoEntity(2L, EstadoTransaccion.REGISTRADO, 3.0, motivoAjusteEntity(2L, TipoAjuste.EGRESO), lote);
+        AjusteInsumoEntity anulado = ajusteInsumoEntity(3L, EstadoTransaccion.ANULADO, 2.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), lote);
         Pageable pageable = PageRequest.of(0, 10);
-        when(ajusteInsumoRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(ajusteInsumoRepository.filtrarAjustesInsumo(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(registrado1, registrado2, anulado)));
 
         // === EJECUCION ===
-        Page<AjusteInsumoResponseDTO> resultado = ajusteInsumoServicio.buscarTodos(pageable);
+        Page<AjusteInsumoResponseDTO> resultado = ajusteInsumoServicio.filtrarAjustesInsumos(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(3);
+        verify(ajusteInsumoRepository).filtrarAjustesInsumo(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FAI-03: filtrarAjustesInsumos permite acotar explícitamente a un solo estado")
+    void filtrar_debeAcotarPorEstado() {
+        // === PREPARACION DE DATOS ===
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0);
+        AjusteInsumoEntity anulado = ajusteInsumoEntity(3L, EstadoTransaccion.ANULADO, 2.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), lote);
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ajusteInsumoRepository.filtrarAjustesInsumo(null, EstadoTransaccion.ANULADO, pageable))
+                .thenReturn(new PageImpl<>(List.of(anulado)));
+
+        // === EJECUCION ===
+        Page<AjusteInsumoResponseDTO> resultado = ajusteInsumoServicio.filtrarAjustesInsumos(null, EstadoTransaccion.ANULADO, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(1);
+        assertThat(resultado.getContent().get(0).getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        verify(ajusteInsumoRepository).filtrarAjustesInsumo(null, EstadoTransaccion.ANULADO, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FAI-04: filtrarAjustesInsumos retorna una página vacía cuando no hay coincidencias")
+    void filtrar_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ajusteInsumoRepository.filtrarAjustesInsumo(99L, null, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // === EJECUCION ===
+        Page<AjusteInsumoResponseDTO> resultado = ajusteInsumoServicio.filtrarAjustesInsumos(99L, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(ajusteInsumoRepository).findAll(pageable);
+        verify(ajusteInsumoRepository).filtrarAjustesInsumo(99L, null, pageable);
     }
 
     // ==================== buscarPorId ====================

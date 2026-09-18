@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarPaises(String nombre, Pageable pageable)`
+
+`nombre` es coincidencia parcial, sin distinguir mayúsculas/minúsculas. Es opcional, `null` = no filtra.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 países activos|`findAll(pageable)` contiene elementos|Retorna `Page<PaisResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<PaisResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FP-01**|Filtra por nombre informado|`nombre: "Arg"`, `pageable: PageRequest.of(0, 10)`, BD con 1 país activo cuyo nombre contiene "Arg"|`filtrarPaises("Arg", pageable)` contiene elementos|Retorna `Page<PaisResponseDTO>` con 1 elemento mapeado.|
+|**CP-FP-02**|Nombre nulo no restringe la búsqueda|`nombre: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 países activos|El service propaga `nombre: null` tal cual al repositorio|Retorna `Page<PaisResponseDTO>` con los 3 países activos (equivalente a no filtrar).|
+|**CP-FP-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`|`filtrarPaises("Inexistente", pageable)` está vacío|Retorna `Page<PaisResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

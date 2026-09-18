@@ -42,20 +42,28 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     private final IInsumoRepository insumoRepository;
 
     /**
-     * Recupera una página de ingresos de insumo registrados en el sistema.
+     * Filtra los ingresos de insumo, opcionalmente por insumo, identificación del lote del
+     * proveedor, estado, tipo de ingreso y/o fecha de ingreso.
      * <p>
      * A diferencia del resto de los módulos, incluye tanto los ingresos en estado
-     * {@code REGISTRADO} como los {@code ANULADO}: la anulación es un cierre excepcional del
-     * registro histórico, no una baja lógica que deba ocultarlo de las búsquedas.
+     * {@code REGISTRADO} como los {@code ANULADO} cuando {@code estado} es {@code null}: la
+     * anulación es un cierre excepcional del registro histórico, no una baja lógica que deba
+     * ocultarlo de las búsquedas.
      * </p>
      *
+     * @param idInsumo El ID del insumo a filtrar, o {@code null} para no filtrar por él.
+     * @param identificacionLoteProveedor Texto a buscar dentro de la identificación del lote del proveedor, o {@code null} para no filtrar por ella.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
+     * @param tipoIngreso El tipo de ingreso exacto a filtrar (COMPRA/DIRECTO), o {@code null} para no filtrar por él.
+     * @param fechaIngreso La fecha de ingreso exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
-     * @return Una página de ingresos de insumo en formato DTO.
+     * @return Una página de ingresos de insumo en formato DTO que cumplen los criterios indicados.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<IngresoInsumoResponseDTO> buscarTodos(Pageable pageable) {
-        return ingresoInsumoRepository.findAll(pageable).map(MapperIngresoInsumo::toDTO);
+    public Page<IngresoInsumoResponseDTO> filtrarIngresoInsumo(Long idInsumo, String identificacionLoteProveedor, EstadoTransaccion estado, TipoIngreso tipoIngreso, LocalDate fechaIngreso, Pageable pageable) {
+        return ingresoInsumoRepository.filtrarIngresoInsumo(idInsumo, identificacionLoteProveedor, estado, tipoIngreso, fechaIngreso, pageable)
+                .map(MapperIngresoInsumo::toDTO);
     }
 
     /**

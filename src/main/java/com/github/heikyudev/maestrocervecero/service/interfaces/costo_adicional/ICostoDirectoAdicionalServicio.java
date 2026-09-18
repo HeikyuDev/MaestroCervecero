@@ -19,12 +19,13 @@ import org.springframework.data.domain.Pageable;
 public interface ICostoDirectoAdicionalServicio {
 
     /**
-     * Obtiene una página de costos directos adicionales activos.
+     * Filtra los costos directos adicionales activos, opcionalmente por nombre.
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de costos directos adicionales activos en formato DTO.
+     * @return Una página de costos directos adicionales activos en formato DTO que cumplen el criterio indicado.
      */
-    Page<CostoDirectoAdicionalResponseDTO> buscarTodos(Pageable pageable);
+    Page<CostoDirectoAdicionalResponseDTO> filtrarCostosDirectosAdicionales(String nombre, Pageable pageable);
 
     /**
      * Obtiene un costo directo adicional activo por su ID.

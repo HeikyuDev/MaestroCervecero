@@ -68,42 +68,60 @@ class ProveedorServicioImplTest {
     @InjectMocks
     private ProveedorServicioImpl proveedorServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarProveedores ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de proveedores correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FP-01: filtrarProveedores retorna una página de proveedores correctamente mapeada a DTO cuando se filtra por razón social, nombre comercial, CUIT e idLocalidad")
+    void filtrarProveedores_debeRetornarPaginaMapeadaFiltrandoPorLos4Criterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         ProveedorEntity proveedor1 = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");
-        ProveedorEntity proveedor2 = crearProveedorEntityConVersionActiva(2L, "Lupulera Patagónica S.A.", "30-22222222-2");
-        ProveedorEntity proveedor3 = crearProveedorEntityConVersionActiva(3L, "Levaduras del Plata S.A.", "30-33333333-3");
-        when(proveedorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(proveedor1, proveedor2, proveedor3), pageable, 3));
+        ProveedorEntity proveedor2 = crearProveedorEntityConVersionActiva(2L, "Maltería del Norte S.A.", "30-22222222-2");
+        when(proveedorRepository.filtrarProveedores("Maltería", "Sur", "30-11111111-1", LOCALIDAD_ID, pageable))
+                .thenReturn(new PageImpl<>(List.of(proveedor1, proveedor2), pageable, 2));
 
         // === EJECUCION ===
-        Page<ProveedorResponseDTO> resultado = proveedorServicio.buscarTodos(pageable);
+        Page<ProveedorResponseDTO> resultado = proveedorServicio.filtrarProveedores("Maltería", "Sur", "30-11111111-1", LOCALIDAD_ID, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertThat(resultado.getContent()).hasSize(3);
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        assertThat(resultado.getContent()).hasSize(2);
         assertThat(resultado.getContent().get(0).getVersion().getRazonSocial()).isEqualTo("Maltería del Sur S.A.");
-        assertThat(resultado.getContent().get(1).getVersion().getRazonSocial()).isEqualTo("Lupulera Patagónica S.A.");
-        verify(proveedorRepository).findAll(pageable);
+        verify(proveedorRepository).filtrarProveedores("Maltería", "Sur", "30-11111111-1", LOCALIDAD_ID, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay proveedores registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FP-02: filtrarProveedores propaga razón social, nombre comercial, CUIT e idLocalidad nulos sin restringir esos criterios")
+    void filtrarProveedores_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(proveedorRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        ProveedorEntity proveedor1 = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");
+        ProveedorEntity proveedor2 = crearProveedorEntityConVersionActiva(2L, "Lupulera Patagónica S.A.", "30-33333333-3");
+        when(proveedorRepository.filtrarProveedores(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(proveedor1, proveedor2), pageable, 2));
 
         // === EJECUCION ===
-        Page<ProveedorResponseDTO> resultado = proveedorServicio.buscarTodos(pageable);
+        Page<ProveedorResponseDTO> resultado = proveedorServicio.filtrarProveedores(null, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(proveedorRepository).filtrarProveedores(null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FP-03: filtrarProveedores retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarProveedores_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(proveedorRepository.filtrarProveedores("Inexistente", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<ProveedorResponseDTO> resultado = proveedorServicio.filtrarProveedores("Inexistente", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(proveedorRepository).findAll(pageable);
+        verify(proveedorRepository).filtrarProveedores("Inexistente", null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

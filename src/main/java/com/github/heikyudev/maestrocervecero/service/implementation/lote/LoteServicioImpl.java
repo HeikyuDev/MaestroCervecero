@@ -93,15 +93,22 @@ public class LoteServicioImpl implements ILoteServicio {
     private final IConsumoInsumoServicio consumoInsumoServicio;
 
     /**
-     * Recupera una página de lotes registrados en el sistema.
+     * Filtra los lotes registrados, opcionalmente por receta, identificador interno, estado,
+     * etapa actualmente en curso y volumen objetivo.
      *
+     * @param idReceta El ID de la receta a filtrar, o {@code null} para no filtrar por ella.
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estado El estado del lote a filtrar, o {@code null} para no filtrar por él.
+     * @param etapaActual El tipo de etapa actualmente en curso a filtrar, o {@code null} para no filtrar por ella.
+     * @param volumenObjetivo El volumen objetivo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link LoteResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LoteResponseDTO> buscarTodos(Pageable pageable) {
-        return loteRepository.findAll(pageable).map(MapperLote::toDTO);
+    public Page<LoteResponseDTO> filtrarLotes(Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable) {
+        return loteRepository.filtrarLotes(idReceta, identificadorInterno, estado, etapaActual, volumenObjetivo, pageable)
+                .map(MapperLote::toDTO);
     }
 
     /**
@@ -550,6 +557,56 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 6. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Maduración
         liberarReservasDeLaEtapa(etapaMaduracion);
+
+        return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
+     * Finaliza la etapa de Envasado del lote, dando por concluido el proceso productivo completo.
+     * <p>
+     * Envasado es la última etapa: no hay una siguiente a la que avanzar, así que no se usa
+     * {@link #avanzarEtapa(EtapaLoteEntity, EtapaLoteEntity)}. Tampoco se valida porcentaje mínimo
+     * de consumo ni se liberan reservas, porque en esta etapa no se registran consumos de insumo
+     * (solo envasados).
+     * </p>
+     *
+     * @param id El ID del lote cuyo Envasado se quiere finalizar.
+     * @return El lote actualizado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra el fermentador asociado.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, o si su
+     *                               etapa actual (EN_CURSO) no es Envasado.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteResponseDTO finalizarEnvasado(Long id) {
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+
+        // 2. Validar que el lote se encuentre en estado EN_EJECUCION
+        if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
+            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+        }
+
+        // 3. Validar que la etapa actual (EN_CURSO) sea Envasado
+        EtapaLoteEntity etapaEnvasado = obtenerEtapaEnCursoValidando(lote, TipoEtapa.ENVASADO);
+
+        // 4. El fermentador utilizado pasa a estado EN_LIMPIEZA (concluyen las tres etapas que lo comparten)
+        Long idFermentador = etapaEnvasado.getEquipamiento().getId();
+        FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentador)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador));
+        fermentador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
+        fermentadorRepository.save(fermentador);
+
+        // 5. Finalizar la etapa de Envasado: es la última, no hay una siguiente a la que avanzar
+        etapaEnvasado.setEstado(EstadoEtapaLote.FINALIZADA);
+        etapaEnvasado.setFechaFinalizacion(LocalDateTime.now());
+
+        // 6. Finalizar el lote: todo el proceso productivo quedó completo
+        lote.setEstado(EstadoLote.FINALIZADO);
+        lote.setFechaFinalizacion(LocalDateTime.now());
 
         return MapperLote.toDTO(loteRepository.save(lote));
     }

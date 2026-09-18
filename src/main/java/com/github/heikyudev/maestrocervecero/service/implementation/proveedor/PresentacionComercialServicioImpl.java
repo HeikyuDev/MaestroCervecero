@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.PresentacionComercialFormDTO;
@@ -29,20 +30,24 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
 
     /**
-     * Recupera una página de presentaciones comerciales activas registradas en el sistema.
+     * Filtra las presentaciones comerciales activas, opcionalmente por nombre, cantidad y/o
+     * unidad de medida.
      * <p>
      * Las presentaciones comerciales dadas de baja son excluidas por la condición
      * {@code estado = 'ACTIVO'} aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre de la presentación comercial, o {@code null} para no filtrar por nombre.
+     * @param cantidad Cantidad exacta a filtrar, o {@code null} para no filtrar por cantidad.
+     * @param unidadDeMedida Unidad de medida exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link PresentacionComercialResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<PresentacionComercialResponseDTO> buscarTodos(Pageable pageable) {
-        // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return presentacionComercialRepository.findAll(pageable).map(MapperPresentacionComercial::toDTO);
+    public Page<PresentacionComercialResponseDTO> filtrarPresentacionesComerciales(String nombre, Double cantidad, UnidadDeMedida unidadDeMedida, Pageable pageable) {
+        return presentacionComercialRepository.filtrarPresentacionesComerciales(nombre, cantidad, unidadDeMedida, pageable)
+                .map(MapperPresentacionComercial::toDTO);
     }
 
     /**

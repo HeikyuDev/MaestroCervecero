@@ -92,19 +92,22 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FCI-02: filtrarConsumosInsumo con estado nulo asume REGISTRADO por defecto, propagando tipoConsumo e idInsumo nulos tal cual")
-    void filtrarConsumosInsumo_debeAsumirRegistradoPorDefecto() {
+    @DisplayName("CP-FCI-02: filtrarConsumosInsumo con estado nulo no asume REGISTRADO por defecto, lo propaga tal cual junto con tipoConsumo e idInsumo nulos")
+    void filtrarConsumosInsumo_debePropagarEstadoNuloSinDefault() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(consumoInsumoRepository.filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.REGISTRADO, pageable))
-                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        ConsumoInsumoEntity registrado = crearConsumoBase(1L, 5.0);
+        ConsumoInsumoEntity anulado = crearConsumoBase(2L, 3.0);
+        anulado.setEstado(EstadoTransaccion.ANULADO);
+        when(consumoInsumoRepository.filtrarConsumosInsumo(1L, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(registrado, anulado), pageable, 2));
 
         // === EJECUCION ===
         Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.filtrarConsumosInsumo(1L, null, null, null, pageable);
 
         // === ASSERTS ===
-        assertThat(resultado.getContent()).isEmpty();
-        verify(consumoInsumoRepository).filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.REGISTRADO, pageable);
+        assertThat(resultado.getContent()).hasSize(2);
+        verify(consumoInsumoRepository).filtrarConsumosInsumo(1L, null, null, null, pageable);
     }
 
     @Test

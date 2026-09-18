@@ -44,43 +44,60 @@ class UsuarioServicioImplTest {
     @InjectMocks
     private UsuarioServicioImpl usuarioServicio;
 
-    // ==================== buscarTodos ====================
+    // ==================== filtrarUsuarios ====================
 
     @Test
-    @DisplayName("CP-BT-01: buscarTodos retorna una página de usuarios correctamente mapeada a DTO")
-    void buscarTodos_debeRetornarPaginaMapeada() {
+    @DisplayName("CP-FU-01: filtrarUsuarios retorna una página de usuarios correctamente mapeada a DTO cuando se filtra por nombre, correo, username y rol")
+    void filtrarUsuarios_debeRetornarPaginaMapeadaFiltrandoPorLos4Criterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        UsuarioEntity otroUsuarioEntity = crearUsuarioEntity(2L, "maria", "hash2", "Maria Lopez", "maria@mail.com", "2222", Rol.ADMINISTRADOR);
-
-        // Cuando usuarioRepository.findAll(pageable) sea llamado, retorna una página con los usuarios activos
-        // (el filtrado por estado = ACTIVO ya está resuelto dentro de la consulta del repositorio)
-        when(usuarioRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(usuarioEntity, otroUsuarioEntity), pageable, 2));
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "jperez", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioEntity otroUsuarioEntity = crearUsuarioEntity(2L, "jperez2", "hash2", "Juan Perez Hijo", "juan2@mail.com", "2222", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.filtrarUsuarios("Juan", "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable))
+                .thenReturn(new PageImpl<>(List.of(usuarioEntity, otroUsuarioEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<UsuarioResponseDTO> resultado = usuarioServicio.buscarTodos(pageable);
+        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios("Juan", "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertUsuarioDTO(usuarioEntity, resultado.getContent().get(0));
         assertUsuarioDTO(otroUsuarioEntity, resultado.getContent().get(1));
-        verify(usuarioRepository).findAll(pageable);
+        verify(usuarioRepository).filtrarUsuarios("Juan", "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable);
     }
 
     @Test
-    @DisplayName("CP-BT-02: buscarTodos retorna una página vacía cuando no hay usuarios registrados")
-    void buscarTodos_debeRetornarPaginaVaciaSinRegistros() {
+    @DisplayName("CP-FU-02: filtrarUsuarios propaga nombre, correo, username y rol nulos sin restringir esos criterios")
+    void filtrarUsuarios_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(usuarioRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioEntity otroUsuarioEntity = crearUsuarioEntity(2L, "maria", "hash2", "Maria Lopez", "maria@mail.com", "2222", Rol.ADMINISTRADOR);
+        when(usuarioRepository.filtrarUsuarios(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(usuarioEntity, otroUsuarioEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<UsuarioResponseDTO> resultado = usuarioServicio.buscarTodos(pageable);
+        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios(null, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        verify(usuarioRepository).filtrarUsuarios(null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FU-03: filtrarUsuarios retorna una página vacía cuando ningún registro cumple los criterios")
+    void filtrarUsuarios_debeRetornarPaginaVaciaSinCoincidencias() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(usuarioRepository.filtrarUsuarios("Inexistente", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios("Inexistente", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(usuarioRepository).findAll(pageable);
+        verify(usuarioRepository).filtrarUsuarios("Inexistente", null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

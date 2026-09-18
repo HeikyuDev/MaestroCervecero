@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarLotes(Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable)`
+
+`identificadorInterno` es el número autogenerado al registrar el lote (no lo tipea el usuario), por lo que se busca por coincidencia parcial, sin distinguir mayúsculas/minúsculas — igual que en el resto de los `filtrarX` del sistema. `idReceta`, `estado` y `volumenObjetivo` son coincidencia exacta. `etapaActual` filtra por la etapa que tenga `estado = EN_CURSO` en ese lote puntual (no por si el lote alguna vez tuvo una etapa de ese tipo, ya que todo lote tiene las 6). Todos los parámetros son opcionales, `null` = no filtra por ese criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 2 lotes|`findAll(pageable)` contiene elementos|Retorna `Page<LoteResponseDTO>` con 2 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<LoteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FL-01**|Filtra por los 5 criterios informados|`idReceta: 3L`, `identificadorInterno: "IPA"`, `estado: EN_EJECUCION`, `etapaActual: FERMENTACION`, `volumenObjetivo: 20.0`, `pageable: PageRequest.of(0, 10)`, BD con 2 lotes que cumplen todos los criterios|`filtrarLotes(3L, "IPA", EN_EJECUCION, FERMENTACION, 20.0, pageable)` contiene elementos|Retorna `Page<LoteResponseDTO>` con 2 elementos mapeados.|
+|**CP-FL-02**|Los 5 parámetros nulos no restringen la búsqueda|`idReceta: null`, `identificadorInterno: null`, `estado: null`, `etapaActual: null`, `volumenObjetivo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga los 5 parámetros nulos tal cual al repositorio|Retorna `Page<LoteResponseDTO>` con todos los lotes registrados (equivalente a no filtrar).|
+|**CP-FL-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`|`filtrarLotes("Inexistente", ...)` está vacío|Retorna `Page<LoteResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 
@@ -147,3 +150,15 @@ No solicita ningún dato al usuario. Escenario base salvo indicación contraria:
 |**CP-FMD-04**|No existe la configuración de producción|`configuracionProduccionRepository.findById(SINGLETON_ID)` $\rightarrow$ **Optional.empty()**|La configuración no existe|Lanza `RecursoNoEncontradoException`. Sin interacciones con `consumoInsumoServicio`.|
 |**CP-FMD-05**|Algún insumo requerido (ej. un lúpulo de Dry Hop) no alcanza el porcentaje mínimo|`porcentajeMinimoConsumoParaAvanzarEtapa: 80.0`; Lúpulo "Citra Dry Hop" con `cantidadRequerida: 10.0`, `cantidadConsumida: 7.0` (70%)|`7.0 < 10.0 * 0.80` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` mencionando "Citra Dry Hop". Sin interacciones con las reservas. No se llama a `loteRepository.save()`.|
 |**CP-FMD-06**|Avance exitoso _(Camino feliz)_|`porcentajeMinimoConsumoParaAvanzarEtapa: 80.0`; Lúpulo "Citra Dry Hop" con `cantidadRequerida: 10.0`, `cantidadConsumida: 8.0` (exactamente 80%, límite); 1 reserva de `2.0` sobre un lote de insumo con `cantidadReservada: 2.0`|`8.0 >= 10.0 * 0.80` $\rightarrow$ **TRUE** (alcanza); resto de validaciones $\rightarrow$ **FALSE**|Maduración pasa a `FINALIZADA` con `fechaFinalizacion` seteada; Envasado pasa a `EN_CURSO` con `fechaInicio` seteada; las otras 4 etapas siguen en `PENDIENTE`; la reserva se libera (el lote de insumo queda con `cantidadReservada = 0.0` y se persiste, y la reserva se elimina); **ningún equipamiento cambia de estado** (`verifyNoInteractions` sobre Molino, Macerador, Olla de Hervor y Fermentador).|
+
+### 11. `finalizarEnvasado(Long id)`
+
+No solicita ningún dato al usuario. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, etapa actual Envasado `EN_CURSO`. A diferencia de las 4 transiciones anteriores, Envasado es la **última** etapa: no hay una etapa siguiente a la que avanzar, no se valida porcentaje mínimo de consumo ni se liberan reservas (en Envasado no se registran consumos de insumo, solo envasados — el traspaso de cerveza del fermentador a los barriles, gestionado por `EnvasadoLoteServicio`, no por `LoteServicioImpl`). En su lugar, esta operación cierra el lote completo.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FE-01**|Lote no encontrado|`id: 99L` (no existe)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. `verifyNoInteractions(fermentadorRepository)`.|
+|**CP-FE-02**|Lote no está EN_EJECUCION|Lote existente con `estado: PENDIENTE`|`estado != EN_EJECUCION` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con el fermentador.|
+|**CP-FE-03**|La etapa actual no es Envasado|Etapa Maduración `EN_CURSO` (no Envasado)|`etapaActual.getEtapa() != ENVASADO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con el fermentador.|
+|**CP-FE-04**|Fermentador no encontrado|Etapa Envasado `EN_CURSO`, `fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(id)` $\rightarrow$ **Optional.empty()**|Equipo dado de baja después de registrar el lote|Lanza `RecursoNoEncontradoException`. No se llama a `loteRepository.save()`.|
+|**CP-FE-05**|Finalización exitosa _(Camino feliz)_|Etapa Envasado `EN_CURSO`, resto `FINALIZADA`, fermentador `EN_USO`|Todas las validaciones $\rightarrow$ **FALSE**|Envasado pasa a `FINALIZADA` con `fechaFinalizacion` seteada (sin ninguna etapa que pase a `EN_CURSO`); el Fermentador se persiste con `estadoOperativo = EN_LIMPIEZA`; el lote pasa a `estado = FINALIZADO` con su propia `fechaFinalizacion` seteada (justo ahora); no se consulta `consumoInsumoServicio` ni `reservaInsumoRepository`.|

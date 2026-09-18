@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.usuario;
 
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.UsuarioFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import org.springframework.data.domain.Page;
@@ -11,12 +12,16 @@ import org.springframework.data.domain.Pageable;
  */
 public interface IUsuarioServicio {
     /**
-     * Obtiene una página de usuarios.
+     * Filtra los usuarios activos, opcionalmente por nombre, correo electrónico, username y/o rol.
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param correo Texto a buscar dentro del correo electrónico, o {@code null} para no filtrar por él.
+     * @param username Texto a buscar dentro del nombre de usuario, o {@code null} para no filtrar por él.
+     * @param rol El rol exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de usuarios.
+     * @return Una página de usuarios activos en formato DTO que cumplen los criterios indicados.
      */
-    Page<UsuarioResponseDTO> buscarTodos(Pageable pageable);
+    Page<UsuarioResponseDTO> filtrarUsuarios(String nombre, String correo, String username, Rol rol, Pageable pageable);
 
     /**
      * Obtiene un usuario por su ID.

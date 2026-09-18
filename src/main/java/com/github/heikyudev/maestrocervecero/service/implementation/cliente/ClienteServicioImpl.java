@@ -28,19 +28,22 @@ public class ClienteServicioImpl implements IClienteServicio {
     private final ILocalidadRepository localidadRepository;
 
     /**
-     * Recupera una página de clientes activos registrados en el sistema.
+     * Filtra los clientes activos, opcionalmente por nombre, dirección y/o localidad.
      * <p>
      * Los clientes dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param direccion Texto a buscar dentro de la dirección, o {@code null} para no filtrar por ella.
+     * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ClienteResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ClienteResponseDTO> buscarTodos(Pageable pageable) {
-        return clienteRepository.findAll(pageable).map(MapperCliente::toDTO);
+    public Page<ClienteResponseDTO> filtrarClientes(String nombre, String direccion, Long idLocalidad, Pageable pageable) {
+        return clienteRepository.filtrarClientes(nombre, direccion, idLocalidad, pageable).map(MapperCliente::toDTO);
     }
 
     /**

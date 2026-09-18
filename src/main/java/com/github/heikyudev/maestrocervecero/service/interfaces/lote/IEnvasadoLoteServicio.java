@@ -24,13 +24,13 @@ public interface IEnvasadoLoteServicio {
      * mismo registró en la etapa en la que está parado.
      * </p>
      * <p>
-     * {@code estado} sigue la misma regla que en {@code filtrarConsumosInsumo}: si no se
-     * especifica, el service asume {@code REGISTRADO} por defecto.
+     * {@code estado} no asume {@code REGISTRADO} por defecto: {@code null} muestra envasados en
+     * cualquier estado, igual que el resto de los {@code filtrarX} que exponen este criterio.
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote (obligatorio).
      * @param idBarril El ID del barril utilizado a filtrar, o {@code null} para no filtrar por él.
-     * @param estado El estado transaccional a filtrar, o {@code null} para asumir {@code REGISTRADO}.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de envasados en formato DTO que cumplen los criterios indicados.
      */

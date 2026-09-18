@@ -29,20 +29,20 @@ public class PaisServicioImpl implements IPaisServicio {
     private final IProvinciaRepository provinciaRepository;
 
     /**
-     * Recupera una página de países activos registrados en el sistema.
+     * Filtra los países activos, opcionalmente por nombre.
      * <p>
      * Los países dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link PaisResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<PaisResponseDTO> buscarTodos(Pageable pageable) {
-        // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return paisRepository.findAll(pageable).map(MapperPais::toDTO);
+    public Page<PaisResponseDTO> filtrarPaises(String nombre, Pageable pageable) {
+        return paisRepository.filtrarPaises(nombre, pageable).map(MapperPais::toDTO);
     }
 
     /**

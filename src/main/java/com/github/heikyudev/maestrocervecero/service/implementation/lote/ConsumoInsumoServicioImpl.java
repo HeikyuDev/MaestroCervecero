@@ -63,15 +63,14 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * @param idEtapaLote El ID de la etapa de lote (obligatorio).
      * @param tipoConsumo El tipo de consumo a filtrar, o {@code null} para no filtrar por él.
      * @param idInsumo El ID del insumo requerido a filtrar, o {@code null} para no filtrar por él.
-     * @param estado El estado transaccional a filtrar, o {@code null} para asumir {@code REGISTRADO}.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ConsumoInsumoResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
     public Page<ConsumoInsumoResponseDTO> filtrarConsumosInsumo(Long idEtapaLote, TipoConsumo tipoConsumo, Long idInsumo, EstadoTransaccion estado, Pageable pageable) {
-        EstadoTransaccion estadoEfectivo = estado != null ? estado : EstadoTransaccion.REGISTRADO;
-        return consumoInsumoRepository.filtrarConsumosInsumo(idEtapaLote, tipoConsumo, idInsumo, estadoEfectivo, pageable)
+        return consumoInsumoRepository.filtrarConsumosInsumo(idEtapaLote, tipoConsumo, idInsumo, estado, pageable)
                 .map(MapperConsumoInsumo::toDTO);
     }
 

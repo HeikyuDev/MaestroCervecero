@@ -45,19 +45,25 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     private final IOrdenCompraRepository ordenCompraRepository;
 
     /**
-     * Recupera una página de proveedores activos registrados en el sistema.
+     * Filtra los proveedores activos, opcionalmente por razón social, nombre comercial, CUIT y/o
+     * localidad de su versión vigente.
      * <p>
      * Los proveedores dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
      * </p>
      *
+     * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
+     * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
+     * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ProveedorResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ProveedorResponseDTO> buscarTodos(Pageable pageable) {
-        return proveedorRepository.findAll(pageable).map(MapperProveedor::toDTO);
+    public Page<ProveedorResponseDTO> filtrarProveedores(String razonSocial, String nombreComercial, String cuit, Long idLocalidad, Pageable pageable) {
+        return proveedorRepository.filtrarProveedores(razonSocial, nombreComercial, cuit, idLocalidad, pageable)
+                .map(MapperProveedor::toDTO);
     }
 
     /**

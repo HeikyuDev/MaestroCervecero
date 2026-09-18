@@ -3,6 +3,9 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.lote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,4 +42,36 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     Optional<LocalDate> buscarUltimaFechaFinalizacionEstimadaPorFermentador(
             @Param("fermentador") FermentadorEntity fermentador,
             @Param("estadosVigentes") List<EstadoLote> estadosVigentes);
+
+    /**
+     * Filtra los lotes registrados, opcionalmente por receta, identificador interno (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas), estado, etapa actualmente en curso y volumen
+     * objetivo (ambos por coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     *
+     * @param idReceta El ID de la receta (a través de la versión de receta vigente del lote) a filtrar, o {@code null} para no filtrar por ella.
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estado El estado del lote a filtrar, o {@code null} para no filtrar por él.
+     * @param etapaActual El tipo de etapa actualmente EN_CURSO a filtrar, o {@code null} para no filtrar por ella.
+     * @param volumenObjetivo El volumen objetivo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de lotes que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT l FROM LoteEntity l WHERE "
+            + "(:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:estado IS NULL OR l.estado = :estado) "
+            + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
+            + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo)",
+            countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE "
+                    + "(:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:estado IS NULL OR l.estado = :estado) "
+                    + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
+                    + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo)")
+    Page<LoteEntity> filtrarLotes(@Param("idReceta") Long idReceta,
+                                   @Param("identificadorInterno") String identificadorInterno,
+                                   @Param("estado") EstadoLote estado,
+                                   @Param("etapaActual") TipoEtapa etapaActual,
+                                   @Param("volumenObjetivo") Double volumenObjetivo,
+                                   Pageable pageable);
 }

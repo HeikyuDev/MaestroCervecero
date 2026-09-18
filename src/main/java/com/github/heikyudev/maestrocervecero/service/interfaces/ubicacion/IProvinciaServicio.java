@@ -11,20 +11,23 @@ import org.springframework.data.domain.Pageable;
 /**
  * Interfaz que define los servicios relacionados con la gestión de provincias.
  * <p>
- * Todas las operaciones actúan únicamente sobre provincias activas: los registros con
- * baja lógica (soft delete) son filtrados automáticamente por Hibernate y no son
- * listadas, ni obtenidas, ni modificables, ni re-eliminables.
+ * Todas las operaciones actúan únicamente sobre provincias activas: los registros con baja
+ * lógica son excluidos explícitamente por la condición {@code estado = 'ACTIVO'} de cada
+ * consulta del repositorio, y por lo tanto no son listadas, ni obtenidas, ni modificables, ni
+ * re-eliminables.
  * </p>
  */
 public interface IProvinciaServicio {
 
     /**
-     * Obtiene una página de provincias activas.
+     * Filtra las provincias activas, opcionalmente por nombre y/o país.
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param idPais El ID del país a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de provincias activas en formato DTO.
+     * @return Una página de provincias activas en formato DTO que cumplen los criterios indicados.
      */
-    Page<ProvinciaResponseDTO> buscarTodos(Pageable pageable);
+    Page<ProvinciaResponseDTO> filtrarProvincias(String nombre, Long idPais, Pageable pageable);
 
     /**
      * Obtiene una provincia activa por su ID.

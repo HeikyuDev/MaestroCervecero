@@ -44,6 +44,20 @@ public interface IPaisRepository extends JpaRepository<PaisEntity, Long> {
     Page<PaisEntity> findAll(Pageable pageable);
 
     /**
+     * Filtra los países activos, opcionalmente por nombre (coincidencia parcial, sin distinguir
+     * mayúsculas/minúsculas). Un parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de países activos que cumplen el criterio indicado.
+     */
+    @Query(value = "SELECT p FROM PaisEntity p WHERE p.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))",
+            countQuery = "SELECT COUNT(p) FROM PaisEntity p WHERE p.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))")
+    Page<PaisEntity> filtrarPaises(@Param("nombre") String nombre, Pageable pageable);
+
+    /**
      * Verifica si existe un país activo con el nombre dado, ignorando mayúsculas y minúsculas.
      *
      * @param nombre El nombre del país a buscar.

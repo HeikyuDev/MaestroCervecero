@@ -28,19 +28,20 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
     private final ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
 
     /**
-     * Recupera una página de costos directos adicionales activos registrados en el sistema.
+     * Filtra los costos directos adicionales activos, opcionalmente por nombre.
      * <p>
      * Los costos directos adicionales dados de baja son excluidos por la condición
      * {@code estado = 'ACTIVO'} aplicada en el repositorio.
      * </p>
      *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link CostoDirectoAdicionalResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<CostoDirectoAdicionalResponseDTO> buscarTodos(Pageable pageable) {
-        return costoDirectoAdicionalRepository.findAll(pageable).map(MapperCostoDirectoAdicional::toDTO);
+    public Page<CostoDirectoAdicionalResponseDTO> filtrarCostosDirectosAdicionales(String nombre, Pageable pageable) {
+        return costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales(nombre, pageable).map(MapperCostoDirectoAdicional::toDTO);
     }
 
     /**

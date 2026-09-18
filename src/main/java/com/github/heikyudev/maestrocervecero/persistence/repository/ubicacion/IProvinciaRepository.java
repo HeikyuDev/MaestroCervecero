@@ -44,6 +44,24 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
     Page<ProvinciaEntity> findAll(Pageable pageable);
 
     /**
+     * Filtra las provincias activas, opcionalmente por nombre (coincidencia parcial, sin
+     * distinguir mayúsculas/minúsculas) y/o país (coincidencia exacta). Un parámetro nulo no
+     * restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param idPais El ID del país a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de provincias activas que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT pr FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(pr.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:idPais IS NULL OR pr.pais.id = :idPais)",
+            countQuery = "SELECT COUNT(pr) FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(pr.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:idPais IS NULL OR pr.pais.id = :idPais)")
+    Page<ProvinciaEntity> filtrarProvincias(@Param("nombre") String nombre, @Param("idPais") Long idPais, Pageable pageable);
+
+    /**
      * Verifica si existe una provincia activa con el nombre dado (ignorando mayúsculas y
      * minúsculas) para el país indicado.
      * <p>

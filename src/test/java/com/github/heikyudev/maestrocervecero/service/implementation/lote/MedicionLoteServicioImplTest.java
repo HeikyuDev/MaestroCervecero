@@ -91,22 +91,22 @@ class MedicionLoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FML-02: filtrarMedicionesLote asume REGISTRADO por defecto cuando el estado es nulo, y propaga el rango de fechas nulo sin acotar")
-    void filtrarMedicionesLote_debeAsumirRegistradoPorDefectoYPropagarFechasNulas() {
+    @DisplayName("CP-FML-02: filtrarMedicionesLote con estado nulo no asume REGISTRADO por defecto, lo propaga tal cual junto con el rango de fechas nulo sin acotar")
+    void filtrarMedicionesLote_debePropagarEstadoNuloSinDefault() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        MedicionLoteEntity medicion1 = crearMedicionLoteBase(1L, 5.5);
-        MedicionLoteEntity medicion2 = crearMedicionLoteBase(2L, 5.6);
-        when(medicionLoteRepository.filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, null, null, pageable))
-                .thenReturn(new PageImpl<>(List.of(medicion1, medicion2), pageable, 2));
+        MedicionLoteEntity registrada = crearMedicionLoteBase(1L, 5.5);
+        MedicionLoteEntity anulada = crearMedicionLoteBase(2L, 5.6);
+        anulada.setEstado(EstadoTransaccion.ANULADO);
+        when(medicionLoteRepository.filtrarMedicionesLote(1L, 5L, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(registrada, anulada), pageable, 2));
 
         // === EJECUCION ===
         Page<MedicionLoteResponseDTO> resultado = medicionLoteServicio.filtrarMedicionesLote(1L, 5L, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
-        // Verifica que el service haya reemplazado el estado nulo por REGISTRADO antes de consultar
-        verify(medicionLoteRepository).filtrarMedicionesLote(1L, 5L, EstadoTransaccion.REGISTRADO, null, null, pageable);
+        verify(medicionLoteRepository).filtrarMedicionesLote(1L, 5L, null, null, null, pageable);
     }
 
     @Test

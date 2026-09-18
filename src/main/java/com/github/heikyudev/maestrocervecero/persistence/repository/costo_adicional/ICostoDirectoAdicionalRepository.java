@@ -45,6 +45,21 @@ public interface ICostoDirectoAdicionalRepository extends JpaRepository<CostoDir
     Page<CostoDirectoAdicionalEntity> findAll(Pageable pageable);
 
     /**
+     * Filtra los costos directos adicionales activos, opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas). Un parámetro nulo no restringe por ese
+     * criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de costos directos adicionales activos que cumplen el criterio indicado.
+     */
+    @Query(value = "SELECT cda FROM CostoDirectoAdicionalEntity cda WHERE cda.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(cda.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))",
+            countQuery = "SELECT COUNT(cda) FROM CostoDirectoAdicionalEntity cda WHERE cda.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(cda.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))")
+    Page<CostoDirectoAdicionalEntity> filtrarCostosDirectosAdicionales(@Param("nombre") String nombre, Pageable pageable);
+
+    /**
      * Verifica si existe un costo directo adicional activo con el nombre dado, ignorando
      * mayúsculas y minúsculas.
      *

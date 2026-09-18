@@ -35,9 +35,7 @@ public interface IConsumoInsumoRepository extends JpaRepository<ConsumoInsumoEnt
      * @param idEtapaLote El ID de la etapa de lote (obligatorio).
      * @param tipoConsumo El tipo de consumo a filtrar, o {@code null} para no filtrar por él.
      * @param idInsumo El ID del insumo consumido a filtrar, o {@code null} para no filtrar por él.
-     * @param estado El estado transaccional a filtrar. El service nunca invoca esta consulta con
-     *               {@code null} (resuelve el valor por defecto antes), pero la condición se
-     *               mantiene null-safe por consistencia con el resto de los {@code filtrarX}.
+     * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de consumos de insumo que cumplen los criterios indicados.
      */

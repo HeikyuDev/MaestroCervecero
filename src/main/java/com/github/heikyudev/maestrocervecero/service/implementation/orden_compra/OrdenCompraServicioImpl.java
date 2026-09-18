@@ -49,19 +49,21 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
 
     /**
-     * Recupera una página de órdenes de compra activas registradas en el sistema.
-     * <p>
-     * Las órdenes de compra eliminadas lógicamente son excluidas automáticamente por el
-     * {@code @SoftDelete} de Hibernate sobre la entidad.
-     * </p>
+     * Filtra las órdenes de compra, opcionalmente por planificación de producción, proveedor,
+     * estado y/o fecha de entrega estimada.
      *
+     * @param idPlanificacionProduccion El ID de la planificación de producción a filtrar, o {@code null} para no filtrar por ella.
+     * @param idProveedor El ID del proveedor a filtrar, o {@code null} para no filtrar por él.
+     * @param estado El estado de la orden de compra a filtrar, o {@code null} para no filtrar por él.
+     * @param fechaEntregaEstimada La fecha de entrega estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link OrdenCompraResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<OrdenCompraResponseDTO> buscarTodos(Pageable pageable) {
-        return ordenCompraRepository.findAll(pageable).map(MapperOrdenCompra::toDTO);
+    public Page<OrdenCompraResponseDTO> filtrarOrdenesCompra(Long idPlanificacionProduccion, Long idProveedor, EstadoSolicitud estado, LocalDate fechaEntregaEstimada, Pageable pageable) {
+        return ordenCompraRepository.filtrarOrdenesCompra(idPlanificacionProduccion, idProveedor, estado, fechaEntregaEstimada, pageable)
+                .map(MapperOrdenCompra::toDTO);
     }
 
     /**

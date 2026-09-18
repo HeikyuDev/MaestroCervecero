@@ -29,14 +29,13 @@ public interface IMedicionLoteServicio {
      * </p>
      * <p>
      * {@code estado} sí es un criterio de negocio legítimo para el usuario (a diferencia de una
-     * baja lógica, acá "ver lo anulado" tiene valor real): si no lo especifica, este método
-     * asume {@code REGISTRADO} por defecto; el usuario puede elegir explícitamente
-     * {@code ANULADO} si quiere revisar el historial de mediciones anuladas.
+     * baja lógica, acá "ver lo anulado" tiene valor real) y no asume {@code REGISTRADO} por
+     * defecto: {@code null} muestra mediciones en cualquier estado.
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan mediciones (obligatorio).
      * @param idDetalleParametroControl El ID del detalle de parámetro de control sobre el que se gestionan mediciones (obligatorio).
-     * @param estado El estado a filtrar, o {@code null} para asumir {@code REGISTRADO} por defecto.
+     * @param estado El estado a filtrar, o {@code null} para no filtrar por él.
      * @param fechaMedicionDesde Límite inferior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param fechaMedicionHasta Límite superior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param pageable La configuración de paginación.

@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarLocalidades(String nombre, String codigoPostal, Long idProvincia, Long idPais, Pageable pageable)`
+
+`nombre` es coincidencia parcial, sin distinguir mayúsculas/minúsculas; `codigoPostal`, `idProvincia` e `idPais` son coincidencia exacta. `idPais` filtra a través de la provincia de cada localidad (dos saltos: localidad → provincia → país), no es un campo propio de la entidad. Todos son opcionales, `null` = no filtra por ese criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 localidades activas|`findAll(pageable)` contiene elementos|Retorna `Page<LocalidadResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<LocalidadResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FL-01**|Filtra por los 4 criterios informados|`nombre: "Palermo"`, `codigoPostal: "1414"`, `idProvincia: 1L`, `idPais: 1L`, `pageable: PageRequest.of(0, 10)`, BD con 1 localidad activa que cumple los cuatro criterios|`filtrarLocalidades("Palermo", "1414", 1L, 1L, pageable)` contiene elementos|Retorna `Page<LocalidadResponseDTO>` con 1 elemento mapeado.|
+|**CP-FL-02**|Los 4 parámetros nulos no restringen la búsqueda|`nombre: null`, `codigoPostal: null`, `idProvincia: null`, `idPais: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 localidades activas|El service propaga los 4 parámetros nulos tal cual al repositorio|Retorna `Page<LocalidadResponseDTO>` con las 3 localidades activas (equivalente a no filtrar).|
+|**CP-FL-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`|`filtrarLocalidades("Inexistente", null, null, null, pageable)` está vacío|Retorna `Page<LocalidadResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

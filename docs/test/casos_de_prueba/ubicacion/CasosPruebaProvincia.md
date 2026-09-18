@@ -1,9 +1,12 @@
-### 1. `buscarTodos(Pageable pageable)`
+### 1. `filtrarProvincias(String nombre, Long idPais, Pageable pageable)`
+
+`nombre` es coincidencia parcial, sin distinguir mayúsculas/minúsculas; `idPais` es coincidencia exacta. Ambos son opcionales, `null` = no filtra por ese criterio.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BT-01**|Consulta con registros existentes|`pageable: PageRequest.of(0, 10)`, BD con 3 provincias activas|`findAll(pageable)` contiene elementos|Retorna `Page<ProvinciaResponseDTO>` con 3 elementos mapeados.|
-|**CP-BT-02**|Consulta sin registros existentes|`pageable: PageRequest.of(0, 10)`, BD vacía|`findAll(pageable)` está vacío|Retorna `Page<ProvinciaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FPr-01**|Filtra por nombre e idPais informados|`nombre: "Mis"`, `idPais: 1L`, `pageable: PageRequest.of(0, 10)`, BD con 1 provincia activa que cumple ambos criterios|`filtrarProvincias("Mis", 1L, pageable)` contiene elementos|Retorna `Page<ProvinciaResponseDTO>` con 1 elemento mapeado.|
+|**CP-FPr-02**|Los 2 parámetros nulos no restringen la búsqueda|`nombre: null`, `idPais: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 provincias activas|El service propaga los 2 parámetros nulos tal cual al repositorio|Retorna `Page<ProvinciaResponseDTO>` con las 3 provincias activas (equivalente a no filtrar).|
+|**CP-FPr-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `idPais: null`, `pageable: PageRequest.of(0, 10)`|`filtrarProvincias("Inexistente", null, pageable)` está vacío|Retorna `Page<ProvinciaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
 ### 2. `buscarPorId(Long id)`
 

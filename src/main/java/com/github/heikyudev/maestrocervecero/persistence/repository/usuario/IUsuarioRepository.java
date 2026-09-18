@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.usuario;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -70,4 +71,31 @@ public interface IUsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u WHERE UPPER(u.username) = UPPER(:username) AND u.estado = 'ACTIVO'")
     boolean existsByUsername(@Param("username") String username);
 
+    /**
+     * Filtra los usuarios activos, opcionalmente por nombre, correo electrónico, username y/o rol
+     * (coincidencia parcial y sin distinguir mayúsculas/minúsculas para los tres primeros, exacta
+     * para el rol). Un parámetro nulo no restringe por ese criterio.
+     *
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param correo Texto a buscar dentro del correo electrónico, o {@code null} para no filtrar por él.
+     * @param username Texto a buscar dentro del nombre de usuario, o {@code null} para no filtrar por él.
+     * @param rol El rol exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación.
+     * @return Una página de usuarios activos que cumplen los criterios indicados.
+     */
+    @Query(value = "SELECT u FROM UsuarioEntity u WHERE u.estado = 'ACTIVO' "
+            + "AND (:nombre IS NULL OR UPPER(u.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:correo IS NULL OR UPPER(u.correo) LIKE UPPER(CONCAT('%', :correo, '%'))) "
+            + "AND (:username IS NULL OR UPPER(u.username) LIKE UPPER(CONCAT('%', :username, '%'))) "
+            + "AND (:rol IS NULL OR u.rol = :rol)",
+            countQuery = "SELECT COUNT(u) FROM UsuarioEntity u WHERE u.estado = 'ACTIVO' "
+                    + "AND (:nombre IS NULL OR UPPER(u.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:correo IS NULL OR UPPER(u.correo) LIKE UPPER(CONCAT('%', :correo, '%'))) "
+                    + "AND (:username IS NULL OR UPPER(u.username) LIKE UPPER(CONCAT('%', :username, '%'))) "
+                    + "AND (:rol IS NULL OR u.rol = :rol)")
+    Page<UsuarioEntity> filtrarUsuarios(@Param("nombre") String nombre,
+                                         @Param("correo") String correo,
+                                         @Param("username") String username,
+                                         @Param("rol") Rol rol,
+                                         Pageable pageable);
 }

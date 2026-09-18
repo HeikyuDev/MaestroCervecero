@@ -45,17 +45,13 @@ public interface IMedicionLoteRepository extends JpaRepository<MedicionLoteEntit
      * directas que ya tiene {@code MedicionLoteEntity} (no hace falta navegar nada adicional).
      * </p>
      * <p>
-     * {@code estado} es el único criterio realmente opcional a nivel de esta consulta: un
-     * {@code null} aquí no significa "no filtrar" — el service que invoca este método siempre
-     * resuelve un valor concreto antes de llamarlo (por defecto {@code REGISTRADO} si el usuario
-     * no eligió explícitamente ver las anuladas), ya que a diferencia de una baja lógica
-     * ({@code Estado}), acá el estado transaccional sí es un criterio de negocio legítimo para
-     * el usuario.
+     * {@code estado} no asume {@code REGISTRADO} por defecto: un {@code null} muestra mediciones
+     * en cualquier estado, igual que el resto de los {@code filtrarX} que exponen este criterio.
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan mediciones (obligatorio).
      * @param idDetalleParametroControl El ID del detalle de parámetro de control sobre el que se gestionan mediciones (obligatorio).
-     * @param estado El estado exacto a filtrar.
+     * @param estado El estado exacto a filtrar, o {@code null} para no filtrar por él.
      * @param fechaMedicionDesde Límite inferior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param fechaMedicionHasta Límite superior (inclusive) del rango de fecha de medición, o {@code null} para no acotarlo.
      * @param pageable La configuración de paginación.
