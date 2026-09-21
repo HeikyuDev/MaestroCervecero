@@ -112,4 +112,17 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      */
     @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo AND (li.cantidadActual - li.cantidadReservada) > 0 ORDER BY li.fechaVencimiento ASC")
     List<LoteInsumoEntity> filtrarLotesInsumoDisponibles(@Param("idInsumo") Long idInsumo);
+
+    /**
+     * Verifica si existe algún lote de insumo de un insumo determinado con cantidad actual mayor
+     * a la indicada.
+     * <p>
+     * Se usa para impedir la baja lógica de un insumo que todavía tiene stock físico.
+     * </p>
+     *
+     * @param idInsumo El ID del insumo a verificar.
+     * @param cantidadActual Cantidad actual mínima (exclusiva) a considerar.
+     * @return {@code true} si existe al menos un lote de ese insumo con cantidad actual mayor a la indicada, {@code false} en caso contrario.
+     */
+    boolean existsByInsumo_IdAndCantidadActualGreaterThan(Long idInsumo, Double cantidadActual);
 }

@@ -38,7 +38,11 @@
 
 ### 5. `bajaMalta(Long id)`
 
+No se puede dar de baja una malta que forma parte de al menos una receta activa (`versión con esUltimaVersion = true` perteneciente a una receta con `estado = ACTIVO`), ni una que tenga stock (al menos un lote de insumo con `cantidadActual > 0`).
+
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BM-01**|Baja de malta inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la malta con ID: 99". No llama a `save()`.|
-|**CP-BM-02**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la malta dada de baja.|
+|**CP-BM-02**|Malta forma parte de una receta activa|`id: 1L` (Existe), `versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)` $\rightarrow$ **true**|Existe al menos una receta activa que la usa|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque forma parte de al menos una receta activa"). No consulta stock (`verifyNoInteractions(loteInsumoRepository)`) ni ejecuta `save()`.|
+|**CP-BM-03**|Malta tiene stock|`id: 1L` (Existe), `versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)` $\rightarrow$ **false**, `loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)` $\rightarrow$ **true**|No está en ninguna receta activa, pero tiene al menos un lote con cantidad actual mayor a cero|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque tiene stock"). No ejecuta `save()`.|
+|**CP-BM-04**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD), sin receta activa ni stock asociados|`findById(1L)` $\rightarrow$ **Presente**, ambas validaciones $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la malta dada de baja.|

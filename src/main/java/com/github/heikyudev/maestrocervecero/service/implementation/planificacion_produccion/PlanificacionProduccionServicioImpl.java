@@ -2,10 +2,12 @@ package com.github.heikyudev.maestrocervecero.service.implementation.planificaci
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
@@ -26,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IRecetaRepository recetaRepository;
+    private final ILoteRepository loteRepository;
 
     /**
      * Recupera una página de planificaciones de producción registradas en el sistema, filtradas
@@ -125,7 +129,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param id Identificador clave primaria de la planificación de producción a anular.
      * @param anulacionFormDTO DTO que contiene el motivo de la anulación.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, o si la planificación no se encuentra en estado {@code PENDIENTE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la planificación no se encuentra en estado {@code PENDIENTE}, si tiene al menos un lote en estado {@code PENDIENTE} o {@code EN_EJECUCION} asociado, o si tiene al menos un lote en estado {@code FINALIZADO} asociado.
      * @throws RecursoNoEncontradoException Si la planificación de producción con el ID especificado no existe.
      */
     @Override
@@ -146,14 +150,23 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
             throw new ReglaNegocioException("Solo se pueden anular planificaciones de producción en estado PENDIENTE");
         }
 
-        // TODO: verifica que la Planificación de Producción no tenga asociado Lotes en estado pendiente o En ejecución
+        // 4. Validar que no tenga lotes pendientes o en ejecución: primero hay que cancelarlos
+        if (loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(id, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))) {
+            throw new ReglaNegocioException("No se puede anular la planificación de producción porque tiene al menos un lote en estado PENDIENTE o EN_EJECUCION asociado");
+        }
 
-        // 4. Aplicar la anulación sobre la entidad administrada por persistencia
+        // 5. Validar que no tenga ningún lote finalizado: la anulación es para errores de carga,
+        //    no para producción que ya ocurrió
+        if (loteRepository.existsByPlanificacionProduccion_IdAndEstado(id, EstadoLote.FINALIZADO)) {
+            throw new ReglaNegocioException("No se puede anular la planificación de producción porque tiene al menos un lote en estado FINALIZADO asociado");
+        }
+
+        // 6. Aplicar la anulación sobre la entidad administrada por persistencia
         planificacionProduccionEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
         planificacionProduccionEntity.setFechaAnulacion(LocalDateTime.now());
         planificacionProduccionEntity.setEstado(EstadoSolicitud.ANULADA);
 
-        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
+        // 7. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.save(planificacionProduccionEntity));
     }
 
@@ -169,7 +182,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param id Identificador clave primaria de la planificación de producción a finalizar.
      * @param finalizacionFormDTO DTO que contiene el motivo de la finalización forzada.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción finalizada.
-     * @throws ReglaNegocioException Si el motivo de finalización no fue informado, o si la planificación no se encuentra en estado {@code PENDIENTE}.
+     * @throws ReglaNegocioException Si el motivo de finalización no fue informado, si la planificación no se encuentra en estado {@code PENDIENTE}, si tiene al menos un lote en estado {@code PENDIENTE} o {@code EN_EJECUCION} asociado, o si no tiene ningún lote en estado {@code FINALIZADO} asociado.
      * @throws RecursoNoEncontradoException Si la planificación de producción con el ID especificado no existe.
      */
     @Override
@@ -190,15 +203,24 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
             throw new ReglaNegocioException("Solo se pueden finalizar planificaciones de producción en estado PENDIENTE");
         }
 
-        // TODO: verifica que la planificación de producción tenga al menos un Lote finalizado asociado.
-        // TODO: verifica que la Planificación de Producción no tenga asociado Lotes en estado pendiente o En ejecución
+        // 4. Validar que no tenga lotes pendientes o en ejecución: primero hay que cancelarlos
+        if (loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(id, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))) {
+            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque tiene al menos un lote en estado PENDIENTE o EN_EJECUCION asociado");
+        }
 
-        // 4. Aplicar la finalización forzada sobre la entidad administrada por persistencia
+        // 5. Validar que tenga al menos un lote finalizado: la finalización forzada cierra una
+        //    planificación que sí llegó a producir algo pero no completó la cantidad solicitada;
+        //    si no produjo nada, corresponde anularla en lugar de finalizarla
+        if (!loteRepository.existsByPlanificacionProduccion_IdAndEstado(id, EstadoLote.FINALIZADO)) {
+            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado FINALIZADO asociado; corresponde anularla en su lugar");
+        }
+
+        // 6. Aplicar la finalización forzada sobre la entidad administrada por persistencia
         planificacionProduccionEntity.setMotivoFinalizacion(finalizacionFormDTO.getMotivoFinalizacion());
         planificacionProduccionEntity.setFechaFinalizacion(LocalDateTime.now());
         planificacionProduccionEntity.setEstado(EstadoSolicitud.FINALIZADA);
 
-        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
+        // 7. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.save(planificacionProduccionEntity));
     }
 

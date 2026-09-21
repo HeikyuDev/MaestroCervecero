@@ -6,7 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraE
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -25,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LevaduraServicioImpl implements ILevaduraServicio {
 
-    // Inyecto el repositorio gracias a LOMBOK
+    // Inyecto los repositorios gracias a LOMBOK
     private final ILevaduraRepository levaduraRepository;
+    private final IVersionRecetaRepository versionRecetaRepository;
+    private final ILoteInsumoRepository loteInsumoRepository;
 
     /**
      * Recupera una página de levaduras activas registradas en el sistema, filtradas
@@ -155,6 +159,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a dar de baja.
      * @return {@link LevaduraResponseDTO} con los datos de la levadura ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la levadura con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -164,12 +169,21 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         LevaduraEntity levaduraEntity = levaduraRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la levadura con ID: " + id));
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
-        // TODO: validar dependencias de Stock/Recetas cuando esos módulos existan
+        // 2. Validar que la levadura no forme parte de ninguna receta activa
+        if (versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque forma parte de al menos una receta activa");
+        }
+
+        // 3. Validar que la levadura no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque tiene stock");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         levaduraEntity.setEstado(Estado.BAJA);
         levaduraRepository.save(levaduraEntity);
 
-        // 3. Retornamos el DTO de la levadura dada de baja en lugar de null
+        // 5. Retornamos el DTO de la levadura dada de baja en lugar de null
         return MapperLevadura.toDTO(levaduraEntity);
     }
 

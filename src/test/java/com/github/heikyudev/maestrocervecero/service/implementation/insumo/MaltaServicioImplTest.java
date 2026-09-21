@@ -4,7 +4,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEnti
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -38,6 +40,10 @@ class MaltaServicioImplTest {
 
     @Mock
     private IMaltaRepository maltaRepository;
+    @Mock
+    private IVersionRecetaRepository versionRecetaRepository;
+    @Mock
+    private ILoteInsumoRepository loteInsumoRepository;
 
     @InjectMocks
     private MaltaServicioImpl maltaServicio;
@@ -380,7 +386,7 @@ class MaltaServicioImplTest {
     // ==================== bajaMalta ====================
 
     @Test
-    @DisplayName("bajaMalta lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    @DisplayName("CP-BM-01: bajaMalta lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaMalta_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(maltaRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -393,10 +399,42 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    @DisplayName("CP-BM-02: bajaMalta lanza ReglaNegocioException cuando la malta forma parte de una receta activa")
+    void bajaMalta_debeRechazarSiFormaParteDeRecetaActiva() {
+        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la malta porque forma parte de al menos una receta activa");
+
+        verifyNoInteractions(loteInsumoRepository);
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-03: bajaMalta lanza ReglaNegocioException cuando la malta tiene stock")
+    void bajaMalta_debeRechazarSiTieneStock() {
+        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la malta porque tiene stock");
+
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-04: bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa ni stock asociados")
     void bajaMalta_debeMarcarBajaYRetornarMaltaExistente() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(false);
         when(maltaRepository.save(maltaEntity)).thenReturn(maltaEntity);
 
         MaltaResponseDTO resultado = maltaServicio.bajaMalta(1L);

@@ -48,4 +48,52 @@ public interface IVersionRecetaRepository extends JpaRepository<VersionRecetaEnt
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionRecetaEntity v " +
             "WHERE UPPER(v.nombre) = UPPER(:nombre) AND v.esUltimaVersion = true AND v.receta.id <> :recetaId AND v.receta.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(@Param("nombre") String nombre, @Param("recetaId") Long recetaId);
+
+    /**
+     * Verifica si la malta indicada forma parte del detalle de alguna versión de receta activa
+     * (marcada como última versión, perteneciente a una receta activa).
+     * <p>
+     * Se usa para impedir la baja lógica de una malta que todavía está planificada en una
+     * receta vigente.
+     * </p>
+     *
+     * @param idMalta El ID de la malta a verificar.
+     * @return {@code true} si la malta forma parte de alguna receta activa, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionRecetaEntity v " +
+            "JOIN v.detallesMalta d " +
+            "WHERE d.malta.id = :idMalta AND v.esUltimaVersion = true AND v.receta.estado = 'ACTIVO'")
+    boolean existsByDetalleMaltaEnRecetaActiva(@Param("idMalta") Long idMalta);
+
+    /**
+     * Verifica si el lúpulo indicado forma parte del detalle de alguna versión de receta activa
+     * (marcada como última versión, perteneciente a una receta activa).
+     * <p>
+     * Se usa para impedir la baja lógica de un lúpulo que todavía está planificado en una
+     * receta vigente.
+     * </p>
+     *
+     * @param idLupulo El ID del lúpulo a verificar.
+     * @return {@code true} si el lúpulo forma parte de alguna receta activa, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionRecetaEntity v " +
+            "JOIN v.detallesLupulo d " +
+            "WHERE d.lupulo.id = :idLupulo AND v.esUltimaVersion = true AND v.receta.estado = 'ACTIVO'")
+    boolean existsByDetalleLupuloEnRecetaActiva(@Param("idLupulo") Long idLupulo);
+
+    /**
+     * Verifica si la levadura indicada forma parte del detalle de alguna versión de receta activa
+     * (marcada como última versión, perteneciente a una receta activa).
+     * <p>
+     * Se usa para impedir la baja lógica de una levadura que todavía está planificada en una
+     * receta vigente.
+     * </p>
+     *
+     * @param idLevadura El ID de la levadura a verificar.
+     * @return {@code true} si la levadura forma parte de alguna receta activa, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionRecetaEntity v " +
+            "JOIN v.detallesLevadura d " +
+            "WHERE d.levadura.id = :idLevadura AND v.esUltimaVersion = true AND v.receta.estado = 'ACTIVO'")
+    boolean existsByDetalleLevaduraEnRecetaActiva(@Param("idLevadura") Long idLevadura);
 }

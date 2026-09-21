@@ -37,7 +37,11 @@
 
 ### 5. `bajaLupulo(Long id)`
 
+No se puede dar de baja un lúpulo que forma parte de al menos una receta activa (`versión con esUltimaVersion = true` perteneciente a una receta con `estado = ACTIVO`), ni uno que tenga stock (al menos un lote de insumo con `cantidadActual > 0`).
+
 | **ID**       | **Nombre del Caso**          | **Datos de Entrada (Escenario)** | **Condición Evaluada**                             | **Resultado Esperado**                                                                                         |
 | ------------ | ---------------------------- | -------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | **CP-BL-01** | Baja de lúpulo inexistente   | `id: 99L` (No existe en BD)      | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el lúpulo con ID: 99". No llama a `save()`. |
-| **CP-BL-02** | Baja exitosa _(Baja lógica vía Estado)_ | `id: 1L` (Existe en BD)          | `findById(1L)` $\rightarrow$ **Presente**          | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del lúpulo dado de baja.                                                 |
+| **CP-BL-02** | Lúpulo forma parte de una receta activa | `id: 1L` (Existe), `versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)` $\rightarrow$ **true** | Existe al menos una receta activa que lo usa | Lanza `ReglaNegocioException` ("No se puede dar de baja el lúpulo porque forma parte de al menos una receta activa"). No consulta stock (`verifyNoInteractions(loteInsumoRepository)`) ni ejecuta `save()`. |
+| **CP-BL-03** | Lúpulo tiene stock | `id: 1L` (Existe), `versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)` $\rightarrow$ **false**, `loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)` $\rightarrow$ **true** | No está en ninguna receta activa, pero tiene al menos un lote con cantidad actual mayor a cero | Lanza `ReglaNegocioException` ("No se puede dar de baja el lúpulo porque tiene stock"). No ejecuta `save()`. |
+| **CP-BL-04** | Baja exitosa _(Baja lógica vía Estado)_ | `id: 1L` (Existe en BD), sin receta activa ni stock asociados | `findById(1L)` $\rightarrow$ **Presente**, ambas validaciones $\rightarrow$ **FALSE** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del lúpulo dado de baja. |

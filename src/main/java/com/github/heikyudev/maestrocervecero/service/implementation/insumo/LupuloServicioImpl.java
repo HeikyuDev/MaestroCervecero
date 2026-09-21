@@ -6,7 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLu
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -25,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LupuloServicioImpl implements ILupuloServicio {
 
-    // Inyecto el repositorio gracias a LOMBOK
+    // Inyecto los repositorios gracias a LOMBOK
     private final ILupuloRepository lupuloRepository;
+    private final IVersionRecetaRepository versionRecetaRepository;
+    private final ILoteInsumoRepository loteInsumoRepository;
 
     /**
      * Recupera una página de lúpulos activos registrados en el sistema, filtrados opcionalmente
@@ -154,6 +158,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @param id Identificador clave primaria del lúpulo a dar de baja.
      * @return {@link LupuloResponseDTO} con los datos del lúpulo ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el lúpulo con el ID especificado no existe o ya fue dado de baja.
+     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -163,12 +168,21 @@ public class LupuloServicioImpl implements ILupuloServicio {
         LupuloEntity lupuloEntity = lupuloRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lúpulo con ID: " + id));
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
-        // TODO: validar dependencias de Stock/Recetas cuando esos módulos existan
+        // 2. Validar que el lúpulo no forme parte de ninguna receta activa
+        if (versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque forma parte de al menos una receta activa");
+        }
+
+        // 3. Validar que el lúpulo no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
+            throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque tiene stock");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         lupuloEntity.setEstado(Estado.BAJA);
         lupuloRepository.save(lupuloEntity);
 
-        // 3. Retornamos el DTO del lúpulo dado de baja en lugar de null
+        // 5. Retornamos el DTO del lúpulo dado de baja en lugar de null
         return MapperLupulo.toDTO(lupuloEntity);
     }
 

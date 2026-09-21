@@ -4,7 +4,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraE
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -38,6 +40,10 @@ class LevaduraServicioImplTest {
 
     @Mock
     private ILevaduraRepository levaduraRepository;
+    @Mock
+    private IVersionRecetaRepository versionRecetaRepository;
+    @Mock
+    private ILoteInsumoRepository loteInsumoRepository;
 
     @InjectMocks
     private LevaduraServicioImpl levaduraServicio;
@@ -354,7 +360,7 @@ class LevaduraServicioImplTest {
     // ==================== bajaLevadura ====================
 
     @Test
-    @DisplayName("bajaLevadura lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    @DisplayName("CP-BL-01: bajaLevadura lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaLevadura_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(levaduraRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -367,10 +373,42 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    @DisplayName("CP-BL-02: bajaLevadura lanza ReglaNegocioException cuando la levadura forma parte de una receta activa")
+    void bajaLevadura_debeRechazarSiFormaParteDeRecetaActiva() {
+        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la levadura porque forma parte de al menos una receta activa");
+
+        verifyNoInteractions(loteInsumoRepository);
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-03: bajaLevadura lanza ReglaNegocioException cuando la levadura tiene stock")
+    void bajaLevadura_debeRechazarSiTieneStock() {
+        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la levadura porque tiene stock");
+
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-04: bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa ni stock asociados")
     void bajaLevadura_debeMarcarBajaYRetornarLevaduraExistente() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(false);
         when(levaduraRepository.save(levaduraEntity)).thenReturn(levaduraEntity);
 
         LevaduraResponseDTO resultado = levaduraServicio.bajaLevadura(1L);

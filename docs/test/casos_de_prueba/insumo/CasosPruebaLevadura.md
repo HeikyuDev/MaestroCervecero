@@ -45,7 +45,11 @@
 
 ### 5. `bajaLevadura(Long id)`
 
+No se puede dar de baja una levadura que forma parte de al menos una receta activa (`versión con esUltimaVersion = true` perteneciente a una receta con `estado = ACTIVO`), ni una que tenga stock (al menos un lote de insumo con `cantidadActual > 0`).
+
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
 | **CP-BL-01** | Baja de levadura inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la levadura con ID: 99". No llama a `save()`. |
-| **CP-BL-02** | Baja exitosa *(Baja lógica vía Estado)* | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la levadura dada de baja. |
+| **CP-BL-02** | Levadura forma parte de una receta activa | `id: 1L` (Existe), `versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)` $\rightarrow$ **true** | Existe al menos una receta activa que la usa | Lanza `ReglaNegocioException` ("No se puede dar de baja la levadura porque forma parte de al menos una receta activa"). No consulta stock (`verifyNoInteractions(loteInsumoRepository)`) ni ejecuta `save()`. |
+| **CP-BL-03** | Levadura tiene stock | `id: 1L` (Existe), `versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)` $\rightarrow$ **false**, `loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)` $\rightarrow$ **true** | No está en ninguna receta activa, pero tiene al menos un lote con cantidad actual mayor a cero | Lanza `ReglaNegocioException` ("No se puede dar de baja la levadura porque tiene stock"). No ejecuta `save()`. |
+| **CP-BL-04** | Baja exitosa *(Baja lógica vía Estado)* | `id: 1L` (Existe en BD), sin receta activa ni stock asociados | `findById(1L)` $\rightarrow$ **Presente**, ambas validaciones $\rightarrow$ **FALSE** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la levadura dada de baja. |

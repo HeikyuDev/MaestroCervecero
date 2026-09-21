@@ -4,7 +4,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLu
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -38,6 +40,10 @@ class LupuloServicioImplTest {
 
     @Mock
     private ILupuloRepository lupuloRepository;
+    @Mock
+    private IVersionRecetaRepository versionRecetaRepository;
+    @Mock
+    private ILoteInsumoRepository loteInsumoRepository;
 
     @InjectMocks
     private LupuloServicioImpl lupuloServicio;
@@ -354,7 +360,7 @@ class LupuloServicioImplTest {
     // ==================== bajaLupulo ====================
 
     @Test
-    @DisplayName("bajaLupulo lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    @DisplayName("CP-BL-01: bajaLupulo lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaLupulo_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(lupuloRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -367,10 +373,42 @@ class LupuloServicioImplTest {
     }
 
     @Test
-    @DisplayName("bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    @DisplayName("CP-BL-02: bajaLupulo lanza ReglaNegocioException cuando el lúpulo forma parte de una receta activa")
+    void bajaLupulo_debeRechazarSiFormaParteDeRecetaActiva() {
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el lúpulo porque forma parte de al menos una receta activa");
+
+        verifyNoInteractions(loteInsumoRepository);
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-03: bajaLupulo lanza ReglaNegocioException cuando el lúpulo tiene stock")
+    void bajaLupulo_debeRechazarSiTieneStock() {
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el lúpulo porque tiene stock");
+
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-04: bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa ni stock asociados")
     void bajaLupulo_debeMarcarBajaYRetornarLupuloExistente() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(false);
         when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
 
         LupuloResponseDTO resultado = lupuloServicio.bajaLupulo(1L);

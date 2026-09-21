@@ -6,7 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEnti
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -25,8 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MaltaServicioImpl implements IMaltaServicio {
 
-    // Inyecto el repositorio gracias a LOMBOK
+    // Inyecto los repositorios gracias a LOMBOK
     private final IMaltaRepository maltaRepository;
+    private final IVersionRecetaRepository versionRecetaRepository;
+    private final ILoteInsumoRepository loteInsumoRepository;
 
     /**
      * Recupera una página de maltas activas registradas en el sistema, filtradas opcionalmente
@@ -155,6 +159,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * @param id Identificador clave primaria de la malta a dar de baja.
      * @return {@link MaltaResponseDTO} con los datos de la malta ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la malta con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la malta forma parte de al menos una receta activa, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -164,12 +169,21 @@ public class MaltaServicioImpl implements IMaltaServicio {
         MaltaEntity maltaEntity = maltaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la malta con ID: " + id));
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
-        // TODO: validar dependencias de Stock/Recetas cuando esos módulos existan
+        // 2. Validar que la malta no forme parte de ninguna receta activa
+        if (versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la malta porque forma parte de al menos una receta activa");
+        }
+
+        // 3. Validar que la malta no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
+            throw new ReglaNegocioException("No se puede dar de baja la malta porque tiene stock");
+        }
+
+        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         maltaEntity.setEstado(Estado.BAJA);
         maltaRepository.save(maltaEntity);
 
-        // 3. Retornamos el DTO de la malta dada de baja en lugar de null
+        // 5. Retornamos el DTO de la malta dada de baja en lugar de null
         return MapperMalta.toDTO(maltaEntity);
     }
 

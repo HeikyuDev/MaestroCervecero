@@ -74,4 +74,34 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
                                    @Param("etapaActual") TipoEtapa etapaActual,
                                    @Param("volumenObjetivo") Double volumenObjetivo,
                                    Pageable pageable);
+
+    /**
+     * Verifica si existe algún lote, en alguno de los estados indicados, asociado a la
+     * planificación de producción indicada.
+     * <p>
+     * Se usa para impedir anular o finalizar una planificación de producción mientras todavía
+     * tiene lotes pendientes o en ejecución: primero hay que cancelarlos.
+     * </p>
+     *
+     * @param idPlanificacionProduccion El ID de la planificación de producción a verificar.
+     * @param estados Los estados de lote a considerar.
+     * @return {@code true} si existe al menos un lote en alguno de esos estados asociado a esa planificación, {@code false} en caso contrario.
+     */
+    boolean existsByPlanificacionProduccion_IdAndEstadoIn(Long idPlanificacionProduccion, List<EstadoLote> estados);
+
+    /**
+     * Verifica si existe algún lote, en el estado indicado, asociado a la planificación de
+     * producción indicada.
+     * <p>
+     * Se usa tanto para impedir anular una planificación de producción que ya tiene un lote
+     * finalizado (la anulación es para errores de carga, no para producción que ya ocurrió),
+     * como para exigir al menos un lote finalizado antes de forzar la finalización de una
+     * planificación de producción.
+     * </p>
+     *
+     * @param idPlanificacionProduccion El ID de la planificación de producción a verificar.
+     * @param estado El estado de lote a considerar.
+     * @return {@code true} si existe al menos un lote en ese estado asociado a esa planificación, {@code false} en caso contrario.
+     */
+    boolean existsByPlanificacionProduccion_IdAndEstado(Long idPlanificacionProduccion, EstadoLote estado);
 }
