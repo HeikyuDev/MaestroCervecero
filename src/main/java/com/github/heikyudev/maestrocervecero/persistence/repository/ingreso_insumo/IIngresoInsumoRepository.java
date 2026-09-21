@@ -40,6 +40,21 @@ public interface IIngresoInsumoRepository extends JpaRepository<IngresoInsumoEnt
     List<IngresoInsumoEntity> findByDetalleCompraIdAndEstado(Long idDetalleCompra, EstadoTransaccion estado);
 
     /**
+     * Verifica si existe algún ingreso de insumo, en el estado indicado, asociado a algún ítem de
+     * detalle de compra de la orden de compra indicada.
+     * <p>
+     * Solo los ingresos de tipo {@code COMPRA} tienen {@code detalleCompra} asignado (los
+     * {@code DIRECTO} lo dejan nulo), así que este JOIN ya excluye a los directos sin necesidad de
+     * filtrar además por {@code tipoIngreso}.
+     * </p>
+     *
+     * @param idOrdenCompra El ID de la orden de compra cuyos ingresos se quieren verificar.
+     * @param estado Estado de los ingresos a buscar.
+     * @return {@code true} si existe al menos un ingreso en ese estado asociado a algún ítem de esa orden de compra, {@code false} en caso contrario.
+     */
+    boolean existsByDetalleCompra_OrdenCompra_IdAndEstado(Long idOrdenCompra, EstadoTransaccion estado);
+
+    /**
      * Filtra los ingresos de insumo, opcionalmente por insumo, identificación del lote del
      * proveedor, estado, tipo de ingreso y/o fecha de ingreso. Un parámetro nulo no restringe por
      * ese criterio.

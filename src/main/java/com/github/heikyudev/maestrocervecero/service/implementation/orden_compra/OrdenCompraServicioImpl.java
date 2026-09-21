@@ -10,6 +10,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Provee
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IIngresoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -47,6 +49,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IProveedorRepository proveedorRepository;
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
+    private final IIngresoInsumoRepository ingresoInsumoRepository;
 
     /**
      * Filtra las órdenes de compra, opcionalmente por planificación de producción, proveedor,
@@ -144,7 +147,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      * @param id Identificador clave primaria de la orden de compra a anular.
      * @param anulacionFormDTO DTO que contiene el motivo de la anulación.
      * @return {@link OrdenCompraResponseDTO} representativo de la orden de compra anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, o si la orden no se encuentra en estado {@code PENDIENTE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la orden no se encuentra en estado {@code PENDIENTE}, o si tiene al menos un ingreso de insumo en estado {@code REGISTRADO} asociado.
      * @throws RecursoNoEncontradoException Si la orden de compra con el ID especificado no existe.
      */
     @Override
@@ -165,14 +168,19 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
             throw new ReglaNegocioException("Solo se pueden anular órdenes de compra en estado PENDIENTE");
         }
 
-        // TODO: Falta módulo de ingresos. Verifica que la orden de compra no tenga asociados ingresos de insumos a su nombre.
+        // 4. Validar que la orden no tenga ingresos de insumo REGISTRADO asociados: una anulación
+        //    corresponde a un error de carga (ítem olvidado, cantidad mal solicitada, etc.), no a una
+        //    compra que ya empezó a recibirse
+        if (ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
+            throw new ReglaNegocioException("No se puede anular la orden de compra porque tiene al menos un ingreso de insumo en estado REGISTRADO asociado");
+        }
 
-        // 4. Aplicar la anulación sobre la entidad administrada por persistencia
+        // 5. Aplicar la anulación sobre la entidad administrada por persistencia
         ordenCompraEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
         ordenCompraEntity.setFechaAnulacion(LocalDateTime.now());
         ordenCompraEntity.setEstado(EstadoSolicitud.ANULADA);
 
-        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
+        // 6. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperOrdenCompra.toDTO(ordenCompraRepository.save(ordenCompraEntity));
     }
 
@@ -186,7 +194,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      * @param id Identificador clave primaria de la orden de compra a finalizar.
      * @param finalizacionFormDTO DTO que contiene el motivo de la finalización forzada.
      * @return {@link OrdenCompraResponseDTO} representativo de la orden de compra finalizada.
-     * @throws ReglaNegocioException Si el motivo de finalización no fue informado, o si la orden no se encuentra en estado {@code PENDIENTE}.
+     * @throws ReglaNegocioException Si el motivo de finalización no fue informado, si la orden no se encuentra en estado {@code PENDIENTE}, o si no tiene ningún ingreso de insumo en estado {@code REGISTRADO} asociado.
      * @throws RecursoNoEncontradoException Si la orden de compra con el ID especificado no existe.
      */
     @Override
@@ -207,15 +215,20 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
             throw new ReglaNegocioException("Solo se pueden finalizar órdenes de compra en estado PENDIENTE");
         }
 
-        // TODO: Falta módulo de ingresos. Verifica que la orden de compra tenga al menos un ingreso de insumos en estado "Registrado";
-        //  si no tiene ninguno, corresponde anularla en lugar de finalizarla.
+        // 4. Validar que la orden tenga al menos un ingreso de insumo REGISTRADO asociado: la
+        //    finalización forzada cierra una orden que sí llegó a recibir algo pero no se puede
+        //    completar (cantidad ingresada menor a la solicitada, proveedor discontinuado, etc.);
+        //    si no recibió nada, corresponde anularla en lugar de finalizarla
+        if (!ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
+            throw new ReglaNegocioException("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado REGISTRADO asociado; corresponde anularla en su lugar");
+        }
 
-        // 4. Aplicar la finalización forzada sobre la entidad administrada por persistencia
+        // 5. Aplicar la finalización forzada sobre la entidad administrada por persistencia
         ordenCompraEntity.setMotivoFinalizacion(finalizacionFormDTO.getMotivoFinalizacion());
         ordenCompraEntity.setFechaFinalizacion(LocalDateTime.now());
         ordenCompraEntity.setEstado(EstadoSolicitud.FINALIZADA);
 
-        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
+        // 6. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperOrdenCompra.toDTO(ordenCompraRepository.save(ordenCompraEntity));
     }
 
