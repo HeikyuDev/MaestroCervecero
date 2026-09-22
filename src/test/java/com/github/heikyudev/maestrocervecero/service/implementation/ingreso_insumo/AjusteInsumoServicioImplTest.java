@@ -239,7 +239,35 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-06: registrarAjusteInsumo lanza ReglaNegocioException con motivo EGRESO cuando la cantidad supera la cantidad actual del lote")
+    @DisplayName("CP-RA-06: registrarAjusteInsumo lanza ReglaNegocioException cuando la observación es nula")
+    void registrarAjusteInsumo_debeRechazarObservacionNula() {
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 10.0, null);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
+
+        assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La observación es obligatoria");
+
+        verifyNoInteractions(ajusteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RA-07: registrarAjusteInsumo lanza ReglaNegocioException cuando la observación está en blanco")
+    void registrarAjusteInsumo_debeRechazarObservacionEnBlanco() {
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 10.0, "   ");
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
+
+        assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La observación es obligatoria");
+
+        verifyNoInteractions(ajusteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RA-08: registrarAjusteInsumo lanza ReglaNegocioException con motivo EGRESO cuando la cantidad supera la cantidad actual del lote")
     void registrarAjusteInsumo_debeRechazarEgresoQueSuperaCantidadActual() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 15.0, "Rotura de lote");
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
@@ -254,7 +282,7 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-07: registrarAjusteInsumo permite un EGRESO con cantidad igual a la disponible (límite, no debe quedar negativo)")
+    @DisplayName("CP-RA-09: registrarAjusteInsumo permite un EGRESO con cantidad igual a la disponible (límite, no debe quedar negativo)")
     void registrarAjusteInsumo_debePermitirEgresoConCantidadIgualALaDisponible() {
         // === PREPARACION DE DATOS ===
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 10.0, "Rotura de lote");
@@ -278,7 +306,7 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-08: registrarAjusteInsumo con motivo INGRESO no valida contra la cantidad disponible del lote")
+    @DisplayName("CP-RA-10: registrarAjusteInsumo con motivo INGRESO no valida contra la cantidad disponible del lote")
     void registrarAjusteInsumo_debePermitirIngresoSinValidarDisponible() {
         // === PREPARACION DE DATOS ===
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 100.0, "Ingreso grande");
@@ -298,7 +326,7 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-09: registrarAjusteInsumo persiste y retorna el DTO con motivo INGRESO (camino feliz)")
+    @DisplayName("CP-RA-11: registrarAjusteInsumo persiste y retorna el DTO con motivo INGRESO (camino feliz)")
     void registrarAjusteInsumo_debePersistirConMotivoIngreso() {
         // === PREPARACION DE DATOS ===
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 5.0, "Corrección de conteo físico");
@@ -333,7 +361,7 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-10: registrarAjusteInsumo persiste y retorna el DTO con motivo EGRESO (camino feliz)")
+    @DisplayName("CP-RA-12: registrarAjusteInsumo persiste y retorna el DTO con motivo EGRESO (camino feliz)")
     void registrarAjusteInsumo_debePersistirConMotivoEgreso() {
         // === PREPARACION DE DATOS ===
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 5.0, "Rotura de lote");
@@ -356,7 +384,7 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-11: registrarAjusteInsumo con EGRESO que excede la cantidad disponible reparte el excedente proporcionalmente entre las reservas activas del lote de insumo")
+    @DisplayName("CP-RA-13: registrarAjusteInsumo con EGRESO que excede la cantidad disponible reparte el excedente proporcionalmente entre las reservas activas del lote de insumo")
     void registrarAjusteInsumo_debeRepartirExcedenteProporcionalmenteEntreReservas() {
         // === PREPARACION DE DATOS ===
         // disponible = 20.0 - 12.0 = 8.0; se pide descontar 14.0 → excedente de 6.0 sobre lo reservado
@@ -384,7 +412,7 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RA-12: registrarAjusteInsumo con EGRESO dentro de la cantidad disponible no interactúa con las reservas de insumo")
+    @DisplayName("CP-RA-14: registrarAjusteInsumo con EGRESO dentro de la cantidad disponible no interactúa con las reservas de insumo")
     void registrarAjusteInsumo_noDebeTocarReservasSiNoExcedeDisponible() {
         // === PREPARACION DE DATOS ===
         // disponible = 20.0 - 12.0 = 8.0; se pide descontar 5.0, no la excede

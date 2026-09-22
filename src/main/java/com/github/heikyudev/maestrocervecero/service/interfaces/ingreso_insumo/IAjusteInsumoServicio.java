@@ -53,7 +53,7 @@ public interface IAjusteInsumoServicio {
      * @param ajusteInsumoFormDTO Los datos del ajuste a registrar.
      * @return El ajuste de insumo registrado.
      * @throws RecursoNoEncontradoException Si el lote de insumo o el motivo de ajuste referenciados no existen.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero, o si no hay suficiente cantidad disponible en el lote para un ajuste de tipo EGRESO.
+     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero, si la observación no fue informada, o si no hay suficiente cantidad disponible en el lote para un ajuste de tipo EGRESO.
      */
     AjusteInsumoResponseDTO registrarAjusteInsumo(AjusteInsumoFormDTO ajusteInsumoFormDTO);
 

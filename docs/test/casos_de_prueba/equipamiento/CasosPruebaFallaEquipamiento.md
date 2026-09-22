@@ -1,0 +1,45 @@
+### 1. `filtrarFallasEquipamiento(Long idEquipamiento, EstadoTransaccion estado, LocalDateTime fechaFallaDesde, LocalDateTime fechaFallaHasta, TipoEquipamiento tipoEquipamiento, Pageable pageable)`
+
+`tipoEquipamiento` se resuelve a la clase concreta de `EquipamientoEntity` (`TYPE(f.equipamiento) = :tipoClase`). `estado` no asume `REGISTRADO` por defecto: una falla anulada sigue siendo un registro histórico consultable, así que `null` muestra ambos estados. El rango de fecha de falla es independiente por extremo (se puede acotar solo el "desde", solo el "hasta", o ninguno). Todos los criterios son opcionales.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FFE-01**|Filtra por los 5 criterios informados|`idEquipamiento: 1L`, `estado: REGISTRADO`, `fechaFallaDesde: 2026-01-01T00:00`, `fechaFallaHasta: 2026-01-31T23:59`, `tipoEquipamiento: MACERADOR`, `pageable: PageRequest.of(0, 10)`, BD con 1 falla que cumple los cinco criterios|`filtrarFallasEquipamiento(1L, REGISTRADO, ..., MACERADOR, pageable)` contiene elementos|Retorna `Page<FallaEquipamientoResponseDTO>` con 1 elemento mapeado.|
+|**CP-FFE-02**|Los 5 parámetros nulos no restringen la búsqueda, incluyendo mezcla de estados|`idEquipamiento: null`, `estado: null`, `fechaFallaDesde: null`, `fechaFallaHasta: null`, `tipoEquipamiento: null`, `pageable: PageRequest.of(0, 10)`, BD con 1 falla REGISTRADO y 1 ANULADO|El service propaga los 5 parámetros nulos tal cual al repositorio|Retorna `Page<FallaEquipamientoResponseDTO>` con las 2 fallas, sin excluir la ANULADO.|
+|**CP-FFE-03**|El usuario puede acotar explícitamente a un solo estado|`idEquipamiento: null`, `estado: ANULADO`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`, BD con 1 falla REGISTRADO y 1 ANULADO|`filtrarFallasEquipamiento(null, ANULADO, null, null, null, pageable)` contiene elementos|Retorna `Page<FallaEquipamientoResponseDTO>` con 1 elemento (solo la ANULADO).|
+|**CP-FFE-04**|Consulta sin coincidencias|`idEquipamiento: null`, `estado: null`, `fechaFallaDesde: null`, `fechaFallaHasta: null`, `tipoEquipamiento: MOLINO`, `pageable: PageRequest.of(0, 10)`|`filtrarFallasEquipamiento(null, null, null, null, MOLINO, pageable)` está vacío|Retorna `Page<FallaEquipamientoResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FFE-05**|Filtra por un equipamiento específico|`idEquipamiento: 1L`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`, BD con 2 fallas del equipamiento 1L y 1 falla de otro equipamiento|`filtrarFallasEquipamiento(1L, null, null, null, null, pageable)` contiene elementos|Retorna `Page<FallaEquipamientoResponseDTO>` con las 2 fallas del equipamiento 1L, sin incluir la del otro equipamiento.|
+
+### 2. `buscarPorId(Long id)`
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-BI-01**|Falla de equipamiento encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `FallaEquipamientoResponseDTO` con los datos de la entidad.|
+|**CP-BI-02**|Falla de equipamiento inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la falla de equipamiento con ID: 99".|
+
+### 3. `registrarFallaEquipamiento(FallaEquipamientoFormDTO fallaEquipamientoFormDTO)`
+
+Solo se puede registrar sobre un equipamiento en estado operativo `DISPONIBLE`; el equipamiento pasa a `EN_MANTENIMIENTO` como parte del registro.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-RFE-01**|Fecha de falla nula|`fechaFalla: null`, `observaciones: "Ruido anormal"`, `idEquipamiento: 1L`|`fechaFalla == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de falla es obligatoria"). No consulta el equipamiento.|
+|**CP-RFE-02**|Observaciones nulas|`fechaFalla: 2026-01-15T10:00`, `observaciones: null`, `idEquipamiento: 1L`|`observaciones == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones son obligatorias"). No consulta el equipamiento.|
+|**CP-RFE-03**|Observaciones en blanco|`fechaFalla: 2026-01-15T10:00`, `observaciones: "   "`, `idEquipamiento: 1L`|`observaciones.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta el equipamiento.|
+|**CP-RFE-04**|Equipamiento no encontrado|`idEquipamiento: 99L` (No existe), resto de los datos válidos|`equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99"). No ejecuta `save()`.|
+|**CP-RFE-05**|Equipamiento no está en estado operativo DISPONIBLE|`idEquipamiento: 1L` (Existe, `estadoOperativo: EN_USO`), resto de los datos válidos|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una falla sobre un equipamiento en estado operativo DISPONIBLE"). No ejecuta `save()` de la falla.|
+|**CP-RFE-06**|Registro exitoso _(Camino feliz)_|`idEquipamiento: 1L` (Existe, `estadoOperativo: DISPONIBLE`), `fechaFalla: 2026-01-15T10:00`, `observaciones: "Ruido anormal en el motor"`|Todas las validaciones $\rightarrow$ **FALSE**|El equipamiento pasa a `estadoOperativo = EN_MANTENIMIENTO` y se persiste. La falla se persiste con `estado = REGISTRADO`, `fechaFalla` y `observaciones` asignados, y retorna DTO.|
+
+### 4. `anularFallaEquipamiento(Long id, AnulacionFallaEquipamientoFormDTO anulacionFormDTO)`
+
+Solo procede sobre fallas en estado `REGISTRADO` cuyo equipamiento asociado se encuentre en `EN_MANTENIMIENTO`; el equipamiento vuelve a `DISPONIBLE` como parte de la anulación.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-AFE-01**|Motivo de anulación nulo|`id: 1L`, `motivoAnulacion: null`|`motivoAnulacion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de anulación es obligatorio"). No consulta ningún repositorio.|
+|**CP-AFE-02**|Motivo de anulación en blanco|`id: 1L`, `motivoAnulacion: "   "`|`motivoAnulacion.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta ningún repositorio.|
+|**CP-AFE-03**|Falla de equipamiento no encontrada|`id: 99L` (No existe), `motivoAnulacion: "Falla resuelta por error de carga"`|`fallaEquipamientoRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró la falla de equipamiento con ID: 99"). No ejecuta `save()`.|
+|**CP-AFE-04**|Falla que no está en estado REGISTRADO|`id: 1L` (Existe, `estado: ANULADO`), `motivoAnulacion: "Falla resuelta por error de carga"`|`estado != REGISTRADO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se pueden anular fallas de equipamiento en estado REGISTRADO"). No consulta el equipamiento ni ejecuta `save()`.|
+|**CP-AFE-05**|Equipamiento asociado no encontrado|`id: 1L` (Existe, `estado: REGISTRADO`, referencia al equipamiento `2L`), `motivoAnulacion: "Falla resuelta"`, `equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)` $\rightarrow$ **Optional.empty()**|El equipamiento no existe o no está activo|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 2"). No ejecuta `save()` de la falla.|
+|**CP-AFE-06**|Equipamiento asociado no está en estado operativo EN_MANTENIMIENTO|`id: 1L` (Existe, `estado: REGISTRADO`), equipamiento asociado existente con `estadoOperativo: DISPONIBLE`, `motivoAnulacion: "Falla resuelta"`|`estadoOperativo != EN_MANTENIMIENTO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede anular una falla cuyo equipamiento asociado se encuentre en estado operativo EN_MANTENIMIENTO"). No ejecuta `save()` de la falla.|
+|**CP-AFE-07**|Anulación exitosa _(Camino feliz)_|`id: 1L` (Existe, `estado: REGISTRADO`), equipamiento asociado con `estadoOperativo: EN_MANTENIMIENTO`, `motivoAnulacion: "Falla resuelta por error de carga"`|Todas las validaciones $\rightarrow$ **FALSE**|El equipamiento vuelve a `estadoOperativo = DISPONIBLE` y se persiste. La falla pasa a `estado = ANULADO`, con `fechaAnulacion` y `motivoAnulacion` seteados, se persiste y retorna DTO.|

@@ -85,7 +85,7 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      * @param ajusteInsumoFormDTO Los datos del ajuste a registrar.
      * @return El ajuste de insumo registrado.
      * @throws RecursoNoEncontradoException Si el motivo de ajuste o el lote de insumo referenciados no existen.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero, o si un ajuste de tipo EGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
+     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero, si la observación no fue informada, o si un ajuste de tipo EGRESO descontaría más cantidad que la cantidad actual del lote de insumo.
      */
     @Override
     @Transactional
@@ -106,11 +106,16 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
             throw new ReglaNegocioException("La cantidad debe ser mayor a cero");
         }
 
-        // 4. Aplicar el ajuste al lote (valida, para un EGRESO, que no deje cantidad disponible
+        // 4. Validar que se haya informado la observación
+        if (ajusteInsumoFormDTO.getObservacion() == null || ajusteInsumoFormDTO.getObservacion().isBlank()) {
+            throw new ReglaNegocioException("La observación es obligatoria");
+        }
+
+        // 5. Aplicar el ajuste al lote (valida, para un EGRESO, que no deje cantidad disponible
         //    negativa) y persistirlo
         loteInsumoEntity = aplicarAjusteAlLote(loteInsumoEntity, motivoAjusteEntity.getTipoAjuste(), cantidad);
 
-        // 5. Construir y persistir el ajuste de insumo, y retornar el DTO de respuesta correspondiente
+        // 6. Construir y persistir el ajuste de insumo, y retornar el DTO de respuesta correspondiente
         AjusteInsumoEntity ajusteInsumoEntity = AjusteInsumoEntity.builder()
                 .cantidad(cantidad)
                 .observacion(ajusteInsumoFormDTO.getObservacion())

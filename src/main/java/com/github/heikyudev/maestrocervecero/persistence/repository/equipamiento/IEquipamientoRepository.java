@@ -2,12 +2,16 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.equipamient
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
 
 /***
  * Repositorio de JPA para la entidad {@link EquipamientoEntity}.
@@ -57,4 +61,20 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
                                                     @Param("tipoClase") Class<? extends EquipamientoEntity> tipoClase,
                                                     @Param("estadoOperativo") EstadoOperativo estadoOperativo,
                                                     Pageable pageable);
+
+    /**
+     * Busca, bloqueándolo para escritura, un equipamiento activo por su ID, sin importar su tipo
+     * concreto.
+     * <p>
+     * Se usa cada vez que una operación necesita cambiar su estado operativo (por ejemplo, al
+     * registrar o anular una falla) sin conocer de antemano el tipo concreto del equipamiento,
+     * para evitar que otra operación concurrente lo modifique al mismo tiempo.
+     * </p>
+     *
+     * @param id El ID del equipamiento.
+     * @return Un Optional que contiene el equipamiento si existe y está activo, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
+    Optional<EquipamientoEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
 }

@@ -1,0 +1,45 @@
+### 1. `filtrarMantenimientosEquipamiento(Long idEquipamiento, TipoEquipamiento tipoEquipamiento, EstadoTransaccion estado, LocalDateTime fechaMantenimientoDesde, LocalDateTime fechaMantenimientoHasta, Pageable pageable)`
+
+`tipoEquipamiento` se resuelve a la clase concreta de `EquipamientoEntity` (`TYPE(m.equipamiento) = :tipoClase`). `estado` no asume `REGISTRADO` por defecto: un mantenimiento anulado sigue siendo un registro histórico consultable, así que `null` muestra ambos estados. El rango de fecha de mantenimiento es independiente por extremo. Todos los criterios son opcionales.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FME-01**|Filtra por los 5 criterios informados|`idEquipamiento: 1L`, `tipoEquipamiento: MACERADOR`, `estado: REGISTRADO`, `fechaMantenimientoDesde: 2026-01-01T00:00`, `fechaMantenimientoHasta: 2026-01-31T23:59`, `pageable: PageRequest.of(0, 10)`, BD con 1 mantenimiento que cumple los cinco criterios|`filtrarMantenimientosEquipamiento(1L, MACERADOR, REGISTRADO, ..., pageable)` contiene elementos|Retorna `Page<MantenimientoEquipamientoResponseDTO>` con 1 elemento mapeado.|
+|**CP-FME-02**|Los 5 parámetros nulos no restringen la búsqueda, incluyendo mezcla de estados|`idEquipamiento: null`, `tipoEquipamiento: null`, `estado: null`, `fechaMantenimientoDesde: null`, `fechaMantenimientoHasta: null`, `pageable: PageRequest.of(0, 10)`, BD con 1 mantenimiento REGISTRADO y 1 ANULADO|El service propaga los 5 parámetros nulos tal cual al repositorio|Retorna `Page<MantenimientoEquipamientoResponseDTO>` con los 2 mantenimientos, sin excluir el ANULADO.|
+|**CP-FME-03**|El usuario puede acotar explícitamente a un solo estado|`idEquipamiento: null`, `tipoEquipamiento: null`, `estado: ANULADO`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`, BD con 1 mantenimiento REGISTRADO y 1 ANULADO|`filtrarMantenimientosEquipamiento(null, null, ANULADO, null, null, pageable)` contiene elementos|Retorna `Page<MantenimientoEquipamientoResponseDTO>` con 1 elemento (solo el ANULADO).|
+|**CP-FME-04**|Consulta sin coincidencias|`idEquipamiento: null`, `tipoEquipamiento: MOLINO`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`|`filtrarMantenimientosEquipamiento(null, MOLINO, null, null, null, pageable)` está vacío|Retorna `Page<MantenimientoEquipamientoResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FME-05**|Filtra por un equipamiento específico|`idEquipamiento: 1L`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`, BD con 2 mantenimientos del equipamiento 1L y 1 de otro equipamiento|`filtrarMantenimientosEquipamiento(1L, null, null, null, null, pageable)` contiene elementos|Retorna `Page<MantenimientoEquipamientoResponseDTO>` con los 2 mantenimientos del equipamiento 1L, sin incluir el del otro equipamiento.|
+
+### 2. `buscarPorId(Long id)`
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-BI-01**|Mantenimiento de equipamiento encontrado|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `MantenimientoEquipamientoResponseDTO` con los datos de la entidad.|
+|**CP-BI-02**|Mantenimiento de equipamiento inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el mantenimiento de equipamiento con ID: 99".|
+
+### 3. `registrarMantenimientoEquipamiento(MantenimientoEquipamientoFormDTO mantenimientoEquipamientoFormDTO)`
+
+Solo se puede registrar sobre un equipamiento en estado operativo `EN_MANTENIMIENTO`; el equipamiento pasa a `DISPONIBLE` como parte del registro.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-RME-01**|Fecha de mantenimiento nula|`fechaMantenimiento: null`, `observaciones: "Se reemplazó el rodamiento"`, `idEquipamiento: 1L`|`fechaMantenimiento == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de mantenimiento es obligatoria"). No consulta el equipamiento.|
+|**CP-RME-02**|Observaciones nulas|`fechaMantenimiento: 2026-01-20T09:00`, `observaciones: null`, `idEquipamiento: 1L`|`observaciones == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones son obligatorias"). No consulta el equipamiento.|
+|**CP-RME-03**|Observaciones en blanco|`fechaMantenimiento: 2026-01-20T09:00`, `observaciones: "   "`, `idEquipamiento: 1L`|`observaciones.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta el equipamiento.|
+|**CP-RME-04**|Equipamiento no encontrado|`idEquipamiento: 99L` (No existe), resto de los datos válidos|`equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99"). No ejecuta `save()`.|
+|**CP-RME-05**|Equipamiento no está en estado operativo EN_MANTENIMIENTO|`idEquipamiento: 1L` (Existe, `estadoOperativo: DISPONIBLE`), resto de los datos válidos|`estadoOperativo != EN_MANTENIMIENTO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo EN_MANTENIMIENTO"). No ejecuta `save()` del mantenimiento.|
+|**CP-RME-06**|Registro exitoso _(Camino feliz)_|`idEquipamiento: 1L` (Existe, `estadoOperativo: EN_MANTENIMIENTO`), `fechaMantenimiento: 2026-01-20T09:00`, `observaciones: "Se reemplazó el rodamiento y se lubricó el eje"`|Todas las validaciones $\rightarrow$ **FALSE**|El equipamiento pasa a `estadoOperativo = DISPONIBLE` y se persiste. El mantenimiento se persiste con `estado = REGISTRADO`, `fechaMantenimiento` y `observaciones` asignados, y retorna DTO.|
+
+### 4. `anularMantenimientoEquipamiento(Long id, AnulacionMantenimientoEquipamientoFormDTO anulacionFormDTO)`
+
+Solo procede sobre mantenimientos en estado `REGISTRADO` cuyo equipamiento asociado se encuentre en `DISPONIBLE`; el equipamiento vuelve a `EN_MANTENIMIENTO` como parte de la anulación.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-AME-01**|Motivo de anulación nulo|`id: 1L`, `motivoAnulacion: null`|`motivoAnulacion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de anulación es obligatorio"). No consulta ningún repositorio.|
+|**CP-AME-02**|Motivo de anulación en blanco|`id: 1L`, `motivoAnulacion: "   "`|`motivoAnulacion.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta ningún repositorio.|
+|**CP-AME-03**|Mantenimiento de equipamiento no encontrado|`id: 99L` (No existe), `motivoAnulacion: "Mantenimiento cargado por error"`|`mantenimientoEquipamientoRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el mantenimiento de equipamiento con ID: 99"). No ejecuta `save()`.|
+|**CP-AME-04**|Mantenimiento que no está en estado REGISTRADO|`id: 1L` (Existe, `estado: ANULADO`), `motivoAnulacion: "Mantenimiento cargado por error"`|`estado != REGISTRADO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se pueden anular mantenimientos de equipamiento en estado REGISTRADO"). No consulta el equipamiento ni ejecuta `save()`.|
+|**CP-AME-05**|Equipamiento asociado no encontrado|`id: 1L` (Existe, `estado: REGISTRADO`, referencia al equipamiento `2L`), `motivoAnulacion: "Mantenimiento cargado por error"`, `equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)` $\rightarrow$ **Optional.empty()**|El equipamiento no existe o no está activo|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 2"). No ejecuta `save()` del mantenimiento.|
+|**CP-AME-06**|Equipamiento asociado no está en estado operativo DISPONIBLE|`id: 1L` (Existe, `estado: REGISTRADO`), equipamiento asociado existente con `estadoOperativo: EN_USO`, `motivoAnulacion: "Mantenimiento cargado por error"`|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo DISPONIBLE"). No ejecuta `save()` del mantenimiento.|
+|**CP-AME-07**|Anulación exitosa _(Camino feliz)_|`id: 1L` (Existe, `estado: REGISTRADO`), equipamiento asociado con `estadoOperativo: DISPONIBLE`, `motivoAnulacion: "Mantenimiento cargado por error"`|Todas las validaciones $\rightarrow$ **FALSE**|El equipamiento vuelve a `estadoOperativo = EN_MANTENIMIENTO` y se persiste. El mantenimiento pasa a `estado = ANULADO`, con `fechaAnulacion` y `motivoAnulacion` seteados, se persiste y retorna DTO.|
