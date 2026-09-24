@@ -62,7 +62,7 @@ public interface IMantenimientoEquipamientoServicio {
      * @param id El ID del mantenimiento de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return El mantenimiento de equipamiento anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el mantenimiento de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     MantenimientoEquipamientoResponseDTO anularMantenimientoEquipamiento(Long id, AnulacionMantenimientoEquipamientoFormDTO anulacionFormDTO);

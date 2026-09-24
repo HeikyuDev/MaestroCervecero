@@ -60,7 +60,7 @@ public interface IFallaEquipamientoServicio {
      * @param id El ID de la falla de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La falla de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si la falla de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     FallaEquipamientoResponseDTO anularFallaEquipamiento(Long id, AnulacionFallaEquipamientoFormDTO anulacionFormDTO);

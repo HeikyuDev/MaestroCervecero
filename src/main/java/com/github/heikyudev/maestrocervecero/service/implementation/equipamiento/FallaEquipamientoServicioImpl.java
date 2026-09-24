@@ -9,6 +9,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionFallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -17,6 +19,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFallaEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FallaEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperFallaEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +33,8 @@ import java.time.LocalDateTime;
 public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio {
 
     private final IFallaEquipamientoRepository fallaEquipamientoRepository;
+    private final IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
+    private final ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
 
     /**
@@ -132,7 +137,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
      * @param id El ID de la falla de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La falla de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si la falla de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
@@ -153,7 +158,18 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
             throw new ReglaNegocioException("Solo se pueden anular fallas de equipamiento en estado REGISTRADO");
         }
 
-        // 4. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
+        // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
+        //    comparando contra las 3 tablas del ciclo de vida (evita anular un registro viejo
+        //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
+        Long idEquipamiento = fallaEquipamientoEntity.getEquipamiento().getId();
+        MetodosCicloVida.validarEsOperacionMasReciente(
+                fallaEquipamientoEntity.getFechaFalla(),
+                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
+                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
+                "equipamiento");
+
+        // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
         //    encuentre en estado operativo EN_MANTENIMIENTO, para garantizar que la transición
         //    de vuelta a DISPONIBLE sea coherente
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(fallaEquipamientoEntity.getEquipamiento().getId())
@@ -162,11 +178,11 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
             throw new ReglaNegocioException("Solo se puede anular una falla cuyo equipamiento asociado se encuentre en estado operativo EN_MANTENIMIENTO");
         }
 
-        // 5. Restablecer el estado operativo del equipamiento a DISPONIBLE y persistirlo
+        // 6. Restablecer el estado operativo del equipamiento a DISPONIBLE y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.DISPONIBLE);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 6. Aplicar la anulación sobre la falla y persistirla
+        // 7. Aplicar la anulación sobre la falla y persistirla
         fallaEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         fallaEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         fallaEquipamientoEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());

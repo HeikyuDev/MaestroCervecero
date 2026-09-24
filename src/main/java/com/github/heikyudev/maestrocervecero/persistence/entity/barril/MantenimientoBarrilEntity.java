@@ -29,6 +29,7 @@ public class MantenimientoBarrilEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private EstadoTransaccion estado;
 
+    @Column(nullable = false)
     private String observaciones;
 
     @Column(name = "fecha_anulacion")

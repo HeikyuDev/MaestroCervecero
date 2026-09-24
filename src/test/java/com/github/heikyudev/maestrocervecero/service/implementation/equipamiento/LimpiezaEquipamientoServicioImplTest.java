@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionLimpiezaEquipamientoFormDTO;
@@ -47,6 +48,8 @@ class LimpiezaEquipamientoServicioImplTest {
     private ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     @Mock
     private IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
+    @Mock
+    private IFallaEquipamientoRepository fallaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
 
@@ -339,7 +342,7 @@ class LimpiezaEquipamientoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
 
-        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository);
+        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
     }
 
     @Test
@@ -351,7 +354,7 @@ class LimpiezaEquipamientoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
 
-        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository);
+        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
     }
 
     @Test
@@ -379,7 +382,7 @@ class LimpiezaEquipamientoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Solo se pueden anular limpiezas de equipamiento en estado REGISTRADO");
 
-        verifyNoInteractions(equipamientoRepository);
+        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
@@ -424,6 +427,9 @@ class LimpiezaEquipamientoServicioImplTest {
         LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
         AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
         when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
+        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
         when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
         when(equipamientoRepository.save(macerador)).thenReturn(macerador);
         when(limpiezaEquipamientoRepository.save(limpieza)).thenReturn(limpieza);
@@ -449,6 +455,9 @@ class LimpiezaEquipamientoServicioImplTest {
         LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.EN_MANTENIMIENTO, macerador);
         AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
         when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
+        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
         when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
         when(equipamientoRepository.save(macerador)).thenReturn(macerador);
         when(limpiezaEquipamientoRepository.save(limpieza)).thenReturn(limpieza);
@@ -462,6 +471,45 @@ class LimpiezaEquipamientoServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         verify(equipamientoRepository).save(macerador);
         verify(limpiezaEquipamientoRepository).save(limpieza);
+    }
+
+    @Test
+    @DisplayName("CP-ALE-09: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando existe una limpieza posterior del mismo tipo sobre el equipamiento")
+    void anular_debeRechazarSiExisteLimpiezaPosterior() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
+        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 25, 9, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
+
+        verifyNoInteractions(equipamientoRepository);
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ALE-10: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando existe una operación posterior de otro tipo sobre el equipamiento")
+    void anular_debeRechazarSiExisteOperacionPosteriorDeOtroTipo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
+        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
+        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
+
+        verifyNoInteractions(equipamientoRepository);
+        verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     // ==================== helpers de construcción ====================

@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Lim
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionLimpiezaEquipamientoFormDTO;
@@ -18,6 +19,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.ILimpiezaEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.LimpiezaEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperLimpiezaEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
 
     private final ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     private final IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
+    private final IFallaEquipamientoRepository fallaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
 
     /**
@@ -150,7 +153,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
      * @param id El ID de la limpieza de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La limpieza de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
      * @throws RecursoNoEncontradoException Si la limpieza de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
@@ -171,7 +174,18 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
             throw new ReglaNegocioException("Solo se pueden anular limpiezas de equipamiento en estado REGISTRADO");
         }
 
-        // 4. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
+        // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
+        //    comparando contra las 3 tablas del ciclo de vida (evita anular un registro viejo
+        //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
+        Long idEquipamiento = limpiezaEquipamientoEntity.getEquipamiento().getId();
+        MetodosCicloVida.validarEsOperacionMasReciente(
+                limpiezaEquipamientoEntity.getFechaLimpieza(),
+                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
+                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
+                "equipamiento");
+
+        // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
         //    encuentre exactamente en el estado operativo que dejó esta limpieza puntual
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(limpiezaEquipamientoEntity.getEquipamiento().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + limpiezaEquipamientoEntity.getEquipamiento().getId()));
@@ -179,11 +193,11 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
             throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo " + limpiezaEquipamientoEntity.getEstadoOperativoResultante());
         }
 
-        // 5. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo
+        // 6. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 6. Aplicar la anulación sobre la limpieza y persistirla
+        // 7. Aplicar la anulación sobre la limpieza y persistirla
         limpiezaEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         limpiezaEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         limpiezaEquipamientoEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());

@@ -1,0 +1,47 @@
+### 1. `filtrarFallasBarril(EstadoTransaccion estado, Long idBarril, LocalDateTime fechaFallaDesde, LocalDateTime fechaFallaHasta, Pageable pageable)`
+
+`estado` no asume `REGISTRADO` por defecto: una falla anulada sigue siendo un registro histórico consultable, así que `null` muestra ambos estados. El rango de fecha de falla es independiente por extremo. Todos los criterios son opcionales.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FFB-01**|Filtra por los 4 criterios informados|`estado: REGISTRADO`, `idBarril: 1L`, `fechaFallaDesde: 2026-01-01T00:00`, `fechaFallaHasta: 2026-01-31T23:59`, `pageable: PageRequest.of(0, 10)`, BD con 1 falla que cumple los cuatro criterios|`filtrarFallasBarril(REGISTRADO, 1L, ..., pageable)` contiene elementos|Retorna `Page<FallaBarrilResponseDTO>` con 1 elemento mapeado.|
+|**CP-FFB-02**|Los 4 parámetros nulos no restringen la búsqueda, incluyendo mezcla de estados|`estado: null`, `idBarril: null`, `fechaFallaDesde: null`, `fechaFallaHasta: null`, `pageable: PageRequest.of(0, 10)`, BD con 1 falla REGISTRADO y 1 ANULADO|El service propaga los 4 parámetros nulos tal cual al repositorio|Retorna `Page<FallaBarrilResponseDTO>` con las 2 fallas, sin excluir la ANULADO.|
+|**CP-FFB-03**|El usuario puede acotar explícitamente a un solo estado|`estado: ANULADO`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`, BD con 1 falla REGISTRADO y 1 ANULADO|`filtrarFallasBarril(ANULADO, null, null, null, pageable)` contiene elementos|Retorna `Page<FallaBarrilResponseDTO>` con 1 elemento (solo la ANULADO).|
+|**CP-FFB-04**|Consulta sin coincidencias|`estado: null`, `idBarril: 99L`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`|`filtrarFallasBarril(null, 99L, null, null, pageable)` está vacío|Retorna `Page<FallaBarrilResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FFB-05**|Filtra por un barril específico|`idBarril: 1L`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`, BD con 2 fallas del barril 1L y 1 de otro barril|`filtrarFallasBarril(null, 1L, null, null, pageable)` contiene elementos|Retorna `Page<FallaBarrilResponseDTO>` con las 2 fallas del barril 1L, sin incluir la del otro barril.|
+
+### 2. `buscarPorId(Long id)`
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-BI-01**|Falla de barril encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `FallaBarrilResponseDTO` con los datos de la entidad.|
+|**CP-BI-02**|Falla de barril inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la falla de barril con ID: 99".|
+
+### 3. `registrarFallaBarril(FallaBarrilFormDTO fallaBarrilFormDTO)`
+
+Solo se puede registrar sobre un barril en estado operativo `DISPONIBLE`; el barril pasa a `EN_MANTENIMIENTO` como parte del registro.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-RFB-01**|Fecha de falla nula|`fechaFalla: null`, `observaciones: "Pérdida de presión"`, `idBarril: 1L`|`fechaFalla == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de falla es obligatoria"). No consulta el barril.|
+|**CP-RFB-02**|Observaciones nulas|`fechaFalla: 2026-01-15T10:00`, `observaciones: null`, `idBarril: 1L`|`observaciones == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Las observaciones son obligatorias"). No consulta el barril.|
+|**CP-RFB-03**|Observaciones en blanco|`fechaFalla: 2026-01-15T10:00`, `observaciones: "   "`, `idBarril: 1L`|`observaciones.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta el barril.|
+|**CP-RFB-04**|Barril no encontrado|`idBarril: 99L` (No existe), resto de los datos válidos|`barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 99"). No ejecuta `save()`.|
+|**CP-RFB-05**|Barril no está en estado operativo DISPONIBLE|`idBarril: 1L` (Existe, `estadoOperativo: CON_CERVEZA`), resto de los datos válidos|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una falla sobre un barril en estado operativo DISPONIBLE"). No ejecuta `save()` de la falla.|
+|**CP-RFB-06**|Registro exitoso _(Camino feliz)_|`idBarril: 1L` (Existe, `estadoOperativo: DISPONIBLE`), `fechaFalla: 2026-01-15T10:00`, `observaciones: "Pérdida de presión en la válvula"`|Todas las validaciones $\rightarrow$ **FALSE**|El barril pasa a `estadoOperativo = EN_MANTENIMIENTO` y se persiste. La falla se persiste con `estado = REGISTRADO`, `fechaFalla` y `observaciones` asignados, y retorna DTO.|
+
+### 4. `anularFallaBarril(Long id, AnulacionFallaBarrilFormDTO anulacionFormDTO)`
+
+Solo procede sobre fallas en estado `REGISTRADO` cuyo barril asociado se encuentre en `EN_MANTENIMIENTO`; el barril vuelve a `DISPONIBLE` como parte de la anulación. Además, solo procede si es la operación más reciente registrada sobre el barril entre fallas, mantenimientos y limpiezas.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-AFB-01**|Motivo de anulación nulo|`id: 1L`, `motivoAnulacion: null`|`motivoAnulacion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de anulación es obligatorio"). No consulta ningún repositorio.|
+|**CP-AFB-02**|Motivo de anulación en blanco|`id: 1L`, `motivoAnulacion: "   "`|`motivoAnulacion.isBlank()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta ningún repositorio.|
+|**CP-AFB-03**|Falla de barril no encontrada|`id: 99L` (No existe), `motivoAnulacion: "Falla resuelta por error de carga"`|`fallaBarrilRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró la falla de barril con ID: 99"). No ejecuta `save()`.|
+|**CP-AFB-04**|Falla que no está en estado REGISTRADO|`id: 1L` (Existe, `estado: ANULADO`), `motivoAnulacion: "Falla resuelta por error de carga"`|`estado != REGISTRADO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se pueden anular fallas de barril en estado REGISTRADO"). No consulta el barril ni ejecuta `save()`.|
+|**CP-AFB-05**|Barril asociado no encontrado|`id: 1L` (Existe, `estado: REGISTRADO`, referencia al barril `2L`), `motivoAnulacion: "Falla resuelta"`, `barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)` $\rightarrow$ **Optional.empty()**|El barril no existe o no está activo|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 2"). No ejecuta `save()` de la falla.|
+|**CP-AFB-06**|Barril asociado no está en estado operativo EN_MANTENIMIENTO|`id: 1L` (Existe, `estado: REGISTRADO`), barril asociado existente con `estadoOperativo: DISPONIBLE`, `motivoAnulacion: "Falla resuelta"`|`estadoOperativo != EN_MANTENIMIENTO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede anular una falla cuyo barril asociado se encuentre en estado operativo EN_MANTENIMIENTO"). No ejecuta `save()` de la falla.|
+|**CP-AFB-07**|Anulación exitosa _(Camino feliz)_|`id: 1L` (Existe, `estado: REGISTRADO`), barril asociado con `estadoOperativo: EN_MANTENIMIENTO`, `motivoAnulacion: "Falla resuelta por error de carga"`|Todas las validaciones $\rightarrow$ **FALSE**|El barril vuelve a `estadoOperativo = DISPONIBLE` y se persiste. La falla pasa a `estado = ANULADO`, con `fechaAnulacion` y `motivoAnulacion` seteados, se persiste y retorna DTO.|
+|**CP-AFB-08**|Existe una falla posterior del mismo tipo sobre el barril|`id: 1L` (Existe, `estado: REGISTRADO`, `fechaFalla: 2026-01-15T10:00`, barril `2L`), `buscarFechaUltimaFallaRegistrada(2L)` $\rightarrow$ **2026-01-20T10:00**|La fecha de la falla más reciente del barril es posterior a la de esta falla|Lanza `ReglaNegocioException` ("Solo se puede anular la operación más reciente registrada sobre este barril"). No consulta el barril ni ejecuta `save()`.|
+|**CP-AFB-09**|Existe una operación posterior de otro tipo sobre el barril|`id: 1L` (Existe, `estado: REGISTRADO`, `fechaFalla: 2026-01-15T10:00`, barril `2L`), `buscarFechaUltimaFallaRegistrada(2L)` $\rightarrow$ **Optional.empty()**, `buscarFechaUltimoMantenimientoRegistrado(2L)` $\rightarrow$ **2026-01-18T10:00**|Existe un mantenimiento posterior a la fecha de esta falla|Lanza `ReglaNegocioException` ("Solo se puede anular la operación más reciente registrada sobre este barril"). No consulta el barril ni ejecuta `save()`.|

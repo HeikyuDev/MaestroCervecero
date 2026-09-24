@@ -10,6 +10,8 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionFallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -44,6 +46,10 @@ class FallaEquipamientoServicioImplTest {
 
     @Mock
     private IFallaEquipamientoRepository fallaEquipamientoRepository;
+    @Mock
+    private IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
+    @Mock
+    private ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
 
@@ -286,7 +292,7 @@ class FallaEquipamientoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
 
-        verifyNoInteractions(fallaEquipamientoRepository, equipamientoRepository);
+        verifyNoInteractions(fallaEquipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
@@ -298,7 +304,7 @@ class FallaEquipamientoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
 
-        verifyNoInteractions(fallaEquipamientoRepository, equipamientoRepository);
+        verifyNoInteractions(fallaEquipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
@@ -326,7 +332,7 @@ class FallaEquipamientoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Solo se pueden anular fallas de equipamiento en estado REGISTRADO");
 
-        verifyNoInteractions(equipamientoRepository);
+        verifyNoInteractions(mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
         verify(fallaEquipamientoRepository, never()).save(any());
     }
 
@@ -371,6 +377,9 @@ class FallaEquipamientoServicioImplTest {
         FallaEquipamientoEntity falla = crearFallaEquipamientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 15, 10, 0), "Ruido anormal", macerador);
         AnulacionFallaEquipamientoFormDTO formDTO = anulacionFormDTO("Falla resuelta por error de carga");
         when(fallaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(falla));
+        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
         when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
         when(equipamientoRepository.save(macerador)).thenReturn(macerador);
         when(fallaEquipamientoRepository.save(falla)).thenReturn(falla);
@@ -386,6 +395,45 @@ class FallaEquipamientoServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         verify(equipamientoRepository).save(macerador);
         verify(fallaEquipamientoRepository).save(falla);
+    }
+
+    @Test
+    @DisplayName("CP-AFE-08: anularFallaEquipamiento lanza ReglaNegocioException cuando existe una falla posterior del mismo tipo sobre el equipamiento")
+    void anular_debeRechazarSiExisteFallaPosterior() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_MANTENIMIENTO);
+        FallaEquipamientoEntity falla = crearFallaEquipamientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 15, 10, 0), "Ruido anormal", macerador);
+        AnulacionFallaEquipamientoFormDTO formDTO = anulacionFormDTO("Falla resuelta por error de carga");
+        when(fallaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(falla));
+        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 20, 10, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaEquipamientoServicio.anularFallaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
+
+        verifyNoInteractions(equipamientoRepository);
+        verify(fallaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AFE-09: anularFallaEquipamiento lanza ReglaNegocioException cuando existe una operación posterior de otro tipo sobre el equipamiento")
+    void anular_debeRechazarSiExisteOperacionPosteriorDeOtroTipo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        FallaEquipamientoEntity falla = crearFallaEquipamientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 15, 10, 0), "Ruido anormal", macerador);
+        AnulacionFallaEquipamientoFormDTO formDTO = anulacionFormDTO("Falla resuelta por error de carga");
+        when(fallaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(falla));
+        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 18, 10, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaEquipamientoServicio.anularFallaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
+
+        verifyNoInteractions(equipamientoRepository);
+        verify(fallaEquipamientoRepository, never()).save(any());
     }
 
     // ==================== helpers de construcción ====================

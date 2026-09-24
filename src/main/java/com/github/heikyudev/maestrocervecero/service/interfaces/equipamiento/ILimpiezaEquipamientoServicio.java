@@ -63,7 +63,7 @@ public interface ILimpiezaEquipamientoServicio {
      * @param id El ID de la limpieza de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La limpieza de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
      * @throws RecursoNoEncontradoException Si la limpieza de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     LimpiezaEquipamientoResponseDTO anularLimpiezaEquipamiento(Long id, AnulacionLimpiezaEquipamientoFormDTO anulacionFormDTO);
