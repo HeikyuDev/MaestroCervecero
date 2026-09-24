@@ -47,14 +47,14 @@ public interface IMantenimientoEquipamientoRepository extends JpaRepository<Mant
             + "(:idEquipamiento IS NULL OR m.equipamiento.id = :idEquipamiento) "
             + "AND (:tipoClase IS NULL OR TYPE(m.equipamiento) = :tipoClase) "
             + "AND (:estado IS NULL OR m.estado = :estado) "
-            + "AND (:fechaMantenimientoDesde IS NULL OR m.fechaMantenimiento >= :fechaMantenimientoDesde) "
-            + "AND (:fechaMantenimientoHasta IS NULL OR m.fechaMantenimiento <= :fechaMantenimientoHasta)",
+            + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+            + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)",
             countQuery = "SELECT COUNT(m) FROM MantenimientoEquipamientoEntity m WHERE "
                     + "(:idEquipamiento IS NULL OR m.equipamiento.id = :idEquipamiento) "
                     + "AND (:tipoClase IS NULL OR TYPE(m.equipamiento) = :tipoClase) "
                     + "AND (:estado IS NULL OR m.estado = :estado) "
-                    + "AND (:fechaMantenimientoDesde IS NULL OR m.fechaMantenimiento >= :fechaMantenimientoDesde) "
-                    + "AND (:fechaMantenimientoHasta IS NULL OR m.fechaMantenimiento <= :fechaMantenimientoHasta)")
+                    + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+                    + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)")
     Page<MantenimientoEquipamientoEntity> filtrarMantenimientosEquipamiento(@Param("idEquipamiento") Long idEquipamiento,
                                                                              @Param("tipoClase") Class<? extends EquipamientoEntity> tipoClase,
                                                                              @Param("estado") EstadoTransaccion estado,
@@ -72,6 +72,6 @@ public interface IMantenimientoEquipamientoRepository extends JpaRepository<Mant
      * @param idEquipamiento El ID del equipamiento cuya fecha de último mantenimiento se quiere obtener.
      * @return La fecha del mantenimiento registrado más reciente, o vacío si el equipamiento nunca tuvo uno.
      */
-    @Query("SELECT MAX(m.fechaMantenimiento) FROM MantenimientoEquipamientoEntity m WHERE m.equipamiento.id = :idEquipamiento AND m.estado = 'REGISTRADO'")
+    @Query("SELECT MAX(m.fecha) FROM MantenimientoEquipamientoEntity m WHERE m.equipamiento.id = :idEquipamiento AND m.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimoMantenimientoRegistrado(@Param("idEquipamiento") Long idEquipamiento);
 }

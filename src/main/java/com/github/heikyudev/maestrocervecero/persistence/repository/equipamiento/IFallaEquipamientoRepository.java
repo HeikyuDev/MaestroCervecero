@@ -45,14 +45,14 @@ public interface IFallaEquipamientoRepository extends JpaRepository<FallaEquipam
     @Query(value = "SELECT f FROM FallaEquipamientoEntity f WHERE "
             + "(:idEquipamiento IS NULL OR f.equipamiento.id = :idEquipamiento) "
             + "AND (:estado IS NULL OR f.estado = :estado) "
-            + "AND (:fechaFallaDesde IS NULL OR f.fechaFalla >= :fechaFallaDesde) "
-            + "AND (:fechaFallaHasta IS NULL OR f.fechaFalla <= :fechaFallaHasta) "
+            + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
+            + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta) "
             + "AND (:tipoClase IS NULL OR TYPE(f.equipamiento) = :tipoClase)",
             countQuery = "SELECT COUNT(f) FROM FallaEquipamientoEntity f WHERE "
                     + "(:idEquipamiento IS NULL OR f.equipamiento.id = :idEquipamiento) "
                     + "AND (:estado IS NULL OR f.estado = :estado) "
-                    + "AND (:fechaFallaDesde IS NULL OR f.fechaFalla >= :fechaFallaDesde) "
-                    + "AND (:fechaFallaHasta IS NULL OR f.fechaFalla <= :fechaFallaHasta) "
+                    + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
+                    + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta) "
                     + "AND (:tipoClase IS NULL OR TYPE(f.equipamiento) = :tipoClase)")
     Page<FallaEquipamientoEntity> filtrarFallasEquipamiento(@Param("idEquipamiento") Long idEquipamiento,
                                                              @Param("estado") EstadoTransaccion estado,
@@ -71,6 +71,6 @@ public interface IFallaEquipamientoRepository extends JpaRepository<FallaEquipam
      * @param idEquipamiento El ID del equipamiento cuya última falla se quiere buscar.
      * @return La fecha de la última falla registrada del equipamiento, o {@link Optional#empty()} si nunca tuvo una.
      */
-    @Query("SELECT MAX(f.fechaFalla) FROM FallaEquipamientoEntity f WHERE f.equipamiento.id = :idEquipamiento AND f.estado = 'REGISTRADO'")
+    @Query("SELECT MAX(f.fecha) FROM FallaEquipamientoEntity f WHERE f.equipamiento.id = :idEquipamiento AND f.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaFallaRegistrada(@Param("idEquipamiento") Long idEquipamiento);
 }

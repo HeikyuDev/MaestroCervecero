@@ -127,7 +127,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
 
         // 7. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaBarrilEntity limpiezaBarrilEntity = LimpiezaBarrilEntity.builder()
-                .fechaLimpieza(limpiezaBarrilFormDTO.getFechaLimpieza())
+                .fecha(limpiezaBarrilFormDTO.getFechaLimpieza())
                 .observaciones(limpiezaBarrilFormDTO.getObservaciones())
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -176,7 +176,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         //    operación posterior ya dejó al barril en un estado distinto)
         Long idBarril = limpiezaBarrilEntity.getBarril().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
-                limpiezaBarrilEntity.getFechaLimpieza(),
+                limpiezaBarrilEntity.getFecha(),
                 fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
                 mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
                 limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),

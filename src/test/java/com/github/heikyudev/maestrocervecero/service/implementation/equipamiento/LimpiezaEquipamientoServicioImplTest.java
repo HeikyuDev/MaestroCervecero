@@ -275,7 +275,7 @@ class LimpiezaEquipamientoServicioImplTest {
         ArgumentCaptor<LimpiezaEquipamientoEntity> captor = ArgumentCaptor.forClass(LimpiezaEquipamientoEntity.class);
         verify(limpiezaEquipamientoRepository).save(captor.capture());
         LimpiezaEquipamientoEntity limpiezaGuardada = captor.getValue();
-        assertThat(limpiezaGuardada.getFechaLimpieza()).isEqualTo(fechaLimpieza);
+        assertThat(limpiezaGuardada.getFecha()).isEqualTo(fechaLimpieza);
         assertThat(limpiezaGuardada.getObservaciones()).isEqualTo("Limpieza CIP estándar");
         assertThat(limpiezaGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(limpiezaGuardada.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
@@ -544,7 +544,7 @@ class LimpiezaEquipamientoServicioImplTest {
     private static LimpiezaEquipamientoEntity crearLimpiezaEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaLimpieza, String observaciones, EstadoOperativo estadoOperativoResultante, EquipamientoEntity equipamiento) {
         return LimpiezaEquipamientoEntity.builder()
                 .id(id)
-                .fechaLimpieza(fechaLimpieza)
+                .fecha(fechaLimpieza)
                 .observaciones(observaciones)
                 .estado(estado)
                 .estadoOperativoResultante(estadoOperativoResultante)

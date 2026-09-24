@@ -42,13 +42,13 @@ public interface ILimpiezaBarrilRepository extends JpaRepository<LimpiezaBarrilE
     @Query(value = "SELECT l FROM LimpiezaBarrilEntity l WHERE "
             + "(:estado IS NULL OR l.estado = :estado) "
             + "AND (:idBarril IS NULL OR l.barril.id = :idBarril) "
-            + "AND (:fechaLimpiezaDesde IS NULL OR l.fechaLimpieza >= :fechaLimpiezaDesde) "
-            + "AND (:fechaLimpiezaHasta IS NULL OR l.fechaLimpieza <= :fechaLimpiezaHasta)",
+            + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+            + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)",
             countQuery = "SELECT COUNT(l) FROM LimpiezaBarrilEntity l WHERE "
                     + "(:estado IS NULL OR l.estado = :estado) "
                     + "AND (:idBarril IS NULL OR l.barril.id = :idBarril) "
-                    + "AND (:fechaLimpiezaDesde IS NULL OR l.fechaLimpieza >= :fechaLimpiezaDesde) "
-                    + "AND (:fechaLimpiezaHasta IS NULL OR l.fechaLimpieza <= :fechaLimpiezaHasta)")
+                    + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+                    + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)")
     Page<LimpiezaBarrilEntity> filtrarLimpiezasBarril(@Param("estado") EstadoTransaccion estado,
                                                        @Param("idBarril") Long idBarril,
                                                        @Param("fechaLimpiezaDesde") LocalDateTime fechaLimpiezaDesde,
@@ -71,7 +71,7 @@ public interface ILimpiezaBarrilRepository extends JpaRepository<LimpiezaBarrilE
      */
     @Query("SELECT COUNT(l) FROM LimpiezaBarrilEntity l WHERE l.barril.id = :idBarril "
             + "AND l.estado = 'REGISTRADO' "
-            + "AND (:fechaDesde IS NULL OR l.fechaLimpieza > :fechaDesde)")
+            + "AND (:fechaDesde IS NULL OR l.fecha > :fechaDesde)")
     long contarLimpiezasRegistradasDesde(@Param("idBarril") Long idBarril, @Param("fechaDesde") LocalDateTime fechaDesde);
 
     /**
@@ -84,6 +84,6 @@ public interface ILimpiezaBarrilRepository extends JpaRepository<LimpiezaBarrilE
      * @param idBarril El ID del barril cuya última limpieza se quiere buscar.
      * @return La fecha de la última limpieza registrada del barril, o {@link Optional#empty()} si nunca tuvo una.
      */
-    @Query("SELECT MAX(l.fechaLimpieza) FROM LimpiezaBarrilEntity l WHERE l.barril.id = :idBarril AND l.estado = 'REGISTRADO'")
+    @Query("SELECT MAX(l.fecha) FROM LimpiezaBarrilEntity l WHERE l.barril.id = :idBarril AND l.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaLimpiezaRegistrada(@Param("idBarril") Long idBarril);
 }

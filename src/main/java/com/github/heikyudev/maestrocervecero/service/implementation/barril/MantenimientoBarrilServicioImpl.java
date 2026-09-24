@@ -113,7 +113,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
 
         // 6. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoBarrilEntity mantenimientoBarrilEntity = MantenimientoBarrilEntity.builder()
-                .fechaMantenimiento(mantenimientoBarrilFormDTO.getFechaMantenimiento())
+                .fecha(mantenimientoBarrilFormDTO.getFechaMantenimiento())
                 .observaciones(mantenimientoBarrilFormDTO.getObservaciones())
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -159,7 +159,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         //    operación posterior ya dejó al barril en un estado distinto)
         Long idBarril = mantenimientoBarrilEntity.getBarril().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
-                mantenimientoBarrilEntity.getFechaMantenimiento(),
+                mantenimientoBarrilEntity.getFecha(),
                 fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
                 mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
                 limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),

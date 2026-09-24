@@ -47,14 +47,14 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
             + "(:idEquipamiento IS NULL OR l.equipamiento.id = :idEquipamiento) "
             + "AND (:tipoClase IS NULL OR TYPE(l.equipamiento) = :tipoClase) "
             + "AND (:estado IS NULL OR l.estado = :estado) "
-            + "AND (:fechaLimpiezaDesde IS NULL OR l.fechaLimpieza >= :fechaLimpiezaDesde) "
-            + "AND (:fechaLimpiezaHasta IS NULL OR l.fechaLimpieza <= :fechaLimpiezaHasta)",
+            + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+            + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)",
             countQuery = "SELECT COUNT(l) FROM LimpiezaEquipamientoEntity l WHERE "
                     + "(:idEquipamiento IS NULL OR l.equipamiento.id = :idEquipamiento) "
                     + "AND (:tipoClase IS NULL OR TYPE(l.equipamiento) = :tipoClase) "
                     + "AND (:estado IS NULL OR l.estado = :estado) "
-                    + "AND (:fechaLimpiezaDesde IS NULL OR l.fechaLimpieza >= :fechaLimpiezaDesde) "
-                    + "AND (:fechaLimpiezaHasta IS NULL OR l.fechaLimpieza <= :fechaLimpiezaHasta)")
+                    + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+                    + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)")
     Page<LimpiezaEquipamientoEntity> filtrarLimpiezasEquipamiento(@Param("idEquipamiento") Long idEquipamiento,
                                                                    @Param("tipoClase") Class<? extends EquipamientoEntity> tipoClase,
                                                                    @Param("estado") EstadoTransaccion estado,
@@ -78,7 +78,7 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
      */
     @Query("SELECT COUNT(l) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento "
             + "AND l.estado = 'REGISTRADO' "
-            + "AND (:fechaDesde IS NULL OR l.fechaLimpieza > :fechaDesde)")
+            + "AND (:fechaDesde IS NULL OR l.fecha > :fechaDesde)")
     long contarLimpiezasRegistradasDesde(@Param("idEquipamiento") Long idEquipamiento, @Param("fechaDesde") LocalDateTime fechaDesde);
 
     /**
@@ -91,6 +91,6 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
      * @param idEquipamiento El ID del equipamiento cuya última limpieza se quiere buscar.
      * @return La fecha de la última limpieza registrada del equipamiento, o {@link Optional#empty()} si nunca tuvo una.
      */
-    @Query("SELECT MAX(l.fechaLimpieza) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento AND l.estado = 'REGISTRADO'")
+    @Query("SELECT MAX(l.fecha) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento AND l.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaLimpiezaRegistrada(@Param("idEquipamiento") Long idEquipamiento);
 }

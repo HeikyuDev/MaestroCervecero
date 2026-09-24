@@ -23,7 +23,7 @@ public class MapperLimpiezaBarril {
 
         return LimpiezaBarrilResponseDTO.builder()
                 .id(limpiezaBarrilEntity.getId())
-                .fechaLimpieza(limpiezaBarrilEntity.getFechaLimpieza())
+                .fechaLimpieza(limpiezaBarrilEntity.getFecha())
                 .observaciones(limpiezaBarrilEntity.getObservaciones())
                 .estado(limpiezaBarrilEntity.getEstado())
                 .estadoOperativoResultante(limpiezaBarrilEntity.getEstadoOperativoResultante())

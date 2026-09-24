@@ -273,7 +273,7 @@ class FallaEquipamientoServicioImplTest {
         ArgumentCaptor<FallaEquipamientoEntity> captor = ArgumentCaptor.forClass(FallaEquipamientoEntity.class);
         verify(fallaEquipamientoRepository).save(captor.capture());
         FallaEquipamientoEntity fallaGuardada = captor.getValue();
-        assertThat(fallaGuardada.getFechaFalla()).isEqualTo(fechaFalla);
+        assertThat(fallaGuardada.getFecha()).isEqualTo(fechaFalla);
         assertThat(fallaGuardada.getObservaciones()).isEqualTo("Ruido anormal en el motor");
         assertThat(fallaGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(fallaGuardada.getEquipamiento()).isSameAs(macerador);
@@ -468,7 +468,7 @@ class FallaEquipamientoServicioImplTest {
     private static FallaEquipamientoEntity crearFallaEquipamientoEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaFalla, String observaciones, EquipamientoEntity equipamiento) {
         return FallaEquipamientoEntity.builder()
                 .id(id)
-                .fechaFalla(fechaFalla)
+                .fecha(fechaFalla)
                 .observaciones(observaciones)
                 .estado(estado)
                 .equipamiento(equipamiento)

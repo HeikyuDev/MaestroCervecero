@@ -271,7 +271,7 @@ class FallaBarrilServicioImplTest {
         ArgumentCaptor<FallaBarrilEntity> captor = ArgumentCaptor.forClass(FallaBarrilEntity.class);
         verify(fallaBarrilRepository).save(captor.capture());
         FallaBarrilEntity fallaGuardada = captor.getValue();
-        assertThat(fallaGuardada.getFechaFalla()).isEqualTo(fechaFalla);
+        assertThat(fallaGuardada.getFecha()).isEqualTo(fechaFalla);
         assertThat(fallaGuardada.getObservaciones()).isEqualTo("Pérdida de presión en la válvula");
         assertThat(fallaGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(fallaGuardada.getBarril()).isSameAs(barril);
@@ -474,7 +474,7 @@ class FallaBarrilServicioImplTest {
     private static FallaBarrilEntity crearFallaEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaFalla, String observaciones, BarrilEntity barril) {
         return FallaBarrilEntity.builder()
                 .id(id)
-                .fechaFalla(fechaFalla)
+                .fecha(fechaFalla)
                 .observaciones(observaciones)
                 .estado(estado)
                 .barril(barril)

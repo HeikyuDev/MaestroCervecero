@@ -42,13 +42,13 @@ public interface IFallaBarrilRepository extends JpaRepository<FallaBarrilEntity,
     @Query(value = "SELECT f FROM FallaBarrilEntity f WHERE "
             + "(:estado IS NULL OR f.estado = :estado) "
             + "AND (:idBarril IS NULL OR f.barril.id = :idBarril) "
-            + "AND (:fechaFallaDesde IS NULL OR f.fechaFalla >= :fechaFallaDesde) "
-            + "AND (:fechaFallaHasta IS NULL OR f.fechaFalla <= :fechaFallaHasta)",
+            + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
+            + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta)",
             countQuery = "SELECT COUNT(f) FROM FallaBarrilEntity f WHERE "
                     + "(:estado IS NULL OR f.estado = :estado) "
                     + "AND (:idBarril IS NULL OR f.barril.id = :idBarril) "
-                    + "AND (:fechaFallaDesde IS NULL OR f.fechaFalla >= :fechaFallaDesde) "
-                    + "AND (:fechaFallaHasta IS NULL OR f.fechaFalla <= :fechaFallaHasta)")
+                    + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
+                    + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta)")
     Page<FallaBarrilEntity> filtrarFallasBarril(@Param("estado") EstadoTransaccion estado,
                                                  @Param("idBarril") Long idBarril,
                                                  @Param("fechaFallaDesde") LocalDateTime fechaFallaDesde,
@@ -65,6 +65,6 @@ public interface IFallaBarrilRepository extends JpaRepository<FallaBarrilEntity,
      * @param idBarril El ID del barril cuya última falla se quiere buscar.
      * @return La fecha de la última falla registrada del barril, o {@link Optional#empty()} si nunca tuvo una.
      */
-    @Query("SELECT MAX(f.fechaFalla) FROM FallaBarrilEntity f WHERE f.barril.id = :idBarril AND f.estado = 'REGISTRADO'")
+    @Query("SELECT MAX(f.fecha) FROM FallaBarrilEntity f WHERE f.barril.id = :idBarril AND f.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimaFallaRegistrada(@Param("idBarril") Long idBarril);
 }

@@ -117,7 +117,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
 
         // 6. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoEquipamientoEntity mantenimientoEquipamientoEntity = MantenimientoEquipamientoEntity.builder()
-                .fechaMantenimiento(mantenimientoEquipamientoFormDTO.getFechaMantenimiento())
+                .fecha(mantenimientoEquipamientoFormDTO.getFechaMantenimiento())
                 .observaciones(mantenimientoEquipamientoFormDTO.getObservaciones())
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -163,7 +163,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
         //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
         Long idEquipamiento = mantenimientoEquipamientoEntity.getEquipamiento().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
-                mantenimientoEquipamientoEntity.getFechaMantenimiento(),
+                mantenimientoEquipamientoEntity.getFecha(),
                 fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
                 mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
                 limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),

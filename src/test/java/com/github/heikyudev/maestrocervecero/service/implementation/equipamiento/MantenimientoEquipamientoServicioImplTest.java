@@ -273,7 +273,7 @@ class MantenimientoEquipamientoServicioImplTest {
         ArgumentCaptor<MantenimientoEquipamientoEntity> captor = ArgumentCaptor.forClass(MantenimientoEquipamientoEntity.class);
         verify(mantenimientoEquipamientoRepository).save(captor.capture());
         MantenimientoEquipamientoEntity mantenimientoGuardado = captor.getValue();
-        assertThat(mantenimientoGuardado.getFechaMantenimiento()).isEqualTo(fechaMantenimiento);
+        assertThat(mantenimientoGuardado.getFecha()).isEqualTo(fechaMantenimiento);
         assertThat(mantenimientoGuardado.getObservaciones()).isEqualTo("Se reemplazó el rodamiento y se lubricó el eje");
         assertThat(mantenimientoGuardado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(mantenimientoGuardado.getEquipamiento()).isSameAs(macerador);
@@ -468,7 +468,7 @@ class MantenimientoEquipamientoServicioImplTest {
     private static MantenimientoEquipamientoEntity crearMantenimientoEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaMantenimiento, String observaciones, EquipamientoEntity equipamiento) {
         return MantenimientoEquipamientoEntity.builder()
                 .id(id)
-                .fechaMantenimiento(fechaMantenimiento)
+                .fecha(fechaMantenimiento)
                 .observaciones(observaciones)
                 .estado(estado)
                 .equipamiento(equipamiento)

@@ -23,7 +23,7 @@ public class MapperFallaEquipamiento {
 
         return FallaEquipamientoResponseDTO.builder()
                 .id(fallaEquipamientoEntity.getId())
-                .fechaFalla(fallaEquipamientoEntity.getFechaFalla())
+                .fechaFalla(fallaEquipamientoEntity.getFecha())
                 .estado(fallaEquipamientoEntity.getEstado())
                 .observaciones(fallaEquipamientoEntity.getObservaciones())
                 .fechaAnulacion(fallaEquipamientoEntity.getFechaAnulacion())

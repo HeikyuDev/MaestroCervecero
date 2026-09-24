@@ -24,7 +24,7 @@ public class MapperMantenimientoBarril {
 
         return MantenimientoBarrilResponseDTO.builder()
                 .id(mantenimientoBarrilEntity.getId())
-                .fechaMantenimiento(mantenimientoBarrilEntity.getFechaMantenimiento())
+                .fechaMantenimiento(mantenimientoBarrilEntity.getFecha())
                 .estado(mantenimientoBarrilEntity.getEstado())
                 .observaciones(mantenimientoBarrilEntity.getObservaciones())
                 .fechaAnulacion(mantenimientoBarrilEntity.getFechaAnulacion())

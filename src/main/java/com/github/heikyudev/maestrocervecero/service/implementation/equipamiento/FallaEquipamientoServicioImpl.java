@@ -117,7 +117,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
 
         // 6. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaEquipamientoEntity fallaEquipamientoEntity = FallaEquipamientoEntity.builder()
-                .fechaFalla(fallaEquipamientoFormDTO.getFechaFalla())
+                .fecha(fallaEquipamientoFormDTO.getFechaFalla())
                 .observaciones(fallaEquipamientoFormDTO.getObservaciones())
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -163,7 +163,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
         Long idEquipamiento = fallaEquipamientoEntity.getEquipamiento().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
-                fallaEquipamientoEntity.getFechaFalla(),
+                fallaEquipamientoEntity.getFecha(),
                 fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
                 mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
                 limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),

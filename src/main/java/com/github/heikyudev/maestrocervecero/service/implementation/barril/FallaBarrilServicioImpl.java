@@ -112,7 +112,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
 
         // 6. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaBarrilEntity fallaBarrilEntity = FallaBarrilEntity.builder()
-                .fechaFalla(fallaBarrilFormDTO.getFechaFalla())
+                .fecha(fallaBarrilFormDTO.getFechaFalla())
                 .observaciones(fallaBarrilFormDTO.getObservaciones())
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -158,7 +158,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
         //    operación posterior ya dejó al barril en un estado distinto)
         Long idBarril = fallaBarrilEntity.getBarril().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
-                fallaBarrilEntity.getFechaFalla(),
+                fallaBarrilEntity.getFecha(),
                 fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
                 mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
                 limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),

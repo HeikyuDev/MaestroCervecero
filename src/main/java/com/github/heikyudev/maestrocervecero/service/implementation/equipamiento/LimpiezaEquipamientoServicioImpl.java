@@ -130,7 +130,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
 
         // 7. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaEquipamientoEntity limpiezaEquipamientoEntity = LimpiezaEquipamientoEntity.builder()
-                .fechaLimpieza(limpiezaEquipamientoFormDTO.getFechaLimpieza())
+                .fecha(limpiezaEquipamientoFormDTO.getFechaLimpieza())
                 .observaciones(limpiezaEquipamientoFormDTO.getObservaciones())
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -179,7 +179,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
         //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
         Long idEquipamiento = limpiezaEquipamientoEntity.getEquipamiento().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
-                limpiezaEquipamientoEntity.getFechaLimpieza(),
+                limpiezaEquipamientoEntity.getFecha(),
                 fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
                 mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
                 limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),

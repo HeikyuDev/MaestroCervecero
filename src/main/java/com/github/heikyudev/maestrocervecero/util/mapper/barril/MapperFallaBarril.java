@@ -23,7 +23,7 @@ public class MapperFallaBarril {
 
         return FallaBarrilResponseDTO.builder()
                 .id(fallaBarrilEntity.getId())
-                .fechaFalla(fallaBarrilEntity.getFechaFalla())
+                .fechaFalla(fallaBarrilEntity.getFecha())
                 .estado(fallaBarrilEntity.getEstado())
                 .observaciones(fallaBarrilEntity.getObservaciones())
                 .fechaAnulacion(fallaBarrilEntity.getFechaAnulacion())

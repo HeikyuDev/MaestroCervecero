@@ -1,52 +1,32 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.barril;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
-import jakarta.persistence.*;
-import lombok.*;
-
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 /**
  * Registra la operación de limpieza de un barril.
  * Un barril entra en estado EN_LIMPIEZA tras ser devuelto por un cliente o cuando un fraccionamiento deja su contenido en cero.
  * El registro exitoso de esta entidad marca la finalización del proceso de limpieza, dejando al barril en estado operativo DISPONIBLE o EN_MANTENIMIENTO según la cantidad de usos acumulados.
+ * <p>
+ * Los datos comunes a toda operación del ciclo de vida (fecha, observaciones, estado
+ * transaccional, datos de anulación y la relación con el barril afectado) los hereda de
+ * {@link OperacionCicloVidaBarril}.
+ * </p>
  */
 @Entity
 @Table(name = "limpieza_barril")
 @Getter
 @Setter
-@AllArgsConstructor
+@SuperBuilder
 @NoArgsConstructor
-@Builder
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-public class LimpiezaBarrilEntity extends AuditableEntity<String> {
-
-    /**
-     * Identificador único del registro de limpieza.
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
-
-    /**
-     * Fecha y hora en que se registra el inicio del proceso de limpieza.
-     */
-    @Column(name = "fecha_limpieza",nullable = false)
-    private LocalDateTime fechaLimpieza;
-
-    @Column(nullable = false)
-    private String observaciones;
-
-    /**
-     * Estado de la transacción de limpieza.
-     * - REGISTRADO: La limpieza se ha registrado correctamente.
-     * - ANULADO: El registro de limpieza ha sido cancelado por alguna equivocación.
-     */
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private EstadoTransaccion estado;
+public class LimpiezaBarrilEntity extends OperacionCicloVidaBarril {
 
     /**
      * Estado operativo al que quedó el barril como resultado de esta limpieza puntual
@@ -61,23 +41,4 @@ public class LimpiezaBarrilEntity extends AuditableEntity<String> {
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_operativo_resultante", nullable = false)
     private EstadoOperativoBarril estadoOperativoResultante;
-
-    /**
-     * Fecha y hora en que se anuló el registro de limpieza, si aplica.
-     */
-    @Column(name = "fecha_anulacion")
-    private LocalDateTime fechaAnulacion;
-
-    /**
-     * Motivo por el cual se anuló el registro de limpieza.
-     */
-    @Column(name = "motivo_anulacion")
-    private String motivoAnulacion;
-
-    /**
-     * Barril que fue sometido al proceso de limpieza.
-     */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "barril_id", nullable = false)
-    private BarrilEntity barril;
 }

@@ -551,7 +551,7 @@ class LimpiezaBarrilServicioImplTest {
     private static LimpiezaBarrilEntity crearLimpiezaEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaLimpieza, String observaciones, EstadoOperativoBarril estadoOperativoResultante, BarrilEntity barril) {
         return LimpiezaBarrilEntity.builder()
                 .id(id)
-                .fechaLimpieza(fechaLimpieza)
+                .fecha(fechaLimpieza)
                 .observaciones(observaciones)
                 .estado(estado)
                 .estadoOperativoResultante(estadoOperativoResultante)

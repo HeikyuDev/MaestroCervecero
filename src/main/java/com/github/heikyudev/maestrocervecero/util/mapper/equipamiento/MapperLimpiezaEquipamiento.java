@@ -24,7 +24,7 @@ public class MapperLimpiezaEquipamiento {
 
         return LimpiezaEquipamientoResponseDTO.builder()
                 .id(limpiezaEquipamientoEntity.getId())
-                .fechaLimpieza(limpiezaEquipamientoEntity.getFechaLimpieza())
+                .fechaLimpieza(limpiezaEquipamientoEntity.getFecha())
                 .observaciones(limpiezaEquipamientoEntity.getObservaciones())
                 .estado(limpiezaEquipamientoEntity.getEstado())
                 .estadoOperativoResultante(limpiezaEquipamientoEntity.getEstadoOperativoResultante())

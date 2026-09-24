@@ -271,7 +271,7 @@ class MantenimientoBarrilServicioImplTest {
         ArgumentCaptor<MantenimientoBarrilEntity> captor = ArgumentCaptor.forClass(MantenimientoBarrilEntity.class);
         verify(mantenimientoBarrilRepository).save(captor.capture());
         MantenimientoBarrilEntity mantenimientoGuardado = captor.getValue();
-        assertThat(mantenimientoGuardado.getFechaMantenimiento()).isEqualTo(fechaMantenimiento);
+        assertThat(mantenimientoGuardado.getFecha()).isEqualTo(fechaMantenimiento);
         assertThat(mantenimientoGuardado.getObservaciones()).isEqualTo("Se reemplazó la válvula de presión y se verificó el sellado");
         assertThat(mantenimientoGuardado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(mantenimientoGuardado.getBarril()).isSameAs(barril);
@@ -474,7 +474,7 @@ class MantenimientoBarrilServicioImplTest {
     private static MantenimientoBarrilEntity crearMantenimientoEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaMantenimiento, String observaciones, BarrilEntity barril) {
         return MantenimientoBarrilEntity.builder()
                 .id(id)
-                .fechaMantenimiento(fechaMantenimiento)
+                .fecha(fechaMantenimiento)
                 .observaciones(observaciones)
                 .estado(estado)
                 .barril(barril)

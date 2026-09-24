@@ -42,13 +42,13 @@ public interface IMantenimientoBarrilRepository extends JpaRepository<Mantenimie
     @Query(value = "SELECT m FROM MantenimientoBarrilEntity m WHERE "
             + "(:idBarril IS NULL OR m.barril.id = :idBarril) "
             + "AND (:estado IS NULL OR m.estado = :estado) "
-            + "AND (:fechaMantenimientoDesde IS NULL OR m.fechaMantenimiento >= :fechaMantenimientoDesde) "
-            + "AND (:fechaMantenimientoHasta IS NULL OR m.fechaMantenimiento <= :fechaMantenimientoHasta)",
+            + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+            + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)",
             countQuery = "SELECT COUNT(m) FROM MantenimientoBarrilEntity m WHERE "
                     + "(:idBarril IS NULL OR m.barril.id = :idBarril) "
                     + "AND (:estado IS NULL OR m.estado = :estado) "
-                    + "AND (:fechaMantenimientoDesde IS NULL OR m.fechaMantenimiento >= :fechaMantenimientoDesde) "
-                    + "AND (:fechaMantenimientoHasta IS NULL OR m.fechaMantenimiento <= :fechaMantenimientoHasta)")
+                    + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+                    + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)")
     Page<MantenimientoBarrilEntity> filtrarMantenimientosBarril(@Param("idBarril") Long idBarril,
                                                                  @Param("estado") EstadoTransaccion estado,
                                                                  @Param("fechaMantenimientoDesde") LocalDateTime fechaMantenimientoDesde,
@@ -65,6 +65,6 @@ public interface IMantenimientoBarrilRepository extends JpaRepository<Mantenimie
      * @param idBarril El ID del barril cuyo último mantenimiento se quiere buscar.
      * @return La fecha del último mantenimiento registrado del barril, o {@link Optional#empty()} si nunca tuvo uno.
      */
-    @Query("SELECT MAX(m.fechaMantenimiento) FROM MantenimientoBarrilEntity m WHERE m.barril.id = :idBarril AND m.estado = 'REGISTRADO'")
+    @Query("SELECT MAX(m.fecha) FROM MantenimientoBarrilEntity m WHERE m.barril.id = :idBarril AND m.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimoMantenimientoRegistrado(@Param("idBarril") Long idBarril);
 }

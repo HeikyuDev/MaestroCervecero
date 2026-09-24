@@ -1,36 +1,31 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDateTime;
-
+/**
+ * Registra la operación de limpieza de un equipamiento, dejándolo en estado operativo
+ * {@code DISPONIBLE} o {@code EN_MANTENIMIENTO} según la cantidad de usos acumulados.
+ * <p>
+ * Los datos comunes a toda operación del ciclo de vida (fecha, observaciones, estado
+ * transaccional, datos de anulación y la relación con el equipamiento afectado) los hereda de
+ * {@link OperacionCicloVidaEquipamiento}.
+ * </p>
+ */
 @Entity
 @Table(name = "limpieza_equipamiento")
 @Getter
 @Setter
+@SuperBuilder
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-public class LimpiezaEquipamientoEntity extends AuditableEntity<String> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
-
-    @Column(name = "fecha_limpieza", nullable = false)
-    private LocalDateTime fechaLimpieza;
-
-    @Column(nullable = false)
-    private String observaciones;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private EstadoTransaccion estado;
+public class LimpiezaEquipamientoEntity extends OperacionCicloVidaEquipamiento {
 
     /**
      * Estado operativo al que quedó el equipamiento como resultado de esta limpieza puntual
@@ -45,14 +40,4 @@ public class LimpiezaEquipamientoEntity extends AuditableEntity<String> {
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_operativo_resultante", nullable = false)
     private EstadoOperativo estadoOperativoResultante;
-
-    @Column(name = "fecha_anulacion")
-    private LocalDateTime fechaAnulacion;
-
-    @Column(name = "motivo_anulacion")
-    private String motivoAnulacion;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "equipamiento_id", nullable = false)
-    private EquipamientoEntity equipamiento;
 }
