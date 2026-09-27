@@ -1,41 +1,32 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.barril;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableEntity;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
-import jakarta.persistence.*;
-import lombok.*;
-
-import java.time.LocalDateTime;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 /**
  * Representa la operación de sacar una cantidad de cerveza de un barril.
  * Esto puede ocurrir por diversos motivos, como la toma de muestras para testeo,
  * el embotellado de una parte del contenido, o por merma.
+ * <p>
+ * Los datos comunes a toda operación del ciclo de vida (fecha, observaciones, estado
+ * transaccional, datos de anulación y la relación con el barril afectado) los hereda de
+ * {@link OperacionCicloVidaBarril}.
+ * </p>
  */
 @Entity
 @Table(name = "fraccionamiento_barril")
 @Getter
 @Setter
+@SuperBuilder
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
-public class FraccionamientoBarrilEntity extends AuditableEntity<String> {
-
-    /**
-     * Identificador único del registro de fraccionamiento.
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
-
-    /**
-     * Describe el motivo por el cual se realiza el fraccionamiento.
-     * Ejemplos: "Merma", "Testeo", "Embotellado".
-     */
-    @Column(name = "motivo_fraccionamiento", nullable = false)
-    private String motivoFraccionamiento;
+public class FraccionamientoBarrilEntity extends OperacionCicloVidaBarril {
 
     /**
      * La cantidad de cerveza extraída del barril, medida en litros.
@@ -44,30 +35,17 @@ public class FraccionamientoBarrilEntity extends AuditableEntity<String> {
     private Double cantidadFraccionada;
 
     /**
-     * Estado actual de la transacción de fraccionamiento.
-     * - REGISTRADO: El fraccionamiento se ha registrado correctamente.
-     * - ANULADO: El fraccionamiento ha sido cancelado por alguna equivocación.
+     * Estado operativo al que quedó el barril como resultado de este fraccionamiento puntual
+     * (CON_CERVEZA si quedó contenido restante, o EN_LIMPIEZA si el fraccionamiento vació el
+     * barril por completo).
+     * <p>
+     * Se persiste para que {@code anularFraccionamientoBarril} pueda validar que el barril
+     * sigue exactamente en el estado que dejó ESTE fraccionamiento puntual, y no en cualquiera
+     * de los dos estados posibles en general — evita revertir un fraccionamiento viejo cuando el
+     * estado actual del barril en realidad lo dejó otro fraccionamiento u operación posterior.
+     * </p>
      */
-    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private EstadoTransaccion estado;
-
-    /**
-     * Fecha y hora en que se anuló el fraccionamiento, si aplica.
-     */
-    @Column(name = "fecha_anulacion")
-    private LocalDateTime fechaAnulacion;
-
-    /**
-     * Motivo por el cual se anuló el fraccionamiento (ej. equivocación en el barril).
-     */
-    @Column(name = "motivo_anulacion")
-    private String motivoAnulacion;
-
-    /**
-     * Barril del cual se extrajo la cerveza.
-     */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "barril_id", nullable = false)
-    private BarrilEntity barril;
+    @Column(name = "estado_operativo_resultante", nullable = false)
+    private EstadoOperativoBarril estadoOperativoResultante;
 }

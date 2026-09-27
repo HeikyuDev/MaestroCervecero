@@ -180,10 +180,10 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
         Long idEquipamiento = limpiezaEquipamientoEntity.getEquipamiento().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
                 limpiezaEquipamientoEntity.getFecha(),
+                "equipamiento",
                 fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
                 mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
-                "equipamiento");
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null));
 
         // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
         //    encuentre exactamente en el estado operativo que dejó esta limpieza puntual

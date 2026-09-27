@@ -7,9 +7,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.FallaBarr
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFallaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFraccionamientoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ILimpiezaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IMantenimientoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionFallaBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.FallaBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -48,6 +52,14 @@ class FallaBarrilServicioImplTest {
     private IMantenimientoBarrilRepository mantenimientoBarrilRepository;
     @Mock
     private ILimpiezaBarrilRepository limpiezaBarrilRepository;
+    @Mock
+    private IDespachoBarrilRepository despachoBarrilRepository;
+    @Mock
+    private IDevolucionBarrilRepository devolucionBarrilRepository;
+    @Mock
+    private IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
+    @Mock
+    private IEnvasadoLoteRepository envasadoLoteRepository;
     @Mock
     private IBarrilRepository barrilRepository;
 
@@ -279,6 +291,22 @@ class FallaBarrilServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
     }
 
+    @Test
+    @DisplayName("CP-RFB-07: registrarFallaBarril lanza ReglaNegocioException cuando existe un envasado posterior del mismo barril")
+    void registrar_debeRechazarSiExisteEnvasadoPosterior() {
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
+        BarrilEntity barril = crearBarrilEntity(1L, EstadoOperativoBarril.DISPONIBLE);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 18, 10, 0)));
+
+        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril");
+
+        verify(barrilRepository, never()).save(any());
+        verify(fallaBarrilRepository, never()).save(any());
+    }
+
     // ==================== anularFallaBarril ====================
 
     @Test
@@ -290,7 +318,7 @@ class FallaBarrilServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
 
-        verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, barrilRepository);
+        verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
     }
 
     @Test
@@ -302,7 +330,7 @@ class FallaBarrilServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
 
-        verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, barrilRepository);
+        verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
     }
 
     @Test
@@ -330,7 +358,7 @@ class FallaBarrilServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Solo se pueden anular fallas de barril en estado REGISTRADO");
 
-        verifyNoInteractions(mantenimientoBarrilRepository, limpiezaBarrilRepository, barrilRepository);
+        verifyNoInteractions(mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
         verify(fallaBarrilRepository, never()).save(any());
     }
 
@@ -378,6 +406,9 @@ class FallaBarrilServicioImplTest {
         when(fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
         when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
+        when(despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(2L)).thenReturn(Optional.empty());
+        when(devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(2L)).thenReturn(Optional.empty());
+        when(fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(2L)).thenReturn(Optional.empty());
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(barril));
         when(barrilRepository.save(barril)).thenReturn(barril);
         when(fallaBarrilRepository.save(falla)).thenReturn(falla);
@@ -424,6 +455,75 @@ class FallaBarrilServicioImplTest {
         when(fallaBarrilRepository.findById(1L)).thenReturn(Optional.of(falla));
         when(fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
         when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 18, 10, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este barril");
+
+        verifyNoInteractions(barrilRepository);
+        verify(fallaBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AFB-10: anularFallaBarril lanza ReglaNegocioException cuando existe un despacho posterior sobre el barril")
+    void anular_debeRechazarSiExisteDespachoPosterior() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_MANTENIMIENTO);
+        FallaBarrilEntity falla = crearFallaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión", barril);
+        AnulacionFallaBarrilFormDTO formDTO = anulacionFormDTO("Falla resuelta por error de carga");
+        when(fallaBarrilRepository.findById(1L)).thenReturn(Optional.of(falla));
+        when(fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
+        when(despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 20, 10, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este barril");
+
+        verifyNoInteractions(barrilRepository);
+        verify(fallaBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AFB-11: anularFallaBarril lanza ReglaNegocioException cuando existe una devolución posterior sobre el barril")
+    void anular_debeRechazarSiExisteDevolucionPosterior() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_MANTENIMIENTO);
+        FallaBarrilEntity falla = crearFallaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión", barril);
+        AnulacionFallaBarrilFormDTO formDTO = anulacionFormDTO("Falla resuelta por error de carga");
+        when(fallaBarrilRepository.findById(1L)).thenReturn(Optional.of(falla));
+        when(fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
+        when(despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(2L)).thenReturn(Optional.empty());
+        when(devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 20, 10, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este barril");
+
+        verifyNoInteractions(barrilRepository);
+        verify(fallaBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AFB-12: anularFallaBarril lanza ReglaNegocioException cuando existe un fraccionamiento posterior sobre el barril")
+    void anular_debeRechazarSiExisteFraccionamientoPosterior() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barril = crearBarrilEntity(2L, EstadoOperativoBarril.EN_MANTENIMIENTO);
+        FallaBarrilEntity falla = crearFallaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión", barril);
+        AnulacionFallaBarrilFormDTO formDTO = anulacionFormDTO("Falla resuelta por error de carga");
+        when(fallaBarrilRepository.findById(1L)).thenReturn(Optional.of(falla));
+        when(fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
+        when(mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
+        when(limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
+        when(despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(2L)).thenReturn(Optional.empty());
+        when(devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(2L)).thenReturn(Optional.empty());
+        when(fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 20, 10, 0)));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))

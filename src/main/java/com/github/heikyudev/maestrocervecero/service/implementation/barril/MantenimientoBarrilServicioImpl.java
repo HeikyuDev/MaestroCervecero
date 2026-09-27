@@ -7,9 +7,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOpe
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.MantenimientoBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFallaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFraccionamientoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ILimpiezaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IMantenimientoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionMantenimientoBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.MantenimientoBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -34,6 +38,10 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
     private final IMantenimientoBarrilRepository mantenimientoBarrilRepository;
     private final IFallaBarrilRepository fallaBarrilRepository;
     private final ILimpiezaBarrilRepository limpiezaBarrilRepository;
+    private final IDespachoBarrilRepository despachoBarrilRepository;
+    private final IDevolucionBarrilRepository devolucionBarrilRepository;
+    private final IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
+    private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IBarrilRepository barrilRepository;
 
     /**
@@ -81,7 +89,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
      *
      * @param mantenimientoBarrilFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si las observaciones no fueron informadas, si la fecha de mantenimiento no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -99,19 +107,33 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         }
 
         // 3. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
-        BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(mantenimientoBarrilFormDTO.getIdBarril())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + mantenimientoBarrilFormDTO.getIdBarril()));
+        Long idBarril = mantenimientoBarrilFormDTO.getIdBarril();
+        BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
 
         // 4. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_MANTENIMIENTO) {
             throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un barril en estado operativo EN_MANTENIMIENTO");
         }
 
-        // 5. Cambiar el estado operativo del barril a DISPONIBLE y persistirlo
+        // 5. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
+        //    sobre este barril, considerando también el último envasado que lo cargó
+        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                mantenimientoBarrilFormDTO.getFechaMantenimiento(),
+                "barril",
+                fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
+                mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
+                limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
+                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
+                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
+                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
+                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
+
+        // 6. Cambiar el estado operativo del barril a DISPONIBLE y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DISPONIBLE);
         barrilRepository.save(barrilEntity);
 
-        // 6. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
+        // 7. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoBarrilEntity mantenimientoBarrilEntity = MantenimientoBarrilEntity.builder()
                 .fecha(mantenimientoBarrilFormDTO.getFechaMantenimiento())
                 .observaciones(mantenimientoBarrilFormDTO.getObservaciones())
@@ -160,10 +182,13 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         Long idBarril = mantenimientoBarrilEntity.getBarril().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
                 mantenimientoBarrilEntity.getFecha(),
+                "barril",
                 fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
                 mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
                 limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
-                "barril");
+                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
+                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
+                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null));
 
         // 5. Localizar el barril asociado, bloqueado para escritura, y validar que se encuentre en
         //    estado operativo DISPONIBLE, para garantizar que la transición de vuelta a

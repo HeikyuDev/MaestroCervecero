@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 /**
  * Repositorio JPA de los envasados de lote ({@link EnvasadoLoteEntity}).
  */
@@ -35,4 +38,17 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
                                                    @Param("idBarril") Long idBarril,
                                                    @Param("estado") EstadoTransaccion estado,
                                                    Pageable pageable);
+
+    /**
+     * Busca la fecha del último envasado registrado de un barril determinado.
+     * <p>
+     * El envasado no tiene una fecha de negocio propia distinta a cuándo se registró (no admite
+     * carga retroactiva), así que se usa {@code createdDate} como su fecha efectiva.
+     * </p>
+     *
+     * @param idBarril El ID del barril cuyo último envasado se quiere buscar.
+     * @return La fecha del último envasado registrado del barril, o {@link Optional#empty()} si nunca tuvo uno.
+     */
+    @Query("SELECT MAX(e.createdDate) FROM EnvasadoLoteEntity e WHERE e.barril.id = :idBarril AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
+    Optional<LocalDateTime> buscarFechaUltimoEnvasadoRegistrado(@Param("idBarril") Long idBarril);
 }

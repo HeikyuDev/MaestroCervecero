@@ -7,9 +7,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOpe
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.LimpiezaBarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDevolucionBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFallaBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IFraccionamientoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.ILimpiezaBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IMantenimientoBarrilRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.AnulacionLimpiezaBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.LimpiezaBarrilFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -34,6 +38,10 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
     private final ILimpiezaBarrilRepository limpiezaBarrilRepository;
     private final IMantenimientoBarrilRepository mantenimientoBarrilRepository;
     private final IFallaBarrilRepository fallaBarrilRepository;
+    private final IDespachoBarrilRepository despachoBarrilRepository;
+    private final IDevolucionBarrilRepository devolucionBarrilRepository;
+    private final IFraccionamientoBarrilRepository fraccionamientoBarrilRepository;
+    private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IBarrilRepository barrilRepository;
 
     /**
@@ -85,7 +93,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
      *
      * @param limpiezaBarrilFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si las observaciones no fueron informadas, o si el barril no se encuentra en estado operativo {@code EN_LIMPIEZA}.
+     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si las observaciones no fueron informadas, si la fecha de limpieza no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code EN_LIMPIEZA}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -112,7 +120,20 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
             throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un barril en estado operativo EN_LIMPIEZA");
         }
 
-        // 5. Contar los usos del barril desde su último mantenimiento (o desde siempre, si nunca
+        // 5. Validar que la fecha de limpieza sea posterior a la última operación registrada sobre
+        //    este barril, considerando también el último envasado que lo cargó
+        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                limpiezaBarrilFormDTO.getFechaLimpieza(),
+                "barril",
+                fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
+                mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
+                limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
+                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
+                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
+                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
+                envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
+
+        // 6. Contar los usos del barril desde su último mantenimiento (o desde siempre, si nunca
         //    tuvo uno), sumando la limpieza que se está registrando, y comparar contra el máximo
         //    de usos antes de mantenimiento para decidir el estado operativo resultante
         LocalDateTime fechaUltimoMantenimiento = mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null);
@@ -121,11 +142,11 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
                 ? EstadoOperativoBarril.EN_MANTENIMIENTO
                 : EstadoOperativoBarril.DISPONIBLE;
 
-        // 6. Aplicar el estado operativo resultante sobre el barril y persistirlo
+        // 7. Aplicar el estado operativo resultante sobre el barril y persistirlo
         barrilEntity.setEstadoOperativo(estadoOperativoResultante);
         barrilRepository.save(barrilEntity);
 
-        // 7. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaBarrilEntity limpiezaBarrilEntity = LimpiezaBarrilEntity.builder()
                 .fecha(limpiezaBarrilFormDTO.getFechaLimpieza())
                 .observaciones(limpiezaBarrilFormDTO.getObservaciones())
@@ -177,10 +198,13 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         Long idBarril = limpiezaBarrilEntity.getBarril().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
                 limpiezaBarrilEntity.getFecha(),
+                "barril",
                 fallaBarrilRepository.buscarFechaUltimaFallaRegistrada(idBarril).orElse(null),
                 mantenimientoBarrilRepository.buscarFechaUltimoMantenimientoRegistrado(idBarril).orElse(null),
                 limpiezaBarrilRepository.buscarFechaUltimaLimpiezaRegistrada(idBarril).orElse(null),
-                "barril");
+                despachoBarrilRepository.buscarFechaUltimoDespachoRegistrado(idBarril).orElse(null),
+                devolucionBarrilRepository.buscarFechaUltimaDevolucionRegistrada(idBarril).orElse(null),
+                fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null));
 
         // 5. Localizar el barril asociado, bloqueado para escritura, y validar que se encuentre
         //    exactamente en el estado operativo que dejó esta limpieza puntual

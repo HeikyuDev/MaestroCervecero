@@ -164,10 +164,10 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         Long idEquipamiento = fallaEquipamientoEntity.getEquipamiento().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
                 fallaEquipamientoEntity.getFecha(),
+                "equipamiento",
                 fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
                 mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
-                "equipamiento");
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null));
 
         // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
         //    encuentre en estado operativo EN_MANTENIMIENTO, para garantizar que la transición

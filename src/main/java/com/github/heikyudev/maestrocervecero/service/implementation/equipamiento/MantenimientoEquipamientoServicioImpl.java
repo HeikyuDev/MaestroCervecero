@@ -164,10 +164,10 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
         Long idEquipamiento = mantenimientoEquipamientoEntity.getEquipamiento().getId();
         MetodosCicloVida.validarEsOperacionMasReciente(
                 mantenimientoEquipamientoEntity.getFecha(),
+                "equipamiento",
                 fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
                 mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
-                "equipamiento");
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null));
 
         // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
         //    encuentre en estado operativo DISPONIBLE, para garantizar que la transición de

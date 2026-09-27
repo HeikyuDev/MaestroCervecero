@@ -33,6 +33,7 @@ public class EnvasadoLoteEntity extends AuditableEntity<String> {
     private String motivoAnulacion;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private EstadoTransaccion estado;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
