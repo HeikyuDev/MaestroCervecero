@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionMantenimientoEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MantenimientoEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -36,6 +37,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
     private final IFallaEquipamientoRepository fallaEquipamientoRepository;
     private final ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
      * Filtra los mantenimientos de equipamiento, opcionalmente por equipamiento, tipo concreto de
@@ -85,7 +87,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
      *
      * @param mantenimientoEquipamientoFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de equipamiento registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si las observaciones no fueron informadas, o si el equipamiento no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si el equipamiento no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si la fecha de mantenimiento no es posterior a la última operación registrada sobre ese equipamiento.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
@@ -97,25 +99,38 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
             throw new ReglaNegocioException("La fecha de mantenimiento es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha de mantenimiento no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(mantenimientoEquipamientoFormDTO.getFechaMantenimiento());
+
+        // 3. Validar que se hayan informado las observaciones
         if (mantenimientoEquipamientoFormDTO.getObservaciones() == null || mantenimientoEquipamientoFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(mantenimientoEquipamientoFormDTO.getIdEquipamiento())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + mantenimientoEquipamientoFormDTO.getIdEquipamiento()));
 
-        // 4. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO
+        // 5. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_MANTENIMIENTO) {
             throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo EN_MANTENIMIENTO");
         }
 
-        // 5. Cambiar el estado operativo del equipamiento a DISPONIBLE y persistirlo
+        // 6. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
+        //    sobre este equipamiento, considerando también la última etapa de lote en la que participó
+        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                mantenimientoEquipamientoFormDTO.getFechaMantenimiento(),
+                "equipamiento",
+                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(equipamientoEntity.getId()).orElse(null),
+                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(equipamientoEntity.getId()).orElse(null),
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(equipamientoEntity.getId()).orElse(null),
+                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(equipamientoEntity.getId()).orElse(null));
+
+        // 7. Cambiar el estado operativo del equipamiento a DISPONIBLE y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.DISPONIBLE);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 6. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoEquipamientoEntity mantenimientoEquipamientoEntity = MantenimientoEquipamientoEntity.builder()
                 .fecha(mantenimientoEquipamientoFormDTO.getFechaMantenimiento())
                 .observaciones(mantenimientoEquipamientoFormDTO.getObservaciones())

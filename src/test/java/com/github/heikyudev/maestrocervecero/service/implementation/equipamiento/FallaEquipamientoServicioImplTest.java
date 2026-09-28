@@ -12,6 +12,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionFallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -52,6 +53,8 @@ class FallaEquipamientoServicioImplTest {
     private ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private FallaEquipamientoServicioImpl fallaEquipamientoServicio;
@@ -279,6 +282,39 @@ class FallaEquipamientoServicioImplTest {
         assertThat(fallaGuardada.getEquipamiento()).isSameAs(macerador);
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-RFE-07: registrarFallaEquipamiento lanza ReglaNegocioException cuando existe una participación en etapa de lote posterior")
+    void registrar_debeRechazarSiExisteParticipacionEnEtapaPosterior() {
+        // === PREPARACION DE DATOS ===
+        LocalDateTime fechaFalla = LocalDateTime.of(2026, 1, 15, 10, 0);
+        FallaEquipamientoFormDTO formDTO = fallaEquipamientoFormDTO(1L, fechaFalla, "Ruido anormal en el motor");
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.DISPONIBLE);
+        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 18, 10, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaEquipamientoServicio.registrarFallaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento");
+
+        verify(equipamientoRepository, never()).save(any());
+        verify(fallaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RFE-08: registrarFallaEquipamiento lanza ReglaNegocioException cuando la fecha de falla es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaFallaFutura() {
+        // === PREPARACION DE DATOS ===
+        FallaEquipamientoFormDTO formDTO = fallaEquipamientoFormDTO(1L, LocalDateTime.now().plusDays(1), "Ruido anormal en el motor");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fallaEquipamientoServicio.registrarFallaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(equipamientoRepository, fallaEquipamientoRepository);
     }
 
     // ==================== anularFallaEquipamiento ====================

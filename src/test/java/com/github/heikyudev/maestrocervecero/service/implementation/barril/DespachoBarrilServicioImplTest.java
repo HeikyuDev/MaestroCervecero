@@ -457,6 +457,18 @@ class DespachoBarrilServicioImplTest {
         verify(despachoBarrilRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RDB-14: registrarDespachoBarril lanza ReglaNegocioException cuando la fecha de despacho es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaDespachoFutura() {
+        DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 1L, LocalDateTime.now().plusDays(1), LocalDate.now().plusDays(30), "Retiro programado");
+
+        assertThatThrownBy(() -> despachoBarrilServicio.registrarDespachoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(clienteRepository, barrilRepository, despachoBarrilRepository);
+    }
+
     // ==================== anularDespachoBarril ====================
 
     @Test

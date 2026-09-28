@@ -19,7 +19,7 @@
 
 ### 3. `registrarFallaEquipamiento(FallaEquipamientoFormDTO fallaEquipamientoFormDTO)`
 
-Solo se puede registrar sobre un equipamiento en estado operativo `DISPONIBLE`; el equipamiento pasa a `EN_MANTENIMIENTO` como parte del registro.
+Solo se puede registrar sobre un equipamiento en estado operativo `DISPONIBLE`; el equipamiento pasa a `EN_MANTENIMIENTO` como parte del registro. La fecha de falla no puede ser posterior a la fecha y hora actual, ni anterior o igual a la última operación registrada sobre ese equipamiento, considerando las otras fallas, mantenimientos y limpiezas, y también la última etapa de lote en la que participó de verdad (`FINALIZADA`, o `CANCELADA` con `fechaInicio` no nula).
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -29,6 +29,8 @@ Solo se puede registrar sobre un equipamiento en estado operativo `DISPONIBLE`; 
 |**CP-RFE-04**|Equipamiento no encontrado|`idEquipamiento: 99L` (No existe), resto de los datos válidos|`equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99"). No ejecuta `save()`.|
 |**CP-RFE-05**|Equipamiento no está en estado operativo DISPONIBLE|`idEquipamiento: 1L` (Existe, `estadoOperativo: EN_USO`), resto de los datos válidos|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una falla sobre un equipamiento en estado operativo DISPONIBLE"). No ejecuta `save()` de la falla.|
 |**CP-RFE-06**|Registro exitoso _(Camino feliz)_|`idEquipamiento: 1L` (Existe, `estadoOperativo: DISPONIBLE`), `fechaFalla: 2026-01-15T10:00`, `observaciones: "Ruido anormal en el motor"`|Todas las validaciones $\rightarrow$ **FALSE**|El equipamiento pasa a `estadoOperativo = EN_MANTENIMIENTO` y se persiste. La falla se persiste con `estado = REGISTRADO`, `fechaFalla` y `observaciones` asignados, y retorna DTO.|
+|**CP-RFE-07**|Existe una participación en etapa de lote posterior|`idEquipamiento: 1L` (Existe, `estadoOperativo: DISPONIBLE`), `fechaFalla: 2026-01-15T10:00`, `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **2026-01-18T10:00**|La fecha de la última participación en una etapa es posterior a la de esta falla|Lanza `ReglaNegocioException` ("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento"). No ejecuta `save()`.|
+|**CP-RFE-08**|Fecha de falla posterior a la fecha y hora actual|`fechaFalla: ahora + 1 día`, resto de los datos válidos|`fechaFalla.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de esta operación no puede ser posterior a la fecha y hora actual"). No consulta el equipamiento.|
 
 ### 4. `anularFallaEquipamiento(Long id, AnulacionFallaEquipamientoFormDTO anulacionFormDTO)`
 

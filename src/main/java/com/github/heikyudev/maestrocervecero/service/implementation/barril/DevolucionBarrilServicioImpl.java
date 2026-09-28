@@ -96,7 +96,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
      *
      * @param devolucionBarrilFormDTO Los datos de la devolución a registrar.
      * @return La devolución de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de devolución o las observaciones no fueron informadas, si la fecha de devolución no es posterior a la última operación registrada del barril, o si el barril no se encuentra en estado operativo {@code DESPACHADO}.
+     * @throws ReglaNegocioException Si la fecha de devolución o las observaciones no fueron informadas, si la fecha de devolución es posterior a la fecha y hora actual, si no es posterior a la última operación registrada del barril, o si el barril no se encuentra en estado operativo {@code DESPACHADO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -108,23 +108,26 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
             throw new ReglaNegocioException("La fecha de devolución es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha de devolución no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(devolucionBarrilFormDTO.getFechaDevolucion());
+
+        // 3. Validar que se hayan informado las observaciones
         if (devolucionBarrilFormDTO.getObservaciones() == null || devolucionBarrilFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         Long idBarril = devolucionBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
 
-        // 4. Validar que el barril se encuentre en estado operativo DESPACHADO (implica que existe
+        // 5. Validar que el barril se encuentre en estado operativo DESPACHADO (implica que existe
         //    un despacho REGISTRADO sobre él, ver nota de diseño en el javadoc de este método)
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DESPACHADO) {
             throw new ReglaNegocioException("Solo se puede registrar una devolución sobre un barril en estado operativo DESPACHADO");
         }
 
-        // 5. Validar que la fecha de devolución sea posterior a la última operación registrada
+        // 6. Validar que la fecha de devolución sea posterior a la última operación registrada
         //    sobre este barril, considerando también el último envasado que lo cargó
         MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
                 devolucionBarrilFormDTO.getFechaDevolucion(),
@@ -137,11 +140,11 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
                 fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
 
-        // 6. Cambiar el estado operativo del barril a EN_LIMPIEZA y persistirlo
+        // 7. Cambiar el estado operativo del barril a EN_LIMPIEZA y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.EN_LIMPIEZA);
         barrilRepository.save(barrilEntity);
 
-        // 7. Construir y persistir la devolución, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir la devolución, y retornar el DTO de respuesta correspondiente
         DevolucionBarrilEntity devolucionBarrilEntity = DevolucionBarrilEntity.builder()
                 .fecha(devolucionBarrilFormDTO.getFechaDevolucion())
                 .observaciones(devolucionBarrilFormDTO.getObservaciones())

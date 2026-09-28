@@ -367,6 +367,18 @@ class DevolucionBarrilServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
     }
 
+    @Test
+    @DisplayName("CP-RDVB-11: registrarDevolucionBarril lanza ReglaNegocioException cuando la fecha de devolución es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaDevolucionFutura() {
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Barril recibido en depósito");
+
+        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(barrilRepository, devolucionBarrilRepository);
+    }
+
     // ==================== anularDevolucionBarril ====================
 
     @Test

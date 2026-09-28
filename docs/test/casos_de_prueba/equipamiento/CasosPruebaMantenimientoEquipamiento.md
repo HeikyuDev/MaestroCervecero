@@ -19,7 +19,7 @@
 
 ### 3. `registrarMantenimientoEquipamiento(MantenimientoEquipamientoFormDTO mantenimientoEquipamientoFormDTO)`
 
-Solo se puede registrar sobre un equipamiento en estado operativo `EN_MANTENIMIENTO`; el equipamiento pasa a `DISPONIBLE` como parte del registro.
+Solo se puede registrar sobre un equipamiento en estado operativo `EN_MANTENIMIENTO`; el equipamiento pasa a `DISPONIBLE` como parte del registro. La fecha de mantenimiento no puede ser posterior a la fecha y hora actual, ni anterior o igual a la última operación registrada sobre ese equipamiento, considerando las fallas, otros mantenimientos y limpiezas, y también la última etapa de lote en la que participó de verdad (`FINALIZADA`, o `CANCELADA` con `fechaInicio` no nula).
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -29,6 +29,8 @@ Solo se puede registrar sobre un equipamiento en estado operativo `EN_MANTENIMIE
 |**CP-RME-04**|Equipamiento no encontrado|`idEquipamiento: 99L` (No existe), resto de los datos válidos|`equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el equipamiento con ID: 99"). No ejecuta `save()`.|
 |**CP-RME-05**|Equipamiento no está en estado operativo EN_MANTENIMIENTO|`idEquipamiento: 1L` (Existe, `estadoOperativo: DISPONIBLE`), resto de los datos válidos|`estadoOperativo != EN_MANTENIMIENTO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo EN_MANTENIMIENTO"). No ejecuta `save()` del mantenimiento.|
 |**CP-RME-06**|Registro exitoso _(Camino feliz)_|`idEquipamiento: 1L` (Existe, `estadoOperativo: EN_MANTENIMIENTO`), `fechaMantenimiento: 2026-01-20T09:00`, `observaciones: "Se reemplazó el rodamiento y se lubricó el eje"`|Todas las validaciones $\rightarrow$ **FALSE**|El equipamiento pasa a `estadoOperativo = DISPONIBLE` y se persiste. El mantenimiento se persiste con `estado = REGISTRADO`, `fechaMantenimiento` y `observaciones` asignados, y retorna DTO.|
+|**CP-RME-07**|Existe una participación en etapa de lote posterior|`idEquipamiento: 1L` (Existe, `estadoOperativo: EN_MANTENIMIENTO`), `fechaMantenimiento: 2026-01-20T09:00`, `buscarFechaUltimaParticipacionRegistrada(1L)` $\rightarrow$ **2026-01-22T09:00**|La fecha de la última participación en una etapa es posterior a la de este mantenimiento|Lanza `ReglaNegocioException` ("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento"). No ejecuta `save()`.|
+|**CP-RME-08**|Fecha de mantenimiento posterior a la fecha y hora actual|`fechaMantenimiento: ahora + 1 día`, resto de los datos válidos|`fechaMantenimiento.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de esta operación no puede ser posterior a la fecha y hora actual"). No consulta el equipamiento.|
 
 ### 4. `anularMantenimientoEquipamiento(Long id, AnulacionMantenimientoEquipamientoFormDTO anulacionFormDTO)`
 

@@ -19,7 +19,7 @@
 
 ### 3. `registrarMantenimientoBarril(MantenimientoBarrilFormDTO mantenimientoBarrilFormDTO)`
 
-Solo se puede registrar sobre un barril en estado operativo `EN_MANTENIMIENTO`; el barril pasa a `DISPONIBLE` como parte del registro.
+Solo se puede registrar sobre un barril en estado operativo `EN_MANTENIMIENTO`; el barril pasa a `DISPONIBLE` como parte del registro. La fecha de mantenimiento no puede ser posterior a la fecha y hora actual, ni anterior o igual a la última operación registrada sobre el barril, entre fallas, mantenimientos, limpiezas, despachos, devoluciones, fraccionamientos y el último envasado que lo cargó.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -29,6 +29,8 @@ Solo se puede registrar sobre un barril en estado operativo `EN_MANTENIMIENTO`; 
 |**CP-RMB-04**|Barril no encontrado|`idBarril: 99L` (No existe), resto de los datos válidos|`barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 99"). No ejecuta `save()`.|
 |**CP-RMB-05**|Barril no está en estado operativo EN_MANTENIMIENTO|`idBarril: 1L` (Existe, `estadoOperativo: DISPONIBLE`), resto de los datos válidos|`estadoOperativo != EN_MANTENIMIENTO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar un mantenimiento sobre un barril en estado operativo EN_MANTENIMIENTO"). No ejecuta `save()` del mantenimiento.|
 |**CP-RMB-06**|Registro exitoso _(Camino feliz)_|`idBarril: 1L` (Existe, `estadoOperativo: EN_MANTENIMIENTO`), `fechaMantenimiento: 2026-01-20T09:00`, `observaciones: "Se reemplazó la válvula de presión y se verificó el sellado"`|Todas las validaciones $\rightarrow$ **FALSE**|El barril pasa a `estadoOperativo = DISPONIBLE` y se persiste. El mantenimiento se persiste con `estado = REGISTRADO`, `fechaMantenimiento` y `observaciones` asignados, y retorna DTO.|
+|**CP-RMB-07**|Existe un envasado posterior sobre el barril|`idBarril: 1L` (Existe, `estadoOperativo: EN_MANTENIMIENTO`), `fechaMantenimiento: 2026-01-20T09:00`, `buscarFechaUltimoEnvasadoRegistrado(1L)` $\rightarrow$ **2026-01-22T09:00**|Existe un envasado posterior a la fecha de este mantenimiento|Lanza `ReglaNegocioException` ("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril"). No ejecuta `save()`.|
+|**CP-RMB-08**|Fecha de mantenimiento posterior a la fecha y hora actual|`fechaMantenimiento: ahora + 1 día`, resto de los datos válidos|`fechaMantenimiento.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de esta operación no puede ser posterior a la fecha y hora actual"). No consulta el barril.|
 
 ### 4. `anularMantenimientoBarril(Long id, AnulacionMantenimientoBarrilFormDTO anulacionFormDTO)`
 

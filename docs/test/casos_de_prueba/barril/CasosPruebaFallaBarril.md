@@ -19,7 +19,7 @@
 
 ### 3. `registrarFallaBarril(FallaBarrilFormDTO fallaBarrilFormDTO)`
 
-Solo se puede registrar sobre un barril en estado operativo `DISPONIBLE`; el barril pasa a `EN_MANTENIMIENTO` como parte del registro.
+Solo se puede registrar sobre un barril en estado operativo `DISPONIBLE`; el barril pasa a `EN_MANTENIMIENTO` como parte del registro. La fecha de falla no puede ser posterior a la fecha y hora actual, ni anterior o igual a la última operación registrada sobre el barril, entre fallas, mantenimientos, limpiezas, despachos, devoluciones, fraccionamientos y el último envasado que lo cargó.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -29,6 +29,8 @@ Solo se puede registrar sobre un barril en estado operativo `DISPONIBLE`; el bar
 |**CP-RFB-04**|Barril no encontrado|`idBarril: 99L` (No existe), resto de los datos válidos|`barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró el barril con ID: 99"). No ejecuta `save()`.|
 |**CP-RFB-05**|Barril no está en estado operativo DISPONIBLE|`idBarril: 1L` (Existe, `estadoOperativo: CON_CERVEZA`), resto de los datos válidos|`estadoOperativo != DISPONIBLE` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una falla sobre un barril en estado operativo DISPONIBLE"). No ejecuta `save()` de la falla.|
 |**CP-RFB-06**|Registro exitoso _(Camino feliz)_|`idBarril: 1L` (Existe, `estadoOperativo: DISPONIBLE`), `fechaFalla: 2026-01-15T10:00`, `observaciones: "Pérdida de presión en la válvula"`|Todas las validaciones $\rightarrow$ **FALSE**|El barril pasa a `estadoOperativo = EN_MANTENIMIENTO` y se persiste. La falla se persiste con `estado = REGISTRADO`, `fechaFalla` y `observaciones` asignados, y retorna DTO.|
+|**CP-RFB-07**|Existe un envasado posterior sobre el barril|`idBarril: 1L` (Existe, `estadoOperativo: DISPONIBLE`), `fechaFalla: 2026-01-15T10:00`, `buscarFechaUltimoEnvasadoRegistrado(1L)` $\rightarrow$ **2026-01-18T10:00**|Existe un envasado posterior a la fecha de esta falla|Lanza `ReglaNegocioException` ("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril"). No ejecuta `save()`.|
+|**CP-RFB-08**|Fecha de falla posterior a la fecha y hora actual|`fechaFalla: ahora + 1 día`, resto de los datos válidos|`fechaFalla.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de esta operación no puede ser posterior a la fecha y hora actual"). No consulta el barril.|
 
 ### 4. `anularFallaBarril(Long id, AnulacionFallaBarrilFormDTO anulacionFormDTO)`
 

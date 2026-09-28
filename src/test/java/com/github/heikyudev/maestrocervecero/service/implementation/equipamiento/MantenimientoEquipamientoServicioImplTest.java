@@ -12,6 +12,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionMantenimientoEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MantenimientoEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -52,6 +53,8 @@ class MantenimientoEquipamientoServicioImplTest {
     private ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private MantenimientoEquipamientoServicioImpl mantenimientoEquipamientoServicio;
@@ -279,6 +282,39 @@ class MantenimientoEquipamientoServicioImplTest {
         assertThat(mantenimientoGuardado.getEquipamiento()).isSameAs(macerador);
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-RME-07: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando existe una participación en etapa de lote posterior")
+    void registrar_debeRechazarSiExisteParticipacionEnEtapaPosterior() {
+        // === PREPARACION DE DATOS ===
+        LocalDateTime fechaMantenimiento = LocalDateTime.of(2026, 1, 20, 9, 0);
+        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, fechaMantenimiento, "Se reemplazó el rodamiento y se lubricó el eje");
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento");
+
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-08: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de mantenimiento es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaMantenimientoFutura() {
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.now().plusDays(1), "Se reemplazó el rodamiento y se lubricó el eje");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
     }
 
     // ==================== anularMantenimientoEquipamiento ====================

@@ -20,7 +20,7 @@
 
 ### 3. `registrarDespachoBarril(DespachoBarrilFormDTO despachoBarrilFormDTO)`
 
-Solo se puede registrar sobre un barril en estado operativo `CON_CERVEZA`; el barril pasa a `DESPACHADO` como parte del registro. La fecha de despacho debe ser posterior a la fecha de la última operación registrada sobre el barril, considerando las 6 tablas del ciclo de vida (falla, mantenimiento, limpieza, despacho, devolución, fraccionamiento) y también el último envasado de lote que lo cargó.
+Solo se puede registrar sobre un barril en estado operativo `CON_CERVEZA`; el barril pasa a `DESPACHADO` como parte del registro. La fecha de despacho no puede ser posterior a la fecha y hora actual, ni anterior o igual a la fecha de la última operación registrada sobre el barril, considerando las 6 tablas del ciclo de vida (falla, mantenimiento, limpieza, despacho, devolución, fraccionamiento) y también el último envasado de lote que lo cargó.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -37,6 +37,7 @@ Solo se puede registrar sobre un barril en estado operativo `CON_CERVEZA`; el ba
 |**CP-RDB-11**|La fecha de despacho no es posterior al último envasado del barril|`fechaDespacho: 2026-01-20T09:00`, resto de los datos válidos, barril `1L` en `CON_CERVEZA`, todas las fechas del ciclo de vida `Optional.empty()`, `buscarFechaUltimoEnvasadoRegistrado(1L)` $\rightarrow$ **2026-01-22T09:00**|Existe un envasado posterior a la fecha informada|Lanza `ReglaNegocioException` ("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril"). No ejecuta `save()`.|
 |**CP-RDB-12**|La fecha de despacho no es posterior a un fraccionamiento anterior del mismo barril|`fechaDespacho: 2026-01-20T09:00`, resto de los datos válidos, barril `1L` en `CON_CERVEZA`, `buscarFechaUltimoDespachoRegistrado(1L)` $\rightarrow$ **Optional.empty()**, `buscarFechaUltimaLimpiezaRegistrada(1L)` $\rightarrow$ **Optional.empty()**, `buscarFechaUltimoFraccionamientoRegistrado(1L)` $\rightarrow$ **2026-01-22T09:00**|Existe un fraccionamiento posterior a la fecha informada|Lanza `ReglaNegocioException` ("La fecha de esta operación debe ser posterior a la última operación registrada sobre este barril"). No ejecuta `save()`.|
 |**CP-RDB-13**|Registro exitoso _(Camino feliz)_|`idBarril: 1L` (Existe, `estadoOperativo: CON_CERVEZA`), `idCliente: 1L` (Existe, `ACTIVO`), `fechaDespacho: 2026-01-20T09:00`, `fechaDevolucionEstimada: 2026-02-01`, `observaciones: "Retiro programado en depósito del cliente"`, todas las fechas de operaciones anteriores `Optional.empty()`|Todas las validaciones $\rightarrow$ **FALSE**|El barril pasa a `estadoOperativo = DESPACHADO` y se persiste. El despacho se persiste con `estado = REGISTRADO`, `fecha`, `observaciones`, `fechaDevolucionEstimada`, `cliente` y `barril` asignados, y retorna DTO.|
+|**CP-RDB-14**|Fecha de despacho posterior a la fecha y hora actual|`fechaDespacho: ahora + 1 día`, resto de los datos válidos|`fechaDespacho.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de esta operación no puede ser posterior a la fecha y hora actual"). No consulta el cliente ni el barril.|
 
 ### 4. `anularDespachoBarril(Long id, AnulacionDespachoBarrilFormDTO anulacionFormDTO)`
 

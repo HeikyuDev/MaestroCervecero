@@ -307,6 +307,18 @@ class MantenimientoBarrilServicioImplTest {
         verify(mantenimientoBarrilRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RMB-08: registrarMantenimientoBarril lanza ReglaNegocioException cuando la fecha de mantenimiento es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaMantenimientoFutura() {
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Se reemplazó la válvula de presión");
+
+        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository);
+    }
+
     // ==================== anularMantenimientoBarril ====================
 
     @Test

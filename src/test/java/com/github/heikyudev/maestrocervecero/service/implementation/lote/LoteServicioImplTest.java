@@ -1176,7 +1176,10 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
         // Hoy no existe ninguna funcionalidad que avance una etapa a FINALIZADA, pero el código debe
         // contemplar el caso igual: forzamos la etapa de Maceración a FINALIZADA manualmente.
-        findEtapa(lote, TipoEtapa.MACERACION).setEstado(EstadoEtapaLote.FINALIZADA);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
+        etapaMaceracion.setEstado(EstadoEtapaLote.FINALIZADA);
+        LocalDateTime fechaFinalizacionOriginal = LocalDateTime.now().minusDays(2);
+        etapaMaceracion.setFechaFinalizacion(fechaFinalizacionOriginal);
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
         lenient().when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L))
                 .thenReturn(Optional.of((MolinoEntity) findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento()));
@@ -1191,6 +1194,37 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         verifyNoInteractions(maceradorRepository);
+        assertThat(etapaMaceracion.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(etapaMaceracion.getFechaFinalizacion()).isEqualTo(fechaFinalizacionOriginal);
+    }
+
+    @Test
+    @DisplayName("CP-CL-12: cancelarLote pasa las etapas PENDIENTE y EN_CURSO a CANCELADA con fechaFinalizacion, preservando fechaInicio")
+    void cancelarLote_debeCancelarEtapasNoFinalizadas() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
+        EtapaLoteEntity etapaFermentacion = findEtapa(lote, TipoEtapa.FERMENTACION);
+        LocalDateTime fechaInicioFermentacion = etapaFermentacion.getFechaInicio();
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(lote.getEtapas()).allMatch(e -> e.getEstado() == EstadoEtapaLote.CANCELADA);
+        assertThat(lote.getEtapas()).allSatisfy(e -> assertThat(e.getFechaFinalizacion()).isNotNull().isBetween(antes, despues));
+        // Fermentación estaba EN_CURSO: el equipamiento sí se usó, fechaInicio se conserva
+        assertThat(etapaFermentacion.getFechaInicio()).isEqualTo(fechaInicioFermentacion);
+        // El resto nunca llegó a EN_CURSO: el equipamiento nunca se usó, fechaInicio sigue nula
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getFechaInicio()).isNull();
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getFechaInicio()).isNull();
+        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getFechaInicio()).isNull();
+        assertThat(findEtapa(lote, TipoEtapa.MADURACION).getFechaInicio()).isNull();
+        assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getFechaInicio()).isNull();
     }
 
     // ==================== finalizarMolienda ====================
@@ -2261,7 +2295,9 @@ class LoteServicioImplTest {
     }
 
     private static EtapaLoteEntity construirEtapaConEstado(LoteEntity lote, TipoEtapa tipo, EquipamientoEntity equipamiento, TipoEtapa etapaEnCurso) {
-        EstadoEtapaLote estado = tipo == etapaEnCurso ? EstadoEtapaLote.EN_CURSO : EstadoEtapaLote.PENDIENTE;
-        return EtapaLoteEntity.builder().etapa(tipo).estado(estado).equipamiento(equipamiento).lote(lote).build();
+        boolean enCurso = tipo == etapaEnCurso;
+        EstadoEtapaLote estado = enCurso ? EstadoEtapaLote.EN_CURSO : EstadoEtapaLote.PENDIENTE;
+        LocalDateTime fechaInicio = enCurso ? LocalDateTime.now().minusDays(1) : null;
+        return EtapaLoteEntity.builder().etapa(tipo).estado(estado).fechaInicio(fechaInicio).equipamiento(equipamiento).lote(lote).build();
     }
 }

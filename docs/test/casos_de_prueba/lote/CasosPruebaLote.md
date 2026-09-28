@@ -68,7 +68,7 @@ Escenario base salvo indicación contraria: lote registrado en `PENDIENTE` con s
 
 ### 5. `cancelarLote(Long id, CancelacionLoteFormDTO cancelacionLoteFormDTO)`
 
-Cancelar un lote NO revierte los consumos de insumo ya ejecutados en sus etapas — esos quedan firmes. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, motivo de cancelación informado.
+Cancelar un lote NO revierte los consumos de insumo ya ejecutados en sus etapas — esos quedan firmes. Las etapas `PENDIENTE` o `EN_CURSO` pasan a `CANCELADA` con `fechaFinalizacion` igual a la fecha de cancelación del lote, como registro histórico del punto donde se interrumpió; las etapas ya `FINALIZADA` no se tocan. `fechaInicio` queda tal cual estaba: `null` si la etapa nunca llegó a `EN_CURSO` (el equipamiento no se usó), con valor si sí (el equipamiento se usó, aunque el lote haya terminado cancelado) — eso permite distinguir después, en el ciclo de vida del equipamiento, cuáles etapas `CANCELADA` representan uso real. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, motivo de cancelación informado.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -82,7 +82,8 @@ Cancelar un lote NO revierte los consumos de insumo ya ejecutados en sus etapas 
 |**CP-CL-08**|Fermentación EN_CURSO (equipamiento compartido)|Etapa Fermentación `EN_CURSO`; Maduración y Envasado (mismo Fermentador) `PENDIENTE`|El Fermentador se resuelve por equipamiento, no por etapa aislada|El Fermentador pasa a `EN_LIMPIEZA` — NO a `DISPONIBLE` — pese a que 2 de sus 3 etapas están `PENDIENTE`. Molino, Macerador y Olla de Hervor (sus propias etapas `PENDIENTE`) pasan a `DISPONIBLE`.|
 |**CP-CL-09**|Liberación de reservas de insumo|2 `ReservaInsumoEntity` sobre 2 `LoteInsumoEntity` distintos (4.0 y 6.0 reservados)|`liberarReservasDelLote` recorre todas las reservas del lote|Cada `LoteInsumoEntity` queda con `cantidadReservada = 0.0`, se persiste, y las 2 `ReservaInsumoEntity` se eliminan (`reservaInsumoRepository.deleteAll(...)`).|
 |**CP-CL-10**|Cancelación exitosa _(Camino feliz)_|Escenario base completo|Todas las validaciones $\rightarrow$ **FALSE**|`estado = CANCELADO`, `fechaCancelacion` seteada (justo ahora), `motivoCancelacion` guardado con el valor informado.|
-|**CP-CL-11**|Etapa ya FINALIZADA no se toca|Etapa Maceración forzada a `FINALIZADA` (hoy no hay feature que la lleve ahí, pero el código la contempla)|`resolverEstadoOperativoAlCancelar(FINALIZADA)` $\rightarrow$ **null**|El Macerador no se consulta ni se persiste (`verifyNoInteractions(maceradorRepository)`) — mantiene el estado que ya tenía.|
+|**CP-CL-11**|Etapa ya FINALIZADA no se toca|Etapa Maceración forzada a `FINALIZADA` (hoy no hay feature que la lleve ahí, pero el código la contempla)|`resolverEstadoOperativoAlCancelar(FINALIZADA)` $\rightarrow$ **null**|El Macerador no se consulta ni se persiste (`verifyNoInteractions(maceradorRepository)`) — mantiene el estado que ya tenía. La etapa Maceración sigue `FINALIZADA`, sin tocar su `fechaFinalizacion` original.|
+|**CP-CL-12**|Las etapas no finalizadas pasan a CANCELADA|Etapa Fermentación `EN_CURSO` (con `fechaInicio` seteada), resto `PENDIENTE`|`cancelarEtapasNoFinalizadas` recorre las 6 etapas|Las 5 etapas `PENDIENTE` y la etapa Fermentación `EN_CURSO` quedan todas en `CANCELADA`, todas con `fechaFinalizacion` = `fechaCancelacion` del lote. Fermentación conserva su `fechaInicio` (no nula: el equipamiento sí se usó); las otras 5 mantienen `fechaInicio` nula (nunca se usaron).|
 
 ### 6. `finalizarMolienda(Long id)`
 

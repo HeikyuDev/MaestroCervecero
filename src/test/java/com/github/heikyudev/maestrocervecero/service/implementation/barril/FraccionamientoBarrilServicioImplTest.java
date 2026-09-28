@@ -433,6 +433,18 @@ class FraccionamientoBarrilServicioImplTest {
         assertThat(resultado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativoBarril.CON_CERVEZA);
     }
 
+    @Test
+    @DisplayName("CP-RFRB-14: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la fecha es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaFutura() {
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), 5.0, "Merma");
+
+        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository);
+    }
+
     // ==================== anularFraccionamientoBarril ====================
 
     @Test

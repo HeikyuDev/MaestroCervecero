@@ -269,6 +269,12 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Cancela un lote en curso.
+     * <p>
+     * No revierte los consumos ni las etapas ya FINALIZADA: quedan como registro histórico. Las
+     * etapas PENDIENTE o EN_CURSO pasan a CANCELADA (con {@code fechaFinalizacion} igual a la
+     * fecha de cancelación del lote), y el equipamiento asociado a cada una se libera según
+     * corresponda (ver {@link #actualizarEquipamientoAlCancelar}).
+     * </p>
      *
      * @param id El ID del lote a cancelar.
      * @param cancelacionLoteFormDTO Los datos de la cancelación (motivo).
@@ -301,15 +307,22 @@ public class LoteServicioImpl implements ILoteServicio {
         //    stock que todavía no se consumió.
         liberarReservasDelLote(lote);
 
-        // 5. Actualizar el estado del equipamiento según el estado de cada etapa del lote: el
-        //    equipamiento de la etapa EN_CURSO pasa a EN_LIMPIEZA, el de las etapas PENDIENTE pasa a
-        //    DISPONIBLE, y el de las etapas ya FINALIZADA mantiene su estado actual.
+        // 5. Actualizar el estado del equipamiento según el estado de cada etapa del lote (antes de
+        //    cancelar las etapas en sí, ya que esta resolución se basa en su estado PENDIENTE/
+        //    EN_CURSO/FINALIZADA original): el equipamiento de la etapa EN_CURSO pasa a EN_LIMPIEZA,
+        //    el de las etapas PENDIENTE pasa a DISPONIBLE, y el de las etapas ya FINALIZADA
+        //    mantiene su estado actual.
         actualizarEquipamientoAlCancelar(lote);
 
         // 6. Cancelar el lote
+        LocalDateTime fechaCancelacion = LocalDateTime.now();
         lote.setEstado(EstadoLote.CANCELADO);
-        lote.setFechaCancelacion(LocalDateTime.now());
+        lote.setFechaCancelacion(fechaCancelacion);
         lote.setMotivoCancelacion(cancelacionLoteFormDTO.getMotivoCancelacion());
+
+        // 7. Cancelar las etapas que todavía no habían finalizado, como registro histórico del
+        //    punto donde se interrumpió el lote. Las etapas ya FINALIZADA no se tocan.
+        cancelarEtapasNoFinalizadas(lote, fechaCancelacion);
 
         return MapperLote.toDTO(loteRepository.save(lote));
     }
@@ -785,6 +798,28 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
+     * Cancela las etapas de un lote que todavía no habían finalizado (PENDIENTE o EN_CURSO) al
+     * momento de cancelarlo, dejándolas como registro histórico del punto donde se interrumpió.
+     * Las etapas ya FINALIZADA no se tocan.
+     * <p>
+     * {@code fechaInicio} queda como quedó: {@code null} si la etapa estaba PENDIENTE (nunca se
+     * usó el equipamiento), con valor si estaba EN_CURSO (el equipamiento sí se usó) — eso permite
+     * distinguir después cuáles de las etapas CANCELADA representan uso real del equipamiento.
+     * </p>
+     *
+     * @param lote El lote que se está cancelando.
+     * @param fechaCancelacion La fecha y hora de la cancelación, usada como fecha de finalización de cada etapa cancelada.
+     */
+    private void cancelarEtapasNoFinalizadas(LoteEntity lote, LocalDateTime fechaCancelacion) {
+        for (EtapaLoteEntity etapa : lote.getEtapas()) {
+            if (etapa.getEstado() == EstadoEtapaLote.PENDIENTE || etapa.getEstado() == EstadoEtapaLote.EN_CURSO) {
+                etapa.setEstado(EstadoEtapaLote.CANCELADA);
+                etapa.setFechaFinalizacion(fechaCancelacion);
+            }
+        }
+    }
+
+    /**
      * Combina el estado de dos etapas asociadas al mismo equipamiento compartido (el Fermentador),
      * quedándose con el de mayor prioridad: EN_CURSO &gt; PENDIENTE &gt; FINALIZADA.
      */
@@ -800,6 +835,7 @@ public class LoteServicioImpl implements ILoteServicio {
             case EN_CURSO -> 2;
             case PENDIENTE -> 1;
             case FINALIZADA -> 0;
+            case CANCELADA -> throw new IllegalStateException("Una etapa CANCELADA no debería llegar a este punto: se evalúa antes de aplicar la cancelación sobre las etapas");
         };
     }
 
@@ -813,6 +849,7 @@ public class LoteServicioImpl implements ILoteServicio {
             case EN_CURSO -> EstadoOperativo.EN_LIMPIEZA;
             case PENDIENTE -> EstadoOperativo.DISPONIBLE;
             case FINALIZADA -> null;
+            case CANCELADA -> throw new IllegalStateException("Una etapa CANCELADA no debería llegar a este punto: se evalúa antes de aplicar la cancelación sobre las etapas");
         };
     }
 

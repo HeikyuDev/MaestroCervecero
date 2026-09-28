@@ -307,6 +307,18 @@ class FallaBarrilServicioImplTest {
         verify(fallaBarrilRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RFB-08: registrarFallaBarril lanza ReglaNegocioException cuando la fecha de falla es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaFallaFutura() {
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Pérdida de presión");
+
+        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(barrilRepository, fallaBarrilRepository);
+    }
+
     // ==================== anularFallaBarril ====================
 
     @Test

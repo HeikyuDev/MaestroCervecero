@@ -12,6 +12,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionLimpiezaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.LimpiezaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -52,6 +53,8 @@ class LimpiezaEquipamientoServicioImplTest {
     private IFallaEquipamientoRepository fallaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
+    @Mock
+    private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private LimpiezaEquipamientoServicioImpl limpiezaEquipamientoServicio;
@@ -329,6 +332,38 @@ class LimpiezaEquipamientoServicioImplTest {
         verify(limpiezaEquipamientoRepository).contarLimpiezasRegistradasDesde(1L, fechaUltimoMantenimiento);
         assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(resultado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
+    }
+
+    @Test
+    @DisplayName("CP-RLE-09: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando existe una participación en etapa de lote posterior")
+    void registrar_debeRechazarSiExisteParticipacionEnEtapaPosterior() {
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA, 50);
+        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento");
+
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-10: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de limpieza es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaLimpiezaFutura() {
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.now().plusDays(1), "Limpieza CIP estándar");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(equipamientoRepository, limpiezaEquipamientoRepository);
     }
 
     // ==================== anularLimpiezaEquipamiento ====================

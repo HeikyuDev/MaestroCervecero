@@ -89,7 +89,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
      *
      * @param mantenimientoBarrilFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si las observaciones no fueron informadas, si la fecha de mantenimiento no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si la fecha de mantenimiento no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -101,22 +101,25 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
             throw new ReglaNegocioException("La fecha de mantenimiento es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha de mantenimiento no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(mantenimientoBarrilFormDTO.getFechaMantenimiento());
+
+        // 3. Validar que se hayan informado las observaciones
         if (mantenimientoBarrilFormDTO.getObservaciones() == null || mantenimientoBarrilFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         Long idBarril = mantenimientoBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
 
-        // 4. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO
+        // 5. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_MANTENIMIENTO) {
             throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un barril en estado operativo EN_MANTENIMIENTO");
         }
 
-        // 5. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
+        // 6. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
         //    sobre este barril, considerando también el último envasado que lo cargó
         MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
                 mantenimientoBarrilFormDTO.getFechaMantenimiento(),
@@ -129,11 +132,11 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
                 fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
 
-        // 6. Cambiar el estado operativo del barril a DISPONIBLE y persistirlo
+        // 7. Cambiar el estado operativo del barril a DISPONIBLE y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.DISPONIBLE);
         barrilRepository.save(barrilEntity);
 
-        // 7. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoBarrilEntity mantenimientoBarrilEntity = MantenimientoBarrilEntity.builder()
                 .fecha(mantenimientoBarrilFormDTO.getFechaMantenimiento())
                 .observaciones(mantenimientoBarrilFormDTO.getObservaciones())

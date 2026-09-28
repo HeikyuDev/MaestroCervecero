@@ -88,7 +88,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
      *
      * @param fallaBarrilFormDTO Los datos de la falla a registrar.
      * @return La falla de barril registrada.
-     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si las observaciones no fueron informadas, si la fecha de falla no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si la fecha de falla no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -100,22 +100,25 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
             throw new ReglaNegocioException("La fecha de falla es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha de falla no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(fallaBarrilFormDTO.getFechaFalla());
+
+        // 3. Validar que se hayan informado las observaciones
         if (fallaBarrilFormDTO.getObservaciones() == null || fallaBarrilFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         Long idBarril = fallaBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
 
-        // 4. Validar que el barril se encuentre en estado operativo DISPONIBLE
+        // 5. Validar que el barril se encuentre en estado operativo DISPONIBLE
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
             throw new ReglaNegocioException("Solo se puede registrar una falla sobre un barril en estado operativo DISPONIBLE");
         }
 
-        // 5. Validar que la fecha de falla sea posterior a la última operación registrada sobre
+        // 6. Validar que la fecha de falla sea posterior a la última operación registrada sobre
         //    este barril, considerando también el último envasado que lo cargó
         MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
                 fallaBarrilFormDTO.getFechaFalla(),
@@ -128,11 +131,11 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
                 fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
 
-        // 6. Cambiar el estado operativo del barril a EN_MANTENIMIENTO y persistirlo
+        // 7. Cambiar el estado operativo del barril a EN_MANTENIMIENTO y persistirlo
         barrilEntity.setEstadoOperativo(EstadoOperativoBarril.EN_MANTENIMIENTO);
         barrilRepository.save(barrilEntity);
 
-        // 7. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaBarrilEntity fallaBarrilEntity = FallaBarrilEntity.builder()
                 .fecha(fallaBarrilFormDTO.getFechaFalla())
                 .observaciones(fallaBarrilFormDTO.getObservaciones())

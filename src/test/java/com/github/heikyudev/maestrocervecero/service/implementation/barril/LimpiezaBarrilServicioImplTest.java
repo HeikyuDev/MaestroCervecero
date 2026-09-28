@@ -360,6 +360,18 @@ class LimpiezaBarrilServicioImplTest {
         verify(limpiezaBarrilRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RLB-10: registrarLimpiezaBarril lanza ReglaNegocioException cuando la fecha de limpieza es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFechaLimpiezaFutura() {
+        LimpiezaBarrilFormDTO formDTO = limpiezaBarrilFormDTO(1L, LocalDateTime.now().plusDays(1), "Limpieza CIP estándar");
+
+        assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
+
+        verifyNoInteractions(barrilRepository, limpiezaBarrilRepository);
+    }
+
     // ==================== anularLimpiezaBarril ====================
 
     @Test

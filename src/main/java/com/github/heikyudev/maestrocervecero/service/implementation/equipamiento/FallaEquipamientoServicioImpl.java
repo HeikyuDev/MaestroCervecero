@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionFallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FallaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -36,6 +37,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
     private final IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
     private final ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
      * Filtra las fallas de equipamiento, opcionalmente por estado, rango de fecha de falla y/o
@@ -85,7 +87,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
      *
      * @param fallaEquipamientoFormDTO Los datos de la falla a registrar.
      * @return La falla de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si las observaciones no fueron informadas, o si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}, o si la fecha de falla no es posterior a la última operación registrada sobre ese equipamiento.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
@@ -97,25 +99,38 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
             throw new ReglaNegocioException("La fecha de falla es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha de falla no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(fallaEquipamientoFormDTO.getFechaFalla());
+
+        // 3. Validar que se hayan informado las observaciones
         if (fallaEquipamientoFormDTO.getObservaciones() == null || fallaEquipamientoFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(fallaEquipamientoFormDTO.getIdEquipamiento())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + fallaEquipamientoFormDTO.getIdEquipamiento()));
 
-        // 4. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE
+        // 5. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
             throw new ReglaNegocioException("Solo se puede registrar una falla sobre un equipamiento en estado operativo DISPONIBLE");
         }
 
-        // 5. Cambiar el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
+        // 6. Validar que la fecha de falla sea posterior a la última operación registrada sobre
+        //    este equipamiento, considerando también la última etapa de lote en la que participó
+        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                fallaEquipamientoFormDTO.getFechaFalla(),
+                "equipamiento",
+                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(equipamientoEntity.getId()).orElse(null),
+                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(equipamientoEntity.getId()).orElse(null),
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(equipamientoEntity.getId()).orElse(null),
+                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(equipamientoEntity.getId()).orElse(null));
+
+        // 7. Cambiar el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_MANTENIMIENTO);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 6. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaEquipamientoEntity fallaEquipamientoEntity = FallaEquipamientoEntity.builder()
                 .fecha(fallaEquipamientoFormDTO.getFechaFalla())
                 .observaciones(fallaEquipamientoFormDTO.getObservaciones())

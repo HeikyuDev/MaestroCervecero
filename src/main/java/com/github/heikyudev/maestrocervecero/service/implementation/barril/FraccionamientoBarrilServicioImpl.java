@@ -92,7 +92,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
      *
      * @param fraccionamientoBarrilFormDTO Los datos del fraccionamiento a registrar.
      * @return El fraccionamiento de barril registrado.
-     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la cantidad a extraer no es mayor a cero o supera el contenido actual del barril, si la fecha no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
+     * @throws ReglaNegocioException Si la fecha o las observaciones no fueron informadas, si la fecha es posterior a la fecha y hora actual, si la cantidad a extraer no es mayor a cero o supera el contenido actual del barril, si la fecha no es posterior a la última operación registrada del ciclo de vida del barril, o si el barril no se encuentra en estado operativo {@code CON_CERVEZA}.
      * @throws RecursoNoEncontradoException Si el barril referenciado no existe.
      */
     @Override
@@ -104,32 +104,35 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
             throw new ReglaNegocioException("La fecha es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(fraccionamientoBarrilFormDTO.getFecha());
+
+        // 3. Validar que se hayan informado las observaciones
         if (fraccionamientoBarrilFormDTO.getObservaciones() == null || fraccionamientoBarrilFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Validar que la cantidad a extraer sea mayor a cero
+        // 4. Validar que la cantidad a extraer sea mayor a cero
         if (fraccionamientoBarrilFormDTO.getCantidadExtraida() == null || fraccionamientoBarrilFormDTO.getCantidadExtraida() <= 0) {
             throw new ReglaNegocioException("La cantidad a extraer debe ser mayor a cero");
         }
 
-        // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 5. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         Long idBarril = fraccionamientoBarrilFormDTO.getIdBarril();
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
 
-        // 5. Validar que el barril se encuentre en estado operativo CON_CERVEZA
+        // 6. Validar que el barril se encuentre en estado operativo CON_CERVEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.CON_CERVEZA) {
             throw new ReglaNegocioException("Solo se puede registrar un fraccionamiento sobre un barril en estado operativo CON_CERVEZA");
         }
 
-        // 6. Validar que la cantidad a extraer no supere el contenido actual del barril
+        // 7. Validar que la cantidad a extraer no supere el contenido actual del barril
         if (fraccionamientoBarrilFormDTO.getCantidadExtraida() > barrilEntity.getContenidoActual()) {
             throw new ReglaNegocioException("La cantidad a extraer no puede superar el contenido actual del barril");
         }
 
-        // 7. Validar que la fecha sea posterior a la última operación registrada sobre este
+        // 8. Validar que la fecha sea posterior a la última operación registrada sobre este
         //    barril, considerando también el último envasado que lo cargó
         MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
                 fraccionamientoBarrilFormDTO.getFecha(),
@@ -142,19 +145,19 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
                 fraccionamientoBarrilRepository.buscarFechaUltimoFraccionamientoRegistrado(idBarril).orElse(null),
                 envasadoLoteRepository.buscarFechaUltimoEnvasadoRegistrado(idBarril).orElse(null));
 
-        // 8. Descontar la cantidad extraída del contenido actual, y decidir el estado operativo
+        // 9. Descontar la cantidad extraída del contenido actual, y decidir el estado operativo
         //    resultante según si el barril quedó completamente vacío
         double contenidoRestante = barrilEntity.getContenidoActual() - fraccionamientoBarrilFormDTO.getCantidadExtraida();
         EstadoOperativoBarril estadoOperativoResultante = contenidoRestante == 0
                 ? EstadoOperativoBarril.EN_LIMPIEZA
                 : EstadoOperativoBarril.CON_CERVEZA;
 
-        // 9. Aplicar el contenido restante y el estado operativo resultante sobre el barril y persistirlo
+        // 10. Aplicar el contenido restante y el estado operativo resultante sobre el barril y persistirlo
         barrilEntity.setContenidoActual(contenidoRestante);
         barrilEntity.setEstadoOperativo(estadoOperativoResultante);
         barrilRepository.save(barrilEntity);
 
-        // 10. Construir y persistir el fraccionamiento, y retornar el DTO de respuesta correspondiente
+        // 11. Construir y persistir el fraccionamiento, y retornar el DTO de respuesta correspondiente
         FraccionamientoBarrilEntity fraccionamientoBarrilEntity = FraccionamientoBarrilEntity.builder()
                 .fecha(fraccionamientoBarrilFormDTO.getFecha())
                 .observaciones(fraccionamientoBarrilFormDTO.getObservaciones())

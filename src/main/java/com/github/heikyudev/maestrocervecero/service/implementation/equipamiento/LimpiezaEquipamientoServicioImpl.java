@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionLimpiezaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.LimpiezaEquipamientoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -36,6 +37,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
     private final IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
     private final IFallaEquipamientoRepository fallaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
      * Filtra las limpiezas de equipamiento, opcionalmente por equipamiento, tipo concreto de
@@ -88,7 +90,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
      *
      * @param limpiezaEquipamientoFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si las observaciones no fueron informadas, o si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}.
+     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si la fecha de limpieza no es posterior a la última operación registrada sobre ese equipamiento.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
@@ -100,35 +102,48 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
             throw new ReglaNegocioException("La fecha de limpieza es obligatoria");
         }
 
-        // 2. Validar que se hayan informado las observaciones
+        // 2. Validar que la fecha de limpieza no sea posterior a la fecha y hora actual
+        MetodosCicloVida.validarFechaNoFutura(limpiezaEquipamientoFormDTO.getFechaLimpieza());
+
+        // 3. Validar que se hayan informado las observaciones
         if (limpiezaEquipamientoFormDTO.getObservaciones() == null || limpiezaEquipamientoFormDTO.getObservaciones().isBlank()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
         }
 
-        // 3. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
         Long idEquipamiento = limpiezaEquipamientoFormDTO.getIdEquipamiento();
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(idEquipamiento)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + idEquipamiento));
 
-        // 4. Validar que el equipamiento se encuentre en estado operativo EN_LIMPIEZA
+        // 5. Validar que el equipamiento se encuentre en estado operativo EN_LIMPIEZA
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_LIMPIEZA) {
             throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo EN_LIMPIEZA");
         }
 
-        // 5. Contar los usos del equipamiento desde su último mantenimiento (o desde siempre, si
+        // 6. Validar que la fecha de limpieza sea posterior a la última operación registrada sobre
+        //    este equipamiento, considerando también la última etapa de lote en la que participó
+        LocalDateTime fechaUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
+        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
+                limpiezaEquipamientoFormDTO.getFechaLimpieza(),
+                "equipamiento",
+                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
+                fechaUltimoMantenimiento,
+                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
+                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
+
+        // 7. Contar los usos del equipamiento desde su último mantenimiento (o desde siempre, si
         //    nunca tuvo uno), sumando la limpieza que se está registrando, y comparar contra el
         //    máximo de usos antes de mantenimiento para decidir el estado operativo resultante
-        LocalDateTime fechaUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
         long cantidadUsos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaUltimoMantenimiento) + 1;
         EstadoOperativo estadoOperativoResultante = cantidadUsos >= equipamientoEntity.getUsosMaximosAntesMantenimiento()
                 ? EstadoOperativo.EN_MANTENIMIENTO
                 : EstadoOperativo.DISPONIBLE;
 
-        // 6. Aplicar el estado operativo resultante sobre el equipamiento y persistirlo
+        // 8. Aplicar el estado operativo resultante sobre el equipamiento y persistirlo
         equipamientoEntity.setEstadoOperativo(estadoOperativoResultante);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 7. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
+        // 9. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaEquipamientoEntity limpiezaEquipamientoEntity = LimpiezaEquipamientoEntity.builder()
                 .fecha(limpiezaEquipamientoFormDTO.getFechaLimpieza())
                 .observaciones(limpiezaEquipamientoFormDTO.getObservaciones())

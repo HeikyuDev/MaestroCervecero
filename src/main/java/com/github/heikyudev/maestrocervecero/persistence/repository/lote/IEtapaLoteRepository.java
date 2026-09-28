@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 /**
  * Repositorio JPA de las etapas de lote ({@link EtapaLoteEntity}).
  * <p>
@@ -35,4 +38,25 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
     @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EtapaLoteEntity e " +
             "WHERE e.equipamiento.id = :idEquipamiento AND e.lote.estado = 'PENDIENTE'")
     boolean existsLotePendienteAsociado(@Param("idEquipamiento") Long idEquipamiento);
+
+    /**
+     * Busca la fecha de finalización de la última etapa en la que el equipamiento indicado
+     * participó de verdad: etapas {@code FINALIZADA}, o {@code CANCELADA} con {@code fechaInicio}
+     * no nula (el lote se canceló mientras esa etapa estaba {@code EN_CURSO}, es decir, el
+     * equipamiento sí llegó a usarse).
+     * <p>
+     * Una etapa {@code CANCELADA} con {@code fechaInicio} nula nunca llegó a {@code EN_CURSO} (el
+     * lote se canceló mientras esa etapa seguía {@code PENDIENTE}), así que no representa uso real
+     * del equipamiento y se excluye. Una etapa {@code EN_CURSO} tampoco se contempla: mientras está
+     * en curso, el equipamiento queda en estado operativo {@code EN_USO}, que ya bloquea el
+     * registro de cualquier operación de su ciclo de vida (Falla/Mantenimiento/Limpieza).
+     * </p>
+     *
+     * @param idEquipamiento El ID del equipamiento cuya última participación se quiere buscar.
+     * @return La fecha de finalización más reciente entre esas etapas, o {@link Optional#empty()} si el equipamiento nunca participó en ninguna.
+     */
+    @Query("SELECT MAX(e.fechaFinalizacion) FROM EtapaLoteEntity e " +
+            "WHERE e.equipamiento.id = :idEquipamiento " +
+            "AND (e.estado = 'FINALIZADA' OR (e.estado = 'CANCELADA' AND e.fechaInicio IS NOT NULL))")
+    Optional<LocalDateTime> buscarFechaUltimaParticipacionRegistrada(@Param("idEquipamiento") Long idEquipamiento);
 }
