@@ -22,7 +22,6 @@ public class BusquedaBarrilEntity extends AuditableEntity<String> {
     @EqualsAndHashCode.Include
     private Long id;
 
-    private String observaciones;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
