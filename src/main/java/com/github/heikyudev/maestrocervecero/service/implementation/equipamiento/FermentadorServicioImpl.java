@@ -112,7 +112,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id                 Identificador único del fermentador a modificar.
      * @param fermentadorFormDTO DTO que contiene los nuevos datos del fermentador.
      * @return Objeto {@link FermentadorResponseDTO} con la información actualizada del fermentador.
-     * @throws ReglaNegocioException        Si la capacidad util es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el fermentador está asociado a un lote pendiente, o si se encuentra en uso.
+     * @throws ReglaNegocioException        Si la capacidad util es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el fermentador tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoNoEncontradoException Si no existe ningún fermentador activo con el ID especificado.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno que se intenta asignar.
      */
@@ -120,24 +120,24 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.FERMENTADOR)
     public FermentadorResponseDTO modificarFermentador(Long id, FermentadorFormDTO fermentadorFormDTO) {
-        // 1. Validar que la capacidad util no sea mayor o igual a la capacidad total.
+        // 1. Buscar el fermentador existente por su ID.
+        FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
+
+        // 2. Validar que la capacidad util no sea mayor o igual a la capacidad total.
         MetodosEquipamiento.validarCapacidadUtil(fermentadorFormDTO.getCapacidadTotal(), fermentadorFormDTO.getCapacidadUtil());
 
-        // 2. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        // 3. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 3. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
+        // 4. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(fermentadorFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + fermentadorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 4. Buscar el fermentador existente por su ID.
-        FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
-
-        // 5. Validar que el fermentador no esté asociado a un lote pendiente.
+        // 5. Validar que el fermentador no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el fermentador porque está asociado a un lote pendiente.");
+            throw new ReglaNegocioException("No se puede modificar el fermentador porque tiene comprometida una etapa pendiente de un lote.");
         }
 
         // 6. Validar que el fermentador no se encuentre actualmente en uso.
@@ -166,7 +166,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id Identificador clave primaria del fermentador a dar de baja.
      * @return {@link FermentadorResponseDTO} con los datos del fermentador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el fermentador con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el fermentador está asociado a un lote pendiente, o si se encuentra en uso.
+     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -177,9 +177,9 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
-        // 2. Validar que el fermentador no esté asociado a un lote pendiente.
+        // 2. Validar que el fermentador no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque está asociado a un lote pendiente.");
+            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote.");
         }
 
         // 3. Validar que el fermentador no se encuentre actualmente en uso.

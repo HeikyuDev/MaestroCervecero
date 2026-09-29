@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsu
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.UsuarioFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -147,7 +148,35 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AU-02: altaUsuario encripta la contraseña, persiste y retorna el DTO correspondiente cuando los datos son válidos (camino feliz)")
+    @DisplayName("CP-AU-02: altaUsuario lanza ReglaNegocioException y no encripta ni persiste cuando la contraseña es nula")
+    void altaUsuario_debeRechazarPasswordNula() {
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", null, "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La contraseña es obligatoria");
+
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-03: altaUsuario lanza ReglaNegocioException y no encripta ni persiste cuando la contraseña está en blanco")
+    void altaUsuario_debeRechazarPasswordEnBlanco() {
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", "   ", "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La contraseña es obligatoria");
+
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-04: altaUsuario encripta la contraseña, persiste y retorna el DTO correspondiente cuando los datos son válidos (camino feliz)")
     void altaUsuario_debePersistirYEncriptarPasswordCuandoDatosSonValidos() {
         // === PREPARACION DE DATOS ===
         UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", "ClaveSegura123", "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);

@@ -32,7 +32,6 @@ public class ConfiguracionProduccionDataLoader implements CommandLineRunner {
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 // Seccion 1: estimacion de fecha de finalizacion
                 .capacidadLoteEstandar(300.0)      // Lotes de 300 Litros
-                .tiempoEstandarCip(6.0)            // 6 horas entre lote y lote
                 .velocidadEstandarEnvasado(100.0)  // 100 Litros por hora
                 .velocidadEstandarMolienda(200.0)  // 200 Kilogramos por hora
                 // Seccion 2: lotes

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -83,4 +84,16 @@ public interface ICostoDirectoAdicionalRepository extends JpaRepository<CostoDir
      */
     @Query("SELECT CASE WHEN COUNT(cda) > 0 THEN true ELSE false END FROM CostoDirectoAdicionalEntity cda WHERE UPPER(cda.nombre) = UPPER(:nombre) AND cda.id <> :id AND cda.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
+
+    /**
+     * Obtiene todos los costos directos adicionales activos, sin paginar.
+     * <p>
+     * Se usa al finalizar el envasado de un lote, para generar un {@code DetalleCostoDirecto} por
+     * cada uno de ellos.
+     * </p>
+     *
+     * @return La lista completa de costos directos adicionales activos.
+     */
+    @Query("SELECT cda FROM CostoDirectoAdicionalEntity cda WHERE cda.estado = 'ACTIVO'")
+    List<CostoDirectoAdicionalEntity> findAllActivos();
 }

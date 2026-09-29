@@ -271,20 +271,20 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      *
      * @param detallesCompraFormDTO Ítems solicitados en el formulario.
      * @param ordenCompraEntity Orden de compra a la cual se asocia cada detalle construido.
-     * @param idProveedor ID del proveedor seleccionado en la orden de compra.
+     * @param idVersionProveedor ID de la versión activa del proveedor seleccionado en la orden de compra.
      * @param idsInsumosDeReceta IDs de los insumos que forman parte de la versión de receta de la planificación de producción.
      * @return Lista de entidades {@link DetalleCompraEntity} lista para persistir mediante cascada.
      * @throws RecursoNoEncontradoException Si algún ítem del catálogo referenciado no existe.
      * @throws ReglaNegocioException Si algún ítem del catálogo no pertenece al proveedor seleccionado, o si su insumo no forma parte de la versión de receta.
      */
-    private List<DetalleCompraEntity> construirDetallesCompra(List<DetalleCompraFormDTO> detallesCompraFormDTO, OrdenCompraEntity ordenCompraEntity, Long idProveedor, Set<Long> idsInsumosDeReceta) {
+    private List<DetalleCompraEntity> construirDetallesCompra(List<DetalleCompraFormDTO> detallesCompraFormDTO, OrdenCompraEntity ordenCompraEntity, Long idVersionProveedor, Set<Long> idsInsumosDeReceta) {
         List<DetalleCompraEntity> detallesCompraEntity = new ArrayList<>();
 
         for (DetalleCompraFormDTO detalleCompraFormDTO : detallesCompraFormDTO) {
             CatalogoProveedorEntity catalogoProveedorEntity = catalogoProveedorRepository.findById(detalleCompraFormDTO.getIdCatalogoProveedor())
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de catálogo con ID: " + detalleCompraFormDTO.getIdCatalogoProveedor()));
 
-            if (!catalogoProveedorEntity.getVersion().getId().equals(idProveedor)) {
+            if (!catalogoProveedorEntity.getVersion().getId().equals(idVersionProveedor)) {
                 throw new ReglaNegocioException("El ítem de catálogo con ID " + detalleCompraFormDTO.getIdCatalogoProveedor() + " no pertenece al proveedor seleccionado");
             }
 

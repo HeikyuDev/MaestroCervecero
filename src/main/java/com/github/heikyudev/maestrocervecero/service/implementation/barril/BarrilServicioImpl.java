@@ -80,7 +80,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
      *
      * @param barrilFormDTO Objeto DTO que contiene los datos de creación del barril.
      * @return {@link BarrilResponseDTO} representativo del barril guardado en la base de datos.
-     * @throws ReglaNegocioException Si la capacidad es nula o menor o igual a 0.
+     * @throws ReglaNegocioException Si la capacidad es nula o menor o igual a 0, o si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
      * @throws RecursoNoEncontradoException Si no existe un fabricante de barril activo con el ID indicado.
      * @throws RecursoDuplicadoException Si otro barril activo del mismo fabricante ya tiene ese identificador.
      */
@@ -91,16 +91,19 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 1. Validar que la capacidad sea mayor a 0
         validarCapacidad(barrilFormDTO.getCapacidad());
 
-        // 2. Validar que el fabricante de barril indicado exista y esté activo
+        // 2. Validar que los usos máximos antes de mantenimiento sean válidos
+        validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 3. Validar que el fabricante de barril indicado exista y esté activo
         FabricanteBarrilEntity fabricanteBarrilEntity = fabricanteBarrilRepository.findById(barrilFormDTO.getIdFabricanteBarril())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fabricante de barril con ID: " + barrilFormDTO.getIdFabricanteBarril()));
 
-        // 3. Validar que no haya otro barril activo del mismo fabricante con el mismo identificador
+        // 4. Validar que no haya otro barril activo del mismo fabricante con el mismo identificador
         if (barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId(barrilFormDTO.getIdentificador(), barrilFormDTO.getIdFabricanteBarril())) {
             throw new RecursoDuplicadoException("Ya existe un barril activo con el identificador '" + barrilFormDTO.getIdentificador() + "' para el fabricante seleccionado");
         }
 
-        // 4. Creo la entidad que se va a almacenar en la base de datos
+        // 5. Creo la entidad que se va a almacenar en la base de datos
         BarrilEntity barrilEntity = BarrilEntity.builder()
                 .identificador(barrilFormDTO.getIdentificador())
                 .capacidad(barrilFormDTO.getCapacidad())
@@ -111,24 +114,25 @@ public class BarrilServicioImpl implements IBarrilServicio {
                 .fabricante(fabricanteBarrilEntity)
                 .build();
 
-        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 6. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperBarril.toDTO(barrilRepository.save(barrilEntity));
     }
 
     /**
      * Actualiza la información de un barril existente en la base de datos.
      * <p>
-     * Localiza el barril por su ID, valida que la capacidad sea mayor a 0, que el fabricante de
-     * barril indicado exista y esté activo (el fabricante puede reasignarse al modificar), y que
-     * ningún otro barril activo de ese fabricante tenga ya el identificador indicado, permitiendo
-     * conservar el propio identificador actual.
+     * Localiza el barril por su ID, valida que la capacidad sea mayor a 0 y no sea menor al
+     * contenido actual del barril, que los usos máximos antes de mantenimiento sean válidos, que
+     * el fabricante de barril indicado exista y esté activo (el fabricante puede reasignarse al
+     * modificar), y que ningún otro barril activo de ese fabricante tenga ya el identificador
+     * indicado, permitiendo conservar el propio identificador actual.
      * </p>
      *
      * @param id Identificador clave primaria del barril a modificar.
      * @param barrilFormDTO DTO con la información actualizada.
      * @return {@link BarrilResponseDTO} representativo del barril con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza un barril activo por el ID proporcionado, o si no existe un fabricante de barril activo con el ID indicado.
-     * @throws ReglaNegocioException Si la capacidad es nula o menor o igual a 0.
+     * @throws ReglaNegocioException Si la capacidad es nula o menor o igual a 0, si la capacidad es menor al contenido actual del barril, o si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
      * @throws RecursoDuplicadoException Si otro barril activo del mismo fabricante ya tiene ese identificador.
      */
     @Override
@@ -142,23 +146,32 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 2. Validar que la capacidad sea mayor a 0
         validarCapacidad(barrilFormDTO.getCapacidad());
 
-        // 3. Validar que el fabricante de barril indicado exista y esté activo
+        // 3. Validar que la nueva capacidad no sea menor al contenido actual del barril: reducirla
+        //    por debajo de lo que ya tiene cargado dejaría al barril en un estado imposible
+        if (barrilFormDTO.getCapacidad() < barrilEntity.getContenidoActual()) {
+            throw new ReglaNegocioException("La capacidad no puede ser menor al contenido actual del barril (" + barrilEntity.getContenidoActual() + " L)");
+        }
+
+        // 4. Validar que los usos máximos antes de mantenimiento sean válidos
+        validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 5. Validar que el fabricante de barril indicado exista y esté activo
         FabricanteBarrilEntity fabricanteBarrilEntity = fabricanteBarrilRepository.findById(barrilFormDTO.getIdFabricanteBarril())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fabricante de barril con ID: " + barrilFormDTO.getIdFabricanteBarril()));
 
-        // 4. Validar duplicación excluyendo el propio barril, de modo que conservar el
+        // 6. Validar duplicación excluyendo el propio barril, de modo que conservar el
         //    identificador actual no falle contra el mismo registro
         if (barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot(barrilFormDTO.getIdentificador(), barrilFormDTO.getIdFabricanteBarril(), id)) {
             throw new RecursoDuplicadoException("Ya existe otro barril activo con el identificador '" + barrilFormDTO.getIdentificador() + "' para el fabricante seleccionado");
         }
 
-        // 5. Aplico los cambios sobre la entidad administrada por persistencia
+        // 7. Aplico los cambios sobre la entidad administrada por persistencia
         barrilEntity.setIdentificador(barrilFormDTO.getIdentificador());
         barrilEntity.setCapacidad(barrilFormDTO.getCapacidad());
         barrilEntity.setUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
         barrilEntity.setFabricante(fabricanteBarrilEntity);
 
-        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 8. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperBarril.toDTO(barrilRepository.save(barrilEntity));
     }
 
@@ -208,6 +221,21 @@ public class BarrilServicioImpl implements IBarrilServicio {
         }
         if (capacidad <= 0) {
             throw new ReglaNegocioException("La capacidad debe ser mayor a 0.");
+        }
+    }
+
+    /**
+     * Valida que los usos máximos antes de mantenimiento sean mayores a 0.
+     *
+     * @param usosMaximosAntesMantenimiento Valor a validar.
+     * @throws ReglaNegocioException Si es nulo o menor o igual a 0.
+     */
+    private static void validarUsosMaximosAntesMantenimiento(Integer usosMaximosAntesMantenimiento) {
+        if (usosMaximosAntesMantenimiento == null) {
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios.");
+        }
+        if (usosMaximosAntesMantenimiento <= 0) {
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
         }
     }
 }

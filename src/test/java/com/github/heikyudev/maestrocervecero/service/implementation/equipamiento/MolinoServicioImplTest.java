@@ -291,45 +291,52 @@ class MolinoServicioImplTest {
     // ==================== modificarMolino ====================
 
     @Test
-    @DisplayName("CP-MM-01: modificarMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es inválido")
+    @DisplayName("CP-MM-01: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el rendimiento de molienda es inválido")
     void modificarMolino_debeRechazarRendimientoInvalido() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 0.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
 
-        // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
-        verifyNoInteractions(molinoRepository);
+        // La existencia del molino se valida antes que las reglas de negocio sobre sus datos
+        verify(molinoRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(molinoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MM-02: modificarMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    @DisplayName("CP-MM-02: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento son inválidos")
     void modificarMolino_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, 0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
 
-        verifyNoInteractions(molinoRepository);
+        verify(molinoRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(molinoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MM-03: modificarMolino lanza RecursoDuplicadoException y no busca ni persiste cuando el identificador está en uso por otro equipamiento")
+    @DisplayName("CP-MM-03: modificarMolino lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro equipamiento")
     void modificarMolino_debeRechazarIdentificadorEnUsoPorOtroEquipamiento() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-EXISTENTE", 50.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
                 .hasMessage("Ya existe un equipamiento con el identificador interno 'MOL-EXISTENTE'");
 
-        // La verificación de duplicados se ejecuta antes de localizar la entidad por ID
+        verify(molinoRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L);
-        verify(molinoRepository, never()).findById(any());
         verify(molinoRepository, never()).save(any());
     }
 
@@ -337,7 +344,6 @@ class MolinoServicioImplTest {
     @DisplayName("CP-MM-04: modificarMolino lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarMolino_debeLanzarExcepcionSiNoExiste() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 99L)).thenReturn(false);
         when(molinoRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(99L, molinoFormDTO))
@@ -346,10 +352,11 @@ class MolinoServicioImplTest {
 
         verify(molinoRepository).findById(99L);
         verify(molinoRepository, never()).save(any());
+        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-MM-05: modificarMolino lanza ReglaNegocioException y no persiste cuando el molino está asociado a un lote pendiente")
+    @DisplayName("CP-MM-05: modificarMolino lanza ReglaNegocioException y no persiste cuando el molino tiene comprometida una etapa pendiente de un lote")
     void modificarMolino_debeRechazarAsociacionALotePendiente() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 100.0);
@@ -359,7 +366,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el molino porque está asociado a un lote pendiente.");
+                .hasMessage("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository, never()).save(any());
@@ -446,7 +453,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino está asociado a un lote pendiente")
+    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino tiene comprometida una etapa pendiente de un lote")
     void bajaMolino_debeRechazarAsociacionALotePendiente() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
@@ -454,7 +461,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque está asociado a un lote pendiente.");
+                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository, never()).save(any());

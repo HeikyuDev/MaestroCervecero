@@ -15,7 +15,7 @@
 
 ### 3. `altaBarril(BarrilFormDTO barrilFormDTO)`
 
-Se valida en este orden: capacidad, existencia del fabricante y, recién con el fabricante confirmado, el identificador duplicado para ese fabricante. En todos los casos de falla, el resto de los datos del DTO son válidos.
+Se valida en este orden: capacidad, usos máximos antes de mantenimiento, existencia del fabricante y, recién con el fabricante confirmado, el identificador duplicado para ese fabricante. En todos los casos de falla, el resto de los datos del DTO son válidos.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -26,10 +26,12 @@ Se valida en este orden: capacidad, existencia del fabricante y, recién con el 
 |**CP-AB-05**|Identificador duplicado para el mismo fabricante (activo)|`identificador: "BAR-01"`, `idFabricanteBarril: 1L` (Ya existe un barril activo con ese identificador para ese fabricante)|`existsByIdentificadorIgnoreCaseAndFabricanteId("BAR-01", 1L)` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException` con mensaje "Ya existe un barril activo con el identificador 'BAR-01' para el fabricante seleccionado". No ejecuta `save()`.|
 |**CP-AB-06**|Mismo identificador permitido para un fabricante distinto|`identificador: "BAR-01"`, `idFabricanteBarril: 2L` (El identificador "BAR-01" existe, pero para el fabricante `1L`, no para el `2L`)|`existsByIdentificadorIgnoreCaseAndFabricanteId("BAR-01", 2L)` $\rightarrow$ **FALSE**|La unicidad es relativa al fabricante: persiste el barril con `fabricante.id = 2L` y retorna DTO.|
 |**CP-AB-07**|Alta exitosa _(Camino feliz)_|DTO válido: capacidad y fabricante válidos, identificador único para ese fabricante|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `estado = ACTIVO`, `estadoOperativo = DISPONIBLE`, `contenidoActual = 0.0` y el `fabricante` resuelto, y retorna DTO.|
+|**CP-AB-08**|Usos máximos antes de mantenimiento nulos|`usosMaximosAntesMantenimiento: null`|`usosMaximosAntesMantenimiento == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los usos máximos antes de mantenimiento son obligatorios."). No consulta la BD.|
+|**CP-AB-09**|Usos máximos antes de mantenimiento igual a cero _(Límite)_|`usosMaximosAntesMantenimiento: 0`|`usosMaximosAntesMantenimiento <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los usos máximos antes de mantenimiento deben ser mayores a 0."). No consulta la BD.|
 
 ### 4. `modificarBarril(Long id, BarrilFormDTO barrilFormDTO)`
 
-Localiza el barril primero; recién si existe se valida la capacidad, la existencia del fabricante (que puede reasignarse) y la duplicidad del identificador para ese fabricante, excluyendo al propio barril.
+Localiza el barril primero; recién si existe se valida la capacidad (mayor a 0 y no menor al contenido actual del barril), los usos máximos antes de mantenimiento, la existencia del fabricante (que puede reasignarse) y la duplicidad del identificador para ese fabricante, excluyendo al propio barril.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -40,6 +42,8 @@ Localiza el barril primero; recién si existe se valida la capacidad, la existen
 |**CP-MB-05**|Identificador en uso por otro barril activo del mismo fabricante|`id: 1L` (Existe), `identificador: "BAR-02"` (Pertenece a otro barril activo del mismo fabricante)|`existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-02", idFabricanteBarril, 1L)` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException` con mensaje "Ya existe otro barril activo con el identificador 'BAR-02' para el fabricante seleccionado". No persiste.|
 |**CP-MB-06**|Conservar el identificador y el fabricante propios _(Camino feliz)_|`id: 1L`, `identificador`/`idFabricanteBarril` iguales a los actuales del barril|`...AndIdNot(...)` $\rightarrow$ **FALSE** (se excluye el propio ID)|Permite continuar con la modificación, persiste y retorna DTO.|
 |**CP-MB-07**|Reasignación exitosa a otro fabricante _(Camino feliz)_|`id: 1L` (Pertenecía al fabricante `1L`), `idFabricanteBarril: 2L` (Existe, activo), identificador único para el fabricante `2L`|Todas las validaciones $\rightarrow$ **FALSE**|Actualiza `identificador`, `capacidad`, `usosMaximosAntesMantenimiento` y reasigna `fabricante` al `2L`; guarda y retorna DTO con el nuevo fabricante. No modifica `estadoOperativo` ni `contenidoActual`.|
+|**CP-MB-08**|Capacidad menor al contenido actual del barril|`id: 1L` (Existe, `contenidoActual: 30.0`), `capacidad: 20.0`|`capacidad < contenidoActual` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La capacidad no puede ser menor al contenido actual del barril (30.0 L)"). No consulta `fabricanteBarrilRepository` ni persiste.|
+|**CP-MB-09**|Usos máximos antes de mantenimiento nulos|`id: 1L` (Existe), `usosMaximosAntesMantenimiento: null`|`usosMaximosAntesMantenimiento == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los usos máximos antes de mantenimiento son obligatorios."). No consulta `fabricanteBarrilRepository` ni persiste.|
 
 ### 5. `bajaBarril(Long id)`
 

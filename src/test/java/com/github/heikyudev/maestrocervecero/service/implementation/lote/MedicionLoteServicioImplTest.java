@@ -478,6 +478,57 @@ class MedicionLoteServicioImplTest {
         verifyNoInteractions(detalleParametroControlRepository, medicionLoteRepository);
     }
 
+    @Test
+    @DisplayName("CP-RM-16: registrarMedicion lanza ReglaNegocioException si la fecha de medición es nula")
+    void registrarMedicion_debeLanzarExcepcionSiFechaMedicionEsNula() {
+        // === PREPARACION DE DATOS ===
+        EtapaControlEntity etapaControl = crearEtapaControl(TipoEtapa.MACERACION);
+        PlanMonitoreoEtapaEntity plan = crearPlanMonitoreoEtapa(etapaControl);
+        VersionRecetaEntity versionReceta = crearVersionReceta(List.of(plan));
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        DetalleParametroControlEntity detalle = crearDetalleParametroControl(5L, plan, 5.0, 6.0, 5.5);
+        when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalle));
+        MedicionLoteFormDTO formDTO = MedicionLoteFormDTO.builder()
+                .idDetalleParametroControl(5L)
+                .valorMedido(5.5)
+                .fechaMedicion(null)
+                .build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha y hora de medición es obligatoria");
+        verifyNoInteractions(medicionLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RM-17: registrarMedicion lanza ReglaNegocioException si el valor medido es nulo")
+    void registrarMedicion_debeLanzarExcepcionSiValorMedidoEsNulo() {
+        // === PREPARACION DE DATOS ===
+        EtapaControlEntity etapaControl = crearEtapaControl(TipoEtapa.MACERACION);
+        PlanMonitoreoEtapaEntity plan = crearPlanMonitoreoEtapa(etapaControl);
+        VersionRecetaEntity versionReceta = crearVersionReceta(List.of(plan));
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        DetalleParametroControlEntity detalle = crearDetalleParametroControl(5L, plan, 5.0, 6.0, 5.5);
+        when(detalleParametroControlRepository.findById(5L)).thenReturn(Optional.of(detalle));
+        when(medicionLoteRepository.existsByDetalleParametroControl_IdAndFechaMedicionAndEstado(5L, FECHA_MEDICION, EstadoTransaccion.REGISTRADO)).thenReturn(false);
+        MedicionLoteFormDTO formDTO = MedicionLoteFormDTO.builder()
+                .idDetalleParametroControl(5L)
+                .valorMedido(null)
+                .fechaMedicion(FECHA_MEDICION)
+                .build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> medicionLoteServicio.registrarMedicion(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El valor medido es obligatorio");
+        verify(medicionLoteRepository, never()).save(any());
+    }
+
     // ==================== anularMedicion ====================
 
     @Test

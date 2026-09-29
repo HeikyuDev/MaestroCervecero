@@ -10,6 +10,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.Usuar
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.IUsuarioServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.usuario.MapperUsuario;
@@ -70,6 +71,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @param usuarioFormDTO Objeto DTO que contiene los datos de creación del usuario.
      * @return {@link UsuarioResponseDTO} representativo del usuario guardado en la base de datos.
      * @throws RecursoDuplicadoException Si el username provisto ya pertenece a un usuario existente.
+     * @throws ReglaNegocioException Si la contraseña no fue informada.
      */
     @Override
     @Transactional
@@ -80,7 +82,13 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
             throw new RecursoDuplicadoException("El Username ya esta registrado");
         }
 
-        // 2. Creo la entidad que se va a almacenar en la base de datos
+        // 2. Validar que se haya informado una contraseña (el encoder no acepta null y lanzaría
+        //    una excepción sin controlar en lugar de una regla de negocio clara)
+        if (usuarioFormDTO.getPassword() == null || usuarioFormDTO.getPassword().isBlank()) {
+            throw new ReglaNegocioException("La contraseña es obligatoria");
+        }
+
+        // 3. Creo la entidad que se va a almacenar en la base de datos
         UsuarioEntity usuarioEntity = UsuarioEntity.builder()
                 .username(usuarioFormDTO.getUsername())
                 .password(passwordEncoder.encode(usuarioFormDTO.getPassword()))
@@ -91,7 +99,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 3. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(usuarioRepository.save(usuarioEntity));
     }
 

@@ -98,6 +98,21 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
     Optional<LoteInsumoEntity> buscarPorIdParaAjustar(@Param("id") Long id);
 
     /**
+     * Busca, bloqueándolo para escritura, un lote de insumo por su ID.
+     * <p>
+     * Se usa al anular un ingreso de insumo, para evitar que otra operación concurrente (un
+     * consumo, un ajuste, otro ingreso) modifique el mismo lote de insumo al mismo tiempo mientras
+     * se descuenta la cantidad anulada de su stock.
+     * </p>
+     *
+     * @param id El ID del lote de insumo.
+     * @return Un Optional que contiene el lote de insumo si existe, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.id = :id")
+    Optional<LoteInsumoEntity> buscarPorIdParaAnularIngreso(@Param("id") Long id);
+
+    /**
      * Busca los lotes de insumo de un insumo determinado que todavía tienen cantidad disponible
      * (cantidad actual menos la reservada), ordenados por fecha de vencimiento ascendente (FEFO).
      * <p>

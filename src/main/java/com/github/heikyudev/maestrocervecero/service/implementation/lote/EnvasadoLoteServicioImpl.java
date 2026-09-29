@@ -86,8 +86,10 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si la etapa
      *                               no está EN_CURSO, si el tipo de etapa no admite registrar
      *                               envasados, si el barril no se encuentra en estado operativo
-     *                               DISPONIBLE, si la cantidad a envasar no es mayor a cero, o si
-     *                               supera la capacidad del barril seleccionado.
+     *                               DISPONIBLE, si la cantidad a envasar no es mayor a cero, si
+     *                               supera la capacidad del barril seleccionado, o si el total
+     *                               envasado en la etapa (sumando esta cantidad) superaría el
+     *                               volumen objetivo del lote.
      */
     @Override
     @Transactional
@@ -118,12 +120,21 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
             throw new ReglaNegocioException("La cantidad a envasar no puede superar la capacidad del barril seleccionado");
         }
 
-        // 6. El barril pasa a contener la cerveza envasada
+        // 6. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no
+        //    supere el volumen objetivo del lote
+        double totalEnvasadoPrevio = envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote);
+        double volumenObjetivo = etapaLote.getLote().getVolumenObjetivo();
+        if (totalEnvasadoPrevio + cantidad > volumenObjetivo) {
+            throw new ReglaNegocioException("La cantidad a envasar supera el volumen objetivo del lote (quedan "
+                    + (volumenObjetivo - totalEnvasadoPrevio) + " L disponibles para envasar)");
+        }
+
+        // 7. El barril pasa a contener la cerveza envasada
         barril.setEstadoOperativo(EstadoOperativoBarril.CON_CERVEZA);
         barril.setContenidoActual(cantidad);
         barrilRepository.save(barril);
 
-        // 7. Registrar el envasado y persistir
+        // 8. Registrar el envasado y persistir
         EnvasadoLoteEntity envasadoLote = EnvasadoLoteEntity.builder()
                 .cantidadEnvasada(cantidad)
                 .estado(EstadoTransaccion.REGISTRADO)

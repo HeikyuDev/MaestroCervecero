@@ -5,11 +5,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAu
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.MotivoAjusteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IAjusteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IMotivoAjusteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.MotivoAjusteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IMotivoAjusteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.MotivoAjusteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperMotivoAjuste;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
 
     private final IMotivoAjusteRepository motivoAjusteRepository;
+    private final IAjusteInsumoRepository ajusteInsumoRepository;
 
     /**
      * Filtra los motivos de ajuste activos, opcionalmente por nombre y/o tipo de ajuste.
@@ -91,6 +94,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      * @return El motivo de ajuste modificado.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro motivo de ajuste activo (case-insensitive).
+     * @throws ReglaNegocioException Si el motivo de ajuste tiene al menos un ajuste de insumo en estado REGISTRADO.
      */
     @Override
     @Transactional
@@ -100,16 +104,23 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id));
 
-        // 2. Validar que no exista otro motivo de ajuste con el mismo nombre, excluyendo el propio ID
+        // 2. Validar que el motivo no tenga ningún ajuste de insumo REGISTRADO: no existe un caso
+        //    donde un mismo motivo a veces sume y a veces reste, así que una vez usado, su tipo
+        //    (INGRESO/EGRESO) queda fijo mientras esos ajustes sigan vigentes.
+        if (ajusteInsumoRepository.existsByMotivoAjusteIdAndEstadoRegistrado(id)) {
+            throw new ReglaNegocioException("No se puede modificar un motivo de ajuste que tiene ajustes de insumo registrados");
+        }
+
+        // 3. Validar que no exista otro motivo de ajuste con el mismo nombre, excluyendo el propio ID
         if (motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot(motivoAjusteFormDTO.getNombre(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + motivoAjusteFormDTO.getNombre() + "' ya está en uso por otro motivo de ajuste");
         }
 
-        // 3. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
+        // 4. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
         motivoAjusteEntity.setNombre(motivoAjusteFormDTO.getNombre());
         motivoAjusteEntity.setTipoAjuste(motivoAjusteFormDTO.getTipoAjuste());
 
-        // 4. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
+        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
         return MapperMotivoAjuste.toDTO(motivoAjusteRepository.save(motivoAjusteEntity));
     }
 

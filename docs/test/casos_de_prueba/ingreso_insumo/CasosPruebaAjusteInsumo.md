@@ -37,6 +37,8 @@
 
 ### 4. `anularAjusteInsumo(Long id, AnularAjusteInsumoFormDTO anularAjusteInsumoFormDTO)`
 
+Revierte leyendo `ajusteInsumoEntity.getMotivoAjuste().getTipoAjuste()`. Esto es seguro porque `MotivoAjusteServicioImpl.modificarMotivoAjuste` no permite cambiar el `tipoAjuste` de un motivo que ya tenga al menos un ajuste `REGISTRADO` (ver `CasosPruebaMotivoAjuste.md`): el tipo de un motivo ya usado no puede cambiar entre el registro de un ajuste y su anulación.
+
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-AA-01**|Motivo de anulación nulo|`id: 1L`, `motivoAnulacion: null`|`motivoAnulacion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de anulación es obligatorio"). No consulta el repositorio (`verifyNoInteractions`).|

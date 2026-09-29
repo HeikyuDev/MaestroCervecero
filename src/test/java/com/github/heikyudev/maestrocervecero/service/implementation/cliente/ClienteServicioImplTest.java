@@ -3,11 +3,14 @@ package com.github.heikyudev.maestrocervecero.service.implementation.cliente;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cliente.IClienteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.cliente.ClienteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cliente.ClienteResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,9 @@ class ClienteServicioImplTest {
 
     @Mock
     private ILocalidadRepository localidadRepository;
+
+    @Mock
+    private IDespachoBarrilRepository despachoBarrilRepository;
 
     @InjectMocks
     private ClienteServicioImpl clienteServicio;
@@ -134,12 +140,13 @@ class ClienteServicioImplTest {
     @DisplayName("CP-AC-01: altaCliente lanza RecursoDuplicadoException y no persiste cuando el correo electrónico ya existe")
     void altaCliente_debeRechazarEmailDuplicado() {
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", 1L);
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefono("juan@mail.com", "1122334455")).thenReturn(true);
+        when(clienteRepository.existsByEmailIgnoreCase("juan@mail.com")).thenReturn(true);
 
         assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un cliente registrado con el mismo correo electrónico o teléfono");
+                .hasMessage("Ya existe un cliente registrado con el correo electrónico 'juan@mail.com'");
 
+        verify(clienteRepository, never()).existsByTelefono(any());
         verifyNoInteractions(localidadRepository);
         verify(clienteRepository, never()).save(any());
     }
@@ -148,11 +155,12 @@ class ClienteServicioImplTest {
     @DisplayName("CP-AC-02: altaCliente lanza RecursoDuplicadoException y no persiste cuando el teléfono ya existe")
     void altaCliente_debeRechazarTelefonoDuplicado() {
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "nuevo@mail.com", "Calle Falsa 123", 1L);
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefono("nuevo@mail.com", "1122334455")).thenReturn(true);
+        when(clienteRepository.existsByEmailIgnoreCase("nuevo@mail.com")).thenReturn(false);
+        when(clienteRepository.existsByTelefono("1122334455")).thenReturn(true);
 
         assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un cliente registrado con el mismo correo electrónico o teléfono");
+                .hasMessage("Ya existe un cliente registrado con el teléfono '1122334455'");
 
         verifyNoInteractions(localidadRepository);
         verify(clienteRepository, never()).save(any());
@@ -162,11 +170,11 @@ class ClienteServicioImplTest {
     @DisplayName("CP-AC-03: altaCliente lanza RecursoDuplicadoException cuando el correo electrónico ya existe con distinto case (case-insensitive)")
     void altaCliente_debeRechazarEmailDuplicadoCaseInsensitive() {
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "JUAN@mail.com", "Calle Falsa 123", 1L);
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefono("JUAN@mail.com", "1122334455")).thenReturn(true);
+        when(clienteRepository.existsByEmailIgnoreCase("JUAN@mail.com")).thenReturn(true);
 
         assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un cliente registrado con el mismo correo electrónico o teléfono");
+                .hasMessage("Ya existe un cliente registrado con el correo electrónico 'JUAN@mail.com'");
 
         verify(clienteRepository, never()).save(any());
     }
@@ -175,7 +183,8 @@ class ClienteServicioImplTest {
     @DisplayName("CP-AC-04: altaCliente lanza RecursoNoEncontradoException y no persiste cuando la localidad no existe")
     void altaCliente_debeRechazarLocalidadInexistente() {
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "nuevo@mail.com", "Calle Falsa 123", 99L);
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefono("nuevo@mail.com", "1122334455")).thenReturn(false);
+        when(clienteRepository.existsByEmailIgnoreCase("nuevo@mail.com")).thenReturn(false);
+        when(clienteRepository.existsByTelefono("1122334455")).thenReturn(false);
         when(localidadRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
@@ -189,11 +198,11 @@ class ClienteServicioImplTest {
     @DisplayName("CP-AC-05: altaCliente valida el duplicado de correo/teléfono antes que la localidad")
     void altaCliente_debeValidarDuplicadoAntesQueLocalidad() {
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", 99L);
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefono("juan@mail.com", "1122334455")).thenReturn(true);
+        when(clienteRepository.existsByEmailIgnoreCase("juan@mail.com")).thenReturn(true);
 
         assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un cliente registrado con el mismo correo electrónico o teléfono");
+                .hasMessage("Ya existe un cliente registrado con el correo electrónico 'juan@mail.com'");
 
         verifyNoInteractions(localidadRepository);
         verify(clienteRepository, never()).save(any());
@@ -205,7 +214,8 @@ class ClienteServicioImplTest {
         // === PREPARACION DE DATOS ===
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", 1L);
         LocalidadEntity localidadEntity = localidadEntity(1L);
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefono("juan@mail.com", "1122334455")).thenReturn(false);
+        when(clienteRepository.existsByEmailIgnoreCase("juan@mail.com")).thenReturn(false);
+        when(clienteRepository.existsByTelefono("1122334455")).thenReturn(false);
         when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity));
         when(clienteRepository.save(any(ClienteEntity.class))).thenAnswer(invocation -> {
             ClienteEntity entidadGuardada = invocation.getArgument(0);
@@ -230,7 +240,8 @@ class ClienteServicioImplTest {
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getNombre()).isEqualTo("Juan Pérez");
-        verify(clienteRepository).existsByEmailIgnoreCaseOrTelefono("juan@mail.com", "1122334455");
+        verify(clienteRepository).existsByEmailIgnoreCase("juan@mail.com");
+        verify(clienteRepository).existsByTelefono("1122334455");
     }
 
     // ==================== modificarCliente ====================
@@ -246,36 +257,56 @@ class ClienteServicioImplTest {
                 .hasMessage("No se encontró el cliente con ID: 99");
 
         verify(clienteRepository).findById(99L);
-        verify(clienteRepository, never()).existsByEmailIgnoreCaseOrTelefonoAndIdNot(any(), any(), any());
+        verify(clienteRepository, never()).existsByEmailIgnoreCaseAndIdNot(any(), any());
+        verify(clienteRepository, never()).existsByTelefonoAndIdNot(any(), any());
         verifyNoInteractions(localidadRepository);
         verify(clienteRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MC-02: modificarCliente lanza RecursoDuplicadoException y no persiste cuando el correo o teléfono está en uso por otro cliente")
-    void modificarCliente_debeRechazarEmailOTelefonoEnUsoPorOtroCliente() {
+    @DisplayName("CP-MC-02: modificarCliente lanza RecursoDuplicadoException y no persiste cuando el correo electrónico está en uso por otro cliente")
+    void modificarCliente_debeRechazarEmailEnUsoPorOtroCliente() {
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "otro@mail.com", "Calle Falsa 123", 1L);
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefonoAndIdNot("otro@mail.com", "1122334455", 1L)).thenReturn(true);
+        when(clienteRepository.existsByEmailIgnoreCaseAndIdNot("otro@mail.com", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe otro cliente registrado con el mismo correo electrónico o teléfono");
+                .hasMessage("Ya existe otro cliente registrado con el correo electrónico 'otro@mail.com'");
+
+        verify(clienteRepository, never()).existsByTelefonoAndIdNot(any(), any());
+        verifyNoInteractions(localidadRepository);
+        verify(clienteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MC-03: modificarCliente lanza RecursoDuplicadoException y no persiste cuando el teléfono está en uso por otro cliente")
+    void modificarCliente_debeRechazarTelefonoEnUsoPorOtroCliente() {
+        ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
+        ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1199998888", "juan@mail.com", "Calle Falsa 123", 1L);
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
+        when(clienteRepository.existsByEmailIgnoreCaseAndIdNot("juan@mail.com", 1L)).thenReturn(false);
+        when(clienteRepository.existsByTelefonoAndIdNot("1199998888", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe otro cliente registrado con el teléfono '1199998888'");
 
         verifyNoInteractions(localidadRepository);
         verify(clienteRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MC-03: modificarCliente permite conservar el propio correo electrónico y teléfono actual")
+    @DisplayName("CP-MC-04: modificarCliente permite conservar el propio correo electrónico y teléfono actual")
     void modificarCliente_debePermitirConservarEmailYTelefonoPropio() {
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         // Mismo correo (distinto case) y mismo teléfono: el AndIdNot excluye el propio ID y no debe fallar
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "JUAN@mail.com", "Calle Falsa 123", 1L);
         LocalidadEntity localidadEntity = localidadEntity(1L);
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefonoAndIdNot("JUAN@mail.com", "1122334455", 1L)).thenReturn(false);
+        when(clienteRepository.existsByEmailIgnoreCaseAndIdNot("JUAN@mail.com", 1L)).thenReturn(false);
+        when(clienteRepository.existsByTelefonoAndIdNot("1122334455", 1L)).thenReturn(false);
         when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity));
         when(clienteRepository.save(clienteEntity)).thenReturn(clienteEntity);
 
@@ -286,12 +317,13 @@ class ClienteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MC-04: modificarCliente lanza RecursoNoEncontradoException y no persiste cuando la localidad no existe")
+    @DisplayName("CP-MC-05: modificarCliente lanza RecursoNoEncontradoException y no persiste cuando la localidad no existe")
     void modificarCliente_debeRechazarLocalidadInexistente() {
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", 99L);
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefonoAndIdNot("juan@mail.com", "1122334455", 1L)).thenReturn(false);
+        when(clienteRepository.existsByEmailIgnoreCaseAndIdNot("juan@mail.com", 1L)).thenReturn(false);
+        when(clienteRepository.existsByTelefonoAndIdNot("1122334455", 1L)).thenReturn(false);
         when(localidadRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
@@ -302,14 +334,15 @@ class ClienteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MC-05: modificarCliente actualiza los datos y persiste cuando el ID existe y no hay conflictos (camino feliz)")
+    @DisplayName("CP-MC-06: modificarCliente actualiza los datos y persiste cuando el ID existe y no hay conflictos (camino feliz)")
     void modificarCliente_debeActualizarClienteExistente() {
         // === PREPARACION DE DATOS ===
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez Gómez", "1133445566", "juan.perez@mail.com", "Av. Siempre Viva 742", 2L);
         LocalidadEntity nuevaLocalidadEntity = localidadEntity(2L);
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
-        when(clienteRepository.existsByEmailIgnoreCaseOrTelefonoAndIdNot("juan.perez@mail.com", "1133445566", 1L)).thenReturn(false);
+        when(clienteRepository.existsByEmailIgnoreCaseAndIdNot("juan.perez@mail.com", 1L)).thenReturn(false);
+        when(clienteRepository.existsByTelefonoAndIdNot("1133445566", 1L)).thenReturn(false);
         when(localidadRepository.findById(2L)).thenReturn(Optional.of(nuevaLocalidadEntity));
         when(clienteRepository.save(clienteEntity)).thenReturn(clienteEntity);
 
@@ -328,7 +361,8 @@ class ClienteServicioImplTest {
 
         assertThat(resultado.getNombre()).isEqualTo("Juan Pérez Gómez");
         verify(clienteRepository).findById(1L);
-        verify(clienteRepository).existsByEmailIgnoreCaseOrTelefonoAndIdNot("juan.perez@mail.com", "1133445566", 1L);
+        verify(clienteRepository).existsByEmailIgnoreCaseAndIdNot("juan.perez@mail.com", 1L);
+        verify(clienteRepository).existsByTelefonoAndIdNot("1133445566", 1L);
     }
 
     // ==================== bajaCliente ====================
@@ -347,10 +381,25 @@ class ClienteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BC-02: bajaCliente marca el estado como BAJA, persiste y retorna el DTO")
+    @DisplayName("CP-BC-02: bajaCliente lanza ReglaNegocioException y no persiste cuando el cliente tiene un despacho de barril registrado")
+    void bajaCliente_debeRechazarSiTieneDespachoRegistrado() {
+        ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
+        when(despachoBarrilRepository.existsByClienteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
+
+        assertThatThrownBy(() -> clienteServicio.bajaCliente(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el cliente porque tiene un despacho de barril registrado a su nombre");
+
+        verify(clienteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BC-03: bajaCliente marca el estado como BAJA, persiste y retorna el DTO")
     void bajaCliente_debeMarcarBajaYRetornarClienteExistente() {
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
+        when(despachoBarrilRepository.existsByClienteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
         when(clienteRepository.save(clienteEntity)).thenReturn(clienteEntity);
 
         ClienteResponseDTO resultado = clienteServicio.bajaCliente(1L);

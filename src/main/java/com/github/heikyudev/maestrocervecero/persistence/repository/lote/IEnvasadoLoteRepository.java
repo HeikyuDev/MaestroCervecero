@@ -51,4 +51,16 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
      */
     @Query("SELECT MAX(e.createdDate) FROM EnvasadoLoteEntity e WHERE e.barril.id = :idBarril AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
     Optional<LocalDateTime> buscarFechaUltimoEnvasadoRegistrado(@Param("idBarril") Long idBarril);
+
+    /**
+     * Suma la cantidad envasada de todos los envasados {@code REGISTRADO} de una etapa de lote
+     * puntual (la etapa de Envasado de un lote). Se usa al finalizar el envasado del lote, para
+     * calcular sobre cuántos litros efectivamente envasados se aplican los costos directos
+     * adicionales vigentes.
+     *
+     * @param idEtapaLote El ID de la etapa de lote (Envasado) cuyos envasados se quieren sumar.
+     * @return La suma de {@code cantidadEnvasada} de sus envasados REGISTRADO, o {@code 0.0} si no tiene ninguno.
+     */
+    @Query("SELECT COALESCE(SUM(e.cantidadEnvasada), 0.0) FROM EnvasadoLoteEntity e WHERE e.etapaLote.id = :idEtapaLote AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
+    double sumarCantidadEnvasadaRegistrada(@Param("idEtapaLote") Long idEtapaLote);
 }

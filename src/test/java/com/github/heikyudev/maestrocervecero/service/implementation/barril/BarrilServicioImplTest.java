@@ -268,6 +268,34 @@ class BarrilServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(Estado.ACTIVO);
     }
 
+    @Test
+    @DisplayName("CP-AB-08: altaBarril lanza ReglaNegocioException y no consulta la BD cuando los usos máximos antes de mantenimiento son nulos")
+    void altaBarril_debeRechazarUsosMaximosNulos() {
+        BarrilFormDTO barrilFormDTO = BarrilFormDTO.builder()
+                .identificador("BAR-01").capacidad(50.0).usosMaximosAntesMantenimiento(null).idFabricanteBarril(1L).build();
+
+        assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verifyNoInteractions(barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AB-09: altaBarril lanza ReglaNegocioException cuando los usos máximos antes de mantenimiento son iguales a cero (valor límite)")
+    void altaBarril_debeRechazarUsosMaximosIgualACero() {
+        BarrilFormDTO barrilFormDTO = BarrilFormDTO.builder()
+                .identificador("BAR-01").capacidad(50.0).usosMaximosAntesMantenimiento(0).idFabricanteBarril(1L).build();
+
+        assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verifyNoInteractions(barrilRepository);
+    }
+
     // ==================== modificarBarril ====================
 
     @Test
@@ -388,6 +416,40 @@ class BarrilServicioImplTest {
         // La reasignación de fabricante no debe tocar el estado operativo ni el contenido actual
         assertThat(captor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativoBarril.DISPONIBLE);
         assertThat(resultado.getFabricante().getId()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("CP-MB-08: modificarBarril lanza ReglaNegocioException y no persiste cuando la capacidad es menor al contenido actual del barril")
+    void modificarBarril_debeRechazarCapacidadMenorAlContenidoActual() {
+        BarrilEntity barrilEntity = BarrilEntity.builder()
+                .id(1L).identificador("BAR-01").capacidad(50.0).contenidoActual(30.0)
+                .estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
+                .estado(Estado.ACTIVO).fabricante(crearFabricanteBarrilEntity(1L)).build();
+        BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 20.0, 1L);
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad no puede ser menor al contenido actual del barril (30.0 L)");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MB-09: modificarBarril lanza ReglaNegocioException y no consulta el fabricante cuando los usos máximos antes de mantenimiento son nulos")
+    void modificarBarril_debeRechazarUsosMaximosNulos() {
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        BarrilFormDTO barrilFormDTO = BarrilFormDTO.builder()
+                .identificador("BAR-01").capacidad(50.0).usosMaximosAntesMantenimiento(null).idFabricanteBarril(1L).build();
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verify(barrilRepository, never()).save(any());
     }
 
     // ==================== bajaBarril ====================

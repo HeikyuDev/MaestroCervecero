@@ -258,32 +258,36 @@ class FermentadorServicioImplTest {
     // ==================== modificarFermentador ====================
 
     @Test
-    @DisplayName("modificarFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es inválida")
+    @DisplayName("modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad útil es inválida")
     void modificarFermentador_debeRechazarCapacidadUtilInvalida() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 110.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
 
-        // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
-        verifyNoInteractions(fermentadorRepository);
+        // La existencia del fermentador se valida antes que las reglas de negocio sobre sus datos
+        verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("modificarFermentador lanza RecursoDuplicadoException y no busca ni persiste cuando el identificador está en uso por otro equipamiento")
+    @DisplayName("modificarFermentador lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro equipamiento")
     void modificarFermentador_debeRechazarIdentificadorEnUsoPorOtroEquipamiento() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-EXISTENTE", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-EXISTENTE", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
                 .hasMessage("Ya existe un equipamiento con el identificador interno 'FERM-EXISTENTE'");
 
-        // La verificación de duplicados se ejecuta antes de localizar la entidad por ID
+        verify(fermentadorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-EXISTENTE", 1L);
-        verify(fermentadorRepository, never()).findById(any());
         verify(fermentadorRepository, never()).save(any());
     }
 
@@ -291,7 +295,6 @@ class FermentadorServicioImplTest {
     @DisplayName("modificarFermentador lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarFermentador_debeLanzarExcepcionSiNoExiste() {
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 99L)).thenReturn(false);
         when(fermentadorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(99L, fermentadorFormDTO))
@@ -300,6 +303,7 @@ class FermentadorServicioImplTest {
 
         verify(fermentadorRepository).findById(99L);
         verify(fermentadorRepository, never()).save(any());
+        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
@@ -354,20 +358,23 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MF-06: modificarFermentador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    @DisplayName("CP-MF-06: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento son inválidos")
     void modificarFermentador_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0, 0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
 
-        verifyNoInteractions(fermentadorRepository);
+        verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MF-07: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador está asociado a un lote pendiente")
+    @DisplayName("CP-MF-07: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa pendiente de un lote")
     void modificarFermentador_debeRechazarAsociacionALotePendiente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
@@ -377,7 +384,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el fermentador porque está asociado a un lote pendiente.");
+                .hasMessage("No se puede modificar el fermentador porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository, never()).save(any());
@@ -434,7 +441,7 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador está asociado a un lote pendiente")
+    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa pendiente de un lote")
     void bajaFermentador_debeRechazarAsociacionALotePendiente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
@@ -442,7 +449,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque está asociado a un lote pendiente.");
+                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository, never()).save(any());

@@ -22,21 +22,31 @@ import java.util.Optional;
 public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Long> {
 
     /**
-     * Verifica si el equipamiento indicado está asignado a la etapa de algún lote cuyo estado
-     * sea {@code PENDIENTE} (todavía no arrancó a producirse).
+     * Verifica si el equipamiento indicado tiene por delante, todavía sin arrancar, alguna etapa
+     * {@code PENDIENTE} de un lote {@code PENDIENTE} o {@code EN_EJECUCION}.
      * <p>
      * Se utiliza para impedir la modificación o baja de un equipamiento (Molino, Macerador,
-     * Olla de Hervor o Fermentador) que ya está comprometido con un lote a punto de arrancar.
-     * No contempla lotes {@code EN_EJECUCION}: un lote en ejecución puede tener equipamiento de
-     * etapas ya finalizadas completamente libre (ver {@link com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo}
-     * del propio equipamiento, que es la fuente de verdad de si está actualmente en uso).
+     * Olla de Hervor o Fermentador) que ya está comprometido con trabajo futuro. Cubre tanto un
+     * lote {@code PENDIENTE} (ninguna de sus etapas arrancó todavía) como un lote ya
+     * {@code EN_EJECUCION} que tiene una etapa <em>posterior</em> todavía {@code PENDIENTE} — por
+     * ejemplo, el Fermentador reservado para la etapa de Fermentación mientras el lote todavía
+     * está en Molienda: ese lote ya está {@code EN_EJECUCION}, pero el Fermentador sigue
+     * comprometido con una etapa futura que aún no llegó.
+     * </p>
+     * <p>
+     * No hace falta contemplar la etapa {@code EN_CURSO} acá: mientras una etapa está en curso,
+     * el equipamiento que usa queda en estado operativo {@code EN_USO}, y eso ya lo bloquea cada
+     * service por separado (ver {@link com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo}).
+     * Tampoco etapas {@code FINALIZADA} o {@code CANCELADA}: ya no representan un compromiso
+     * futuro sobre el equipamiento.
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento a verificar.
-     * @return {@code true} si existe al menos un lote pendiente asociado, {@code false} en caso contrario.
+     * @return {@code true} si existe al menos una etapa pendiente asociada, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EtapaLoteEntity e " +
-            "WHERE e.equipamiento.id = :idEquipamiento AND e.lote.estado = 'PENDIENTE'")
+            "WHERE e.equipamiento.id = :idEquipamiento AND e.estado = 'PENDIENTE' " +
+            "AND e.lote.estado IN ('PENDIENTE', 'EN_EJECUCION')")
     boolean existsLotePendienteAsociado(@Param("idEquipamiento") Long idEquipamiento);
 
     /**

@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.L
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoIngreso;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IIngresoInsumoRepository;
@@ -85,15 +86,17 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      *
      * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.
-     * @throws ReglaNegocioException Si la orden de compra del ítem no está en estado {@code PENDIENTE}, si la cantidad recibida es nula, menor o igual a cero, o supera la cantidad pendiente de entrega del ítem, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta.
+     * @throws ReglaNegocioException Si la orden de compra del ítem no está en estado {@code PENDIENTE}, si la cantidad recibida es nula, menor o igual a cero, o supera la cantidad pendiente de entrega del ítem, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta.
      * @throws RecursoNoEncontradoException Si el ítem de detalle de compra referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.INGRESO_INSUMO)
     public IngresoInsumoResponseDTO registrarIngresoInsumoPorCompra(IngresoInsumoPorCompraFormDTO ingresoInsumoPorCompraFormDTO) {
-        // 1. Localizar el ítem de detalle de compra solicitado
-        DetalleCompraEntity detalleCompraEntity = detalleCompraRepository.findById(ingresoInsumoPorCompraFormDTO.getIdDetalleCompra())
+        // 1. Localizar, bloqueándolo para escritura, el ítem de detalle de compra solicitado: evita
+        //    que dos ingresos concurrentes sobre el mismo ítem calculen la misma cantidad pendiente
+        //    y, juntos, terminen recibiendo más de lo solicitado
+        DetalleCompraEntity detalleCompraEntity = detalleCompraRepository.buscarPorIdParaIngresar(ingresoInsumoPorCompraFormDTO.getIdDetalleCompra())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de detalle de compra con ID: " + ingresoInsumoPorCompraFormDTO.getIdDetalleCompra()));
 
         // 2. Validar que la orden de compra de ese ítem se encuentre en estado PENDIENTE
@@ -111,24 +114,28 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (" + cantidadPendiente + ")");
         }
 
-        // 4. Validar que la fecha de vencimiento no sea anterior a la fecha actual
+        // 4. Validar que la fecha de ingreso haya sido informada y no sea posterior a la fecha actual
+        LocalDate fechaIngreso = ingresoInsumoPorCompraFormDTO.getFechaIngreso();
+        validarFechaIngreso(fechaIngreso);
+
+        // 5. Validar que la fecha de vencimiento no sea anterior a la fecha actual
         LocalDate fechaVencimiento = ingresoInsumoPorCompraFormDTO.getFechaVencimiento();
         if (fechaVencimiento == null || fechaVencimiento.isBefore(LocalDate.now())) {
             throw new ReglaNegocioException("La fecha de vencimiento no puede ser anterior a la fecha actual");
         }
 
-        // 5. Resolver el insumo del ítem y validar/localizar el lote de insumo correspondiente,
+        // 6. Resolver el insumo del ítem y validar/localizar el lote de insumo correspondiente,
         //    sin mutarlo todavía: si hay conflicto de vencimiento, esto lanza antes de tocar nada
         InsumoEntity insumoEntity = detalleCompraEntity.getCatalogoProveedor().getInsumo();
         LoteInsumoEntity loteInsumoEntity = resolverLoteInsumo(insumoEntity, ingresoInsumoPorCompraFormDTO.getIdentificacionLoteProveedor(), fechaVencimiento);
 
-        // 6. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
+        // 7. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
         //    persistirlo
         loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, detalleCompraEntity.getCostoUnitario());
 
-        // 7. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
         IngresoInsumoEntity ingresoInsumoEntity = IngresoInsumoEntity.builder()
-                .fechaIngreso(ingresoInsumoPorCompraFormDTO.getFechaIngreso())
+                .fechaIngreso(fechaIngreso)
                 .cantidadRecibida(cantidadRecibida)
                 .costoUnitario(detalleCompraEntity.getCostoUnitario())
                 .tipoIngreso(TipoIngreso.COMPRA)
@@ -145,7 +152,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      *
      * @param ingresoInsumoDirectoFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.
-     * @throws ReglaNegocioException Si la cantidad recibida o el costo unitario son nulos, menores o iguales a cero, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta.
+     * @throws ReglaNegocioException Si la cantidad recibida o el costo unitario son nulos, menores o iguales a cero, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta.
      * @throws RecursoNoEncontradoException Si el insumo referenciado no existe (o no está activo).
      */
     @Override
@@ -167,22 +174,26 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("El costo unitario debe ser mayor a cero");
         }
 
-        // 4. Validar que la fecha de vencimiento no sea anterior a la fecha actual
+        // 4. Validar que la fecha de ingreso haya sido informada y no sea posterior a la fecha actual
+        LocalDate fechaIngreso = ingresoInsumoDirectoFormDTO.getFechaIngreso();
+        validarFechaIngreso(fechaIngreso);
+
+        // 5. Validar que la fecha de vencimiento no sea anterior a la fecha actual
         LocalDate fechaVencimiento = ingresoInsumoDirectoFormDTO.getFechaVencimiento();
         if (fechaVencimiento == null || fechaVencimiento.isBefore(LocalDate.now())) {
             throw new ReglaNegocioException("La fecha de vencimiento no puede ser anterior a la fecha actual");
         }
 
-        // 5. Validar/localizar el lote de insumo correspondiente, sin mutarlo todavía
+        // 6. Validar/localizar el lote de insumo correspondiente, sin mutarlo todavía
         LoteInsumoEntity loteInsumoEntity = resolverLoteInsumo(insumoEntity, ingresoInsumoDirectoFormDTO.getIdentificacionLoteProveedor(), fechaVencimiento);
 
-        // 6. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
+        // 7. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
         //    persistirlo
         loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, ingresoInsumoDirectoFormDTO.getCostoUnitario());
 
-        // 7. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
         IngresoInsumoEntity ingresoInsumoEntity = IngresoInsumoEntity.builder()
-                .fechaIngreso(ingresoInsumoDirectoFormDTO.getFechaIngreso())
+                .fechaIngreso(fechaIngreso)
                 .cantidadRecibida(cantidadRecibida)
                 .costoUnitario(ingresoInsumoDirectoFormDTO.getCostoUnitario())
                 .tipoIngreso(TipoIngreso.DIRECTO)
@@ -204,7 +215,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * @param anularIngresoInsumoFormDTO Los datos de la anulación (motivo).
      * @return El ingreso de insumo anulado.
      * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el ingreso no se encuentra en estado {@code REGISTRADO}, o si su cantidad recibida supera la cantidad disponible del lote de insumo.
-     * @throws RecursoNoEncontradoException Si el ingreso de insumo con el ID especificado no existe.
+     * @throws RecursoNoEncontradoException Si el ingreso de insumo con el ID especificado no existe, o si su lote de insumo asociado no existe.
      */
     @Override
     @Transactional
@@ -224,9 +235,11 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("Solo se pueden anular ingresos de insumo en estado REGISTRADO");
         }
 
-        // 4. Validar que la cantidad del ingreso a anular no supere la cantidad disponible del
-        //    lote (parte de esa cantidad puede ya haber sido reservada o consumida)
-        LoteInsumoEntity loteInsumoEntity = ingresoInsumoEntity.getLoteInsumo();
+        // 4. Bloquear el lote de insumo asociado para escritura, y validar que la cantidad del
+        //    ingreso a anular no supere la cantidad disponible del lote (parte de esa cantidad
+        //    puede ya haber sido reservada o consumida)
+        LoteInsumoEntity loteInsumoEntity = loteInsumoRepository.buscarPorIdParaAnularIngreso(ingresoInsumoEntity.getLoteInsumo().getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + ingresoInsumoEntity.getLoteInsumo().getId()));
         if (ingresoInsumoEntity.getCantidadRecibida() > loteInsumoEntity.getCantidadDisponible()) {
             throw new ReglaNegocioException("No se puede anular el ingreso: su cantidad supera la cantidad disponible del lote de insumo");
         }
@@ -245,18 +258,46 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
-     * Calcula la cantidad pendiente de entrega de un ítem de detalle de compra: la cantidad
-     * solicitada menos la ya recibida mediante ingresos en estado {@code REGISTRADO}.
+     * Valida que la fecha de ingreso haya sido informada y no sea posterior a la fecha actual.
+     *
+     * @param fechaIngreso Fecha de ingreso a validar.
+     * @throws ReglaNegocioException Si la fecha de ingreso es nula o posterior a la fecha actual.
+     */
+    private static void validarFechaIngreso(LocalDate fechaIngreso) {
+        if (fechaIngreso == null || fechaIngreso.isAfter(LocalDate.now())) {
+            throw new ReglaNegocioException("La fecha de ingreso no puede ser posterior a la fecha actual");
+        }
+    }
+
+    /**
+     * Calcula la cantidad pendiente de entrega de un ítem de detalle de compra, en la unidad de
+     * medida base del insumo: la cantidad total solicitada (unidades de la presentación comercial
+     * pedidas, convertida a la unidad del insumo) menos la ya recibida mediante ingresos en
+     * estado {@code REGISTRADO}.
+     * <p>
+     * {@code detalleCompraEntity.getCantidad()} es la cantidad de unidades de la presentación
+     * comercial pedidas (ej. 5 bolsas), no la cantidad de insumo — por eso hay que multiplicarla
+     * por el contenido de cada unidad ({@code presentacionComercial.getCantidad()}), convertido
+     * primero a la unidad del insumo por si la presentación fue cargada en una unidad distinta
+     * (ej. presentación en GRAMO para un insumo que trackea en KILOGRAMO).
+     * </p>
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
-     * @return Cantidad pendiente de entrega.
+     * @return Cantidad pendiente de entrega, en la unidad de medida base del insumo.
      */
     private double calcularCantidadPendiente(DetalleCompraEntity detalleCompraEntity) {
         double cantidadYaRecibida = ingresoInsumoRepository.findByDetalleCompraIdAndEstado(detalleCompraEntity.getId(), EstadoTransaccion.REGISTRADO)
                 .stream()
                 .mapToDouble(IngresoInsumoEntity::getCantidadRecibida)
                 .sum();
-        return detalleCompraEntity.getCantidad() - cantidadYaRecibida;
+
+        PresentacionComercialEntity presentacionComercial = detalleCompraEntity.getCatalogoProveedor().getPresentacionComercial();
+        InsumoEntity insumo = detalleCompraEntity.getCatalogoProveedor().getInsumo();
+        double cantidadPorUnidadEnUnidadDelInsumo = insumo.getUnidadDeMedida()
+                .desdeGramos(presentacionComercial.getUnidadDeMedida().aGramos(presentacionComercial.getCantidad()));
+        double cantidadTotalSolicitada = cantidadPorUnidadEnUnidadDelInsumo * detalleCompraEntity.getCantidad();
+
+        return cantidadTotalSolicitada - cantidadYaRecibida;
     }
 
     /**

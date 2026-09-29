@@ -24,7 +24,9 @@
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
 | **CP-AU-01** | Username duplicado | `username: "juanperez"` (Ya existe en BD), `password: "123456"` | `existsByUsername` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException` con mensaje "El Username ya esta registrado". No encripta ni persiste. |
-| **CP-AU-02** | Alta exitosa y encriptación de contraseña *(Camino feliz)* | `username: "carlos_cervecero"` (Único), `password: "ClaveSegura123"` | `existsByUsername` $\rightarrow$ **FALSE** | Encripta password con `passwordEncoder`, persiste entidad con `estado = ACTIVO` y retorna `UsuarioResponseDTO`. |
+| **CP-AU-02** | Contraseña nula | `username: "carlos_cervecero"` (Único), `password: null` | `existsByUsername` $\rightarrow$ **FALSE**, `password == null` | Lanza `ReglaNegocioException` con mensaje "La contraseña es obligatoria". No encripta ni persiste. |
+| **CP-AU-03** | Contraseña en blanco | `username: "carlos_cervecero"` (Único), `password: "   "` | `existsByUsername` $\rightarrow$ **FALSE**, `password.isBlank()` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException` con mensaje "La contraseña es obligatoria". No encripta ni persiste. |
+| **CP-AU-04** | Alta exitosa y encriptación de contraseña *(Camino feliz)* | `username: "carlos_cervecero"` (Único), `password: "ClaveSegura123"` | `existsByUsername` $\rightarrow$ **FALSE** | Encripta password con `passwordEncoder`, persiste entidad con `estado = ACTIVO` y retorna `UsuarioResponseDTO`. |
 
 ---
 

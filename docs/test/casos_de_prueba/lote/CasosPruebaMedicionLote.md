@@ -40,6 +40,8 @@ El rango ideal (`DetalleParametroControlEntity.valorMinimo/valorMaximo`) es el o
 |**CP-RM-13**|Valor por debajo del mínimo real se rechaza|`valorMedido: -1.0` (por debajo del real `0.0`)|`valorMedido < parametroControl.valorMinimo` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No se llama a `save()`.|
 |**CP-RM-14**|Valor por encima del máximo real se rechaza|`valorMedido: 15.0` (por encima del real `14.0`)|`valorMedido > parametroControl.valorMaximo` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No se llama a `save()`.|
 |**CP-RM-15**|La etapa no es la etapa actual del lote (no está EN_CURSO)|Etapa Maceración existente pero en estado `PENDIENTE` (el lote ya avanzó a otra etapa)|`etapaLote.estado != EN_CURSO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. Sin interacciones con los otros repos.|
+|**CP-RM-16**|Fecha de medición nula|`fechaMedicion: null` (resto válido)|`fechaMedicion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha y hora de medición es obligatoria"). `verifyNoInteractions(medicionLoteRepository)`.|
+|**CP-RM-17**|Valor medido nulo|`valorMedido: null` (resto válido)|`valorMedido == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El valor medido es obligatorio"). No se llama a `save()`.|
 
 ### 4. `anularMedicion(Long id, AnularMedicionLoteFormDTO anularMedicionLoteFormDTO)`
 

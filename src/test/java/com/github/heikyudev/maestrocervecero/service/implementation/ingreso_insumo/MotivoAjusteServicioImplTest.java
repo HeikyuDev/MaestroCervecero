@@ -3,10 +3,12 @@ package com.github.heikyudev.maestrocervecero.service.implementation.ingreso_ins
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.MotivoAjusteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IAjusteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IMotivoAjusteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.MotivoAjusteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.MotivoAjusteResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +38,8 @@ class MotivoAjusteServicioImplTest {
 
     @Mock
     private IMotivoAjusteRepository motivoAjusteRepository;
+    @Mock
+    private IAjusteInsumoRepository ajusteInsumoRepository;
 
     @InjectMocks
     private MotivoAjusteServicioImpl motivoAjusteServicio;
@@ -278,6 +282,24 @@ class MotivoAjusteServicioImplTest {
         assertThat(resultado.getTipoAjuste()).isEqualTo(TipoAjuste.EGRESO);
         verify(motivoAjusteRepository).findById(1L);
         verify(motivoAjusteRepository).existsByNombreIgnoreCaseAndIdNot("Corrección de conteo (egreso)", 1L);
+    }
+
+    @Test
+    @DisplayName("CP-MMA-05: modificarMotivoAjuste lanza ReglaNegocioException y no persiste cuando el motivo tiene ajustes de insumo registrados")
+    void modificarMotivoAjuste_debeRechazarSiTieneAjustesRegistrados() {
+        // === PREPARACION DE DATOS ===
+        MotivoAjusteEntity motivoEntity = crearMotivoAjusteEntity(1L, "Corrección de conteo", TipoAjuste.INGRESO);
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Corrección de conteo", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoEntity));
+        when(ajusteInsumoRepository.existsByMotivoAjusteIdAndEstadoRegistrado(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar un motivo de ajuste que tiene ajustes de insumo registrados");
+
+        verify(motivoAjusteRepository, never()).existsByNombreIgnoreCaseAndIdNot(any(), any());
+        verify(motivoAjusteRepository, never()).save(any());
     }
 
     // ==================== bajaMotivoAjuste ====================

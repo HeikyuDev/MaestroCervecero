@@ -99,10 +99,11 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
      *                               registrar mediciones, si la receta no tiene
      *                               configurado ningún plan de monitoreo para esa etapa, si el
      *                               detalle de parámetro de control no corresponde a la etapa
-     *                               referenciada, si la fecha de medición es posterior a la fecha y
-     *                               hora actual, si ya existe una medición registrada para ese mismo
-     *                               parámetro en esa misma fecha y hora, o si el valor medido excede
-     *                               el rango real (mínimo/máximo) del parámetro de control.
+     *                               referenciada, si la fecha de medición no fue informada o es
+     *                               posterior a la fecha y hora actual, si ya existe una medición
+     *                               registrada para ese mismo parámetro en esa misma fecha y hora,
+     *                               si el valor medido no fue informado, o si excede el rango real
+     *                               (mínimo/máximo) del parámetro de control.
      */
     @Override
     @Transactional
@@ -146,8 +147,11 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
             throw new ReglaNegocioException("El detalle de parámetro de control seleccionado no corresponde a la etapa " + tipoEtapa);
         }
 
-        // 8. Validar que la fecha y hora de medición no sea posterior a la fecha y hora actual
+        // 8. Validar que la fecha y hora de medición haya sido informada y no sea posterior a la fecha y hora actual
         LocalDateTime fechaMedicion = medicionLoteFormDTO.getFechaMedicion();
+        if (fechaMedicion == null) {
+            throw new ReglaNegocioException("La fecha y hora de medición es obligatoria");
+        }
         if (fechaMedicion.isAfter(LocalDateTime.now())) {
             throw new ReglaNegocioException("La fecha y hora de medición no puede ser posterior a la fecha y hora actual");
         }
@@ -164,6 +168,9 @@ public class MedicionLoteServicioImpl implements IMedicionLoteServicio {
         //     fuera de ese rango es un dato inválido, no una desviación de calidad.
         ParametroControlEntity parametroControl = detalleParametroControl.getParametroControl();
         Double valorMedido = medicionLoteFormDTO.getValorMedido();
+        if (valorMedido == null) {
+            throw new ReglaNegocioException("El valor medido es obligatorio");
+        }
         if (valorMedido < parametroControl.getValorMinimo() || valorMedido > parametroControl.getValorMaximo()) {
             throw new ReglaNegocioException("El valor medido (" + valorMedido + ") está fuera del rango real del parámetro de control '"
                     + parametroControl.getNombre() + "' (" + parametroControl.getValorMinimo() + " - " + parametroControl.getValorMaximo() + ")");

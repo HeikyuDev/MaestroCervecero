@@ -161,7 +161,10 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
         // 4. Recuperar el lote de insumo bloqueado para escritura (no alcanza con navegar la
         //    relación perezosa del ajuste: hay que releerlo con lock, ya que esta anulación va a
         //    mutar su stock) y revertir el ajuste en él (valida, al revertir un INGRESO, que no
-        //    deje cantidad disponible negativa), persistiéndolo
+        //    deje cantidad disponible negativa), persistiéndolo. El tipo de ajuste se lee del
+        //    motivo asociado con seguridad: MotivoAjusteServicioImpl no permite modificar el tipo
+        //    de un motivo que ya tenga algún ajuste REGISTRADO, así que nunca puede haber cambiado
+        //    entre el registro de este ajuste y su anulación.
         LoteInsumoEntity loteInsumoEntity = loteInsumoRepository.buscarPorIdParaAjustar(ajusteInsumoEntity.getLoteInsumo().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + ajusteInsumoEntity.getLoteInsumo().getId()));
         loteInsumoEntity = revertirAjusteEnLote(loteInsumoEntity, ajusteInsumoEntity.getMotivoAjuste().getTipoAjuste(), ajusteInsumoEntity.getCantidad());

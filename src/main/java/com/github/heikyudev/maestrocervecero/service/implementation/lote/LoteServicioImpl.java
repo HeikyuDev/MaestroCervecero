@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
+import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.CostoDirectoAdicionalEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.DetalleCostoDirectoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
@@ -21,11 +23,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
+import com.github.heikyudev.maestrocervecero.persistence.repository.costo_adicional.ICostoDirectoAdicionalRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
@@ -48,6 +52,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -91,6 +97,8 @@ public class LoteServicioImpl implements ILoteServicio {
     private final ILoteInsumoRepository loteInsumoRepository;
     private final IReservaInsumoRepository reservaInsumoRepository;
     private final IConsumoInsumoServicio consumoInsumoServicio;
+    private final IEnvasadoLoteRepository envasadoLoteRepository;
+    private final ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
 
     /**
      * Filtra los lotes registrados, opcionalmente por receta, identificador interno, estado,
@@ -582,6 +590,12 @@ public class LoteServicioImpl implements ILoteServicio {
      * de consumo ni se liberan reservas, porque en esta etapa no se registran consumos de insumo
      * (solo envasados).
      * </p>
+     * <p>
+     * Registra, por cada costo directo adicional activo, un {@link DetalleCostoDirectoEntity} que
+     * congela su costo por litro vigente en este momento y calcula el subtotal sobre el total
+     * efectivamente envasado (no el volumen objetivo planificado) — así queda un registro
+     * histórico de qué costó este lote en particular y cómo se compone ese costo.
+     * </p>
      *
      * @param id El ID del lote cuyo Envasado se quiere finalizar.
      * @return El lote actualizado.
@@ -621,7 +635,38 @@ public class LoteServicioImpl implements ILoteServicio {
         lote.setEstado(EstadoLote.FINALIZADO);
         lote.setFechaFinalizacion(LocalDateTime.now());
 
+        // 7. Registrar los costos directos adicionales del lote: uno por cada costo directo
+        //    adicional activo, aplicando su costo por litro vigente sobre el total efectivamente envasado
+        registrarCostosDirectosDelLote(lote, etapaEnvasado.getId());
+
         return MapperLote.toDTO(loteRepository.save(lote));
+    }
+
+    /**
+     * Registra, al finalizar el envasado de un lote, un {@link DetalleCostoDirectoEntity} por
+     * cada costo directo adicional activo, congelando su {@code costoPorLitro} vigente en este
+     * momento ({@code costoPorLitroAplicado}) y calculando el {@code subtotal} sobre el total
+     * efectivamente envasado — no el volumen objetivo planificado — para que quede un registro
+     * histórico fiel de qué costó ese lote en particular.
+     * <p>
+     * Se agregan a {@link LoteEntity#getDetallesCostoDirecto()}: se persisten en cascada junto
+     * con el {@code lote} al final de {@link #finalizarEnvasado(Long)}, sin necesidad de un
+     * repositorio propio.
+     * </p>
+     */
+    private void registrarCostosDirectosDelLote(LoteEntity lote, Long idEtapaEnvasado) {
+        BigDecimal totalEnvasado = BigDecimal.valueOf(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaEnvasado));
+        List<CostoDirectoAdicionalEntity> costosDirectosActivos = costoDirectoAdicionalRepository.findAllActivos();
+
+        for (CostoDirectoAdicionalEntity costoDirectoAdicional : costosDirectosActivos) {
+            DetalleCostoDirectoEntity detalleCostoDirecto = DetalleCostoDirectoEntity.builder()
+                    .costoPorLitroAplicado(costoDirectoAdicional.getCostoPorLitro())
+                    .subtotal(costoDirectoAdicional.getCostoPorLitro().multiply(totalEnvasado).setScale(4, RoundingMode.HALF_UP))
+                    .costoDirectoAdicional(costoDirectoAdicional)
+                    .lote(lote)
+                    .build();
+            lote.getDetallesCostoDirecto().add(detalleCostoDirecto);
+        }
     }
 
     /**

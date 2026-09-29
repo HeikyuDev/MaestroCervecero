@@ -111,30 +111,31 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @return {@link MolinoResponseDTO} con los datos del molino modificado.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno.
-     * @throws ReglaNegocioException         Si el rendimiento de molienda es menor o igual a 0, si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el molino está asociado a un lote pendiente, o si se encuentra en uso.
+     * @throws ReglaNegocioException         Si el rendimiento de molienda es menor o igual a 0, si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el molino tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO modificarMolino(Long id, MolinoFormDTO molinoFormDTO) {
-        // 1. Validar que el rendimiento de molienda sea mayor a 0.
+        // 1. Buscar el molino existente por su ID.
+        MolinoEntity molinoEntity = molinoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
+
+        // 2. Validar que el rendimiento de molienda sea mayor a 0.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 2. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        // 3. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 3. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
+        // 4. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(molinoFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 4. Buscar el molino existente por su ID.
-        MolinoEntity molinoEntity = molinoRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
-
-        // 5. Validar que el molino no esté asociado a un lote pendiente.
+        // 5. Validar que el molino no tenga comprometida una etapa pendiente de un lote (ni a
+        //    punto de arrancar, ni futura dentro de un lote ya en ejecución).
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el molino porque está asociado a un lote pendiente.");
+            throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote.");
         }
 
         // 6. Validar que el molino no se encuentre actualmente en uso.
@@ -162,7 +163,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param id ID del molino a dar de baja.
      * @return {@link MolinoResponseDTO} con los datos del molino ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
-     * @throws ReglaNegocioException Si el molino está asociado a un lote pendiente, o si se encuentra en uso.
+     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -172,9 +173,9 @@ public class MolinoServicioImpl implements IMolinoServicio {
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // 2. Validar que el molino no esté asociado a un lote pendiente.
+        // 2. Validar que el molino no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el molino porque está asociado a un lote pendiente.");
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote.");
         }
 
         // 3. Validar que el molino no se encuentre actualmente en uso.

@@ -10,6 +10,11 @@ import java.math.BigDecimal;
  * Representa el detalle de una orden de compra.
  * Se selecciona un ítem del catálogo del proveedor (Insumo + Presentación Comercial)
  * y se especifica la cantidad y el precio unitario.
+ * <p>
+ * {@code cantidad} es la cantidad de unidades de la presentación comercial del ítem
+ * solicitadas (ej. 5 bolsas), no la cantidad de insumo en kilogramos: para eso hay que
+ * multiplicarla por la {@code cantidad} de la {@code PresentacionComercialEntity} del ítem.
+ * </p>
  */
 @Entity
 @Table(name = "detalle_compra")

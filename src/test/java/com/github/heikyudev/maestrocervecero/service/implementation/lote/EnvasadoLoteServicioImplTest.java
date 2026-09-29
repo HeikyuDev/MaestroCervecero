@@ -356,6 +356,67 @@ class EnvasadoLoteServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
     }
 
+    @Test
+    @DisplayName("CP-REL-13: registrarEnvasadoLote lanza ReglaNegocioException cuando la cantidad supera el volumen objetivo del lote")
+    void registrarEnvasadoLote_debeRechazarCantidadQueSuperaVolumenObjetivo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = LoteEntity.builder().id(1L).estado(EstadoLote.EN_EJECUCION).volumenObjetivo(20.0).build();
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 25.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar supera el volumen objetivo del lote (quedan 20.0 L disponibles para envasar)");
+
+        verify(barrilRepository, never()).save(any());
+        verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-REL-14: registrarEnvasadoLote lanza ReglaNegocioException cuando lo ya envasado más esta cantidad supera el volumen objetivo del lote")
+    void registrarEnvasadoLote_debeRechazarCantidadQueSumadaALoYaEnvasadoSuperaVolumenObjetivo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = LoteEntity.builder().id(1L).estado(EstadoLote.EN_EJECUCION).volumenObjetivo(20.0).build();
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(15.0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 10.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar supera el volumen objetivo del lote (quedan 5.0 L disponibles para envasar)");
+
+        verify(barrilRepository, never()).save(any());
+        verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-REL-15: registrarEnvasadoLote persiste cuando lo ya envasado más esta cantidad es exactamente igual al volumen objetivo del lote (valor límite, permitido)")
+    void registrarEnvasadoLote_debePermitirCantidadQueCompletaExactoElVolumenObjetivo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = LoteEntity.builder().id(1L).estado(EstadoLote.EN_EJECUCION).volumenObjetivo(20.0).build();
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(15.0);
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 5.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadEnvasada()).isEqualTo(5.0);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        verify(barrilRepository).save(barril);
+        verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
+    }
+
     // ==================== anularEnvasadoLote ====================
 
     @Test
@@ -506,6 +567,7 @@ class EnvasadoLoteServicioImplTest {
         return LoteEntity.builder()
                 .id(1L)
                 .estado(estado)
+                .volumenObjetivo(50.0)
                 .build();
     }
 

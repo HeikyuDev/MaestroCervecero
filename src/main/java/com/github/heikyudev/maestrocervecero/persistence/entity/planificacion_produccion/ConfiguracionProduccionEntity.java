@@ -46,9 +46,6 @@ public class ConfiguracionProduccionEntity extends AuditableEntity<String> {
     @Column(name = "velocidad_estandar_envasado", nullable = false)
     private Double velocidadEstandarEnvasado;
 
-    @Column(name = "tiempo_estandar_cip", nullable = false)
-    private Double tiempoEstandarCip;
-
     @Column(name = "capacidad_lote_estandar", nullable = false)
     private Double capacidadLoteEstandar;
 

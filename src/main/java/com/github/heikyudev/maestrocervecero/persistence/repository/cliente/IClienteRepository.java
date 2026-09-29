@@ -69,31 +69,53 @@ public interface IClienteRepository extends JpaRepository<ClienteEntity, Long> {
                                          Pageable pageable);
 
     /**
-     * Verifica si existe un cliente activo con el correo electrónico dado (ignorando mayúsculas
-     * y minúsculas) o el teléfono dado.
+     * Verifica si existe un cliente activo con el correo electrónico dado, ignorando mayúsculas y
+     * minúsculas.
      *
      * @param email El correo electrónico a buscar.
-     * @param telefono El teléfono a buscar.
-     * @return {@code true} si ya existe un cliente activo con ese correo electrónico o ese teléfono, {@code false} en caso contrario.
+     * @return {@code true} si ya existe un cliente activo con ese correo electrónico, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE (UPPER(c.email) = UPPER(:email) OR c.telefono = :telefono) AND c.estado = 'ACTIVO'")
-    boolean existsByEmailIgnoreCaseOrTelefono(@Param("email") String email, @Param("telefono") String telefono);
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE UPPER(c.email) = UPPER(:email) AND c.estado = 'ACTIVO'")
+    boolean existsByEmailIgnoreCase(@Param("email") String email);
 
     /**
-     * Verifica si existe un cliente activo con el correo electrónico dado (ignorando mayúsculas
-     * y minúsculas) o el teléfono dado, excluyendo de la búsqueda al cliente con el ID indicado.
+     * Verifica si existe un cliente activo con el correo electrónico dado, ignorando mayúsculas y
+     * minúsculas, excluyendo de la búsqueda al cliente con el ID indicado.
      * <p>
-     * Se utiliza en la modificación para permitir conservar el propio correo electrónico o
-     * teléfono actual sin que la validación de unicidad falle contra el mismo registro.
+     * Se utiliza en la modificación para permitir conservar el propio correo electrónico actual
+     * sin que la validación de unicidad falle contra el mismo registro.
      * </p>
      *
      * @param email El correo electrónico a buscar.
+     * @param id El ID del cliente a excluir de la verificación.
+     * @return {@code true} si otro cliente activo ya posee ese correo electrónico, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE UPPER(c.email) = UPPER(:email) AND c.id <> :id AND c.estado = 'ACTIVO'")
+    boolean existsByEmailIgnoreCaseAndIdNot(@Param("email") String email, @Param("id") Long id);
+
+    /**
+     * Verifica si existe un cliente activo con el teléfono dado.
+     *
+     * @param telefono El teléfono a buscar.
+     * @return {@code true} si ya existe un cliente activo con ese teléfono, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE c.telefono = :telefono AND c.estado = 'ACTIVO'")
+    boolean existsByTelefono(@Param("telefono") String telefono);
+
+    /**
+     * Verifica si existe un cliente activo con el teléfono dado, excluyendo de la búsqueda al
+     * cliente con el ID indicado.
+     * <p>
+     * Se utiliza en la modificación para permitir conservar el propio teléfono actual sin que la
+     * validación de unicidad falle contra el mismo registro.
+     * </p>
+     *
      * @param telefono El teléfono a buscar.
      * @param id El ID del cliente a excluir de la verificación.
-     * @return {@code true} si otro cliente activo ya posee ese correo electrónico o ese teléfono, {@code false} en caso contrario.
+     * @return {@code true} si otro cliente activo ya posee ese teléfono, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE (UPPER(c.email) = UPPER(:email) OR c.telefono = :telefono) AND c.id <> :id AND c.estado = 'ACTIVO'")
-    boolean existsByEmailIgnoreCaseOrTelefonoAndIdNot(@Param("email") String email, @Param("telefono") String telefono, @Param("id") Long id);
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE c.telefono = :telefono AND c.id <> :id AND c.estado = 'ACTIVO'")
+    boolean existsByTelefonoAndIdNot(@Param("telefono") String telefono, @Param("id") Long id);
 
     /**
      * Verifica si existe algún cliente activo asociado a la localidad indicada.

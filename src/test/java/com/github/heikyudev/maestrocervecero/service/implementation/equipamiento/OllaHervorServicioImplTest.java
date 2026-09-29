@@ -362,55 +362,65 @@ class OllaHervorServicioImplTest {
     // ==================== modificarOllaHervor ====================
 
     @Test
-    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es inválida")
+    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad útil es inválida")
     void modificarOllaHervor_debeRechazarCapacidadUtilInvalida() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 110.0, 10.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class);
 
-        // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
-        verifyNoInteractions(ollaHervorRepository);
+        // La existencia de la olla de hervor se valida antes que las reglas de negocio sobre sus datos
+        verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de evaporación es inválido")
+    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando el porcentaje de evaporación es inválido")
     void modificarOllaHervor_debeRechazarEvaporacionInvalida() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 105.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class);
 
-        verifyNoInteractions(ollaHervorRepository);
+        verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la pérdida por trub es negativa")
+    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la pérdida por trub es negativa")
     void modificarOllaHervor_debeRechazarPerdidaPorTrubInvalida() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, -1.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class);
 
-        verifyNoInteractions(ollaHervorRepository);
+        verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("modificarOllaHervor lanza RecursoDuplicadoException y no busca ni persiste cuando el identificador está en uso por otro Equipamiento")
+    @DisplayName("modificarOllaHervor lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro Equipamiento")
     void modificarOllaHervor_debeRechazarIdentificadorEnUsoPorOtroEquipamiento() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-EXISTENTE", 100.0, 80.0, 10.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-EXISTENTE", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
                 .hasMessage("Ya existe un equipamiento con el identificador interno 'OLLA-EXISTENTE'");
 
-        // La verificación de duplicados se ejecuta antes de localizar la entidad por ID
+        verify(ollaHervorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-EXISTENTE", 1L);
-        verify(ollaHervorRepository, never()).findById(any());
         verify(ollaHervorRepository, never()).save(any());
     }
 
@@ -418,7 +428,6 @@ class OllaHervorServicioImplTest {
     @DisplayName("modificarOllaHervor lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarOllaHervor_debeLanzarExcepcionSiNoExiste() {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 99L)).thenReturn(false);
         when(ollaHervorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(99L, ollaHervorFormDTO))
@@ -427,6 +436,7 @@ class OllaHervorServicioImplTest {
 
         verify(ollaHervorRepository).findById(99L);
         verify(ollaHervorRepository, never()).save(any());
+        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
@@ -475,20 +485,23 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MO-08: modificarOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    @DisplayName("CP-MO-08: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento son inválidos")
     void modificarOllaHervor_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0, 0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
 
-        verifyNoInteractions(ollaHervorRepository);
+        verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MO-09: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor está asociada a un lote pendiente")
+    @DisplayName("CP-MO-09: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa pendiente de un lote")
     void modificarOllaHervor_debeRechazarAsociacionALotePendiente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
@@ -498,7 +511,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la olla de hervor porque está asociada a un lote pendiente.");
+                .hasMessage("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -555,7 +568,7 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor está asociada a un lote pendiente")
+    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa pendiente de un lote")
     void bajaOllaHervor_debeRechazarAsociacionALotePendiente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
@@ -563,7 +576,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque está asociada a un lote pendiente.");
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository, never()).save(any());

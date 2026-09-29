@@ -26,12 +26,15 @@ Solo devuelve motivos de ajuste activos (`estado = 'ACTIVO'`). `nombre` es coinc
 
 ### 4. `modificarMotivoAjuste(Long id, MotivoAjusteFormDTO motivoAjusteFormDTO)`
 
+No existe un caso en el que un mismo motivo a veces sume y a veces reste: si el motivo tiene al menos un `AjusteInsumo` en estado `REGISTRADO`, se bloquea la modificación por completo (no solo el cambio de `tipoAjuste`) — evita, por ejemplo, que se le cambie el tipo a un motivo ya usado y una anulación posterior de esos ajustes revierta en la dirección equivocada.
+
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-MMA-01**|Motivo de ajuste no encontrado por ID|`id: 99L` (No existe en BD), DTO válido|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No valida duplicación, ni ejecuta `save()` (`verifyNoInteractions`).|
 |**CP-MMA-02**|Nombre en uso por otro motivo de ajuste|`id: 1L` (Existe), `nombre: "Rotura de lote"` (Pertenece al `id: 2L`), `tipoAjuste: INGRESO`|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-MMA-03**|Conservar el nombre propio actual|`id: 1L`, `nombre: "corrección de conteo"` (Mismo motivo de ajuste, distinto case), `tipoAjuste: INGRESO`|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **FALSE**|Permite actualizar, persiste y retorna DTO.|
-|**CP-MMA-04**|Modificación exitosa cambiando el tipo de ajuste _(Camino feliz)_|`id: 1L` (Existe, `tipoAjuste: INGRESO`), `nombre: "Corrección de conteo (egreso)"` (Libre), `tipoAjuste: EGRESO`|Validaciones OK|Actualiza `nombre` y `tipoAjuste`, ejecuta `save()` y retorna DTO con `tipoAjuste = EGRESO`.|
+|**CP-MMA-04**|Modificación exitosa cambiando el tipo de ajuste _(Camino feliz)_|`id: 1L` (Existe, `tipoAjuste: INGRESO`), `nombre: "Corrección de conteo (egreso)"` (Libre), `tipoAjuste: EGRESO`, sin ajustes de insumo registrados|Validaciones OK|Actualiza `nombre` y `tipoAjuste`, ejecuta `save()` y retorna DTO con `tipoAjuste = EGRESO`.|
+|**CP-MMA-05**|El motivo tiene ajustes de insumo registrados|`id: 1L` (Existe), DTO válido, `ajusteInsumoRepository.existsByMotivoAjusteIdAndEstadoRegistrado(1L)` $\rightarrow$ **TRUE**|El motivo ya está en uso por al menos un ajuste `REGISTRADO`|Lanza `ReglaNegocioException` ("No se puede modificar un motivo de ajuste que tiene ajustes de insumo registrados"). No valida duplicación de nombre ni ejecuta `save()`.|
 
 ### 5. `bajaMotivoAjuste(Long id)`
 

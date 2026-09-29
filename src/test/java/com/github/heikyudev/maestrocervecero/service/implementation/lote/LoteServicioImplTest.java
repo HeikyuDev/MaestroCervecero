@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.CostoDirectoAdicionalEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.costo_adicional.DetalleCostoDirectoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
@@ -32,11 +34,13 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.costo_adicional.ICostoDirectoAdicionalRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMaceradorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
@@ -111,6 +115,10 @@ class LoteServicioImplTest {
     private IReservaInsumoRepository reservaInsumoRepository;
     @Mock
     private IConsumoInsumoServicio consumoInsumoServicio;
+    @Mock
+    private IEnvasadoLoteRepository envasadoLoteRepository;
+    @Mock
+    private ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
     // Spy con la implementación real: el escalado de insumos ya se prueba de forma independiente
     // en EscaladoInsumoServicioImplTest, así que acá no tiene sentido mockearlo — se necesita el
     // cálculo real para que estos tests sigan verificando el mismo comportamiento de extremo a
@@ -1916,6 +1924,39 @@ class LoteServicioImplTest {
         assertThat(lote.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, consumoInsumoServicio, reservaInsumoRepository);
         verify(loteRepository).save(lote);
+        assertThat(lote.getDetallesCostoDirecto()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-FE-06: finalizarEnvasado registra un DetalleCostoDirecto por cada costo directo adicional activo, sobre el total efectivamente envasado")
+    void finalizarEnvasado_debeRegistrarCostosDirectosDelLote() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(20.0);
+        CostoDirectoAdicionalEntity etiquetas = CostoDirectoAdicionalEntity.builder().id(1L).nombre("Etiquetas").costoPorLitro(BigDecimal.valueOf(0.50)).estado(Estado.ACTIVO).build();
+        CostoDirectoAdicionalEntity corchos = CostoDirectoAdicionalEntity.builder().id(2L).nombre("Corchos").costoPorLitro(BigDecimal.valueOf(0.25)).estado(Estado.ACTIVO).build();
+        when(costoDirectoAdicionalRepository.findAllActivos()).thenReturn(List.of(etiquetas, corchos));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getDetallesCostoDirecto()).hasSize(2);
+
+        DetalleCostoDirectoEntity detalleEtiquetas = lote.getDetallesCostoDirecto().stream()
+                .filter(detalle -> detalle.getCostoDirectoAdicional() == etiquetas).findFirst().orElseThrow();
+        assertThat(detalleEtiquetas.getCostoPorLitroAplicado()).isEqualByComparingTo("0.50");
+        assertThat(detalleEtiquetas.getSubtotal()).isEqualByComparingTo("10.0000");
+        assertThat(detalleEtiquetas.getLote()).isSameAs(lote);
+
+        DetalleCostoDirectoEntity detalleCorchos = lote.getDetallesCostoDirecto().stream()
+                .filter(detalle -> detalle.getCostoDirectoAdicional() == corchos).findFirst().orElseThrow();
+        assertThat(detalleCorchos.getCostoPorLitroAplicado()).isEqualByComparingTo("0.25");
+        assertThat(detalleCorchos.getSubtotal()).isEqualByComparingTo("5.0000");
     }
 
     // ==================== helpers ====================
@@ -1946,7 +1987,6 @@ class LoteServicioImplTest {
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .velocidadEstandarMolienda(50.0)
                 .velocidadEstandarEnvasado(10.0)
-                .tiempoEstandarCip(30.0)
                 .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(80.0)
                 .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)

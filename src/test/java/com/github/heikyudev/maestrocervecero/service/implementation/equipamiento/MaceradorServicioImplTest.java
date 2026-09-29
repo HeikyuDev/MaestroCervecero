@@ -325,41 +325,50 @@ class MaceradorServicioImplTest {
     // ==================== modificarMacerador ====================
 
     @Test
-    @DisplayName("modificarMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es inválida")
+    @DisplayName("modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad útil es inválida")
     void modificarMacerador_debeRechazarCapacidadUtilInvalida() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 120.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class);
 
-        // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
-        verifyNoInteractions(maceradorRepository);
+        // La existencia del macerador se valida antes que las reglas de negocio sobre sus datos
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("modificarMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la eficiencia es inválida")
+    @DisplayName("modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la eficiencia es inválida")
     void modificarMacerador_debeRechazarEficienciaInvalida() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 30.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class);
 
-        verifyNoInteractions(maceradorRepository);
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("modificarMacerador lanza RecursoDuplicadoException y no busca ni persiste cuando el identificador está en uso por otro Equipamiento")
+    @DisplayName("modificarMacerador lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro Equipamiento")
     void modificarMacerador_debeRechazarIdentificadorEnUsoPorOtroEquipamiento() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-EXISTENTE", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-EXISTENTE", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
                 .hasMessage("Ya existe un equipamiento con el identificador interno 'MAC-EXISTENTE'");
 
-        // La verificación de duplicados se ejecuta antes de localizar la entidad por ID
+        verify(maceradorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-EXISTENTE", 1L);
-        verify(maceradorRepository, never()).findById(any());
         verify(maceradorRepository, never()).save(any());
     }
 
@@ -367,7 +376,6 @@ class MaceradorServicioImplTest {
     @DisplayName("modificarMacerador lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarMacerador_debeLanzarExcepcionSiNoExiste() {
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 75.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 99L)).thenReturn(false);
         when(maceradorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(99L, maceradorFormDTO))
@@ -376,6 +384,7 @@ class MaceradorServicioImplTest {
 
         verify(maceradorRepository).findById(99L);
         verify(maceradorRepository, never()).save(any());
+        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
@@ -424,19 +433,23 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-06: modificarMacerador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son inválidos")
+    @DisplayName("CP-MM-06: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento son inválidos")
     void modificarMacerador_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 75.0, 0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
 
-        verifyNoInteractions(maceradorRepository);
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MM-07: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador está asociado a un lote pendiente")
+    @DisplayName("CP-MM-07: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa pendiente de un lote")
     void modificarMacerador_debeRechazarAsociacionALotePendiente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 85.0);
@@ -446,7 +459,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el macerador porque está asociado a un lote pendiente.");
+                .hasMessage("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository, never()).save(any());
@@ -503,7 +516,7 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador está asociado a un lote pendiente")
+    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa pendiente de un lote")
     void bajaMacerador_debeRechazarAsociacionALotePendiente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
@@ -511,7 +524,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque está asociado a un lote pendiente.");
+                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote.");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository, never()).save(any());

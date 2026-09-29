@@ -72,4 +72,19 @@ public interface IDespachoBarrilRepository extends JpaRepository<DespachoBarrilE
      */
     @Query("SELECT MAX(d.fecha) FROM DespachoBarrilEntity d WHERE d.barril.id = :idBarril AND d.estado = 'REGISTRADO'")
     Optional<LocalDateTime> buscarFechaUltimoDespachoRegistrado(@Param("idBarril") Long idBarril);
+
+    /**
+     * Verifica si existe algún despacho de barril en el estado transaccional indicado asociado al
+     * cliente dado.
+     * <p>
+     * Se utiliza para impedir la baja de un cliente que todavía tiene al menos un despacho
+     * {@code REGISTRADO} a su nombre (un barril actualmente en su poder, en estado operativo
+     * {@code DESPACHADO}).
+     * </p>
+     *
+     * @param idCliente El ID del cliente a verificar.
+     * @param estado El estado transaccional a verificar.
+     * @return {@code true} si existe al menos un despacho de barril en ese estado asociado a ese cliente, {@code false} en caso contrario.
+     */
+    boolean existsByClienteIdAndEstado(Long idCliente, EstadoTransaccion estado);
 }
