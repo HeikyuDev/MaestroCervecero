@@ -54,10 +54,10 @@ public interface IInsumoRepository extends JpaRepository<InsumoEntity, Long> {
      * @return Una página de insumos activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT i FROM InsumoEntity i WHERE i.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:tipoClase IS NULL OR TYPE(i) = :tipoClase)",
             countQuery = "SELECT COUNT(i) FROM InsumoEntity i WHERE i.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:tipoClase IS NULL OR TYPE(i) = :tipoClase)")
     Page<InsumoEntity> filtrarInsumos(@Param("nombre") String nombre,
                                        @Param("tipoClase") Class<? extends InsumoEntity> tipoClase,

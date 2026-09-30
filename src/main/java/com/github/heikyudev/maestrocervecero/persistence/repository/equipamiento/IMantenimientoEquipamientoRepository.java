@@ -47,14 +47,14 @@ public interface IMantenimientoEquipamientoRepository extends JpaRepository<Mant
             + "(:idEquipamiento IS NULL OR m.equipamiento.id = :idEquipamiento) "
             + "AND (:tipoClase IS NULL OR TYPE(m.equipamiento) = :tipoClase) "
             + "AND (:estado IS NULL OR m.estado = :estado) "
-            + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
-            + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)",
+            + "AND (CAST(:fechaMantenimientoDesde AS LocalDateTime) IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+            + "AND (CAST(:fechaMantenimientoHasta AS LocalDateTime) IS NULL OR m.fecha <= :fechaMantenimientoHasta)",
             countQuery = "SELECT COUNT(m) FROM MantenimientoEquipamientoEntity m WHERE "
                     + "(:idEquipamiento IS NULL OR m.equipamiento.id = :idEquipamiento) "
                     + "AND (:tipoClase IS NULL OR TYPE(m.equipamiento) = :tipoClase) "
                     + "AND (:estado IS NULL OR m.estado = :estado) "
-                    + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
-                    + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)")
+                    + "AND (CAST(:fechaMantenimientoDesde AS LocalDateTime) IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+                    + "AND (CAST(:fechaMantenimientoHasta AS LocalDateTime) IS NULL OR m.fecha <= :fechaMantenimientoHasta)")
     Page<MantenimientoEquipamientoEntity> filtrarMantenimientosEquipamiento(@Param("idEquipamiento") Long idEquipamiento,
                                                                              @Param("tipoClase") Class<? extends EquipamientoEntity> tipoClase,
                                                                              @Param("estado") EstadoTransaccion estado,

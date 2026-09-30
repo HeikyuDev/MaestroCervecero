@@ -34,10 +34,10 @@ public interface IMolinoRepository extends JpaRepository<MolinoEntity, Long> {
      * @return Una página de molinos activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT mo FROM MolinoEntity mo WHERE mo.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(mo.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(mo.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estadoOperativo IS NULL OR mo.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(mo) FROM MolinoEntity mo WHERE mo.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(mo.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(mo.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR mo.estadoOperativo = :estadoOperativo)")
     Page<MolinoEntity> filtrarMolinos(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 

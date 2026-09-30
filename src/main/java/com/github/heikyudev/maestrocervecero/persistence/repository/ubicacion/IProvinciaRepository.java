@@ -54,10 +54,10 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      * @return Una página de provincias activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT pr FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(pr.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(pr.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:idPais IS NULL OR pr.pais.id = :idPais)",
             countQuery = "SELECT COUNT(pr) FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(pr.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(pr.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:idPais IS NULL OR pr.pais.id = :idPais)")
     Page<ProvinciaEntity> filtrarProvincias(@Param("nombre") String nombre, @Param("idPais") Long idPais, Pageable pageable);
 

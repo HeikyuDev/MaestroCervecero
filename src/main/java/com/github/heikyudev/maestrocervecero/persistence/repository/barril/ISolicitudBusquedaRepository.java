@@ -30,13 +30,13 @@ public interface ISolicitudBusquedaRepository extends JpaRepository<SolicitudBus
      */
     @Query(value = "SELECT s FROM SolicitudBusquedaEntity s WHERE "
             + "(:idDespachoBarril IS NULL OR s.despachoBarril.id = :idDespachoBarril) "
-            + "AND (:fechaBusquedaDesde IS NULL OR s.fechaBusqueda >= :fechaBusquedaDesde) "
-            + "AND (:fechaBusquedaHasta IS NULL OR s.fechaBusqueda <= :fechaBusquedaHasta) "
+            + "AND (CAST(:fechaBusquedaDesde AS LocalDateTime) IS NULL OR s.fechaBusqueda >= :fechaBusquedaDesde) "
+            + "AND (CAST(:fechaBusquedaHasta AS LocalDateTime) IS NULL OR s.fechaBusqueda <= :fechaBusquedaHasta) "
             + "AND (:buscado IS NULL OR s.buscado = :buscado)",
             countQuery = "SELECT COUNT(s) FROM SolicitudBusquedaEntity s WHERE "
                     + "(:idDespachoBarril IS NULL OR s.despachoBarril.id = :idDespachoBarril) "
-                    + "AND (:fechaBusquedaDesde IS NULL OR s.fechaBusqueda >= :fechaBusquedaDesde) "
-                    + "AND (:fechaBusquedaHasta IS NULL OR s.fechaBusqueda <= :fechaBusquedaHasta) "
+                    + "AND (CAST(:fechaBusquedaDesde AS LocalDateTime) IS NULL OR s.fechaBusqueda >= :fechaBusquedaDesde) "
+                    + "AND (CAST(:fechaBusquedaHasta AS LocalDateTime) IS NULL OR s.fechaBusqueda <= :fechaBusquedaHasta) "
                     + "AND (:buscado IS NULL OR s.buscado = :buscado)")
     Page<SolicitudBusquedaEntity> filtrarSolicitudesBusqueda(@Param("idDespachoBarril") Long idDespachoBarril,
                                                               @Param("fechaBusquedaDesde") LocalDateTime fechaBusquedaDesde,

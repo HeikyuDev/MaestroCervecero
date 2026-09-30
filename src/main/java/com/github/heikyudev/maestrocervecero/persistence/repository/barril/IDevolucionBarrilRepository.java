@@ -42,13 +42,13 @@ public interface IDevolucionBarrilRepository extends JpaRepository<DevolucionBar
     @Query(value = "SELECT dv FROM DevolucionBarrilEntity dv WHERE "
             + "(:estado IS NULL OR dv.estado = :estado) "
             + "AND (:idBarril IS NULL OR dv.barril.id = :idBarril) "
-            + "AND (:fechaDevolucionDesde IS NULL OR dv.fecha >= :fechaDevolucionDesde) "
-            + "AND (:fechaDevolucionHasta IS NULL OR dv.fecha <= :fechaDevolucionHasta)",
+            + "AND (CAST(:fechaDevolucionDesde AS LocalDateTime) IS NULL OR dv.fecha >= :fechaDevolucionDesde) "
+            + "AND (CAST(:fechaDevolucionHasta AS LocalDateTime) IS NULL OR dv.fecha <= :fechaDevolucionHasta)",
             countQuery = "SELECT COUNT(dv) FROM DevolucionBarrilEntity dv WHERE "
                     + "(:estado IS NULL OR dv.estado = :estado) "
                     + "AND (:idBarril IS NULL OR dv.barril.id = :idBarril) "
-                    + "AND (:fechaDevolucionDesde IS NULL OR dv.fecha >= :fechaDevolucionDesde) "
-                    + "AND (:fechaDevolucionHasta IS NULL OR dv.fecha <= :fechaDevolucionHasta)")
+                    + "AND (CAST(:fechaDevolucionDesde AS LocalDateTime) IS NULL OR dv.fecha >= :fechaDevolucionDesde) "
+                    + "AND (CAST(:fechaDevolucionHasta AS LocalDateTime) IS NULL OR dv.fecha <= :fechaDevolucionHasta)")
     Page<DevolucionBarrilEntity> filtrarDevolucionesBarril(@Param("estado") EstadoTransaccion estado,
                                                             @Param("idBarril") Long idBarril,
                                                             @Param("fechaDevolucionDesde") LocalDateTime fechaDevolucionDesde,

@@ -43,9 +43,9 @@ public interface IParametroControlRepository extends JpaRepository<ParametroCont
      * @return Una página de parámetros de control activos que cumplen el criterio indicado.
      */
     @Query(value = "SELECT pc FROM ParametroControlEntity pc WHERE pc.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))",
+            + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))",
             countQuery = "SELECT COUNT(pc) FROM ParametroControlEntity pc WHERE pc.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))")
+                    + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
     Page<ParametroControlEntity> filtrarParametrosControl(@Param("nombre") String nombre, Pageable pageable);
 
     /**

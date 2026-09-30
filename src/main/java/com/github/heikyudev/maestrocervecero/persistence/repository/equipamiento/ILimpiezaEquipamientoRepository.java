@@ -47,14 +47,14 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
             + "(:idEquipamiento IS NULL OR l.equipamiento.id = :idEquipamiento) "
             + "AND (:tipoClase IS NULL OR TYPE(l.equipamiento) = :tipoClase) "
             + "AND (:estado IS NULL OR l.estado = :estado) "
-            + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
-            + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)",
+            + "AND (CAST(:fechaLimpiezaDesde AS LocalDateTime) IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+            + "AND (CAST(:fechaLimpiezaHasta AS LocalDateTime) IS NULL OR l.fecha <= :fechaLimpiezaHasta)",
             countQuery = "SELECT COUNT(l) FROM LimpiezaEquipamientoEntity l WHERE "
                     + "(:idEquipamiento IS NULL OR l.equipamiento.id = :idEquipamiento) "
                     + "AND (:tipoClase IS NULL OR TYPE(l.equipamiento) = :tipoClase) "
                     + "AND (:estado IS NULL OR l.estado = :estado) "
-                    + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
-                    + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)")
+                    + "AND (CAST(:fechaLimpiezaDesde AS LocalDateTime) IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+                    + "AND (CAST(:fechaLimpiezaHasta AS LocalDateTime) IS NULL OR l.fecha <= :fechaLimpiezaHasta)")
     Page<LimpiezaEquipamientoEntity> filtrarLimpiezasEquipamiento(@Param("idEquipamiento") Long idEquipamiento,
                                                                    @Param("tipoClase") Class<? extends EquipamientoEntity> tipoClase,
                                                                    @Param("estado") EstadoTransaccion estado,
@@ -78,7 +78,7 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
      */
     @Query("SELECT COUNT(l) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento "
             + "AND l.estado = 'REGISTRADO' "
-            + "AND (:fechaDesde IS NULL OR l.fecha > :fechaDesde)")
+            + "AND (CAST(:fechaDesde AS LocalDateTime) IS NULL OR l.fecha > :fechaDesde)")
     long contarLimpiezasRegistradasDesde(@Param("idEquipamiento") Long idEquipamiento, @Param("fechaDesde") LocalDateTime fechaDesde);
 
     /**

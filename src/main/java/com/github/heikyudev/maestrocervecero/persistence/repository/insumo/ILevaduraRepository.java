@@ -45,10 +45,10 @@ public interface ILevaduraRepository extends JpaRepository<LevaduraEntity, Long>
      * @return Una página de levaduras activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT lv FROM LevaduraEntity lv WHERE lv.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(lv.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(lv.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:tipo IS NULL OR lv.tipo = :tipo)",
             countQuery = "SELECT COUNT(lv) FROM LevaduraEntity lv WHERE lv.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(lv.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(lv.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:tipo IS NULL OR lv.tipo = :tipo)")
     Page<LevaduraEntity> filtrarLevaduras(@Param("nombre") String nombre, @Param("tipo") TipoLevadura tipo, Pageable pageable);
 

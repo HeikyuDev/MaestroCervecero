@@ -76,13 +76,13 @@ public interface IIngresoInsumoRepository extends JpaRepository<IngresoInsumoEnt
      */
     @Query(value = "SELECT i FROM IngresoInsumoEntity i WHERE "
             + "(:idInsumo IS NULL OR i.loteInsumo.insumo.id = :idInsumo) "
-            + "AND (:identificacionLoteProveedor IS NULL OR UPPER(i.loteInsumo.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', :identificacionLoteProveedor, '%'))) "
+            + "AND (:identificacionLoteProveedor IS NULL OR UPPER(i.loteInsumo.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacionLoteProveedor AS string), '%'))) "
             + "AND (:estado IS NULL OR i.estado = :estado) "
             + "AND (:tipoIngreso IS NULL OR i.tipoIngreso = :tipoIngreso) "
             + "AND (:fechaIngreso IS NULL OR i.fechaIngreso = :fechaIngreso)",
             countQuery = "SELECT COUNT(i) FROM IngresoInsumoEntity i WHERE "
                     + "(:idInsumo IS NULL OR i.loteInsumo.insumo.id = :idInsumo) "
-                    + "AND (:identificacionLoteProveedor IS NULL OR UPPER(i.loteInsumo.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', :identificacionLoteProveedor, '%'))) "
+                    + "AND (:identificacionLoteProveedor IS NULL OR UPPER(i.loteInsumo.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacionLoteProveedor AS string), '%'))) "
                     + "AND (:estado IS NULL OR i.estado = :estado) "
                     + "AND (:tipoIngreso IS NULL OR i.tipoIngreso = :tipoIngreso) "
                     + "AND (:fechaIngreso IS NULL OR i.fechaIngreso = :fechaIngreso)")

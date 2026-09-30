@@ -45,10 +45,10 @@ public interface ILupuloRepository extends JpaRepository<LupuloEntity, Long> {
      * @return Una página de lúpulos activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT l FROM LupuloEntity l WHERE l.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:formato IS NULL OR l.formato = :formato)",
             countQuery = "SELECT COUNT(l) FROM LupuloEntity l WHERE l.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:formato IS NULL OR l.formato = :formato)")
     Page<LupuloEntity> filtrarLupulos(@Param("nombre") String nombre, @Param("formato") FormatoLupulo formato, Pageable pageable);
 

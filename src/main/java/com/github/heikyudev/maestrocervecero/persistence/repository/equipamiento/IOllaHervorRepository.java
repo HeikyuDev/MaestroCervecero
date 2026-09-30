@@ -34,10 +34,10 @@ public interface IOllaHervorRepository extends JpaRepository<OllaHervorEntity, L
      * @return Una página de ollas de hervor activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT o FROM OllaHervorEntity o WHERE o.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(o.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(o.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estadoOperativo IS NULL OR o.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(o) FROM OllaHervorEntity o WHERE o.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(o.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(o.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR o.estadoOperativo = :estadoOperativo)")
     Page<OllaHervorEntity> filtrarOllasHervor(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 

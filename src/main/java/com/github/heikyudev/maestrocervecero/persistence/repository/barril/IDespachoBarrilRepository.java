@@ -44,14 +44,14 @@ public interface IDespachoBarrilRepository extends JpaRepository<DespachoBarrilE
             + "(:estado IS NULL OR d.estado = :estado) "
             + "AND (:idBarril IS NULL OR d.barril.id = :idBarril) "
             + "AND (:idCliente IS NULL OR d.cliente.id = :idCliente) "
-            + "AND (:fechaDespachoDesde IS NULL OR d.fecha >= :fechaDespachoDesde) "
-            + "AND (:fechaDespachoHasta IS NULL OR d.fecha <= :fechaDespachoHasta)",
+            + "AND (CAST(:fechaDespachoDesde AS LocalDateTime) IS NULL OR d.fecha >= :fechaDespachoDesde) "
+            + "AND (CAST(:fechaDespachoHasta AS LocalDateTime) IS NULL OR d.fecha <= :fechaDespachoHasta)",
             countQuery = "SELECT COUNT(d) FROM DespachoBarrilEntity d WHERE "
                     + "(:estado IS NULL OR d.estado = :estado) "
                     + "AND (:idBarril IS NULL OR d.barril.id = :idBarril) "
                     + "AND (:idCliente IS NULL OR d.cliente.id = :idCliente) "
-                    + "AND (:fechaDespachoDesde IS NULL OR d.fecha >= :fechaDespachoDesde) "
-                    + "AND (:fechaDespachoHasta IS NULL OR d.fecha <= :fechaDespachoHasta)")
+                    + "AND (CAST(:fechaDespachoDesde AS LocalDateTime) IS NULL OR d.fecha >= :fechaDespachoDesde) "
+                    + "AND (CAST(:fechaDespachoHasta AS LocalDateTime) IS NULL OR d.fecha <= :fechaDespachoHasta)")
     Page<DespachoBarrilEntity> filtrarDespachosBarril(@Param("estado") EstadoTransaccion estado,
                                                        @Param("idBarril") Long idBarril,
                                                        @Param("idCliente") Long idCliente,

@@ -45,13 +45,13 @@ public interface IFabricanteBarrilRepository extends JpaRepository<FabricanteBar
      * @return Una página de fabricantes de barril activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT f FROM FabricanteBarrilEntity f WHERE f.estado = 'ACTIVO' "
-            + "AND (:razonSocial IS NULL OR UPPER(f.razonSocial) LIKE UPPER(CONCAT('%', :razonSocial, '%'))) "
-            + "AND (:nombreComercial IS NULL OR UPPER(f.nombreComercial) LIKE UPPER(CONCAT('%', :nombreComercial, '%'))) "
-            + "AND (:cuit IS NULL OR UPPER(f.cuit) LIKE UPPER(CONCAT('%', :cuit, '%')))",
+            + "AND (:razonSocial IS NULL OR UPPER(f.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
+            + "AND (:nombreComercial IS NULL OR UPPER(f.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
+            + "AND (:cuit IS NULL OR UPPER(f.cuit) LIKE UPPER(CONCAT('%', CAST(:cuit AS string), '%')))",
             countQuery = "SELECT COUNT(f) FROM FabricanteBarrilEntity f WHERE f.estado = 'ACTIVO' "
-                    + "AND (:razonSocial IS NULL OR UPPER(f.razonSocial) LIKE UPPER(CONCAT('%', :razonSocial, '%'))) "
-                    + "AND (:nombreComercial IS NULL OR UPPER(f.nombreComercial) LIKE UPPER(CONCAT('%', :nombreComercial, '%'))) "
-                    + "AND (:cuit IS NULL OR UPPER(f.cuit) LIKE UPPER(CONCAT('%', :cuit, '%')))")
+                    + "AND (:razonSocial IS NULL OR UPPER(f.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
+                    + "AND (:nombreComercial IS NULL OR UPPER(f.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
+                    + "AND (:cuit IS NULL OR UPPER(f.cuit) LIKE UPPER(CONCAT('%', CAST(:cuit AS string), '%')))")
     Page<FabricanteBarrilEntity> filtrarFabricantesBarril(@Param("razonSocial") String razonSocial,
                                                            @Param("nombreComercial") String nombreComercial,
                                                            @Param("cuit") String cuit,

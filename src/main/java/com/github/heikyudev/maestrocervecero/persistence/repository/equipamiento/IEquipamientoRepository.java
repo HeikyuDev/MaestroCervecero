@@ -50,11 +50,11 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
      * @return Una página de equipamientos activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT e FROM EquipamientoEntity e WHERE e.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:tipoClase IS NULL OR TYPE(e) = :tipoClase) "
             + "AND (:estadoOperativo IS NULL OR e.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(e) FROM EquipamientoEntity e WHERE e.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:tipoClase IS NULL OR TYPE(e) = :tipoClase) "
                     + "AND (:estadoOperativo IS NULL OR e.estadoOperativo = :estadoOperativo)")
     Page<EquipamientoEntity> filtrarEquipamientos(@Param("identificadorInterno") String identificadorInterno,

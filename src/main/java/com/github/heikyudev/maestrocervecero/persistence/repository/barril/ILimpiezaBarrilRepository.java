@@ -42,13 +42,13 @@ public interface ILimpiezaBarrilRepository extends JpaRepository<LimpiezaBarrilE
     @Query(value = "SELECT l FROM LimpiezaBarrilEntity l WHERE "
             + "(:estado IS NULL OR l.estado = :estado) "
             + "AND (:idBarril IS NULL OR l.barril.id = :idBarril) "
-            + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
-            + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)",
+            + "AND (CAST(:fechaLimpiezaDesde AS LocalDateTime) IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+            + "AND (CAST(:fechaLimpiezaHasta AS LocalDateTime) IS NULL OR l.fecha <= :fechaLimpiezaHasta)",
             countQuery = "SELECT COUNT(l) FROM LimpiezaBarrilEntity l WHERE "
                     + "(:estado IS NULL OR l.estado = :estado) "
                     + "AND (:idBarril IS NULL OR l.barril.id = :idBarril) "
-                    + "AND (:fechaLimpiezaDesde IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
-                    + "AND (:fechaLimpiezaHasta IS NULL OR l.fecha <= :fechaLimpiezaHasta)")
+                    + "AND (CAST(:fechaLimpiezaDesde AS LocalDateTime) IS NULL OR l.fecha >= :fechaLimpiezaDesde) "
+                    + "AND (CAST(:fechaLimpiezaHasta AS LocalDateTime) IS NULL OR l.fecha <= :fechaLimpiezaHasta)")
     Page<LimpiezaBarrilEntity> filtrarLimpiezasBarril(@Param("estado") EstadoTransaccion estado,
                                                        @Param("idBarril") Long idBarril,
                                                        @Param("fechaLimpiezaDesde") LocalDateTime fechaLimpiezaDesde,
@@ -71,7 +71,7 @@ public interface ILimpiezaBarrilRepository extends JpaRepository<LimpiezaBarrilE
      */
     @Query("SELECT COUNT(l) FROM LimpiezaBarrilEntity l WHERE l.barril.id = :idBarril "
             + "AND l.estado = 'REGISTRADO' "
-            + "AND (:fechaDesde IS NULL OR l.fecha > :fechaDesde)")
+            + "AND (CAST(:fechaDesde AS LocalDateTime) IS NULL OR l.fecha > :fechaDesde)")
     long contarLimpiezasRegistradasDesde(@Param("idBarril") Long idBarril, @Param("fechaDesde") LocalDateTime fechaDesde);
 
     /**

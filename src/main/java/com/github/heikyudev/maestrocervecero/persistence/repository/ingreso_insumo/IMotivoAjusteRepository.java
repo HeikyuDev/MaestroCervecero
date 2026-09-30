@@ -56,10 +56,10 @@ public interface IMotivoAjusteRepository extends JpaRepository<MotivoAjusteEntit
      * @return Una página de motivos de ajuste activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT ma FROM MotivoAjusteEntity ma WHERE ma.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(ma.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(ma.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:tipoAjuste IS NULL OR ma.tipoAjuste = :tipoAjuste)",
             countQuery = "SELECT COUNT(ma) FROM MotivoAjusteEntity ma WHERE ma.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(ma.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(ma.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:tipoAjuste IS NULL OR ma.tipoAjuste = :tipoAjuste)")
     Page<MotivoAjusteEntity> filtrarMotivosAjuste(@Param("nombre") String nombre, @Param("tipoAjuste") TipoAjuste tipoAjuste, Pageable pageable);
 

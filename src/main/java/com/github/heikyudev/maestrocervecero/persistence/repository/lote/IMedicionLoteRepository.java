@@ -60,13 +60,13 @@ public interface IMedicionLoteRepository extends JpaRepository<MedicionLoteEntit
     @Query(value = "SELECT m FROM MedicionLoteEntity m WHERE m.etapaLote.id = :idEtapaLote "
             + "AND m.detalleParametroControl.id = :idDetalleParametroControl "
             + "AND (:estado IS NULL OR m.estado = :estado) "
-            + "AND (:fechaMedicionDesde IS NULL OR m.fechaMedicion >= :fechaMedicionDesde) "
-            + "AND (:fechaMedicionHasta IS NULL OR m.fechaMedicion <= :fechaMedicionHasta)",
+            + "AND (CAST(:fechaMedicionDesde AS LocalDateTime) IS NULL OR m.fechaMedicion >= :fechaMedicionDesde) "
+            + "AND (CAST(:fechaMedicionHasta AS LocalDateTime) IS NULL OR m.fechaMedicion <= :fechaMedicionHasta)",
             countQuery = "SELECT COUNT(m) FROM MedicionLoteEntity m WHERE m.etapaLote.id = :idEtapaLote "
                     + "AND m.detalleParametroControl.id = :idDetalleParametroControl "
                     + "AND (:estado IS NULL OR m.estado = :estado) "
-                    + "AND (:fechaMedicionDesde IS NULL OR m.fechaMedicion >= :fechaMedicionDesde) "
-                    + "AND (:fechaMedicionHasta IS NULL OR m.fechaMedicion <= :fechaMedicionHasta)")
+                    + "AND (CAST(:fechaMedicionDesde AS LocalDateTime) IS NULL OR m.fechaMedicion >= :fechaMedicionDesde) "
+                    + "AND (CAST(:fechaMedicionHasta AS LocalDateTime) IS NULL OR m.fechaMedicion <= :fechaMedicionHasta)")
     Page<MedicionLoteEntity> filtrarMedicionesLote(@Param("idEtapaLote") Long idEtapaLote,
                                                     @Param("idDetalleParametroControl") Long idDetalleParametroControl,
                                                     @Param("estado") EstadoTransaccion estado,

@@ -58,13 +58,13 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      */
     @Query(value = "SELECT l FROM LoteEntity l WHERE "
             + "(:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
-            + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estado IS NULL OR l.estado = :estado) "
             + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
             + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo)",
             countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE "
                     + "(:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estado IS NULL OR l.estado = :estado) "
                     + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
                     + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo)")

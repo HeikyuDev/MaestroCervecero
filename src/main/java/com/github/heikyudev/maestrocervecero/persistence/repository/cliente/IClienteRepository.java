@@ -56,12 +56,12 @@ public interface IClienteRepository extends JpaRepository<ClienteEntity, Long> {
      * @return Una página de clientes activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT c FROM ClienteEntity c WHERE c.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(c.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
-            + "AND (:direccion IS NULL OR UPPER(c.direccion) LIKE UPPER(CONCAT('%', :direccion, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(c.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
+            + "AND (:direccion IS NULL OR UPPER(c.direccion) LIKE UPPER(CONCAT('%', CAST(:direccion AS string), '%'))) "
             + "AND (:idLocalidad IS NULL OR c.localidad.id = :idLocalidad)",
             countQuery = "SELECT COUNT(c) FROM ClienteEntity c WHERE c.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(c.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
-                    + "AND (:direccion IS NULL OR UPPER(c.direccion) LIKE UPPER(CONCAT('%', :direccion, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(c.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
+                    + "AND (:direccion IS NULL OR UPPER(c.direccion) LIKE UPPER(CONCAT('%', CAST(:direccion AS string), '%'))) "
                     + "AND (:idLocalidad IS NULL OR c.localidad.id = :idLocalidad)")
     Page<ClienteEntity> filtrarClientes(@Param("nombre") String nombre,
                                          @Param("direccion") String direccion,

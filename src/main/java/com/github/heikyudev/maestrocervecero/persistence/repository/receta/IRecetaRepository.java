@@ -51,9 +51,9 @@ public interface IRecetaRepository extends JpaRepository<RecetaEntity, Long> {
      * @return Una página de recetas activas que cumplen el criterio indicado.
      */
     @Query(value = "SELECT r FROM RecetaEntity r JOIN r.versiones v WHERE r.estado = 'ACTIVO' AND v.esUltimaVersion = true "
-            + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))",
+            + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))",
             countQuery = "SELECT COUNT(r) FROM RecetaEntity r JOIN r.versiones v WHERE r.estado = 'ACTIVO' AND v.esUltimaVersion = true "
-                    + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))")
+                    + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
     Page<RecetaEntity> filtrarRecetas(@Param("nombre") String nombre, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

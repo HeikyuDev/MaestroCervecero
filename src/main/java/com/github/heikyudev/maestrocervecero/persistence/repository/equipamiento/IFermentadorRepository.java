@@ -34,10 +34,10 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
      * @return Una página de fermentadores activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT f FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(f) FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)")
     Page<FermentadorEntity> filtrarFermentadores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 

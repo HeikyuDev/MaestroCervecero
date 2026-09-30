@@ -34,10 +34,10 @@ public interface IMaceradorRepository extends JpaRepository<MaceradorEntity, Lon
      * @return Una página de maceradores activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT m FROM MaceradorEntity m WHERE m.estado = 'ACTIVO' "
-            + "AND (:identificadorInterno IS NULL OR UPPER(m.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(m.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estadoOperativo IS NULL OR m.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(m) FROM MaceradorEntity m WHERE m.estado = 'ACTIVO' "
-                    + "AND (:identificadorInterno IS NULL OR UPPER(m.identificadorInterno) LIKE UPPER(CONCAT('%', :identificadorInterno, '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(m.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR m.estadoOperativo = :estadoOperativo)")
     Page<MaceradorEntity> filtrarMaceradores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 

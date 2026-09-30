@@ -57,13 +57,13 @@ public interface IProveedorRepository extends JpaRepository<ProveedorEntity, Lon
      * @return Una página de proveedores activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT p FROM ProveedorEntity p JOIN p.versiones v WHERE p.estado = 'ACTIVO' AND v.esUltimaVersion = true "
-            + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', :razonSocial, '%'))) "
-            + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', :nombreComercial, '%'))) "
+            + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
+            + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
             + "AND (:cuit IS NULL OR v.cuit = :cuit) "
             + "AND (:idLocalidad IS NULL OR v.localidad.id = :idLocalidad)",
             countQuery = "SELECT COUNT(p) FROM ProveedorEntity p JOIN p.versiones v WHERE p.estado = 'ACTIVO' AND v.esUltimaVersion = true "
-                    + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', :razonSocial, '%'))) "
-                    + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', :nombreComercial, '%'))) "
+                    + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
+                    + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
                     + "AND (:cuit IS NULL OR v.cuit = :cuit) "
                     + "AND (:idLocalidad IS NULL OR v.localidad.id = :idLocalidad)")
     Page<ProveedorEntity> filtrarProveedores(@Param("razonSocial") String razonSocial,

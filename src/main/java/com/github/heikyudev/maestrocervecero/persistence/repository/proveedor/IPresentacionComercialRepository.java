@@ -56,11 +56,11 @@ public interface IPresentacionComercialRepository extends JpaRepository<Presenta
      * @return Una página de presentaciones comerciales activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT pc FROM PresentacionComercialEntity pc WHERE pc.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:cantidad IS NULL OR pc.cantidad = :cantidad) "
             + "AND (:unidadDeMedida IS NULL OR pc.unidadDeMedida = :unidadDeMedida)",
             countQuery = "SELECT COUNT(pc) FROM PresentacionComercialEntity pc WHERE pc.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(pc.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:cantidad IS NULL OR pc.cantidad = :cantidad) "
                     + "AND (:unidadDeMedida IS NULL OR pc.unidadDeMedida = :unidadDeMedida)")
     Page<PresentacionComercialEntity> filtrarPresentacionesComerciales(@Param("nombre") String nombre,

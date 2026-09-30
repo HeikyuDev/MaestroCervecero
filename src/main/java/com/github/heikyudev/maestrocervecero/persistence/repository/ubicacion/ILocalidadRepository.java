@@ -58,12 +58,12 @@ public interface ILocalidadRepository extends JpaRepository<LocalidadEntity, Lon
      * @return Una página de localidades activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT l FROM LocalidadEntity l WHERE l.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:codigoPostal IS NULL OR l.codigoPostal = :codigoPostal) "
             + "AND (:idProvincia IS NULL OR l.provincia.id = :idProvincia) "
             + "AND (:idPais IS NULL OR l.provincia.pais.id = :idPais)",
             countQuery = "SELECT COUNT(l) FROM LocalidadEntity l WHERE l.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(l.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:codigoPostal IS NULL OR l.codigoPostal = :codigoPostal) "
                     + "AND (:idProvincia IS NULL OR l.provincia.id = :idProvincia) "
                     + "AND (:idPais IS NULL OR l.provincia.pais.id = :idPais)")

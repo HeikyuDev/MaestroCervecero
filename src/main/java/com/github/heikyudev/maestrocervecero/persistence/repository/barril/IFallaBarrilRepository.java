@@ -42,13 +42,13 @@ public interface IFallaBarrilRepository extends JpaRepository<FallaBarrilEntity,
     @Query(value = "SELECT f FROM FallaBarrilEntity f WHERE "
             + "(:estado IS NULL OR f.estado = :estado) "
             + "AND (:idBarril IS NULL OR f.barril.id = :idBarril) "
-            + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
-            + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta)",
+            + "AND (CAST(:fechaFallaDesde AS LocalDateTime) IS NULL OR f.fecha >= :fechaFallaDesde) "
+            + "AND (CAST(:fechaFallaHasta AS LocalDateTime) IS NULL OR f.fecha <= :fechaFallaHasta)",
             countQuery = "SELECT COUNT(f) FROM FallaBarrilEntity f WHERE "
                     + "(:estado IS NULL OR f.estado = :estado) "
                     + "AND (:idBarril IS NULL OR f.barril.id = :idBarril) "
-                    + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
-                    + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta)")
+                    + "AND (CAST(:fechaFallaDesde AS LocalDateTime) IS NULL OR f.fecha >= :fechaFallaDesde) "
+                    + "AND (CAST(:fechaFallaHasta AS LocalDateTime) IS NULL OR f.fecha <= :fechaFallaHasta)")
     Page<FallaBarrilEntity> filtrarFallasBarril(@Param("estado") EstadoTransaccion estado,
                                                  @Param("idBarril") Long idBarril,
                                                  @Param("fechaFallaDesde") LocalDateTime fechaFallaDesde,

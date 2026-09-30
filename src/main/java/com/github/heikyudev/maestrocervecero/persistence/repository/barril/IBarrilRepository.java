@@ -47,11 +47,11 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
      * @return Una página de barriles activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT b FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-            + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', :identificador, '%'))) "
+            + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', CAST(:identificador AS string), '%'))) "
             + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
             + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-                    + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', :identificador, '%'))) "
+                    + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', CAST(:identificador AS string), '%'))) "
                     + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
                     + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo)")
     Page<BarrilEntity> filtrarBarriles(@Param("identificador") String identificador,

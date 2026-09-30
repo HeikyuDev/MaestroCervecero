@@ -42,13 +42,13 @@ public interface IMantenimientoBarrilRepository extends JpaRepository<Mantenimie
     @Query(value = "SELECT m FROM MantenimientoBarrilEntity m WHERE "
             + "(:idBarril IS NULL OR m.barril.id = :idBarril) "
             + "AND (:estado IS NULL OR m.estado = :estado) "
-            + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
-            + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)",
+            + "AND (CAST(:fechaMantenimientoDesde AS LocalDateTime) IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+            + "AND (CAST(:fechaMantenimientoHasta AS LocalDateTime) IS NULL OR m.fecha <= :fechaMantenimientoHasta)",
             countQuery = "SELECT COUNT(m) FROM MantenimientoBarrilEntity m WHERE "
                     + "(:idBarril IS NULL OR m.barril.id = :idBarril) "
                     + "AND (:estado IS NULL OR m.estado = :estado) "
-                    + "AND (:fechaMantenimientoDesde IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
-                    + "AND (:fechaMantenimientoHasta IS NULL OR m.fecha <= :fechaMantenimientoHasta)")
+                    + "AND (CAST(:fechaMantenimientoDesde AS LocalDateTime) IS NULL OR m.fecha >= :fechaMantenimientoDesde) "
+                    + "AND (CAST(:fechaMantenimientoHasta AS LocalDateTime) IS NULL OR m.fecha <= :fechaMantenimientoHasta)")
     Page<MantenimientoBarrilEntity> filtrarMantenimientosBarril(@Param("idBarril") Long idBarril,
                                                                  @Param("estado") EstadoTransaccion estado,
                                                                  @Param("fechaMantenimientoDesde") LocalDateTime fechaMantenimientoDesde,

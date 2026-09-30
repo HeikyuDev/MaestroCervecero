@@ -45,10 +45,10 @@ public interface IEtapaControlRepository extends JpaRepository<EtapaControlEntit
      * @return Una página de etapas de control activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT e FROM EtapaControlEntity e WHERE e.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(e.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(e.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:etapa IS NULL OR e.etapaAControlar = :etapa)",
             countQuery = "SELECT COUNT(e) FROM EtapaControlEntity e WHERE e.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(e.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(e.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:etapa IS NULL OR e.etapaAControlar = :etapa)")
     Page<EtapaControlEntity> filtrarEtapasControl(@Param("nombre") String nombre, @Param("etapa") TipoEtapa etapa, Pageable pageable);
 

@@ -45,14 +45,14 @@ public interface IFallaEquipamientoRepository extends JpaRepository<FallaEquipam
     @Query(value = "SELECT f FROM FallaEquipamientoEntity f WHERE "
             + "(:idEquipamiento IS NULL OR f.equipamiento.id = :idEquipamiento) "
             + "AND (:estado IS NULL OR f.estado = :estado) "
-            + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
-            + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta) "
+            + "AND (CAST(:fechaFallaDesde AS LocalDateTime) IS NULL OR f.fecha >= :fechaFallaDesde) "
+            + "AND (CAST(:fechaFallaHasta AS LocalDateTime) IS NULL OR f.fecha <= :fechaFallaHasta) "
             + "AND (:tipoClase IS NULL OR TYPE(f.equipamiento) = :tipoClase)",
             countQuery = "SELECT COUNT(f) FROM FallaEquipamientoEntity f WHERE "
                     + "(:idEquipamiento IS NULL OR f.equipamiento.id = :idEquipamiento) "
                     + "AND (:estado IS NULL OR f.estado = :estado) "
-                    + "AND (:fechaFallaDesde IS NULL OR f.fecha >= :fechaFallaDesde) "
-                    + "AND (:fechaFallaHasta IS NULL OR f.fecha <= :fechaFallaHasta) "
+                    + "AND (CAST(:fechaFallaDesde AS LocalDateTime) IS NULL OR f.fecha >= :fechaFallaDesde) "
+                    + "AND (CAST(:fechaFallaHasta AS LocalDateTime) IS NULL OR f.fecha <= :fechaFallaHasta) "
                     + "AND (:tipoClase IS NULL OR TYPE(f.equipamiento) = :tipoClase)")
     Page<FallaEquipamientoEntity> filtrarFallasEquipamiento(@Param("idEquipamiento") Long idEquipamiento,
                                                              @Param("estado") EstadoTransaccion estado,

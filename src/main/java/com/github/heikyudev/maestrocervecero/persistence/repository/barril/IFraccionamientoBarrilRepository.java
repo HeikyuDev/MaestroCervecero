@@ -42,13 +42,13 @@ public interface IFraccionamientoBarrilRepository extends JpaRepository<Fraccion
     @Query(value = "SELECT f FROM FraccionamientoBarrilEntity f WHERE "
             + "(:estado IS NULL OR f.estado = :estado) "
             + "AND (:idBarril IS NULL OR f.barril.id = :idBarril) "
-            + "AND (:fechaDesde IS NULL OR f.fecha >= :fechaDesde) "
-            + "AND (:fechaHasta IS NULL OR f.fecha <= :fechaHasta)",
+            + "AND (CAST(:fechaDesde AS LocalDateTime) IS NULL OR f.fecha >= :fechaDesde) "
+            + "AND (CAST(:fechaHasta AS LocalDateTime) IS NULL OR f.fecha <= :fechaHasta)",
             countQuery = "SELECT COUNT(f) FROM FraccionamientoBarrilEntity f WHERE "
                     + "(:estado IS NULL OR f.estado = :estado) "
                     + "AND (:idBarril IS NULL OR f.barril.id = :idBarril) "
-                    + "AND (:fechaDesde IS NULL OR f.fecha >= :fechaDesde) "
-                    + "AND (:fechaHasta IS NULL OR f.fecha <= :fechaHasta)")
+                    + "AND (CAST(:fechaDesde AS LocalDateTime) IS NULL OR f.fecha >= :fechaDesde) "
+                    + "AND (CAST(:fechaHasta AS LocalDateTime) IS NULL OR f.fecha <= :fechaHasta)")
     Page<FraccionamientoBarrilEntity> filtrarFraccionamientosBarril(@Param("estado") EstadoTransaccion estado,
                                                                      @Param("idBarril") Long idBarril,
                                                                      @Param("fechaDesde") LocalDateTime fechaDesde,

@@ -52,9 +52,9 @@ public interface IPaisRepository extends JpaRepository<PaisEntity, Long> {
      * @return Una página de países activos que cumplen el criterio indicado.
      */
     @Query(value = "SELECT p FROM PaisEntity p WHERE p.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))",
+            + "AND (:nombre IS NULL OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))",
             countQuery = "SELECT COUNT(p) FROM PaisEntity p WHERE p.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', :nombre, '%')))")
+                    + "AND (:nombre IS NULL OR UPPER(p.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
     Page<PaisEntity> filtrarPaises(@Param("nombre") String nombre, Pageable pageable);
 
     /**

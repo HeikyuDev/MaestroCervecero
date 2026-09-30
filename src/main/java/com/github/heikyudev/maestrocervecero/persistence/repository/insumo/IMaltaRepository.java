@@ -45,10 +45,10 @@ public interface IMaltaRepository extends JpaRepository<MaltaEntity, Long> {
      * @return Una página de maltas activas que cumplen los criterios indicados.
      */
     @Query(value = "SELECT m FROM MaltaEntity m WHERE m.estado = 'ACTIVO' "
-            + "AND (:nombre IS NULL OR UPPER(m.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+            + "AND (:nombre IS NULL OR UPPER(m.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
             + "AND (:tipo IS NULL OR m.tipo = :tipo)",
             countQuery = "SELECT COUNT(m) FROM MaltaEntity m WHERE m.estado = 'ACTIVO' "
-                    + "AND (:nombre IS NULL OR UPPER(m.nombre) LIKE UPPER(CONCAT('%', :nombre, '%'))) "
+                    + "AND (:nombre IS NULL OR UPPER(m.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
                     + "AND (:tipo IS NULL OR m.tipo = :tipo)")
     Page<MaltaEntity> filtrarMaltas(@Param("nombre") String nombre, @Param("tipo") TipoMalta tipo, Pageable pageable);
 
