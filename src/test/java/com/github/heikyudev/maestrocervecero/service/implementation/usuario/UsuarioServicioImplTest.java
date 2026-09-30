@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,47 +43,49 @@ class UsuarioServicioImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    private static final String APELLIDO = "Apellido Prueba";
+
     @InjectMocks
     private UsuarioServicioImpl usuarioServicio;
 
     // ==================== filtrarUsuarios ====================
 
     @Test
-    @DisplayName("CP-FU-01: filtrarUsuarios retorna una página de usuarios correctamente mapeada a DTO cuando se filtra por nombre, correo, username y rol")
+    @DisplayName("CP-FU-01: filtrarUsuarios retorna una página de usuarios correctamente mapeada a DTO cuando se filtra por nombre, apellido, correo, username y rol")
     void filtrarUsuarios_debeRetornarPaginaMapeadaFiltrandoPorLos4Criterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "jperez", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         UsuarioEntity otroUsuarioEntity = crearUsuarioEntity(2L, "jperez2", "hash2", "Juan Perez Hijo", "juan2@mail.com", "2222", Rol.OPERARIO_DE_PRODUCCION);
-        when(usuarioRepository.filtrarUsuarios("Juan", "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable))
+        when(usuarioRepository.filtrarUsuarios("Juan", APELLIDO, "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable))
                 .thenReturn(new PageImpl<>(List.of(usuarioEntity, otroUsuarioEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios("Juan", "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable);
+        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios("Juan", APELLIDO, "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertUsuarioDTO(usuarioEntity, resultado.getContent().get(0));
         assertUsuarioDTO(otroUsuarioEntity, resultado.getContent().get(1));
-        verify(usuarioRepository).filtrarUsuarios("Juan", "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable);
+        verify(usuarioRepository).filtrarUsuarios("Juan", APELLIDO, "juan", "jperez", Rol.OPERARIO_DE_PRODUCCION, pageable);
     }
 
     @Test
-    @DisplayName("CP-FU-02: filtrarUsuarios propaga nombre, correo, username y rol nulos sin restringir esos criterios")
+    @DisplayName("CP-FU-02: filtrarUsuarios propaga nombre, apellido, correo, username y rol nulos sin restringir esos criterios")
     void filtrarUsuarios_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         UsuarioEntity otroUsuarioEntity = crearUsuarioEntity(2L, "maria", "hash2", "Maria Lopez", "maria@mail.com", "2222", Rol.ADMINISTRADOR);
-        when(usuarioRepository.filtrarUsuarios(null, null, null, null, pageable))
+        when(usuarioRepository.filtrarUsuarios(null, null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(usuarioEntity, otroUsuarioEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios(null, null, null, null, pageable);
+        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios(null, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
-        verify(usuarioRepository).filtrarUsuarios(null, null, null, null, pageable);
+        verify(usuarioRepository).filtrarUsuarios(null, null, null, null, null, pageable);
     }
 
     @Test
@@ -90,15 +93,15 @@ class UsuarioServicioImplTest {
     void filtrarUsuarios_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(usuarioRepository.filtrarUsuarios("Inexistente", null, null, null, pageable))
+        when(usuarioRepository.filtrarUsuarios("Inexistente", null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios("Inexistente", null, null, null, pageable);
+        Page<UsuarioResponseDTO> resultado = usuarioServicio.filtrarUsuarios("Inexistente", null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(usuarioRepository).filtrarUsuarios("Inexistente", null, null, null, pageable);
+        verify(usuarioRepository).filtrarUsuarios("Inexistente", null, null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -162,14 +165,93 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AU-03: altaUsuario lanza ReglaNegocioException y no encripta ni persiste cuando la contraseña está en blanco")
-    void altaUsuario_debeRechazarPasswordEnBlanco() {
-        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", "   ", "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+    @DisplayName("CP-AU-03: altaUsuario lanza ReglaNegocioException (contraseña inválida, no 'obligatoria') y no encripta ni persiste cuando la contraseña son solo espacios")
+    void altaUsuario_debeRechazarPasswordSoloConEspacios() {
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", "                ", "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(MetodosPassword.MENSAJE_INVALIDA);
+
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-05: altaUsuario lanza ReglaNegocioException 'obligatoria' cuando la contraseña está vacía")
+    void altaUsuario_debeRechazarPasswordVacia() {
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", "", "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
         when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
 
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La contraseña es obligatoria");
+
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-06: altaUsuario rechaza una contraseña de menos de 8 caracteres (7 es inválida)")
+    void altaUsuario_debeRechazarPasswordCorta() {
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", "abcdefg", "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(MetodosPassword.MENSAJE_INVALIDA);
+
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-07: altaUsuario rechaza una contraseña con un espacio en el medio, al inicio o al final")
+    void altaUsuario_debeRechazarPasswordConEspacios() {
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+
+        for (String password : new String[]{"clave segura1", " ClaveSegura1", "ClaveSegura1 ", "Clave Segura1"}) {
+            UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("carlos_cervecero", password, "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+
+            assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
+                    .as("password: '%s'", password)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage(MetodosPassword.MENSAJE_INVALIDA);
+        }
+
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-08: altaUsuario acepta contraseñas en los límites válidos (8 y 72 caracteres)")
+    void altaUsuario_debeAceptarPasswordEnLosLimites() {
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (String password : new String[]{"a".repeat(8), "a".repeat(72)}) {
+            usuarioServicio.altaUsuario(usuarioFormDTO("carlos_cervecero", password, "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION));
+            verify(passwordEncoder).encode(password);
+        }
+    }
+
+    @Test
+    @DisplayName("CP-AU-09: altaUsuario rechaza una contraseña de más de 72 caracteres, o de más de 72 bytes (límite de BCrypt)")
+    void altaUsuario_debeRechazarPasswordDemasiadoLarga() {
+        when(usuarioRepository.existsByUsername("carlos_cervecero")).thenReturn(false);
+
+        UsuarioFormDTO masDe72Caracteres = usuarioFormDTO("carlos_cervecero", "a".repeat(73), "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(masDe72Caracteres))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(MetodosPassword.MENSAJE_INVALIDA);
+
+        // 40 caracteres válidos, pero 'ñ' ocupa 2 bytes en UTF-8: 80 bytes > 72
+        UsuarioFormDTO masDe72Bytes = usuarioFormDTO("carlos_cervecero", "ñ".repeat(40), "Carlos Gomez", "carlos@mail.com", "3333", Rol.GERENTE_DE_PRODUCCION);
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(masDe72Bytes))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("demasiado larga");
 
         verify(usuarioRepository, never()).save(any());
         verifyNoInteractions(passwordEncoder);
@@ -199,6 +281,7 @@ class UsuarioServicioImplTest {
         // La contraseña persistida debe ser el hash devuelto por el encoder, nunca el texto plano
         assertThat(entidadCapturada.getPassword()).isEqualTo("hash-ClaveSegura123");
         assertThat(entidadCapturada.getNombre()).isEqualTo("Carlos Gomez");
+        assertThat(entidadCapturada.getApellido()).isEqualTo(APELLIDO);
         assertThat(entidadCapturada.getCorreo()).isEqualTo("carlos@mail.com");
         assertThat(entidadCapturada.getTelefono()).isEqualTo("3333");
         assertThat(entidadCapturada.getRol()).isEqualTo(Rol.GERENTE_DE_PRODUCCION);
@@ -258,6 +341,7 @@ class UsuarioServicioImplTest {
         // === PREPARACION DE DATOS ===
         UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash-viejo", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("juan_nuevo", "NuevaClave123", "Juan Perez Nuevo", "juannuevo@mail.com", "2222", Rol.GERENTE_DE_PRODUCCION);
+        usuarioFormDTO.setApellido("Apellido Nuevo");
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
         when(usuarioRepository.existsByUsername("juan_nuevo")).thenReturn(false);
         when(passwordEncoder.encode("NuevaClave123")).thenReturn("hash-NuevaClave123");
@@ -273,6 +357,7 @@ class UsuarioServicioImplTest {
         assertThat(entidadCapturada.getUsername()).isEqualTo("juan_nuevo");
         assertThat(entidadCapturada.getPassword()).isEqualTo("hash-NuevaClave123");
         assertThat(entidadCapturada.getNombre()).isEqualTo("Juan Perez Nuevo");
+        assertThat(entidadCapturada.getApellido()).isEqualTo("Apellido Nuevo");
         assertThat(entidadCapturada.getCorreo()).isEqualTo("juannuevo@mail.com");
         assertThat(entidadCapturada.getTelefono()).isEqualTo("2222");
         assertThat(entidadCapturada.getRol()).isEqualTo(Rol.GERENTE_DE_PRODUCCION);
@@ -349,11 +434,11 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MU-07: modificarUsuario conserva la contraseña existente y no invoca al encoder cuando la contraseña enviada está en blanco")
-    void modificarUsuario_debeConservarPasswordCuandoEstaEnBlanco() {
+    @DisplayName("CP-MU-07: modificarUsuario conserva la contraseña existente y no invoca al encoder cuando la contraseña enviada está vacía")
+    void modificarUsuario_debeConservarPasswordCuandoEstaVacia() {
         // === PREPARACION DE DATOS ===
         UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash-existente", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("juan", "   ", "Juan Perez Actualizado", "juanactualizado@mail.com", "9999", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("juan", "", "Juan Perez Actualizado", "juanactualizado@mail.com", "9999", Rol.OPERARIO_DE_PRODUCCION);
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
         when(usuarioRepository.save(usuarioEntity)).thenReturn(usuarioEntity);
 
@@ -364,6 +449,44 @@ class UsuarioServicioImplTest {
         assertThat(usuarioEntity.getPassword()).isEqualTo("hash-existente");
         assertThat(resultado.getNombre()).isEqualTo("Juan Perez Actualizado");
         verify(usuarioRepository).save(usuarioEntity);
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-08: modificarUsuario rechaza una contraseña de solo espacios y no modifica nada")
+    void modificarUsuario_debeRechazarPasswordSoloConEspacios() {
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash-existente", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("juan", "                ", "Nombre Nuevo", "juanactualizado@mail.com", "9999", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usuarioFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(MetodosPassword.MENSAJE_INVALIDA);
+
+        // La validación ocurre antes de tocar la entidad: nada quedó modificado
+        assertThat(usuarioEntity.getNombre()).isEqualTo("Juan Perez");
+        assertThat(usuarioEntity.getPassword()).isEqualTo("hash-existente");
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-09: modificarUsuario rechaza una contraseña de menos de 8 caracteres o con espacios")
+    void modificarUsuario_debeRechazarPasswordInvalida() {
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash-existente", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
+
+        for (String password : new String[]{"abcdefg", "clave con espacios"}) {
+            UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("juan", password, "Nombre Nuevo", "juanactualizado@mail.com", "9999", Rol.OPERARIO_DE_PRODUCCION);
+
+            assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usuarioFormDTO))
+                    .as("password: '%s'", password)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage(MetodosPassword.MENSAJE_INVALIDA);
+        }
+
+        assertThat(usuarioEntity.getNombre()).isEqualTo("Juan Perez");
+        verify(usuarioRepository, never()).save(any());
         verifyNoInteractions(passwordEncoder);
     }
 
@@ -407,6 +530,7 @@ class UsuarioServicioImplTest {
                 .username(username)
                 .password(password)
                 .nombre(nombre)
+                .apellido(APELLIDO)
                 .correo(correo)
                 .telefono(telefono)
                 .rol(rol)
@@ -419,6 +543,7 @@ class UsuarioServicioImplTest {
                 .username(username)
                 .password(password)
                 .nombre(nombre)
+                .apellido(APELLIDO)
                 .correo(correo)
                 .telefono(telefono)
                 .rol(rol)
@@ -429,6 +554,7 @@ class UsuarioServicioImplTest {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getUsername()).isEqualTo(entidad.getUsername());
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
+        assertThat(dto.getApellido()).isEqualTo(entidad.getApellido());
         assertThat(dto.getCorreo()).isEqualTo(entidad.getCorreo());
         assertThat(dto.getTelefono()).isEqualTo(entidad.getTelefono());
         assertThat(dto.getRol()).isEqualTo(entidad.getRol());

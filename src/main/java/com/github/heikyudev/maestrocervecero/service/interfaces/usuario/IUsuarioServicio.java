@@ -12,16 +12,17 @@ import org.springframework.data.domain.Pageable;
  */
 public interface IUsuarioServicio {
     /**
-     * Filtra los usuarios activos, opcionalmente por nombre, correo electrónico, username y/o rol.
+     * Filtra los usuarios activos, opcionalmente por nombre, apellido, correo electrónico, username y/o rol.
      *
      * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param apellido Texto a buscar dentro del apellido, o {@code null} para no filtrar por él.
      * @param correo Texto a buscar dentro del correo electrónico, o {@code null} para no filtrar por él.
      * @param username Texto a buscar dentro del nombre de usuario, o {@code null} para no filtrar por él.
      * @param rol El rol exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de usuarios activos en formato DTO que cumplen los criterios indicados.
      */
-    Page<UsuarioResponseDTO> filtrarUsuarios(String nombre, String correo, String username, Rol rol, Pageable pageable);
+    Page<UsuarioResponseDTO> filtrarUsuarios(String nombre, String apellido, String correo, String username, Rol rol, Pageable pageable);
 
     /**
      * Obtiene un usuario por su ID.

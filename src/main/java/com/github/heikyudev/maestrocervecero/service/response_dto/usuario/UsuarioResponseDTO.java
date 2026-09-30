@@ -25,9 +25,14 @@ public class UsuarioResponseDTO {
     private String username;
 
     /**
-     * Nombre completo del usuario.
+     * Nombre/s de pila del usuario.
      */
     private String nombre;
+
+    /**
+     * Apellido/s del usuario.
+     */
+    private String apellido;
 
     /**
      * Correo electrónico del usuario.

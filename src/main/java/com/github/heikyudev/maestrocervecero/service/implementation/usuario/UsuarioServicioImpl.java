@@ -14,6 +14,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.IUsuarioServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.usuario.MapperUsuario;
+import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,9 +31,10 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
     private final PasswordEncoder passwordEncoder;
 
     /**
-     * Filtra los usuarios activos, opcionalmente por nombre, correo electrónico, username y/o rol.
+     * Filtra los usuarios activos, opcionalmente por nombre, apellido, correo electrónico, username y/o rol.
      *
      * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por él.
+     * @param apellido Texto a buscar dentro del apellido, o {@code null} para no filtrar por él.
      * @param correo Texto a buscar dentro del correo electrónico, o {@code null} para no filtrar por él.
      * @param username Texto a buscar dentro del nombre de usuario, o {@code null} para no filtrar por él.
      * @param rol El rol exacto a filtrar, o {@code null} para no filtrar por él.
@@ -41,8 +43,8 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<UsuarioResponseDTO> filtrarUsuarios(String nombre, String correo, String username, Rol rol, Pageable pageable) {
-        return usuarioRepository.filtrarUsuarios(nombre, correo, username, rol, pageable).map(MapperUsuario::toDTO);
+    public Page<UsuarioResponseDTO> filtrarUsuarios(String nombre, String apellido, String correo, String username, Rol rol, Pageable pageable) {
+        return usuarioRepository.filtrarUsuarios(nombre, apellido, correo, username, rol, pageable).map(MapperUsuario::toDTO);
     }
 
     /**
@@ -71,7 +73,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @param usuarioFormDTO Objeto DTO que contiene los datos de creación del usuario.
      * @return {@link UsuarioResponseDTO} representativo del usuario guardado en la base de datos.
      * @throws RecursoDuplicadoException Si el username provisto ya pertenece a un usuario existente.
-     * @throws ReglaNegocioException Si la contraseña no fue informada.
+     * @throws ReglaNegocioException Si la contraseña no fue informada, o si no cumple las reglas de {@link MetodosPassword} (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
     @Transactional
@@ -82,17 +84,20 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
             throw new RecursoDuplicadoException("El Username ya esta registrado");
         }
 
-        // 2. Validar que se haya informado una contraseña (el encoder no acepta null y lanzaría
-        //    una excepción sin controlar en lugar de una regla de negocio clara)
-        if (usuarioFormDTO.getPassword() == null || usuarioFormDTO.getPassword().isBlank()) {
+        // 2. Validar que se haya informado una contraseña y que cumpla las reglas (el encoder no
+        //    acepta null ni más de 72 bytes: lanzaría una excepción sin controlar en lugar de una
+        //    regla de negocio clara)
+        if (usuarioFormDTO.getPassword() == null || usuarioFormDTO.getPassword().isEmpty()) {
             throw new ReglaNegocioException("La contraseña es obligatoria");
         }
+        MetodosPassword.validarPassword(usuarioFormDTO.getPassword());
 
         // 3. Creo la entidad que se va a almacenar en la base de datos
         UsuarioEntity usuarioEntity = UsuarioEntity.builder()
                 .username(usuarioFormDTO.getUsername())
                 .password(passwordEncoder.encode(usuarioFormDTO.getPassword()))
                 .nombre(usuarioFormDTO.getNombre())
+                .apellido(usuarioFormDTO.getApellido())
                 .correo(usuarioFormDTO.getCorreo())
                 .telefono(usuarioFormDTO.getTelefono())
                 .rol(usuarioFormDTO.getRol())
@@ -107,7 +112,8 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * Actualiza la información de un usuario existente en la base de datos.
      * <p>
      * Si el nombre de usuario fue modificado respecto a su estado actual, valida la no colisión con
-     * otros registros preexistentes. Actualiza la contraseña únicamente si se envía un valor no nulo ni vacío.
+     * otros registros preexistentes. Actualiza la contraseña únicamente si se envía un valor no nulo ni
+     * vacío, y en ese caso debe cumplir las reglas de {@link MetodosPassword}.
      * </p>
      *
      * @param id Identificador clave primaria del usuario a modificar.
@@ -115,6 +121,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @return {@link UsuarioResponseDTO} representativo del usuario con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza el usuario por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo username ya se encuentra asignado a otra cuenta.
+     * @throws ReglaNegocioException Si se envía una contraseña que no cumple las reglas (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
     @Transactional
@@ -131,15 +138,25 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
             }
         }
 
+        // 2. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
+        //    envía algo, tiene que ser válida: un texto en blanco NO cuenta como "no enviada", se
+        //    rechaza (antes se ignoraba en silencio). Se valida antes de tocar la entidad.
+        String password = usuarioFormDTO.getPassword();
+        boolean cambiaPassword = password != null && !password.isEmpty();
+        if (cambiaPassword) {
+            MetodosPassword.validarPassword(password);
+        }
+
         usuarioEntity.setUsername(usuarioFormDTO.getUsername());
         usuarioEntity.setNombre(usuarioFormDTO.getNombre());
+        usuarioEntity.setApellido(usuarioFormDTO.getApellido());
         usuarioEntity.setCorreo(usuarioFormDTO.getCorreo());
         usuarioEntity.setTelefono(usuarioFormDTO.getTelefono());
         usuarioEntity.setRol(usuarioFormDTO.getRol());
 
-        // 2. La contraseña solo se actualiza si fue enviada y se encripta
-        if (usuarioFormDTO.getPassword() != null && !usuarioFormDTO.getPassword().isBlank()) {
-            usuarioEntity.setPassword(passwordEncoder.encode(usuarioFormDTO.getPassword()));
+        // 3. La contraseña solo se actualiza si fue enviada, y se encripta
+        if (cambiaPassword) {
+            usuarioEntity.setPassword(passwordEncoder.encode(password));
         }
 
         return MapperUsuario.toDTO(usuarioRepository.save(usuarioEntity));

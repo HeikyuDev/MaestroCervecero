@@ -23,6 +23,7 @@ public class MapperUsuario {
                 .id(usuarioEntity.getId())
                 .username(usuarioEntity.getUsername())
                 .nombre(usuarioEntity.getNombre())
+                .apellido(usuarioEntity.getApellido())
                 .telefono(usuarioEntity.getTelefono())
                 .correo(usuarioEntity.getCorreo())
                 .rol(usuarioEntity.getRol())

@@ -28,6 +28,7 @@ public class UserDataLoader implements CommandLineRunner {
                     .username("admin")
                     .password(passwordEncoder.encode("admin"))
                     .nombre("Administrador")
+                    .apellido("Sistema")
                     .correo("admin@maestrocervecero.com")
                     .telefono("0000000000")
                     .accountNonExpired(true)
