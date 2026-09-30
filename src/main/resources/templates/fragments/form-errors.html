@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Panel resumen de errores de un formulario. Se inserta DENTRO del <form th:object="...">.
+    Lista todos los problemas juntos: campos inválidos (Bean Validation / @Valid) y reglas de
+    negocio rechazadas por el service (errores globales del BindingResult). Cada campo afectado
+    además marca su propio mensaje debajo del input.
+
+    Uso: <div th:replace="~{fragments/form-errors :: resumen('No se pudo crear el usuario')}"></div>
+-->
+<div th:fragment="resumen(titulo)" th:if="${#fields.hasErrors('*')}"
+     class="m-6 mb-0 p-4 rounded-xl border bg-rose-50 border-rose-200 text-rose-800" role="alert">
+    <div class="flex items-center gap-2 text-sm font-semibold">
+        <i class="bi bi-x-circle-fill text-xl text-rose-500"></i>
+        <span th:text="${titulo}">No se pudo guardar</span>
+    </div>
+    <ul class="mt-2 ml-8 list-disc text-sm">
+        <li th:each="err : ${#fields.detailedErrors()}" th:text="${err.message}">Error</li>
+    </ul>
+</div>
+
+</html>

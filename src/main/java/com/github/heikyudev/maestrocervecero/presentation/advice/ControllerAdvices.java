@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -63,6 +64,17 @@ public class ControllerAdvices {
         return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER);
     }
 
+    /**
+     * Sin este handler, el catch-all de abajo se tragaría el rechazo de {@code @PreAuthorize}
+     * y le mostraría al usuario un "error inesperado" en vez de un mensaje de permisos.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public String handleAccessDenied(AccessDeniedException ex,
+                                     HttpServletRequest request,
+                                     RedirectAttributes redirectAttributes) {
+        log.warn("Acceso denegado a {}", request.getRequestURI());
+        return redirigirConMensaje(request, redirectAttributes, "No tenés permisos para realizar esta acción.", TipoAlerta.DANGER);
+    }
 
     @ExceptionHandler(Exception.class)
     public String handleException(Exception ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {

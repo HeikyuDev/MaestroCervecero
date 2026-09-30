@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#usuario-lista-content}, 'usuarios')}">
+<body>
+
+<div id="usuario-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Usuarios</h1>
+            <p class="text-sm text-slate-500">Usuarios activos del sistema, ordenados por apellido y nombre.</p>
+        </div>
+        <a th:href="@{/usuarios/nuevo}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+            <i class="bi bi-plus-lg"></i> Nuevo usuario
+        </a>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/usuarios}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
+
+        <div>
+            <label for="username" class="block text-xs font-medium text-slate-500 mb-1">Nombre de usuario</label>
+            <input type="text" id="username" name="username" th:value="${filtroUsername}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre/s</label>
+            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="apellido" class="block text-xs font-medium text-slate-500 mb-1">Apellido/s</label>
+            <input type="text" id="apellido" name="apellido" th:value="${filtroApellido}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="correo" class="block text-xs font-medium text-slate-500 mb-1">Correo electrónico</label>
+            <input type="text" id="correo" name="correo" th:value="${filtroCorreo}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="rol" class="block text-xs font-medium text-slate-500 mb-1">Rol</label>
+            <select id="rol" name="rol"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="r : ${roles}" th:value="${r}" th:selected="${r == filtroRol}"
+                        th:text="${#strings.replace(r, '_', ' ')}">ROL</option>
+            </select>
+        </div>
+
+        <div class="md:col-span-2 xl:col-span-5 flex items-center justify-end gap-3">
+            <a th:href="@{/usuarios}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-4 py-3">Nombre de usuario</th>
+                <th class="px-4 py-3">Nombre/s</th>
+                <th class="px-4 py-3">Apellido/s</th>
+                <th class="px-4 py-3">Correo electrónico</th>
+                <th class="px-4 py-3">Rol</th>
+                <th class="px-4 py-3 text-right">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="u : ${usuarios.content}" class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-slate-900" th:text="${u.username}">usuario</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${u.nombre}">Nombre</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${u.apellido}">Apellido</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${u.correo}">correo@mail.com</td>
+                <td class="px-4 py-3">
+                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"
+                          th:text="${#strings.replace(u.rol, '_', ' ')}">ROL</span>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                        <!-- Editar: reabre el formulario con los datos actuales -->
+                        <a th:href="@{/usuarios/{id}/editar(id=${u.id})}" title="Editar usuario" aria-label="Editar usuario"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-pencil-square text-lg"></i>
+                        </a>
+
+                        <!-- Baja: abre el modal de confirmación. Deshabilitada sobre la cuenta propia -->
+                        <span th:if="${#strings.equalsIgnoreCase(u.username, usernameActual)}"
+                              title="No podés dar de baja tu propia cuenta"
+                              class="p-2 rounded-lg text-slate-300 cursor-not-allowed">
+                            <i class="bi bi-trash text-lg"></i>
+                        </span>
+                        <button th:unless="${#strings.equalsIgnoreCase(u.username, usernameActual)}"
+                                type="button" title="Dar de baja usuario" aria-label="Dar de baja usuario"
+                                th:data-baja-url="@{/usuarios/{id}/baja(id=${u.id})}"
+                                th:data-baja-nombre="${u.nombre + ' ' + u.apellido + ' (' + u.username + ')'}"
+                                class="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                            <i class="bi bi-trash text-lg"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${usuarios.empty}">
+                <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-people text-3xl block mb-2"></i>
+                    No se encontraron usuarios con los criterios indicados.
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <!-- Paginación (conserva los criterios de búsqueda) -->
+        <div th:if="${usuarios.totalPages > 0}"
+             class="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50 text-sm text-slate-600">
+            <span>
+                <span th:text="${usuarios.totalElements}">0</span> usuarios ·
+                Página <span th:text="${usuarios.number + 1}">1</span> de <span th:text="${usuarios.totalPages}">1</span>
+            </span>
+            <div class="flex items-center gap-2">
+                <a th:if="${usuarios.hasPrevious()}"
+                   th:href="@{/usuarios(pagina=${usuarios.number - 1}, username=${filtroUsername}, nombre=${filtroNombre}, apellido=${filtroApellido}, correo=${filtroCorreo}, rol=${filtroRol})}"
+                   class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
+                    <i class="bi bi-chevron-left"></i> Anterior
+                </a>
+                <a th:if="${usuarios.hasNext()}"
+                   th:href="@{/usuarios(pagina=${usuarios.number + 1}, username=${filtroUsername}, nombre=${filtroNombre}, apellido=${filtroApellido}, correo=${filtroCorreo}, rol=${filtroRol})}"
+                   class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
+                    Siguiente <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación de baja (un solo diálogo reutilizado por todas las filas) -->
+    <dialog id="dialogo-baja" class="m-auto w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+        <form id="form-baja" method="post" th:action="@{/usuarios/0/baja}" class="p-6">
+            <div class="flex items-start gap-3">
+                <span class="p-2 rounded-full bg-rose-50 text-rose-600"><i class="bi bi-exclamation-triangle-fill text-xl"></i></span>
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900">Dar de baja usuario</h3>
+                    <p class="mt-1 text-sm text-slate-600">
+                        ¿Confirmás que querés dar de baja a <strong id="baja-usuario-nombre" class="text-slate-900"></strong>?
+                        Ya no podrá iniciar sesión en el sistema.
+                    </p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button type="button" data-cerrar-dialogo
+                        class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
+                <button type="submit"
+                        class="px-5 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-colors">Dar de baja</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+        (function () {
+            var dialogo = document.getElementById('dialogo-baja');
+            var formulario = document.getElementById('form-baja');
+            var nombre = document.getElementById('baja-usuario-nombre');
+
+            document.querySelectorAll('[data-baja-url]').forEach(function (boton) {
+                boton.addEventListener('click', function () {
+                    formulario.setAttribute('action', boton.getAttribute('data-baja-url'));
+                    nombre.textContent = boton.getAttribute('data-baja-nombre');
+                    dialogo.showModal();
+                });
+            });
+
+            dialogo.querySelectorAll('[data-cerrar-dialogo]').forEach(function (boton) {
+                boton.addEventListener('click', function () { dialogo.close(); });
+            });
+        })();
+    </script>
+</div>
+
+</body>
+</html>
