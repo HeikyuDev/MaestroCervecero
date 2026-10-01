@@ -34,12 +34,12 @@
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Provincia</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', ${filtroIdProvincia}, ${filtroProvinciaTexto},
-                    @{/ubicaciones/provincias/buscador}, null, null, true, false)}"></div>
+                    @{/ubicaciones/provincias/buscador}, null, null, true, false, 'Seleccionar provincia')}"></div>
         </div>
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">País</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPais', ${filtroIdPais}, ${filtroPaisTexto},
-                    @{/ubicaciones/paises/buscador}, null, null, true, false)}"></div>
+                    @{/ubicaciones/paises/buscador}, null, null, true, false, 'Seleccionar país')}"></div>
         </div>
         <div class="sm:col-span-2 flex justify-end">
             <button type="submit"

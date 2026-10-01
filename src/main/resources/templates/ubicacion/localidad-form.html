@@ -55,7 +55,7 @@
                     <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', *{idProvincia}, ${provinciaSeleccionada},
                             @{/ubicaciones/provincias/buscador},
                             ${#authorization.expression('hasRole(''ADMINISTRADOR'')')} ? @{/ubicaciones/provincias/nuevo} : null,
-                            'Crear nueva provincia', false, ${#fields.hasErrors('idProvincia')})}"></div>
+                            'Crear nueva provincia', false, ${#fields.hasErrors('idProvincia')}, 'Seleccionar provincia')}"></div>
                     <p th:if="${#fields.hasErrors('idProvincia')}" th:errors="*{idProvincia}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
             </div>

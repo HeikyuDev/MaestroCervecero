@@ -47,7 +47,7 @@
                     <div th:replace="~{fragments/selector-entidad :: selector('idPais', *{idPais}, ${paisSeleccionado},
                             @{/ubicaciones/paises/buscador},
                             ${#authorization.expression('hasRole(''ADMINISTRADOR'')')} ? @{/ubicaciones/paises/nuevo} : null,
-                            'Crear nuevo país', false, ${#fields.hasErrors('idPais')})}"></div>
+                            'Crear nuevo país', false, ${#fields.hasErrors('idPais')}, 'Seleccionar país')}"></div>
                     <p th:if="${#fields.hasErrors('idPais')}" th:errors="*{idPais}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
             </div>
