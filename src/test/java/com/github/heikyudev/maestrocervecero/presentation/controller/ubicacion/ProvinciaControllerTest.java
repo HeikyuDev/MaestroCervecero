@@ -78,8 +78,8 @@ class ProvinciaControllerTest {
                 .andExpect(view().name("ubicacion/provincia-lista"))
                 .andExpect(content().string(containsString("Córdoba")))
                 .andExpect(content().string(containsString("Argentina")))
-                .andExpect(content().string(containsString("data-modal-url=\"/ubicaciones/provincias/nuevo\"")))
-                .andExpect(content().string(containsString("data-modal-url=\"/ubicaciones/provincias/5/editar\"")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/provincias/nuevo\"")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/provincias/5/editar\"")))
                 .andExpect(content().string(containsString("data-baja-url=\"/ubicaciones/provincias/5/baja\"")));
     }
 
@@ -192,23 +192,40 @@ class ProvinciaControllerTest {
     void formularioAlta_debeOfrecerElSelectorDePaisConAltaAlVuelo() throws Exception {
         mockMvc.perform(get("/ubicaciones/provincias/nuevo"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("ubicacion/provincia-form :: formulario"))
+                .andExpect(view().name("ubicacion/provincia-form"))
                 .andExpect(content().string(containsString("Nueva provincia")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/provincias\"")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/paises/buscador\"")))
-                .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/paises/nuevo?modo=seleccion\"")))
+                .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/paises/nuevo\"")))
                 .andExpect(content().string(containsString("data-selector-alta")))
-                .andExpect(content().string(not(containsString("name=\"modo\""))));
+                .andExpect(content().string(containsString("Volver a provincias")))
+                .andExpect(content().string(not(containsString("name=\"retorno\""))));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PRC-10: abierto desde un selector (modo=seleccion) el formulario lo indica con un campo oculto")
-    void formularioAlta_debeIndicarElModoSeleccion() throws Exception {
-        mockMvc.perform(get("/ubicaciones/provincias/nuevo").param("modo", "seleccion"))
+    @DisplayName("CP-PRC-10: abierto desde otro formulario (retorno y campo) conserva ambos en campos ocultos y cancelar vuelve a ese formulario")
+    void formularioAlta_debeConservarElRetornoContextual() throws Exception {
+        mockMvc.perform(get("/ubicaciones/provincias/nuevo")
+                        .param("retorno", "/ubicaciones/localidades/nuevo").param("campo", "idProvincia"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("name=\"modo\" value=\"seleccion\"")));
+                .andExpect(content().string(containsString("name=\"retorno\" value=\"/ubicaciones/localidades/nuevo\"")))
+                .andExpect(content().string(containsString("name=\"campo\" value=\"idProvincia\"")))
+                .andExpect(content().string(containsString("Volver al formulario anterior")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/localidades/nuevo?desdeAlta=1\"")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-PRC-26: al volver de crear un país (idPais en la URL) el selector lo muestra elegido")
+    void formularioAlta_debePreseleccionarElPaisRecienCreado() throws Exception {
+        when(paisServicio.buscarPorId(7L)).thenReturn(pais(7L, "Chile"));
+
+        mockMvc.perform(get("/ubicaciones/provincias/nuevo").param("idPais", "7").param("desdeAlta", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"idPais\" value=\"7\"")))
+                .andExpect(content().string(containsString("value=\"Chile\"")));
     }
 
     @Test
@@ -226,6 +243,8 @@ class ProvinciaControllerTest {
     @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-PRC-12: alta correcta delega en el service y redirige al listado con alerta de éxito")
     void alta_debeRedirigirAlListadoConAlerta() throws Exception {
+        when(provinciaServicio.altaProvincia(any())).thenReturn(provincia(5L, "Córdoba", 3L, "Argentina"));
+
         mockMvc.perform(post("/ubicaciones/provincias").with(csrf()).param("nombre", "Córdoba").param("idPais", "3"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/ubicaciones/provincias"))
@@ -243,8 +262,8 @@ class ProvinciaControllerTest {
     @DisplayName("CP-PRC-13: sin nombre ni país responde 422 con ambos errores, sin llamar al service")
     void alta_debeVolverAlFormularioSiFaltanLosDatosObligatorios() throws Exception {
         mockMvc.perform(post("/ubicaciones/provincias").with(csrf()).param("nombre", "  "))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(view().name("ubicacion/provincia-form :: formulario"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ubicacion/provincia-form"))
                 .andExpect(content().string(containsString("No se pudo crear la provincia")))
                 .andExpect(content().string(containsString("El nombre de la provincia es obligatorio")))
                 .andExpect(content().string(containsString("El país es obligatorio")));
@@ -259,7 +278,7 @@ class ProvinciaControllerTest {
         when(paisServicio.buscarPorId(3L)).thenReturn(pais(3L, "Argentina"));
 
         mockMvc.perform(post("/ubicaciones/provincias").with(csrf()).param("nombre", "").param("idPais", "3"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("name=\"idPais\" value=\"3\"")))
                 .andExpect(content().string(containsString("value=\"Argentina\"")));
     }
@@ -272,7 +291,7 @@ class ProvinciaControllerTest {
         when(provinciaServicio.altaProvincia(any())).thenThrow(new RecursoDuplicadoException("Ya existe una provincia con ese nombre"));
 
         mockMvc.perform(post("/ubicaciones/provincias").with(csrf()).param("nombre", "Córdoba").param("idPais", "3"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ya existe una provincia con ese nombre")))
                 // th:field escapa las tildes como entidades HTML
                 .andExpect(content().string(containsString("value=\"C&oacute;rdoba\"")));
@@ -286,22 +305,37 @@ class ProvinciaControllerTest {
         when(provinciaServicio.altaProvincia(any())).thenThrow(new RecursoNoEncontradoException("No existe el país indicado"));
 
         mockMvc.perform(post("/ubicaciones/provincias").with(csrf()).param("nombre", "Córdoba").param("idPais", "99"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No existe el país indicado")));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PRC-17: el alta al vuelo responde 201 con la provincia creada (nombre y país) para dejarla elegida")
-    void altaAlVuelo_debeDevolverLaProvinciaCreada() throws Exception {
+    @DisplayName("CP-PRC-17: el alta contextual vuelve al formulario de origen con la provincia creada en el campo indicado")
+    void altaContextual_debeVolverAlFormularioDeOrigenConLaProvinciaCreada() throws Exception {
         when(provinciaServicio.altaProvincia(any())).thenReturn(provincia(5L, "Córdoba", 3L, "Argentina"));
 
         mockMvc.perform(post("/ubicaciones/provincias").with(csrf())
-                        .param("nombre", "Córdoba").param("idPais", "3").param("modo", "seleccion"))
-                .andExpect(status().isCreated())
-                .andExpect(view().name("ubicacion/resultado-alta :: resultado"))
-                .andExpect(content().string(containsString("data-id=\"5\"")))
-                .andExpect(content().string(containsString("data-texto=\"Córdoba (Argentina)\"")));
+                        .param("nombre", "Córdoba").param("idPais", "3")
+                        .param("retorno", "/ubicaciones/localidades/nuevo").param("campo", "idProvincia"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ubicaciones/localidades/nuevo?desdeAlta=1&idProvincia=5"))
+                .andExpect(flash().attribute("mensaje", "Provincia creada correctamente"));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-PRC-27: el alta contextual encadenada conserva el retorno original dentro de la URL de vuelta")
+    void altaContextual_debeSoportarElEncadenamiento() throws Exception {
+        when(provinciaServicio.altaProvincia(any())).thenReturn(provincia(5L, "Córdoba", 3L, "Argentina"));
+
+        // El alta de provincia se abrió desde una localidad que a su vez tenía su propio retorno
+        String retorno = "/ubicaciones/localidades/nuevo?retorno=%2Fx&campo=idLocalidad";
+        mockMvc.perform(post("/ubicaciones/provincias").with(csrf())
+                        .param("nombre", "Córdoba").param("idPais", "3")
+                        .param("retorno", retorno).param("campo", "idProvincia"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ubicaciones/localidades/nuevo?retorno=%2Fx&campo=idLocalidad&desdeAlta=1&idProvincia=5"));
     }
 
     @Test
@@ -326,13 +360,26 @@ class ProvinciaControllerTest {
 
         mockMvc.perform(get("/ubicaciones/provincias/5/editar"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("ubicacion/provincia-form :: formulario"))
+                .andExpect(view().name("ubicacion/provincia-form"))
                 .andExpect(content().string(containsString("Editar provincia")))
                 .andExpect(content().string(containsString("value=\"C&oacute;rdoba\"")))
                 .andExpect(content().string(containsString("name=\"idPais\" value=\"3\"")))
                 .andExpect(content().string(containsString("value=\"Argentina\"")))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/provincias/5\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-PRC-28: al editar y volver de crear un país, el país de la URL reemplaza al actual")
+    void formularioEdicion_debeReemplazarElPaisPorElRecienCreado() throws Exception {
+        when(provinciaServicio.buscarPorId(5L)).thenReturn(provincia(5L, "Córdoba", 3L, "Argentina"));
+        when(paisServicio.buscarPorId(7L)).thenReturn(pais(7L, "Chile"));
+
+        mockMvc.perform(get("/ubicaciones/provincias/5/editar").param("idPais", "7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"idPais\" value=\"7\"")))
+                .andExpect(content().string(containsString("value=\"Chile\"")));
     }
 
     // ==================== POST /ubicaciones/provincias/{id} ====================
@@ -359,7 +406,7 @@ class ProvinciaControllerTest {
                 .thenThrow(new RecursoDuplicadoException("Ya existe una provincia con ese nombre"));
 
         mockMvc.perform(post("/ubicaciones/provincias/5").with(csrf()).param("nombre", "Santa Fe").param("idPais", "3"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la provincia")))
                 .andExpect(content().string(containsString("Ya existe una provincia con ese nombre")))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/provincias/5\"")));

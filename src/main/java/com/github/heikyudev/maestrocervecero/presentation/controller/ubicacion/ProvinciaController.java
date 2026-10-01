@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.ProvinciaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -9,7 +10,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IProvi
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.PaisResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.ProvinciaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,8 +33,9 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.ubic
  * única excepción es el buscador de provincias, que también usan los gerentes comercial y de
  * compras como criterio de filtro al seleccionar una localidad.
  * <p>
- * El país de una provincia se elige con un selector (modal de búsqueda) y los formularios se
- * devuelven como fragmentos HTML para abrirse en un modal. Ver {@link PaisController}.
+ * El país de una provincia se elige con un selector (modal de búsqueda). Si falta, el "+" del
+ * selector lleva al alta de países y al guardar vuelve a este formulario con el país ya elegido
+ * ({@link RetornoContextual}); a su vez, esta alta puede abrirse desde el selector de una localidad.
  * </p>
  */
 @Controller
@@ -44,9 +45,9 @@ public class ProvinciaController {
 
     private static final String VISTA_LISTA = "ubicacion/provincia-lista";
     private static final String VISTA_BUSCADOR = "ubicacion/buscador-provincia :: buscador";
-    private static final String VISTA_FORMULARIO = "ubicacion/provincia-form :: formulario";
+    private static final String VISTA_FORMULARIO = "ubicacion/provincia-form";
     private static final String ATRIBUTO_FORMULARIO = "provinciaForm";
-    private static final String REDIRECCION_LISTA = "redirect:/ubicaciones/provincias";
+    private static final String URL_LISTA = "/ubicaciones/provincias";
 
     private final IProvinciaServicio provinciaServicio;
     private final IPaisServicio paisServicio;
@@ -78,41 +79,38 @@ public class ProvinciaController {
     }
 
     /**
-     * Devuelve el formulario vacío de alta de una provincia (fragmento para el modal).
+     * Muestra el formulario de alta. Si se vuelve de crear un país, {@code idPais} llega como
+     * parámetro y queda elegido en el selector.
      */
     @GetMapping("/nuevo")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public String mostrarFormularioAlta(@RequestParam(required = false) String modo, Model model) {
-        model.addAttribute(ATRIBUTO_FORMULARIO, new ProvinciaFormDTO());
-        cargarModeloFormulario(model, null, null, esAltaAlVuelo(modo));
+    public String mostrarFormularioAlta(@RequestParam(required = false) Long idPais,
+                                        @RequestParam(required = false) String retorno,
+                                        @RequestParam(required = false) String campo,
+                                        Model model) {
+        model.addAttribute(ATRIBUTO_FORMULARIO, ProvinciaFormDTO.builder().idPais(idPais).build());
+        cargarModeloFormulario(model, null, idPais, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
-     * Procesa el alta de una provincia (Post-Redirect-Get). Si el formulario o una regla del
-     * service fallan, se devuelve de nuevo el formulario con los errores (estado 422).
+     * Procesa el alta de una provincia (Post-Redirect-Get). Si la validación del formulario o una
+     * regla del service falla, se vuelve a renderizar el formulario (sin redirigir) para no perder lo tipeado.
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public String altaProvincia(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) ProvinciaFormDTO provinciaForm,
                                 BindingResult bindingResult,
-                                @RequestParam(required = false) String modo,
+                                @RequestParam(required = false) String retorno,
+                                @RequestParam(required = false) String campo,
                                 Model model,
-                                HttpServletResponse response,
                                 RedirectAttributes redirectAttributes) {
-        boolean altaAlVuelo = esAltaAlVuelo(modo);
-
         if (!bindingResult.hasErrors()) {
             try {
                 ProvinciaResponseDTO provincia = provinciaServicio.altaProvincia(provinciaForm);
-                if (altaAlVuelo) {
-                    model.addAttribute("id", provincia.getId());
-                    model.addAttribute("texto", etiqueta(provincia));
-                    response.setStatus(ESTADO_CREADO);
-                    return VISTA_RESULTADO_ALTA;
-                }
                 agregarMensaje(redirectAttributes, "Provincia creada correctamente", TipoAlerta.SUCCESS);
-                return REDIRECCION_LISTA;
+                String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, provincia.getId());
+                return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (RecursoNoEncontradoException e) {
@@ -122,24 +120,27 @@ public class ProvinciaController {
             }
         }
 
-        response.setStatus(ESTADO_FORMULARIO_INVALIDO);
-        cargarModeloFormulario(model, null, provinciaForm.getIdPais(), altaAlVuelo);
+        cargarModeloFormulario(model, null, provinciaForm.getIdPais(), retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
-     * Devuelve el formulario de edición con los datos actuales de la provincia (fragmento para el modal).
+     * Muestra el formulario de edición con los datos actuales de la provincia. Si se vuelve de crear
+     * un país, {@code idPais} llega como parámetro y reemplaza al país actual.
      */
     @GetMapping("/{id}/editar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public String mostrarFormularioEdicion(@PathVariable Long id, Model model) {
+    public String mostrarFormularioEdicion(@PathVariable Long id,
+                                           @RequestParam(required = false) Long idPais,
+                                           Model model) {
         ProvinciaResponseDTO provincia = provinciaServicio.buscarPorId(id);
+        Long idPaisVigente = idPais != null ? idPais : provincia.getPais().getId();
 
         model.addAttribute(ATRIBUTO_FORMULARIO, ProvinciaFormDTO.builder()
                 .nombre(provincia.getNombre())
-                .idPais(provincia.getPais().getId())
+                .idPais(idPaisVigente)
                 .build());
-        cargarModeloFormulario(model, id, provincia.getPais().getId(), false);
+        cargarModeloFormulario(model, id, idPaisVigente, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -152,22 +153,22 @@ public class ProvinciaController {
                                      @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) ProvinciaFormDTO provinciaForm,
                                      BindingResult bindingResult,
                                      Model model,
-                                     HttpServletResponse response,
                                      RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
             try {
                 provinciaServicio.modificarProvincia(id, provinciaForm);
                 agregarMensaje(redirectAttributes, "Provincia modificada correctamente", TipoAlerta.SUCCESS);
-                return REDIRECCION_LISTA;
+                return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
+            } catch (RecursoNoEncontradoException e) {
+                bindingResult.rejectValue("idPais", "noEncontrado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
         }
 
-        response.setStatus(ESTADO_FORMULARIO_INVALIDO);
-        cargarModeloFormulario(model, id, provinciaForm.getIdPais(), false);
+        cargarModeloFormulario(model, id, provinciaForm.getIdPais(), null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -180,7 +181,7 @@ public class ProvinciaController {
     public String bajaProvincia(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         provinciaServicio.bajaProvincia(id);
         agregarMensaje(redirectAttributes, "Provincia dada de baja correctamente", TipoAlerta.SUCCESS);
-        return REDIRECCION_LISTA;
+        return "redirect:" + URL_LISTA;
     }
 
     private void cargarResultados(Model model, String nombre, Long idPais, int pagina, int tamanio) {
@@ -196,10 +197,13 @@ public class ProvinciaController {
         model.addAttribute("filtroPaisTexto", paisTexto);
     }
 
-    private void cargarModeloFormulario(Model model, Long provinciaId, Long idPais, boolean altaAlVuelo) {
+    private void cargarModeloFormulario(Model model, Long provinciaId, Long idPais, String retorno, String campo) {
+        String retornoValido = RetornoContextual.retornoValido(retorno);
         model.addAttribute("provinciaId", provinciaId);
-        model.addAttribute("altaAlVuelo", altaAlVuelo);
         model.addAttribute("paisSeleccionado", nombrePais(idPais));
+        model.addAttribute("retorno", retornoValido);
+        model.addAttribute("campo", RetornoContextual.campoValido(campo));
+        model.addAttribute("urlCancelar", RetornoContextual.urlCancelar(retornoValido, URL_LISTA));
     }
 
     /**

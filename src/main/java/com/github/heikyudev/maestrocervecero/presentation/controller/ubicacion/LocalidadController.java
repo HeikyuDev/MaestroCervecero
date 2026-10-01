@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.LocalidadFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -11,7 +12,6 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.Loca
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.PaisResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.ProvinciaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,8 +35,9 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.ubic
  * única excepción es el buscador de localidades, que también usan los gerentes comercial y de
  * compras para elegir la localidad de un cliente o de un proveedor.
  * <p>
- * La provincia de una localidad se elige con un selector (modal de búsqueda) y los formularios se
- * devuelven como fragmentos HTML para abrirse en un modal. Ver {@link PaisController}.
+ * La provincia de una localidad se elige con un selector (modal de búsqueda). Si falta, el "+" del
+ * selector lleva al alta de provincias y al guardar vuelve a este formulario con la provincia ya
+ * elegida ({@link RetornoContextual}).
  * </p>
  */
 @Controller
@@ -46,9 +47,9 @@ public class LocalidadController {
 
     private static final String VISTA_LISTA = "ubicacion/localidad-lista";
     private static final String VISTA_BUSCADOR = "ubicacion/buscador-localidad :: buscador";
-    private static final String VISTA_FORMULARIO = "ubicacion/localidad-form :: formulario";
+    private static final String VISTA_FORMULARIO = "ubicacion/localidad-form";
     private static final String ATRIBUTO_FORMULARIO = "localidadForm";
-    private static final String REDIRECCION_LISTA = "redirect:/ubicaciones/localidades";
+    private static final String URL_LISTA = "/ubicaciones/localidades";
 
     private final ILocalidadServicio localidadServicio;
     private final IProvinciaServicio provinciaServicio;
@@ -85,41 +86,38 @@ public class LocalidadController {
     }
 
     /**
-     * Devuelve el formulario vacío de alta de una localidad (fragmento para el modal).
+     * Muestra el formulario de alta. Si se vuelve de crear una provincia, {@code idProvincia} llega
+     * como parámetro y queda elegida en el selector.
      */
     @GetMapping("/nuevo")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public String mostrarFormularioAlta(@RequestParam(required = false) String modo, Model model) {
-        model.addAttribute(ATRIBUTO_FORMULARIO, new LocalidadFormDTO());
-        cargarModeloFormulario(model, null, null, esAltaAlVuelo(modo));
+    public String mostrarFormularioAlta(@RequestParam(required = false) Long idProvincia,
+                                        @RequestParam(required = false) String retorno,
+                                        @RequestParam(required = false) String campo,
+                                        Model model) {
+        model.addAttribute(ATRIBUTO_FORMULARIO, LocalidadFormDTO.builder().idProvincia(idProvincia).build());
+        cargarModeloFormulario(model, null, idProvincia, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
-     * Procesa el alta de una localidad (Post-Redirect-Get). Si el formulario o una regla del
-     * service fallan, se devuelve de nuevo el formulario con los errores (estado 422).
+     * Procesa el alta de una localidad (Post-Redirect-Get). Si la validación del formulario o una
+     * regla del service falla, se vuelve a renderizar el formulario (sin redirigir) para no perder lo tipeado.
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public String altaLocalidad(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) LocalidadFormDTO localidadForm,
                                 BindingResult bindingResult,
-                                @RequestParam(required = false) String modo,
+                                @RequestParam(required = false) String retorno,
+                                @RequestParam(required = false) String campo,
                                 Model model,
-                                HttpServletResponse response,
                                 RedirectAttributes redirectAttributes) {
-        boolean altaAlVuelo = esAltaAlVuelo(modo);
-
         if (!bindingResult.hasErrors()) {
             try {
                 LocalidadResponseDTO localidad = localidadServicio.altaLocalidad(localidadForm);
-                if (altaAlVuelo) {
-                    model.addAttribute("id", localidad.getId());
-                    model.addAttribute("texto", etiqueta(localidad));
-                    response.setStatus(ESTADO_CREADO);
-                    return VISTA_RESULTADO_ALTA;
-                }
                 agregarMensaje(redirectAttributes, "Localidad creada correctamente", TipoAlerta.SUCCESS);
-                return REDIRECCION_LISTA;
+                String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, localidad.getId());
+                return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (RecursoNoEncontradoException e) {
@@ -129,25 +127,28 @@ public class LocalidadController {
             }
         }
 
-        response.setStatus(ESTADO_FORMULARIO_INVALIDO);
-        cargarModeloFormulario(model, null, localidadForm.getIdProvincia(), altaAlVuelo);
+        cargarModeloFormulario(model, null, localidadForm.getIdProvincia(), retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
-     * Devuelve el formulario de edición con los datos actuales de la localidad (fragmento para el modal).
+     * Muestra el formulario de edición con los datos actuales de la localidad. Si se vuelve de crear
+     * una provincia, {@code idProvincia} llega como parámetro y reemplaza a la provincia actual.
      */
     @GetMapping("/{id}/editar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public String mostrarFormularioEdicion(@PathVariable Long id, Model model) {
+    public String mostrarFormularioEdicion(@PathVariable Long id,
+                                           @RequestParam(required = false) Long idProvincia,
+                                           Model model) {
         LocalidadResponseDTO localidad = localidadServicio.buscarPorId(id);
+        Long idProvinciaVigente = idProvincia != null ? idProvincia : localidad.getProvincia().getId();
 
         model.addAttribute(ATRIBUTO_FORMULARIO, LocalidadFormDTO.builder()
                 .nombre(localidad.getNombre())
                 .codigoPostal(localidad.getCodigoPostal())
-                .idProvincia(localidad.getProvincia().getId())
+                .idProvincia(idProvinciaVigente)
                 .build());
-        cargarModeloFormulario(model, id, localidad.getProvincia().getId(), false);
+        cargarModeloFormulario(model, id, idProvinciaVigente, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -160,22 +161,22 @@ public class LocalidadController {
                                      @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) LocalidadFormDTO localidadForm,
                                      BindingResult bindingResult,
                                      Model model,
-                                     HttpServletResponse response,
                                      RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
             try {
                 localidadServicio.modificarLocalidad(id, localidadForm);
                 agregarMensaje(redirectAttributes, "Localidad modificada correctamente", TipoAlerta.SUCCESS);
-                return REDIRECCION_LISTA;
+                return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
+            } catch (RecursoNoEncontradoException e) {
+                bindingResult.rejectValue("idProvincia", "noEncontrado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
         }
 
-        response.setStatus(ESTADO_FORMULARIO_INVALIDO);
-        cargarModeloFormulario(model, id, localidadForm.getIdProvincia(), false);
+        cargarModeloFormulario(model, id, localidadForm.getIdProvincia(), null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -188,7 +189,7 @@ public class LocalidadController {
     public String bajaLocalidad(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         localidadServicio.bajaLocalidad(id);
         agregarMensaje(redirectAttributes, "Localidad dada de baja correctamente", TipoAlerta.SUCCESS);
-        return REDIRECCION_LISTA;
+        return "redirect:" + URL_LISTA;
     }
 
     private void cargarResultados(Model model, String nombre, String codigoPostal,
@@ -211,10 +212,13 @@ public class LocalidadController {
         model.addAttribute("filtroPaisTexto", paisTexto);
     }
 
-    private void cargarModeloFormulario(Model model, Long localidadId, Long idProvincia, boolean altaAlVuelo) {
+    private void cargarModeloFormulario(Model model, Long localidadId, Long idProvincia, String retorno, String campo) {
+        String retornoValido = RetornoContextual.retornoValido(retorno);
         model.addAttribute("localidadId", localidadId);
-        model.addAttribute("altaAlVuelo", altaAlVuelo);
         model.addAttribute("provinciaSeleccionada", etiquetaProvincia(idProvincia));
+        model.addAttribute("retorno", retornoValido);
+        model.addAttribute("campo", RetornoContextual.campoValido(campo));
+        model.addAttribute("urlCancelar", RetornoContextual.urlCancelar(retornoValido, URL_LISTA));
     }
 
     /**

@@ -85,8 +85,8 @@ class LocalidadControllerTest {
                 .andExpect(content().string(containsString("5800")))
                 .andExpect(content().string(containsString("Córdoba")))
                 .andExpect(content().string(containsString("Argentina")))
-                .andExpect(content().string(containsString("data-modal-url=\"/ubicaciones/localidades/nuevo\"")))
-                .andExpect(content().string(containsString("data-modal-url=\"/ubicaciones/localidades/8/editar\"")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/localidades/nuevo\"")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/localidades/8/editar\"")))
                 .andExpect(content().string(containsString("data-baja-url=\"/ubicaciones/localidades/8/baja\"")));
     }
 
@@ -208,22 +208,39 @@ class LocalidadControllerTest {
     void formularioAlta_debeOfrecerElSelectorDeProvinciaConAltaAlVuelo() throws Exception {
         mockMvc.perform(get("/ubicaciones/localidades/nuevo"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("ubicacion/localidad-form :: formulario"))
+                .andExpect(view().name("ubicacion/localidad-form"))
                 .andExpect(content().string(containsString("Nueva localidad")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/localidades\"")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/provincias/buscador\"")))
-                .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/provincias/nuevo?modo=seleccion\"")))
-                .andExpect(content().string(not(containsString("name=\"modo\""))));
+                .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/provincias/nuevo\"")))
+                .andExpect(content().string(containsString("Volver a localidades")))
+                .andExpect(content().string(not(containsString("name=\"retorno\""))));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-LOC-10: abierto desde un selector (modo=seleccion) el formulario lo indica con un campo oculto")
-    void formularioAlta_debeIndicarElModoSeleccion() throws Exception {
-        mockMvc.perform(get("/ubicaciones/localidades/nuevo").param("modo", "seleccion"))
+    @DisplayName("CP-LOC-10: abierto desde otro formulario (retorno y campo) conserva ambos en campos ocultos y cancelar vuelve a ese formulario")
+    void formularioAlta_debeConservarElRetornoContextual() throws Exception {
+        mockMvc.perform(get("/ubicaciones/localidades/nuevo")
+                        .param("retorno", "/clientes/nuevo").param("campo", "idLocalidad"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("name=\"modo\" value=\"seleccion\"")));
+                .andExpect(content().string(containsString("name=\"retorno\" value=\"/clientes/nuevo\"")))
+                .andExpect(content().string(containsString("name=\"campo\" value=\"idLocalidad\"")))
+                .andExpect(content().string(containsString("Volver al formulario anterior")))
+                .andExpect(content().string(containsString("href=\"/clientes/nuevo?desdeAlta=1\"")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-LOC-26: al volver de crear una provincia (idProvincia en la URL) el selector la muestra elegida")
+    void formularioAlta_debePreseleccionarLaProvinciaRecienCreada() throws Exception {
+        when(provinciaServicio.buscarPorId(5L)).thenReturn(provincia(5L, "Córdoba"));
+
+        mockMvc.perform(get("/ubicaciones/localidades/nuevo").param("idProvincia", "5").param("desdeAlta", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"idProvincia\" value=\"5\"")))
+                .andExpect(content().string(containsString("value=\"Córdoba (Argentina)\"")));
     }
 
     @Test
@@ -241,6 +258,8 @@ class LocalidadControllerTest {
     @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-LOC-12: alta correcta delega en el service y redirige al listado con alerta de éxito")
     void alta_debeRedirigirAlListadoConAlerta() throws Exception {
+        when(localidadServicio.altaLocalidad(any())).thenReturn(localidad(8L, "Río Cuarto", "5800"));
+
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf())
                         .param("nombre", "Río Cuarto").param("codigoPostal", "5800").param("idProvincia", "5"))
                 .andExpect(status().is3xxRedirection())
@@ -260,8 +279,8 @@ class LocalidadControllerTest {
     @DisplayName("CP-LOC-13: sin nombre, código postal ni provincia responde 422 con los tres errores, sin llamar al service")
     void alta_debeVolverAlFormularioSiFaltanLosDatosObligatorios() throws Exception {
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf()).param("nombre", " "))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(view().name("ubicacion/localidad-form :: formulario"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ubicacion/localidad-form"))
                 .andExpect(content().string(containsString("No se pudo crear la localidad")))
                 .andExpect(content().string(containsString("El nombre de la localidad es obligatorio")))
                 .andExpect(content().string(containsString("El código postal es obligatorio")))
@@ -278,7 +297,7 @@ class LocalidadControllerTest {
 
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf())
                         .param("nombre", "").param("codigoPostal", "5800").param("idProvincia", "5"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("name=\"idProvincia\" value=\"5\"")))
                 .andExpect(content().string(containsString("value=\"Córdoba (Argentina)\"")))
                 .andExpect(content().string(containsString("value=\"5800\"")));
@@ -294,7 +313,7 @@ class LocalidadControllerTest {
 
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf())
                         .param("nombre", "Río Cuarto").param("codigoPostal", "5800").param("idProvincia", "5"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ya existe una localidad con ese nombre en la provincia")))
                 // th:field escapa las tildes como entidades HTML
                 .andExpect(content().string(containsString("value=\"R&iacute;o Cuarto\"")));
@@ -309,23 +328,22 @@ class LocalidadControllerTest {
 
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf())
                         .param("nombre", "Río Cuarto").param("codigoPostal", "5800").param("idProvincia", "99"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No existe la provincia indicada")));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-LOC-17: el alta al vuelo responde 201 con la localidad creada (nombre y provincia) para dejarla elegida")
-    void altaAlVuelo_debeDevolverLaLocalidadCreada() throws Exception {
+    @DisplayName("CP-LOC-17: el alta contextual vuelve al formulario de origen con la localidad creada en el campo indicado")
+    void altaContextual_debeVolverAlFormularioDeOrigenConLaLocalidadCreada() throws Exception {
         when(localidadServicio.altaLocalidad(any())).thenReturn(localidad(8L, "Río Cuarto", "5800"));
 
         mockMvc.perform(post("/ubicaciones/localidades").with(csrf())
-                        .param("nombre", "Río Cuarto").param("codigoPostal", "5800")
-                        .param("idProvincia", "5").param("modo", "seleccion"))
-                .andExpect(status().isCreated())
-                .andExpect(view().name("ubicacion/resultado-alta :: resultado"))
-                .andExpect(content().string(containsString("data-id=\"8\"")))
-                .andExpect(content().string(containsString("data-texto=\"Río Cuarto (Córdoba)\"")));
+                        .param("nombre", "Río Cuarto").param("codigoPostal", "5800").param("idProvincia", "5")
+                        .param("retorno", "/clientes/nuevo").param("campo", "idLocalidad"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clientes/nuevo?desdeAlta=1&idLocalidad=8"))
+                .andExpect(flash().attribute("mensaje", "Localidad creada correctamente"));
     }
 
     @Test
@@ -351,7 +369,7 @@ class LocalidadControllerTest {
 
         mockMvc.perform(get("/ubicaciones/localidades/8/editar"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("ubicacion/localidad-form :: formulario"))
+                .andExpect(view().name("ubicacion/localidad-form"))
                 .andExpect(content().string(containsString("Editar localidad")))
                 .andExpect(content().string(containsString("value=\"R&iacute;o Cuarto\"")))
                 .andExpect(content().string(containsString("value=\"5800\"")))
@@ -359,6 +377,19 @@ class LocalidadControllerTest {
                 .andExpect(content().string(containsString("value=\"Córdoba (Argentina)\"")))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/localidades/8\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-LOC-27: al editar y volver de crear una provincia, la provincia de la URL reemplaza a la actual")
+    void formularioEdicion_debeReemplazarLaProvinciaPorLaRecienCreada() throws Exception {
+        when(localidadServicio.buscarPorId(8L)).thenReturn(localidad(8L, "Río Cuarto", "5800"));
+        when(provinciaServicio.buscarPorId(9L)).thenReturn(provincia(9L, "Santa Fe"));
+
+        mockMvc.perform(get("/ubicaciones/localidades/8/editar").param("idProvincia", "9"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"idProvincia\" value=\"9\"")))
+                .andExpect(content().string(containsString("value=\"Santa Fe (Argentina)\"")));
     }
 
     // ==================== POST /ubicaciones/localidades/{id} ====================
@@ -387,7 +418,7 @@ class LocalidadControllerTest {
 
         mockMvc.perform(post("/ubicaciones/localidades/8").with(csrf())
                         .param("nombre", "Villa María").param("codigoPostal", "5900").param("idProvincia", "5"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la localidad")))
                 .andExpect(content().string(containsString("Ya existe una localidad con ese nombre en la provincia")))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/localidades/8\"")));

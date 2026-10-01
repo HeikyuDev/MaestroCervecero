@@ -12,10 +12,10 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Ubicaciones</h1>
             <p class="text-sm text-slate-500">Países, provincias y localidades del sistema, en orden alfabético.</p>
         </div>
-        <button type="button" th:data-modal-url="@{/ubicaciones/provincias/nuevo}"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+        <a th:href="@{/ubicaciones/provincias/nuevo}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
             <i class="bi bi-plus-lg"></i> Nueva provincia
-        </button>
+        </a>
     </div>
 
     <div th:replace="~{ubicacion/tabs :: tabs('provincias')}"></div>
@@ -59,11 +59,11 @@
                 <td class="px-4 py-3 text-slate-700" th:text="${p.pais.nombre}">Argentina</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
-                        <button type="button" th:data-modal-url="@{/ubicaciones/provincias/{id}/editar(id=${p.id})}"
-                                title="Editar provincia" aria-label="Editar provincia"
-                                class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                        <a th:href="@{/ubicaciones/provincias/{id}/editar(id=${p.id})}"
+                           title="Editar provincia" aria-label="Editar provincia"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>
-                        </button>
+                        </a>
                         <button type="button" title="Dar de baja provincia" aria-label="Dar de baja provincia"
                                 th:data-baja-url="@{/ubicaciones/provincias/{id}/baja(id=${p.id})}"
                                 th:data-baja-nombre="${p.nombre}"

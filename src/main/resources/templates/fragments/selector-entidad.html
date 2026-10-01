@@ -11,13 +11,14 @@
       id           id actualmente elegido, o null.
       texto        texto a mostrar del elegido, o null.
       buscadorUrl  URL del fragmento del modal de búsqueda.
-      altaUrl      URL del formulario de alta para crear la entidad al vuelo, o null si el usuario no
-                   puede crearla (el botón "+" no se muestra).
+      altaUrl      URL de la página de alta de la entidad, o null si el usuario no puede crearla (el
+                   botón "+" no se muestra). El "+" lleva a esa página y al guardar vuelve a este
+                   formulario con lo tipeado recuperado y la entidad nueva elegida.
       limpiable    true si se puede quitar la selección (filtros).
       invalido     true para marcar el campo con error.
 
     Uso: <div th:replace="~{fragments/selector-entidad :: selector('idPais', *{idPais}, ${paisSeleccionado},
-                           @{/ubicaciones/paises/buscador}, @{/ubicaciones/paises/nuevo(modo='seleccion')}, false, false)}"></div>
+                           @{/ubicaciones/paises/buscador}, @{/ubicaciones/paises/nuevo}, false, false)}"></div>
 -->
 <div th:fragment="selector(campo, id, texto, buscadorUrl, altaUrl, limpiable, invalido)"
      data-selector th:data-buscador-url="${buscadorUrl}" th:data-alta-url="${altaUrl}">

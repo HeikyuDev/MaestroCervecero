@@ -1,12 +1,12 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.PaisFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IPaisServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.PaisResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,9 +30,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.ubic
  * excepción es el buscador de países, que también usan los gerentes comercial y de compras como
  * criterio de filtro al seleccionar una localidad.
  * <p>
- * Los formularios de alta y modificación se devuelven como fragmentos HTML para abrirse en un modal
- * sin salir de la pantalla actual. Si se abren desde un selector ({@code modo=seleccion}), el alta
- * responde con la entidad creada en lugar de redirigir.
+ * Si el alta se abre desde el selector de otro formulario ({@link RetornoContextual}), al guardar se
+ * vuelve a ese formulario con el país creado ya elegido.
  * </p>
  */
 @Controller
@@ -42,9 +41,9 @@ public class PaisController {
 
     private static final String VISTA_LISTA = "ubicacion/pais-lista";
     private static final String VISTA_BUSCADOR = "ubicacion/buscador-pais :: buscador";
-    private static final String VISTA_FORMULARIO = "ubicacion/pais-form :: formulario";
+    private static final String VISTA_FORMULARIO = "ubicacion/pais-form";
     private static final String ATRIBUTO_FORMULARIO = "paisForm";
-    private static final String REDIRECCION_LISTA = "redirect:/ubicaciones/paises";
+    private static final String URL_LISTA = "/ubicaciones/paises";
 
     private final IPaisServicio paisServicio;
 
@@ -81,42 +80,36 @@ public class PaisController {
     }
 
     /**
-     * Devuelve el formulario vacío de alta de un país (fragmento para el modal).
+     * Muestra el formulario vacío para dar de alta un país.
      */
     @GetMapping("/nuevo")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public String mostrarFormularioAlta(@RequestParam(required = false) String modo, Model model) {
+    public String mostrarFormularioAlta(@RequestParam(required = false) String retorno,
+                                        @RequestParam(required = false) String campo,
+                                        Model model) {
         model.addAttribute(ATRIBUTO_FORMULARIO, new PaisFormDTO());
-        cargarModeloFormulario(model, null, esAltaAlVuelo(modo));
+        cargarModeloFormulario(model, null, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
-     * Procesa el alta de un país (Post-Redirect-Get). Si el formulario o una regla del service
-     * fallan, se devuelve de nuevo el formulario con los errores (estado 422) para que el modal
-     * lo muestre sin perder lo tipeado.
+     * Procesa el alta de un país (Post-Redirect-Get). Si la validación del formulario o una regla
+     * del service falla, se vuelve a renderizar el formulario (sin redirigir) para no perder lo tipeado.
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public String altaPais(@Valid @ModelAttribute(ATRIBUTO_FORMULARIO) PaisFormDTO paisForm,
                            BindingResult bindingResult,
-                           @RequestParam(required = false) String modo,
+                           @RequestParam(required = false) String retorno,
+                           @RequestParam(required = false) String campo,
                            Model model,
-                           HttpServletResponse response,
                            RedirectAttributes redirectAttributes) {
-        boolean altaAlVuelo = esAltaAlVuelo(modo);
-
         if (!bindingResult.hasErrors()) {
             try {
                 PaisResponseDTO pais = paisServicio.altaPais(paisForm);
-                if (altaAlVuelo) {
-                    model.addAttribute("id", pais.getId());
-                    model.addAttribute("texto", pais.getNombre());
-                    response.setStatus(ESTADO_CREADO);
-                    return VISTA_RESULTADO_ALTA;
-                }
                 agregarMensaje(redirectAttributes, "País creado correctamente", TipoAlerta.SUCCESS);
-                return REDIRECCION_LISTA;
+                String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, pais.getId());
+                return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
@@ -124,13 +117,12 @@ public class PaisController {
             }
         }
 
-        response.setStatus(ESTADO_FORMULARIO_INVALIDO);
-        cargarModeloFormulario(model, null, altaAlVuelo);
+        cargarModeloFormulario(model, null, retorno, campo);
         return VISTA_FORMULARIO;
     }
 
     /**
-     * Devuelve el formulario de edición con los datos actuales del país (fragmento para el modal).
+     * Muestra el formulario de edición con los datos actuales del país.
      */
     @GetMapping("/{id}/editar")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -138,7 +130,7 @@ public class PaisController {
         PaisResponseDTO pais = paisServicio.buscarPorId(id);
 
         model.addAttribute(ATRIBUTO_FORMULARIO, PaisFormDTO.builder().nombre(pais.getNombre()).build());
-        cargarModeloFormulario(model, id, false);
+        cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -151,13 +143,12 @@ public class PaisController {
                                 @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) PaisFormDTO paisForm,
                                 BindingResult bindingResult,
                                 Model model,
-                                HttpServletResponse response,
                                 RedirectAttributes redirectAttributes) {
         if (!bindingResult.hasErrors()) {
             try {
                 paisServicio.modificarPais(id, paisForm);
                 agregarMensaje(redirectAttributes, "País modificado correctamente", TipoAlerta.SUCCESS);
-                return REDIRECCION_LISTA;
+                return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
@@ -165,8 +156,7 @@ public class PaisController {
             }
         }
 
-        response.setStatus(ESTADO_FORMULARIO_INVALIDO);
-        cargarModeloFormulario(model, id, false);
+        cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
 
@@ -179,11 +169,14 @@ public class PaisController {
     public String bajaPais(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         paisServicio.bajaPais(id);
         agregarMensaje(redirectAttributes, "País dado de baja correctamente", TipoAlerta.SUCCESS);
-        return REDIRECCION_LISTA;
+        return "redirect:" + URL_LISTA;
     }
 
-    private void cargarModeloFormulario(Model model, Long paisId, boolean altaAlVuelo) {
+    private void cargarModeloFormulario(Model model, Long paisId, String retorno, String campo) {
+        String retornoValido = RetornoContextual.retornoValido(retorno);
         model.addAttribute("paisId", paisId);
-        model.addAttribute("altaAlVuelo", altaAlVuelo);
+        model.addAttribute("retorno", retornoValido);
+        model.addAttribute("campo", RetornoContextual.campoValido(campo));
+        model.addAttribute("urlCancelar", RetornoContextual.urlCancelar(retornoValido, URL_LISTA));
     }
 }

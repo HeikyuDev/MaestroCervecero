@@ -73,8 +73,8 @@ class PaisControllerTest {
                 .andExpect(content().string(containsString("Argentina")))
                 .andExpect(content().string(containsString("href=\"/ubicaciones/provincias\"")))
                 .andExpect(content().string(containsString("href=\"/ubicaciones/localidades\"")))
-                .andExpect(content().string(containsString("data-modal-url=\"/ubicaciones/paises/nuevo\"")))
-                .andExpect(content().string(containsString("data-modal-url=\"/ubicaciones/paises/3/editar\"")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/paises/nuevo\"")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/paises/3/editar\"")))
                 .andExpect(content().string(containsString("data-baja-url=\"/ubicaciones/paises/3/baja\"")));
     }
 
@@ -185,26 +185,42 @@ class PaisControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PAC-09: el formulario de alta es un fragmento con asterisco de obligatorio y sin panel de errores")
-    void formularioAlta_debeRenderizarseComoFragmento() throws Exception {
+    @DisplayName("CP-PAC-09: el formulario de alta es una página con asterisco de obligatorio, enlace a la lista y sin panel de errores")
+    void formularioAlta_debeRenderizarseComoPagina() throws Exception {
         mockMvc.perform(get("/ubicaciones/paises/nuevo"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("ubicacion/pais-form :: formulario"))
+                .andExpect(view().name("ubicacion/pais-form"))
                 .andExpect(content().string(containsString("Nuevo país")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/paises\"")))
                 .andExpect(content().string(containsString("Crear país")))
-                .andExpect(content().string(not(containsString("name=\"modo\""))))
+                .andExpect(content().string(containsString("Volver a países")))
+                .andExpect(content().string(not(containsString("name=\"retorno\""))))
                 .andExpect(content().string(not(containsString("No se pudo crear el país"))));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PAC-10: abierto desde un selector (modo=seleccion) el formulario lo indica con un campo oculto")
-    void formularioAlta_debeIndicarElModoSeleccion() throws Exception {
-        mockMvc.perform(get("/ubicaciones/paises/nuevo").param("modo", "seleccion"))
+    @DisplayName("CP-PAC-10: abierto desde otro formulario (retorno y campo) conserva ambos en campos ocultos y cancelar vuelve a ese formulario")
+    void formularioAlta_debeConservarElRetornoContextual() throws Exception {
+        mockMvc.perform(get("/ubicaciones/paises/nuevo")
+                        .param("retorno", "/ubicaciones/provincias/nuevo").param("campo", "idPais"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("name=\"modo\" value=\"seleccion\"")));
+                .andExpect(content().string(containsString("name=\"retorno\" value=\"/ubicaciones/provincias/nuevo\"")))
+                .andExpect(content().string(containsString("name=\"campo\" value=\"idPais\"")))
+                .andExpect(content().string(containsString("Volver al formulario anterior")))
+                .andExpect(content().string(containsString("href=\"/ubicaciones/provincias/nuevo?desdeAlta=1\"")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-PAC-28: un retorno que apunta fuera del sitio se descarta (no hay redirección abierta)")
+    void formularioAlta_debeDescartarUnRetornoExterno() throws Exception {
+        mockMvc.perform(get("/ubicaciones/paises/nuevo").param("retorno", "//sitio-malicioso.com/x").param("campo", "idPais"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("name=\"retorno\""))))
+                .andExpect(content().string(not(containsString("sitio-malicioso"))))
+                .andExpect(content().string(containsString("Volver a países")));
     }
 
     @Test
@@ -222,6 +238,8 @@ class PaisControllerTest {
     @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-PAC-12: alta correcta delega en el service y redirige al listado con alerta de éxito")
     void alta_debeRedirigirAlListadoConAlerta() throws Exception {
+        when(paisServicio.altaPais(any())).thenReturn(pais(9L, "Chile"));
+
         mockMvc.perform(post("/ubicaciones/paises").with(csrf()).param("nombre", "Chile"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/ubicaciones/paises"))
@@ -238,8 +256,8 @@ class PaisControllerTest {
     @DisplayName("CP-PAC-13: con el nombre en blanco responde 422 con el formulario y el error, sin llamar al service")
     void alta_debeVolverAlFormularioSiElNombreEstaEnBlanco() throws Exception {
         mockMvc.perform(post("/ubicaciones/paises").with(csrf()).param("nombre", "   "))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(view().name("ubicacion/pais-form :: formulario"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ubicacion/pais-form"))
                 .andExpect(content().string(containsString("No se pudo crear el país")))
                 .andExpect(content().string(containsString("El nombre del país es obligatorio")));
 
@@ -253,8 +271,8 @@ class PaisControllerTest {
         when(paisServicio.altaPais(any())).thenThrow(new RecursoDuplicadoException("Ya existe un país con ese nombre"));
 
         mockMvc.perform(post("/ubicaciones/paises").with(csrf()).param("nombre", "Chile"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(view().name("ubicacion/pais-form :: formulario"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("ubicacion/pais-form"))
                 .andExpect(content().string(containsString("Ya existe un país con ese nombre")))
                 .andExpect(content().string(containsString("value=\"Chile\"")));
     }
@@ -266,35 +284,48 @@ class PaisControllerTest {
         when(paisServicio.altaPais(any())).thenThrow(new ReglaNegocioException("Regla incumplida"));
 
         mockMvc.perform(post("/ubicaciones/paises").with(csrf()).param("nombre", "Chile"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Regla incumplida")));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PAC-16: el alta al vuelo responde 201 con el país creado para dejarlo elegido en el selector")
-    void altaAlVuelo_debeDevolverElPaisCreado() throws Exception {
+    @DisplayName("CP-PAC-16: el alta contextual vuelve al formulario de origen con el país creado en el campo indicado")
+    void altaContextual_debeVolverAlFormularioDeOrigenConElPaisCreado() throws Exception {
         when(paisServicio.altaPais(any())).thenReturn(pais(9L, "Chile"));
 
         mockMvc.perform(post("/ubicaciones/paises").with(csrf())
-                        .param("nombre", "Chile").param("modo", "seleccion"))
-                .andExpect(status().isCreated())
-                .andExpect(view().name("ubicacion/resultado-alta :: resultado"))
-                .andExpect(content().string(containsString("data-resultado")))
-                .andExpect(content().string(containsString("data-id=\"9\"")))
-                .andExpect(content().string(containsString("data-texto=\"Chile\"")));
+                        .param("nombre", "Chile")
+                        .param("retorno", "/ubicaciones/provincias/nuevo").param("campo", "idPais"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ubicaciones/provincias/nuevo?desdeAlta=1&idPais=9"))
+                .andExpect(flash().attribute("mensaje", "País creado correctamente"));
     }
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PAC-17: el alta al vuelo con errores vuelve a mostrar el formulario del modal (422) con el modo conservado")
-    void altaAlVuelo_debeVolverAlFormularioConErrores() throws Exception {
+    @DisplayName("CP-PAC-17: el alta contextual con errores vuelve a mostrar el formulario conservando retorno y campo")
+    void altaContextual_debeConservarElRetornoAlVolverConErrores() throws Exception {
         mockMvc.perform(post("/ubicaciones/paises").with(csrf())
-                        .param("nombre", "").param("modo", "seleccion"))
-                .andExpect(status().isUnprocessableEntity())
-                .andExpect(content().string(containsString("name=\"modo\" value=\"seleccion\"")));
+                        .param("nombre", "")
+                        .param("retorno", "/ubicaciones/provincias/nuevo").param("campo", "idPais"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"retorno\" value=\"/ubicaciones/provincias/nuevo\"")))
+                .andExpect(content().string(containsString("name=\"campo\" value=\"idPais\"")));
 
         verify(paisServicio, never()).altaPais(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-PAC-29: un retorno que apunta fuera del sitio se ignora y el alta redirige al listado")
+    void altaContextual_debeIgnorarUnRetornoExterno() throws Exception {
+        when(paisServicio.altaPais(any())).thenReturn(pais(9L, "Chile"));
+
+        mockMvc.perform(post("/ubicaciones/paises").with(csrf())
+                        .param("nombre", "Chile").param("retorno", "https://sitio-malicioso.com").param("campo", "idPais"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/ubicaciones/paises"));
     }
 
     @Test
@@ -328,7 +359,7 @@ class PaisControllerTest {
 
         mockMvc.perform(get("/ubicaciones/paises/3/editar"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("ubicacion/pais-form :: formulario"))
+                .andExpect(view().name("ubicacion/pais-form"))
                 .andExpect(content().string(containsString("Editar país")))
                 .andExpect(content().string(containsString("value=\"Argentina\"")))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/paises/3\"")))
@@ -357,7 +388,7 @@ class PaisControllerTest {
         when(paisServicio.modificarPais(eq(3L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un país con ese nombre"));
 
         mockMvc.perform(post("/ubicaciones/paises/3").with(csrf()).param("nombre", "Chile"))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el país")))
                 .andExpect(content().string(containsString("Ya existe un país con ese nombre")))
                 .andExpect(content().string(containsString("action=\"/ubicaciones/paises/3\"")));
@@ -368,7 +399,7 @@ class PaisControllerTest {
     @DisplayName("CP-PAC-23: modificar con el nombre en blanco responde 422 sin llamar al service")
     void modificar_debeVolverAlFormularioSiElNombreEstaEnBlanco() throws Exception {
         mockMvc.perform(post("/ubicaciones/paises/3").with(csrf()).param("nombre", ""))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("El nombre del país es obligatorio")));
 
         verify(paisServicio, never()).modificarPais(any(), any());
