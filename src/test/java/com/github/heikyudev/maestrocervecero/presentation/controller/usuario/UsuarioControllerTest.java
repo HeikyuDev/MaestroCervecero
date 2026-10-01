@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -78,7 +79,9 @@ class UsuarioControllerTest {
                 .andExpect(content().string(containsString("GERENTE DE COMPRAS")))
                 .andExpect(content().string(containsString("/usuarios/nuevo")))
                 .andExpect(content().string(containsString("/usuarios/7/editar")))
-                .andExpect(content().string(containsString("data-baja-url=\"/usuarios/7/baja\"")));
+                .andExpect(content().string(containsString("data-baja-url=\"/usuarios/7/baja\"")))
+                // El diálogo de baja envía un POST: su formulario debe llevar el token CSRF
+                .andExpect(content().string(matchesPattern("(?s).*<dialog id=\"dialogo-baja\".*name=\"_csrf\".*</dialog>.*")));
     }
 
     @Test

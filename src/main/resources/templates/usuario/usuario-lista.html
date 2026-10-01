@@ -123,50 +123,14 @@
         </table>
 
         <!-- Paginación (conserva los criterios de búsqueda) -->
-        <div th:if="${usuarios.totalPages > 0}"
-             class="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50 text-sm text-slate-600">
-            <span>
-                <span th:text="${usuarios.totalElements}">0</span> usuarios ·
-                Página <span th:text="${usuarios.number + 1}">1</span> de <span th:text="${usuarios.totalPages}">1</span>
-            </span>
-            <div class="flex items-center gap-2">
-                <a th:if="${usuarios.hasPrevious()}"
-                   th:href="@{/usuarios(pagina=${usuarios.number - 1}, username=${filtroUsername}, nombre=${filtroNombre}, apellido=${filtroApellido}, correo=${filtroCorreo}, rol=${filtroRol})}"
-                   class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
-                    <i class="bi bi-chevron-left"></i> Anterior
-                </a>
-                <a th:if="${usuarios.hasNext()}"
-                   th:href="@{/usuarios(pagina=${usuarios.number + 1}, username=${filtroUsername}, nombre=${filtroNombre}, apellido=${filtroApellido}, correo=${filtroCorreo}, rol=${filtroRol})}"
-                   class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
-                    Siguiente <i class="bi bi-chevron-right"></i>
-                </a>
-            </div>
-        </div>
+        <div th:replace="~{fragments/paginacion :: paginacion(${usuarios}, 'usuarios',
+                ${usuarios.hasPrevious()} ? @{/usuarios(pagina=${usuarios.number - 1}, username=${filtroUsername}, nombre=${filtroNombre}, apellido=${filtroApellido}, correo=${filtroCorreo}, rol=${filtroRol})} : null,
+                ${usuarios.hasNext()} ? @{/usuarios(pagina=${usuarios.number + 1}, username=${filtroUsername}, nombre=${filtroNombre}, apellido=${filtroApellido}, correo=${filtroCorreo}, rol=${filtroRol})} : null,
+                false)}"></div>
     </div>
 
-    <!-- Modal de confirmación de baja (un solo diálogo reutilizado por todas las filas) -->
-    <dialog id="dialogo-baja" class="m-auto w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
-        <form id="form-baja" method="post" th:action="@{/usuarios/0/baja}" class="p-6">
-            <div class="flex items-start gap-3">
-                <span class="p-2 rounded-full bg-rose-50 text-rose-600"><i class="bi bi-exclamation-triangle-fill text-xl"></i></span>
-                <div>
-                    <h3 class="text-lg font-semibold text-slate-900">Dar de baja usuario</h3>
-                    <p class="mt-1 text-sm text-slate-600">
-                        ¿Confirmás que querés dar de baja a <strong data-baja-nombre-destino class="text-slate-900"></strong>?
-                        Ya no podrá iniciar sesión en el sistema.
-                    </p>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end gap-3">
-                <button type="button" data-cerrar-dialogo
-                        class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
-                <button type="submit"
-                        class="px-5 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-colors">Dar de baja</button>
-            </div>
-        </form>
-    </dialog>
-
-    <!-- La apertura y el cierre del diálogo de baja los maneja /js/modales.js -->
+    <!-- Diálogo de confirmación de baja (la apertura y el cierre los maneja /js/modales.js) -->
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja usuario', 'Ya no podrá iniciar sesión en el sistema.')}"></div>
 </div>
 
 </body>
