@@ -142,7 +142,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de alfa ácidos debe ser mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(lupuloRepository);
@@ -155,7 +155,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de alfa ácidos debe ser mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -167,9 +167,44 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de alfa ácidos debe ser mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
 
         verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("altaLupulo lanza ReglaNegocioException cuando el porcentaje de ácidos alfa supera el 25% (límite superior)")
+    void altaLupulo_debeRechazarAlfaAcidosMayoresA25() {
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 25.01);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("altaLupulo persiste con éxito cuando el porcentaje de ácidos alfa está en el límite superior válido (25%)")
+    void altaLupulo_debePersistirConAlfaAcidosEnLimiteSuperiorValido() {
+        // === PREPARACION DE DATOS ===
+        LupuloFormDTO lupuloFormDTO = lupuloFormDTO("Super Alpha", FormatoLupulo.PELLET, 25.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("Super Alpha")).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> {
+            LupuloEntity entidadGuardada = invocation.getArgument(0);
+            entidadGuardada.setId(5L);
+            return entidadGuardada;
+        });
+
+        // === EJECUCION ===
+        LupuloResponseDTO resultado = lupuloServicio.altaLupulo(lupuloFormDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<LupuloEntity> captor = ArgumentCaptor.forClass(LupuloEntity.class);
+        verify(lupuloRepository).save(captor.capture());
+        assertThat(captor.getValue().getAa()).isEqualTo(25.0);
+        assertThat(resultado.getAa()).isEqualTo(25.0);
+        assertThat(resultado.getNombre()).isEqualTo("Super Alpha");
     }
 
     @Test
@@ -270,7 +305,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de alfa ácidos debe ser mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(lupuloRepository);

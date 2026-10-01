@@ -45,7 +45,7 @@ public interface ILevaduraServicio {
      *
      * @param levaduraFormDTO Los datos de la levadura a registrar.
      * @return La levadura registrada.
-     * @throws ReglaNegocioException Si la cantidad de células por gramo no es positiva (mayor a 0).
+     * @throws ReglaNegocioException Si la cantidad de células viables por gramo no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoDuplicadoException Si ya existe una levadura activa con el mismo nombre (case-insensitive).
      */
     LevaduraResponseDTO altaLevadura(LevaduraFormDTO levaduraFormDTO);
@@ -56,7 +56,7 @@ public interface ILevaduraServicio {
      * @param id El ID de la levadura a modificar.
      * @param levaduraFormDTO Los nuevos datos de la levadura.
      * @return La levadura modificada.
-     * @throws ReglaNegocioException Si la cantidad de células por gramo no es positiva (mayor a 0).
+     * @throws ReglaNegocioException Si la cantidad de células viables por gramo no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoNoEncontradoException Si no existe una levadura activa con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otra levadura activa (case-insensitive).
      */

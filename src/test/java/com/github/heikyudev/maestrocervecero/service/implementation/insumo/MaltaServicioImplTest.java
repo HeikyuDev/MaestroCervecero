@@ -136,38 +136,50 @@ class MaltaServicioImplTest {
     // ==================== altaMalta ====================
 
     @Test
-    @DisplayName("altaMalta lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento es nulo")
-    void altaMalta_debeRechazarRendimientoNulo() {
+    @DisplayName("altaMalta lanza ReglaNegocioException y no consulta el repositorio cuando el extracto potencial es nulo")
+    void altaMalta_debeRechazarPotencialExtractoNulo() {
         MaltaFormDTO maltaFormDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, null);
 
         assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento debe estar entre 0 y 100 inclusive");
+                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(maltaRepository);
     }
 
     @Test
-    @DisplayName("altaMalta lanza ReglaNegocioException cuando el rendimiento es negativo (límite inferior)")
-    void altaMalta_debeRechazarRendimientoNegativo() {
+    @DisplayName("altaMalta lanza ReglaNegocioException cuando el extracto potencial es negativo")
+    void altaMalta_debeRechazarPotencialExtractoNegativo() {
         MaltaFormDTO maltaFormDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, -1);
 
         assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento debe estar entre 0 y 100 inclusive");
+                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
 
         verifyNoInteractions(maltaRepository);
     }
 
     @Test
-    @DisplayName("altaMalta lanza ReglaNegocioException cuando el rendimiento es mayor a 100 (límite superior)")
-    void altaMalta_debeRechazarRendimientoMayorA100() {
-        MaltaFormDTO maltaFormDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 101);
+    @DisplayName("altaMalta lanza ReglaNegocioException cuando el extracto potencial es mayor a 90 (límite superior)")
+    void altaMalta_debeRechazarPotencialExtractoMayorA90() {
+        MaltaFormDTO maltaFormDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 91);
 
         assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento debe estar entre 0 y 100 inclusive");
+                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
+
+        verifyNoInteractions(maltaRepository);
+    }
+
+    @Test
+    @DisplayName("altaMalta lanza ReglaNegocioException cuando el extracto potencial es igual a cero (límite inferior)")
+    void altaMalta_debeRechazarPotencialExtractoCero() {
+        MaltaFormDTO maltaFormDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 0);
+
+        assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
 
         verifyNoInteractions(maltaRepository);
     }
@@ -236,10 +248,10 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("altaMalta persiste con éxito cuando el rendimiento está en el límite inferior entero válido")
-    void altaMalta_debePersistirConRendimientoEnLimiteInferiorValido() {
+    @DisplayName("altaMalta persiste con éxito cuando el extracto potencial está en el límite inferior entero válido (1)")
+    void altaMalta_debePersistirConPotencialExtractoEnLimiteInferiorValido() {
         // === PREPARACION DE DATOS ===
-        MaltaFormDTO maltaFormDTO = maltaFormDTO("Malta Roasted", TipoMalta.TOSTADA, 0);
+        MaltaFormDTO maltaFormDTO = maltaFormDTO("Malta Roasted", TipoMalta.TOSTADA, 1);
         when(maltaRepository.existsByNombreIgnoreCase("Malta Roasted")).thenReturn(false);
         when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> {
             MaltaEntity entidadGuardada = invocation.getArgument(0);
@@ -254,18 +266,18 @@ class MaltaServicioImplTest {
         ArgumentCaptor<MaltaEntity> captor = ArgumentCaptor.forClass(MaltaEntity.class);
         verify(maltaRepository).save(captor.capture());
         MaltaEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(0);
+        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(1);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
 
-        assertThat(resultado.getPotencialExtracto()).isEqualTo(0);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(1);
         assertThat(resultado.getNombre()).isEqualTo("Malta Roasted");
     }
 
     @Test
-    @DisplayName("altaMalta persiste con éxito cuando el rendimiento está en el límite superior entero válido")
-    void altaMalta_debePersistirConRendimientoEnLimiteSuperiorValido() {
+    @DisplayName("altaMalta persiste con éxito cuando el extracto potencial está en el límite superior válido (90)")
+    void altaMalta_debePersistirConPotencialExtractoEnLimiteSuperiorValido() {
         // === PREPARACION DE DATOS ===
-        MaltaFormDTO maltaFormDTO = maltaFormDTO("Malta Pale Ale", TipoMalta.BASE, 100);
+        MaltaFormDTO maltaFormDTO = maltaFormDTO("Malta Pale Ale", TipoMalta.BASE, 90);
         when(maltaRepository.existsByNombreIgnoreCase("Malta Pale Ale")).thenReturn(false);
         when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> {
             MaltaEntity entidadGuardada = invocation.getArgument(0);
@@ -280,23 +292,23 @@ class MaltaServicioImplTest {
         ArgumentCaptor<MaltaEntity> captor = ArgumentCaptor.forClass(MaltaEntity.class);
         verify(maltaRepository).save(captor.capture());
         MaltaEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(100);
+        assertThat(entidadCapturada.getPotencialExtracto()).isEqualTo(90);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
 
-        assertThat(resultado.getPotencialExtracto()).isEqualTo(100);
+        assertThat(resultado.getPotencialExtracto()).isEqualTo(90);
         assertThat(resultado.getNombre()).isEqualTo("Malta Pale Ale");
     }
 
     // ==================== modificarMalta ====================
 
     @Test
-    @DisplayName("modificarMalta lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento es inválido")
-    void modificarMalta_debeRechazarRendimientoInvalido() {
+    @DisplayName("modificarMalta lanza ReglaNegocioException y no consulta el repositorio cuando el extracto potencial es inválido")
+    void modificarMalta_debeRechazarPotencialExtractoInvalido() {
         MaltaFormDTO maltaFormDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, -5);
 
         assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento debe estar entre 0 y 100 inclusive");
+                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(maltaRepository);

@@ -27,6 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MaltaServicioImpl implements IMaltaServicio {
 
+    /**
+     * Extracto potencial máximo (en porcentaje) que se admite para una malta.
+     */
+    private static final int POTENCIAL_EXTRACTO_MAXIMO = 90;
+
     // Inyecto los repositorios gracias a LOMBOK
     private final IMaltaRepository maltaRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
@@ -71,22 +76,22 @@ public class MaltaServicioImpl implements IMaltaServicio {
     /**
      * Registra una nueva malta en el sistema.
      * <p>
-     * Valida que el rendimiento se encuentre entre 0 y 100 inclusive, que el nombre no esté
+     * Valida que el extracto potencial sea mayor a 0% y menor o igual a 90%, que el nombre no esté
      * duplicado (case-insensitive) entre las maltas activas, y asigna la unidad de medida fija
      * de negocio ({@code KILOGRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param maltaFormDTO Objeto DTO que contiene los datos de creación de la malta.
      * @return {@link MaltaResponseDTO} representativo de la malta guardada en la base de datos.
-     * @throws ReglaNegocioException Si el rendimiento no se encuentra entre 0 y 100 inclusive.
+     * @throws ReglaNegocioException Si el extracto potencial no es mayor a 0% y menor o igual a 90%.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una malta activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MALTA)
     public MaltaResponseDTO altaMalta(MaltaFormDTO maltaFormDTO) {
-        // 1. Validar la regla de negocio del rendimiento
-        validarRendimiento(maltaFormDTO.getPotencialExtracto());
+        // 1. Validar la regla de negocio del extracto potencial
+        validarPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
         // 2. Validar si el nombre ya está registrado en otra malta (case-insensitive)
         if (maltaRepository.existsByNombreIgnoreCase(maltaFormDTO.getNombre())) {
@@ -110,7 +115,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
     /**
      * Actualiza la información de una malta existente en la base de datos.
      * <p>
-     * Valida el rendimiento antes de consultar la base de datos, luego localiza la malta
+     * Valida el extracto potencial antes de consultar la base de datos, luego localiza la malta
      * por su ID y verifica que el nuevo nombre no colisione con el de otra malta activa
      * (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
@@ -118,7 +123,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * @param id Identificador clave primaria de la malta a modificar.
      * @param maltaFormDTO DTO con la información actualizada.
      * @return {@link MaltaResponseDTO} representativo de la malta con los cambios aplicados.
-     * @throws ReglaNegocioException Si el rendimiento no se encuentra entre 0 y 100 inclusive.
+     * @throws ReglaNegocioException Si el extracto potencial no es mayor a 0% y menor o igual a 90%.
      * @throws RecursoNoEncontradoException Si no se localiza una malta activa por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra malta activa.
      */
@@ -126,8 +131,8 @@ public class MaltaServicioImpl implements IMaltaServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MALTA)
     public MaltaResponseDTO modificarMalta(Long id, MaltaFormDTO maltaFormDTO) {
-        // 1. Validar la regla de negocio del rendimiento antes de consultar la base de datos
-        validarRendimiento(maltaFormDTO.getPotencialExtracto());
+        // 1. Validar la regla de negocio del extracto potencial antes de consultar la base de datos
+        validarPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
         // 2. Localizar la malta existente. Si no existe, se dispara RecursoNoEncontradoException
         MaltaEntity maltaEntity = maltaRepository.findById(id)
@@ -188,14 +193,16 @@ public class MaltaServicioImpl implements IMaltaServicio {
     }
 
     /**
-     * Valida la regla de negocio del rendimiento de la malta.
+     * Valida la regla de negocio del extracto potencial de la malta: debe ser mayor a 0% y menor o
+     * igual a {@value #POTENCIAL_EXTRACTO_MAXIMO}%.
      *
-     * @param rendimiento Rendimiento en porcentaje a validar.
-     * @throws ReglaNegocioException Si el rendimiento es nulo o no se encuentra entre 0 y 100 inclusive.
+     * @param potencialExtracto Extracto potencial en porcentaje a validar.
+     * @throws ReglaNegocioException Si el extracto potencial es nulo, no es mayor a 0% o supera el 90%.
      */
-    private static void validarRendimiento(Integer rendimiento) {
-        if (rendimiento == null || rendimiento < 0 || rendimiento > 100) {
-            throw new ReglaNegocioException("El rendimiento debe estar entre 0 y 100 inclusive");
+    private static void validarPotencialExtracto(Integer potencialExtracto) {
+        if (potencialExtracto == null || potencialExtracto <= 0 || potencialExtracto > POTENCIAL_EXTRACTO_MAXIMO) {
+            throw new ReglaNegocioException("El extracto potencial debe ser mayor a 0% y menor o igual a "
+                    + POTENCIAL_EXTRACTO_MAXIMO + "%");
         }
     }
 }

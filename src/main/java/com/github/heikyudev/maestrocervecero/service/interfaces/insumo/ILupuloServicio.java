@@ -45,7 +45,7 @@ public interface ILupuloServicio {
      *
      * @param lupuloFormDTO Los datos del lúpulo a registrar.
      * @return El lúpulo registrado.
-     * @throws ReglaNegocioException Si el porcentaje de alfa ácidos no es positivo (mayor a 0).
+     * @throws ReglaNegocioException Si los ácidos alfa no son mayores a 0% y menores o iguales a 25%.
      * @throws RecursoDuplicadoException Si ya existe un lúpulo activo con el mismo nombre (case-insensitive).
      */
     LupuloResponseDTO altaLupulo(LupuloFormDTO lupuloFormDTO);
@@ -56,7 +56,7 @@ public interface ILupuloServicio {
      * @param id El ID del lúpulo a modificar.
      * @param lupuloFormDTO Los nuevos datos del lúpulo.
      * @return El lúpulo modificado.
-     * @throws ReglaNegocioException Si el porcentaje de alfa ácidos no es positivo (mayor a 0).
+     * @throws ReglaNegocioException Si los ácidos alfa no son mayores a 0% y menores o iguales a 25%.
      * @throws RecursoNoEncontradoException Si no existe un lúpulo activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro lúpulo activo (case-insensitive).
      */

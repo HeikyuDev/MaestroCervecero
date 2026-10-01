@@ -45,7 +45,7 @@ public interface IMaltaServicio {
      *
      * @param maltaFormDTO Los datos de la malta a registrar.
      * @return La malta registrada.
-     * @throws ReglaNegocioException Si el rendimiento no se encuentra entre 0 y 100 inclusive.
+     * @throws ReglaNegocioException Si el extracto potencial no es mayor a 0% y menor o igual a 90%.
      * @throws RecursoDuplicadoException Si ya existe una malta activa con el mismo nombre (case-insensitive).
      */
     MaltaResponseDTO altaMalta(MaltaFormDTO maltaFormDTO);
@@ -56,7 +56,7 @@ public interface IMaltaServicio {
      * @param id El ID de la malta a modificar.
      * @param maltaFormDTO Los nuevos datos de la malta.
      * @return La malta modificada.
-     * @throws ReglaNegocioException Si el rendimiento no se encuentra entre 0 y 100 inclusive.
+     * @throws ReglaNegocioException Si el extracto potencial no es mayor a 0% y menor o igual a 90%.
      * @throws RecursoNoEncontradoException Si no existe una malta activa con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otra malta activa (case-insensitive).
      */

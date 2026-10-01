@@ -27,6 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LevaduraServicioImpl implements ILevaduraServicio {
 
+    /**
+     * Cantidad mínima de células viables por gramo que se admite para una levadura.
+     */
+    private static final double CELULAS_VIABLES_MINIMO = 6_000_000_000.0;
+
+    /**
+     * Cantidad máxima de células viables por gramo que se admite para una levadura.
+     */
+    private static final double CELULAS_VIABLES_MAXIMO = 20_000_000_000.0;
+
     // Inyecto los repositorios gracias a LOMBOK
     private final ILevaduraRepository levaduraRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
@@ -71,14 +81,14 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     /**
      * Registra una nueva levadura en el sistema.
      * <p>
-     * Valida que la cantidad de células por gramo sea positiva (mayor a 0), que el nombre no esté
+     * Valida que la cantidad de células viables por gramo esté entre 6.000.000.000 y 20.000.000.000, que el nombre no esté
      * duplicado (case-insensitive) entre las levaduras activas, y asigna la unidad de medida fija
      * de negocio ({@code GRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param levaduraFormDTO Objeto DTO que contiene los datos de creación de la levadura.
      * @return {@link LevaduraResponseDTO} representativo de la levadura guardada en la base de datos.
-     * @throws ReglaNegocioException Si la cantidad de células por gramo no es positiva (mayor a 0).
+     * @throws ReglaNegocioException Si la cantidad de células viables por gramo no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una levadura activa.
      */
     @Override
@@ -118,7 +128,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a modificar.
      * @param levaduraFormDTO DTO con la información actualizada.
      * @return {@link LevaduraResponseDTO} representativo de la levadura con los cambios aplicados.
-     * @throws ReglaNegocioException Si la cantidad de células por gramo no es positiva (mayor a 0).
+     * @throws ReglaNegocioException Si la cantidad de células viables por gramo no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoNoEncontradoException Si no se localiza una levadura activa por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra levadura activa.
      */
@@ -188,14 +198,19 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     }
 
     /**
-     * Valida la regla de negocio de la cantidad de células por gramo de la levadura.
+     * Valida la regla de negocio de la cantidad de células viables por gramo de la levadura: debe
+     * ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000. El valor llega en células
+     * (no en millones): la conversión desde millones, si el usuario la usa, es de la capa web.
      *
-     * @param cantidadCelulasPorGramo Cantidad de células por gramo a validar.
-     * @throws ReglaNegocioException Si la cantidad de células por gramo es nula o no es positiva (mayor a 0).
+     * @param cantidadCelulasPorGramo Cantidad de células viables por gramo a validar.
+     * @throws ReglaNegocioException Si la cantidad es nula o queda fuera del rango permitido.
      */
     private static void validarCantidadCelulasPorGramo(Double cantidadCelulasPorGramo) {
-        if (cantidadCelulasPorGramo == null || cantidadCelulasPorGramo <= 0) {
-            throw new ReglaNegocioException("La cantidad de células por gramo debe ser mayor a 0");
+        if (cantidadCelulasPorGramo == null
+                || cantidadCelulasPorGramo < CELULAS_VIABLES_MINIMO
+                || cantidadCelulasPorGramo > CELULAS_VIABLES_MAXIMO) {
+            throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a "
+                    + "6.000.000.000 y menor o igual a 20.000.000.000");
         }
     }
 }

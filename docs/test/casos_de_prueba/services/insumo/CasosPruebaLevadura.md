@@ -19,15 +19,20 @@
 
 ### 3. `altaLevadura(LevaduraFormDTO formDTO)`
 
+La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000. El service trabaja en células (no en millones). Mensaje de error: "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000".
+
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
 | **CP-AL-01** | Células por gramo nula | `celulas: null`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo == null` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
-| **CP-AL-02** | Células por gramo igual a cero *(Límite)* | `celulas: 0.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo <= 0` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
-| **CP-AL-03** | Células por gramo negativa *(Límite inf.)* | `celulas: -1.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo <= 0` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
+| **CP-AL-02** | Células por gramo igual a cero | `celulas: 0.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo < 6.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
+| **CP-AL-03** | Células por gramo negativa | `celulas: -1.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo < 6.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
 | **CP-AL-04** | Nombre duplicado | `celulas: 1.0E10`, `nombre: "SafAle US-05"` (Existe en BD) | `existsByNombreIgnoreCase` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException`. No ejecuta `save()`. |
 | **CP-AL-05** | Nombre duplicado Case-Insensitive | `celulas: 1.0E10`, `nombre: "safale us-05"` (Existe `"SafAle US-05"`) | `existsByNombreIgnoreCase` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException`. No ejecuta `save()`. |
 | **CP-AL-06** | Alta exitosa y asignación de `GRAMO` *(Camino feliz)* | `celulas: 1.0E10`, `nombre: "SafLager W-34/70"` (Único), `tipo: LAGER` | Todas las validaciones $\rightarrow$ **FALSE** | Persiste la entidad asignando fijamente `unidadDeMedida = GRAMO` y `estado = ACTIVO`, y retorna DTO. |
-| **CP-AL-07** | Células por gramo en límite inferior válido | `celulas: 0.1` (Mayor a cero), `nombre: "Belle Saison"` | `cantidadCelulasPorGramo <= 0` $\rightarrow$ **FALSE** | Persiste con éxito y retorna DTO con `cantidadCelulasPorGramo = 0.1`. |
+| **CP-AL-07** | Células por gramo en límite inferior válido | `celulas: 6.000.000.000`, `nombre: "Belle Saison"` | `cantidadCelulasPorGramo < 6.000.000.000 \| cantidadCelulasPorGramo > 20.000.000.000` $\rightarrow$ **FALSE** | Persiste con éxito y retorna DTO con `cantidadCelulasPorGramo = 6.000.000.000`. |
+| **CP-AL-08** | Células por gramo menor al mínimo *(Límite inf.)* | `celulas: 5.999.999.999`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo < 6.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
+| **CP-AL-09** | Células por gramo mayor al máximo *(Límite sup.)* | `celulas: 20.000.000.001`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo > 20.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
+| **CP-AL-10** | Células por gramo en límite superior válido | `celulas: 20.000.000.000`, `nombre: "Kveik Voss"` | `cantidadCelulasPorGramo < 6.000.000.000 \| cantidadCelulasPorGramo > 20.000.000.000` $\rightarrow$ **FALSE** | Persiste con éxito y retorna DTO con `cantidadCelulasPorGramo = 20.000.000.000`. |
 
 ---
 
@@ -35,7 +40,7 @@
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-ML-01** | Falla por células por gramo inválida | `id: 1L`, `celulas: 0.0` (o `null`) | `cantidadCelulasPorGramo <= 0` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD. |
+| **CP-ML-01** | Falla por células por gramo inválida | `id: 1L`, `celulas: 0.0` (o `null`, `5.999.999.999`, `20.000.000.001`) | `cantidadCelulasPorGramo < 6.000.000.000 \| cantidadCelulasPorGramo > 20.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD. |
 | **CP-ML-02** | Levadura no encontrada por ID | `id: 99L` (No existe en BD), DTO válido | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "La levadura no existe". No persiste. |
 | **CP-ML-03** | Nombre en uso por otra levadura | `id: 1L`, `nombre: "SafAle US-05"` (En uso por ID 2L) | `existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException`. No persiste. |
 | **CP-ML-04** | Modificación exitosa *(Camino Feliz)* | `id: 1L` (Existe), `nombre: "SafAle S-04 Modificada"`, DTO válido | Nombre libre y levadura encontrada | Actualiza campos (`nombre`, `tipo`, `cantidadCelulasPorGramo`), mantiene `GRAMO`, guarda y retorna DTO. |

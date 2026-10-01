@@ -27,6 +27,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LupuloServicioImpl implements ILupuloServicio {
 
+    /**
+     * Porcentaje máximo de ácidos alfa que se admite para un lúpulo.
+     */
+    private static final double ALFA_ACIDOS_MAXIMO = 25.0;
+
     // Inyecto los repositorios gracias a LOMBOK
     private final ILupuloRepository lupuloRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
@@ -70,14 +75,14 @@ public class LupuloServicioImpl implements ILupuloServicio {
     /**
      * Registra un nuevo lúpulo en el sistema.
      * <p>
-     * Valida que el porcentaje de alfa ácidos sea positivo (mayor a 0), que el nombre no esté
+     * Valida que los ácidos alfa sean mayores a 0% y menores o iguales a 25%, que el nombre no esté
      * duplicado (case-insensitive) entre los lúpulos activos, y asigna la unidad de medida fija
      * de negocio ({@code GRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param lupuloFormDTO Objeto DTO que contiene los datos de creación del lúpulo.
      * @return {@link LupuloResponseDTO} representativo del lúpulo guardado en la base de datos.
-     * @throws ReglaNegocioException Si el porcentaje de alfa ácidos no es positivo (mayor a 0).
+     * @throws ReglaNegocioException Si los ácidos alfa no son mayores a 0% y menores o iguales a 25%.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a un lúpulo activo.
      */
     @Override
@@ -117,7 +122,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @param id Identificador clave primaria del lúpulo a modificar.
      * @param lupuloFormDTO DTO con la información actualizada.
      * @return {@link LupuloResponseDTO} representativo del lúpulo con los cambios aplicados.
-     * @throws ReglaNegocioException Si el porcentaje de alfa ácidos no es positivo (mayor a 0).
+     * @throws ReglaNegocioException Si los ácidos alfa no son mayores a 0% y menores o iguales a 25%.
      * @throws RecursoNoEncontradoException Si no se localiza un lúpulo activo por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otro lúpulo activo.
      */
@@ -187,14 +192,15 @@ public class LupuloServicioImpl implements ILupuloServicio {
     }
 
     /**
-     * Valida la regla de negocio del porcentaje de alfa ácidos del lúpulo.
+     * Valida la regla de negocio de los ácidos alfa del lúpulo: deben ser mayores a 0% y menores o
+     * iguales a {@value #ALFA_ACIDOS_MAXIMO}%.
      *
-     * @param aa Porcentaje de alfa ácidos a validar.
-     * @throws ReglaNegocioException Si el porcentaje de alfa ácidos es nulo o no es positivo (mayor a 0).
+     * @param aa Porcentaje de ácidos alfa a validar.
+     * @throws ReglaNegocioException Si los ácidos alfa son nulos, no son mayores a 0% o superan el 25%.
      */
     private static void validarAlfaAcidos(Double aa) {
-        if (aa == null || aa <= 0) {
-            throw new ReglaNegocioException("El porcentaje de alfa ácidos debe ser mayor a 0");
+        if (aa == null || aa <= 0 || aa > ALFA_ACIDOS_MAXIMO) {
+            throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
         }
     }
 }

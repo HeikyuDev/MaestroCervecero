@@ -142,7 +142,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células por gramo debe ser mayor a 0");
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(levaduraRepository);
@@ -155,7 +155,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células por gramo debe ser mayor a 0");
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -167,9 +167,56 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células por gramo debe ser mayor a 0");
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
 
         verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("altaLevadura lanza ReglaNegocioException cuando la cantidad de células viables por gramo es menor a 6.000.000.000 (límite inferior)")
+    void altaLevadura_debeRechazarCantidadCelulasMenorAlMinimo() {
+        LevaduraFormDTO levaduraFormDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 5_999_999_999.0);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("altaLevadura lanza ReglaNegocioException cuando la cantidad de células viables por gramo es mayor a 20.000.000.000 (límite superior)")
+    void altaLevadura_debeRechazarCantidadCelulasMayorAlMaximo() {
+        LevaduraFormDTO levaduraFormDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 20_000_000_001.0);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("altaLevadura persiste con éxito cuando la cantidad de células viables por gramo está en el límite superior válido (20.000.000.000)")
+    void altaLevadura_debePersistirConCantidadCelulasEnLimiteSuperiorValido() {
+        // === PREPARACION DE DATOS ===
+        LevaduraFormDTO levaduraFormDTO = levaduraFormDTO("Kveik Voss", TipoLevadura.ALE, 20_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("Kveik Voss")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> {
+            LevaduraEntity entidadGuardada = invocation.getArgument(0);
+            entidadGuardada.setId(5L);
+            return entidadGuardada;
+        });
+
+        // === EJECUCION ===
+        LevaduraResponseDTO resultado = levaduraServicio.altaLevadura(levaduraFormDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<LevaduraEntity> captor = ArgumentCaptor.forClass(LevaduraEntity.class);
+        verify(levaduraRepository).save(captor.capture());
+        assertThat(captor.getValue().getCantidadCelulasPorGramo()).isEqualTo(20_000_000_000.0);
+        assertThat(resultado.getCantidadCelulasPorGramo()).isEqualTo(20_000_000_000.0);
+        assertThat(resultado.getNombre()).isEqualTo("Kveik Voss");
     }
 
     @Test
@@ -236,10 +283,10 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("altaLevadura persiste con éxito cuando la cantidad de células por gramo está en el límite inferior válido")
+    @DisplayName("altaLevadura persiste con éxito cuando la cantidad de células viables por gramo está en el límite inferior válido (6.000.000.000)")
     void altaLevadura_debePersistirConCantidadCelulasEnLimiteInferiorValido() {
         // === PREPARACION DE DATOS ===
-        LevaduraFormDTO levaduraFormDTO = levaduraFormDTO("Belle Saison", TipoLevadura.ALE, 0.1);
+        LevaduraFormDTO levaduraFormDTO = levaduraFormDTO("Belle Saison", TipoLevadura.ALE, 6_000_000_000.0);
         when(levaduraRepository.existsByNombreIgnoreCase("Belle Saison")).thenReturn(false);
         when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> {
             LevaduraEntity entidadGuardada = invocation.getArgument(0);
@@ -254,10 +301,10 @@ class LevaduraServicioImplTest {
         ArgumentCaptor<LevaduraEntity> captor = ArgumentCaptor.forClass(LevaduraEntity.class);
         verify(levaduraRepository).save(captor.capture());
         LevaduraEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getCantidadCelulasPorGramo()).isEqualTo(0.1);
+        assertThat(entidadCapturada.getCantidadCelulasPorGramo()).isEqualTo(6_000_000_000.0);
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
 
-        assertThat(resultado.getCantidadCelulasPorGramo()).isEqualTo(0.1);
+        assertThat(resultado.getCantidadCelulasPorGramo()).isEqualTo(6_000_000_000.0);
         assertThat(resultado.getNombre()).isEqualTo("Belle Saison");
     }
 
@@ -270,7 +317,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células por gramo debe ser mayor a 0");
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(levaduraRepository);
