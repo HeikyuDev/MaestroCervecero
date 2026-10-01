@@ -30,6 +30,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
+
 /**
  * Controller de la gestión de usuarios. Cada método declara su propio rol con
  * {@link PreAuthorize}: solo el ADMINISTRADOR tiene los permisos {@code USUARIO_*}.
@@ -45,7 +47,6 @@ public class UsuarioController {
 
     private static final String VISTA_FORMULARIO = "usuario/usuario-form";
     private static final String ATRIBUTO_FORMULARIO = "usuarioForm";
-    private static final int TAMANIO_PAGINA = 20;
 
     /**
      * Usuario es un módulo maestro: se lista en orden alfabético por apellido y luego nombre (sin
@@ -59,7 +60,7 @@ public class UsuarioController {
     private final IUsuarioServicio usuarioServicio;
 
     /**
-     * Lista los usuarios activos, paginados de a {@value #TAMANIO_PAGINA}, en orden alfabético por
+     * Lista los usuarios activos, paginados de a 20, en orden alfabético por
      * apellido y nombre. Los criterios de búsqueda son opcionales y se combinan entre sí.
      */
     @GetMapping
@@ -219,12 +220,4 @@ public class UsuarioController {
         return authentication != null && usuario.getUsername().equalsIgnoreCase(authentication.getName());
     }
 
-    private static void agregarMensaje(RedirectAttributes redirectAttributes, String mensaje, TipoAlerta tipo) {
-        redirectAttributes.addFlashAttribute("mensaje", mensaje);
-        redirectAttributes.addFlashAttribute("tipo", tipo.getCodigo());
-    }
-
-    private static String vacioANulo(String texto) {
-        return (texto == null || texto.isBlank()) ? null : texto.trim();
-    }
 }

@@ -28,7 +28,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import static com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion.UbicacionWeb.*;
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
+import static com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion.UbicacionWeb.etiqueta;
 
 /**
  * Controller de la gestión de localidades. El módulo de ubicaciones es solo del ADMINISTRADOR; la
@@ -56,7 +57,7 @@ public class LocalidadController {
     private final IPaisServicio paisServicio;
 
     /**
-     * Lista las localidades activas, paginadas de a {@value UbicacionWeb#TAMANIO_PAGINA}, en orden alfabético.
+     * Lista las localidades activas, paginadas de a 20, en orden alfabético.
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")

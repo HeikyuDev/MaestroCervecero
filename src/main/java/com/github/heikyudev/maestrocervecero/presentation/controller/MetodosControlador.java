@@ -1,0 +1,40 @@
+package com.github.heikyudev.maestrocervecero.presentation.controller;
+
+import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
+import org.springframework.data.domain.Sort;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+/**
+ * Constantes y utilidades compartidas por los controllers de las pantallas de listado.
+ */
+public final class MetodosControlador {
+
+    public static final int TAMANIO_PAGINA = 20;
+    public static final int TAMANIO_PAGINA_BUSCADOR = 8;
+
+    /**
+     * Los módulos maestros (ubicaciones, insumos, etc.) se listan en orden alfabético por nombre (sin
+     * distinguir mayúsculas), con el id como desempate para que el orden sea siempre estable.
+     */
+    public static final Sort ORDEN_ALFABETICO = Sort.by(
+            Sort.Order.asc("nombre").ignoreCase(),
+            Sort.Order.asc("id"));
+
+    private MetodosControlador() {
+    }
+
+    /**
+     * Un texto vacío o en blanco equivale a no filtrar: devuelve {@code null}; si no, el texto sin espacios sobrantes.
+     */
+    public static String vacioANulo(String texto) {
+        return (texto == null || texto.isBlank()) ? null : texto.trim();
+    }
+
+    /**
+     * Agrega la alerta (mensaje + tipo) que el layout muestra tras un Post-Redirect-Get.
+     */
+    public static void agregarMensaje(RedirectAttributes redirectAttributes, String mensaje, TipoAlerta tipo) {
+        redirectAttributes.addFlashAttribute("mensaje", mensaje);
+        redirectAttributes.addFlashAttribute("tipo", tipo.getCodigo());
+    }
+}

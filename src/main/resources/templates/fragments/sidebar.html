@@ -1,94 +1,78 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
 
+<!--
+    Botón de navegación de la sidebar. Se resalta cuando su clave coincide con la opción activa de la página.
+    Parámetros: url, opcionActiva (la de la página), clave (la de este botón), icono (Bootstrap Icons) y texto.
+-->
+<a th:fragment="enlace(url, opcionActiva, clave, icono, texto)" th:href="@{${url}}"
+   th:classappend="${opcionActiva == clave} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+   class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
+    <i class="bi text-lg" th:classappend="${icono}"></i>
+    <span th:text="${texto}">Opción</span>
+</a>
+
+<!--
+    Título de una sección de la sidebar.
+-->
+<p th:fragment="seccion(titulo)" th:text="${titulo}"
+   class="px-3 pt-5 pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">Sección</p>
+
 <aside th:fragment="sidebar(opcionActiva)"
-    class="w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col justify-between select-none">
+    class="w-64 bg-slate-900 border-r border-slate-800 text-slate-300 flex flex-col justify-between select-none overflow-y-auto">
 
     <nav class="p-4 space-y-1">
-        <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Navegación</p>
 
         <!-- DASHBOARD (Todos los usuarios autenticados) -->
-        <a th:href="@{/home}"
-            th:classappend="${opcionActiva == 'dashboard'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-speedometer2 text-lg"></i>
-            <span>Dashboard</span>
-        </a>
+        <a th:replace="~{fragments/sidebar ::enlace('/home', ${opcionActiva}, 'dashboard', 'bi-speedometer2', 'Dashboard')}"></a>
 
         <!--
-            GESTIÓN DE USUARIOS (Solo Administrador)
-            Rol enum: ADMINISTRADOR → tiene permisos USUARIO_*, PAIS_*, PROVINCIA_*, LOCALIDAD_*
+            OPERACIÓN: el trabajo diario. Cada botón lo ve solo el rol que lo usa, y el título de la
+            sección aparece únicamente si el usuario ve al menos uno de sus botones.
         -->
-        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/usuarios}"
-            th:classappend="${opcionActiva == 'usuarios'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-people text-lg"></i>
-            <span>Gestión de Usuarios</span>
-        </a>
+        <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
+            <p th:replace="~{fragments/sidebar ::seccion('Operación')}"></p>
 
-        <!-- GESTIÓN DE UBICACIONES: países, provincias y localidades (Solo Administrador) -->
-        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/ubicaciones/paises}"
-            th:classappend="${opcionActiva == 'ubicaciones'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-globe text-lg"></i>
-            <span>Gestión de Ubicaciones</span>
-        </a>
+            <!-- CONTROL DE LOTES (Operario de Producción, Gerente de Producción) -->
+            <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-droplet-half', 'Control de Lotes')}"></a>
+            </th:block>
 
-        <!--
-            GESTIÓN DE RECETAS (Gerente DE Producción)
-            Rol enum: GERENTE_DE_PRODUCCION → tiene permisos RECETA_*
-            ADMINISTRADOR NO tiene permisos de recetas, así que no lo incluimos.
-        -->
-        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/recetas}"
-            th:classappend="${opcionActiva == 'recetas'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-journal-bookmark text-lg"></i>
-            <span>Gestión de Recetas</span>
-        </a>
+            <!-- GESTIÓN DE RECETAS (Gerente de Producción) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/recetas', ${opcionActiva}, 'recetas', 'bi-journal-bookmark', 'Gestión de Recetas')}"></a>
+            </th:block>
+
+            <!-- ÓRDENES DE COMPRA (Gerente de Compras) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
+                <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'compras', 'bi-cart3', 'Órdenes de Compra')}"></a>
+            </th:block>
+        </th:block>
 
         <!--
-            GESTIÓN DE INSUMOS (Gerente DE Producción, Encargado DE Depósito)
-            Ambos roles tienen permisos de insumos en el enum.
-            ADMINISTRADOR NO tiene permisos de insumos.
+            CONFIGURACIÓN: los datos maestros que se definen una vez y alimentan al resto del sistema.
+            Va debajo de la operación diaria.
         -->
-        <a sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ENCARGADO_DE_DEPOSITO')" th:href="@{/insumos}"
-            th:classappend="${opcionActiva == 'insumos'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-box-seam text-lg"></i>
-            <span>Gestión de Insumos</span>
-        </a>
+        <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ADMINISTRADOR')">
+            <p th:replace="~{fragments/sidebar ::seccion('Configuración')}"></p>
 
-        <!--
-            CONTROL DE LOTES (Operario DE Producción, Gerente DE Producción)
-            Ambos roles tienen permisos de lotes en el enum.
-        -->
-        <a sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION')" th:href="@{/lotes}"
-            th:classappend="${opcionActiva == 'lotes'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-droplet-half text-lg"></i>
-            <span>Control de Lotes</span>
-        </a>
+            <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/insumos/maltas', ${opcionActiva}, 'insumos', 'bi-box-seam', 'Gestión de Insumos')}"></a>
+            </th:block>
 
-        <!--
-            ÓRDENES DE COMPRA (Gerente DE Compras)
-            Rol enum: GERENTE_DE_COMPRAS → tiene permisos ORDEN_COMPRA_*
-        -->
-        <a sec:authorize="hasRole('GERENTE_DE_COMPRAS')" th:href="@{/ordenes-compra}"
-            th:classappend="${opcionActiva == 'compras'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-cart3 text-lg"></i>
-            <span>Órdenes de Compra</span>
-        </a>
+            <!-- GESTIÓN DE UBICACIONES: países, provincias y localidades en pestañas (Administrador) -->
+            <th:block sec:authorize="hasRole('ADMINISTRADOR')">
+                <a th:replace="~{fragments/sidebar ::enlace('/ubicaciones/paises', ${opcionActiva}, 'ubicaciones', 'bi-globe', 'Gestión de Ubicaciones')}"></a>
+                <a th:replace="~{fragments/sidebar ::enlace('/usuarios', ${opcionActiva}, 'usuarios', 'bi-people', 'Gestión de Usuarios')}"></a>
+            </th:block>
+        </th:block>
 
-        <!--
-            BITÁCORA AUDITORÍA (Solo Administrador)
-        -->
-        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/auditoria}"
-            th:classappend="${opcionActiva == 'auditoria'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
-            <i class="bi bi-shield-check text-lg"></i>
-            <span>Bitácora Auditoría</span>
-        </a>
+        <!-- SISTEMA: control del propio sistema (Administrador) -->
+        <th:block sec:authorize="hasRole('ADMINISTRADOR')">
+            <p th:replace="~{fragments/sidebar ::seccion('Sistema')}"></p>
+            <a th:replace="~{fragments/sidebar ::enlace('/auditoria', ${opcionActiva}, 'auditoria', 'bi-shield-check', 'Bitácora Auditoría')}"></a>
+        </th:block>
     </nav>
 
     <!-- Footer del Sidebar -->

@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import static com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion.UbicacionWeb.*;
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
 /**
  * Controller de la gestión de países. El módulo de ubicaciones es solo del ADMINISTRADOR; la única
@@ -48,7 +48,7 @@ public class PaisController {
     private final IPaisServicio paisServicio;
 
     /**
-     * Lista los países activos, paginados de a {@value UbicacionWeb#TAMANIO_PAGINA}, en orden alfabético.
+     * Lista los países activos, paginados de a 20, en orden alfabético.
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")

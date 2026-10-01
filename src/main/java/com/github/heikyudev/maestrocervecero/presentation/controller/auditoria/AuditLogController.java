@@ -24,6 +24,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.TAMANIO_PAGINA;
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.vacioANulo;
+
 /**
  * Controller de la bitácora de auditoría. Es de solo lectura (consulta con filtros y paginación) y
  * solo la ve el ADMINISTRADOR.
@@ -34,7 +37,6 @@ import java.util.List;
 public class AuditLogController {
 
     private static final String VISTA_LISTA = "auditoria/auditoria-lista";
-    private static final int TAMANIO_PAGINA = 20;
 
     /**
      * La bitácora es transaccional: se lista con la entrada más reciente arriba. El id desempata
@@ -53,7 +55,7 @@ public class AuditLogController {
     private final IAuditLogService auditLogService;
 
     /**
-     * Lista las entradas de la bitácora, paginadas de a {@value #TAMANIO_PAGINA}, la más reciente
+     * Lista las entradas de la bitácora, paginadas de a 20, la más reciente
      * primero. Los criterios son opcionales y se combinan entre sí. Las fechas se informan sin hora:
      * "Desde" incluye todo ese día desde las 00:00 y "Hasta" lo incluye hasta el final.
      * <p>
@@ -91,9 +93,5 @@ public class AuditLogController {
         model.addAttribute("filtroAccion", accion);
         model.addAttribute("filtroConcepto", concepto);
         return VISTA_LISTA;
-    }
-
-    private static String vacioANulo(String texto) {
-        return (texto == null || texto.isBlank()) ? null : texto.trim();
     }
 }
