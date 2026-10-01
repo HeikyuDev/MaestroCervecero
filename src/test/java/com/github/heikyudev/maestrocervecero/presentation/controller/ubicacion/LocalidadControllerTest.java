@@ -216,7 +216,7 @@ class LocalidadControllerTest {
                 .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/provincias/nuevo\"")))
                 .andExpect(content().string(containsString("data-selector-buscar data-selector-texto")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccionar provincia\"")))
-                .andExpect(content().string(containsString("bi-chevron-down")))
+                .andExpect(content().string(containsString("bi-list-ul")))
                 .andExpect(content().string(containsString("data-selector-menu")))
                 .andExpect(content().string(containsString("Crear nueva provincia")))
                 .andExpect(content().string(containsString("Volver a localidades")))

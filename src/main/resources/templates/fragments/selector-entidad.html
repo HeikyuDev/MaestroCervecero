@@ -3,8 +3,8 @@
 
 <!--
     Selector de una entidad relacionada (país de una provincia, localidad de un cliente, etc.).
-    Nunca es un combo con todos los registros: se ve como un desplegable (flecha hacia abajo, no se
-    tipea) que muestra el valor elegido y, al hacer clic en él, abre un modal de búsqueda con
+    Nunca es un combo con todos los registros: es un campo en gris claro con ícono de lista (no se
+    tipea) que muestra el valor elegido y, al hacer clic en él, abre una ventana de búsqueda con
     criterios de filtro. El comportamiento lo da /js/modales.js.
 
     Parámetros:
@@ -30,15 +30,17 @@
     <div class="flex items-stretch gap-2">
         <div class="relative min-w-0 flex-1">
             <!--
-                Se comporta como un desplegable, no como un campo de texto: no se tipea. Todo el campo abre
-                el buscador con clic, o con Enter / Espacio con el foco puesto.
+                No es un campo de texto ni un desplegable: no se tipea y no despliega opciones, abre una ventana
+                de búsqueda. Por eso va en gris claro (se nota que no es editable) y con el ícono de lista
+                ("elegir de un listado"). Todo el campo abre la ventana con clic, o con Enter / Espacio con el
+                foco puesto.
             -->
             <input type="text" readonly data-selector-buscar data-selector-texto th:value="${texto}"
                    th:placeholder="${placeholder != null} ? ${placeholder} : 'Seleccionar'"
                    th:title="${placeholder != null} ? ${placeholder} : 'Seleccionar'"
-                   class="w-full pl-3 pr-9 py-2 rounded-lg border text-sm bg-white text-slate-700 cursor-pointer select-none caret-transparent truncate hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                   th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-            <i class="bi bi-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
+                   class="w-full pl-3 pr-9 py-2 rounded-lg border text-sm text-slate-700 cursor-pointer select-none caret-transparent truncate hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                   th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300 bg-slate-50 hover:bg-white'">
+            <i class="bi bi-list-ul absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
         </div>
 
         <button type="button" data-selector-limpiar th:if="${limpiable}" title="Quitar selección" aria-label="Quitar selección"

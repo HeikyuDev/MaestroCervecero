@@ -10,7 +10,7 @@
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
 - _"Vuelve al formulario"_ significa respuesta 200 con la vista `ubicacion/provincia-form`, sin redirigir, para conservar lo tipeado.
 - _"Alta contextual"_ es el alta abierta desde el selector de otro formulario: llegan los parámetros `retorno` (ruta interna del formulario de origen) y `campo` (campo que recibe el id creado). Al guardar redirige a `retorno` agregando `campo=<id>` y `desdeAlta=1`; si `retorno` ya trae parámetros (alta encadenada) se conservan.
-- El país se elige con un selector (`data-selector`): se ve como un desplegable (flecha hacia abajo, placeholder "Seleccionar país", no se tipea) y se hace clic en el propio campo (`data-selector-buscar`) para abrir el buscador. El menú de tres puntitos (`data-selector-menu`) con la opción "Crear nuevo país" (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/paises/nuevo`. Al volver de crear el país, `idPais` llega en la URL y queda elegido.
+- El país se elige con un selector (`data-selector`): es un campo gris claro con ícono de lista (`bi-list-ul`) y placeholder "Seleccionar país", que no se tipea ni despliega opciones y se hace clic en el propio campo (`data-selector-buscar`) para abrir el buscador. El menú de tres puntitos (`data-selector-menu`) con la opción "Crear nuevo país" (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/paises/nuevo`. Al volver de crear el país, `idPais` llega en la URL y queda elegido.
 - El buscador es un fragmento HTML que se muestra en un modal del selector.
 
 ---

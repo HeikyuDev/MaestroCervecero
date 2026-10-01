@@ -10,7 +10,7 @@
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
 - _"Vuelve al formulario"_ significa respuesta 200 con la vista `ubicacion/localidad-form`, sin redirigir, para conservar lo tipeado.
 - _"Alta contextual"_ es el alta abierta desde el selector de otro formulario (por ejemplo, el de cliente): llegan los parámetros `retorno` (ruta interna del formulario de origen) y `campo` (campo que recibe el id creado). Al guardar redirige a `retorno` agregando `campo=<id>` y `desdeAlta=1`.
-- La provincia se elige con un selector (`data-selector`): se ve como un desplegable (flecha hacia abajo, placeholder "Seleccionar provincia", no se tipea) y se hace clic en el propio campo (`data-selector-buscar`) para abrir el buscador. El menú de tres puntitos (`data-selector-menu`) con la opción "Crear nueva provincia" (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/provincias/nuevo`. Al volver de crear la provincia, `idProvincia` llega en la URL y queda elegida.
+- La provincia se elige con un selector (`data-selector`): es un campo gris claro con ícono de lista (`bi-list-ul`) y placeholder "Seleccionar provincia", que no se tipea ni despliega opciones y se hace clic en el propio campo (`data-selector-buscar`) para abrir el buscador. El menú de tres puntitos (`data-selector-menu`) con la opción "Crear nueva provincia" (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/provincias/nuevo`. Al volver de crear la provincia, `idProvincia` llega en la URL y queda elegida.
 - El buscador es un fragmento HTML que se muestra en un modal del selector.
 
 ---

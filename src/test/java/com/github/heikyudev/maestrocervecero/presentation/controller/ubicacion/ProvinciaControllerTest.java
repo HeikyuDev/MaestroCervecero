@@ -200,7 +200,7 @@ class ProvinciaControllerTest {
                 .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/paises/nuevo\"")))
                 .andExpect(content().string(containsString("data-selector-buscar data-selector-texto")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccionar país\"")))
-                .andExpect(content().string(containsString("bi-chevron-down")))
+                .andExpect(content().string(containsString("bi-list-ul")))
                 .andExpect(content().string(containsString("data-selector-menu")))
                 .andExpect(content().string(containsString("data-selector-alta")))
                 .andExpect(content().string(containsString("Crear nuevo país")))
