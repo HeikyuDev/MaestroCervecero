@@ -37,26 +37,30 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
     /**
      * Obtiene una página de barriles activos, filtrados opcionalmente por identificador
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas), capacidad (coincidencia
-     * exacta) y/o estado operativo (coincidencia exacta). Un parámetro nulo no restringe por ese
-     * criterio.
+     * exacta), estado operativo (coincidencia exacta) y/o fabricante (por su ID). Un parámetro
+     * nulo no restringe por ese criterio.
      *
      * @param identificador Texto a buscar dentro del identificador, o {@code null} para no filtrar por él.
      * @param capacidad Capacidad exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idFabricante El ID del fabricante a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de barriles activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT b FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
             + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', CAST(:identificador AS string), '%'))) "
             + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
-            + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo)",
+            + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
+            + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)",
             countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
                     + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', CAST(:identificador AS string), '%'))) "
                     + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
-                    + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo)")
+                    + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
+                    + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)")
     Page<BarrilEntity> filtrarBarriles(@Param("identificador") String identificador,
                                         @Param("capacidad") Double capacidad,
                                         @Param("estadoOperativo") EstadoOperativoBarril estadoOperativo,
+                                        @Param("idFabricante") Long idFabricante,
                                         Pageable pageable);
 
     /**

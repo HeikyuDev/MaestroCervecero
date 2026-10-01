@@ -1,10 +1,11 @@
-### 1. `filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Pageable pageable)`
+### 1. `filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Long idFabricante, Pageable pageable)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-FB-01**|Filtra por identificador, capacidad y estado operativo informados|`identificador: "BAR"`, `capacidad: 50.0`, `estadoOperativo: DISPONIBLE`, `pageable: PageRequest.of(0, 10)`, BD con 2 barriles activos que cumplen los tres criterios|`filtrarBarriles("BAR", 50.0, DISPONIBLE, pageable)` contiene elementos|Retorna `Page<BarrilResponseDTO>` con 2 elementos mapeados.|
-|**CP-FB-02**|Los tres parámetros nulos no restringen la búsqueda|`identificador: null`, `capacidad: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga los tres parámetros nulos tal cual al repositorio|Retorna `Page<BarrilResponseDTO>` con todos los barriles activos (equivalente a no filtrar).|
-|**CP-FB-03**|Consulta sin coincidencias|`identificador: "Inexistente"`, `capacidad: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarBarriles("Inexistente", null, null, pageable)` está vacío|Retorna `Page<BarrilResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FB-01**|Filtra por identificador, capacidad, estado operativo y fabricante informados|`identificador: "BAR"`, `capacidad: 50.0`, `estadoOperativo: DISPONIBLE`, `idFabricante: 1L`, `pageable: PageRequest.of(0, 10)`, BD con 2 barriles activos del fabricante 1 que cumplen los cuatro criterios|`filtrarBarriles("BAR", 50.0, DISPONIBLE, 1L, pageable)` contiene elementos|Retorna `Page<BarrilResponseDTO>` con 2 elementos mapeados.|
+|**CP-FB-02**|Los cuatro parámetros nulos no restringen la búsqueda|`identificador: null`, `capacidad: null`, `estadoOperativo: null`, `idFabricante: null`, `pageable: PageRequest.of(0, 10)`|El service propaga los cuatro parámetros nulos tal cual al repositorio|Retorna `Page<BarrilResponseDTO>` con todos los barriles activos (equivalente a no filtrar).|
+|**CP-FB-03**|Consulta sin coincidencias|`identificador: "Inexistente"`, `capacidad: null`, `estadoOperativo: null`, `idFabricante: null`, `pageable: PageRequest.of(0, 10)`|`filtrarBarriles("Inexistente", null, null, null, pageable)` está vacío|Retorna `Page<BarrilResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FB-04**|Filtra solo por fabricante|`identificador: null`, `capacidad: null`, `estadoOperativo: null`, `idFabricante: 7L`, `pageable: PageRequest.of(0, 10)`, BD con 1 barril activo del fabricante 7|`filtrarBarriles(null, null, null, 7L, pageable)` contiene elementos|Retorna `Page<BarrilResponseDTO>` con 1 elemento mapeado.|
 
 ### 2. `buscarPorId(Long id)`
 

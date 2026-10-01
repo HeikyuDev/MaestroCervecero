@@ -51,43 +51,62 @@ class BarrilServicioImplTest {
     // ==================== filtrarBarriles ====================
 
     @Test
-    @DisplayName("CP-FB-01: filtrarBarriles retorna una página de barriles correctamente mapeada a DTO cuando se filtra por identificador, capacidad y estado operativo")
-    void filtrarBarriles_debeRetornarPaginaMapeadaFiltrandoPorIdentificadorCapacidadYEstado() {
+    @DisplayName("CP-FB-01: filtrarBarriles retorna una página de barriles correctamente mapeada a DTO cuando se filtra por identificador, capacidad, estado operativo y fabricante")
+    void filtrarBarriles_debeRetornarPaginaMapeadaFiltrandoPorLosCuatroCriterios() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
         BarrilEntity otroBarrilEntity = crearBarrilEntity(2L, "BAR-02", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
-        when(barrilRepository.filtrarBarriles("BAR", 50.0, EstadoOperativoBarril.DISPONIBLE, pageable))
+        when(barrilRepository.filtrarBarriles("BAR", 50.0, EstadoOperativoBarril.DISPONIBLE, 1L, pageable))
                 .thenReturn(new PageImpl<>(List.of(barrilEntity, otroBarrilEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles("BAR", 50.0, EstadoOperativoBarril.DISPONIBLE, pageable);
+        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles("BAR", 50.0, EstadoOperativoBarril.DISPONIBLE, 1L, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertBarrilDTO(barrilEntity, resultado.getContent().get(0));
         assertBarrilDTO(otroBarrilEntity, resultado.getContent().get(1));
-        verify(barrilRepository).filtrarBarriles("BAR", 50.0, EstadoOperativoBarril.DISPONIBLE, pageable);
+        verify(barrilRepository).filtrarBarriles("BAR", 50.0, EstadoOperativoBarril.DISPONIBLE, 1L, pageable);
     }
 
     @Test
-    @DisplayName("CP-FB-02: filtrarBarriles propaga identificador, capacidad y estado operativo nulos sin restringir esos criterios")
+    @DisplayName("CP-FB-04: filtrarBarriles filtra solo por fabricante propagando el resto de los criterios como nulos")
+    void filtrarBarriles_debeFiltrarSoloPorFabricante() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(7L);
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
+        when(barrilRepository.filtrarBarriles(null, null, null, 7L, pageable))
+                .thenReturn(new PageImpl<>(List.of(barrilEntity), pageable, 1));
+
+        // === EJECUCION ===
+        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles(null, null, null, 7L, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertBarrilDTO(barrilEntity, resultado.getContent().get(0));
+        verify(barrilRepository).filtrarBarriles(null, null, null, 7L, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FB-02: filtrarBarriles propaga identificador, capacidad, estado operativo y fabricante nulos sin restringir esos criterios")
     void filtrarBarriles_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
         BarrilEntity otroBarrilEntity = crearBarrilEntity(2L, "BAR-02", 100.0, EstadoOperativoBarril.EN_LIMPIEZA, fabricanteEntity);
-        when(barrilRepository.filtrarBarriles(null, null, null, pageable))
+        when(barrilRepository.filtrarBarriles(null, null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(barrilEntity, otroBarrilEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles(null, null, null, pageable);
+        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles(null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
-        verify(barrilRepository).filtrarBarriles(null, null, null, pageable);
+        verify(barrilRepository).filtrarBarriles(null, null, null, null, pageable);
     }
 
     @Test
@@ -95,15 +114,15 @@ class BarrilServicioImplTest {
     void filtrarBarriles_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(barrilRepository.filtrarBarriles("Inexistente", null, null, pageable))
+        when(barrilRepository.filtrarBarriles("Inexistente", null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles("Inexistente", null, null, pageable);
+        Page<BarrilResponseDTO> resultado = barrilServicio.filtrarBarriles("Inexistente", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(barrilRepository).filtrarBarriles("Inexistente", null, null, pageable);
+        verify(barrilRepository).filtrarBarriles("Inexistente", null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

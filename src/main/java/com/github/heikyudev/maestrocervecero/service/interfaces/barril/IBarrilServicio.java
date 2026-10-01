@@ -14,16 +14,17 @@ public interface IBarrilServicio {
     /**
      * Obtiene una página de barriles activos, filtrados opcionalmente por identificador
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas), capacidad (coincidencia
-     * exacta) y/o estado operativo (coincidencia exacta). Un parámetro nulo no restringe por ese
-     * criterio.
+     * exacta), estado operativo (coincidencia exacta) y/o fabricante (por su ID). Un parámetro
+     * nulo no restringe por ese criterio.
      *
      * @param identificador Texto a buscar dentro del identificador, o {@code null} para no filtrar por él.
      * @param capacidad Capacidad exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idFabricante El ID del fabricante a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Información de paginación.
      * @return Página de BarrilResponseDTO que cumplen los criterios indicados.
      */
-    Page<BarrilResponseDTO> filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Pageable pageable);
+    Page<BarrilResponseDTO> filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Long idFabricante, Pageable pageable);
 
     /**
      * Busca un barril por su ID.

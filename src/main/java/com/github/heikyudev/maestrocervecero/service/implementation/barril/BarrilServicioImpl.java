@@ -38,7 +38,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
 
     /**
      * Recupera una página de barriles activos, filtrados opcionalmente por identificador,
-     * capacidad y/o estado operativo.
+     * capacidad, estado operativo y/o fabricante.
      * <p>
      * Los barriles dados de baja son excluidos por la condición {@code estado = 'ACTIVO'}
      * aplicada en el repositorio.
@@ -47,13 +47,14 @@ public class BarrilServicioImpl implements IBarrilServicio {
      * @param identificador Texto a buscar dentro del identificador, o {@code null} para no filtrar por él.
      * @param capacidad Capacidad exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param idFabricante El ID del fabricante a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link BarrilResponseDTO} correspondientes.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<BarrilResponseDTO> filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Pageable pageable) {
-        return barrilRepository.filtrarBarriles(identificador, capacidad, estadoOperativo, pageable).map(MapperBarril::toDTO);
+    public Page<BarrilResponseDTO> filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Long idFabricante, Pageable pageable) {
+        return barrilRepository.filtrarBarriles(identificador, capacidad, estadoOperativo, idFabricante, pageable).map(MapperBarril::toDTO);
     }
 
     /**
