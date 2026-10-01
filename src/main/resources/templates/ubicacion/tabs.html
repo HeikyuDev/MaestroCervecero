@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!-- Pestañas del módulo de ubicaciones: cada una es su propia URL. activa = 'paises' | 'provincias' | 'localidades' -->
+<nav th:fragment="tabs(activa)" class="flex gap-1 border-b border-slate-200" aria-label="Ubicaciones">
+    <a th:href="@{/ubicaciones/paises}"
+       th:classappend="${activa == 'paises'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-globe-americas mr-1"></i> Países
+    </a>
+    <a th:href="@{/ubicaciones/provincias}"
+       th:classappend="${activa == 'provincias'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-map mr-1"></i> Provincias
+    </a>
+    <a th:href="@{/ubicaciones/localidades}"
+       th:classappend="${activa == 'localidades'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-geo-alt mr-1"></i> Localidades
+    </a>
+</nav>
+
+</html>

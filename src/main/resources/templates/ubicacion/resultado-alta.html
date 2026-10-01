@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Respuesta de un alta "al vuelo" (desde un selector): lleva la entidad creada para que
+    /js/modales.js la deje elegida en el formulario que abrió el modal.
+-->
+<div th:fragment="resultado" data-resultado th:data-id="${id}" th:data-texto="${texto}"></div>
+
+</html>

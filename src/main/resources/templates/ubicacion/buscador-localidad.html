@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+    Contenido del modal de búsqueda de localidades: criterios de filtro + resultados con "Elegir".
+    Lo usan el administrador y los gerentes comercial y de compras (cliente / proveedor).
+-->
+<div th:fragment="buscador">
+
+    <div class="flex items-start justify-between gap-4 p-6 pb-0">
+        <div>
+            <h3 class="text-lg font-semibold text-slate-900">Buscar localidad</h3>
+            <p class="text-sm text-slate-500">Filtrá y elegí la localidad.</p>
+        </div>
+        <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
+                class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <form th:action="@{/ubicaciones/localidades/buscador}" method="get" data-modal-buscar
+          class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+        <div>
+            <label for="buscador-nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
+            <input type="text" id="buscador-nombre" name="nombre" th:value="${filtroNombre}" autofocus autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="buscador-codigo-postal" class="block text-xs font-medium text-slate-500 mb-1">Código postal</label>
+            <input type="text" id="buscador-codigo-postal" name="codigoPostal" th:value="${filtroCodigoPostal}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Provincia</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', ${filtroIdProvincia}, ${filtroProvinciaTexto},
+                    @{/ubicaciones/provincias/buscador}, null, true, false)}"></div>
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">País</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idPais', ${filtroIdPais}, ${filtroPaisTexto},
+                    @{/ubicaciones/paises/buscador}, null, true, false)}"></div>
+        </div>
+        <div class="sm:col-span-2 flex justify-end">
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <div class="border-t border-slate-100">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-4 py-3">Nombre</th>
+                <th class="px-4 py-3">Código postal</th>
+                <th class="px-4 py-3">Provincia</th>
+                <th class="px-4 py-3">País</th>
+                <th class="px-4 py-3 text-right"></th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="l : ${localidades.content}" class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.nombre}">Río Cuarto</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${l.codigoPostal}">5800</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.nombre}">Córdoba</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.pais.nombre}">Argentina</td>
+                <td class="px-4 py-3 text-right">
+                    <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.nombre + ' (' + l.provincia.nombre + ')'}"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
+                </td>
+            </tr>
+            <tr th:if="${localidades.empty}">
+                <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron localidades con los criterios indicados.</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div th:replace="~{ubicacion/paginacion :: paginacion(${localidades}, 'localidades',
+                ${localidades.hasPrevious()} ? @{/ubicaciones/localidades/buscador(pagina=${localidades.number - 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,
+                ${localidades.hasNext()} ? @{/ubicaciones/localidades/buscador(pagina=${localidades.number + 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,
+                true)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

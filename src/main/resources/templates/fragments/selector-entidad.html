@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Selector de una entidad relacionada (país de una provincia, localidad de un cliente, etc.).
+    Nunca es un combo con todos los registros: muestra el valor elegido (solo lectura) y abre un
+    modal de búsqueda con criterios de filtro. El comportamiento lo da /js/modales.js.
+
+    Parámetros:
+      campo        nombre del parámetro que viaja en el formulario (ej. 'idPais').
+      id           id actualmente elegido, o null.
+      texto        texto a mostrar del elegido, o null.
+      buscadorUrl  URL del fragmento del modal de búsqueda.
+      altaUrl      URL del formulario de alta para crear la entidad al vuelo, o null si el usuario no
+                   puede crearla (el botón "+" no se muestra).
+      limpiable    true si se puede quitar la selección (filtros).
+      invalido     true para marcar el campo con error.
+
+    Uso: <div th:replace="~{fragments/selector-entidad :: selector('idPais', *{idPais}, ${paisSeleccionado},
+                           @{/ubicaciones/paises/buscador}, @{/ubicaciones/paises/nuevo(modo='seleccion')}, false, false)}"></div>
+-->
+<div th:fragment="selector(campo, id, texto, buscadorUrl, altaUrl, limpiable, invalido)"
+     data-selector th:data-buscador-url="${buscadorUrl}" th:data-alta-url="${altaUrl}">
+    <input type="hidden" data-selector-id th:name="${campo}" th:value="${id}">
+    <div class="flex items-stretch gap-2">
+        <input type="text" readonly data-selector-texto th:value="${texto}" placeholder="Sin seleccionar"
+               class="min-w-0 flex-1 px-3 py-2 rounded-lg border text-sm bg-slate-50 text-slate-700 cursor-default focus:outline-none"
+               th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+        <button type="button" data-selector-buscar title="Buscar" aria-label="Buscar"
+                class="px-3 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 transition-colors">
+            <i class="bi bi-search"></i>
+        </button>
+        <button type="button" data-selector-alta th:if="${altaUrl != null}" title="Crear nuevo" aria-label="Crear nuevo"
+                class="px-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+        <button type="button" data-selector-limpiar th:if="${limpiable}" title="Quitar selección" aria-label="Quitar selección"
+                class="px-3 rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 transition-colors">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+</div>
+
+</html>

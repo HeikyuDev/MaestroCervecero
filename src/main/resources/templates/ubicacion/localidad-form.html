@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+<body>
+
+<!--
+    Formulario de alta / edición de una localidad, pensado para mostrarse en un modal.
+    localidadId != null -> edición. altaAlVuelo -> se abrió desde un selector.
+    La provincia se elige con un selector; el "+" (crear provincia) solo se ofrece a quien puede crearla.
+-->
+<form th:fragment="formulario"
+      th:action="${localidadId != null} ? @{/ubicaciones/localidades/{id}(id=${localidadId})} : @{/ubicaciones/localidades}"
+      th:object="${localidadForm}" method="post" novalidate data-modal-form>
+
+    <div class="flex items-start justify-between gap-4 p-6 pb-0">
+        <div>
+            <h3 class="text-lg font-semibold text-slate-900" th:text="${localidadId != null} ? 'Editar localidad' : 'Nueva localidad'">Nueva localidad</h3>
+            <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+        </div>
+        <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
+                class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <input type="hidden" name="modo" value="seleccion" th:if="${altaAlVuelo}">
+
+    <div th:replace="~{fragments/form-errors :: resumen(${localidadId != null} ? 'No se pudo modificar la localidad' : 'No se pudo crear la localidad')}"></div>
+
+    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+            <label for="form-nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+            <input type="text" id="form-nombre" th:field="*{nombre}" autofocus autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                   th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+            <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+        </div>
+
+        <div>
+            <label for="form-codigo-postal" class="block text-sm font-medium text-slate-700 mb-1">Código postal <span class="text-rose-600" title="Obligatorio">*</span></label>
+            <input type="text" id="form-codigo-postal" th:field="*{codigoPostal}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                   th:classappend="${#fields.hasErrors('codigoPostal')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+            <p th:if="${#fields.hasErrors('codigoPostal')}" th:errors="*{codigoPostal}" class="mt-1 text-xs text-rose-600"></p>
+        </div>
+
+        <div class="md:col-span-2">
+            <span class="block text-sm font-medium text-slate-700 mb-1">Provincia <span class="text-rose-600" title="Obligatorio">*</span></span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', *{idProvincia}, ${provinciaSeleccionada},
+                    @{/ubicaciones/provincias/buscador},
+                    ${#authorization.expression('hasRole(''ADMINISTRADOR'')')} ? @{/ubicaciones/provincias/nuevo(modo='seleccion')} : null,
+                    false, ${#fields.hasErrors('idProvincia')})}"></div>
+            <p th:if="${#fields.hasErrors('idProvincia')}" th:errors="*{idProvincia}" class="mt-1 text-xs text-rose-600"></p>
+        </div>
+    </div>
+
+    <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+        <button type="button" data-cerrar-modal
+                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
+        <button type="submit"
+                class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
+                th:text="${localidadId != null} ? 'Guardar cambios' : 'Crear localidad'">Crear localidad</button>
+    </div>
+</form>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Pie de paginación de las listas y buscadores de ubicaciones. Los enlaces ya vienen armados
+    (conservando los criterios de búsqueda). En un modal (enModal = true) se marcan con
+    data-modal-get para que /js/modales.js pida la página sin salir del modal.
+-->
+<div th:fragment="paginacion(pagina, etiqueta, urlAnterior, urlSiguiente, enModal)" th:if="${pagina.totalPages > 0}"
+     class="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50 text-sm text-slate-600">
+    <span>
+        <span th:text="${pagina.totalElements}">0</span> <span th:text="${etiqueta}">registros</span> ·
+        Página <span th:text="${pagina.number + 1}">1</span> de <span th:text="${pagina.totalPages}">1</span>
+    </span>
+    <div class="flex items-center gap-2">
+        <a th:if="${urlAnterior != null}" th:href="${urlAnterior}" th:data-modal-get="${enModal} ? 'true'"
+           class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
+            <i class="bi bi-chevron-left"></i> Anterior
+        </a>
+        <a th:if="${urlSiguiente != null}" th:href="${urlSiguiente}" th:data-modal-get="${enModal} ? 'true'"
+           class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
+            Siguiente <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+</div>
+
+</html>

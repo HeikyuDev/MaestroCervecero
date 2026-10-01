@@ -26,12 +26,12 @@
             <span>Gestión de Usuarios</span>
         </a>
 
-        <!-- GESTIÓN DE PAISES (Solo Administrador)-->
-        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/paises}"
-            th:classappend="${opcionActiva == 'paises'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
+        <!-- GESTIÓN DE UBICACIONES: países, provincias y localidades (Solo Administrador) -->
+        <a sec:authorize="hasRole('ADMINISTRADOR')" th:href="@{/ubicaciones/paises}"
+            th:classappend="${opcionActiva == 'ubicaciones'} ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200 border-transparent'"
             class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 font-medium text-sm transition-all">
             <i class="bi bi-globe text-lg"></i>
-            <span>Gestión de Paises</span>
+            <span>Gestión de Ubicaciones</span>
         </a>
 
         <!--
