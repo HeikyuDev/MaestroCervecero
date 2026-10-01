@@ -159,6 +159,10 @@ class LevaduraControllerTest {
                 .andExpect(content().string(containsString("action=\"/insumos/levaduras\"")))
                 .andExpect(content().string(containsString("value=\"HIBRIDA\"")))
                 .andExpect(content().string(containsString("la define el sistema")))
+                .andExpect(content().string(containsString("Células viables por gramo (en millones)")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: 20000\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Safale US-05\"")))
+                .andExpect(content().string(containsString("20000 equivale a 20.000.000.000")))
                 .andExpect(content().string(containsString("Crear levadura")))
                 .andExpect(content().string(containsString("Volver a levaduras")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))))
@@ -195,7 +199,7 @@ class LevaduraControllerTest {
         when(levaduraServicio.altaLevadura(any())).thenReturn(levadura(9L, "US-05", TipoLevadura.ALE, 6_000_000_000.0));
 
         mockMvc.perform(post("/insumos/levaduras").with(csrf())
-                        .param("nombre", "US-05").param("tipo", "ALE").param("cantidadCelulasPorGramo", "6000000000"))
+                        .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "20000"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/insumos/levaduras"))
                 .andExpect(flash().attribute("mensaje", "Levadura creada correctamente"))
@@ -205,7 +209,8 @@ class LevaduraControllerTest {
         verify(levaduraServicio).altaLevadura(captor.capture());
         assertThat(captor.getValue().getNombre()).isEqualTo("US-05");
         assertThat(captor.getValue().getTipo()).isEqualTo(TipoLevadura.ALE);
-        assertThat(captor.getValue().getCantidadCelulasPorGramo()).isEqualTo(6_000_000_000.0);
+        // El usuario ingresa millones (20000); el service recibe células (20.000.000.000)
+        assertThat(captor.getValue().getCantidadCelulasPorGramo()).isEqualTo(20_000_000_000.0);
     }
 
     @Test
@@ -218,7 +223,19 @@ class LevaduraControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear la levadura")))
                 .andExpect(content().string(containsString("El nombre de la levadura es obligatorio")))
                 .andExpect(content().string(containsString("El tipo de levadura es obligatorio")))
-                .andExpect(content().string(containsString("La cantidad de células por gramo es obligatoria")));
+                .andExpect(content().string(containsString("La cantidad de células viables por gramo es obligatoria")));
+
+        verify(levaduraServicio, never()).altaLevadura(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-LEC-22: un valor no numérico en las células (en millones) muestra un mensaje en español, sin llamar al service")
+    void alta_debeMostrarUnMensajeEnEspanolParaUnNumeroInvalido() throws Exception {
+        mockMvc.perform(post("/insumos/levaduras").with(csrf())
+                        .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Ingresá un número entero válido")));
 
         verify(levaduraServicio, never()).altaLevadura(any());
     }
@@ -230,7 +247,7 @@ class LevaduraControllerTest {
         when(levaduraServicio.altaLevadura(any())).thenThrow(new RecursoDuplicadoException("Ya existe una levadura con el nombre 'US-05'"));
 
         mockMvc.perform(post("/insumos/levaduras").with(csrf())
-                        .param("nombre", "US-05").param("tipo", "ALE").param("cantidadCelulasPorGramo", "6000000000"))
+                        .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "20000"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("insumo/levadura-form"))
                 .andExpect(content().string(containsString("Ya existe una levadura con el nombre")))
@@ -239,14 +256,16 @@ class LevaduraControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-LEC-12: una cantidad de células no positiva rechazada por el service se muestra junto a ese campo")
-    void alta_debeMostrarElErrorDeCelulasInvalidas() throws Exception {
-        when(levaduraServicio.altaLevadura(any())).thenThrow(new ReglaNegocioException("La cantidad de células por gramo debe ser mayor a 0"));
+    @DisplayName("CP-LEC-12: una cantidad de células fuera de rango rechazada por el service se muestra junto a ese campo")
+    void alta_debeMostrarElErrorDeCelulasFueraDeRango() throws Exception {
+        String mensaje = "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000";
+        when(levaduraServicio.altaLevadura(any())).thenThrow(new ReglaNegocioException(mensaje));
 
         mockMvc.perform(post("/insumos/levaduras").with(csrf())
-                        .param("nombre", "US-05").param("tipo", "ALE").param("cantidadCelulasPorGramo", "0"))
+                        .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "5000"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("La cantidad de células por gramo debe ser mayor a 0")));
+                .andExpect(content().string(containsString(mensaje)))
+                .andExpect(content().string(containsString("value=\"5000\"")));
     }
 
     @Test
@@ -256,7 +275,7 @@ class LevaduraControllerTest {
         when(levaduraServicio.altaLevadura(any())).thenReturn(levadura(9L, "US-05", TipoLevadura.ALE, 6_000_000_000.0));
 
         mockMvc.perform(post("/insumos/levaduras").with(csrf())
-                        .param("nombre", "US-05").param("tipo", "ALE").param("cantidadCelulasPorGramo", "6000000000")
+                        .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "20000")
                         .param("retorno", "/recetas/nueva").param("campo", "idLevadura"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/recetas/nueva?desdeAlta=1&idLevadura=9"))
@@ -268,7 +287,7 @@ class LevaduraControllerTest {
     @DisplayName("CP-LEC-14: un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta una levadura")
     void alta_debeRechazarRolNoAutorizado() throws Exception {
         mockMvc.perform(post("/insumos/levaduras").with(csrf())
-                        .param("nombre", "US-05").param("tipo", "ALE").param("cantidadCelulasPorGramo", "6000000000"))
+                        .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "20000"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -288,6 +307,8 @@ class LevaduraControllerTest {
                 .andExpect(view().name("insumo/levadura-form"))
                 .andExpect(content().string(containsString("Editar levadura")))
                 .andExpect(content().string(containsString("value=\"US-05\"")))
+                // La entidad guarda células (6.000.000.000); el formulario las muestra en millones
+                .andExpect(content().string(containsString("value=\"6000\"")))
                 .andExpect(content().string(matchesPattern("(?s).*<option value=\"LAGER\" selected.*")))
                 .andExpect(content().string(containsString("action=\"/insumos/levaduras/3\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
@@ -300,7 +321,7 @@ class LevaduraControllerTest {
     @DisplayName("CP-LEC-16: la modificación correcta delega en el service y redirige al listado con alerta de éxito")
     void modificar_debeRedirigirAlListadoConAlerta() throws Exception {
         mockMvc.perform(post("/insumos/levaduras/3").with(csrf())
-                        .param("nombre", "S-23").param("tipo", "LAGER").param("cantidadCelulasPorGramo", "5000000000"))
+                        .param("nombre", "S-23").param("tipo", "LAGER").param("celulasEnMillones", "15000"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/insumos/levaduras"))
                 .andExpect(flash().attribute("mensaje", "Levadura modificada correctamente"))
@@ -317,7 +338,7 @@ class LevaduraControllerTest {
                 .thenThrow(new RecursoDuplicadoException("Ya existe una levadura con el nombre 'S-23'"));
 
         mockMvc.perform(post("/insumos/levaduras/3").with(csrf())
-                        .param("nombre", "S-23").param("tipo", "LAGER").param("cantidadCelulasPorGramo", "5000000000"))
+                        .param("nombre", "S-23").param("tipo", "LAGER").param("celulasEnMillones", "15000"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la levadura")))
                 .andExpect(content().string(containsString("Ya existe una levadura con el nombre")))
@@ -329,7 +350,7 @@ class LevaduraControllerTest {
     @DisplayName("CP-LEC-18: un rol distinto de GERENTE_DE_PRODUCCION no puede modificar una levadura")
     void modificar_debeRechazarRolNoAutorizado() throws Exception {
         mockMvc.perform(post("/insumos/levaduras/3").with(csrf())
-                        .param("nombre", "S-23").param("tipo", "LAGER").param("cantidadCelulasPorGramo", "5000000000"))
+                        .param("nombre", "S-23").param("tipo", "LAGER").param("celulasEnMillones", "15000"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 

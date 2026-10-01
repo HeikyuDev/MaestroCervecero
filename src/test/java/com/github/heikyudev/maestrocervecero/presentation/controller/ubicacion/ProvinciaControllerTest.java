@@ -204,6 +204,9 @@ class ProvinciaControllerTest {
                 .andExpect(content().string(containsString("data-selector-buscar data-selector-texto")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccionar país\"")))
                 .andExpect(content().string(containsString("bi-list-ul")))
+                // El campo va en blanco (no gris): un fondo gris sugeriría que es de solo lectura
+                .andExpect(content().string(containsString("border-slate-300 bg-white")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Córdoba\"")))
                 .andExpect(content().string(containsString("data-selector-menu")))
                 .andExpect(content().string(containsString("data-selector-alta")))
                 .andExpect(content().string(containsString("Crear nuevo país")))

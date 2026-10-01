@@ -8,7 +8,8 @@
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
 - _"Vuelve al formulario"_ significa respuesta 200 con la vista `insumo/lupulo-form`, sin redirigir, para conservar lo tipeado.
 - _"Alta contextual"_ es el alta abierta desde el selector de otro formulario: llegan los parámetros `retorno` (ruta interna del formulario de origen) y `campo` (campo que recibe el id creado). Al guardar redirige a `retorno` agregando `campo=<id>` y `desdeAlta=1`.
-- La unidad de medida (gramos) la fija el sistema: el formulario no la pide, y las listas la muestran.
+- La unidad de medida (gramos) la fija el sistema: el formulario no la pide, lo aclara una sola vez en la cabecera de la sección "Datos del lúpulo" (no junto a ningún campo) y las listas la muestran.
+- Todos los campos de texto y numéricos tienen un placeholder con un ejemplo (ej. "Ej: Cascade", "Ej: 5.5").
 
 ---
 
@@ -28,7 +29,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-LUC-06** | Formulario de alta | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `insumo/lupulo-form`. Muestra "Nuevo lúpulo", el asterisco rojo de obligatorio, `action="/insumos/lupulos"`, las opciones de formato (ej. `PELLET`), la aclaración de que la unidad la define el sistema, el botón "Crear lúpulo" y el link "Volver a lúpulos". No incluye el campo `retorno` ni el panel de errores. |
+| **CP-LUC-06** | Formulario de alta | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `insumo/lupulo-form`. Muestra "Nuevo lúpulo", el asterisco rojo de obligatorio, `action="/insumos/lupulos"`, las opciones de formato (ej. `PELLET`), la aclaración de que la unidad la define el sistema (en la cabecera de la sección), los placeholders "Ej: Cascade" y "Ej: 5.5", la ayuda "Un número mayor a 0 y hasta 25.", el botón "Crear lúpulo" y el link "Volver a lúpulos". No incluye el campo `retorno` ni el panel de errores. |
 | **CP-LUC-07** | Alta contextual: se conservan retorno y campo | `retorno: "/recetas/nueva"`, `campo: "idLupulo"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver dice "Volver al formulario anterior" y apunta a `/recetas/nueva?desdeAlta=1`. |
 | **CP-LUC-08** | Rol no autorizado | Rol `ADMINISTRADOR` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 
@@ -39,9 +40,9 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-LUC-09** | Alta correcta | `nombre: "Cascade"`, `formato: PELLET`, `aa: 5.5`, con CSRF | Formulario válido | Llama a `altaLupulo` con los tres datos. Redirige a `/insumos/lupulos` con la alerta "Lúpulo creado correctamente" de tipo `success`. |
-| **CP-LUC-10** | Faltan los datos obligatorios | `nombre: "  "`, sin formato ni alfa ácidos | `@NotBlank` y `@NotNull` $\rightarrow$ **Fallan** | Vuelve al formulario con el panel "No se pudo crear el lúpulo" y los mensajes "El nombre del lúpulo es obligatorio", "El formato es obligatorio" y "Los alfa ácidos son obligatorios". No invoca al service. |
+| **CP-LUC-10** | Faltan los datos obligatorios | `nombre: "  "`, sin formato ni alfa ácidos | `@NotBlank` y `@NotNull` $\rightarrow$ **Fallan** | Vuelve al formulario con el panel "No se pudo crear el lúpulo" y los mensajes "El nombre del lúpulo es obligatorio", "El formato es obligatorio" y "Los ácidos alfa son obligatorios". No invoca al service. |
 | **CP-LUC-11** | Nombre duplicado | El service lanza `RecursoDuplicadoException("Ya existe un lúpulo con el nombre 'Cascade'")` | El service rechaza el nombre | Vuelve al formulario con el mensaje del service y lo tipeado conservado (nombre y alfa ácidos). |
-| **CP-LUC-12** | Alfa ácidos no positivos | `aa: 0`. El service lanza `ReglaNegocioException("El porcentaje de alfa ácidos debe ser mayor a 0")` | El service rechaza el valor | Vuelve al formulario y muestra el mensaje junto al campo de alfa ácidos. |
+| **CP-LUC-12** | Ácidos alfa fuera de rango | `aa: 233333`. El service lanza `ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%")` | El service rechaza el valor | Vuelve al formulario, muestra el mensaje junto al campo de ácidos alfa y conserva el valor tipeado. |
 | **CP-LUC-13** | Alta contextual correcta | Datos válidos, `retorno: "/recetas/nueva"`, `campo: "idLupulo"`. El service devuelve el lúpulo (`id: 9`) | El alta se abrió desde otro formulario | Redirige a `/recetas/nueva?desdeAlta=1&idLupulo=9` con la alerta "Lúpulo creado correctamente". |
 | **CP-LUC-14** | Rol no autorizado | Rol `ADMINISTRADOR` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 

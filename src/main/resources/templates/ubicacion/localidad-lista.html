@@ -25,12 +25,12 @@
           class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
         <div>
             <label for="nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
-            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off"
+            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off" placeholder="Ej: Río Cuarto"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div>
             <label for="codigoPostal" class="block text-xs font-medium text-slate-500 mb-1">Código postal</label>
-            <input type="text" id="codigoPostal" name="codigoPostal" th:value="${filtroCodigoPostal}" autocomplete="off"
+            <input type="text" id="codigoPostal" name="codigoPostal" th:value="${filtroCodigoPostal}" autocomplete="off" placeholder="Ej: 5800"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div>

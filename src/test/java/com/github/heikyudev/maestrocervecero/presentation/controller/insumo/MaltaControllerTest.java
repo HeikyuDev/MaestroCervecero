@@ -80,6 +80,13 @@ class MaltaControllerTest {
                 .andExpect(content().string(containsString(">kg<")))
                 .andExpect(content().string(containsString("href=\"/insumos/lupulos\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/levaduras\"")))
+                // Las pestañas llevan íconos propios (trigo, lúpulo, burbujas), no de Bootstrap Icons
+                .andExpect(content().string(containsString("<svg")))
+                .andExpect(content().string(not(containsString("bi-basket"))))
+                // La sección de la sidebar se llama "Administración"; "Configuración" queda para los parámetros
+                .andExpect(content().string(containsString("Administración")))
+                .andExpect(content().string(not(containsString(">Configuración<"))))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Pilsen\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/maltas/nuevo\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/maltas/4/editar\"")))
                 .andExpect(content().string(containsString("data-baja-url=\"/insumos/maltas/4/baja\"")))
@@ -160,6 +167,9 @@ class MaltaControllerTest {
                 .andExpect(content().string(containsString("action=\"/insumos/maltas\"")))
                 .andExpect(content().string(containsString("value=\"CARAMELO\"")))
                 .andExpect(content().string(containsString("la define el sistema")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Pilsen\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
+                .andExpect(content().string(containsString("Un número entero mayor a 0 y hasta 90.")))
                 .andExpect(content().string(containsString("Crear malta")))
                 .andExpect(content().string(containsString("Volver a maltas")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))))
@@ -260,13 +270,13 @@ class MaltaControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MAC-13: un potencial fuera de rango rechazado por el service se muestra junto a ese campo")
     void alta_debeMostrarElErrorDelPotencialFueraDeRango() throws Exception {
-        when(maltaServicio.altaMalta(any())).thenThrow(new ReglaNegocioException("El rendimiento debe estar entre 0 y 100 inclusive"));
+        when(maltaServicio.altaMalta(any())).thenThrow(new ReglaNegocioException("El extracto potencial debe ser mayor a 0% y menor o igual a 90%"));
 
         mockMvc.perform(post("/insumos/maltas").with(csrf())
-                        .param("nombre", "Pilsen").param("tipo", "BASE").param("potencialExtracto", "150"))
+                        .param("nombre", "Pilsen").param("tipo", "BASE").param("potencialExtracto", "95"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("insumo/malta-form"))
-                .andExpect(content().string(containsString("El rendimiento debe estar entre 0 y 100 inclusive")));
+                .andExpect(content().string(containsString("El extracto potencial debe ser mayor a 0% y menor o igual a 90%")));
     }
 
     @Test

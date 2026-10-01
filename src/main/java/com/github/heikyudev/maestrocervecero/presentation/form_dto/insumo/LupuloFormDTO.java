@@ -33,8 +33,8 @@ public class LupuloFormDTO {
     private FormatoLupulo formato;
 
     /**
-     * Porcentaje de alfa ácidos (AA%). Regla de negocio: positivo, mayor a 0.
+     * Porcentaje de ácidos alfa (AA%). Regla de negocio: mayor a 0% y menor o igual a 25%.
      */
-    @NotNull(message = "Los alfa ácidos son obligatorios")
+    @NotNull(message = "Los ácidos alfa son obligatorios")
     private Double aa;
 }

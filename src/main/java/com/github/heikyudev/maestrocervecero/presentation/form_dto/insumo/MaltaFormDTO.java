@@ -33,7 +33,7 @@ public class MaltaFormDTO {
     private TipoMalta tipo;
 
     /**
-     * Potencial de Extracto en porcentaje. Regla de negocio: entre 0 y 100 inclusive.
+     * Extracto potencial en porcentaje. Regla de negocio: mayor a 0% y menor o igual a 90%.
      */
     @NotNull(message = "El potencial de extracto es obligatorio")
     private Integer potencialExtracto;

@@ -159,6 +159,9 @@ class LupuloControllerTest {
                 .andExpect(content().string(containsString("action=\"/insumos/lupulos\"")))
                 .andExpect(content().string(containsString("value=\"PELLET\"")))
                 .andExpect(content().string(containsString("la define el sistema")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Cascade\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: 5.5\"")))
+                .andExpect(content().string(containsString("Un número mayor a 0 y hasta 25.")))
                 .andExpect(content().string(containsString("Crear lúpulo")))
                 .andExpect(content().string(containsString("Volver a lúpulos")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))))
@@ -218,7 +221,7 @@ class LupuloControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear el lúpulo")))
                 .andExpect(content().string(containsString("El nombre del lúpulo es obligatorio")))
                 .andExpect(content().string(containsString("El formato es obligatorio")))
-                .andExpect(content().string(containsString("Los alfa ácidos son obligatorios")));
+                .andExpect(content().string(containsString("Los ácidos alfa son obligatorios")));
 
         verify(lupuloServicio, never()).altaLupulo(any());
     }
@@ -240,14 +243,15 @@ class LupuloControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-LUC-12: unos alfa ácidos no positivos rechazados por el service se muestran junto a ese campo")
-    void alta_debeMostrarElErrorDeAlfaAcidosInvalidos() throws Exception {
-        when(lupuloServicio.altaLupulo(any())).thenThrow(new ReglaNegocioException("El porcentaje de alfa ácidos debe ser mayor a 0"));
+    @DisplayName("CP-LUC-12: unos ácidos alfa fuera de rango rechazados por el service se muestran junto a ese campo")
+    void alta_debeMostrarElErrorDeAcidosAlfaFueraDeRango() throws Exception {
+        when(lupuloServicio.altaLupulo(any())).thenThrow(new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"));
 
         mockMvc.perform(post("/insumos/lupulos").with(csrf())
-                        .param("nombre", "Cascade").param("formato", "PELLET").param("aa", "0"))
+                        .param("nombre", "Cascade").param("formato", "PELLET").param("aa", "233333"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("El porcentaje de alfa ácidos debe ser mayor a 0")));
+                .andExpect(content().string(containsString("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%")))
+                .andExpect(content().string(containsString("value=\"233333.0\"")));
     }
 
     @Test

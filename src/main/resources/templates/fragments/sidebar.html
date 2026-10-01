@@ -50,11 +50,12 @@
         </th:block>
 
         <!--
-            CONFIGURACIÓN: los datos maestros que se definen una vez y alimentan al resto del sistema.
-            Va debajo de la operación diaria.
+            ADMINISTRACIÓN: los datos que se definen una vez (insumos, ubicaciones, usuarios) y alimentan
+            al resto del sistema. Va debajo de la operación diaria. El nombre "Configuración" queda
+            reservado para los parámetros del sistema (duraciones estimadas, valores parametrizables).
         -->
         <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ADMINISTRADOR')">
-            <p th:replace="~{fragments/sidebar ::seccion('Configuración')}"></p>
+            <p th:replace="~{fragments/sidebar ::seccion('Administración')}"></p>
 
             <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">

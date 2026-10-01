@@ -20,6 +20,8 @@ import lombok.*;
 @AllArgsConstructor
 public class LevaduraFormDTO {
 
+    private static final double CELULAS_POR_MILLON = 1_000_000.0;
+
     /**
      * Nombre de la levadura. Debe ser único entre las levaduras activas (case-insensitive).
      */
@@ -33,8 +35,30 @@ public class LevaduraFormDTO {
     private TipoLevadura tipo;
 
     /**
-     * Cantidad de células por gramo de la levadura. Regla de negocio: positiva, mayor a 0.
+     * Cantidad de células viables por gramo, en células (ej. 20.000.000.000), que es como la guarda
+     * el sistema y como la usa el escalado de levadura. Regla de negocio: entre 6.000.000.000 y
+     * 20.000.000.000 inclusive.
      */
-    @NotNull(message = "La cantidad de células por gramo es obligatoria")
+    @NotNull(message = "La cantidad de células viables por gramo es obligatoria")
     private Double cantidadCelulasPorGramo;
+
+    /**
+     * Vista de {@link #cantidadCelulasPorGramo} en millones de células (20.000.000.000 son 20000),
+     * que es como la ingresa el usuario en el formulario. No es un dato aparte: leerla o asignarla
+     * convierte desde y hacia {@link #cantidadCelulasPorGramo}.
+     *
+     * @return La cantidad en millones (redondeada), o {@code null} si todavía no hay cantidad.
+     */
+    public Long getCelulasEnMillones() {
+        return cantidadCelulasPorGramo == null ? null : Math.round(cantidadCelulasPorGramo / CELULAS_POR_MILLON);
+    }
+
+    /**
+     * Asigna la cantidad de células viables por gramo a partir de un valor en millones.
+     *
+     * @param celulasEnMillones La cantidad en millones de células, o {@code null} si no se informó.
+     */
+    public void setCelulasEnMillones(Long celulasEnMillones) {
+        this.cantidadCelulasPorGramo = celulasEnMillones == null ? null : celulasEnMillones * CELULAS_POR_MILLON;
+    }
 }
