@@ -77,7 +77,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{ubicacion/paginacion :: paginacion(${localidades}, 'localidades',
+        <div th:replace="~{fragments/paginacion :: paginacion(${localidades}, 'localidades',
                 ${localidades.hasPrevious()} ? @{/ubicaciones/localidades/buscador(pagina=${localidades.number - 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,
                 ${localidades.hasNext()} ? @{/ubicaciones/localidades/buscador(pagina=${localidades.number + 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,
                 true)}"></div>

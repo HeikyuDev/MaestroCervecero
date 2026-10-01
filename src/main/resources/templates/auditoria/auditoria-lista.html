@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#auditoria-lista-content}, 'auditoria')}">
+<body>
+
+<div id="auditoria-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Bitácora de Auditoría</h1>
+        <p class="text-sm text-slate-500">Registro de las operaciones realizadas en el sistema, de la más reciente a la más antigua.</p>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/auditoria}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4 items-end">
+
+        <div>
+            <label for="fechaDesde" class="block text-xs font-medium text-slate-500 mb-1">Fecha desde</label>
+            <input type="date" id="fechaDesde" name="fechaDesde" th:value="${filtroFechaDesde}"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="fechaHasta" class="block text-xs font-medium text-slate-500 mb-1">Fecha hasta</label>
+            <input type="date" id="fechaHasta" name="fechaHasta" th:value="${filtroFechaHasta}"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="username" class="block text-xs font-medium text-slate-500 mb-1">Usuario</label>
+            <input type="text" id="username" name="username" th:value="${filtroUsername}" autocomplete="off"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+
+        <div>
+            <label for="accion" class="block text-xs font-medium text-slate-500 mb-1">Acción</label>
+            <select id="accion" name="accion"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todas</option>
+                <option th:each="a : ${acciones}" th:value="${a}" th:selected="${a == filtroAccion}"
+                        th:text="${#strings.replace(a, '_', ' ')}">ACCION</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="concepto" class="block text-xs font-medium text-slate-500 mb-1">Módulo</label>
+            <select id="concepto" name="concepto"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="c : ${conceptos}" th:value="${c}" th:selected="${c == filtroConcepto}"
+                        th:text="${#strings.replace(c, '_', ' ')}">MODULO</option>
+            </select>
+        </div>
+
+        <div class="md:col-span-2 xl:col-span-5 flex items-center justify-end gap-3">
+            <a th:href="@{/auditoria}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-4 py-3">Fecha y hora</th>
+                <th class="px-4 py-3">Usuario</th>
+                <th class="px-4 py-3">Módulo</th>
+                <th class="px-4 py-3">Acción</th>
+                <th class="px-4 py-3">ID afectado</th>
+                <th class="px-4 py-3">IP</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="l : ${logs.content}" class="hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${#temporals.format(l.fechaHora, 'dd/MM/yyyy HH:mm:ss')}">15/09/2026 10:30:00</td>
+                <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.username}">admin</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${#strings.replace(l.conceptoAuditoria, '_', ' ')}">MALTA</td>
+                <td class="px-4 py-3">
+                    <!-- Color por tipo de acción: verde crear/ingresar, azul modificar, ámbar finalizar, rojo eliminar/anular, gris cierre de sesión -->
+                    <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold"
+                          th:classappend="${l.accion.name() == 'CREAR' or l.accion.name() == 'LOGIN_EXITOSO'} ? 'bg-emerald-50 text-emerald-700'
+                                        : (${l.accion.name() == 'MODIFICAR'} ? 'bg-blue-50 text-blue-700'
+                                        : (${l.accion.name() == 'FINALIZAR'} ? 'bg-amber-50 text-amber-700'
+                                        : (${l.accion.name() == 'ELIMINAR' or l.accion.name() == 'ANULAR'} ? 'bg-rose-50 text-rose-700'
+                                        : 'bg-slate-100 text-slate-600')))"
+                          th:text="${#strings.replace(l.accion, '_', ' ')}">CREAR</span>
+                </td>
+                <td class="px-4 py-3 text-slate-700" th:text="${l.entidadId != null} ? ${l.entidadId} : '—'">12</td>
+                <td class="px-4 py-3 text-slate-500" th:text="${l.ipAddress != null} ? ${l.ipAddress} : '—'">127.0.0.1</td>
+            </tr>
+            <tr th:if="${logs.empty}">
+                <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-shield-check text-3xl block mb-2"></i>
+                    No se encontraron registros con los criterios indicados.
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <!-- Paginación (conserva los criterios de búsqueda) -->
+        <div th:replace="~{fragments/paginacion :: paginacion(${logs}, 'registros',
+                ${logs.hasPrevious()} ? @{/auditoria(pagina=${logs.number - 1}, fechaDesde=${filtroFechaDesde}, fechaHasta=${filtroFechaHasta}, username=${filtroUsername}, accion=${filtroAccion}, concepto=${filtroConcepto})} : null,
+                ${logs.hasNext()} ? @{/auditoria(pagina=${logs.number + 1}, fechaDesde=${filtroFechaDesde}, fechaHasta=${filtroFechaHasta}, username=${filtroUsername}, accion=${filtroAccion}, concepto=${filtroConcepto})} : null,
+                false)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

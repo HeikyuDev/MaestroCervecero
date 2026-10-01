@@ -60,7 +60,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{ubicacion/paginacion :: paginacion(${provincias}, 'provincias',
+        <div th:replace="~{fragments/paginacion :: paginacion(${provincias}, 'provincias',
                 ${provincias.hasPrevious()} ? @{/ubicaciones/provincias/buscador(pagina=${provincias.number - 1}, nombre=${filtroNombre}, idPais=${filtroIdPais})} : null,
                 ${provincias.hasNext()} ? @{/ubicaciones/provincias/buscador(pagina=${provincias.number + 1}, nombre=${filtroNombre}, idPais=${filtroIdPais})} : null,
                 true)}"></div>

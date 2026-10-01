@@ -51,7 +51,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{ubicacion/paginacion :: paginacion(${paises}, 'países',
+        <div th:replace="~{fragments/paginacion :: paginacion(${paises}, 'países',
                 ${paises.hasPrevious()} ? @{/ubicaciones/paises/buscador(pagina=${paises.number - 1}, nombre=${filtroNombre})} : null,
                 ${paises.hasNext()} ? @{/ubicaciones/paises/buscador(pagina=${paises.number + 1}, nombre=${filtroNombre})} : null,
                 true)}"></div>
