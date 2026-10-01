@@ -36,12 +36,12 @@
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Provincia</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', ${filtroIdProvincia}, ${filtroProvinciaTexto},
-                    @{/ubicaciones/provincias/buscador}, null, true, false)}"></div>
+                    @{/ubicaciones/provincias/buscador}, null, null, true, false)}"></div>
         </div>
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">País</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPais', ${filtroIdPais}, ${filtroPaisTexto},
-                    @{/ubicaciones/paises/buscador}, null, true, false)}"></div>
+                    @{/ubicaciones/paises/buscador}, null, null, true, false)}"></div>
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
             <a th:href="@{/ubicaciones/localidades}"

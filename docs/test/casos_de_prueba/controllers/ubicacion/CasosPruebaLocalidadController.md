@@ -10,7 +10,7 @@
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
 - _"Vuelve al formulario"_ significa respuesta 200 con la vista `ubicacion/localidad-form`, sin redirigir, para conservar lo tipeado.
 - _"Alta contextual"_ es el alta abierta desde el selector de otro formulario (por ejemplo, el de cliente): llegan los parámetros `retorno` (ruta interna del formulario de origen) y `campo` (campo que recibe el id creado). Al guardar redirige a `retorno` agregando `campo=<id>` y `desdeAlta=1`.
-- La provincia se elige con un selector (`data-selector`); el botón "+" para crearla (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/provincias/nuevo`. Al volver de crear la provincia, `idProvincia` llega en la URL y queda elegida.
+- La provincia se elige con un selector (`data-selector`): se hace clic en el propio campo (`data-selector-buscar`) para abrir el buscador. El menú de tres puntitos (`data-selector-menu`) con la opción "Crear nueva provincia" (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/provincias/nuevo`. Al volver de crear la provincia, `idProvincia` llega en la URL y queda elegida.
 - El buscador es un fragmento HTML que se muestra en un modal del selector.
 
 ---
@@ -31,7 +31,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-LOC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "rio"`. El service devuelve "Río Cuarto" de "Córdoba" (`id: 8`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-localidad :: buscador`. Cada localidad tiene un botón `data-elegir data-id="8" data-texto="Río Cuarto (Córdoba)"`. Los filtros de provincia y país usan los buscadores `/ubicaciones/provincias/buscador` y `/ubicaciones/paises/buscador`, sin botón "+" ni acciones de baja. Llama al service con `nombre: "rio"` y páginas de 8 elementos. |
+| **CP-LOC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "rio"`. El service devuelve "Río Cuarto" de "Córdoba" (`id: 8`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-localidad :: buscador`. Cada localidad tiene un botón `data-elegir data-id="8" data-texto="Río Cuarto (Córdoba)"`. Los filtros de provincia y país usan los buscadores `/ubicaciones/provincias/buscador` y `/ubicaciones/paises/buscador`, sin menú de creación ni acciones de baja. Llama al service con `nombre: "rio"` y páginas de 8 elementos. |
 | **CP-LOC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron localidades con los criterios indicados.". |
 | **CP-LOC-08** | Rol sin relación con clientes ni proveedores | Rol `ENCARGADO_DE_DEPOSITO` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
@@ -41,7 +41,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-LOC-09** | Formulario de alta con selector de provincia | Rol `ADMINISTRADOR` | El rol puede crear provincias | Responde 200 con la vista `ubicacion/localidad-form`. Muestra "Nueva localidad", el asterisco de obligatorio, `action="/ubicaciones/localidades"`, el link "Volver a localidades", el selector de provincia con `data-buscador-url="/ubicaciones/provincias/buscador"` y el botón "+" con `data-alta-url="/ubicaciones/provincias/nuevo"`. No incluye el campo `retorno`. |
+| **CP-LOC-09** | Formulario de alta con selector de provincia | Rol `ADMINISTRADOR` | El rol puede crear provincias | Responde 200 con la vista `ubicacion/localidad-form`. Muestra "Nueva localidad", el asterisco de obligatorio, `action="/ubicaciones/localidades"`, el link "Volver a localidades", el selector de provincia con `data-buscador-url="/ubicaciones/provincias/buscador"` y el menú de tres puntitos con la opción "Crear nueva provincia" (`data-alta-url="/ubicaciones/provincias/nuevo"`). No incluye el campo `retorno`. |
 | **CP-LOC-10** | Alta contextual: se conservan retorno y campo | Rol `ADMINISTRADOR`, `retorno: "/clientes/nuevo"`, `campo: "idLocalidad"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver dice "Volver al formulario anterior" y apunta a `/clientes/nuevo?desdeAlta=1`. |
 | **CP-LOC-11** | Rol sin permiso de alta | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 | **CP-LOC-26** | Vuelta de crear una provincia | `idProvincia: 5`, `desdeAlta: 1`. `IProvinciaServicio` devuelve "Córdoba" de "Argentina" | La provincia recién creada llega en la URL | El selector queda con `idProvincia=5` y el texto "Córdoba (Argentina)". |

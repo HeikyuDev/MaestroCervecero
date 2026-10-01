@@ -26,7 +26,7 @@
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">País</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPais', ${filtroIdPais}, ${filtroPaisTexto},
-                    @{/ubicaciones/paises/buscador}, null, true, false)}"></div>
+                    @{/ubicaciones/paises/buscador}, null, null, true, false)}"></div>
         </div>
         <div class="sm:col-span-2 flex justify-end">
             <button type="submit"

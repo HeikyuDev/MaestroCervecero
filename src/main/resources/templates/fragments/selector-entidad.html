@@ -3,8 +3,9 @@
 
 <!--
     Selector de una entidad relacionada (país de una provincia, localidad de un cliente, etc.).
-    Nunca es un combo con todos los registros: muestra el valor elegido (solo lectura) y abre un
-    modal de búsqueda con criterios de filtro. El comportamiento lo da /js/modales.js.
+    Nunca es un combo con todos los registros: el campo muestra el valor elegido (solo lectura) y al
+    hacer clic en él se abre un modal de búsqueda con criterios de filtro. El comportamiento lo da
+    /js/modales.js.
 
     Parámetros:
       campo        nombre del parámetro que viaja en el formulario (ej. 'idPais').
@@ -12,32 +13,47 @@
       texto        texto a mostrar del elegido, o null.
       buscadorUrl  URL del fragmento del modal de búsqueda.
       altaUrl      URL de la página de alta de la entidad, o null si el usuario no puede crearla (el
-                   botón "+" no se muestra). El "+" lleva a esa página y al guardar vuelve a este
-                   formulario con lo tipeado recuperado y la entidad nueva elegida.
+                   menú de tres puntitos no se muestra). La opción lleva a esa página y al guardar
+                   vuelve a este formulario con lo tipeado recuperado y la entidad nueva elegida.
+      etiquetaAlta texto de esa opción del menú (ej. 'Crear nueva provincia').
       limpiable    true si se puede quitar la selección (filtros).
       invalido     true para marcar el campo con error.
 
     Uso: <div th:replace="~{fragments/selector-entidad :: selector('idPais', *{idPais}, ${paisSeleccionado},
-                           @{/ubicaciones/paises/buscador}, @{/ubicaciones/paises/nuevo}, false, false)}"></div>
+                           @{/ubicaciones/paises/buscador}, @{/ubicaciones/paises/nuevo}, 'Crear nuevo país', false, false)}"></div>
 -->
-<div th:fragment="selector(campo, id, texto, buscadorUrl, altaUrl, limpiable, invalido)"
-     data-selector th:data-buscador-url="${buscadorUrl}" th:data-alta-url="${altaUrl}">
+<div th:fragment="selector(campo, id, texto, buscadorUrl, altaUrl, etiquetaAlta, limpiable, invalido)"
+     data-selector class="relative" th:data-buscador-url="${buscadorUrl}" th:data-alta-url="${altaUrl}">
     <input type="hidden" data-selector-id th:name="${campo}" th:value="${id}">
     <div class="flex items-stretch gap-2">
-        <input type="text" readonly data-selector-texto th:value="${texto}" placeholder="Sin seleccionar"
-               class="min-w-0 flex-1 px-3 py-2 rounded-lg border text-sm bg-slate-50 text-slate-700 cursor-default focus:outline-none"
-               th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-        <button type="button" data-selector-buscar title="Buscar" aria-label="Buscar"
-                class="px-3 rounded-lg border border-slate-300 bg-white text-slate-600 hover:bg-slate-100 transition-colors">
-            <i class="bi bi-search"></i>
-        </button>
-        <button type="button" data-selector-alta th:if="${altaUrl != null}" title="Crear nuevo" aria-label="Crear nuevo"
-                class="px-3 rounded-lg border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
-            <i class="bi bi-plus-lg"></i>
-        </button>
+        <div class="relative min-w-0 flex-1">
+            <!-- Todo el campo es el botón de búsqueda: clic, o Enter / Espacio con el foco puesto -->
+            <input type="text" readonly data-selector-buscar data-selector-texto th:value="${texto}"
+                   placeholder="Hacé clic para buscar" title="Hacé clic para buscar"
+                   class="w-full pl-3 pr-9 py-2 rounded-lg border text-sm bg-white text-slate-700 cursor-pointer truncate hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                   th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+            <i class="bi bi-search absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+        </div>
+
         <button type="button" data-selector-limpiar th:if="${limpiable}" title="Quitar selección" aria-label="Quitar selección"
                 class="px-3 rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 transition-colors">
             <i class="bi bi-x-lg"></i>
+        </button>
+
+        <!-- Menú de tres puntitos: acciones sobre la entidad relacionada (solo si el usuario puede crearla) -->
+        <button type="button" data-selector-menu th:if="${altaUrl != null}" title="Más opciones" aria-label="Más opciones"
+                aria-haspopup="true" aria-expanded="false"
+                class="px-3 rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 transition-colors">
+            <i class="bi bi-three-dots-vertical"></i>
+        </button>
+    </div>
+
+    <div data-selector-menu-panel hidden th:if="${altaUrl != null}" role="menu"
+         class="absolute right-0 top-full mt-1 z-20 min-w-max rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <button type="button" data-selector-alta role="menuitem"
+                class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition-colors">
+            <i class="bi bi-plus-circle"></i>
+            <span th:text="${etiquetaAlta != null} ? ${etiquetaAlta} : 'Crear nuevo'">Crear nuevo</span>
         </button>
     </div>
 </div>

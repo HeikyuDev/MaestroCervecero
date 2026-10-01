@@ -4,10 +4,12 @@
  * El servidor responde siempre HTML (fragmentos de Thymeleaf); este archivo solo reacciona a los
  * atributos data-* de las páginas:
  *
- *   data-selector                 campo de selección de una entidad relacionada. Sus botones:
- *     data-selector-buscar        abre el buscador (modal con criterios de filtro) y deja elegida la fila.
- *     data-selector-alta          lleva al alta de esa entidad y, al guardar, vuelve a esta página con
- *                                 lo tipeado recuperado y la entidad nueva elegida (alta contextual).
+ *   data-selector                 campo de selección de una entidad relacionada:
+ *     data-selector-buscar        el propio campo: con clic (o Enter / Espacio) abre el buscador (modal con
+ *                                 criterios de filtro) y deja elegida la fila.
+ *     data-selector-menu          botón de tres puntitos que despliega el menú de opciones.
+ *     data-selector-alta          opción del menú: lleva al alta de esa entidad y, al guardar, vuelve a esta
+ *                                 página con lo tipeado recuperado y la entidad nueva elegida (alta contextual).
  *     data-selector-limpiar       quita la selección.
  *   data-baja-url / data-baja-nombre
  *                                 botón que abre el diálogo de confirmación de baja (#dialogo-baja).
@@ -165,6 +167,26 @@
         }
     }
 
+    // ---------- Menú de tres puntitos del selector ----------
+
+    function cerrarMenus(excepto) {
+        document.querySelectorAll('[data-selector-menu-panel]').forEach(function (panel) {
+            if (panel !== excepto && !panel.hidden) {
+                panel.hidden = true;
+                var disparador = panel.closest('[data-selector]').querySelector('[data-selector-menu]');
+                if (disparador) { disparador.setAttribute('aria-expanded', 'false'); }
+            }
+        });
+    }
+
+    function alternarMenu(boton) {
+        var panel = boton.closest('[data-selector]').querySelector('[data-selector-menu-panel]');
+        var abrir = panel.hidden;
+        cerrarMenus(panel);
+        panel.hidden = !abrir;
+        boton.setAttribute('aria-expanded', String(abrir));
+    }
+
     document.addEventListener('click', function (evento) {
         var baja = evento.target.closest('[data-baja-url]');
         if (baja) {
@@ -175,9 +197,30 @@
             document.getElementById('dialogo-baja').close();
             return;
         }
+        var menu = evento.target.closest('[data-selector-menu]');
+        if (menu) {
+            alternarMenu(menu);
+            return;
+        }
+        // Un clic fuera de un menú abierto lo cierra
+        cerrarMenus(null);
+
         var accion = evento.target.closest('[data-selector-buscar], [data-selector-alta], [data-selector-limpiar]');
         if (accion) {
             accionSelector(accion);
+        }
+    });
+
+    document.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Escape') {
+            cerrarMenus(null);
+            return;
+        }
+        // El campo del selector se abre también con el teclado (Enter o Espacio)
+        var campo = evento.target.closest ? evento.target.closest('[data-selector-buscar]') : null;
+        if (campo && (evento.key === 'Enter' || evento.key === ' ')) {
+            evento.preventDefault();
+            accionSelector(campo);
         }
     });
 

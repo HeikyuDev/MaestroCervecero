@@ -49,13 +49,13 @@
                     <p th:if="${#fields.hasErrors('codigoPostal')}" th:errors="*{codigoPostal}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
 
-                <!-- El "+" (crear provincia) solo se ofrece a quien puede crearla -->
+                <!-- La opción "Crear nueva provincia" del menú solo se ofrece a quien puede crearla -->
                 <div>
                     <span class="block text-sm font-medium text-slate-700 mb-1">Provincia <span class="text-rose-600" title="Obligatorio">*</span></span>
                     <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', *{idProvincia}, ${provinciaSeleccionada},
                             @{/ubicaciones/provincias/buscador},
                             ${#authorization.expression('hasRole(''ADMINISTRADOR'')')} ? @{/ubicaciones/provincias/nuevo} : null,
-                            false, ${#fields.hasErrors('idProvincia')})}"></div>
+                            'Crear nueva provincia', false, ${#fields.hasErrors('idProvincia')})}"></div>
                     <p th:if="${#fields.hasErrors('idProvincia')}" th:errors="*{idProvincia}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
             </div>

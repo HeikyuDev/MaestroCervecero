@@ -41,13 +41,13 @@
                     <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
 
-                <!-- El "+" (crear país) solo se ofrece a quien puede crearlo -->
+                <!-- La opción "Crear nuevo país" del menú solo se ofrece a quien puede crearlo -->
                 <div class="xl:col-span-2">
                     <span class="block text-sm font-medium text-slate-700 mb-1">País <span class="text-rose-600" title="Obligatorio">*</span></span>
                     <div th:replace="~{fragments/selector-entidad :: selector('idPais', *{idPais}, ${paisSeleccionado},
                             @{/ubicaciones/paises/buscador},
                             ${#authorization.expression('hasRole(''ADMINISTRADOR'')')} ? @{/ubicaciones/paises/nuevo} : null,
-                            false, ${#fields.hasErrors('idPais')})}"></div>
+                            'Crear nuevo país', false, ${#fields.hasErrors('idPais')})}"></div>
                     <p th:if="${#fields.hasErrors('idPais')}" th:errors="*{idPais}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
             </div>

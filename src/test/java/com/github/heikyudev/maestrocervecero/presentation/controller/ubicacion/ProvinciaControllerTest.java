@@ -188,7 +188,7 @@ class ProvinciaControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-PRC-09: el formulario de alta ofrece el selector de país con el botón \"+\" para crearlo, y asteriscos de obligatorio")
+    @DisplayName("CP-PRC-09: el formulario de alta ofrece el selector de país (clic en el campo) con el menú de tres puntitos \"Crear nuevo país\", y asteriscos de obligatorio")
     void formularioAlta_debeOfrecerElSelectorDePaisConAltaAlVuelo() throws Exception {
         mockMvc.perform(get("/ubicaciones/provincias/nuevo"))
                 .andExpect(status().isOk())
@@ -198,7 +198,10 @@ class ProvinciaControllerTest {
                 .andExpect(content().string(containsString("action=\"/ubicaciones/provincias\"")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/paises/buscador\"")))
                 .andExpect(content().string(containsString("data-alta-url=\"/ubicaciones/paises/nuevo\"")))
+                .andExpect(content().string(containsString("data-selector-buscar data-selector-texto")))
+                .andExpect(content().string(containsString("data-selector-menu")))
                 .andExpect(content().string(containsString("data-selector-alta")))
+                .andExpect(content().string(containsString("Crear nuevo país")))
                 .andExpect(content().string(containsString("Volver a provincias")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))));
     }

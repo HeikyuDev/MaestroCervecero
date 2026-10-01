@@ -10,7 +10,7 @@
 - _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout.
 - _"Vuelve al formulario"_ significa respuesta 200 con la vista `ubicacion/provincia-form`, sin redirigir, para conservar lo tipeado.
 - _"Alta contextual"_ es el alta abierta desde el selector de otro formulario: llegan los parámetros `retorno` (ruta interna del formulario de origen) y `campo` (campo que recibe el id creado). Al guardar redirige a `retorno` agregando `campo=<id>` y `desdeAlta=1`; si `retorno` ya trae parámetros (alta encadenada) se conservan.
-- El país se elige con un selector (`data-selector`); el botón "+" para crearlo (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/paises/nuevo`. Al volver de crear el país, `idPais` llega en la URL y queda elegido.
+- El país se elige con un selector (`data-selector`): se hace clic en el propio campo (`data-selector-buscar`) para abrir el buscador. El menú de tres puntitos (`data-selector-menu`) con la opción "Crear nuevo país" (`data-selector-alta`) solo se ofrece al `ADMINISTRADOR` y lleva a `/ubicaciones/paises/nuevo`. Al volver de crear el país, `idPais` llega en la URL y queda elegido.
 - El buscador es un fragmento HTML que se muestra en un modal del selector.
 
 ---
@@ -41,7 +41,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-PRC-09** | Formulario de alta con selector de país | Rol `ADMINISTRADOR` | El rol puede crear países | Responde 200 con la vista `ubicacion/provincia-form`. Muestra "Nueva provincia", el asterisco de obligatorio, `action="/ubicaciones/provincias"`, el link "Volver a provincias", el selector de país con `data-buscador-url="/ubicaciones/paises/buscador"` y el botón "+" con `data-alta-url="/ubicaciones/paises/nuevo"`. No incluye el campo `retorno`. |
+| **CP-PRC-09** | Formulario de alta con selector de país | Rol `ADMINISTRADOR` | El rol puede crear países | Responde 200 con la vista `ubicacion/provincia-form`. Muestra "Nueva provincia", el asterisco de obligatorio, `action="/ubicaciones/provincias"`, el link "Volver a provincias", el selector de país con `data-buscador-url="/ubicaciones/paises/buscador"` y el menú de tres puntitos con la opción "Crear nuevo país" (`data-alta-url="/ubicaciones/paises/nuevo"`). No incluye el campo `retorno`. |
 | **CP-PRC-10** | Alta contextual: se conservan retorno y campo | Rol `ADMINISTRADOR`, `retorno: "/ubicaciones/localidades/nuevo"`, `campo: "idProvincia"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver dice "Volver al formulario anterior" y apunta a `/ubicaciones/localidades/nuevo?desdeAlta=1`. |
 | **CP-PRC-11** | Rol sin permiso de alta | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 | **CP-PRC-26** | Vuelta de crear un país | `idPais: 7`, `desdeAlta: 1`. `IPaisServicio` devuelve "Chile" | El país recién creado llega en la URL | El selector queda con `idPais=7` y el texto "Chile". |
