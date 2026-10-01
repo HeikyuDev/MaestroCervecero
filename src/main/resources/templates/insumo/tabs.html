@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!-- Pestañas del módulo de insumos: cada una es su propia URL. activa = 'maltas' | 'lupulos' | 'levaduras' -->
+<nav th:fragment="tabs(activa)" class="flex gap-1 border-b border-slate-200" aria-label="Insumos">
+    <a th:href="@{/insumos/maltas}"
+       th:classappend="${activa == 'maltas'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-basket mr-1"></i> Maltas
+    </a>
+    <a th:href="@{/insumos/lupulos}"
+       th:classappend="${activa == 'lupulos'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-flower2 mr-1"></i> Lúpulos
+    </a>
+    <a th:href="@{/insumos/levaduras}"
+       th:classappend="${activa == 'levaduras'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-virus mr-1"></i> Levaduras
+    </a>
+</nav>
+
+</html>
