@@ -39,17 +39,24 @@ public class UsuarioEntity extends AuditableEntity<String>{
     // UserDetailServiceImpl los pasa tal cual al construir el User(...) que usa el framework
     // para decidir si puede loguearse (enabled), si la cuenta caducó, si está bloqueada, o si
     // la contraseña venció y hay que forzar un cambio.
+    // Un usuario nuevo nace habilitado, vigente y sin bloqueos: por eso los cuatro valen true por
+    // defecto. Sin esto, un boolean primitivo queda en false y Spring Security rechaza el login de
+    // cualquier cuenta creada sin informarlos explícitamente.
+    @Builder.Default
     @Column(name = "is_enabled", nullable = false)
-    private boolean isEnabled;
+    private boolean isEnabled = true;
 
+    @Builder.Default
     @Column(name = "account_non_expired", nullable = false)
-    private boolean accountNonExpired;
+    private boolean accountNonExpired = true;
 
+    @Builder.Default
     @Column(name = "account_non_locked", nullable = false)
-    private boolean accountNonLocked;
+    private boolean accountNonLocked = true;
 
+    @Builder.Default
     @Column(name = "credentials_non_expired", nullable = false)
-    private boolean credentialsNonExpired;
+    private boolean credentialsNonExpired = true;
 
     // === Autorización ===
     // Cada usuario tiene un único Rol, y cada Rol trae consigo su propio conjunto fijo de

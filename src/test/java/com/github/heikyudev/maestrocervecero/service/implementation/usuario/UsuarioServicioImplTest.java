@@ -287,6 +287,11 @@ class UsuarioServicioImplTest {
         assertThat(entidadCapturada.getRol()).isEqualTo(Rol.GERENTE_DE_PRODUCCION);
         // El alta siempre debe registrar al usuario como ACTIVO, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
+        // La cuenta debe nacer habilitada, vigente y sin bloqueos: si no, Spring Security rechaza su login
+        assertThat(entidadCapturada.isEnabled()).isTrue();
+        assertThat(entidadCapturada.isAccountNonExpired()).isTrue();
+        assertThat(entidadCapturada.isAccountNonLocked()).isTrue();
+        assertThat(entidadCapturada.isCredentialsNonExpired()).isTrue();
 
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getUsername()).isEqualTo("carlos_cervecero");

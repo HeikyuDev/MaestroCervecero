@@ -31,10 +31,6 @@ public class UserDataLoader implements CommandLineRunner {
                     .apellido("Sistema")
                     .correo("admin@maestrocervecero.com")
                     .telefono("0000000000")
-                    .accountNonExpired(true)
-                    .accountNonLocked(true)
-                    .credentialsNonExpired(true)
-                    .isEnabled(true)
                     .rol(Rol.ADMINISTRADOR)
                     .estado(Estado.ACTIVO)
                     .build();
