@@ -9,13 +9,18 @@ import java.util.List;
 
 
 /**
- * En esta entidad, se va a configurar las mediciones que se van a poder realizar en  la receta
- * 1. Primero se tendra que seleccionar las Etapas de control registradas para la etapa selecciona
- * Ej: En Fermentacion, Se puede seleccionar las etapas de Fermentacion Inicial, Media y Final.
- * Y bueno tambien se solita un ORDEN numerico, para evitar que un usuario pueda registrar mediciones
- * en un orden incorrecto, por ejemplo, registrar una medicion de Fermentacion Final antes de Fermentacion Inicial.
- * 2. Luego el usuario va  a tener que seleccionar los parametros de control que se desean COntrolar en esta etapa
- * de control en particular, especificando para cada una el valor minimo, maximo e ideal. Esto se hace en la entidad DetalleParametroControlEntity.
+ * Plan de monitoreo de una {@link VersionRecetaEntity}: define qué mediciones se pueden realizar
+ * durante una etapa de control de la receta.
+ * <p>
+ * Cada plan referencia una {@link EtapaControlEntity} (por ejemplo, Fermentación Inicial, Media o
+ * Final dentro de la etapa de fermentación) y agrupa los parámetros de control a medir en ella,
+ * con su valor mínimo, máximo e ideal ({@link DetalleParametroControlEntity}). Una misma etapa de
+ * control no puede aparecer en dos planes de la misma versión.
+ * </p>
+ * <p>
+ * Al registrar una medición, el lote exige que el plan elegido corresponda a la etapa que tiene
+ * en curso.
+ * </p>
  */
 @Entity
 @Table(name = "plan_monitoreo_etapa")

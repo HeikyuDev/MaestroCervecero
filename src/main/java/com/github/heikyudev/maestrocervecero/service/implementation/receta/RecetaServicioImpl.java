@@ -18,6 +18,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
@@ -51,9 +52,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -183,6 +187,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         validarDetallesMalta(versionFormDTO.getDetallesMalta());
         validarDetallesLupulo(versionFormDTO.getDetallesLupulo(), versionFormDTO.getDuracionHervido());
         validarDetallesLevadura(versionFormDTO.getDetallesLevadura());
+        validarPlanesMonitoreo(obtenerPlanesMonitoreo(versionFormDTO));
 
         // 2. Validar si el nombre ya está registrado en otra receta activa (case-insensitive)
         if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue(versionFormDTO.getNombre())) {
@@ -225,6 +230,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         validarDetallesMalta(versionFormDTO.getDetallesMalta());
         validarDetallesLupulo(versionFormDTO.getDetallesLupulo(), versionFormDTO.getDuracionHervido());
         validarDetallesLevadura(versionFormDTO.getDetallesLevadura());
+        validarPlanesMonitoreo(obtenerPlanesMonitoreo(versionFormDTO));
 
         // 2. Validar duplicación excluyendo la propia receta, de modo que conservar el nombre
         //    actual no falle contra el mismo registro
@@ -321,11 +327,11 @@ public class RecetaServicioImpl implements IRecetaServicio {
     }
 
     /**
-     * Valida que la receta tenga al menos una malta y que todas las cantidades ingresadas
-     * sean estrictamente mayores a cero.
+     * Valida que la receta tenga al menos una malta, que todas las cantidades ingresadas
+     * sean estrictamente mayores a cero y que la misma malta no se repita.
      *
      * @param detallesMalta Lista de detalles de malta a validar.
-     * @throws ReglaNegocioException Si la lista está vacía o alguna cantidad no es mayor a 0.
+     * @throws ReglaNegocioException Si la lista está vacía, alguna cantidad no es mayor a 0 o la misma malta se repite.
      */
     private static void validarDetallesMalta(List<DetalleMaltaFormDTO> detallesMalta) {
         if (detallesMalta == null || detallesMalta.isEmpty()) {
@@ -336,17 +342,23 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayCantidadInvalida) {
             throw new ReglaNegocioException("La cantidad de cada malta debe ser mayor a 0");
         }
+        if (hayRepetidos(detallesMalta.stream().map(DetalleMaltaFormDTO::getIdMalta).toList())) {
+            throw new ReglaNegocioException("La receta no puede tener la misma malta más de una vez");
+        }
     }
 
     /**
      * Valida que la receta tenga al menos un lúpulo, que todas las cantidades ingresadas sean
-     * estrictamente mayores a cero, que exista al menos un lúpulo con uso HERVOR y que el tiempo
-     * de hervor de cada lúpulo HERVOR sea mayor a 0 y menor a la duración estimada del hervido.
+     * estrictamente mayores a cero, que la etapa de uso de cada lúpulo sea coherente con su uso
+     * (HERVOR y WHIRLPOOL en HERVIDO; DRY_HOP en FERMENTACION o MADURACION), que exista al menos un
+     * lúpulo con uso HERVOR, que el tiempo de hervor de cada lúpulo HERVOR sea mayor a 0 y menor a la
+     * duración estimada del hervido, y que no se repita un mismo lúpulo con el mismo uso y tiempo de hervor.
      *
      * @param detallesLupulo Lista de detalles de lúpulo a validar.
      * @param duracionHervido Duración estimada del hervido de la versión, usada como tope del tiempo de hervor.
-     * @throws ReglaNegocioException Si la lista está vacía, alguna cantidad no es mayor a 0, no hay
-     * ningún lúpulo HERVOR, o algún tiempo de hervor es inválido.
+     * @throws ReglaNegocioException Si la lista está vacía, alguna cantidad no es mayor a 0, alguna etapa de uso
+     * no corresponde al uso, no hay ningún lúpulo HERVOR, algún tiempo de hervor es inválido o se repite
+     * la combinación de lúpulo, uso y tiempo de hervor.
      */
     private static void validarDetallesLupulo(List<DetalleLupuloFormDTO> detallesLupulo, Integer duracionHervido) {
         if (detallesLupulo == null || detallesLupulo.isEmpty()) {
@@ -356,6 +368,15 @@ public class RecetaServicioImpl implements IRecetaServicio {
                 .anyMatch(detalle -> detalle.getCantidad() == null || detalle.getCantidad() <= 0);
         if (hayCantidadInvalida) {
             throw new ReglaNegocioException("La cantidad de cada lúpulo debe ser mayor a 0");
+        }
+
+        if (detallesLupulo.stream().anyMatch(detalle -> detalle.getUso() != null
+                && detalle.getUso() != UsoLupulo.DRY_HOP && detalle.getEtapaDeUso() != TipoEtapa.HERVIDO)) {
+            throw new ReglaNegocioException("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+        }
+        if (detallesLupulo.stream().anyMatch(detalle -> detalle.getUso() == UsoLupulo.DRY_HOP
+                && detalle.getEtapaDeUso() != TipoEtapa.FERMENTACION && detalle.getEtapaDeUso() != TipoEtapa.MADURACION)) {
+            throw new ReglaNegocioException("La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION");
         }
 
         List<DetalleLupuloFormDTO> lupulosHervor = detallesLupulo.stream()
@@ -372,14 +393,23 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayTiempoDeHervorInvalido) {
             throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso HERVOR debe ser mayor a 0 y menor a la duración estimada del hervido");
         }
+
+        // El tiempo de hervor solo aplica a HERVOR: para cualquier otro uso cuenta como 0, igual que al persistir
+        boolean hayLupuloRepetido = hayRepetidos(detallesLupulo.stream()
+                .map(detalle -> Arrays.asList(detalle.getIdLupulo(), detalle.getUso(),
+                        detalle.getUso() == UsoLupulo.HERVOR ? detalle.getTiempoDeHervor() : Double.valueOf(0.0)))
+                .toList());
+        if (hayLupuloRepetido) {
+            throw new ReglaNegocioException("La receta no puede repetir un lúpulo con el mismo uso y el mismo tiempo de hervor");
+        }
     }
 
     /**
-     * Valida que la receta tenga al menos una levadura y que todas las cantidades ingresadas
-     * sean estrictamente mayores a cero.
+     * Valida que la receta tenga al menos una levadura, que todas las cantidades ingresadas
+     * sean estrictamente mayores a cero y que la misma levadura no se repita.
      *
      * @param detallesLevadura Lista de detalles de levadura a validar.
-     * @throws ReglaNegocioException Si la lista está vacía o alguna cantidad no es mayor a 0.
+     * @throws ReglaNegocioException Si la lista está vacía, alguna cantidad no es mayor a 0 o la misma levadura se repite.
      */
     private static void validarDetallesLevadura(List<DetalleLevaduraFormDTO> detallesLevadura) {
         if (detallesLevadura == null || detallesLevadura.isEmpty()) {
@@ -390,6 +420,47 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayCantidadInvalida) {
             throw new ReglaNegocioException("La cantidad de cada levadura debe ser mayor a 0");
         }
+        if (hayRepetidos(detallesLevadura.stream().map(DetalleLevaduraFormDTO::getIdLevadura).toList())) {
+            throw new ReglaNegocioException("La receta no puede tener la misma levadura más de una vez");
+        }
+    }
+
+    /**
+     * Valida el plan de monitoreo (opcional): que una misma etapa de control no aparezca en más de
+     * un plan de la receta, que cada plan tenga al menos un parámetro de control y que un mismo
+     * parámetro de control no se repita dentro de un plan.
+     *
+     * @param planesMonitoreo Lista de planes de monitoreo de etapa a validar (puede estar vacía).
+     * @throws ReglaNegocioException Si se repite una etapa de control, algún plan no tiene parámetros
+     * de control o algún plan repite un parámetro de control.
+     */
+    private static void validarPlanesMonitoreo(List<PlanMonitoreoEtapaFormDTO> planesMonitoreo) {
+        if (hayRepetidos(planesMonitoreo.stream().map(PlanMonitoreoEtapaFormDTO::getIdEtapaControl).toList())) {
+            throw new ReglaNegocioException("La receta no puede tener más de un plan de monitoreo para la misma etapa de control");
+        }
+        boolean hayPlanSinParametros = planesMonitoreo.stream()
+                .anyMatch(plan -> plan.getDetallesParametroControl() == null || plan.getDetallesParametroControl().isEmpty());
+        if (hayPlanSinParametros) {
+            throw new ReglaNegocioException("Cada plan de monitoreo debe tener al menos un parámetro de control");
+        }
+        boolean hayParametroRepetido = planesMonitoreo.stream()
+                .anyMatch(plan -> hayRepetidos(plan.getDetallesParametroControl().stream()
+                        .map(DetalleParametroControlFormDTO::getIdParametroControl)
+                        .toList()));
+        if (hayParametroRepetido) {
+            throw new ReglaNegocioException("Un plan de monitoreo no puede repetir el mismo parámetro de control");
+        }
+    }
+
+    /**
+     * Indica si la lista de claves contiene algún elemento repetido (admite claves nulas).
+     *
+     * @param claves Claves a comparar entre sí.
+     * @return {@code true} si al menos una clave aparece más de una vez.
+     */
+    private static boolean hayRepetidos(List<?> claves) {
+        Set<Object> vistas = new HashSet<>();
+        return claves.stream().anyMatch(clave -> !vistas.add(clave));
     }
 
     // === CONSTRUCCIÓN DEL ÁRBOL DE ENTIDADES DE LA VERSIÓN ===

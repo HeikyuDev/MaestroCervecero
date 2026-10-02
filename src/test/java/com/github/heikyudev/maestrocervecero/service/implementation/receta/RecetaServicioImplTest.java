@@ -848,6 +848,235 @@ class RecetaServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(Estado.ACTIVO);
     }
 
+    @Test
+    @DisplayName("CP-AR-37: altaReceta lanza ReglaNegocioException cuando un lúpulo HERVOR tiene una etapa de uso distinta de HERVIDO")
+    void altaReceta_debeRechazarLupuloHervorConEtapaDistintaDeHervido() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.FERMENTACION, 30.0, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-38: altaReceta lanza ReglaNegocioException cuando un lúpulo WHIRLPOOL tiene una etapa de uso distinta de HERVIDO")
+    void altaReceta_debeRechazarLupuloWhirlpoolConEtapaDistintaDeHervido() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.MADURACION, null, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-39: altaReceta lanza ReglaNegocioException cuando un lúpulo DRY_HOP tiene la etapa de uso HERVIDO")
+    void altaReceta_debeRechazarLupuloDryHopConEtapaHervido() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(15.0, UsoLupulo.DRY_HOP, TipoEtapa.HERVIDO, null, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-40: altaReceta lanza ReglaNegocioException cuando la etapa de uso de un lúpulo es nula")
+    void altaReceta_debeRechazarLupuloConEtapaDeUsoNula() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, null, 30.0, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-41: altaReceta lanza ReglaNegocioException cuando la misma malta se repite")
+    void altaReceta_debeRechazarMaltaRepetida() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesMalta(List.of(detalleMaltaFormDTO(2.0, MALTA_ID), detalleMaltaFormDTO(1.0, MALTA_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede tener la misma malta más de una vez");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-42: altaReceta lanza ReglaNegocioException cuando la misma levadura se repite")
+    void altaReceta_debeRechazarLevaduraRepetida() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLevadura(List.of(detalleLevaduraFormDTO(11.0, LEVADURA_ID), detalleLevaduraFormDTO(5.0, LEVADURA_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede tener la misma levadura más de una vez");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-43: altaReceta lanza ReglaNegocioException cuando se repite el mismo lúpulo con el mismo uso y tiempo de hervor")
+    void altaReceta_debeRechazarLupuloRepetidoConMismoUsoYTiempo() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(20.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede repetir un lúpulo con el mismo uso y el mismo tiempo de hervor");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-44: altaReceta lanza ReglaNegocioException cuando se repite el mismo lúpulo WHIRLPOOL (el tiempo de hervor se normaliza a cero)")
+    void altaReceta_debeRechazarLupuloRepetidoNoHervorComparandoTiempoNormalizado() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, null, LUPULO_ID),
+                        detalleLupuloFormDTO(5.0, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, 15.0, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede repetir un lúpulo con el mismo uso y el mismo tiempo de hervor");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-45: altaReceta persiste cuando el mismo lúpulo se repite con uso HERVOR y distinto tiempo de hervor")
+    void altaReceta_debePersistirMismoLupuloHervorConDistintoTiempo() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(20.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 15.0, LUPULO_ID)))
+                .build();
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
+        mockearAltaExitosa(versionFormDTO);
+
+        // === EJECUCION ===
+        recetaServicio.altaReceta(recetaFormDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<RecetaEntity> captor = ArgumentCaptor.forClass(RecetaEntity.class);
+        verify(recetaRepository).save(captor.capture());
+        assertThat(captor.getValue().getVersiones().get(0).getDetallesLupulo()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("CP-AR-46: altaReceta persiste cuando el mismo lúpulo se repite con distinto uso (HERVOR y DRY_HOP)")
+    void altaReceta_debePersistirMismoLupuloConDistintoUso() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(15.0, UsoLupulo.DRY_HOP, TipoEtapa.FERMENTACION, null, LUPULO_ID)))
+                .build();
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
+        mockearAltaExitosa(versionFormDTO);
+
+        // === EJECUCION ===
+        recetaServicio.altaReceta(recetaFormDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<RecetaEntity> captor = ArgumentCaptor.forClass(RecetaEntity.class);
+        verify(recetaRepository).save(captor.capture());
+        assertThat(captor.getValue().getVersiones().get(0).getDetallesLupulo()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("CP-AR-47: altaReceta lanza ReglaNegocioException cuando la misma etapa de control aparece en dos planes de monitoreo")
+    void altaReceta_debeRechazarEtapaControlRepetidaEnPlanes() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .planesMonitoreo(List.of(
+                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID)),
+                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(10.0, 15.0, 12.0, 2L))))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede tener más de un plan de monitoreo para la misma etapa de control");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-48: altaReceta lanza ReglaNegocioException cuando un plan de monitoreo no tiene parámetros de control")
+    void altaReceta_debeRechazarPlanSinParametrosDeControl() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Cada plan de monitoreo debe tener al menos un parámetro de control");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-49: altaReceta lanza ReglaNegocioException cuando un plan de monitoreo repite el mismo parámetro de control")
+    void altaReceta_debeRechazarParametroDeControlRepetidoEnPlan() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
+                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID),
+                        detalleParametroControlFormDTO(10.0, 15.0, 12.0, PARAMETRO_CONTROL_ID))))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Un plan de monitoreo no puede repetir el mismo parámetro de control");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-50: altaReceta persiste cuando el mismo parámetro de control se usa en planes de etapas de control distintas")
+    void altaReceta_debePersistirMismoParametroEnPlanesDeDistintaEtapa() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
+                .planesMonitoreo(List.of(
+                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID)),
+                        planMonitoreoEtapaFormDTO(2L, detalleParametroControlFormDTO(10.0, 15.0, 12.0, PARAMETRO_CONTROL_ID))))
+                .build();
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
+        mockearAltaExitosa(versionFormDTO);
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getVersion().getPlanesMonitoreo()).hasSize(2);
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
     // ==================== modificarReceta ====================
 
     @Test
@@ -1041,6 +1270,112 @@ class RecetaServicioImplTest {
         assertThat(recetaEntityExistente.getVersiones()).hasSize(4);
         long cantidadActivas = recetaEntityExistente.getVersiones().stream().filter(VersionRecetaEntity::isEsUltimaVersion).count();
         assertThat(cantidadActivas).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("CP-MR-12: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la etapa de uso de un lúpulo no corresponde a su uso")
+    void modificarReceta_debeRechazarEtapaDeUsoIncoherenteConElUso() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(15.0, UsoLupulo.DRY_HOP, TipoEtapa.HERVIDO, null, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-13: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la misma malta se repite")
+    void modificarReceta_debeRechazarMaltaRepetida() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesMalta(List.of(detalleMaltaFormDTO(2.0, MALTA_ID), detalleMaltaFormDTO(1.0, MALTA_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede tener la misma malta más de una vez");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-14: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la misma levadura se repite")
+    void modificarReceta_debeRechazarLevaduraRepetida() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLevadura(List.of(detalleLevaduraFormDTO(11.0, LEVADURA_ID), detalleLevaduraFormDTO(5.0, LEVADURA_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede tener la misma levadura más de una vez");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-15: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando se repite el mismo lúpulo con el mismo uso y tiempo de hervor")
+    void modificarReceta_debeRechazarLupuloRepetidoConMismoUsoYTiempo() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .detallesLupulo(List.of(
+                        detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID),
+                        detalleLupuloFormDTO(20.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede repetir un lúpulo con el mismo uso y el mismo tiempo de hervor");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-16: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la misma etapa de control aparece en dos planes")
+    void modificarReceta_debeRechazarEtapaControlRepetidaEnPlanes() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .planesMonitoreo(List.of(
+                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID)),
+                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(10.0, 15.0, 12.0, 2L))))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta no puede tener más de un plan de monitoreo para la misma etapa de control");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-17: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando un plan de monitoreo no tiene parámetros de control")
+    void modificarReceta_debeRechazarPlanSinParametrosDeControl() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID)))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Cada plan de monitoreo debe tener al menos un parámetro de control");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-18: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando un plan repite el mismo parámetro de control")
+    void modificarReceta_debeRechazarParametroDeControlRepetidoEnPlan() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
+                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
+                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID),
+                        detalleParametroControlFormDTO(10.0, 15.0, 12.0, PARAMETRO_CONTROL_ID))))
+                .build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Un plan de monitoreo no puede repetir el mismo parámetro de control");
+
+        verifyNoRepositoryInteractions();
     }
 
     // ==================== bajaReceta ====================

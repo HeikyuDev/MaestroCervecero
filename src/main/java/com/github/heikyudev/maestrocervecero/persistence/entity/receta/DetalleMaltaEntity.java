@@ -28,7 +28,6 @@ public class DetalleMaltaEntity {
     private Double cantidad;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    // VERSION RECETA TIENE SOFTDELETE?? SI ENTONCES EL FETCH TIENE QUE SER EAGER
     @JoinColumn(name = "version_receta_id", nullable = false)
     private VersionRecetaEntity versionReceta;
 
