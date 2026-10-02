@@ -166,13 +166,13 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de evaporación es nulo")
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la evaporación es nula")
     void altaOllaHervor_debeRechazarEvaporacionNula() {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, null, 3.0);
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de evaporación es obligatorio.");
+                .hasMessage("La evaporación es obligatoria.");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -192,26 +192,65 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando el porcentaje de evaporación es negativo (límite inferior)")
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando la evaporación es negativa")
     void altaOllaHervor_debeRechazarEvaporacionNegativa() {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, -0.1, 3.0);
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de evaporación debe estar entre 0 y 100.");
+                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
-    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando el porcentaje de evaporación supera el 100% (límite superior)")
-    void altaOllaHervor_debeRechazarEvaporacionMayorA100() {
-        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 100.1, 3.0);
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando la evaporación supera la capacidad útil (límite superior)")
+    void altaOllaHervor_debeRechazarEvaporacionMayorALaCapacidadUtil() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 80.1, 3.0);
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de evaporación debe estar entre 0 y 100.");
+                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando la evaporación es igual a cero (límite inferior)")
+    void altaOllaHervor_debeRechazarEvaporacionCero() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 0.0, 3.0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando la pérdida por trub es igual a cero (límite inferior)")
+    void altaOllaHervor_debeRechazarPerdidaPorTrubCero() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 0.0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("altaOllaHervor lanza ReglaNegocioException cuando la pérdida por trub supera la capacidad útil (límite superior)")
+    void altaOllaHervor_debeRechazarPerdidaPorTrubMayorALaCapacidadUtil() {
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 80.1);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -224,7 +263,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub no puede ser negativa.");
+                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -295,41 +334,41 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("altaOllaHervor acepta 0.0 como borde válido inferior del porcentaje de evaporación")
+    @DisplayName("altaOllaHervor acepta 0.1 como borde válido inferior de la evaporación")
     void altaOllaHervor_debeAceptarEvaporacionEnLimiteInferior() {
-        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-03", 100.0, 80.0, 0.0, 3.0);
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-03", 100.0, 80.0, 0.1, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("OLLA-03")).thenReturn(false);
         when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO);
 
-        assertThat(resultado.getEvaporacion()).isEqualTo(0.0);
+        assertThat(resultado.getEvaporacion()).isEqualTo(0.1);
         verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
     }
 
     @Test
-    @DisplayName("altaOllaHervor acepta 100.0 como borde válido superior del porcentaje de evaporación")
+    @DisplayName("altaOllaHervor acepta una evaporación igual a la capacidad útil como borde válido superior")
     void altaOllaHervor_debeAceptarEvaporacionEnLimiteSuperior() {
-        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-04", 100.0, 80.0, 100.0, 3.0);
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-04", 100.0, 80.0, 80.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("OLLA-04")).thenReturn(false);
         when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO);
 
-        assertThat(resultado.getEvaporacion()).isEqualTo(100.0);
+        assertThat(resultado.getEvaporacion()).isEqualTo(80.0);
         verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
     }
 
     @Test
-    @DisplayName("altaOllaHervor acepta 0.0 como borde válido inferior de la pérdida por trub")
+    @DisplayName("altaOllaHervor acepta 0.1 como borde válido inferior de la pérdida por trub")
     void altaOllaHervor_debeAceptarPerdidaPorTrubEnLimiteInferior() {
-        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-05", 100.0, 80.0, 10.0, 0.0);
+        OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-05", 100.0, 80.0, 10.0, 0.1);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("OLLA-05")).thenReturn(false);
         when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO);
 
-        assertThat(resultado.getPerdidaPorTrub()).isEqualTo(0.0);
+        assertThat(resultado.getPerdidaPorTrub()).isEqualTo(0.1);
         verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
     }
 
@@ -378,7 +417,7 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando el porcentaje de evaporación es inválido")
+    @DisplayName("modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la evaporación es inválida")
     void modificarOllaHervor_debeRechazarEvaporacionInvalida() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 105.0, 3.0);

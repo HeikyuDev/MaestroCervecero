@@ -74,8 +74,8 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @param ollaHervorFormDTO Objeto DTO que contiene los datos de creación de la olla de hervor.
      * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor guardada en la base de datos.
      * @throws ReglaNegocioException Si la capacidad util es mayor o igual a la capacidad total.
-     * @throws ReglaNegocioException Si el porcentaje de evaporacion no esta entre 0 y 100.
-     * @throws ReglaNegocioException Si la perdida por trub es negativa.
+     * @throws ReglaNegocioException Si la evaporación no es mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si la pérdida por trub no es mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a una olla de hervor activa.
      */
@@ -87,11 +87,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 1. Validar que la capacidad util no sea mayor o igual a la capacidad total
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 2. Validar que el porcentaje de evaporación esté entre 0 y 100
-        validarPorcentajeEvaporacion(ollaHervorFormDTO.getEvaporacion());
+        // 2. Validar que la evaporación sea mayor a 0 y no supere la capacidad útil
+        validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 3. Validar que la pérdida por trub no sea negativa
-        validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
+        // 3. Validar que la pérdida por trub sea mayor a 0 y no supere la capacidad útil
+        validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub(), ollaHervorFormDTO.getCapacidadUtil());
 
         // 4. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
@@ -131,8 +131,8 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @param ollaHervorFormDTO Objeto DTO que contiene los datos de modificación de la olla de hervor.
      * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor modificada en la base de datos.
      * @throws ReglaNegocioException      Si la capacidad util es mayor o igual a la capacidad total.
-     * @throws ReglaNegocioException      Si el porcentaje de evaporacion no esta entre 0 y 100.
-     * @throws ReglaNegocioException      Si la perdida por trub es negativa.
+     * @throws ReglaNegocioException      Si la evaporación no es mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException      Si la pérdida por trub no es mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
      * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
@@ -148,11 +148,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 2. Validar que la capacidad util no sea mayor o igual a la capacidad total
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 3. Validar que el porcentaje de evaporación esté entre 0 y 100
-        validarPorcentajeEvaporacion(ollaHervorFormDTO.getEvaporacion());
+        // 3. Validar que la evaporación sea mayor a 0 y no supere la capacidad útil
+        validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 4. Validar que la pérdida por trub no sea negativa
-        validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
+        // 4. Validar que la pérdida por trub sea mayor a 0 y no supere la capacidad útil
+        validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub(), ollaHervorFormDTO.getCapacidadUtil());
 
         // 5. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
@@ -224,32 +224,36 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     }
 
     /**
-     * Valida que el porcentaje de evaporación esté entre 0 y 100.
+     * Valida que la evaporación (en litros por hora) sea mayor a 0 y no supere la capacidad útil de
+     * la olla. La fórmula del lote la multiplica por las horas de hervido, así que es una cantidad
+     * de litros y no un porcentaje.
      *
-     * @param porcentajeEvaporacion Porcentaje de evaporación de la olla de hervor.
-     * @throws ReglaNegocioException Si el porcentaje de evaporación no está entre 0 y 100.
+     * @param evaporacion Evaporación de la olla de hervor, en litros por hora.
+     * @param capacidadUtil Capacidad útil de la olla de hervor, en litros (ya validada).
+     * @throws ReglaNegocioException Si la evaporación es nula, no es mayor a 0 o supera la capacidad útil.
      */
-    public static void validarPorcentajeEvaporacion(Double porcentajeEvaporacion) {
-        if (porcentajeEvaporacion == null) {
-            throw new ReglaNegocioException("El porcentaje de evaporación es obligatorio.");
+    public static void validarEvaporacion(Double evaporacion, Double capacidadUtil) {
+        if (evaporacion == null) {
+            throw new ReglaNegocioException("La evaporación es obligatoria.");
         }
-        if (porcentajeEvaporacion < 0 || porcentajeEvaporacion > 100) {
-            throw new ReglaNegocioException("El porcentaje de evaporación debe estar entre 0 y 100.");
+        if (evaporacion <= 0 || evaporacion > capacidadUtil) {
+            throw new ReglaNegocioException("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
         }
     }
 
     /**
-     * Valida que la pérdida por trub no sea negativa.
+     * Valida que la pérdida por trub (en litros) sea mayor a 0 y no supere la capacidad útil de la olla.
      *
-     * @param perdidaPorTrub Pérdida por trub de la olla de hervor.
-     * @throws ReglaNegocioException Si la pérdida por trub es negativa.
+     * @param perdidaPorTrub Pérdida por trub de la olla de hervor, en litros.
+     * @param capacidadUtil Capacidad útil de la olla de hervor, en litros (ya validada).
+     * @throws ReglaNegocioException Si la pérdida por trub es nula, no es mayor a 0 o supera la capacidad útil.
      */
-    public static void validarPerdidaPorTrub(Double perdidaPorTrub) {
+    public static void validarPerdidaPorTrub(Double perdidaPorTrub, Double capacidadUtil) {
         if (perdidaPorTrub == null) {
             throw new ReglaNegocioException("La pérdida por trub es obligatoria.");
         }
-        if (perdidaPorTrub < 0) {
-            throw new ReglaNegocioException("La pérdida por trub no puede ser negativa.");
+        if (perdidaPorTrub <= 0 || perdidaPorTrub > capacidadUtil) {
+            throw new ReglaNegocioException("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
         }
     }
 
