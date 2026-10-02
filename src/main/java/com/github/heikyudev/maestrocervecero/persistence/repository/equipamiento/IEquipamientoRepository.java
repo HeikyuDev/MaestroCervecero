@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /***
@@ -61,6 +62,15 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
                                                     @Param("tipoClase") Class<? extends EquipamientoEntity> tipoClase,
                                                     @Param("estadoOperativo") EstadoOperativo estadoOperativo,
                                                     Pageable pageable);
+
+    /**
+     * Lista todos los equipamientos activos, de cualquier tipo concreto. Se usa para contarlos por
+     * tipo y estado operativo en el resumen de equipamiento.
+     *
+     * @return Los equipamientos activos (vacía si no hay ninguno).
+     */
+    @Query("SELECT e FROM EquipamientoEntity e WHERE e.estado = 'ACTIVO'")
+    List<EquipamientoEntity> listarActivos();
 
     /**
      * Busca, bloqueándolo para escritura, un equipamiento activo por su ID, sin importar su tipo
