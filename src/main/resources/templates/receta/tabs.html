@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Pestañas del módulo de recetas: cada una es su propia URL.
+    activa = 'recetas' | 'etapas-control' | 'parametros-control'
+-->
+<nav th:fragment="tabs(activa)" class="flex flex-wrap gap-1 border-b border-slate-200" aria-label="Recetas">
+    <a th:href="@{/recetas}"
+       th:classappend="${activa == 'recetas'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-journal-bookmark mr-1.5"></i>Recetas
+    </a>
+    <a th:href="@{/recetas/etapas-control}"
+       th:classappend="${activa == 'etapas-control'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-list-check mr-1.5"></i>Etapas de control
+    </a>
+    <a th:href="@{/recetas/parametros-control}"
+       th:classappend="${activa == 'parametros-control'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
+       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
+        <i class="bi bi-speedometer2 mr-1.5"></i>Parámetros de control
+    </a>
+</nav>
+
+</html>

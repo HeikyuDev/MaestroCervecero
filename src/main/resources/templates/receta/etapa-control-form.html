@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#etapa-control-form-content}, 'recetas')}">
+<body>
+
+<!-- editando = true cuando se modifica una etapa de control existente (llega etapaControlId), false en el alta -->
+<div id="etapa-control-form-content" class="space-y-6" th:with="editando=${etapaControlId != null}">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span th:text="${retorno != null} ? 'Volver al formulario anterior' : 'Volver a etapas de control'">Volver a etapas de control</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
+            th:text="${editando} ? 'Editar etapa de control' : 'Nueva etapa de control'">Nueva etapa de control</h1>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
+            <span th:if="${retorno != null}">Al guardar volvés al formulario que estabas completando.</span></p>
+    </div>
+
+    <form th:action="${editando} ? @{/recetas/etapas-control/{id}(id=${etapaControlId})} : @{/recetas/etapas-control}"
+          th:object="${etapaControlForm}" method="post" novalidate
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
+        <input type="hidden" name="campo" th:if="${retorno != null and campo != null}" th:value="${campo}">
+
+        <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
+        <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar la etapa de control' : 'No se pudo crear la etapa de control')}"></div>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Datos de la etapa de control</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="text" id="nombre" th:field="*{nombre}" autofocus autocomplete="off" placeholder="Ej: Control de densidad"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre las etapas de control de la misma etapa.</p>
+                </div>
+
+                <div>
+                    <label for="etapaAControlar" class="block text-sm font-medium text-slate-700 mb-1">Etapa a controlar <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <select id="etapaAControlar" th:field="*{etapaAControlar}"
+                            class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                            th:classappend="${#fields.hasErrors('etapaAControlar')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <option value="">Seleccioná una etapa</option>
+                        <option th:each="e : ${etapas}" th:value="${e}"><th:block th:replace="~{receta/formato :: etapa(${e})}"></th:block></option>
+                    </select>
+                    <p th:if="${#fields.hasErrors('etapaAControlar')}" th:errors="*{etapaAControlar}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('etapaAControlar')}" class="mt-1 text-xs text-slate-400">Etapa de la receta en la que se realiza el control.</p>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="descripcion" class="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+                    <textarea id="descripcion" th:field="*{descripcion}" rows="3" autocomplete="off" placeholder="Ej: Medición de la densidad del mosto al finalizar la maceración"
+                              class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                              th:classappend="${#fields.hasErrors('descripcion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
+                    <p th:if="${#fields.hasErrors('descripcion')}" th:errors="*{descripcion}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('descripcion')}" class="mt-1 text-xs text-slate-400">Opcional. Hasta 255 caracteres.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ACCIONES -->
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit"
+                    class="shrink-0 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
+                    th:text="${editando} ? 'Guardar cambios' : 'Crear etapa de control'">
+                Crear etapa de control
+            </button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

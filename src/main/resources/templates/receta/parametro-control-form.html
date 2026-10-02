@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#parametro-control-form-content}, 'recetas')}">
+<body>
+
+<!-- editando = true cuando se modifica un parámetro existente (llega parametroControlId), false en el alta -->
+<div id="parametro-control-form-content" class="space-y-6" th:with="editando=${parametroControlId != null}">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span th:text="${retorno != null} ? 'Volver al formulario anterior' : 'Volver a parámetros de control'">Volver a parámetros de control</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
+            th:text="${editando} ? 'Editar parámetro de control' : 'Nuevo parámetro de control'">Nuevo parámetro de control</h1>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
+            <span th:if="${retorno != null}">Al guardar volvés al formulario que estabas completando.</span></p>
+    </div>
+
+    <form th:action="${editando} ? @{/recetas/parametros-control/{id}(id=${parametroControlId})} : @{/recetas/parametros-control}"
+          th:object="${parametroControlForm}" method="post" novalidate
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <input type="hidden" name="retorno" th:if="${retorno != null}" th:value="${retorno}">
+        <input type="hidden" name="campo" th:if="${retorno != null and campo != null}" th:value="${campo}">
+
+        <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
+        <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar el parámetro de control' : 'No se pudo crear el parámetro de control')}"></div>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos del parámetro de control</h2>
+            <p class="mt-1 mb-4 text-xs text-slate-400">La unidad de medida va en el nombre, entre paréntesis (por ejemplo, "Temperatura (°C)"), y los valores mínimo y máximo se expresan en esa unidad.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="md:col-span-2">
+                    <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="text" id="nombre" th:field="*{nombre}" autofocus autocomplete="off" placeholder="Ej: Temperatura (°C)"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('nombre')}" class="mt-1 text-xs text-slate-400">Único entre los parámetros de control activos.</p>
+                </div>
+
+                <div>
+                    <label for="valorMinimo" class="block text-sm font-medium text-slate-700 mb-1">Valor mínimo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="valorMinimo" th:field="*{valorMinimo}" min="0" step="any" autocomplete="off" placeholder="Ej: 62"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('valorMinimo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('valorMinimo')}" th:errors="*{valorMinimo}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('valorMinimo')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0 y no mayor al valor máximo.</p>
+                </div>
+
+                <div>
+                    <label for="valorMaximo" class="block text-sm font-medium text-slate-700 mb-1">Valor máximo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="valorMaximo" th:field="*{valorMaximo}" min="0" step="any" autocomplete="off" placeholder="Ej: 68"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('valorMaximo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('valorMaximo')}" th:errors="*{valorMaximo}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('valorMaximo')}" class="mt-1 text-xs text-slate-400">Un número mayor o igual al valor mínimo.</p>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="descripcion" class="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+                    <textarea id="descripcion" th:field="*{descripcion}" rows="3" autocomplete="off" placeholder="Ej: Temperatura de la maceración en el punto de control"
+                              class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                              th:classappend="${#fields.hasErrors('descripcion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'"></textarea>
+                    <p th:if="${#fields.hasErrors('descripcion')}" th:errors="*{descripcion}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('descripcion')}" class="mt-1 text-xs text-slate-400">Opcional. Hasta 255 caracteres.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ACCIONES -->
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit"
+                    class="shrink-0 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
+                    th:text="${editando} ? 'Guardar cambios' : 'Crear parámetro de control'">
+                Crear parámetro de control
+            </button>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

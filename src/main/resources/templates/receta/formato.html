@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Formatos de presentación del módulo de recetas.
+
+    etapa(valor): nombre legible de una etapa del proceso (los valores del enum no llevan tilde).
+    numero(valor): un número sin ceros sobrantes, con coma decimal (62.0 se muestra "62" y 1.5 "1,5").
+-->
+<th:block th:fragment="etapa(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'MOLIENDA'">Molienda</th:block><th:block th:case="'MACERACION'">Maceración</th:block><th:block th:case="'HERVIDO'">Hervido</th:block><th:block th:case="'FERMENTACION'">Fermentación</th:block><th:block th:case="'MADURACION'">Maduración</th:block><th:block th:case="'ENVASADO'">Envasado</th:block></th:block>
+
+<th:block th:fragment="numero(valor)"><th:block th:if="${valor != null}" th:text="${valor == valor.intValue()} ? ${#numbers.formatInteger(valor.intValue(), 1, 'POINT')} : ${#strings.replace(valor, '.', ',')}">62</th:block></th:block>
+
+</html>
