@@ -29,11 +29,6 @@ public class OllaHervorFormDTO {
     private String identificadorInterno;
 
     /**
-     * Descripción de la olla de hervor, puede ser nula o vacía: no es obligatoria.
-     */
-    private String descripcion;
-
-    /**
      * Capacidad total en litros.
      */
     @NotNull(message = "La capacidad total es obligatoria")

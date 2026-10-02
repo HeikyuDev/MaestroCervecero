@@ -565,7 +565,6 @@ class LimpiezaEquipamientoServicioImplTest {
         return MaceradorEntity.builder()
                 .id(id)
                 .identificadorInterno("MAC-" + id)
-                .descripcion("Macerador de prueba")
                 .estadoOperativo(estadoOperativo)
                 .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .estado(Estado.ACTIVO)

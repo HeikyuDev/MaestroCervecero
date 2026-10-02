@@ -255,7 +255,6 @@ class MaceradorServicioImplTest {
         verify(maceradorRepository).save(captor.capture());
         MaceradorEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MAC-02");
-        assertThat(entidadCapturada.getDescripcion()).isEqualTo("Macerador de prueba");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
@@ -557,7 +556,6 @@ class MaceradorServicioImplTest {
         return MaceradorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Macerador de prueba")
                 .estadoOperativo(estadoOperativo)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
@@ -577,7 +575,6 @@ class MaceradorServicioImplTest {
                                                        Double espacioMuerto, Double eficienciaMaceracion, Integer usosMaximosAntesMantenimiento) {
         return MaceradorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Macerador de prueba")
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
                 .espacioMuerto(espacioMuerto)
@@ -589,7 +586,6 @@ class MaceradorServicioImplTest {
     private static void assertMaceradorDTO(MaceradorEntity entidad, MaceradorResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getIdentificadorInterno()).isEqualTo(entidad.getIdentificadorInterno());
-        assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getCapacidadTotal()).isEqualTo(entidad.getCapacidadTotal());
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());

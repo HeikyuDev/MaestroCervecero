@@ -20,7 +20,6 @@ public class MapperFermentador {
         return FermentadorResponseDTO.builder()
                 .id(fermentadorEntity.getId())
                 .identificadorInterno(fermentadorEntity.getIdentificadorInterno())
-                .descripcion(fermentadorEntity.getDescripcion())
                 .estadoOperativo(fermentadorEntity.getEstadoOperativo())
                 .capacidadTotal(fermentadorEntity.getCapacidadTotal())
                 .capacidadUtil(fermentadorEntity.getCapacidadUtil())

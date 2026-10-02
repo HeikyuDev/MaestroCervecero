@@ -119,7 +119,6 @@ public class MaceradorController {
 
         model.addAttribute(ATRIBUTO_FORMULARIO, MaceradorFormDTO.builder()
                 .identificadorInterno(actual.getIdentificadorInterno())
-                .descripcion(actual.getDescripcion())
                 .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .espacioMuerto(actual.getEspacioMuerto())

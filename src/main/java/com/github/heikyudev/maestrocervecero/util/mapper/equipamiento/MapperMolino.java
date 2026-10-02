@@ -23,7 +23,6 @@ public class MapperMolino {
         return MolinoResponseDTO.builder()
                 .id(molinoEntity.getId())
                 .identificadorInterno(molinoEntity.getIdentificadorInterno())
-                .descripcion(molinoEntity.getDescripcion())
                 .estadoOperativo(molinoEntity.getEstadoOperativo())
                 .rendimientoMolienda(molinoEntity.getRendimientoMolienda())
                 .usosMaximosAntesMantenimiento(molinoEntity.getUsosMaximosAntesMantenimiento())

@@ -490,7 +490,6 @@ class FallaEquipamientoServicioImplTest {
         return MaceradorEntity.builder()
                 .id(id)
                 .identificadorInterno("MAC-" + id)
-                .descripcion("Macerador de prueba")
                 .estadoOperativo(estadoOperativo)
                 .usosMaximosAntesMantenimiento(100)
                 .estado(Estado.ACTIVO)

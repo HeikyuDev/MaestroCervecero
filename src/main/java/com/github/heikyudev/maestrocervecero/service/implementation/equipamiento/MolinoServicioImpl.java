@@ -92,7 +92,6 @@ public class MolinoServicioImpl implements IMolinoServicio {
         // 4. Crear la entidad MolinoEntity.
         MolinoEntity molinoEntity = MolinoEntity.builder().
                 identificadorInterno(molinoFormDTO.getIdentificadorInterno()).
-                descripcion(molinoFormDTO.getDescripcion()).
                 rendimientoMolienda(molinoFormDTO.getRendimientoMolienda()).
                 usosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento()).
                 estadoOperativo(EstadoOperativo.DISPONIBLE).
@@ -145,7 +144,6 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 7. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
         molinoEntity.setIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
-        molinoEntity.setDescripcion(molinoFormDTO.getDescripcion());
         molinoEntity.setRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
         molinoEntity.setUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 

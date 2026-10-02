@@ -94,7 +94,6 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
         // 4. Crear la entidad del fermentador a partir del DTO de formulario y establecer su estado operativo como DISPONIBLE.
         FermentadorEntity fermentadorEntity = FermentadorEntity.builder()
                 .identificadorInterno(fermentadorFormDTO.getIdentificadorInterno())
-                .descripcion(fermentadorFormDTO.getDescripcion())
                 .capacidadTotal(fermentadorFormDTO.getCapacidadTotal())
                 .capacidadUtil(fermentadorFormDTO.getCapacidadUtil())
                 .usosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento())
@@ -147,7 +146,6 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // 7. Actualizar los campos del fermentador con los datos del DTO de formulario.
         fermentadorEntity.setIdentificadorInterno(fermentadorFormDTO.getIdentificadorInterno());
-        fermentadorEntity.setDescripcion(fermentadorFormDTO.getDescripcion());
         fermentadorEntity.setCapacidadTotal(fermentadorFormDTO.getCapacidadTotal());
         fermentadorEntity.setCapacidadUtil(fermentadorFormDTO.getCapacidadUtil());
         fermentadorEntity.setUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());

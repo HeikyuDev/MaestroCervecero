@@ -22,7 +22,6 @@ public class MapperOllaHervor {
         return OllaHervorResponseDTO.builder()
                 .id(ollaHervorEntity.getId())
                 .identificadorInterno(ollaHervorEntity.getIdentificadorInterno())
-                .descripcion(ollaHervorEntity.getDescripcion())
                 .estadoOperativo(ollaHervorEntity.getEstadoOperativo())
                 .capacidadTotal(ollaHervorEntity.getCapacidadTotal())
                 .capacidadUtil(ollaHervorEntity.getCapacidadUtil())

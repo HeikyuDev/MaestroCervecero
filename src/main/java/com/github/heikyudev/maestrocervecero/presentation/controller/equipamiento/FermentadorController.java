@@ -119,7 +119,6 @@ public class FermentadorController {
 
         model.addAttribute(ATRIBUTO_FORMULARIO, FermentadorFormDTO.builder()
                 .identificadorInterno(actual.getIdentificadorInterno())
-                .descripcion(actual.getDescripcion())
                 .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())

@@ -29,11 +29,6 @@ public class MolinoResponseDTO {
     private String identificadorInterno;
 
     /**
-     * Características específicas u otra información relevante sobre el molino.
-     */
-    private String descripcion;
-
-    /**
      * Estado operativo actual del molino.
      * - DISPONIBLE: Listo para ser utilizado en un nuevo lote.
      * - EN_LIMPIEZA: Requiere limpieza para volver a estar disponible.

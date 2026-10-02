@@ -29,11 +29,6 @@ public class EquipamientoResponseDTO {
     private String identificadorInterno;
 
     /**
-     * Descripción del equipamiento, puede ser null o vacía.
-     */
-    private String descripcion;
-
-    /**
      * Estado operativo del equipamiento (DISPONIBLE, EN LIMPIEZA, EN USO).
      */
     private EstadoOperativo estadoOperativo;

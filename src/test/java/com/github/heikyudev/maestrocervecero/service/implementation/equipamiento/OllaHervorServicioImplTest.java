@@ -316,7 +316,6 @@ class OllaHervorServicioImplTest {
         verify(ollaHervorRepository).save(captor.capture());
         OllaHervorEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("OLLA-02");
-        assertThat(entidadCapturada.getDescripcion()).isEqualTo("Olla de hervor de prueba");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
@@ -648,7 +647,6 @@ class OllaHervorServicioImplTest {
         return OllaHervorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Olla de hervor de prueba")
                 .estadoOperativo(estadoOperativo)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
@@ -668,7 +666,6 @@ class OllaHervorServicioImplTest {
                                                          Double evaporacion, Double perdidaPorTrub, Integer usosMaximosAntesMantenimiento) {
         return OllaHervorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Olla de hervor de prueba")
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
                 .evaporacion(evaporacion)
@@ -680,7 +677,6 @@ class OllaHervorServicioImplTest {
     private static void assertOllaHervorDTO(OllaHervorEntity entidad, OllaHervorResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getIdentificadorInterno()).isEqualTo(entidad.getIdentificadorInterno());
-        assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getCapacidadTotal()).isEqualTo(entidad.getCapacidadTotal());
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());

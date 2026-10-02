@@ -225,7 +225,6 @@ class MolinoServicioImplTest {
         verify(molinoRepository).save(captor.capture());
         MolinoEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-02");
-        assertThat(entidadCapturada.getDescripcion()).isEqualTo("Molino de prueba");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(50.0);
         assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
@@ -407,7 +406,6 @@ class MolinoServicioImplTest {
         verify(molinoRepository).save(captor.capture());
         MolinoEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-NUEVO");
-        assertThat(entidadCapturada.getDescripcion()).isEqualTo("Molino de prueba");
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(100.0);
         assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
 
@@ -510,7 +508,6 @@ class MolinoServicioImplTest {
         return MolinoEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Molino de prueba")
                 .estadoOperativo(estadoOperativo)
                 .rendimientoMolienda(rendimientoMolienda)
                 .usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
@@ -525,7 +522,6 @@ class MolinoServicioImplTest {
     private static MolinoFormDTO molinoFormDTO(String identificadorInterno, Double rendimientoMolienda, Integer usosMaximosAntesMantenimiento) {
         return MolinoFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Molino de prueba")
                 .rendimientoMolienda(rendimientoMolienda)
                 .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .build();
@@ -534,7 +530,6 @@ class MolinoServicioImplTest {
     private static void assertMolinoDTO(MolinoEntity entidad, MolinoResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getIdentificadorInterno()).isEqualTo(entidad.getIdentificadorInterno());
-        assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getRendimientoMolienda()).isEqualTo(entidad.getRendimientoMolienda());
         assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());

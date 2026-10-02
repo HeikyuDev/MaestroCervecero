@@ -321,7 +321,6 @@ class FermentadorControllerTest {
                 .andExpect(view().name("equipamiento/fermentador-form"))
                 .andExpect(content().string(containsString("Editar fermentador")))
                 .andExpect(content().string(containsString("value=\"FER-01\"")))
-                .andExpect(content().string(containsString("value=\"Descripcion de prueba\"")))
                 .andExpect(content().string(containsString("value=\"100.0\"")))
                 .andExpect(content().string(containsString("value=\"80.0\"")))
                 .andExpect(content().string(containsString("value=\"50\"")))
@@ -432,7 +431,7 @@ class FermentadorControllerTest {
     }
 
     private static FermentadorResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {
-        return FermentadorResponseDTO.builder().id(id).identificadorInterno(identificadorInterno).descripcion("Descripcion de prueba")
+        return FermentadorResponseDTO.builder().id(id).identificadorInterno(identificadorInterno)
                 .estadoOperativo(estadoOperativo).capacidadTotal(100.0).capacidadUtil(80.0).usosMaximosAntesMantenimiento(50).build();
     }
 }

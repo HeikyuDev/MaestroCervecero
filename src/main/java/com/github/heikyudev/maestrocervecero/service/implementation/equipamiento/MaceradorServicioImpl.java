@@ -101,7 +101,6 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         // 5. Creo la entidad que se va a almacenar en la base de datos.
         MaceradorEntity maceradorEntity = MaceradorEntity.builder()
                 .identificadorInterno(maceradorFormDTO.getIdentificadorInterno())
-                .descripcion(maceradorFormDTO.getDescripcion())
                 // Cuando se da de alta un nuevo macerador, su estado operativo inicial es DISPONIBLE.
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .capacidadTotal(maceradorFormDTO.getCapacidadTotal())
@@ -165,7 +164,6 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 8. Aplico los cambios sobre la entidad administrada por persistencia.
         maceradorEntity.setIdentificadorInterno(maceradorFormDTO.getIdentificadorInterno());
-        maceradorEntity.setDescripcion(maceradorFormDTO.getDescripcion());
         maceradorEntity.setCapacidadTotal(maceradorFormDTO.getCapacidadTotal());
         maceradorEntity.setCapacidadUtil(maceradorFormDTO.getCapacidadUtil());
         maceradorEntity.setEspacioMuerto(maceradorFormDTO.getEspacioMuerto());

@@ -22,7 +22,6 @@ public class MapperMacerador {
         return MaceradorResponseDTO.builder()
                 .id(maceradorEntity.getId())
                 .identificadorInterno(maceradorEntity.getIdentificadorInterno())
-                .descripcion(maceradorEntity.getDescripcion())
                 .estadoOperativo(maceradorEntity.getEstadoOperativo())
                 .capacidadTotal(maceradorEntity.getCapacidadTotal())
                 .capacidadUtil(maceradorEntity.getCapacidadUtil())

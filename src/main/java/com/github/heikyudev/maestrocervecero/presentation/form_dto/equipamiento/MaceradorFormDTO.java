@@ -29,11 +29,6 @@ public class MaceradorFormDTO {
     private String identificadorInterno;
 
     /**
-     * Descripción del macerador, puede ser nula o vacía: no es obligatoria.
-     */
-    private String descripcion;
-
-    /**
      * Capacidad total en litros.
      */
     @NotNull(message = "La capacidad total es obligatoria")

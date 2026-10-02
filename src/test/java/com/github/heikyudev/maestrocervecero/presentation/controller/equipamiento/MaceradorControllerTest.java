@@ -339,7 +339,6 @@ class MaceradorControllerTest {
                 .andExpect(view().name("equipamiento/macerador-form"))
                 .andExpect(content().string(containsString("Editar macerador")))
                 .andExpect(content().string(containsString("value=\"MAC-01\"")))
-                .andExpect(content().string(containsString("value=\"Descripcion de prueba\"")))
                 .andExpect(content().string(containsString("value=\"100.0\"")))
                 .andExpect(content().string(containsString("value=\"80.0\"")))
                 .andExpect(content().string(containsString("value=\"2.0\"")))
@@ -460,7 +459,7 @@ class MaceradorControllerTest {
     }
 
     private static MaceradorResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {
-        return MaceradorResponseDTO.builder().id(id).identificadorInterno(identificadorInterno).descripcion("Descripcion de prueba")
+        return MaceradorResponseDTO.builder().id(id).identificadorInterno(identificadorInterno)
                 .estadoOperativo(estadoOperativo).capacidadTotal(100.0).capacidadUtil(80.0).espacioMuerto(2.0).eficienciaMaceracion(75.0).usosMaximosAntesMantenimiento(50).build();
     }
 }

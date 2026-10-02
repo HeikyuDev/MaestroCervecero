@@ -58,9 +58,6 @@ public abstract class EquipamientoEntity extends AuditableEntity<String> {
     @Column(name = "identificador_interno", nullable = false)
     private String identificadorInterno;
 
-    @Column(name = "descripcion")
-    private String descripcion;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_operativo", nullable = false)
     private EstadoOperativo estadoOperativo;

@@ -119,7 +119,6 @@ public class MolinoController {
 
         model.addAttribute(ATRIBUTO_FORMULARIO, MolinoFormDTO.builder()
                 .identificadorInterno(actual.getIdentificadorInterno())
-                .descripcion(actual.getDescripcion())
                 .rendimientoMolienda(actual.getRendimientoMolienda())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());

@@ -28,11 +28,6 @@ public class FermentadorResponseDTO {
      */
     private String identificadorInterno;
 
-    /***
-     * Descripcion del fermentador, puede ser null o vacio, no es obligatorio
-     */
-    private String descripcion;
-
     /**
      * Estado operativo del fermentador (DISPONIBLE, EN LIMPIEZA, EN USO).
      */

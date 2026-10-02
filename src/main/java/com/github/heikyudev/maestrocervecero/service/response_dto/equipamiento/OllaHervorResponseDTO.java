@@ -24,11 +24,6 @@ public class OllaHervorResponseDTO {
      */
     private String identificadorInterno;
 
-    /***
-     * Descripcion de la olla de hervor, puede ser null o vacio, no es obligatorio
-     */
-    private String descripcion;
-
     /**
      * Estado operativo de la olla de hervor (DISPONIBLE, EN LIMPIEZA, EN USO).
      */

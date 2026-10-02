@@ -212,7 +212,6 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).save(captor.capture());
         FermentadorEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("FERM-02");
-        assertThat(entidadCapturada.getDescripcion()).isEqualTo("Fermentador de prueba");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
@@ -325,7 +324,6 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).save(captor.capture());
         FermentadorEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("FERM-NUEVO");
-        assertThat(entidadCapturada.getDescripcion()).isEqualTo("Fermentador de prueba");
         assertThat(entidadCapturada.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(entidadCapturada.getCapacidadUtil()).isEqualTo(80.0);
         assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
@@ -481,7 +479,6 @@ class FermentadorServicioImplTest {
         return FermentadorEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Fermentador de prueba")
                 .estadoOperativo(estadoOperativo)
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
@@ -499,7 +496,6 @@ class FermentadorServicioImplTest {
                                                            Double capacidadUtil, Integer usosMaximosAntesMantenimiento) {
         return FermentadorFormDTO.builder()
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Fermentador de prueba")
                 .capacidadTotal(capacidadTotal)
                 .capacidadUtil(capacidadUtil)
                 .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
@@ -509,7 +505,6 @@ class FermentadorServicioImplTest {
     private static void assertFermentadorDTO(FermentadorEntity entidad, FermentadorResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getIdentificadorInterno()).isEqualTo(entidad.getIdentificadorInterno());
-        assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getCapacidadTotal()).isEqualTo(entidad.getCapacidadTotal());
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());

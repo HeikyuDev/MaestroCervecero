@@ -312,7 +312,6 @@ class MolinoControllerTest {
                 .andExpect(view().name("equipamiento/molino-form"))
                 .andExpect(content().string(containsString("Editar molino")))
                 .andExpect(content().string(containsString("value=\"MOL-01\"")))
-                .andExpect(content().string(containsString("value=\"Descripcion de prueba\"")))
                 .andExpect(content().string(containsString("value=\"150.0\"")))
                 .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/molinos/4\"")))
@@ -418,7 +417,7 @@ class MolinoControllerTest {
     }
 
     private static MolinoResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {
-        return MolinoResponseDTO.builder().id(id).identificadorInterno(identificadorInterno).descripcion("Descripcion de prueba")
+        return MolinoResponseDTO.builder().id(id).identificadorInterno(identificadorInterno)
                 .estadoOperativo(estadoOperativo).rendimientoMolienda(150.0).usosMaximosAntesMantenimiento(50).build();
     }
 }

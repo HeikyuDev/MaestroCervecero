@@ -29,11 +29,6 @@ public class MolinoFormDTO {
     private String identificadorInterno;
 
     /**
-     * Descripción del molino, puede ser nula o vacía: no es obligatoria.
-     */
-    private String descripcion;
-
-    /**
      * Rendimiento del molino (kilos por hora).
      */
     @NotNull(message = "El rendimiento de molienda es obligatorio")

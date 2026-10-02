@@ -23,7 +23,6 @@ public class MapperEquipamiento {
         return EquipamientoResponseDTO.builder()
                 .id(equipamientoEntity.getId())
                 .identificadorInterno(equipamientoEntity.getIdentificadorInterno())
-                .descripcion(equipamientoEntity.getDescripcion())
                 .estadoOperativo(equipamientoEntity.getEstadoOperativo())
                 .estado(equipamientoEntity.getEstado())
                 .build();

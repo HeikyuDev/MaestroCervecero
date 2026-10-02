@@ -113,7 +113,6 @@ class EquipamientoServicioImplTest {
         return MolinoEntity.builder()
                 .id(id)
                 .identificadorInterno(identificadorInterno)
-                .descripcion("Molino de prueba")
                 .estadoOperativo(estadoOperativo)
                 .rendimientoMolienda(100.0)
                 .estado(Estado.ACTIVO)
@@ -123,7 +122,6 @@ class EquipamientoServicioImplTest {
     private static void assertEquipamientoDTO(EquipamientoEntity entidad, EquipamientoResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getIdentificadorInterno()).isEqualTo(entidad.getIdentificadorInterno());
-        assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
         assertThat(dto.getEstadoOperativo()).isEqualTo(entidad.getEstadoOperativo());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }

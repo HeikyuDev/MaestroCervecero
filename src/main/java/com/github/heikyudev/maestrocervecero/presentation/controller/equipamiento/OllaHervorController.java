@@ -119,7 +119,6 @@ public class OllaHervorController {
 
         model.addAttribute(ATRIBUTO_FORMULARIO, OllaHervorFormDTO.builder()
                 .identificadorInterno(actual.getIdentificadorInterno())
-                .descripcion(actual.getDescripcion())
                 .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .evaporacion(actual.getEvaporacion())

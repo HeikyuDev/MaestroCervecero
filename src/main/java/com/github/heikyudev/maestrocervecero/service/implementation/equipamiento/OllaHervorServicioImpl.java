@@ -104,7 +104,6 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 6. Crear la entidad OllaHervorEntity a partir del DTO de formulario
         OllaHervorEntity ollaHervorEntity = OllaHervorEntity.builder()
                 .identificadorInterno(ollaHervorFormDTO.getIdentificadorInterno())
-                .descripcion(ollaHervorFormDTO.getDescripcion())
                 // Cuando se da de alta una nueva olla de hervor, su estado operativo inicial es DISPONIBLE.
                 .estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .capacidadTotal(ollaHervorFormDTO.getCapacidadTotal())
@@ -174,7 +173,6 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 9. Actualizar los campos de la entidad con los valores del DTO de formulario
         ollaHervorEntity.setIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
-        ollaHervorEntity.setDescripcion(ollaHervorFormDTO.getDescripcion());
         ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
         ollaHervorEntity.setEvaporacion(ollaHervorFormDTO.getEvaporacion());

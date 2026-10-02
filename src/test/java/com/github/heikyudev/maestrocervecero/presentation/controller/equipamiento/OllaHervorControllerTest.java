@@ -339,7 +339,6 @@ class OllaHervorControllerTest {
                 .andExpect(view().name("equipamiento/olla-form"))
                 .andExpect(content().string(containsString("Editar olla de hervor")))
                 .andExpect(content().string(containsString("value=\"OLLA-01\"")))
-                .andExpect(content().string(containsString("value=\"Descripcion de prueba\"")))
                 .andExpect(content().string(containsString("value=\"100.0\"")))
                 .andExpect(content().string(containsString("value=\"80.0\"")))
                 .andExpect(content().string(containsString("value=\"8.0\"")))
@@ -460,7 +459,7 @@ class OllaHervorControllerTest {
     }
 
     private static OllaHervorResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {
-        return OllaHervorResponseDTO.builder().id(id).identificadorInterno(identificadorInterno).descripcion("Descripcion de prueba")
+        return OllaHervorResponseDTO.builder().id(id).identificadorInterno(identificadorInterno)
                 .estadoOperativo(estadoOperativo).capacidadTotal(100.0).capacidadUtil(80.0).evaporacion(8.0).perdidaPorTrub(3.0).usosMaximosAntesMantenimiento(50).build();
     }
 }
