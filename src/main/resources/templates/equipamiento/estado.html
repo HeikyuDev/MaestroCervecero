@@ -12,18 +12,4 @@
                     : (${estado.name() == 'EN_LIMPIEZA'} ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'))"
       th:text="${#strings.replace(estado, '_', ' ')}">DISPONIBLE</span>
 
-<!--
-    Nombre de una etapa de lote con su ortografía (el enum no la lleva: MACERACION, FERMENTACION).
-    Uso: <span th:replace="~{equipamiento/estado :: etapa(${e.etapa})}"></span>
--->
-<span th:fragment="etapa(etapa)" th:switch="${etapa.name()}">
-    <th:block th:case="'MOLIENDA'">Molienda</th:block>
-    <th:block th:case="'MACERACION'">Maceración</th:block>
-    <th:block th:case="'HERVIDO'">Hervido</th:block>
-    <th:block th:case="'FERMENTACION'">Fermentación</th:block>
-    <th:block th:case="'MADURACION'">Maduración</th:block>
-    <th:block th:case="'ENVASADO'">Envasado</th:block>
-    <th:block th:case="*" th:text="${etapa}">Etapa</th:block>
-</span>
-
 </html>

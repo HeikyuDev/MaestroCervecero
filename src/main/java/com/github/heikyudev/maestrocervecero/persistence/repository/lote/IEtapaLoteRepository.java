@@ -7,8 +7,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -71,22 +69,4 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
             "WHERE e.equipamiento.id = :idEquipamiento " +
             "AND (e.estado = 'FINALIZADA' OR (e.estado = 'CANCELADA' AND e.fechaInicio IS NOT NULL))")
     Optional<LocalDateTime> buscarFechaUltimaParticipacionRegistrada(@Param("idEquipamiento") Long idEquipamiento);
-
-    /**
-     * Busca, para varios equipamientos a la vez, las etapas en las que participan ahora o
-     * participarán: las {@code EN_CURSO} y las {@code PENDIENTE} de lotes {@code PENDIENTE} o
-     * {@code EN_EJECUCION} (la misma regla de {@link #existsLotePendienteAsociado(Long)}).
-     * <p>
-     * Trae el lote junto con cada etapa para poder mostrar su identificador sin consultas
-     * adicionales, y las ordena por lote y etapa para que el resultado sea estable.
-     * </p>
-     *
-     * @param idsEquipamiento Los IDs de los equipamientos a consultar.
-     * @return Las etapas en curso o pendientes de esos equipamientos (vacía si no hay ninguna).
-     */
-    @Query("SELECT e FROM EtapaLoteEntity e JOIN FETCH e.lote l " +
-            "WHERE e.equipamiento.id IN :idsEquipamiento " +
-            "AND (e.estado = 'EN_CURSO' OR (e.estado = 'PENDIENTE' AND l.estado IN ('PENDIENTE', 'EN_EJECUCION'))) " +
-            "ORDER BY l.identificadorInterno, e.id")
-    List<EtapaLoteEntity> buscarEtapasEnCursoOPendientes(@Param("idsEquipamiento") Collection<Long> idsEquipamiento);
 }

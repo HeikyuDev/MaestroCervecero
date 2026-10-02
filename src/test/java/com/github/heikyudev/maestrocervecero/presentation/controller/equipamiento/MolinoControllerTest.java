@@ -75,7 +75,7 @@ class MolinoControllerTest {
                 .andExpect(content().string(containsString("EN USO")))
                 .andExpect(content().string(containsString("150,00")))
                 .andExpect(content().string(containsString("50")))
-                .andExpect(content().string(containsString("href=\"/equipamiento\"")))
+                .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/maceradores\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/ollas-hervor\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/fermentadores\"")))

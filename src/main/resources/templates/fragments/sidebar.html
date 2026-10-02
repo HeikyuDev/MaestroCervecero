@@ -43,11 +43,6 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/recetas', ${opcionActiva}, 'recetas', 'bi-journal-bookmark', 'Gestión de Recetas')}"></a>
             </th:block>
 
-            <!-- GESTIÓN DE EQUIPAMIENTO: resumen del estado de la planta (Gerente y Operario de Producción) -->
-            <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')">
-                <a th:replace="~{fragments/sidebar ::enlace('/equipamiento', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Equipamiento')}"></a>
-            </th:block>
-
             <!-- ÓRDENES DE COMPRA (Gerente de Compras) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
                 <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'compras', 'bi-cart3', 'Órdenes de Compra')}"></a>
@@ -65,6 +60,11 @@
             <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/insumos/maltas', ${opcionActiva}, 'insumos', 'bi-box-seam', 'Gestión de Insumos')}"></a>
+            </th:block>
+
+            <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamiento')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE UBICACIONES: países, provincias y localidades en pestañas (Administrador) -->

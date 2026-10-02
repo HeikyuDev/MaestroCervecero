@@ -78,7 +78,7 @@ class MaceradorControllerTest {
                 .andExpect(content().string(containsString("2,00")))
                 .andExpect(content().string(containsString("75,00 %")))
                 .andExpect(content().string(containsString("50")))
-                .andExpect(content().string(containsString("href=\"/equipamiento\"")))
+                .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/ollas-hervor\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/fermentadores\"")))

@@ -76,7 +76,7 @@ class FermentadorControllerTest {
                 .andExpect(content().string(containsString("100,00")))
                 .andExpect(content().string(containsString("80,00")))
                 .andExpect(content().string(containsString("50")))
-                .andExpect(content().string(containsString("href=\"/equipamiento\"")))
+                .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/maceradores\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/ollas-hervor\"")))

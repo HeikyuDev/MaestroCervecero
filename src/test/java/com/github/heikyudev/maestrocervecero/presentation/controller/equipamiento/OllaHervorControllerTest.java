@@ -78,7 +78,7 @@ class OllaHervorControllerTest {
                 .andExpect(content().string(containsString("8,00")))
                 .andExpect(content().string(containsString("3,00")))
                 .andExpect(content().string(containsString("50")))
-                .andExpect(content().string(containsString("href=\"/equipamiento\"")))
+                .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/maceradores\"")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/fermentadores\"")))
