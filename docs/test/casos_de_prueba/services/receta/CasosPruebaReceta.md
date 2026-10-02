@@ -12,7 +12,7 @@
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-FDPC-01**|Plan de monitoreo existente|`idPlanMonitoreoEtapa: 1L` (con 1 detalle configurado)|`planMonitoreoEtapaRepository.findById(1L)` → **Presente**|Retorna `List<DetalleParametroControlResponseDTO>` con el detalle mapeado.|
+|**CP-FDPC-01**|Plan de monitoreo existente|`idPlanMonitoreoEtapa: 1L` (con 1 detalle configurado)|`planMonitoreoEtapaRepository.findById(1L)` → **Presente**|Retorna `List<DetalleParametroControlResponseDTO>` con el detalle mapeado, incluida la unidad de medida del parámetro de control.|
 |**CP-FDPC-02**|Plan de monitoreo de etapa inexistente|`idPlanMonitoreoEtapa: 99L` (No existe)|`planMonitoreoEtapaRepository.findById(99L)` → **Optional.empty()**|Lanza `RecursoNoEncontradoException`.|
 
 ### 3. `filtrarPlanesMonitoreo(Long idEtapaLote)`

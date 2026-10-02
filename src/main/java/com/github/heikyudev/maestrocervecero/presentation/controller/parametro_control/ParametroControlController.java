@@ -122,6 +122,7 @@ public class ParametroControlController {
         model.addAttribute(ATRIBUTO_FORMULARIO, ParametroControlFormDTO.builder()
                 .nombre(actual.getNombre())
                 .descripcion(actual.getDescripcion())
+                .unidadDeMedida(actual.getUnidadDeMedida())
                 .valorMinimo(actual.getValorMinimo())
                 .valorMaximo(actual.getValorMaximo())
                 .build());

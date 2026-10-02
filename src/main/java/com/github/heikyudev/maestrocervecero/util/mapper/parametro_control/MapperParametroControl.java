@@ -23,6 +23,7 @@ public class MapperParametroControl {
                 .id(parametroControlEntity.getId())
                 .nombre(parametroControlEntity.getNombre())
                 .descripcion(parametroControlEntity.getDescripcion())
+                .unidadDeMedida(parametroControlEntity.getUnidadDeMedida())
                 .valorMinimo(parametroControlEntity.getValorMinimo())
                 .valorMaximo(parametroControlEntity.getValorMaximo())
                 .estado(parametroControlEntity.getEstado())

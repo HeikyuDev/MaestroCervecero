@@ -66,14 +66,15 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
      *
      * @param parametroControlFormDTO Objeto DTO que contiene los datos de creación del parámetro de control.
      * @return {@link ParametroControlResponseDTO} representativo del parámetro de control guardado en la base de datos.
-     * @throws ReglaNegocioException Si el valor mínimo no es positivo (mayor a 0) o es mayor al valor máximo.
+     * @throws ReglaNegocioException Si la unidad de medida está en blanco, si el valor mínimo no es positivo (mayor a 0) o es mayor al valor máximo.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a un parámetro de control activo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PARAMETRO_CONTROL)
     public ParametroControlResponseDTO altaParametroControl(ParametroControlFormDTO parametroControlFormDTO) {
-        // 1. Validar la regla de negocio del rango de valores (mínimo positivo y no mayor al máximo)
+        // 1. Validar la unidad de medida y la regla de negocio del rango de valores (mínimo positivo y no mayor al máximo)
+        String unidadDeMedida = normalizarUnidadDeMedida(parametroControlFormDTO.getUnidadDeMedida());
         validarRangoValores(parametroControlFormDTO.getValorMinimo(), parametroControlFormDTO.getValorMaximo());
 
         // 2. Validar si el nombre ya está registrado en otro parámetro de control (case-insensitive)
@@ -85,6 +86,7 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
         ParametroControlEntity parametroControlEntity = ParametroControlEntity.builder()
                 .nombre(parametroControlFormDTO.getNombre())
                 .descripcion(parametroControlFormDTO.getDescripcion())
+                .unidadDeMedida(unidadDeMedida)
                 .valorMinimo(parametroControlFormDTO.getValorMinimo())
                 .valorMaximo(parametroControlFormDTO.getValorMaximo())
                 .estado(Estado.ACTIVO)
@@ -105,7 +107,7 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
      * @param id Identificador clave primaria del parámetro de control a modificar.
      * @param parametroControlFormDTO DTO que contiene los nuevos datos del parámetro de control.
      * @return {@link ParametroControlResponseDTO} representativo del parámetro de control con los cambios aplicados.
-     * @throws ReglaNegocioException Si el valor mínimo no es positivo (mayor a 0) o es mayor al valor máximo.
+     * @throws ReglaNegocioException Si la unidad de medida está en blanco, si el valor mínimo no es positivo (mayor a 0) o es mayor al valor máximo.
      * @throws RecursoNoEncontradoException Si no se localiza un parámetro de control activo por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otro parámetro de control activo.
      */
@@ -113,7 +115,8 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PARAMETRO_CONTROL)
     public ParametroControlResponseDTO modificarParametroControl(Long id, ParametroControlFormDTO parametroControlFormDTO) {
-        // 1. Validar la regla de negocio del rango de valores (mínimo positivo y no mayor al máximo)
+        // 1. Validar la unidad de medida y la regla de negocio del rango de valores (mínimo positivo y no mayor al máximo)
+        String unidadDeMedida = normalizarUnidadDeMedida(parametroControlFormDTO.getUnidadDeMedida());
         validarRangoValores(parametroControlFormDTO.getValorMinimo(), parametroControlFormDTO.getValorMaximo());
 
         // 2. Validar duplicación excluyendo el propio ID, de modo que conservar el nombre actual
@@ -129,6 +132,7 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
         // 4. Aplicar los cambios sobre la entidad administrada por persistencia
         parametroControlEntity.setNombre(parametroControlFormDTO.getNombre());
         parametroControlEntity.setDescripcion(parametroControlFormDTO.getDescripcion());
+        parametroControlEntity.setUnidadDeMedida(unidadDeMedida);
         parametroControlEntity.setValorMinimo(parametroControlFormDTO.getValorMinimo());
         parametroControlEntity.setValorMaximo(parametroControlFormDTO.getValorMaximo());
 
@@ -168,6 +172,20 @@ public class ParametroControlServicioImpl implements IParametroControlServicio {
 
         // 4. Retornar el DTO del parámetro de control dado de baja
         return MapperParametroControl.toDTO(parametroControlEntity);
+    }
+
+    /**
+     * Normaliza la unidad de medida (elimina los espacios en los extremos) y valida que no quede vacía.
+     *
+     * @param unidadDeMedida Unidad de medida ingresada.
+     * @return La unidad de medida sin espacios en los extremos.
+     * @throws ReglaNegocioException Si la unidad de medida es nula o está en blanco.
+     */
+    private static String normalizarUnidadDeMedida(String unidadDeMedida) {
+        if (unidadDeMedida == null || unidadDeMedida.isBlank()) {
+            throw new ReglaNegocioException("La unidad de medida es obligatoria");
+        }
+        return unidadDeMedida.trim();
     }
 
     /**

@@ -63,22 +63,26 @@ class ParametroControlControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PCC-01: el GERENTE_DE_PRODUCCION ve el listado con el rango sin ceros sobrantes, la descripción, las pestañas y las acciones por fila")
+    @DisplayName("CP-PCC-01: el GERENTE_DE_PRODUCCION ve el listado con la unidad, el rango sin ceros sobrantes, las pestañas y las acciones por fila, sin la descripción en la tabla")
     void listado_debeMostrarLosParametrosParaGerenteDeProduccion() throws Exception {
         when(parametroControlServicio.filtrarParametrosControl(any(), any()))
-                .thenReturn(new PageImpl<>(List.of(parametro(4L, "Temperatura (°C)", "Temperatura del macerado", 62.0, 68.5)),
+                .thenReturn(new PageImpl<>(List.of(parametro(4L, "Temperatura de maceración", "Temperatura del macerado", 62.0, 68.5)),
                         PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/recetas/parametros-control"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/parametro-control-lista"))
                 .andExpect(content().string(containsString("Gestión de Recetas")))
-                .andExpect(content().string(containsString("Temperatura (°C)")))
-                .andExpect(content().string(containsString("Temperatura del macerado")))
+                .andExpect(content().string(containsString("Temperatura de maceración")))
+                .andExpect(content().string(containsString(">Unidad<")))
+                .andExpect(content().string(containsString(">°C<")))
+                // La descripción no es una columna de la tabla: se consulta con el botón "Ver descripción"
+                .andExpect(content().string(not(containsString(">Descripción<"))))
+                .andExpect(content().string(not(matchesPattern("(?s).*<td[^>]*>\\s*Temperatura del macerado.*"))))
                 .andExpect(content().string(containsString(">62<")))
                 .andExpect(content().string(containsString(">68,5<")))
                 .andExpect(content().string(not(containsString("62.0"))))
-                .andExpect(content().string(containsString("placeholder=\"Ej: Temperatura (°C)\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Temperatura de maceración\"")))
                 .andExpect(content().string(containsString("href=\"/recetas/parametros-control/nuevo\"")))
                 .andExpect(content().string(containsString("href=\"/recetas/parametros-control/4/editar\"")))
                 .andExpect(content().string(containsString("data-baja-url=\"/recetas/parametros-control/4/baja\"")))
@@ -187,7 +191,7 @@ class ParametroControlControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PCC-08: el formulario de alta no tiene campo de unidad (va en el nombre), marca los obligatorios y muestra placeholders con ejemplo")
+    @DisplayName("CP-PCC-08: el formulario de alta tiene el campo de unidad de medida, marca los obligatorios y muestra placeholders con ejemplo")
     void formularioAlta_debeRenderizarse() throws Exception {
         mockMvc.perform(get("/recetas/parametros-control/nuevo"))
                 .andExpect(status().isOk())
@@ -195,13 +199,14 @@ class ParametroControlControllerTest {
                 .andExpect(content().string(containsString("Nuevo parámetro de control")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/recetas/parametros-control\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: Temperatura (°C)\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Temperatura de maceración\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: °C\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 62\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 68\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Temperatura de la maceración en el punto de control\"")))
-                // La unidad se aclara una sola vez, en la cabecera de la sección, y no hay un campo aparte
-                .andExpect(content().string(containsString("La unidad de medida va en el nombre")))
-                .andExpect(content().string(not(containsString("name=\"unidad"))))
+                .andExpect(content().string(containsString("name=\"unidadDeMedida\"")))
+                .andExpect(content().string(containsString("Unidad de medida")))
+                .andExpect(content().string(containsString("Los valores mínimo y máximo se expresan en la unidad de medida indicada.")))
                 .andExpect(content().string(containsString("Crear parámetro de control")))
                 .andExpect(content().string(containsString("Volver a parámetros de control")))
                 .andExpect(content().string(containsString("whitespace-nowrap")))
@@ -246,7 +251,7 @@ class ParametroControlControllerTest {
 
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
                         .param("nombre", "Temperatura (°C)").param("descripcion", "Temperatura del macerado")
-                        .param("valorMinimo", "62").param("valorMaximo", "68.5"))
+                        .param("unidadDeMedida", "°C").param("valorMinimo", "62").param("valorMaximo", "68.5"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/recetas/parametros-control"))
                 .andExpect(flash().attribute("mensaje", "Parámetro de control creado correctamente"))
@@ -256,6 +261,7 @@ class ParametroControlControllerTest {
         verify(parametroControlServicio).altaParametroControl(captor.capture());
         assertThat(captor.getValue().getNombre()).isEqualTo("Temperatura (°C)");
         assertThat(captor.getValue().getDescripcion()).isEqualTo("Temperatura del macerado");
+        assertThat(captor.getValue().getUnidadDeMedida()).isEqualTo("°C");
         assertThat(captor.getValue().getValorMinimo()).isEqualTo(62.0);
         assertThat(captor.getValue().getValorMaximo()).isEqualTo(68.5);
     }
@@ -268,7 +274,7 @@ class ParametroControlControllerTest {
                 .thenReturn(parametro(9L, "Temperatura (°C)", null, 62.0, 68.0));
 
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura (°C)").param("valorMinimo", "62").param("valorMaximo", "68"))
+                        .param("nombre", "Temperatura (°C)").param("unidadDeMedida", "°C").param("valorMinimo", "62").param("valorMaximo", "68"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/recetas/parametros-control"));
 
@@ -277,13 +283,14 @@ class ParametroControlControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PCC-13: sin nombre ni valores vuelve al formulario con los tres errores, sin llamar al service")
+    @DisplayName("CP-PCC-13: sin nombre, unidad ni valores vuelve al formulario con los cuatro errores, sin llamar al service")
     void alta_debeVolverAlFormularioSiFaltanLosDatosObligatorios() throws Exception {
         mockMvc.perform(post("/recetas/parametros-control").with(csrf()).param("nombre", "  "))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/parametro-control-form"))
                 .andExpect(content().string(containsString("No se pudo crear el parámetro de control")))
                 .andExpect(content().string(containsString("El nombre del parámetro de control es obligatorio")))
+                .andExpect(content().string(containsString("La unidad de medida es obligatoria")))
                 .andExpect(content().string(containsString("El valor mínimo es obligatorio")))
                 .andExpect(content().string(containsString("El valor máximo es obligatorio")));
 
@@ -295,7 +302,7 @@ class ParametroControlControllerTest {
     @DisplayName("CP-PCC-14: un valor no numérico muestra un mensaje en español, sin llamar al service")
     void alta_debeMostrarUnMensajeEnEspanolParaUnNumeroInvalido() throws Exception {
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura (°C)").param("valorMinimo", "abc").param("valorMaximo", "68"))
+                        .param("nombre", "Temperatura (°C)").param("unidadDeMedida", "°C").param("valorMinimo", "abc").param("valorMaximo", "68"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ingresá un número válido")));
 
@@ -307,7 +314,7 @@ class ParametroControlControllerTest {
     @DisplayName("CP-PCC-15: una descripción de más de 255 caracteres vuelve al formulario con el error, sin llamar al service")
     void alta_debeRechazarUnaDescripcionDemasiadoLarga() throws Exception {
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura (°C)").param("valorMinimo", "62").param("valorMaximo", "68")
+                        .param("nombre", "Temperatura (°C)").param("unidadDeMedida", "°C").param("valorMinimo", "62").param("valorMaximo", "68")
                         .param("descripcion", "x".repeat(256)))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/parametro-control-form"))
@@ -324,7 +331,7 @@ class ParametroControlControllerTest {
                 .thenThrow(new RecursoDuplicadoException("Ya existe un parámetro de control con el nombre 'Temperatura (°C)'"));
 
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura").param("valorMinimo", "62").param("valorMaximo", "68"))
+                        .param("nombre", "Temperatura").param("unidadDeMedida", "°C").param("valorMinimo", "62").param("valorMaximo", "68"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/parametro-control-form"))
                 .andExpect(content().string(containsString("Ya existe un parámetro de control con el nombre")))
@@ -341,7 +348,7 @@ class ParametroControlControllerTest {
                 .thenThrow(new ReglaNegocioException("El valor mínimo no puede ser mayor al valor máximo"));
 
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura").param("valorMinimo", "70").param("valorMaximo", "60"))
+                        .param("nombre", "Temperatura").param("unidadDeMedida", "°C").param("valorMinimo", "70").param("valorMaximo", "60"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/parametro-control-form"))
                 .andExpect(content().string(containsString("No se pudo crear el parámetro de control")))
@@ -357,7 +364,7 @@ class ParametroControlControllerTest {
                 .thenReturn(parametro(9L, "Temperatura (°C)", null, 62.0, 68.0));
 
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura (°C)").param("valorMinimo", "62").param("valorMaximo", "68")
+                        .param("nombre", "Temperatura (°C)").param("unidadDeMedida", "°C").param("valorMinimo", "62").param("valorMaximo", "68")
                         .param("retorno", "/recetas/nueva").param("campo", "idParametroControl"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/recetas/nueva?desdeAlta=1&idParametroControl=9"))
@@ -369,7 +376,7 @@ class ParametroControlControllerTest {
     @DisplayName("CP-PCC-19: un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta un parámetro de control")
     void alta_debeRechazarRolNoAutorizado() throws Exception {
         mockMvc.perform(post("/recetas/parametros-control").with(csrf())
-                        .param("nombre", "Temperatura").param("valorMinimo", "62").param("valorMaximo", "68"))
+                        .param("nombre", "Temperatura").param("unidadDeMedida", "°C").param("valorMinimo", "62").param("valorMaximo", "68"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -390,6 +397,7 @@ class ParametroControlControllerTest {
                 .andExpect(view().name("receta/parametro-control-form"))
                 .andExpect(content().string(containsString("Editar parámetro de control")))
                 .andExpect(content().string(containsString("value=\"Temperatura\"")))
+                .andExpect(content().string(containsString("value=\"&deg;C\"")))
                 .andExpect(content().string(containsString("value=\"62.0\"")))
                 .andExpect(content().string(containsString("value=\"68.5\"")))
                 .andExpect(content().string(containsString("Temperatura del macerado")))
@@ -415,7 +423,7 @@ class ParametroControlControllerTest {
     @DisplayName("CP-PCC-22: la modificación correcta delega en el service y redirige al listado con alerta de éxito")
     void modificar_debeRedirigirAlListadoConAlerta() throws Exception {
         mockMvc.perform(post("/recetas/parametros-control/4").with(csrf())
-                        .param("nombre", "pH").param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
+                        .param("nombre", "pH").param("unidadDeMedida", "°C").param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/recetas/parametros-control"))
                 .andExpect(flash().attribute("mensaje", "Parámetro de control modificado correctamente"))
@@ -449,7 +457,7 @@ class ParametroControlControllerTest {
                 .thenThrow(new RecursoDuplicadoException("Ya existe un parámetro de control con el nombre 'pH'"));
 
         mockMvc.perform(post("/recetas/parametros-control/4").with(csrf())
-                        .param("nombre", "pH").param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
+                        .param("nombre", "pH").param("unidadDeMedida", "°C").param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ya existe un parámetro de control con el nombre")))
                 .andExpect(content().string(containsString("action=\"/recetas/parametros-control/4\"")));
@@ -463,7 +471,7 @@ class ParametroControlControllerTest {
                 .thenThrow(new ReglaNegocioException("El valor mínimo debe ser mayor a 0"));
 
         mockMvc.perform(post("/recetas/parametros-control/4").with(csrf())
-                        .param("nombre", "pH").param("valorMinimo", "0").param("valorMaximo", "5.6"))
+                        .param("nombre", "pH").param("unidadDeMedida", "°C").param("valorMinimo", "0").param("valorMaximo", "5.6"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/parametro-control-form"))
                 .andExpect(content().string(containsString("El valor mínimo debe ser mayor a 0")));
@@ -474,7 +482,7 @@ class ParametroControlControllerTest {
     @DisplayName("CP-PCC-26: un rol distinto de GERENTE_DE_PRODUCCION no puede modificar un parámetro de control")
     void modificar_debeRechazarRolNoAutorizado() throws Exception {
         mockMvc.perform(post("/recetas/parametros-control/4").with(csrf())
-                        .param("nombre", "pH").param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
+                        .param("nombre", "pH").param("unidadDeMedida", "°C").param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -521,8 +529,95 @@ class ParametroControlControllerTest {
         verify(parametroControlServicio, never()).bajaParametroControl(any());
     }
 
+    // ==================== unidad de medida y visor de descripción ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PCC-30: una unidad de medida en blanco vuelve al formulario con el error, sin llamar al service")
+    void alta_debeRechazarUnaUnidadDeMedidaEnBlanco() throws Exception {
+        mockMvc.perform(post("/recetas/parametros-control").with(csrf())
+                        .param("nombre", "Temperatura").param("unidadDeMedida", "   ")
+                        .param("valorMinimo", "62").param("valorMaximo", "68"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/parametro-control-form"))
+                .andExpect(content().string(containsString("La unidad de medida es obligatoria")))
+                .andExpect(content().string(containsString("value=\"Temperatura\"")));
+
+        verify(parametroControlServicio, never()).altaParametroControl(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PCC-31: una unidad de medida de más de 20 caracteres vuelve al formulario con el error, sin llamar al service")
+    void alta_debeRechazarUnaUnidadDeMedidaDemasiadoLarga() throws Exception {
+        mockMvc.perform(post("/recetas/parametros-control").with(csrf())
+                        .param("nombre", "Temperatura").param("unidadDeMedida", "x".repeat(21))
+                        .param("valorMinimo", "62").param("valorMaximo", "68"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/parametro-control-form"))
+                .andExpect(content().string(containsString("La unidad de medida no puede superar los 20 caracteres")));
+
+        verify(parametroControlServicio, never()).altaParametroControl(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PCC-32: modificar con una unidad de medida en blanco vuelve al formulario de edición con el error, sin llamar al service")
+    void modificar_debeRechazarUnaUnidadDeMedidaEnBlanco() throws Exception {
+        mockMvc.perform(post("/recetas/parametros-control/4").with(csrf())
+                        .param("nombre", "pH").param("unidadDeMedida", "")
+                        .param("valorMinimo", "5.2").param("valorMaximo", "5.6"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/parametro-control-form"))
+                .andExpect(content().string(containsString("No se pudo modificar el parámetro de control")))
+                .andExpect(content().string(containsString("La unidad de medida es obligatoria")))
+                .andExpect(content().string(containsString("action=\"/recetas/parametros-control/4\"")));
+
+        verify(parametroControlServicio, never()).modificarParametroControl(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PCC-33: la fila con descripción muestra el botón \"Ver descripción\" con el nombre y el texto escapados, y el diálogo se renderiza una vez")
+    void listado_debeMostrarElBotonVerDescripcionCuandoHayDescripcion() throws Exception {
+        when(parametroControlServicio.filtrarParametrosControl(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(parametro(4L, "Temperatura", "Línea 1 <b>negrita</b>", 62.0, 68.0)),
+                        PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/recetas/parametros-control"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("title=\"Ver descripción\"")))
+                .andExpect(content().string(containsString("aria-label=\"Ver descripción\"")))
+                .andExpect(content().string(containsString("bi-info-circle")))
+                .andExpect(content().string(containsString("data-descripcion-titulo=\"Temperatura\"")))
+                .andExpect(content().string(containsString("data-descripcion-texto=\"Línea 1 &lt;b&gt;negrita&lt;/b&gt;\"")))
+                .andExpect(content().string(not(containsString("<b>negrita</b>"))))
+                // Diálogo compartido: texto con saltos de línea respetados y cierre con botón
+                .andExpect(content().string(containsString("<dialog id=\"dialogo-descripcion\"")))
+                .andExpect(content().string(containsString("whitespace-pre-wrap break-words")))
+                .andExpect(content().string(containsString("data-cerrar-descripcion")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PCC-34: la fila sin descripción (nula o en blanco) no muestra el botón \"Ver descripción\"")
+    void listado_noDebeMostrarElBotonVerDescripcionSinDescripcion() throws Exception {
+        when(parametroControlServicio.filtrarParametrosControl(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        parametro(4L, "Temperatura", null, 62.0, 68.0),
+                        parametro(5L, "pH", "   ", 5.0, 5.5)),
+                        PageRequest.of(0, 20), 2));
+
+        mockMvc.perform(get("/recetas/parametros-control"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/recetas/parametros-control/4/editar\"")))
+                .andExpect(content().string(containsString("href=\"/recetas/parametros-control/5/editar\"")))
+                .andExpect(content().string(not(containsString("data-descripcion-texto="))))
+                .andExpect(content().string(not(containsString("title=\"Ver descripción\""))));
+    }
+
     private static ParametroControlResponseDTO parametro(Long id, String nombre, String descripcion, Double minimo, Double maximo) {
         return ParametroControlResponseDTO.builder().id(id).nombre(nombre).descripcion(descripcion)
-                .valorMinimo(minimo).valorMaximo(maximo).build();
+                .unidadDeMedida("°C").valorMinimo(minimo).valorMaximo(maximo).build();
     }
 }

@@ -64,7 +64,7 @@ class EtapaControlControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-ECC-01: el GERENTE_DE_PRODUCCION ve el listado con el nombre legible de la etapa, la descripción, las pestañas y las acciones por fila")
+    @DisplayName("CP-ECC-01: el GERENTE_DE_PRODUCCION ve el listado con el nombre legible de la etapa, las pestañas y las acciones por fila, sin la descripción en la tabla")
     void listado_debeMostrarLasEtapasDeControlParaGerenteDeProduccion() throws Exception {
         when(etapaControlServicio.filtrarEtapasControl(any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(etapaControl(4L, "Control de densidad", "Densidad del mosto", TipoEtapa.FERMENTACION)),
@@ -75,7 +75,9 @@ class EtapaControlControllerTest {
                 .andExpect(view().name("receta/etapa-control-lista"))
                 .andExpect(content().string(containsString("Gestión de Recetas")))
                 .andExpect(content().string(containsString("Control de densidad")))
-                .andExpect(content().string(containsString("Densidad del mosto")))
+                // La descripción no es una columna de la tabla: se consulta con el botón "Ver descripción"
+                .andExpect(content().string(not(containsString(">Descripción<"))))
+                .andExpect(content().string(not(matchesPattern("(?s).*<td[^>]*>\\s*Densidad del mosto.*"))))
                 .andExpect(content().string(containsString("Fermentación")))
                 .andExpect(content().string(not(containsString("FERMENTACION</span>"))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Control de densidad\"")))
@@ -526,6 +528,48 @@ class EtapaControlControllerTest {
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verify(etapaControlServicio, never()).bajaEtapaControl(any());
+    }
+
+    // ==================== visor de descripción ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-ECC-30: la fila con descripción muestra el botón \"Ver descripción\" con el nombre y el texto escapados, y el diálogo se renderiza una vez")
+    void listado_debeMostrarElBotonVerDescripcionCuandoHayDescripcion() throws Exception {
+        when(etapaControlServicio.filtrarEtapasControl(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(etapaControl(4L, "Control de densidad", "Línea 1 <b>negrita</b>", TipoEtapa.FERMENTACION)),
+                        PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/recetas/etapas-control"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("title=\"Ver descripción\"")))
+                .andExpect(content().string(containsString("aria-label=\"Ver descripción\"")))
+                .andExpect(content().string(containsString("bi-info-circle")))
+                .andExpect(content().string(containsString("data-descripcion-titulo=\"Control de densidad\"")))
+                .andExpect(content().string(containsString("data-descripcion-texto=\"Línea 1 &lt;b&gt;negrita&lt;/b&gt;\"")))
+                .andExpect(content().string(not(containsString("<b>negrita</b>"))))
+                // Diálogo compartido: texto con saltos de línea respetados y cierre con botón
+                .andExpect(content().string(containsString("<dialog id=\"dialogo-descripcion\"")))
+                .andExpect(content().string(containsString("whitespace-pre-wrap break-words")))
+                .andExpect(content().string(containsString("data-cerrar-descripcion")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-ECC-31: la fila sin descripción (nula o en blanco) no muestra el botón \"Ver descripción\"")
+    void listado_noDebeMostrarElBotonVerDescripcionSinDescripcion() throws Exception {
+        when(etapaControlServicio.filtrarEtapasControl(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        etapaControl(4L, "Control de densidad", null, TipoEtapa.FERMENTACION),
+                        etapaControl(5L, "Control de pH", "   ", TipoEtapa.FERMENTACION)),
+                        PageRequest.of(0, 20), 2));
+
+        mockMvc.perform(get("/recetas/etapas-control"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/recetas/etapas-control/4/editar\"")))
+                .andExpect(content().string(containsString("href=\"/recetas/etapas-control/5/editar\"")))
+                .andExpect(content().string(not(containsString("data-descripcion-texto="))))
+                .andExpect(content().string(not(containsString("title=\"Ver descripción\""))));
     }
 
     private static EtapaControlResponseDTO etapaControl(Long id, String nombre, String descripcion, TipoEtapa etapa) {

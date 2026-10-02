@@ -13,8 +13,8 @@ import lombok.Setter;
  * DTO de formulario para el alta y la modificación de un parámetro de control.
  * <p>
  * Contiene únicamente los datos ingresados por el usuario. No incluye {@code id} (la identidad la
- * define la base de datos). La unidad de medida no es un campo aparte: forma parte del nombre del
- * parámetro (por ejemplo, "Temperatura (°C)").
+ * define la base de datos). La unidad de medida (por ejemplo, "°C", "pH", "°P" o "g/L") es obligatoria y
+ * los valores mínimo y máximo se expresan en esa unidad.
  * </p>
  */
 @Getter
@@ -35,6 +35,13 @@ public class ParametroControlFormDTO {
      */
     @Size(max = 255, message = "La descripción no puede superar los 255 caracteres")
     private String descripcion;
+
+    /**
+     * Unidad de medida en la que se expresan los valores del parámetro de control (por ejemplo, "°C").
+     */
+    @NotBlank(message = "La unidad de medida es obligatoria")
+    @Size(max = 20, message = "La unidad de medida no puede superar los 20 caracteres")
+    private String unidadDeMedida;
 
     /**
      * Valor mínimo aceptable para el parámetro de control (Estrictamente mayor a 0 debe ser).

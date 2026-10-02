@@ -163,7 +163,7 @@ class RecetaServicioImplTest {
     void filtrarDetallesParametroControl_debeRetornarDetallesDelPlanIndicado() {
         // === PREPARACION DE DATOS ===
         EtapaControlEntity etapaControl = EtapaControlEntity.builder().id(1L).nombre("Fermentación Inicial").etapaAControlar(TipoEtapa.FERMENTACION).estado(Estado.ACTIVO).build();
-        ParametroControlEntity parametroControl = ParametroControlEntity.builder().id(1L).nombre("pH").valorMinimo(0.0).valorMaximo(14.0).estado(Estado.ACTIVO).build();
+        ParametroControlEntity parametroControl = ParametroControlEntity.builder().id(1L).nombre("pH").unidadDeMedida("pH").valorMinimo(0.0).valorMaximo(14.0).estado(Estado.ACTIVO).build();
         DetalleParametroControlEntity detalle = DetalleParametroControlEntity.builder().id(1L).valorMinimo(4.0).valorMaximo(5.5).valorIdeal(5.0).parametroControl(parametroControl).build();
         PlanMonitoreoEtapaEntity plan = PlanMonitoreoEtapaEntity.builder().id(1L).etapaControl(etapaControl).detallesParametroControl(List.of(detalle)).build();
         when(planMonitoreoEtapaRepository.findById(1L)).thenReturn(Optional.of(plan));
@@ -176,6 +176,7 @@ class RecetaServicioImplTest {
         assertThat(resultado.get(0).getId()).isEqualTo(1L);
         assertThat(resultado.get(0).getValorIdeal()).isEqualTo(5.0);
         assertThat(resultado.get(0).getParametroControl().getNombre()).isEqualTo("pH");
+        assertThat(resultado.get(0).getParametroControl().getUnidadDeMedida()).isEqualTo("pH");
     }
 
     @Test
@@ -1556,7 +1557,7 @@ class RecetaServicioImplTest {
     }
 
     private static ParametroControlEntity parametroControlEntity(Long id, Double valorMinimo, Double valorMaximo) {
-        return ParametroControlEntity.builder().id(id).nombre("Temperatura").valorMinimo(valorMinimo).valorMaximo(valorMaximo).build();
+        return ParametroControlEntity.builder().id(id).nombre("Temperatura").unidadDeMedida("°C").valorMinimo(valorMinimo).valorMaximo(valorMaximo).build();
     }
 
     private static VersionRecetaEntity crearVersionRecetaEntity(Long id, String nombre, boolean esUltimaVersion) {

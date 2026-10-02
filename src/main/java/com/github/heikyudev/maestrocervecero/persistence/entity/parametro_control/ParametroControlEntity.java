@@ -29,6 +29,9 @@ public class ParametroControlEntity extends AuditableEntity<String> {
 
     private String descripcion;
 
+    @Column(name = "unidad_de_medida", nullable = false)
+    private String unidadDeMedida;
+
     @Column(name = "valor_minimo", nullable = false)
     private Double valorMinimo;
 

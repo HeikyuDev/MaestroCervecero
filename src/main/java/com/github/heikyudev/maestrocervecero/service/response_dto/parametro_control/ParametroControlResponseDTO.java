@@ -34,6 +34,11 @@ public class ParametroControlResponseDTO {
     private String descripcion;
 
     /**
+     * Unidad de medida en la que se expresan los valores del parámetro de control (por ejemplo, "°C").
+     */
+    private String unidadDeMedida;
+
+    /**
      * Valor mínimo aceptable para el parámetro de control.
      */
     private Double valorMinimo;

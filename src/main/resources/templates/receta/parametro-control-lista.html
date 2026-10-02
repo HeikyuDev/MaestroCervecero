@@ -25,7 +25,7 @@
           class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
         <div class="md:col-span-2">
             <label for="nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
-            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off" placeholder="Ej: Temperatura (°C)"
+            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off" placeholder="Ej: Temperatura de maceración"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
@@ -45,20 +45,21 @@
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
                 <th class="px-4 py-3">Nombre</th>
+                <th class="px-4 py-3">Unidad</th>
                 <th class="px-4 py-3">Valor mínimo</th>
                 <th class="px-4 py-3">Valor máximo</th>
-                <th class="px-4 py-3">Descripción</th>
                 <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="x : ${parametrosControl.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${x.nombre}">Temperatura (°C)</td>
+                <td class="px-4 py-3 font-medium text-slate-900" th:text="${x.nombre}">Temperatura de maceración</td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${x.unidadDeMedida}">°C</td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${x.valorMinimo})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${x.valorMaximo})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700" th:text="${x.descripcion}">Temperatura del macerado</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
+                        <th:block th:replace="~{fragments/dialogo-descripcion :: boton(${x.nombre}, ${x.descripcion})}"></th:block>
                         <a th:href="@{/recetas/parametros-control/{id}/editar(id=${x.id})}" title="Editar parámetro de control" aria-label="Editar parámetro de control"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>
@@ -88,6 +89,7 @@
                 false)}"></div>
     </div>
 
+    <div th:replace="~{fragments/dialogo-descripcion :: dialogo}"></div>
     <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja parámetro de control', 'Si está asociado al plan de monitoreo de una receta activa, el sistema no lo permitirá.')}"></div>
 </div>
 

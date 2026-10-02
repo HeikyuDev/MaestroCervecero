@@ -237,6 +237,7 @@ class ParametroControlServicioImplTest {
         ParametroControlEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("Temperatura");
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Descripción de prueba");
+        assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo("°C");
         assertThat(entidadCapturada.getValorMinimo()).isEqualTo(65.0);
         assertThat(entidadCapturada.getValorMaximo()).isEqualTo(68.0);
         // El alta siempre debe registrar al parámetro de control como ACTIVO, sin importar lo que traiga el FormDTO
@@ -287,6 +288,48 @@ class ParametroControlServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getValorMinimo()).isEqualTo(0.1);
         assertThat(resultado.getNombre()).isEqualTo("Oxígeno Disuelto");
+    }
+
+    @Test
+    @DisplayName("CP-AP-11: altaParametroControl lanza ReglaNegocioException y no consulta el repositorio cuando la unidad de medida es nula")
+    void altaParametroControl_debeRechazarUnidadDeMedidaNula() {
+        ParametroControlFormDTO parametroControlFormDTO = parametroControlFormDTO("Temperatura", null, 5.0, 10.0);
+
+        assertThatThrownBy(() -> parametroControlServicio.altaParametroControl(parametroControlFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La unidad de medida es obligatoria");
+
+        verifyNoInteractions(parametroControlRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AP-12: altaParametroControl lanza ReglaNegocioException y no consulta el repositorio cuando la unidad de medida está en blanco")
+    void altaParametroControl_debeRechazarUnidadDeMedidaEnBlanco() {
+        ParametroControlFormDTO parametroControlFormDTO = parametroControlFormDTO("Temperatura", "   ", 5.0, 10.0);
+
+        assertThatThrownBy(() -> parametroControlServicio.altaParametroControl(parametroControlFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La unidad de medida es obligatoria");
+
+        verifyNoInteractions(parametroControlRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AP-13: altaParametroControl persiste la unidad de medida sin espacios en los extremos y la retorna en el DTO")
+    void altaParametroControl_debePersistirUnidadDeMedidaSinEspaciosSobrantes() {
+        // === PREPARACION DE DATOS ===
+        ParametroControlFormDTO parametroControlFormDTO = parametroControlFormDTO("Densidad", "  °P ", 10.0, 14.0);
+        when(parametroControlRepository.existsByNombreIgnoreCase("Densidad")).thenReturn(false);
+        when(parametroControlRepository.save(any(ParametroControlEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ParametroControlResponseDTO resultado = parametroControlServicio.altaParametroControl(parametroControlFormDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<ParametroControlEntity> captor = ArgumentCaptor.forClass(ParametroControlEntity.class);
+        verify(parametroControlRepository).save(captor.capture());
+        assertThat(captor.getValue().getUnidadDeMedida()).isEqualTo("°P");
+        assertThat(resultado.getUnidadDeMedida()).isEqualTo("°P");
     }
 
     // ==================== modificarParametroControl ====================
@@ -366,6 +409,7 @@ class ParametroControlServicioImplTest {
         ParametroControlEntity entidadCapturada = captor.getValue();
         assertThat(entidadCapturada.getNombre()).isEqualTo("pH");
         assertThat(entidadCapturada.getDescripcion()).isEqualTo("Descripción de prueba");
+        assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo("°C");
         assertThat(entidadCapturada.getValorMinimo()).isEqualTo(5.0);
         assertThat(entidadCapturada.getValorMaximo()).isEqualTo(5.5);
 
@@ -390,6 +434,36 @@ class ParametroControlServicioImplTest {
 
         assertThat(resultado.getNombre()).isEqualTo("ph");
         verify(parametroControlRepository).save(parametroControlEntity);
+    }
+
+    @Test
+    @DisplayName("CP-MP-07: modificarParametroControl lanza ReglaNegocioException y no consulta el repositorio cuando la unidad de medida está en blanco")
+    void modificarParametroControl_debeRechazarUnidadDeMedidaEnBlanco() {
+        ParametroControlFormDTO parametroControlFormDTO = parametroControlFormDTO("Temperatura", "", 5.0, 10.0);
+
+        assertThatThrownBy(() -> parametroControlServicio.modificarParametroControl(1L, parametroControlFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La unidad de medida es obligatoria");
+
+        verifyNoInteractions(parametroControlRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MP-08: modificarParametroControl actualiza la unidad de medida sin espacios en los extremos")
+    void modificarParametroControl_debeActualizarUnidadDeMedidaSinEspaciosSobrantes() {
+        // === PREPARACION DE DATOS ===
+        ParametroControlEntity parametroControlEntity = crearParametroControlEntity(1L, "Densidad", "Descripción original", 10.0, 14.0);
+        ParametroControlFormDTO parametroControlFormDTO = parametroControlFormDTO("Densidad", " g/L ", 10.0, 14.0);
+        when(parametroControlRepository.existsByNombreIgnoreCaseAndIdNot("Densidad", 1L)).thenReturn(false);
+        when(parametroControlRepository.findById(1L)).thenReturn(Optional.of(parametroControlEntity));
+        when(parametroControlRepository.save(parametroControlEntity)).thenReturn(parametroControlEntity);
+
+        // === EJECUCION ===
+        ParametroControlResponseDTO resultado = parametroControlServicio.modificarParametroControl(1L, parametroControlFormDTO);
+
+        // === ASSERTS ===
+        assertThat(parametroControlEntity.getUnidadDeMedida()).isEqualTo("g/L");
+        assertThat(resultado.getUnidadDeMedida()).isEqualTo("g/L");
     }
 
     // ==================== bajaParametroControl ====================
@@ -449,6 +523,7 @@ class ParametroControlServicioImplTest {
                 .id(id)
                 .nombre(nombre)
                 .descripcion(descripcion)
+                .unidadDeMedida("°C")
                 .valorMinimo(valorMinimo)
                 .valorMaximo(valorMaximo)
                 .estado(Estado.ACTIVO)
@@ -456,9 +531,14 @@ class ParametroControlServicioImplTest {
     }
 
     private static ParametroControlFormDTO parametroControlFormDTO(String nombre, Double valorMinimo, Double valorMaximo) {
+        return parametroControlFormDTO(nombre, "°C", valorMinimo, valorMaximo);
+    }
+
+    private static ParametroControlFormDTO parametroControlFormDTO(String nombre, String unidadDeMedida, Double valorMinimo, Double valorMaximo) {
         return ParametroControlFormDTO.builder()
                 .nombre(nombre)
                 .descripcion("Descripción de prueba")
+                .unidadDeMedida(unidadDeMedida)
                 .valorMinimo(valorMinimo)
                 .valorMaximo(valorMaximo)
                 .build();
@@ -468,6 +548,7 @@ class ParametroControlServicioImplTest {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getDescripcion()).isEqualTo(entidad.getDescripcion());
+        assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
         assertThat(dto.getValorMinimo()).isEqualTo(entidad.getValorMinimo());
         assertThat(dto.getValorMaximo()).isEqualTo(entidad.getValorMaximo());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());

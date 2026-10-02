@@ -729,6 +729,7 @@ class MedicionLoteServicioImplTest {
         ParametroControlEntity parametroControl = ParametroControlEntity.builder()
                 .id(1L)
                 .nombre("pH")
+                .unidadDeMedida("pH")
                 .valorMinimo(0.0)
                 .valorMaximo(14.0)
                 .estado(Estado.ACTIVO)
