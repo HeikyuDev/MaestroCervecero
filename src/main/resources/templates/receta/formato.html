@@ -6,9 +6,22 @@
 
     etapa(valor): nombre legible de una etapa del proceso (los valores del enum no llevan tilde).
     numero(valor): un número sin ceros sobrantes, con coma decimal (62.0 se muestra "62" y 1.5 "1,5").
+    usoLupulo(valor): nombre legible del uso de un lúpulo (Hervor, Whirlpool, Dry hop).
+    tipoMalta(valor), formatoLupulo(valor), tipoLevadura(valor): nombre legible de cada enum de insumo.
 -->
 <th:block th:fragment="etapa(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'MOLIENDA'">Molienda</th:block><th:block th:case="'MACERACION'">Maceración</th:block><th:block th:case="'HERVIDO'">Hervido</th:block><th:block th:case="'FERMENTACION'">Fermentación</th:block><th:block th:case="'MADURACION'">Maduración</th:block><th:block th:case="'ENVASADO'">Envasado</th:block></th:block>
 
 <th:block th:fragment="numero(valor)"><th:block th:if="${valor != null}" th:text="${valor == valor.intValue()} ? ${#numbers.formatInteger(valor.intValue(), 1, 'POINT')} : ${#strings.replace(valor, '.', ',')}">62</th:block></th:block>
+
+<!-- gravedad(valor): densidad (OG/FG) con tres decimales fijos y coma decimal (1.050 se muestra "1,050"). -->
+<th:block th:fragment="gravedad(valor)"><th:block th:if="${valor != null}" th:text="${#numbers.formatDecimal(valor, 1, 3, 'COMMA')}">1,050</th:block></th:block>
+
+<th:block th:fragment="usoLupulo(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'HERVOR'">Hervor</th:block><th:block th:case="'WHIRLPOOL'">Whirlpool</th:block><th:block th:case="'DRY_HOP'">Dry hop</th:block></th:block>
+
+<th:block th:fragment="tipoMalta(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'BASE'">Base</th:block><th:block th:case="'CARAMELO'">Caramelo</th:block><th:block th:case="'TOSTADA'">Tostada</th:block><th:block th:case="'ESPECIAL'">Especial</th:block></th:block>
+
+<th:block th:fragment="formatoLupulo(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'PELLET'">Pellet</th:block><th:block th:case="'FLOR'">Flor</th:block></th:block>
+
+<th:block th:fragment="tipoLevadura(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'ALE'">Ale</th:block><th:block th:case="'HIBRIDA'">Híbrida</th:block><th:block th:case="'LAGER'">Lager</th:block></th:block>
 
 </html>

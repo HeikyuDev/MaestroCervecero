@@ -38,11 +38,6 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-droplet-half', 'Control de Lotes')}"></a>
             </th:block>
 
-            <!-- GESTIÓN DE RECETAS (Gerente de Producción) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
-                <a th:replace="~{fragments/sidebar ::enlace('/recetas', ${opcionActiva}, 'recetas', 'bi-journal-bookmark', 'Gestión de Recetas')}"></a>
-            </th:block>
-
             <!-- ÓRDENES DE COMPRA (Gerente de Compras) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
                 <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'compras', 'bi-cart3', 'Órdenes de Compra')}"></a>
@@ -50,7 +45,7 @@
         </th:block>
 
         <!--
-            ADMINISTRACIÓN: los datos que se definen una vez (insumos, ubicaciones, usuarios) y alimentan
+            ADMINISTRACIÓN: los datos que se definen una vez (insumos, equipamiento, recetas, ubicaciones, usuarios) y alimentan
             al resto del sistema. Va debajo de la operación diaria. El nombre "Configuración" queda
             reservado para los parámetros del sistema (duraciones estimadas, valores parametrizables).
         -->
@@ -60,6 +55,11 @@
             <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/insumos/maltas', ${opcionActiva}, 'insumos', 'bi-box-seam', 'Gestión de Insumos')}"></a>
+            </th:block>
+
+            <!-- GESTIÓN DE RECETAS: recetas, etapas de control y parámetros de control en pestañas (Gerente de Producción) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/recetas', ${opcionActiva}, 'recetas', 'bi-journal-bookmark', 'Gestión de Recetas')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción) -->

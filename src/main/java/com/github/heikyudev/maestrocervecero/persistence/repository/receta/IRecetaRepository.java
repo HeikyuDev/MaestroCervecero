@@ -45,13 +45,20 @@ public interface IRecetaRepository extends JpaRepository<RecetaEntity, Long> {
      * así que "buscar una receta por nombre" significa buscar entre las recetas cuya versión
      * vigente actual tiene ese nombre.
      * </p>
+     * <p>
+     * El resultado se ordena alfabéticamente por el nombre de la versión vigente (sin distinguir
+     * mayúsculas) y, como desempate, por id. El orden va dentro de la consulta porque {@code nombre}
+     * no es una propiedad de {@code RecetaEntity}: un {@code Sort} del {@code Pageable} se
+     * resolvería contra la receta y no contra su versión.
+     * </p>
      *
      * @param nombre Texto a buscar dentro del nombre de la versión vigente, o {@code null} para no filtrar por él.
-     * @param pageable La configuración de paginación.
+     * @param pageable La configuración de paginación (sin ordenamiento: el orden lo define la consulta).
      * @return Una página de recetas activas que cumplen el criterio indicado.
      */
     @Query(value = "SELECT r FROM RecetaEntity r JOIN r.versiones v WHERE r.estado = 'ACTIVO' AND v.esUltimaVersion = true "
-            + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))",
+            + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
+            + "ORDER BY UPPER(v.nombre) ASC, r.id ASC",
             countQuery = "SELECT COUNT(r) FROM RecetaEntity r JOIN r.versiones v WHERE r.estado = 'ACTIVO' AND v.esUltimaVersion = true "
                     + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
     Page<RecetaEntity> filtrarRecetas(@Param("nombre") String nombre, Pageable pageable);
