@@ -1,41 +1,47 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
- * DTO de formulario para el alta y la modificación de un molino.
+ * DTO de formulario para el alta y la modificación de el molino.
  * <p>
- * Es inmutable (no expone setters) y contiene únicamente los datos ingresados por el usuario.
- * No incluye {@code id} (la identidad la define la base de datos).
+ * Contiene únicamente los datos ingresados por el usuario. No incluye {@code id} (la identidad la
+ * define la base de datos) ni el estado operativo (lo define el sistema).
  * </p>
  */
-
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class MolinoFormDTO {
 
     /**
-     * identificador del molino. Debe ser único entre los molinos activos (case-insensitive).
+     * Identificador del molino. Debe ser único entre los equipamientos activos (case-insensitive).
      */
+    @NotBlank(message = "El identificador interno es obligatorio")
     private String identificadorInterno;
 
-    /***
-     * Descripcion del molino, puede ser null o vacio, no es obligatorio
+    /**
+     * Descripción del molino, puede ser nula o vacía: no es obligatoria.
      */
     private String descripcion;
 
     /**
-     * Rendimiento del molino (Kilos Por Hora)
+     * Rendimiento del molino (kilos por hora).
      */
+    @NotNull(message = "El rendimiento de molienda es obligatorio")
     private Double rendimientoMolienda;
 
     /**
      * Cantidad de usos máximos antes de requerir mantenimiento preventivo.
      */
+    @NotNull(message = "Los usos máximos antes de mantenimiento son obligatorios")
     private Integer usosMaximosAntesMantenimiento;
 }

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Etiqueta de color del estado operativo de un equipamiento: verde disponible, azul en uso, ámbar en
+    limpieza, rojo en mantenimiento.
+    Uso: <span th:replace="~{equipamiento/estado :: badge(${x.estadoOperativo})}"></span>
+-->
+<span th:fragment="badge(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'DISPONIBLE'} ? 'bg-emerald-50 text-emerald-700'
+                    : (${estado.name() == 'EN_USO'} ? 'bg-blue-50 text-blue-700'
+                    : (${estado.name() == 'EN_LIMPIEZA'} ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700'))"
+      th:text="${#strings.replace(estado, '_', ' ')}">DISPONIBLE</span>
+
+<!--
+    Nombre de una etapa de lote con su ortografía (el enum no la lleva: MACERACION, FERMENTACION).
+    Uso: <span th:replace="~{equipamiento/estado :: etapa(${e.etapa})}"></span>
+-->
+<span th:fragment="etapa(etapa)" th:switch="${etapa.name()}">
+    <th:block th:case="'MOLIENDA'">Molienda</th:block>
+    <th:block th:case="'MACERACION'">Maceración</th:block>
+    <th:block th:case="'HERVIDO'">Hervido</th:block>
+    <th:block th:case="'FERMENTACION'">Fermentación</th:block>
+    <th:block th:case="'MADURACION'">Maduración</th:block>
+    <th:block th:case="'ENVASADO'">Envasado</th:block>
+    <th:block th:case="*" th:text="${etapa}">Etapa</th:block>
+</span>
+
+</html>

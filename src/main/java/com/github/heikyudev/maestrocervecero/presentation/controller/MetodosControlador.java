@@ -20,6 +20,14 @@ public final class MetodosControlador {
             Sort.Order.asc("nombre").ignoreCase(),
             Sort.Order.asc("id"));
 
+    /**
+     * El equipamiento no tiene nombre sino identificador interno: se lista en orden alfabético por
+     * identificador (sin distinguir mayúsculas), con el id como desempate.
+     */
+    public static final Sort ORDEN_POR_IDENTIFICADOR = Sort.by(
+            Sort.Order.asc("identificadorInterno").ignoreCase(),
+            Sort.Order.asc("id"));
+
     private MetodosControlador() {
     }
 

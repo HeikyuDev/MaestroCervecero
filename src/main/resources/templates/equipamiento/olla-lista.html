@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#olla-lista-content}, 'equipamiento')}">
+<body>
+
+<div id="olla-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Equipamiento</h1>
+            <p class="text-sm text-slate-500">Molinos, maceradores, ollas de hervor y fermentadores de la planta, en orden alfabético.</p>
+        </div>
+        <a th:href="@{/equipamiento/ollas-hervor/nuevo}"
+           class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+            <i class="bi bi-plus-lg"></i> Nueva olla de hervor
+        </a>
+    </div>
+
+    <div th:replace="~{equipamiento/tabs :: tabs('ollas-hervor')}"></div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/equipamiento/ollas-hervor}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div>
+            <label for="identificador" class="block text-xs font-medium text-slate-500 mb-1">Identificador</label>
+            <input type="text" id="identificador" name="identificador" th:value="${filtroIdentificador}" autocomplete="off" placeholder="Ej: OLLA-01"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="estadoOperativo" class="block text-xs font-medium text-slate-500 mb-1">Estado operativo</label>
+            <select id="estadoOperativo" name="estadoOperativo"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}"
+                        th:text="${#strings.replace(e, '_', ' ')}">DISPONIBLE</option>
+            </select>
+        </div>
+        <div class="md:col-span-2 flex items-center justify-end gap-3">
+            <a th:href="@{/equipamiento/ollas-hervor}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-4 py-3">Identificador</th>
+                <th class="px-4 py-3">Estado operativo</th>
+                <th class="px-4 py-3">Capacidad total (L)</th>
+                <th class="px-4 py-3">Capacidad útil (L)</th>
+                <th class="px-4 py-3">Evaporación (L/h)</th>
+                <th class="px-4 py-3">Pérdida por trub (L)</th>
+                <th class="px-4 py-3">Usos máx.</th>
+                <th class="px-4 py-3 text-right">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="x : ${ollas.content}" class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <span class="font-medium text-slate-900" th:text="${x.identificadorInterno}">OLLA-01</span>
+                    <span th:if="${x.descripcion != null and !x.descripcion.isBlank()}" class="block text-xs text-slate-400" th:text="${x.descripcion}">Descripción</span>
+                </td>
+                <td class="px-4 py-3"><span th:replace="~{equipamiento/estado :: badge(${x.estadoOperativo})}"></span></td>
+                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.capacidadTotal, 1, 'POINT', 2, 'COMMA')}">100,00</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.capacidadUtil, 1, 'POINT', 2, 'COMMA')}">80,00</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.evaporacion, 1, 'POINT', 2, 'COMMA')}">8,00</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.perdidaPorTrub, 1, 'POINT', 2, 'COMMA')}">3,00</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">50</td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                        <a th:href="@{/equipamiento/ollas-hervor/{id}/editar(id=${x.id})}" title="Editar olla de hervor" aria-label="Editar olla de hervor"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-pencil-square text-lg"></i>
+                        </a>
+                        <button type="button" title="Dar de baja olla de hervor" aria-label="Dar de baja olla de hervor"
+                                th:data-baja-url="@{/equipamiento/ollas-hervor/{id}/baja(id=${x.id})}"
+                                th:data-baja-nombre="${x.identificadorInterno}"
+                                class="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                            <i class="bi bi-trash text-lg"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${ollas.empty}">
+                <td colspan="8" class="px-4 py-10 text-center text-slate-400">
+                    <th:block th:replace="~{equipamiento/iconos :: olla('block h-8 w-8 mx-auto mb-2')}"></th:block>
+                    No se encontraron ollas de hervor con los criterios indicados.
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${ollas}, 'ollas de hervor',
+                ${ollas.hasPrevious()} ? @{/equipamiento/ollas-hervor(pagina=${ollas.number - 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado})} : null,
+                ${ollas.hasNext()} ? @{/equipamiento/ollas-hervor(pagina=${ollas.number + 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado})} : null,
+                false)}"></div>
+    </div>
+
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Si tiene una etapa pendiente de un lote o está en uso, el sistema no lo permitirá.')}"></div>
+</div>
+
+</body>
+</html>
