@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#receta-form-content}, 'recetas')}">
+<body>
+
+<!-- editando = true cuando se modifica una receta existente (llega recetaId), false en el alta -->
+<div id="receta-form-content" class="space-y-6" th:with="editando=${recetaId != null}">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i> Volver a recetas
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
+            th:text="${editando} ? 'Modificar receta' : 'Nueva receta'">Nueva receta</h1>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
+            <span th:if="${editando}">Al guardar se registra una nueva versión de la receta.</span></p>
+    </div>
+
+    <form id="receta-form" th:action="${editando} ? @{/recetas/{id}(id=${recetaId})} : @{/recetas}"
+          th:object="${recetaForm}" method="post" novalidate
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
+        <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar la receta' : 'No se pudo crear la receta')}"></div>
+
+        <!-- 1. DATOS GENERALES -->
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos generales</h2>
+            <p class="mt-1 mb-4 text-xs text-slate-400">Unidades: volumen base en litros, relación de empaste en L/kg.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div>
+                    <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="text" id="nombre" th:field="*{version.nombre}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.nombre')}" th:errors="*{version.nombre}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="volumenBase" th:field="*{version.volumenBase}" min="0" step="any" autocomplete="off" placeholder="Ej: 20"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.volumenBase')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.volumenBase')}" th:errors="*{version.volumenBase}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="relacionDeEmpaste" class="block text-sm font-medium text-slate-700 mb-1">Relación de empaste <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="relacionDeEmpaste" th:field="*{version.relacionDeEmpaste}" min="0" step="any" autocomplete="off" placeholder="Ej: 3"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.relacionDeEmpaste')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.relacionDeEmpaste')}" th:errors="*{version.relacionDeEmpaste}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="ogObjetivo" class="block text-sm font-medium text-slate-700 mb-1">OG objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="ogObjetivo" th:field="*{version.ogObjetivo}" min="0" step="any" autocomplete="off" placeholder="Ej: 1,050"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.ogObjetivo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.ogObjetivo')}" th:errors="*{version.ogObjetivo}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="fgObjetivo" class="block text-sm font-medium text-slate-700 mb-1">FG objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="fgObjetivo" th:field="*{version.fgObjetivo}" min="0" step="any" autocomplete="off" placeholder="Ej: 1,010"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.fgObjetivo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.fgObjetivo')}" th:errors="*{version.fgObjetivo}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="ibuObjetivo" class="block text-sm font-medium text-slate-700 mb-1">IBU objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="ibuObjetivo" th:field="*{version.ibuObjetivo}" min="0" step="1" autocomplete="off" placeholder="Ej: 35"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.ibuObjetivo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.ibuObjetivo')}" th:errors="*{version.ibuObjetivo}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. DURACIONES ESTIMADAS -->
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Duraciones estimadas</h2>
+            <p class="mt-1 mb-4 text-xs text-slate-400">Unidades: maceración y hervido en minutos, fermentación y maduración en días.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+                <div>
+                    <label for="duracionMaceracion" class="block text-sm font-medium text-slate-700 mb-1">Maceración <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="duracionMaceracion" th:field="*{version.duracionMaceracion}" min="1" step="1" autocomplete="off" placeholder="Ej: 60"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.duracionMaceracion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.duracionMaceracion')}" th:errors="*{version.duracionMaceracion}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="duracionHervido" class="block text-sm font-medium text-slate-700 mb-1">Hervido <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="duracionHervido" th:field="*{version.duracionHervido}" min="1" step="1" autocomplete="off" placeholder="Ej: 90"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.duracionHervido')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.duracionHervido')}" th:errors="*{version.duracionHervido}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="duracionFermentacion" class="block text-sm font-medium text-slate-700 mb-1">Fermentación <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="duracionFermentacion" th:field="*{version.duracionFermentacion}" min="1" step="1" autocomplete="off" placeholder="Ej: 10"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.duracionFermentacion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.duracionFermentacion')}" th:errors="*{version.duracionFermentacion}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="duracionMaduracion" class="block text-sm font-medium text-slate-700 mb-1">Maduración <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="duracionMaduracion" th:field="*{version.duracionMaduracion}" min="1" step="1" autocomplete="off" placeholder="Ej: 7"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('version.duracionMaduracion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('version.duracionMaduracion')}" th:errors="*{version.duracionMaduracion}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. MALTAS -->
+        <section class="p-6" data-detalle="malta">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Maltas <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <p class="mt-1 mb-4 text-xs text-slate-400">Unidad: la cantidad de cada malta está en kilogramos.</p>
+                </div>
+                <button type="button" data-abrir-agregar="malta"
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i> Agregar malta
+                </button>
+            </div>
+            <div class="border rounded-lg overflow-hidden" th:classappend="${#fields.hasErrors('version.detallesMalta')} ? 'border-rose-400' : 'border-slate-200'">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3">Malta</th>
+                            <th class="px-4 py-3">Cantidad</th>
+                            <th class="px-4 py-3 text-right"></th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" data-filas>
+                        <th:block th:each="d, i : *{version.detallesMalta}">
+                            <tr th:replace="~{receta/receta-form-filas :: malta(${i.index}, ${d.idMalta},
+                                    ${maltasPorId.get(d.idMalta)?.nombre}, ${d.cantidad})}"></tr>
+                        </th:block>
+                        <tr data-fila-vacia th:hidden="${!#lists.isEmpty(recetaForm.version.detallesMalta)}">
+                            <td colspan="3" class="px-4 py-6 text-center text-slate-400">Todavía no agregaste maltas a la receta.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p th:if="${#fields.hasErrors('version.detallesMalta')}" th:errors="*{version.detallesMalta}" class="mt-2 text-xs text-rose-600"></p>
+            <template data-plantilla="malta">
+                <tr th:replace="~{receta/receta-form-filas :: malta(0, null, null, null)}"></tr>
+            </template>
+        </section>
+
+        <!-- 4. LÚPULOS -->
+        <section class="p-6" data-detalle="lupulo">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lúpulos <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <p class="mt-1 mb-4 text-xs text-slate-400">Unidades: la cantidad de cada lúpulo está en gramos y el tiempo de hervor en minutos. Debe haber al menos un lúpulo con uso Hervor.</p>
+                </div>
+                <button type="button" data-abrir-agregar="lupulo"
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i> Agregar lúpulo
+                </button>
+            </div>
+            <div class="border rounded-lg overflow-hidden" th:classappend="${#fields.hasErrors('version.detallesLupulo')} ? 'border-rose-400' : 'border-slate-200'">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3">Lúpulo</th>
+                            <th class="px-4 py-3">Uso</th>
+                            <th class="px-4 py-3">Etapa de uso</th>
+                            <th class="px-4 py-3">Tiempo de hervor</th>
+                            <th class="px-4 py-3">Cantidad</th>
+                            <th class="px-4 py-3 text-right"></th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" data-filas>
+                        <th:block th:each="d, i : *{version.detallesLupulo}">
+                            <tr th:replace="~{receta/receta-form-filas :: lupulo(${i.index}, ${d.idLupulo},
+                                    ${lupulosPorId.get(d.idLupulo)?.nombre}, ${d.cantidad}, ${d.uso}, ${d.etapaDeUso},
+                                    ${d.tiempoDeHervor}, ${d.uso != null and d.uso.name() == 'HERVOR'})}"></tr>
+                        </th:block>
+                        <tr data-fila-vacia th:hidden="${!#lists.isEmpty(recetaForm.version.detallesLupulo)}">
+                            <td colspan="6" class="px-4 py-6 text-center text-slate-400">Todavía no agregaste lúpulos a la receta.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p th:if="${#fields.hasErrors('version.detallesLupulo')}" th:errors="*{version.detallesLupulo}" class="mt-2 text-xs text-rose-600"></p>
+            <template data-plantilla="lupulo">
+                <tr th:replace="~{receta/receta-form-filas :: lupulo(0, null, null, null, null, null, null, true)}"></tr>
+            </template>
+        </section>
+
+        <!-- 5. LEVADURAS -->
+        <section class="p-6" data-detalle="levadura">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Levaduras <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <p class="mt-1 mb-4 text-xs text-slate-400">Unidad: la cantidad de cada levadura está en gramos.</p>
+                </div>
+                <button type="button" data-abrir-agregar="levadura"
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i> Agregar levadura
+                </button>
+            </div>
+            <div class="border rounded-lg overflow-hidden" th:classappend="${#fields.hasErrors('version.detallesLevadura')} ? 'border-rose-400' : 'border-slate-200'">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="px-4 py-3">Levadura</th>
+                            <th class="px-4 py-3">Cantidad</th>
+                            <th class="px-4 py-3 text-right"></th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" data-filas>
+                        <th:block th:each="d, i : *{version.detallesLevadura}">
+                            <tr th:replace="~{receta/receta-form-filas :: levadura(${i.index}, ${d.idLevadura},
+                                    ${levadurasPorId.get(d.idLevadura)?.nombre}, ${d.cantidad})}"></tr>
+                        </th:block>
+                        <tr data-fila-vacia th:hidden="${!#lists.isEmpty(recetaForm.version.detallesLevadura)}">
+                            <td colspan="3" class="px-4 py-6 text-center text-slate-400">Todavía no agregaste levaduras a la receta.</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <p th:if="${#fields.hasErrors('version.detallesLevadura')}" th:errors="*{version.detallesLevadura}" class="mt-2 text-xs text-rose-600"></p>
+            <template data-plantilla="levadura">
+                <tr th:replace="~{receta/receta-form-filas :: levadura(0, null, null, null)}"></tr>
+            </template>
+        </section>
+
+        <!-- 6. PLAN DE MONITOREO (opcional). Por ahora solo se muestra y se conserva al guardar -->
+        <section class="p-6" id="plan-monitoreo">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Plan de monitoreo</h2>
+            <p class="mt-1 mb-4 text-xs text-slate-400">Opcional. Los planes de la receta se conservan tal cual al guardar.</p>
+
+            <p th:if="${#lists.isEmpty(recetaForm.version.planesMonitoreo)}" class="text-sm text-slate-400">
+                La receta no tiene plan de monitoreo.
+            </p>
+
+            <div class="space-y-4">
+                <div th:each="plan, pi : *{version.planesMonitoreo}" data-plan class="border border-slate-200 rounded-lg overflow-hidden"
+                     th:with="etapa=${etapasControlPorId.get(plan.idEtapaControl)}">
+                    <input type="hidden" th:name="|version.planesMonitoreo[${pi.index}].idEtapaControl|" th:value="${plan.idEtapaControl}">
+                    <div class="px-4 py-3 bg-slate-50 text-sm">
+                        <span class="font-semibold text-slate-900" th:text="${etapa != null} ? ${etapa.nombre} : 'Etapa de control no disponible'">Control de densidad</span>
+                        <span class="text-slate-500" th:if="${etapa != null}">- etapa a controlar: <th:block th:replace="~{receta/formato :: etapa(${etapa.etapaAControlar})}"></th:block></span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <tr>
+                                <th class="px-4 py-3">Parámetro</th>
+                                <th class="px-4 py-3">Unidad</th>
+                                <th class="px-4 py-3">Mínimo</th>
+                                <th class="px-4 py-3">Ideal</th>
+                                <th class="px-4 py-3">Máximo</th>
+                            </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                            <tr th:each="d, di : ${plan.detallesParametroControl}" th:with="parametro=${parametrosControlPorId.get(d.idParametroControl)}">
+                                <td class="px-4 py-3 font-medium text-slate-900">
+                                    <input type="hidden" th:name="|version.planesMonitoreo[${pi.index}].detallesParametroControl[${di.index}].idParametroControl|" th:value="${d.idParametroControl}">
+                                    <input type="hidden" th:name="|version.planesMonitoreo[${pi.index}].detallesParametroControl[${di.index}].valorMinimo|" th:value="${d.valorMinimo}">
+                                    <input type="hidden" th:name="|version.planesMonitoreo[${pi.index}].detallesParametroControl[${di.index}].valorIdeal|" th:value="${d.valorIdeal}">
+                                    <input type="hidden" th:name="|version.planesMonitoreo[${pi.index}].detallesParametroControl[${di.index}].valorMaximo|" th:value="${d.valorMaximo}">
+                                    <span th:text="${parametro != null} ? ${parametro.nombre} : 'Parámetro no disponible'">Temperatura</span>
+                                </td>
+                                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${parametro != null} ? ${parametro.unidadDeMedida}">°C</td>
+                                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.valorMinimo})}"></th:block></td>
+                                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.valorIdeal})}"></th:block></td>
+                                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.valorMaximo})}"></th:block></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reservado para el siguiente paso: aquí se agregará la edición (alta y baja) de planes de monitoreo -->
+            <div id="plan-monitoreo-edicion" data-region="edicion-planes"></div>
+        </section>
+
+        <!-- ACCIONES -->
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit"
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors"
+                    th:text="${editando} ? 'Guardar cambios' : 'Crear receta'">
+                Crear receta
+            </button>
+        </div>
+    </form>
+
+    <!-- Ventanas emergentes para agregar filas. Van fuera del formulario: sus campos no se envían -->
+    <div th:replace="~{receta/receta-dialogos :: malta}"></div>
+    <div th:replace="~{receta/receta-dialogos :: lupulo}"></div>
+    <div th:replace="~{receta/receta-dialogos :: levadura}"></div>
+
+    <script th:src="@{/js/receta-form.js}" defer></script>
+</div>
+
+</body>
+</html>

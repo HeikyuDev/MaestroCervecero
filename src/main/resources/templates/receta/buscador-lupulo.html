@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Contenido del modal de búsqueda de lúpulos del formulario de receta: criterios de filtro + resultados con "Elegir". -->
+<div th:fragment="buscador">
+
+    <div class="flex items-start justify-between gap-4 p-6 pb-0">
+        <div>
+            <h3 class="text-lg font-semibold text-slate-900">Buscar lúpulo</h3>
+            <p class="text-sm text-slate-500">Filtrá y elegí el lúpulo.</p>
+        </div>
+        <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
+                class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <form th:action="@{/recetas/buscador/lupulos}" method="get" data-modal-buscar
+          class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+        <div>
+            <label for="buscador-nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
+            <input type="text" id="buscador-nombre" name="nombre" th:value="${filtroNombre}" autofocus autocomplete="off" placeholder="Ej: Cascade"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="buscador-formato" class="block text-xs font-medium text-slate-500 mb-1">Formato</label>
+            <select id="buscador-formato" name="formato"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="f : ${formatos}" th:value="${f}" th:selected="${f == filtroFormato}"><th:block th:replace="~{receta/formato :: formatoLupulo(${f})}"></th:block></option>
+            </select>
+        </div>
+        <div class="sm:col-span-2 flex justify-end">
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <div class="border-t border-slate-100">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-4 py-3">Nombre</th>
+                <th class="px-4 py-3">Formato</th>
+                <th class="px-4 py-3">Alfa (%)</th>
+                <th class="px-4 py-3 text-right"></th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="l : ${lupulos.content}" class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.nombre}">Cascade</td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: formatoLupulo(${l.formato})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${l.aa})}"></th:block></td>
+                <td class="px-4 py-3 text-right">
+                    <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.nombre}"
+                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
+                </td>
+            </tr>
+            <tr th:if="${lupulos.empty}">
+                <td colspan="4" class="px-4 py-8 text-center text-slate-400">No se encontraron lúpulos con los criterios indicados.</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${lupulos}, 'lúpulos',
+                ${lupulos.hasPrevious()} ? @{/recetas/buscador/lupulos(pagina=${lupulos.number - 1}, nombre=${filtroNombre}, formato=${filtroFormato})} : null,
+                ${lupulos.hasNext()} ? @{/recetas/buscador/lupulos(pagina=${lupulos.number + 1}, nombre=${filtroNombre}, formato=${filtroFormato})} : null,
+                true)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,19 +1,23 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.receta;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * DTO de formulario para el alta y la modificación del Plan de Monitoreo de Etapa de Control
  * que se va a utilizar en la receta.
  * <p>
- * Es inmutable (no expone setters) y contiene únicamente los datos ingresados por el usuario.
+ * Contiene únicamente los datos ingresados por el usuario y expone setters para que Spring MVC pueda enlazar los campos del formulario.
  * No incluye {@code id} (la identidad la define la base de datos).
  * </p>
  */
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,6 +30,7 @@ public class PlanMonitoreoEtapaFormDTO {
      * existente en la base de datos.
      * </p>
      */
+    @NotNull(message = "Cada plan de monitoreo debe tener una etapa de control")
     private Long idEtapaControl;
 
     /**
@@ -35,5 +40,7 @@ public class PlanMonitoreoEtapaFormDTO {
      * mínimo, máximo e ideal planificados para la receta.
      * </p>
      */
-    private List<DetalleParametroControlFormDTO> detallesParametroControl;
+    @Valid
+    @Builder.Default
+    private List<DetalleParametroControlFormDTO> detallesParametroControl = new ArrayList<>();
 }
