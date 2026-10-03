@@ -25,12 +25,11 @@
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
         <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar la receta' : 'No se pudo crear la receta')}"></div>
 
-        <!-- 1. DATOS GENERALES -->
+        <!-- 1. DATOS DE LA RECETA -->
         <section class="p-6">
-            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos generales</h2>
-            <p class="mt-1 mb-4 text-xs text-slate-400">Unidades: volumen base en litros, relación de empaste en L/kg.</p>
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos de la receta</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 <div>
                     <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="text" id="nombre" th:field="*{version.nombre}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
@@ -40,7 +39,7 @@
                 </div>
 
                 <div>
-                    <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base (litros) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="volumenBase" th:field="*{version.volumenBase}" min="0" step="any" autocomplete="off" placeholder="Ej: 20"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.volumenBase')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -48,31 +47,41 @@
                 </div>
 
                 <div>
-                    <label for="relacionDeEmpaste" class="block text-sm font-medium text-slate-700 mb-1">Relación de empaste <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="relacionDeEmpaste" class="block text-sm font-medium text-slate-700 mb-1">Relación de empaste (L/kg) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="relacionDeEmpaste" th:field="*{version.relacionDeEmpaste}" min="0" step="any" autocomplete="off" placeholder="Ej: 3"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.relacionDeEmpaste')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('version.relacionDeEmpaste')}" th:errors="*{version.relacionDeEmpaste}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
+            </div>
+        </section>
 
+        <!-- 2. OBJETIVOS DE LA RECETA. La OG y la FG se escriben con cuatro dígitos (GravedadFormatter): 1050 equivale a 1,050 -->
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Objetivos de la receta</h2>
+            <p class="mt-1 text-xs text-slate-400">Son los valores que el sistema busca alcanzar: escala los insumos de la receta para llegar a ellos.</p>
+
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 <div>
                     <label for="ogObjetivo" class="block text-sm font-medium text-slate-700 mb-1">OG objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="ogObjetivo" th:field="*{version.ogObjetivo}" min="0" step="any" autocomplete="off" placeholder="Ej: 1,050"
+                    <input type="text" id="ogObjetivo" th:field="*{version.ogObjetivo}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="Ej: 1050"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.ogObjetivo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p class="mt-1 text-xs text-slate-400">4 dígitos: 1050 equivale a 1,050 (entre 1020 y 1120)</p>
                     <p th:if="${#fields.hasErrors('version.ogObjetivo')}" th:errors="*{version.ogObjetivo}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
 
                 <div>
                     <label for="fgObjetivo" class="block text-sm font-medium text-slate-700 mb-1">FG objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="fgObjetivo" th:field="*{version.fgObjetivo}" min="0" step="any" autocomplete="off" placeholder="Ej: 1,010"
+                    <input type="text" id="fgObjetivo" th:field="*{version.fgObjetivo}" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="Ej: 1010"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.fgObjetivo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p class="mt-1 text-xs text-slate-400">4 dígitos: 1010 equivale a 1,010 (entre 1000 y 1040)</p>
                     <p th:if="${#fields.hasErrors('version.fgObjetivo')}" th:errors="*{version.fgObjetivo}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
 
                 <div>
-                    <label for="ibuObjetivo" class="block text-sm font-medium text-slate-700 mb-1">IBU objetivo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="ibuObjetivo" class="block text-sm font-medium text-slate-700 mb-1">IBU objetivo (IBU) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="ibuObjetivo" th:field="*{version.ibuObjetivo}" min="0" step="1" autocomplete="off" placeholder="Ej: 35"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.ibuObjetivo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -81,14 +90,13 @@
             </div>
         </section>
 
-        <!-- 2. DURACIONES ESTIMADAS -->
+        <!-- 3. DURACIONES ESTIMADAS -->
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Duraciones estimadas</h2>
-            <p class="mt-1 mb-4 text-xs text-slate-400">Unidades: maceración y hervido en minutos, fermentación y maduración en días.</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
                 <div>
-                    <label for="duracionMaceracion" class="block text-sm font-medium text-slate-700 mb-1">Maceración <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="duracionMaceracion" class="block text-sm font-medium text-slate-700 mb-1">Maceración (minutos) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="duracionMaceracion" th:field="*{version.duracionMaceracion}" min="1" step="1" autocomplete="off" placeholder="Ej: 60"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.duracionMaceracion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -96,7 +104,7 @@
                 </div>
 
                 <div>
-                    <label for="duracionHervido" class="block text-sm font-medium text-slate-700 mb-1">Hervido <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="duracionHervido" class="block text-sm font-medium text-slate-700 mb-1">Hervido (minutos) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="duracionHervido" th:field="*{version.duracionHervido}" min="1" step="1" autocomplete="off" placeholder="Ej: 90"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.duracionHervido')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -104,7 +112,7 @@
                 </div>
 
                 <div>
-                    <label for="duracionFermentacion" class="block text-sm font-medium text-slate-700 mb-1">Fermentación <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="duracionFermentacion" class="block text-sm font-medium text-slate-700 mb-1">Fermentación (días) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="duracionFermentacion" th:field="*{version.duracionFermentacion}" min="1" step="1" autocomplete="off" placeholder="Ej: 10"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.duracionFermentacion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -112,7 +120,7 @@
                 </div>
 
                 <div>
-                    <label for="duracionMaduracion" class="block text-sm font-medium text-slate-700 mb-1">Maduración <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="duracionMaduracion" class="block text-sm font-medium text-slate-700 mb-1">Maduración (días) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="duracionMaduracion" th:field="*{version.duracionMaduracion}" min="1" step="1" autocomplete="off" placeholder="Ej: 7"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.duracionMaduracion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -121,13 +129,10 @@
             </div>
         </section>
 
-        <!-- 3. MALTAS -->
+        <!-- 4. MALTAS -->
         <section class="p-6" data-detalle="malta">
             <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Maltas <span class="text-rose-600" title="Obligatorio">*</span></h2>
-                    <p class="mt-1 mb-4 text-xs text-slate-400">Unidad: la cantidad de cada malta está en kilogramos.</p>
-                </div>
+                <h2 class="mb-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Maltas <span class="text-rose-600" title="Obligatorio">*</span></h2>
                 <button type="button" data-abrir-agregar="malta"
                         class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                     <i class="bi bi-plus-lg"></i> Agregar malta
@@ -139,7 +144,7 @@
                         <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <tr>
                             <th class="px-4 py-3">Malta</th>
-                            <th class="px-4 py-3">Cantidad</th>
+                            <th class="px-4 py-3">Cantidad (kg)</th>
                             <th class="px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -161,12 +166,12 @@
             </template>
         </section>
 
-        <!-- 4. LÚPULOS -->
+        <!-- 5. LÚPULOS -->
         <section class="p-6" data-detalle="lupulo">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lúpulos <span class="text-rose-600" title="Obligatorio">*</span></h2>
-                    <p class="mt-1 mb-4 text-xs text-slate-400">Unidades: la cantidad de cada lúpulo está en gramos y el tiempo de hervor en minutos. Debe haber al menos un lúpulo con uso Hervor.</p>
+                    <p class="mt-1 mb-4 text-xs text-slate-400">Debe haber al menos un lúpulo con uso Hervor.</p>
                 </div>
                 <button type="button" data-abrir-agregar="lupulo"
                         class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
@@ -181,8 +186,8 @@
                             <th class="px-4 py-3">Lúpulo</th>
                             <th class="px-4 py-3">Uso</th>
                             <th class="px-4 py-3">Etapa de uso</th>
-                            <th class="px-4 py-3">Tiempo de hervor</th>
-                            <th class="px-4 py-3">Cantidad</th>
+                            <th class="px-4 py-3">Tiempo de hervor (min)</th>
+                            <th class="px-4 py-3">Cantidad (g)</th>
                             <th class="px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -205,13 +210,10 @@
             </template>
         </section>
 
-        <!-- 5. LEVADURAS -->
+        <!-- 6. LEVADURAS -->
         <section class="p-6" data-detalle="levadura">
             <div class="flex items-start justify-between gap-4">
-                <div>
-                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Levaduras <span class="text-rose-600" title="Obligatorio">*</span></h2>
-                    <p class="mt-1 mb-4 text-xs text-slate-400">Unidad: la cantidad de cada levadura está en gramos.</p>
-                </div>
+                <h2 class="mb-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Levaduras <span class="text-rose-600" title="Obligatorio">*</span></h2>
                 <button type="button" data-abrir-agregar="levadura"
                         class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                     <i class="bi bi-plus-lg"></i> Agregar levadura
@@ -223,7 +225,7 @@
                         <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <tr>
                             <th class="px-4 py-3">Levadura</th>
-                            <th class="px-4 py-3">Cantidad</th>
+                            <th class="px-4 py-3">Cantidad (g)</th>
                             <th class="px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -245,7 +247,7 @@
             </template>
         </section>
 
-        <!-- 6. PLAN DE MONITOREO (opcional). Por ahora solo se muestra y se conserva al guardar -->
+        <!-- 7. PLAN DE MONITOREO (opcional). Por ahora solo se muestra y se conserva al guardar -->
         <section class="p-6" id="plan-monitoreo">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Plan de monitoreo</h2>
             <p class="mt-1 mb-4 text-xs text-slate-400">Opcional. Los planes de la receta se conservan tal cual al guardar.</p>

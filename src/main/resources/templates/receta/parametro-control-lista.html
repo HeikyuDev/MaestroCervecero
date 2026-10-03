@@ -25,7 +25,7 @@
           class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
         <div class="md:col-span-2">
             <label for="nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
-            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off" placeholder="Ej: Temperatura de maceración"
+            <input type="text" id="nombre" name="nombre" th:value="${filtroNombre}" autocomplete="off" placeholder="Ej: Temperatura"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
@@ -53,7 +53,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="x : ${parametrosControl.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${x.nombre}">Temperatura de maceración</td>
+                <td class="px-4 py-3 font-medium text-slate-900" th:text="${x.nombre}">Temperatura</td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${x.unidadDeMedida}">°C</td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${x.valorMinimo})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${x.valorMaximo})}"></th:block></td>

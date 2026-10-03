@@ -317,7 +317,7 @@ class RecetaServicioImplTest {
     @Test
     @DisplayName("CP-AR-04: altaReceta lanza ReglaNegocioException cuando la OG objetivo es igual a la FG objetivo (límite)")
     void altaReceta_debeRechazarOgIgualAFg() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.010).fgObjetivo(1.010).build());
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.030).fgObjetivo(1.030).build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -329,7 +329,7 @@ class RecetaServicioImplTest {
     @Test
     @DisplayName("CP-AR-05: altaReceta lanza ReglaNegocioException cuando la OG objetivo es menor a la FG objetivo")
     void altaReceta_debeRechazarOgMenorAFg() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.005).fgObjetivo(1.010).build());
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.020).fgObjetivo(1.030).build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -1078,6 +1078,153 @@ class RecetaServicioImplTest {
         verify(recetaRepository).save(any(RecetaEntity.class));
     }
 
+    @Test
+    @DisplayName("CP-AR-51: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo es menor a 1,020 (límite inferior inválido)")
+    void altaReceta_debeRechazarOgBajoRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.019).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-52: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo es mayor a 1,120 (límite superior inválido)")
+    void altaReceta_debeRechazarOgSobreRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.121).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-53: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo tiene cuatro decimales")
+    void altaReceta_debeRechazarOgConCuatroDecimales() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.0505).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-54: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo es nula")
+    void altaReceta_debeRechazarOgNula() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(null).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-55: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo es menor a 1,000 (límite inferior inválido)")
+    void altaReceta_debeRechazarFgBajoRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(0.999).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-56: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo es mayor a 1,040 (límite superior inválido)")
+    void altaReceta_debeRechazarFgSobreRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(1.041).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-57: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo tiene cuatro decimales")
+    void altaReceta_debeRechazarFgConCuatroDecimales() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(1.0105).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-58: altaReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo es nula")
+    void altaReceta_debeRechazarFgNula() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(null).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-59: altaReceta persiste y retorna DTO cuando la OG y la FG están en sus límites inferiores válidos (1,020 y 1,000)")
+    void altaReceta_debePersistirConOgYFgEnLimiteInferior() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().ogObjetivo(1.020).fgObjetivo(1.000).build();
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
+        mockearAltaExitosa(versionFormDTO);
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getVersion().getOgObjetivo()).isEqualTo(1.020);
+        assertThat(resultado.getVersion().getFgObjetivo()).isEqualTo(1.000);
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AR-60: altaReceta persiste y retorna DTO cuando la OG y la FG están en sus límites superiores válidos (1,120 y 1,040)")
+    void altaReceta_debePersistirConOgYFgEnLimiteSuperior() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().ogObjetivo(1.120).fgObjetivo(1.040).build();
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
+        mockearAltaExitosa(versionFormDTO);
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getVersion().getOgObjetivo()).isEqualTo(1.120);
+        assertThat(resultado.getVersion().getFgObjetivo()).isEqualTo(1.040);
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AR-61: altaReceta persiste y retorna DTO cuando la OG y la FG tienen dos y tres decimales (1,05 y 1,015)")
+    void altaReceta_debePersistirConOgYFgConHastaTresDecimales() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().ogObjetivo(1.05).fgObjetivo(1.015).build();
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
+        mockearAltaExitosa(versionFormDTO);
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getVersion().getOgObjetivo()).isEqualTo(1.05);
+        assertThat(resultado.getVersion().getFgObjetivo()).isEqualTo(1.015);
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
     // ==================== modificarReceta ====================
 
     @Test
@@ -1375,6 +1522,102 @@ class RecetaServicioImplTest {
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Un plan de monitoreo no puede repetir el mismo parámetro de control");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-19: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo es menor a 1,020 (límite inferior inválido)")
+    void modificarReceta_debeRechazarOgBajoRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.019).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-20: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo es mayor a 1,120 (límite superior inválido)")
+    void modificarReceta_debeRechazarOgSobreRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.121).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-21: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo tiene cuatro decimales")
+    void modificarReceta_debeRechazarOgConCuatroDecimales() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(1.0505).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-22: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la OG objetivo es nula")
+    void modificarReceta_debeRechazarOgNula() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ogObjetivo(null).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-23: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo es menor a 1,000 (límite inferior inválido)")
+    void modificarReceta_debeRechazarFgBajoRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(0.999).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-24: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo es mayor a 1,040 (límite superior inválido)")
+    void modificarReceta_debeRechazarFgSobreRango() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(1.041).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-25: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo tiene cuatro decimales")
+    void modificarReceta_debeRechazarFgConCuatroDecimales() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(1.0105).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-26: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la FG objetivo es nula")
+    void modificarReceta_debeRechazarFgNula() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().fgObjetivo(null).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
 
         verifyNoRepositoryInteractions();
     }

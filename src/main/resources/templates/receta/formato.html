@@ -6,12 +6,16 @@
 
     etapa(valor): nombre legible de una etapa del proceso (los valores del enum no llevan tilde).
     numero(valor): un número sin ceros sobrantes, con coma decimal (62.0 se muestra "62" y 1.5 "1,5").
+    medida(valor, unidad): el mismo número seguido de su unidad ("4,5 kg", "30 g", "60 min"). Las filas que
+    agrega /js/receta-form.js usan el mismo formato.
     usoLupulo(valor): nombre legible del uso de un lúpulo (Hervor, Whirlpool, Dry hop).
     tipoMalta(valor), formatoLupulo(valor), tipoLevadura(valor): nombre legible de cada enum de insumo.
 -->
 <th:block th:fragment="etapa(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'MOLIENDA'">Molienda</th:block><th:block th:case="'MACERACION'">Maceración</th:block><th:block th:case="'HERVIDO'">Hervido</th:block><th:block th:case="'FERMENTACION'">Fermentación</th:block><th:block th:case="'MADURACION'">Maduración</th:block><th:block th:case="'ENVASADO'">Envasado</th:block></th:block>
 
 <th:block th:fragment="numero(valor)"><th:block th:if="${valor != null}" th:text="${valor == valor.intValue()} ? ${#numbers.formatInteger(valor.intValue(), 1, 'POINT')} : ${#strings.replace(valor, '.', ',')}">62</th:block></th:block>
+
+<th:block th:fragment="medida(valor, unidad)"><th:block th:if="${valor != null}" th:text="${(valor == valor.intValue() ? #numbers.formatInteger(valor.intValue(), 1, 'POINT') : #strings.replace(valor, '.', ',')) + ' ' + unidad}">4,5 kg</th:block></th:block>
 
 <!-- gravedad(valor): densidad (OG/FG) con tres decimales fijos y coma decimal (1.050 se muestra "1,050"). -->
 <th:block th:fragment="gravedad(valor)"><th:block th:if="${valor != null}" th:text="${#numbers.formatDecimal(valor, 1, 3, 'COMMA')}">1,050</th:block></th:block>

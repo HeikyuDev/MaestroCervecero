@@ -23,6 +23,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloR
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
+import com.github.heikyudev.maestrocervecero.util.formatter.GravedadFormatter;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperRecetaForm;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -86,6 +89,16 @@ public class RecetaController {
     private final ILevaduraServicio levaduraServicio;
     private final IEtapaControlServicio etapaControlServicio;
     private final IParametroControlServicio parametroControlServicio;
+
+    /**
+     * La OG y la FG se ingresan con cuatro dígitos ({@code 1050} equivale a 1,050): el
+     * {@link GravedadFormatter} las convierte al enlazar el formulario y las vuelve a mostrar así.
+     */
+    @InitBinder
+    public void configurarFormateoDeDensidades(WebDataBinder binder) {
+        GravedadFormatter formatter = new GravedadFormatter();
+        binder.addCustomFormatter(formatter, "version.ogObjetivo", "version.fgObjetivo");
+    }
 
     /**
      * Lista las recetas activas, paginadas de a 20. El criterio (nombre de la versión vigente) es

@@ -41,8 +41,8 @@ Se concentran las reglas de negocio de la versión inicial. En todos los casos d
 |**CP-AR-01**|Volumen base en cero _(Límite)_| `volumenBase: 0.0`                                                                                     |`volumenBase == null \| <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
 |**CP-AR-02**|Volumen base nulo| `volumenBase: null`                                                                                    |`volumenBase == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-AR-03**|Relación de empaste en cero _(Límite)_| `relacionDeEmpaste: 0.0`                                                                               |`relacionDeEmpaste == null \| <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-AR-04**|OG objetivo igual a FG objetivo _(Límite)_| `ogObjetivo: 1.010`, `fgObjetivo: 1.010`                                                               |`ogObjetivo <= fgObjetivo` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-AR-05**|OG objetivo menor a FG objetivo| `ogObjetivo: 1.005`, `fgObjetivo: 1.010`                                                               |`ogObjetivo <= fgObjetivo` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-AR-04**|OG objetivo igual a FG objetivo _(Límite)_| `ogObjetivo: 1.030`, `fgObjetivo: 1.030`                                                               |`ogObjetivo <= fgObjetivo` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-AR-05**|OG objetivo menor a FG objetivo| `ogObjetivo: 1.020`, `fgObjetivo: 1.030`                                                               |`ogObjetivo <= fgObjetivo` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-AR-06**|IBU objetivo negativo _(Límite inf.)_| `ibuObjetivo: -1`                                                                                      |`ibuObjetivo == null \| < 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-AR-07**|IBU objetivo en cero _(Límite válido)_| `ibuObjetivo: 0`, resto del DTO válido                                                               |`ibuObjetivo < 0` $\rightarrow$ **FALSE**|Persiste la receta y retorna DTO con `ibuObjetivo = 0`.|
 |**CP-AR-08**|Duración de maceración en cero _(Límite)_| `duracionMaceracion: 0`                                                                                |`duracionMaceracion == null \| <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
@@ -88,10 +88,21 @@ Se concentran las reglas de negocio de la versión inicial. En todos los casos d
 |**CP-AR-48**|Plan de monitoreo sin parámetros de control|1 plan con `detallesParametroControl: List.of()`|`detallesParametroControl == null \| isEmpty()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "Cada plan de monitoreo debe tener al menos un parámetro de control". No consulta la BD.|
 |**CP-AR-49**|Parámetro de control repetido dentro de un plan|1 plan con 2 detalles con el mismo `idParametroControl: 1L`|`hayRepetidos(idParametroControl)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "Un plan de monitoreo no puede repetir el mismo parámetro de control". No consulta la BD.|
 |**CP-AR-50**|Mismo parámetro de control en planes de distinta etapa _(Válido)_|2 planes con `idEtapaControl: 1L` y `2L`, ambos con el parámetro `idParametroControl: 1L`|Etapas de control distintas y parámetros únicos dentro de cada plan $\rightarrow$ **FALSE**|Persiste la receta con 2 planes de monitoreo.|
+|**CP-AR-51**|OG objetivo menor al mínimo _(Límite inf. inválido)_|`ogObjetivo: 1.019`|`ogObjetivo` fuera de 1,020 a 1,120 $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)". No consulta la BD.|
+|**CP-AR-52**|OG objetivo mayor al máximo _(Límite sup. inválido)_|`ogObjetivo: 1.121`|`ogObjetivo` fuera de 1,020 a 1,120 $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de OG. No consulta la BD.|
+|**CP-AR-53**|OG objetivo con cuatro decimales|`ogObjetivo: 1.0505`|`ogObjetivo` con más de 3 decimales $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de OG. No consulta la BD.|
+|**CP-AR-54**|OG objetivo nula|`ogObjetivo: null`|`ogObjetivo == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de OG. No consulta la BD.|
+|**CP-AR-55**|FG objetivo menor al mínimo _(Límite inf. inválido)_|`fgObjetivo: 0.999`|`fgObjetivo` fuera de 1,000 a 1,040 $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)". No consulta la BD.|
+|**CP-AR-56**|FG objetivo mayor al máximo _(Límite sup. inválido)_|`fgObjetivo: 1.041`|`fgObjetivo` fuera de 1,000 a 1,040 $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de FG. No consulta la BD.|
+|**CP-AR-57**|FG objetivo con cuatro decimales|`fgObjetivo: 1.0105`|`fgObjetivo` con más de 3 decimales $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de FG. No consulta la BD.|
+|**CP-AR-58**|FG objetivo nula|`fgObjetivo: null`|`fgObjetivo == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de FG. No consulta la BD.|
+|**CP-AR-59**|OG y FG en los límites inferiores _(Válido)_|`ogObjetivo: 1.020`, `fgObjetivo: 1.000`|Ambas densidades dentro de rango y con a lo sumo 3 decimales $\rightarrow$ **FALSE**|Persiste la receta con OG 1.020 y FG 1.000.|
+|**CP-AR-60**|OG y FG en los límites superiores _(Válido)_|`ogObjetivo: 1.120`, `fgObjetivo: 1.040`|Ambas densidades dentro de rango y con a lo sumo 3 decimales $\rightarrow$ **FALSE**|Persiste la receta con OG 1.120 y FG 1.040.|
+|**CP-AR-61**|OG y FG con dos y tres decimales _(Válido)_|`ogObjetivo: 1.05`, `fgObjetivo: 1.015`|Ambas densidades dentro de rango y con a lo sumo 3 decimales $\rightarrow$ **FALSE**|Persiste la receta con OG 1.05 y FG 1.015.|
 
 ### 6. `modificarReceta(Long id, RecetaFormDTO recetaFormDTO)`
 
-Valida el versionado, los fallos por reglas de negocio y la existencia del registro. Las validaciones de datos generales, detalles y rangos son las mismas del alta (**CP-AR-01** a **CP-AR-22**, **CP-AR-30** a **CP-AR-34** y **CP-AR-37** a **CP-AR-50**), por lo que se agrupan por validador.
+Valida el versionado, los fallos por reglas de negocio y la existencia del registro. Las validaciones de datos generales, detalles y rangos son las mismas del alta (**CP-AR-01** a **CP-AR-22**, **CP-AR-30** a **CP-AR-34** y **CP-AR-37** a **CP-AR-61**), por lo que se agrupan por validador.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -113,6 +124,14 @@ Valida el versionado, los fallos por reglas de negocio y la existencia del regis
 |**CP-MR-16**|Falla por misma etapa de control en dos planes|`id: 1L`, 2 planes con el mismo `idEtapaControl`|`validarPlanesMonitoreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-17**|Falla por plan de monitoreo sin parámetros|`id: 1L`, 1 plan con `detallesParametroControl: List.of()`|`validarPlanesMonitoreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-18**|Falla por parámetro de control repetido en un plan|`id: 1L`, 1 plan con 2 detalles con el mismo `idParametroControl`|`validarPlanesMonitoreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-19**|Falla: OG objetivo menor al mínimo _(Límite inf. inválido)_|`id: 1L`, `ogObjetivo: 1.019`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-20**|Falla: OG objetivo mayor al máximo _(Límite sup. inválido)_|`id: 1L`, `ogObjetivo: 1.121`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-21**|Falla: OG objetivo con cuatro decimales|`id: 1L`, `ogObjetivo: 1.0505`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-22**|Falla: OG objetivo nula|`id: 1L`, `ogObjetivo: null`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-23**|Falla: FG objetivo menor al mínimo _(Límite inf. inválido)_|`id: 1L`, `fgObjetivo: 0.999`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-24**|Falla: FG objetivo mayor al máximo _(Límite sup. inválido)_|`id: 1L`, `fgObjetivo: 1.041`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-25**|Falla: FG objetivo con cuatro decimales|`id: 1L`, `fgObjetivo: 1.0105`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
+|**CP-MR-26**|Falla: FG objetivo nula|`id: 1L`, `fgObjetivo: null`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 
 ### 7. `bajaReceta(Long id)`
 

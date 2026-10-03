@@ -435,25 +435,34 @@ class RecetaControllerTest {
                 .andExpect(view().name("receta/receta-form"))
                 .andExpect(content().string(containsString("Nueva receta")))
                 .andExpect(content().string(containsString("action=\"/recetas\"")))
-                .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString("Datos de la receta")))
+                .andExpect(content().string(containsString("Objetivos de la receta")))
+                .andExpect(content().string(containsString("escala los insumos de la receta para llegar a ellos")))
                 .andExpect(content().string(containsString("Duraciones estimadas")))
                 .andExpect(content().string(containsString("Maltas")))
                 .andExpect(content().string(containsString("Plan de monitoreo")))
-                .andExpect(content().string(containsString("Unidades: volumen base en litros, relaci")))
-                .andExpect(content().string(containsString("maceraci")))
                 // Placeholders de ejemplo en todos los campos
                 .andExpect(content().string(containsString("placeholder=\"Ej: Pale Ale\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 20\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 3\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: 1,050\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: 1,010\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: 1050\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: 1010\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 35\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 60\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 90\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 10\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 7\"")))
-                // Las unidades van solo en la cabecera de cada seccion, no en las etiquetas
-                .andExpect(content().string(not(containsString("Volumen base (L)"))))
+                // Las unidades van en la etiqueta de cada campo y en la cabecera de cada columna
+                .andExpect(content().string(containsString("Volumen base (litros)")))
+                .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
+                .andExpect(content().string(containsString("IBU objetivo (IBU)")))
+                .andExpect(content().string(containsString("Maceración (minutos)")))
+                .andExpect(content().string(containsString("Hervido (minutos)")))
+                .andExpect(content().string(containsString("Fermentación (días)")))
+                .andExpect(content().string(containsString("Maduración (días)")))
+                .andExpect(content().string(containsString("Cantidad (kg)")))
+                .andExpect(content().string(containsString("Cantidad (g)")))
+                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
                 // Botones de agregar y tablas vacias con su texto
                 .andExpect(content().string(containsString("Agregar malta")))
                 .andExpect(content().string(containsString("Agregar lúpulo")))
@@ -496,9 +505,9 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Seleccionar lúpulo\"")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccionar levadura\"")))
                 .andExpect(content().string(containsString("bi bi-list-ul")))
-                // Unidades en el encabezado y placeholders de ejemplo de la cantidad
-                .andExpect(content().string(containsString("La cantidad se carga en kilogramos.")))
-                .andExpect(content().string(containsString("La cantidad se carga en gramos y el tiempo de hervor en minutos.")))
+                // Unidades en la etiqueta de cada campo y placeholders de ejemplo de la cantidad
+                .andExpect(content().string(containsString("Cantidad (kg) <span")))
+                .andExpect(content().string(containsString("Cantidad (g) <span")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 4,5\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 25\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 11,5\"")))
@@ -506,7 +515,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("<option value=\"HERVOR\">Hervor</option>")))
                 .andExpect(content().string(containsString("<option value=\"WHIRLPOOL\">Whirlpool</option>")))
                 .andExpect(content().string(containsString("<option value=\"DRY_HOP\">Dry hop</option>")))
-                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
+                .andExpect(content().string(containsString("Tiempo de hervor (minutos)")))
                 .andExpect(content().string(containsString("data-grupo=\"tiempoDeHervor\"")))
                 .andExpect(content().string(containsString("data-grupo=\"etapaDeUso\"")))
                 .andExpect(content().string(containsString("<option value=\"FERMENTACION\">")))
@@ -564,6 +573,9 @@ class RecetaControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesMalta\\[0\\]\\.idMalta\"[^>]*value=\"1\".*")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesMalta\\[0\\]\\.cantidad\"[^>]*value=\"4\\.5\".*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-celda=\"nombre\">Pilsen<.*")))
+                // Cada cantidad de la fila se muestra con su unidad
+                .andExpect(content().string(matchesPattern("(?s).*data-celda=\"cantidad\">4,5 kg<.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-celda=\"cantidad\">11,5 g<.*")))
                 // Levadura
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLevadura\\[0\\]\\.idLevadura\"[^>]*value=\"1\".*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-celda=\"nombre\">US-05<.*")))
@@ -803,7 +815,7 @@ class RecetaControllerTest {
         mockMvc.perform(recetaValida(post("/recetas")))
                 .andExpect(status().isOk())
                 .andExpect(matchesPatternLocal("name=\"version\\.nombre\"[^>]*value=\"Pale Ale\""))
-                .andExpect(matchesPatternLocal("name=\"version\\.ogObjetivo\"[^>]*value=\"1\\.05\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.ogObjetivo\"[^>]*value=\"1050\""))
                 .andExpect(matchesPatternLocal("name=\"version\\.duracionMaduracion\"[^>]*value=\"7\""))
                 // Filas ya cargadas, con el nombre que resuelve el servidor
                 .andExpect(matchesPatternLocal("name=\"version\\.detallesMalta\\[0\\]\\.idMalta\"[^>]*value=\"1\""))
@@ -1049,6 +1061,77 @@ class RecetaControllerTest {
         verify(levaduraServicio, never()).filtrarLevaduras(any(), any(), any());
     }
 
+    // ==================== OG y FG con cuatro dígitos ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-45: la OG y la FG ingresadas con cuatro dígitos (1050 y 1010) llegan al service como 1.05 y 1.01, en el alta y en la modificación")
+    void alta_ymodificacion_debenConvertirLosCuatroDigitosEnDensidades() throws Exception {
+        mockMvc.perform(recetaValida(post("/recetas"), "version.ogObjetivo", "1050", "version.fgObjetivo", "1010"))
+                .andExpect(redirectedUrl("/recetas"));
+        mockMvc.perform(recetaValida(post("/recetas/7"), "version.ogObjetivo", "1085", "version.fgObjetivo", "1000"))
+                .andExpect(redirectedUrl("/recetas"));
+
+        ArgumentCaptor<RecetaFormDTO> alta = ArgumentCaptor.forClass(RecetaFormDTO.class);
+        verify(recetaServicio).altaReceta(alta.capture());
+        assertThat(alta.getValue().getVersion().getOgObjetivo()).isEqualTo(1.05);
+        assertThat(alta.getValue().getVersion().getFgObjetivo()).isEqualTo(1.01);
+
+        ArgumentCaptor<RecetaFormDTO> modificacion = ArgumentCaptor.forClass(RecetaFormDTO.class);
+        verify(recetaServicio).modificarReceta(eq(7L), modificacion.capture());
+        assertThat(modificacion.getValue().getVersion().getOgObjetivo()).isEqualTo(1.085);
+        assertThat(modificacion.getValue().getVersion().getFgObjetivo()).isEqualTo(1.0);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-46: una OG o FG que no tiene exactamente cuatro dígitos (\"105\", \"10500\", \"1,050\", \"abcd\") vuelve al formulario con el error del campo y sin llamar al service")
+    void alta_ymodificacion_debenRechazarDensidadesSinCuatroDigitos() throws Exception {
+        for (String invalido : List.of("105", "10500", "1,050", "abcd")) {
+            mockMvc.perform(recetaValida(post("/recetas"), "version.ogObjetivo", invalido))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("receta/receta-form"))
+                    .andExpect(content().string(containsString("No se pudo crear la receta")))
+                    .andExpect(content().string(containsString("La OG debe tener exactamente cuatro dígitos, por ejemplo 1050 (equivale a 1,050)")))
+                    // Se vuelve a mostrar lo que el usuario escribió y el campo queda marcado
+                    .andExpect(matchesPatternLocal("name=\"version\\.ogObjetivo\"[^>]*value=\"" + java.util.regex.Pattern.quote(invalido) + "\""));
+        }
+        mockMvc.perform(recetaValida(post("/recetas"), "version.fgObjetivo", "10500"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("La FG debe tener exactamente cuatro dígitos, por ejemplo 1010 (equivale a 1,010)")));
+        mockMvc.perform(recetaValida(post("/recetas/7"), "version.fgObjetivo", "abcd"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo modificar la receta")))
+                .andExpect(content().string(containsString("La FG debe tener exactamente cuatro dígitos, por ejemplo 1010 (equivale a 1,010)")));
+
+        verify(recetaServicio, never()).altaReceta(any());
+        verify(recetaServicio, never()).modificarReceta(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-47: los campos de OG y FG son de texto numérico de cuatro dígitos con su ayuda; el formulario de modificación los muestra como 1050 y 1010, y el detalle y el listado siguen mostrando 1,050 y 1,010")
+    void formularios_debenMostrarLasDensidadesConCuatroDigitos() throws Exception {
+        mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("type=\"text\"[^>]*id=\"ogObjetivo\"[^>]*inputmode=\"numeric\"[^>]*pattern=\"\\[0-9\\]\\{4\\}\"[^>]*maxlength=\"4\""))
+                .andExpect(matchesPatternLocal("type=\"text\"[^>]*id=\"fgObjetivo\"[^>]*inputmode=\"numeric\"[^>]*pattern=\"\\[0-9\\]\\{4\\}\"[^>]*maxlength=\"4\""))
+                .andExpect(content().string(containsString("4 dígitos: 1050 equivale a 1,050 (entre 1020 y 1120)")))
+                .andExpect(content().string(containsString("4 dígitos: 1010 equivale a 1,010 (entre 1000 y 1040)")));
+
+        when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
+        stubInsumos();
+        mockMvc.perform(get("/recetas/7/editar"))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("name=\"version\\.ogObjetivo\"[^>]*value=\"1050\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.fgObjetivo\"[^>]*value=\"1010\""));
+
+        mockMvc.perform(get("/recetas/7"))
+                .andExpect(content().string(containsString(">1,050<")))
+                .andExpect(content().string(containsString(">1,010<")));
+    }
+
     // ==================== datos de prueba ====================
 
     /**
@@ -1075,8 +1158,8 @@ class RecetaControllerTest {
         p.add("version.nombre", "Pale Ale");
         p.add("version.volumenBase", "20");
         p.add("version.relacionDeEmpaste", "3");
-        p.add("version.ogObjetivo", "1.05");
-        p.add("version.fgObjetivo", "1.01");
+        p.add("version.ogObjetivo", "1050");
+        p.add("version.fgObjetivo", "1010");
         p.add("version.ibuObjetivo", "35");
         p.add("version.duracionMaceracion", "60");
         p.add("version.duracionHervido", "90");

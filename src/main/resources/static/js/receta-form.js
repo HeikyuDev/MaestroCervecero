@@ -37,17 +37,20 @@
         malta: {
             campoId: 'idMalta',
             mensajeInsumo: 'Elegí una malta.',
-            mensajeDuplicado: 'Esa malta ya está en la receta.'
+            mensajeDuplicado: 'Esa malta ya está en la receta.',
+            unidad: 'kg'
         },
         lupulo: {
             campoId: 'idLupulo',
             mensajeInsumo: 'Elegí un lúpulo.',
-            mensajeDuplicado: 'Ese lúpulo ya está en la receta con el mismo uso y el mismo tiempo de hervor.'
+            mensajeDuplicado: 'Ese lúpulo ya está en la receta con el mismo uso y el mismo tiempo de hervor.',
+            unidad: 'g'
         },
         levadura: {
             campoId: 'idLevadura',
             mensajeInsumo: 'Elegí una levadura.',
-            mensajeDuplicado: 'Esa levadura ya está en la receta.'
+            mensajeDuplicado: 'Esa levadura ya está en la receta.',
+            unidad: 'g'
         }
     };
 
@@ -58,9 +61,15 @@
         return campo.value === '' ? NaN : Number(campo.value);
     }
 
-    /** Número tal como lo muestra el servidor: sin ceros sobrantes y con coma decimal. */
-    function formatear(numero) {
-        return String(numero).replace('.', ',');
+    /**
+     * Cantidad con su unidad tal como la muestra el servidor (receta/formato :: medida): sin ceros
+     * sobrantes, con coma decimal y punto como separador de miles en los enteros ("4,5 kg", "1.500 g").
+     */
+    function formatear(numero, unidad) {
+        var texto = Number.isInteger(numero)
+            ? String(numero).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+            : String(numero).replace('.', ',');
+        return texto + ' ' + unidad;
     }
 
     function campoModal(dialogo, nombre) {
@@ -191,7 +200,7 @@
         var campos = {};
         campos[cfg.campoId] = id;
         campos.cantidad = String(cantidad);
-        var celdas = {nombre: nombre, cantidad: formatear(cantidad)};
+        var celdas = {nombre: nombre, cantidad: formatear(cantidad, cfg.unidad)};
 
         if (tipo === 'lupulo') {
             var uso = campoModal(dialogo, 'uso').value;
@@ -213,7 +222,7 @@
             campos.etapaDeUso = etapa;
             celdas.uso = USOS[uso];
             celdas.etapaDeUso = ETAPAS[etapa];
-            celdas.tiempoDeHervor = uso === 'HERVOR' ? formatear(campos.tiempoDeHervor) : '-';
+            celdas.tiempoDeHervor = uso === 'HERVOR' ? formatear(Number(campos.tiempoDeHervor), 'min') : '-';
         }
 
         return {errores: errores, datos: {campos: campos, celdas: celdas}};

@@ -52,6 +52,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,6 +63,12 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class RecetaServicioImpl implements IRecetaServicio {
+
+    private static final BigDecimal OG_MINIMA = new BigDecimal("1.020");
+    private static final BigDecimal OG_MAXIMA = new BigDecimal("1.120");
+    private static final BigDecimal FG_MINIMA = new BigDecimal("1.000");
+    private static final BigDecimal FG_MAXIMA = new BigDecimal("1.040");
+    private static final int GRAVEDAD_MAX_DECIMALES = 3;
 
     private final IRecetaRepository recetaRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
@@ -292,6 +299,26 @@ public class RecetaServicioImpl implements IRecetaServicio {
     // === VALIDACIONES DE DATOS GENERALES DE LA VERSIÓN ===
 
     /**
+     * Indica si una densidad objetivo está dentro del rango permitido (ambos extremos incluidos)
+     * y tiene como máximo tres decimales. La comparación se hace con {@link BigDecimal} para
+     * evitar errores de representación de punto flotante.
+     *
+     * @param gravedad Densidad a evaluar (puede ser {@code null}).
+     * @param minima   Valor mínimo permitido.
+     * @param maxima   Valor máximo permitido.
+     * @return {@code true} si la densidad no es nula, está en rango y tiene a lo sumo tres decimales.
+     */
+    private static boolean esGravedadValida(Double gravedad, BigDecimal minima, BigDecimal maxima) {
+        if (gravedad == null || gravedad.isNaN() || gravedad.isInfinite()) {
+            return false;
+        }
+        BigDecimal valor = BigDecimal.valueOf(gravedad).stripTrailingZeros();
+        return valor.scale() <= GRAVEDAD_MAX_DECIMALES
+                && valor.compareTo(minima) >= 0
+                && valor.compareTo(maxima) <= 0;
+    }
+
+    /**
      * Valida los datos generales de la versión de receta: volumen base, relación de empaste,
      * densidades objetivo (OG/FG), IBU objetivo y duraciones estimadas de cada etapa.
      *
@@ -305,8 +332,13 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (versionFormDTO.getRelacionDeEmpaste() == null || versionFormDTO.getRelacionDeEmpaste() <= 0) {
             throw new ReglaNegocioException("La relación de empaste debe ser mayor a 0");
         }
-        if (versionFormDTO.getOgObjetivo() == null || versionFormDTO.getFgObjetivo() == null
-                || versionFormDTO.getOgObjetivo() <= versionFormDTO.getFgObjetivo()) {
+        if (!esGravedadValida(versionFormDTO.getOgObjetivo(), OG_MINIMA, OG_MAXIMA)) {
+            throw new ReglaNegocioException("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+        }
+        if (!esGravedadValida(versionFormDTO.getFgObjetivo(), FG_MINIMA, FG_MAXIMA)) {
+            throw new ReglaNegocioException("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+        }
+        if (versionFormDTO.getOgObjetivo() <= versionFormDTO.getFgObjetivo()) {
             throw new ReglaNegocioException("La densidad original objetivo (OG) debe ser mayor a la densidad final objetivo (FG)");
         }
         if (versionFormDTO.getIbuObjetivo() == null || versionFormDTO.getIbuObjetivo() < 0) {

@@ -21,7 +21,7 @@
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesMalta[${indice}].cantidad|" th:value="${cantidad}">
         <span data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Malta no disponible'">Pilsen</span>
     </td>
-    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: numero(${cantidad})}"></th:block></td>
+    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'kg')}"></th:block></td>
     <td class="px-4 py-3 text-right">
         <button type="button" data-quitar-fila
                 class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
@@ -43,10 +43,10 @@
     <td class="px-4 py-3 text-slate-700" data-celda="uso"><th:block th:replace="~{receta/formato :: usoLupulo(${uso})}"></th:block></td>
     <td class="px-4 py-3 text-slate-700" data-celda="etapaDeUso"><th:block th:replace="~{receta/formato :: etapa(${etapaDeUso})}"></th:block></td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="tiempoDeHervor">
-        <th:block th:if="${conTiempo}"><th:block th:replace="~{receta/formato :: numero(${tiempoDeHervor})}"></th:block></th:block>
+        <th:block th:if="${conTiempo}"><th:block th:replace="~{receta/formato :: medida(${tiempoDeHervor}, 'min')}"></th:block></th:block>
         <th:block th:unless="${conTiempo}">-</th:block>
     </td>
-    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: numero(${cantidad})}"></th:block></td>
+    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>
     <td class="px-4 py-3 text-right">
         <button type="button" data-quitar-fila
                 class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
@@ -61,7 +61,7 @@
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesLevadura[${indice}].cantidad|" th:value="${cantidad}">
         <span data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Levadura no disponible'">US-05</span>
     </td>
-    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: numero(${cantidad})}"></th:block></td>
+    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>
     <td class="px-4 py-3 text-right">
         <button type="button" data-quitar-fila
                 class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
