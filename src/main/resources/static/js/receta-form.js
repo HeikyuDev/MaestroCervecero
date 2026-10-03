@@ -394,6 +394,16 @@
         }
     });
 
+    // Al elegir algo en un selector de una ventana, el aviso de "falta elegir" deja de tener sentido
+    document.addEventListener('selector:cambio', function (evento) {
+        var selector = evento.target;
+        var ventana = selector.closest('dialog');
+        if (!ventana || !evento.detail || !evento.detail.id) { return; }
+        var bloque = selector.closest('[data-bloque]');
+        var aviso = ventana.querySelector('[data-error="' + (bloque ? bloque.getAttribute('data-bloque') : 'insumo') + '"]');
+        if (aviso) { aviso.hidden = true; }
+    });
+
     // Al elegir (o quitar) la etapa de control o el parámetro, el selector guarda los datos que necesita el plan
     document.addEventListener('selector:cambio', function (evento) {
         var selector = evento.target;
