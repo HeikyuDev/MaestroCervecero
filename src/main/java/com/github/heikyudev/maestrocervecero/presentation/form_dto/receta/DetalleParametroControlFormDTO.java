@@ -22,16 +22,19 @@ public class DetalleParametroControlFormDTO {
     /**
      * Valor mínimo planificado para el parámetro de control en la receta.
      */
+    @NotNull(message = "El valor mínimo de cada parámetro de control es obligatorio")
     private Double valorMinimo;
 
     /**
      * Valor máximo planificado para el parámetro de control en la receta.
      */
+    @NotNull(message = "El valor máximo de cada parámetro de control es obligatorio")
     private Double valorMaximo;
 
     /**
      * Valor ideal planificado para el parámetro de control en la receta.
      */
+    @NotNull(message = "El valor ideal de cada parámetro de control es obligatorio")
     private Double valorIdeal;
 
     /**

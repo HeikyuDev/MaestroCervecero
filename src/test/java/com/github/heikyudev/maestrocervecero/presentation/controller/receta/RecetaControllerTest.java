@@ -428,7 +428,7 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-RCC-20: el formulario de alta muestra las seis secciones, los placeholders de ejemplo, los botones de agregar y ninguna opción de crear insumos")
+    @DisplayName("CP-RCC-20: el formulario de alta muestra las secciones, los placeholders de ejemplo, los botones de agregar y ninguna opción de crear insumos, etapas ni parámetros")
     void formularioAlta_debeMostrarLasSeccionesYLosCamposVacios() throws Exception {
         mockMvc.perform(get("/recetas/nuevo"))
                 .andExpect(status().isOk())
@@ -474,12 +474,11 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Todavía no agregaste lúpulos a la receta.")))
                 .andExpect(content().string(containsString("Todavía no agregaste levaduras a la receta.")))
                 .andExpect(content().string(containsString("La receta no tiene plan de monitoreo.")))
-                // Sin alta contextual de insumos ni boton de planes en este paso
+                .andExpect(content().string(containsString("Agregar plan de monitoreo")))
+                // Sin alta contextual de insumos, etapas ni parametros
                 .andExpect(content().string(not(containsString("data-selector-alta"))))
                 .andExpect(content().string(not(containsString("data-selector-menu"))))
                 .andExpect(content().string(not(containsString("Crear nuev"))))
-                .andExpect(content().string(not(containsString("Agregar plan"))))
-                .andExpect(content().string(containsString("data-region=\"edicion-planes\"")))
                 // Acciones y comportamiento
                 .andExpect(content().string(containsString("href=\"/recetas\"")))
                 .andExpect(content().string(containsString("Crear receta")))
@@ -612,25 +611,29 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-RCC-25: el plan de monitoreo existente se muestra de solo lectura y se conserva con campos ocultos indexados")
-    void formularioEdicion_debeConservarElPlanDeMonitoreoConCamposOcultos() throws Exception {
+    @DisplayName("CP-RCC-25: el plan de monitoreo existente se muestra en un bloque por plan, con cada valor y su unidad, y se conserva con campos ocultos indexados de dos niveles")
+    void formularioEdicion_debeMostrarYConservarElPlanDeMonitoreo() throws Exception {
         when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
         stubInsumos();
 
         mockMvc.perform(get("/recetas/7/editar"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Control de densidad")))
-                .andExpect(content().string(matchesPattern("(?s).*etapa a controlar: Fermentaci.*")))
-                .andExpect(content().string(containsString(">SG<")))
-                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.planesMonitoreo\\[0\\]\\.idEtapaControl\"[^>]*value=\"1\".*")))
-                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.planesMonitoreo\\[0\\]\\.detallesParametroControl\\[0\\]\\.idParametroControl\"[^>]*value=\"1\".*")))
-                .andExpect(content().string(matchesPattern("(?s).*detallesParametroControl\\[0\\]\\.valorMinimo\"[^>]*value=\"1\\.01\".*")))
-                .andExpect(content().string(matchesPattern("(?s).*detallesParametroControl\\[0\\]\\.valorIdeal\"[^>]*value=\"1\\.012\".*")))
-                .andExpect(content().string(matchesPattern("(?s).*detallesParametroControl\\[0\\]\\.valorMaximo\"[^>]*value=\"1\\.015\".*")))
-                .andExpect(content().string(not(containsString("La receta no tiene plan de monitoreo."))))
-                // En este paso no hay botones para agregar ni quitar planes
-                .andExpect(content().string(not(containsString("Agregar plan"))))
-                .andExpect(content().string(containsString("data-region=\"edicion-planes\"")));
+                .andExpect(matchesPatternLocal("etapa a controlar: <span data-celda=\"etapa\">Fermentaci"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Densidad<"))
+                // Cada valor se muestra con la unidad del parametro
+                .andExpect(matchesPatternLocal("data-celda=\"valorMinimo\">1,01 SG<"))
+                .andExpect(matchesPatternLocal("data-celda=\"valorIdeal\">1,012 SG<"))
+                .andExpect(matchesPatternLocal("data-celda=\"valorMaximo\">1,015 SG<"))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[0\\]\\.idEtapaControl\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[0\\]\\.detallesParametroControl\\[0\\]\\.idParametroControl\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("detallesParametroControl\\[0\\]\\.valorMinimo\"[^>]*value=\"1\\.01\""))
+                .andExpect(matchesPatternLocal("detallesParametroControl\\[0\\]\\.valorIdeal\"[^>]*value=\"1\\.012\""))
+                .andExpect(matchesPatternLocal("detallesParametroControl\\[0\\]\\.valorMaximo\"[^>]*value=\"1\\.015\""))
+                .andExpect(content().string(containsString("data-quitar-plan")))
+                .andExpect(content().string(containsString("Quitar plan")))
+                .andExpect(matchesPatternLocal("data-planes-vacio[^>]*hidden"))
+                .andExpect(content().string(not(matchesPattern("(?s).*<tr[^>]*data-parametro-plan[^>]*bg-rose-50.*"))));
     }
 
     @Test
@@ -1321,6 +1324,422 @@ class RecetaControllerTest {
         verify(recetaServicio, never()).modificarReceta(any(), any());
     }
 
+    // ==================== Plan de monitoreo: formulario y buscadores ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-53: la sección Plan de monitoreo explica qué es un plan, ofrece \"Agregar plan de monitoreo\", trae las plantillas de plan y de parámetro y no ofrece crear etapas ni parámetros")
+    void formulario_debeMostrarLaSeccionDelPlanDeMonitoreo() throws Exception {
+        mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Plan de monitoreo (opcional)")))
+                .andExpect(content().string(containsString("Los planes definen los par")))
+                .andExpect(content().string(containsString("con sus valores m")))
+                .andExpect(content().string(containsString("puede tener varias etapas de control, cada una con su propio plan")))
+                .andExpect(content().string(containsString("quitalo y agregalo de nuevo")))
+                .andExpect(content().string(containsString("Agregar plan de monitoreo")))
+                .andExpect(content().string(containsString("data-abrir-plan")))
+                .andExpect(content().string(containsString("La receta no tiene plan de monitoreo.")))
+                .andExpect(content().string(containsString("<template data-plantilla-plan>")))
+                .andExpect(content().string(containsString("<template data-plantilla-parametro-plan>")))
+                .andExpect(content().string(containsString("Quitar plan")))
+                .andExpect(matchesPatternLocal("<form id=\"receta-form\"[^>]*novalidate"))
+                .andExpect(content().string(not(containsString("data-selector-alta"))))
+                .andExpect(content().string(not(containsString("data-selector-menu"))))
+                .andExpect(content().string(not(containsString("Crear nueva etapa"))))
+                .andExpect(content().string(not(containsString("Crear nuevo par"))))
+                // Sin planes no hay bloques en la receta: el texto de vacio esta visible
+                .andExpect(matchesPatternLocal("data-planes-vacio(?![^>]*hidden)"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-54: la ventana de agregar plan tiene el selector de etapa de control, la tabla de parámetros y el mini formulario con unidades y placeholders, fuera del formulario de la receta")
+    void formulario_debeIncluirLaVentanaDeAgregarPlan() throws Exception {
+        mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"dialogo-agregar-plan\"")))
+                .andExpect(content().string(containsString("Agregar plan de monitoreo</h3>")))
+                // Selectores de entidad con icono de lista (nunca un combo) y su buscador
+                .andExpect(content().string(containsString("data-buscador-url=\"/recetas/buscador/etapas-control\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/recetas/buscador/parametros-control\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccionar etapa de control\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccionar par")))
+                .andExpect(content().string(containsString("bi bi-list-ul")))
+                .andExpect(content().string(containsString("data-error=\"etapa\"")))
+                .andExpect(content().string(containsString("data-error=\"parametro\"")))
+                // Mini formulario: la unidad del parametro elegido se escribe en las etiquetas y cada campo tiene su ejemplo
+                .andExpect(content().string(containsString("data-unidad-parametro>unidad</span>")))
+                .andExpect(content().string(containsString("data-rango-parametro")))
+                .andExpect(matchesPatternLocal("id=\"agregar-plan-minimo\"[^>]*placeholder=\"Ej: 18\""))
+                .andExpect(matchesPatternLocal("id=\"agregar-plan-ideal\"[^>]*placeholder=\"Ej: 20\""))
+                .andExpect(matchesPatternLocal("id=\"agregar-plan-maximo\"[^>]*placeholder=\"Ej: 22\""))
+                .andExpect(content().string(containsString("data-agregar-parametro")))
+                .andExpect(content().string(containsString("Agregar par")))
+                .andExpect(content().string(containsString("Todav")))
+                .andExpect(content().string(containsString("data-parametros-dialogo-vacio")))
+                .andExpect(content().string(containsString("data-plantilla-parametro-dialogo")))
+                .andExpect(content().string(containsString("data-quitar-parametro-dialogo")))
+                .andExpect(content().string(containsString("data-confirmar-plan")))
+                .andExpect(content().string(containsString("data-cerrar-plan")))
+                // Ventana FUERA del formulario: sus campos no se envian
+                .andExpect(matchesPatternLocal("</form>.*id=\"dialogo-agregar-plan\""))
+                // El mini formulario no tiene validaciones de navegador: solo el aviso de que falta elegir
+                .andExpect(matchesPatternLocal("id=\"agregar-plan-minimo\"(?![^>]*(required|min=|max=))[^>]*>"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-55: al modificar, cada plan existente es un bloque con su etapa de control, su etapa a controlar, sus parámetros con unidad y los campos ocultos indexados de los dos niveles")
+    void formularioEdicion_debeMostrarCadaPlanComoBloque() throws Exception {
+        when(recetaServicio.buscarPorId(7L)).thenReturn(recetaConDosPlanes());
+        stubInsumos();
+        stubSegundoPlan();
+
+        String html = mockMvc.perform(get("/recetas/7/editar"))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Control de densidad<"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Control de temperatura<"))
+                .andExpect(matchesPatternLocal("etapa a controlar: <span data-celda=\"etapa\">Fermentaci"))
+                .andExpect(matchesPatternLocal("etapa a controlar: <span data-celda=\"etapa\">Maduraci"))
+                // Plan 1, parametros 0 y 1: ids y valores en campos ocultos con los dos indices
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.idEtapaControl\"[^>]*value=\"2\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[0\\]\\.idParametroControl\"[^>]*value=\"2\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[0\\]\\.valorIdeal\"[^>]*value=\"20\\.0\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[1\\]\\.idParametroControl\"[^>]*value=\"3\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[1\\]\\.valorMaximo\"[^>]*value=\"5\\.6\""))
+                // Cada valor visible lleva la unidad de su parametro (sin ceros sobrantes)
+                .andExpect(matchesPatternLocal("data-celda=\"valorMinimo\">18 .C<"))
+                .andExpect(matchesPatternLocal("data-celda=\"valorMaximo\">22 .C<"))
+                .andExpect(matchesPatternLocal("data-celda=\"valorMinimo\">5,2 pH<"))
+                .andExpect(matchesPatternLocal("data-celda=\"valorMaximo\">5,6 pH<"))
+                .andExpect(matchesPatternLocal("data-planes-vacio[^>]*hidden"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Dos bloques de plan reales, mas el de la plantilla; un boton "Quitar plan" por bloque
+        assertThat(html.split("data-quitar-plan", -1).length - 1).isEqualTo(3);
+        // Tres filas de parametro reales (1 + 2), mas la de la plantilla
+        assertThat(html.split("data-parametro-plan", -1).length - 1).isEqualTo(4);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-56: si la etapa de control o el parámetro de un plan ya no existen, el bloque lo indica en lugar de fallar y conserva los ids")
+    void formularioEdicion_debeIndicarEtapasYParametrosQueYaNoExisten() throws Exception {
+        when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
+        stubInsumos();
+        when(etapaControlServicio.buscarPorId(1L)).thenThrow(new RecursoNoEncontradoException("No se encontro la etapa de control con ID: 1"));
+        when(parametroControlServicio.buscarPorId(1L)).thenThrow(new RecursoNoEncontradoException("No se encontro el parametro de control con ID: 1"));
+
+        mockMvc.perform(get("/recetas/7/editar"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Etapa de control no disponible")))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Par.metro no disponible<"))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[0\\]\\.idEtapaControl\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("planesMonitoreo\\[0\\]\\.detallesParametroControl\\[0\\]\\.idParametroControl\"[^>]*value=\"1\""))
+                // Sin la unidad, el valor se muestra solo
+                .andExpect(matchesPatternLocal("data-celda=\"valorIdeal\">1,012 <"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-57: un alta y una modificación válidas con dos planes llaman al service con los planes y sus parámetros anidados (ids y valores)")
+    void altaYModificacion_debenEnlazarLosPlanesAnidados() throws Exception {
+        mockMvc.perform(post("/recetas").with(csrf()).params(parametrosConPlanes()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/recetas"));
+        mockMvc.perform(post("/recetas/7").with(csrf()).params(parametrosConPlanes()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/recetas"));
+
+        ArgumentCaptor<RecetaFormDTO> alta = ArgumentCaptor.forClass(RecetaFormDTO.class);
+        verify(recetaServicio).altaReceta(alta.capture());
+        ArgumentCaptor<RecetaFormDTO> modificacion = ArgumentCaptor.forClass(RecetaFormDTO.class);
+        verify(recetaServicio).modificarReceta(eq(7L), modificacion.capture());
+
+        for (RecetaFormDTO enviado : List.of(alta.getValue(), modificacion.getValue())) {
+            var planes = enviado.getVersion().getPlanesMonitoreo();
+            assertThat(planes).hasSize(2);
+            assertThat(planes.get(0).getIdEtapaControl()).isEqualTo(1L);
+            assertThat(planes.get(0).getDetallesParametroControl()).hasSize(1);
+            assertThat(planes.get(1).getIdEtapaControl()).isEqualTo(2L);
+            assertThat(planes.get(1).getDetallesParametroControl()).hasSize(2);
+            var temperatura = planes.get(1).getDetallesParametroControl().get(0);
+            assertThat(temperatura.getIdParametroControl()).isEqualTo(2L);
+            assertThat(temperatura.getValorMinimo()).isEqualTo(18.0);
+            assertThat(temperatura.getValorIdeal()).isEqualTo(20.0);
+            assertThat(temperatura.getValorMaximo()).isEqualTo(22.0);
+            var ph = planes.get(1).getDetallesParametroControl().get(1);
+            assertThat(ph.getIdParametroControl()).isEqualTo(3L);
+            assertThat(ph.getValorMaximo()).isEqualTo(5.6);
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-58: una regla del plan que rechaza el service (etapa repetida, plan sin parámetros, parámetro repetido, rango) se informa en el resumen y el formulario conserva todos los planes con sus nombres y unidades")
+    void alta_debeInformarLasReglasDelPlanYConservarLosPlanes() throws Exception {
+        stubInsumos();
+        stubSegundoPlan();
+
+        for (String regla : List.of(
+                "La receta no puede tener mas de un plan de monitoreo para la misma etapa de control",
+                "Cada plan de monitoreo debe tener al menos un parametro de control",
+                "Un plan de monitoreo no puede repetir el mismo parametro de control",
+                "El valor ideal del parametro de control Temperatura debe estar dentro del rango minimo y maximo definido",
+                "El valor maximo del parametro de control Temperatura no puede ser superior al valor maximo posible (100.0)")) {
+            doThrow(new ReglaNegocioException(regla)).when(recetaServicio).altaReceta(any());
+
+            String html = mockMvc.perform(post("/recetas").with(csrf()).params(parametrosConPlanes()))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("receta/receta-form"))
+                    .andExpect(content().string(containsString("No se pudo crear la receta")))
+                    .andExpect(matchesPatternLocal("<li>" + java.util.regex.Pattern.quote(regla) + "</li>"))
+                    // Los dos planes y sus tres parametros siguen en el formulario, con nombre y unidad
+                    .andExpect(matchesPatternLocal("data-celda=\"nombre\">Control de densidad<"))
+                    .andExpect(matchesPatternLocal("data-celda=\"nombre\">Control de temperatura<"))
+                    .andExpect(matchesPatternLocal("data-celda=\"nombre\">Temperatura<"))
+                    .andExpect(matchesPatternLocal("data-celda=\"valorIdeal\">20 .C<"))
+                    .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[1\\]\\.valorMaximo\"[^>]*value=\"5\\.6\""))
+                    .andExpect(matchesPatternLocal("data-planes-vacio[^>]*hidden"))
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(html.split("data-parametro-plan", -1).length - 1).isEqualTo(4);
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-59: una etapa de control, un parámetro o un valor faltante o no numérico en un plan se informa debajo de la sección y en el resumen, resalta el plan o la fila con problemas y no llega al service")
+    void alta_ymodificacion_debenInformarCamposIncompletosDelPlan() throws Exception {
+        stubInsumos();
+        stubSegundoPlan();
+
+        // Plan sin etapa de control: se resalta solo ese bloque
+        LinkedMultiValueMap<String, String> sinEtapa = parametrosConPlanes();
+        sinEtapa.remove("version.planesMonitoreo[1].idEtapaControl");
+        String html = mockMvc.perform(post("/recetas").with(csrf()).params(sinEtapa))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo crear la receta")))
+                .andExpect(matchesPatternLocal("text-rose-600\">Cada plan de monitoreo debe tener una etapa de control<"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Control de densidad<"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html.split("data-plan\\s+class=\"border rounded-lg overflow-hidden border-rose-400\"", -1).length - 1).isEqualTo(1);
+
+        // Parametro sin seleccionar: se resalta la fila
+        LinkedMultiValueMap<String, String> sinParametro = parametrosConPlanes();
+        sinParametro.remove("version.planesMonitoreo[1].detallesParametroControl[1].idParametroControl");
+        mockMvc.perform(post("/recetas/7").with(csrf()).params(sinParametro))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo modificar la receta")))
+                .andExpect(matchesPatternLocal("text-rose-600\">Cada par.metro de control del plan debe estar seleccionado<"))
+                .andExpect(matchesPatternLocal("<tr[^>]*data-parametro-plan[^>]*bg-rose-50"));
+
+        // Valores faltantes: cada mensaje aparece una sola vez debajo de la seccion
+        LinkedMultiValueMap<String, String> sinValores = parametrosConPlanes();
+        sinValores.remove("version.planesMonitoreo[0].detallesParametroControl[0].valorMinimo");
+        sinValores.remove("version.planesMonitoreo[0].detallesParametroControl[0].valorIdeal");
+        sinValores.remove("version.planesMonitoreo[1].detallesParametroControl[0].valorIdeal");
+        sinValores.remove("version.planesMonitoreo[1].detallesParametroControl[0].valorMaximo");
+        String htmlSinValores = mockMvc.perform(post("/recetas").with(csrf()).params(sinValores))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("text-rose-600\">El valor m.nimo de cada par.metro de control es obligatorio<"))
+                .andExpect(matchesPatternLocal("text-rose-600\">El valor ideal de cada par.metro de control es obligatorio<"))
+                .andExpect(matchesPatternLocal("text-rose-600\">El valor m.ximo de cada par.metro de control es obligatorio<"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(htmlSinValores.split("text-rose-600\">El valor ideal de cada par.metro de control es obligatorio<", -1)).hasSize(2);
+
+        // Valor no numerico: error de conversion claro y el plan se conserva
+        LinkedMultiValueMap<String, String> noNumerico = parametrosConPlanes();
+        noNumerico.set("version.planesMonitoreo[1].detallesParametroControl[0].valorMaximo", "abc");
+        String htmlNoNumerico = mockMvc.perform(post("/recetas").with(csrf()).params(noNumerico))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(matchesPatternLocal("text-rose-600\">Ingres. un n.mero v.lido<"))
+                .andExpect(matchesPatternLocal("<tr[^>]*data-parametro-plan[^>]*bg-rose-50"))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[1\\]\\.idParametroControl\"[^>]*value=\"3\""))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Control de temperatura<"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(htmlNoNumerico.split("text-rose-600\">Ingres. un n.mero v.lido<", -1)).hasSize(2);
+
+        verify(recetaServicio, never()).altaReceta(any());
+        verify(recetaServicio, never()).modificarReceta(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-60: un POST armado a mano con índices con huecos en los planes o en sus parámetros, o con una etapa inexistente, no produce un error 500: vuelve al formulario con el mensaje")
+    void alta_ymodificacion_debenResistirPlanesMalformados() throws Exception {
+        stubInsumos();
+
+        // Solo existe el plan [2] y el parametro [3] del plan [1]: Spring completa los huecos y se informan
+        LinkedMultiValueMap<String, String> conHuecos = parametrosBasicos();
+        conHuecos.add("version.planesMonitoreo[2].idEtapaControl", "1");
+        conHuecos.add("version.planesMonitoreo[1].idEtapaControl", "1");
+        conHuecos.add("version.planesMonitoreo[1].detallesParametroControl[3].idParametroControl", "1");
+        conHuecos.add("version.planesMonitoreo[1].detallesParametroControl[3].valorMinimo", "1");
+        mockMvc.perform(post("/recetas").with(csrf()).params(conHuecos))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(matchesPatternLocal("Cada plan de monitoreo debe tener una etapa de control"))
+                .andExpect(matchesPatternLocal("Cada par.metro de control del plan debe estar seleccionado"))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[2\\]\\.idEtapaControl\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[1\\]\\.detallesParametroControl\\[3\\]\\.idParametroControl\"[^>]*value=\"1\""));
+
+        // Etapa de control que no existe: la valida el service y el bloque lo indica
+        when(recetaServicio.modificarReceta(eq(7L), any()))
+                .thenThrow(new RecursoNoEncontradoException("No se encontro la etapa de control con ID: 99"));
+        when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
+        LinkedMultiValueMap<String, String> inexistente = parametrosConPlanes();
+        inexistente.set("version.planesMonitoreo[0].idEtapaControl", "99");
+        when(etapaControlServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontro la etapa de control con ID: 99"));
+        mockMvc.perform(post("/recetas/7").with(csrf()).params(inexistente))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se encontro la etapa de control con ID: 99")))
+                .andExpect(content().string(containsString("Etapa de control no disponible")))
+                .andExpect(matchesPatternLocal("name=\"version\\.planesMonitoreo\\[0\\]\\.idEtapaControl\"[^>]*value=\"99\""));
+
+        verify(recetaServicio, never()).altaReceta(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-61: el buscador de etapas de control devuelve el fragmento con nombre y etapa a controlar (solo las cuatro controlables), los resultados con \"Elegir\" y páginas de 8 en orden alfabético")
+    void buscadorEtapasControl_debeDevolverElFragmentoConResultados() throws Exception {
+        when(etapaControlServicio.filtrarEtapasControl(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        EtapaControlResponseDTO.builder().id(4L).nombre("Control de densidad").etapaAControlar(TipoEtapa.FERMENTACION).build(),
+                        EtapaControlResponseDTO.builder().id(5L).nombre("Control de temperatura").etapaAControlar(TipoEtapa.MACERACION).build()),
+                        PageRequest.of(0, 8), 2));
+
+        mockMvc.perform(get("/recetas/buscador/etapas-control"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/buscador-etapa-control :: buscador"))
+                .andExpect(content().string(containsString("Buscar etapa de control")))
+                .andExpect(content().string(containsString("action=\"/recetas/buscador/etapas-control\"")))
+                .andExpect(content().string(containsString("data-modal-buscar")))
+                .andExpect(content().string(containsString("name=\"nombre\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Control de densidad\"")))
+                .andExpect(content().string(containsString("name=\"etapa\"")))
+                // Solo las cuatro etapas que se pueden controlar
+                .andExpect(content().string(containsString("<option value=\"MACERACION\"")))
+                .andExpect(content().string(containsString("<option value=\"HERVIDO\"")))
+                .andExpect(content().string(containsString("<option value=\"FERMENTACION\"")))
+                .andExpect(content().string(containsString("<option value=\"MADURACION\"")))
+                .andExpect(content().string(not(containsString("<option value=\"MOLIENDA\""))))
+                .andExpect(content().string(not(containsString("<option value=\"ENVASADO\""))))
+                .andExpect(matchesPatternLocal("Control de densidad.*>\\s*Fermentaci.n\\s*<.*Control de temperatura.*>\\s*Maceraci.n\\s*<"))
+                .andExpect(content().string(containsString("data-id=\"4\"")))
+                .andExpect(content().string(containsString("data-texto=\"Control de densidad\"")))
+                .andExpect(content().string(containsString("data-etapa=\"FERMENTACION\"")))
+                .andExpect(content().string(containsString("data-id=\"5\"")))
+                .andExpect(content().string(containsString("data-etapa=\"MACERACION\"")))
+                .andExpect(content().string(containsString("Elegir")))
+                // Es un fragmento: no incluye el layout
+                .andExpect(content().string(not(containsString("<html"))))
+                .andExpect(content().string(not(containsString("Gestión de Insumos"))));
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(etapaControlServicio).filtrarEtapasControl(isNull(), isNull(), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
+        assertThat(captor.getValue().getSort().getOrderFor("nombre").getDirection().isAscending()).isTrue();
+        assertThat(captor.getValue().getSort().getOrderFor("nombre").isIgnoreCase()).isTrue();
+        assertThat(captor.getValue().getSort().getOrderFor("id")).isNotNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-62: los buscadores de etapas de control y de parámetros filtran por sus criterios, conservan los criterios en la paginación y el de parámetros muestra unidad y rango admitido")
+    void buscadoresDelPlan_debenFiltrarYMostrarResultados() throws Exception {
+        when(etapaControlServicio.filtrarEtapasControl(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        EtapaControlResponseDTO.builder().id(4L).nombre("Control de densidad").etapaAControlar(TipoEtapa.FERMENTACION).build()),
+                        PageRequest.of(1, 8), 9));
+        when(parametroControlServicio.filtrarParametrosControl(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        ParametroControlResponseDTO.builder().id(2L).nombre("Temperatura").unidadDeMedida("°C").valorMinimo(0.0).valorMaximo(100.0).build(),
+                        ParametroControlResponseDTO.builder().id(3L).nombre("pH").unidadDeMedida("pH").valorMinimo(0.0).valorMaximo(14.0).build()),
+                        PageRequest.of(1, 8), 10));
+
+        mockMvc.perform(get("/recetas/buscador/etapas-control").param("nombre", "dens").param("etapa", "FERMENTACION").param("pagina", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-modal-get")))
+                .andExpect(content().string(containsString("/recetas/buscador/etapas-control?pagina=0")))
+                .andExpect(content().string(containsString("etapa=FERMENTACION")))
+                .andExpect(content().string(containsString("nombre=dens")))
+                .andExpect(matchesPatternLocal("<option value=\"FERMENTACION\" selected"));
+        ArgumentCaptor<Pageable> captorEtapas = ArgumentCaptor.forClass(Pageable.class);
+        verify(etapaControlServicio).filtrarEtapasControl(eq("dens"), eq(TipoEtapa.FERMENTACION), captorEtapas.capture());
+        assertThat(captorEtapas.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(captorEtapas.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captorEtapas.getValue().getSort().getOrderFor("nombre").isAscending()).isTrue();
+
+        mockMvc.perform(get("/recetas/buscador/parametros-control").param("nombre", "temp").param("pagina", "1"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/buscador-parametro-control :: buscador"))
+                .andExpect(content().string(containsString("Buscar par")))
+                .andExpect(content().string(containsString("action=\"/recetas/buscador/parametros-control\"")))
+                .andExpect(content().string(containsString("data-modal-buscar")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Temperatura\"")))
+                .andExpect(content().string(containsString("Rango admitido")))
+                .andExpect(matchesPatternLocal("Temperatura.*>\\s*.C\\s*<.*>0&ndash;100 .C<"))
+                .andExpect(matchesPatternLocal(">0&ndash;14 pH<"))
+                // Cada fila lleva los datos que el formulario usa para mostrar la unidad y el rango
+                .andExpect(content().string(containsString("data-id=\"2\"")))
+                .andExpect(content().string(containsString("data-texto=\"Temperatura\"")))
+                .andExpect(matchesPatternLocal("data-unidad=\".C\""))
+                .andExpect(content().string(containsString("data-minimo=\"0.0\"")))
+                .andExpect(content().string(containsString("data-maximo=\"100.0\"")))
+                .andExpect(content().string(containsString("data-id=\"3\"")))
+                .andExpect(content().string(containsString("data-unidad=\"pH\"")))
+                .andExpect(content().string(containsString("data-modal-get")))
+                .andExpect(content().string(containsString("/recetas/buscador/parametros-control?pagina=0")))
+                .andExpect(content().string(containsString("nombre=temp")))
+                .andExpect(content().string(not(containsString("<html"))));
+        ArgumentCaptor<Pageable> captorParametros = ArgumentCaptor.forClass(Pageable.class);
+        verify(parametroControlServicio).filtrarParametrosControl(eq("temp"), captorParametros.capture());
+        assertThat(captorParametros.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(captorParametros.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captorParametros.getValue().getSort().getOrderFor("nombre").isAscending()).isTrue();
+        assertThat(captorParametros.getValue().getSort().getOrderFor("nombre").isIgnoreCase()).isTrue();
+        assertThat(captorParametros.getValue().getSort().getOrderFor("id")).isNotNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-63: los buscadores del plan sin resultados muestran un mensaje claro y un criterio en blanco equivale a no filtrar")
+    void buscadoresDelPlan_debenMostrarMensajeSinResultados() throws Exception {
+        when(etapaControlServicio.filtrarEtapasControl(any(), any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 8), 0));
+        when(parametroControlServicio.filtrarParametrosControl(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 8), 0));
+
+        mockMvc.perform(get("/recetas/buscador/etapas-control").param("nombre", "   ").param("etapa", ""))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No se encontraron etapas de control con los criterios indicados.")));
+        verify(etapaControlServicio).filtrarEtapasControl(isNull(), isNull(), any());
+
+        mockMvc.perform(get("/recetas/buscador/parametros-control").param("nombre", "   "))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("No se encontraron par.metros de control con los criterios indicados."));
+        verify(parametroControlServicio).filtrarParametrosControl(isNull(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
+    @DisplayName("CP-RCC-64: solo el GERENTE_DE_PRODUCCION usa los buscadores del plan: otro rol es rechazado y no llega a los services")
+    void buscadoresDelPlan_debenRechazarRolNoAutorizado() throws Exception {
+        for (String url : List.of("/recetas/buscador/etapas-control", "/recetas/buscador/parametros-control")) {
+            mockMvc.perform(get(url))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("tipo", "danger"));
+        }
+
+        verify(etapaControlServicio, never()).filtrarEtapasControl(any(), any(), any());
+        verify(parametroControlServicio, never()).filtrarParametrosControl(any(), any());
+    }
+
     // ==================== datos de prueba ====================
 
     /**
@@ -1368,6 +1787,54 @@ class RecetaControllerTest {
         p.add("version.detallesLevadura[0].idLevadura", "1");
         p.add("version.detallesLevadura[0].cantidad", "11.5");
         return p;
+    }
+
+    /** Parámetros de una receta válida con dos planes: densidad (1 parámetro) y temperatura (temperatura y pH). */
+    private static LinkedMultiValueMap<String, String> parametrosConPlanes() {
+        LinkedMultiValueMap<String, String> p = parametrosBasicos();
+        p.add("version.planesMonitoreo[0].idEtapaControl", "1");
+        p.add("version.planesMonitoreo[0].detallesParametroControl[0].idParametroControl", "1");
+        p.add("version.planesMonitoreo[0].detallesParametroControl[0].valorMinimo", "1.01");
+        p.add("version.planesMonitoreo[0].detallesParametroControl[0].valorIdeal", "1.012");
+        p.add("version.planesMonitoreo[0].detallesParametroControl[0].valorMaximo", "1.015");
+        p.add("version.planesMonitoreo[1].idEtapaControl", "2");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[0].idParametroControl", "2");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[0].valorMinimo", "18");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[0].valorIdeal", "20");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[0].valorMaximo", "22");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[1].idParametroControl", "3");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[1].valorMinimo", "5.2");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[1].valorIdeal", "5.4");
+        p.add("version.planesMonitoreo[1].detallesParametroControl[1].valorMaximo", "5.6");
+        return p;
+    }
+
+    /** Datos del segundo plan de {@link #parametrosConPlanes()}: etapa 2 y los parámetros 2 (temperatura) y 3 (pH). */
+    private void stubSegundoPlan() {
+        when(etapaControlServicio.buscarPorId(2L)).thenReturn(EtapaControlResponseDTO.builder().id(2L).nombre("Control de temperatura")
+                .etapaAControlar(TipoEtapa.MADURACION).build());
+        when(parametroControlServicio.buscarPorId(2L)).thenReturn(ParametroControlResponseDTO.builder().id(2L).nombre("Temperatura")
+                .unidadDeMedida("°C").valorMinimo(0.0).valorMaximo(100.0).build());
+        when(parametroControlServicio.buscarPorId(3L)).thenReturn(ParametroControlResponseDTO.builder().id(3L).nombre("pH")
+                .unidadDeMedida("pH").valorMinimo(0.0).valorMaximo(14.0).build());
+    }
+
+    /** La receta de {@link #receta(Long, String)} con un segundo plan (etapa 2: temperatura y pH). */
+    private static RecetaResponseDTO recetaConDosPlanes() {
+        var vigente = versionBuilder("Pale Ale").build();
+        var planes = new java.util.ArrayList<>(vigente.getPlanesMonitoreo());
+        planes.add(PlanMonitoreoEtapaResponseDTO.builder().id(2L)
+                .etapaControl(EtapaControlResponseDTO.builder().id(2L).nombre("Control de temperatura")
+                        .etapaAControlar(TipoEtapa.MADURACION).build())
+                .detallesParametroControl(List.of(
+                        DetalleParametroControlResponseDTO.builder().id(2L).valorMinimo(18.0).valorIdeal(20.0).valorMaximo(22.0)
+                                .parametroControl(ParametroControlResponseDTO.builder().id(2L).nombre("Temperatura").unidadDeMedida("°C").build())
+                                .build(),
+                        DetalleParametroControlResponseDTO.builder().id(3L).valorMinimo(5.2).valorIdeal(5.4).valorMaximo(5.6)
+                                .parametroControl(ParametroControlResponseDTO.builder().id(3L).nombre("pH").unidadDeMedida("pH").build())
+                                .build()))
+                .build());
+        return RecetaResponseDTO.builder().id(7L).version(versionBuilder("Pale Ale").planesMonitoreo(planes).build()).build();
     }
 
     /** Datos de los insumos, la etapa y el parámetro que referencian las filas de {@link #receta(Long, String)}. */

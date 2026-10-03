@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.receta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleMaltaFormDTO;
@@ -18,9 +19,11 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.ILupuloSe
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IMaltaServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.parametro_control.IParametroControlServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.etapa_control.EtapaControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.parametro_control.ParametroControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.formatter.GravedadFormatter;
@@ -65,8 +68,14 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * El formulario de alta y de modificación es una única página. Las maltas, los lúpulos y las
  * levaduras se agregan desde una ventana emergente que elige el insumo con un buscador (modal, igual
  * que el selector de localidades); las filas agregadas viajan como campos indexados del
- * {@link RecetaFormDTO}. Modificar una receta crea una nueva versión: el plan de monitoreo existente
- * se muestra y se conserva tal cual.
+ * {@link RecetaFormDTO}. Modificar una receta crea una nueva versión.
+ * </p>
+ * <p>
+ * El plan de monitoreo (opcional) se arma igual: cada plan elige una etapa de control con un buscador
+ * y se le agregan sus parámetros de control (también elegidos con un buscador) con el mínimo, el ideal
+ * y el máximo. Los planes viajan como campos indexados de dos niveles
+ * ({@code version.planesMonitoreo[i].detallesParametroControl[j].valorMinimo}) y modificar un plan es
+ * quitarlo y agregarlo de nuevo.
  * </p>
  */
 @Controller
@@ -80,8 +89,12 @@ public class RecetaController {
     private static final String VISTA_BUSCADOR_MALTA = "receta/buscador-malta :: buscador";
     private static final String VISTA_BUSCADOR_LUPULO = "receta/buscador-lupulo :: buscador";
     private static final String VISTA_BUSCADOR_LEVADURA = "receta/buscador-levadura :: buscador";
+    private static final String VISTA_BUSCADOR_ETAPA_CONTROL = "receta/buscador-etapa-control :: buscador";
+    private static final String VISTA_BUSCADOR_PARAMETRO_CONTROL = "receta/buscador-parametro-control :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "recetaForm";
     private static final String URL_LISTA = "/recetas";
+    private static final List<TipoEtapa> ETAPAS_CONTROLABLES = List.of(
+            TipoEtapa.MACERACION, TipoEtapa.HERVIDO, TipoEtapa.FERMENTACION, TipoEtapa.MADURACION);
 
     private final IRecetaServicio recetaServicio;
     private final IMaltaServicio maltaServicio;
@@ -283,6 +296,45 @@ public class RecetaController {
         model.addAttribute("filtroNombre", nombre);
         model.addAttribute("filtroTipo", tipo);
         return VISTA_BUSCADOR_LEVADURA;
+    }
+
+    // ==================== Buscadores del plan de monitoreo ====================
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de etapas de control activas (criterios de filtro +
+     * resultados), en orden alfabético. La etapa a controlar se elige entre las cuatro controlables.
+     */
+    @GetMapping("/buscador/etapas-control")
+    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    public String buscarEtapasControl(@RequestParam(required = false) String nombre,
+                                      @RequestParam(required = false) TipoEtapa etapa,
+                                      @RequestParam(defaultValue = "0") int pagina,
+                                      Model model) {
+        Page<EtapaControlResponseDTO> etapasControl = etapaControlServicio.filtrarEtapasControl(vacioANulo(nombre), etapa,
+                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+
+        model.addAttribute("etapasControl", etapasControl);
+        model.addAttribute("etapas", ETAPAS_CONTROLABLES);
+        model.addAttribute("filtroNombre", nombre);
+        model.addAttribute("filtroEtapa", etapa);
+        return VISTA_BUSCADOR_ETAPA_CONTROL;
+    }
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de parámetros de control activos (criterio de filtro +
+     * resultados con su unidad y su rango admitido), en orden alfabético.
+     */
+    @GetMapping("/buscador/parametros-control")
+    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    public String buscarParametrosControl(@RequestParam(required = false) String nombre,
+                                          @RequestParam(defaultValue = "0") int pagina,
+                                          Model model) {
+        Page<ParametroControlResponseDTO> parametrosControl = parametroControlServicio.filtrarParametrosControl(vacioANulo(nombre),
+                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+
+        model.addAttribute("parametrosControl", parametrosControl);
+        model.addAttribute("filtroNombre", nombre);
+        return VISTA_BUSCADOR_PARAMETRO_CONTROL;
     }
 
     // ==================== Modelo del formulario ====================

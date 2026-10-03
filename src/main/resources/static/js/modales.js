@@ -11,6 +11,8 @@
  *     data-selector-alta          opción del menú: lleva al alta de esa entidad y, al guardar, vuelve a esta
  *                                 página con lo tipeado recuperado y la entidad nueva elegida (alta contextual).
  *     data-selector-limpiar       quita la selección.
+ *     Al elegir o quitar, el selector emite el evento 'selector:cambio' (con detail = {id, texto, datos}, donde
+ *     datos son los data-* del botón "Elegir" elegido) para que la página reaccione a la selección.
  *   data-baja-url / data-baja-nombre
  *                                 botón que abre el diálogo de confirmación de baja (#dialogo-baja).
  *   data-descripcion-titulo / data-descripcion-texto
@@ -21,7 +23,7 @@
  *   data-cerrar-modal             cierra el modal.
  *   data-modal-buscar (form GET)  vuelve a pedir el fragmento con los criterios de filtro.
  *   data-modal-get (enlace)       paginación: pide el fragmento de otra página.
- *   data-elegir data-id data-texto  fila elegida.
+ *   data-elegir data-id data-texto  fila elegida (cualquier otro data-* de la fila viaja en detail.datos).
  */
 (function () {
     'use strict';
@@ -52,7 +54,8 @@
             var elegido = evento.target.closest('[data-elegir]');
             if (elegido) {
                 dialogo.close();
-                alElegir({id: elegido.getAttribute('data-id'), texto: elegido.getAttribute('data-texto')});
+                alElegir({id: elegido.getAttribute('data-id'), texto: elegido.getAttribute('data-texto'),
+                    datos: Object.assign({}, elegido.dataset)});
             } else if (evento.target.closest('[data-cerrar-modal]')) {
                 dialogo.close();
             } else {
@@ -167,6 +170,7 @@
         function asignar(entidad) {
             selector.querySelector('[data-selector-id]').value = entidad.id;
             selector.querySelector('[data-selector-texto]').value = entidad.texto;
+            selector.dispatchEvent(new CustomEvent('selector:cambio', {bubbles: true, detail: entidad}));
         }
 
         if (boton.hasAttribute('data-selector-buscar')) {
