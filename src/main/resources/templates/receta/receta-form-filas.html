@@ -12,10 +12,11 @@
       data-campo   campo oculto del DTO; /js/receta-form.js recalcula el índice del nombre.
       data-celda   celda visible; /js/receta-form.js escribe ahí el valor ingresado.
 
-    Parámetros comunes: indice (posición en la lista), nombre (del insumo, null si ya no existe).
+    Parámetros comunes: indice (posición en la lista), nombre (del insumo, null si ya no existe) y
+    conError (true si el servidor rechazó algún campo de la fila: se resalta; la plantilla pasa false).
 -->
 
-<tr th:fragment="malta(indice, idMalta, nombre, cantidad)" data-fila data-prefijo="version.detallesMalta">
+<tr th:fragment="malta(indice, idMalta, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesMalta" th:classappend="${conError} ? 'bg-rose-50'">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idMalta" th:name="|version.detallesMalta[${indice}].idMalta|" th:value="${idMalta}">
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesMalta[${indice}].cantidad|" th:value="${cantidad}">
@@ -31,7 +32,7 @@
 </tr>
 
 <!-- conTiempo: el tiempo de hervor solo viaja en el uso Hervor; para los demás usos la celda muestra un guion -->
-<tr th:fragment="lupulo(indice, idLupulo, nombre, cantidad, uso, etapaDeUso, tiempoDeHervor, conTiempo)" data-fila data-prefijo="version.detallesLupulo">
+<tr th:fragment="lupulo(indice, idLupulo, nombre, cantidad, uso, etapaDeUso, tiempoDeHervor, conTiempo, conError)" data-fila data-prefijo="version.detallesLupulo" th:classappend="${conError} ? 'bg-rose-50'">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idLupulo" th:name="|version.detallesLupulo[${indice}].idLupulo|" th:value="${idLupulo}">
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesLupulo[${indice}].cantidad|" th:value="${cantidad}">
@@ -55,7 +56,7 @@
     </td>
 </tr>
 
-<tr th:fragment="levadura(indice, idLevadura, nombre, cantidad)" data-fila data-prefijo="version.detallesLevadura">
+<tr th:fragment="levadura(indice, idLevadura, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesLevadura" th:classappend="${conError} ? 'bg-rose-50'">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idLevadura" th:name="|version.detallesLevadura[${indice}].idLevadura|" th:value="${idLevadura}">
         <input type="hidden" data-campo="cantidad" th:name="|version.detallesLevadura[${indice}].cantidad|" th:value="${cantidad}">

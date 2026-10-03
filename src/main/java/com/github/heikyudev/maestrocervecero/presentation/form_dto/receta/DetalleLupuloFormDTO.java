@@ -46,8 +46,10 @@ public class DetalleLupuloFormDTO {
 
     /**
      * Tiempo de hervor del lúpulo en la receta, en minutos.
-     * Solo aplica cuando {@code uso = HERVOR}; queda en 0 si es WHIRLPOOL o DRY_HOP.
+     * Solo aplica cuando {@code uso = HERVOR}; queda en 0 si es WHIRLPOOL o DRY_HOP. Que sea obligatorio con
+     * HERVOR y menor a la duración del hervido lo valida el service; acá solo se rechaza un valor no positivo.
      */
+    @Positive(message = "El tiempo de hervor de cada lúpulo debe ser mayor a 0")
     private Double tiempoDeHervor;
 
     /**

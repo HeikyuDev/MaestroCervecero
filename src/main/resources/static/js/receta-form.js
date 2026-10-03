@@ -17,10 +17,14 @@
  * Dentro de cada ventana emergente (dialog[data-dialogo-agregar]):
  *   data-campo-modal             campo de captura (cantidad, uso, tiempoDeHervor, etapaDeUso).
  *   data-grupo                   bloque que solo aparece para ciertos usos del lúpulo.
- *   data-error                   mensaje de validación (oculto mientras no haya error).
+ *   data-error="insumo"          aviso de que falta elegir el insumo (oculto mientras no haga falta).
  *   data-confirmar-agregar       "Agregar a la receta".
  *   data-cerrar-agregar          cierra la ventana sin agregar.
  * El insumo se elige con el selector de entidad de /js/modales.js (data-selector).
+ *
+ * Este archivo no valida datos: lo que se escribe en la ventana se agrega a la fila tal cual y el servidor
+ * lo valida al enviar el formulario (Bean Validation y reglas del service), igual que el resto de los
+ * formularios. La única comprobación es que haya un insumo elegido, porque sin él no hay nada que mostrar.
  *
  * Índices: Spring solo enlaza listas sin huecos (detallesMalta[0], [1], [2]...). Por eso después de
  * cada alta o baja de fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el
@@ -32,40 +36,23 @@
     var USOS = {HERVOR: 'Hervor', WHIRLPOOL: 'Whirlpool', DRY_HOP: 'Dry hop'};
     var ETAPAS = {HERVIDO: 'Hervido', FERMENTACION: 'Fermentación', MADURACION: 'Maduración'};
 
-    // Lo que cambia entre una tabla y otra: el campo con el id del insumo y los mensajes
+    // Lo que cambia entre una tabla y otra: el campo con el id del insumo y la unidad de la cantidad
     var TIPOS = {
-        malta: {
-            campoId: 'idMalta',
-            mensajeInsumo: 'Elegí una malta.',
-            mensajeDuplicado: 'Esa malta ya está en la receta.',
-            unidad: 'kg'
-        },
-        lupulo: {
-            campoId: 'idLupulo',
-            mensajeInsumo: 'Elegí un lúpulo.',
-            mensajeDuplicado: 'Ese lúpulo ya está en la receta con el mismo uso y el mismo tiempo de hervor.',
-            unidad: 'g'
-        },
-        levadura: {
-            campoId: 'idLevadura',
-            mensajeInsumo: 'Elegí una levadura.',
-            mensajeDuplicado: 'Esa levadura ya está en la receta.',
-            unidad: 'g'
-        }
+        malta: {campoId: 'idMalta', unidad: 'kg'},
+        lupulo: {campoId: 'idLupulo', unidad: 'g'},
+        levadura: {campoId: 'idLevadura', unidad: 'g'}
     };
 
     // ---------- Utilidades ----------
 
-    /** Número que contiene un campo, o NaN si está vacío o no es un número. */
-    function numeroDe(campo) {
-        return campo.value === '' ? NaN : Number(campo.value);
-    }
-
     /**
      * Cantidad con su unidad tal como la muestra el servidor (receta/formato :: medida): sin ceros
      * sobrantes, con coma decimal y punto como separador de miles en los enteros ("4,5 kg", "1.500 g").
+     * Si el campo quedó vacío la celda queda vacía.
      */
-    function formatear(numero, unidad) {
+    function formatear(valor, unidad) {
+        if (valor === '') { return ''; }
+        var numero = Number(valor);
         var texto = Number.isInteger(numero)
             ? String(numero).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
             : String(numero).replace('.', ',');
@@ -94,34 +81,6 @@
         if (vacia) { vacia.hidden = filas.length > 0; }
     }
 
-    /** Valores de los campos ocultos de una fila existente, por nombre de campo. */
-    function valoresDeFila(fila) {
-        var valores = {};
-        fila.querySelectorAll('[data-campo]').forEach(function (campo) {
-            valores[campo.getAttribute('data-campo')] = campo.value;
-        });
-        return valores;
-    }
-
-    /**
-     * Clave que identifica una fila para detectar repetidos, con las mismas reglas del service: una
-     * malta o una levadura no se repite; un lúpulo no se repite con el mismo uso y tiempo de hervor (el
-     * tiempo solo cuenta en el uso Hervor).
-     */
-    function claveDe(tipo, valores) {
-        var id = valores[TIPOS[tipo].campoId];
-        if (tipo !== 'lupulo') { return id; }
-        var tiempo = valores.uso === 'HERVOR' ? Number(valores.tiempoDeHervor) : 0;
-        return [id, valores.uso, tiempo].join('|');
-    }
-
-    function estaRepetido(tipo, seccion, valores) {
-        var clave = claveDe(tipo, valores);
-        return Array.prototype.some.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
-            return claveDe(tipo, valoresDeFila(fila)) === clave;
-        });
-    }
-
     /** Clona la fila vacía de la sección, la completa con los valores y la agrega al final de la tabla. */
     function agregarFila(tipo, seccion, datos) {
         var plantilla = seccion.querySelector('template[data-plantilla]');
@@ -147,11 +106,9 @@
 
     // ---------- Ventana emergente ----------
 
-    function mostrarError(dialogo, clave, mensaje) {
-        var etiqueta = dialogo.querySelector('[data-error="' + clave + '"]');
-        if (!etiqueta) { return; }
-        etiqueta.textContent = mensaje || '';
-        etiqueta.hidden = !mensaje;
+    function mostrarAvisoInsumo(dialogo, mostrar) {
+        var aviso = dialogo.querySelector('[data-error="insumo"]');
+        if (aviso) { aviso.hidden = !mostrar; }
     }
 
     /** Muestra solo los bloques que corresponden al uso elegido: tiempo de hervor (Hervor) o etapa (Dry hop). */
@@ -164,15 +121,12 @@
         etapa.hidden = uso.value !== 'DRY_HOP';
     }
 
-    /** Deja la ventana vacía, sin errores y con el estado inicial del uso del lúpulo. */
+    /** Deja la ventana vacía, sin aviso y con el estado inicial del uso del lúpulo. */
     function reiniciar(dialogo) {
         dialogo.querySelector('[data-selector-id]').value = '';
         dialogo.querySelector('[data-selector-texto]').value = '';
         dialogo.querySelectorAll('[data-campo-modal]').forEach(function (campo) { campo.value = ''; });
-        dialogo.querySelectorAll('[data-error]').forEach(function (etiqueta) {
-            etiqueta.textContent = '';
-            etiqueta.hidden = true;
-        });
+        mostrarAvisoInsumo(dialogo, false);
         actualizarGrupos(dialogo);
     }
 
@@ -184,66 +138,51 @@
     }
 
     /**
-     * Valida lo ingresado en la ventana. Devuelve {errores, datos}: errores por clave de campo (vacío si
-     * todo está bien) y, si es válido, los datos de la fila ({campos: ocultos, celdas: visibles}).
+     * Lee lo ingresado en la ventana, sin validarlo, y arma los datos de la fila ({campos: ocultos,
+     * celdas: visibles}). La etapa de uso del Hervor y del Whirlpool la define el sistema (Hervido).
      */
     function leer(tipo, dialogo) {
         var cfg = TIPOS[tipo];
-        var errores = {};
-        var id = dialogo.querySelector('[data-selector-id]').value;
-        var nombre = dialogo.querySelector('[data-selector-texto]').value;
-        var cantidad = numeroDe(campoModal(dialogo, 'cantidad'));
-
-        if (!id) { errores.insumo = cfg.mensajeInsumo; }
-        if (!(cantidad > 0)) { errores.cantidad = 'La cantidad debe ser mayor a 0.'; }
+        var cantidad = campoModal(dialogo, 'cantidad').value;
 
         var campos = {};
-        campos[cfg.campoId] = id;
-        campos.cantidad = String(cantidad);
-        var celdas = {nombre: nombre, cantidad: formatear(cantidad, cfg.unidad)};
+        campos[cfg.campoId] = dialogo.querySelector('[data-selector-id]').value;
+        campos.cantidad = cantidad;
+        var celdas = {
+            nombre: dialogo.querySelector('[data-selector-texto]').value,
+            cantidad: formatear(cantidad, cfg.unidad)
+        };
 
         if (tipo === 'lupulo') {
             var uso = campoModal(dialogo, 'uso').value;
-            var etapa = null;
-            if (!uso) {
-                errores.uso = 'Elegí el uso del lúpulo.';
-            } else if (uso === 'HERVOR') {
-                var tiempo = numeroDe(campoModal(dialogo, 'tiempoDeHervor'));
-                if (!(tiempo > 0)) { errores.tiempoDeHervor = 'El tiempo de hervor debe ser mayor a 0.'; }
-                etapa = 'HERVIDO'; // la etapa del Hervor la define el sistema, nunca se pregunta
-                campos.tiempoDeHervor = String(tiempo);
-            } else if (uso === 'WHIRLPOOL') {
-                etapa = 'HERVIDO'; // idem para el Whirlpool
-            } else {
-                etapa = campoModal(dialogo, 'etapaDeUso').value;
-                if (!etapa) { errores.etapaDeUso = 'Elegí la etapa de uso del dry hop.'; }
-            }
+            var etapa = uso === 'DRY_HOP' ? campoModal(dialogo, 'etapaDeUso').value : (uso ? 'HERVIDO' : '');
             campos.uso = uso;
             campos.etapaDeUso = etapa;
             celdas.uso = USOS[uso];
             celdas.etapaDeUso = ETAPAS[etapa];
-            celdas.tiempoDeHervor = uso === 'HERVOR' ? formatear(Number(campos.tiempoDeHervor), 'min') : '-';
+            if (uso === 'HERVOR') {
+                campos.tiempoDeHervor = campoModal(dialogo, 'tiempoDeHervor').value;
+                celdas.tiempoDeHervor = formatear(campos.tiempoDeHervor, 'min');
+            } else {
+                celdas.tiempoDeHervor = '-';
+            }
         }
 
-        return {errores: errores, datos: {campos: campos, celdas: celdas}};
+        return {campos: campos, celdas: celdas};
     }
 
     function confirmarAgregar(dialogo) {
         var tipo = dialogo.getAttribute('data-dialogo-agregar');
         var seccion = document.querySelector('[data-detalle="' + tipo + '"]');
-        var resultado = leer(tipo, dialogo);
+        var datos = leer(tipo, dialogo);
 
-        // Un repetido solo se informa si lo demás está bien (así los datos que lo definen son válidos)
-        if (Object.keys(resultado.errores).length === 0 && estaRepetido(tipo, seccion, resultado.datos.campos)) {
-            resultado.errores.duplicado = TIPOS[tipo].mensajeDuplicado;
+        // Sin insumo no hay nada que mostrar en la fila: es lo único que se comprueba acá
+        if (!datos.campos[TIPOS[tipo].campoId]) {
+            mostrarAvisoInsumo(dialogo, true);
+            return;
         }
 
-        ['insumo', 'cantidad', 'uso', 'tiempoDeHervor', 'etapaDeUso', 'duplicado'].forEach(function (clave) {
-            mostrarError(dialogo, clave, resultado.errores[clave]);
-        });
-        if (Object.keys(resultado.errores).length > 0) { return; }
-
-        agregarFila(tipo, seccion, resultado.datos);
+        agregarFila(tipo, seccion, datos);
         dialogo.close();
     }
 
@@ -277,10 +216,7 @@
     document.addEventListener('change', function (evento) {
         var campo = evento.target.closest('[data-campo-modal]');
         if (!campo) { return; }
-        var dialogo = campo.closest('dialog');
-        if (campo.getAttribute('data-campo-modal') === 'uso') { actualizarGrupos(dialogo); }
-        mostrarError(dialogo, campo.getAttribute('data-campo-modal'), null);
-        mostrarError(dialogo, 'duplicado', null);
+        if (campo.getAttribute('data-campo-modal') === 'uso') { actualizarGrupos(campo.closest('dialog')); }
     });
 
     // Enter en un campo de la ventana equivale a "Agregar a la receta"

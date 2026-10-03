@@ -1132,6 +1132,195 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString(">1,010<")));
     }
 
+    // ==================== Validación solo en el servidor ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-48: el formulario no valida en el navegador (novalidate) y avisa que las cantidades de maltas, levaduras y lúpulos en Hervor son proporciones")
+    void formulario_debeValidarSoloEnElServidorYAvisarDeLasProporciones() throws Exception {
+        String html = mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("<form id=\"receta-form\"[^>]*novalidate"))
+                // Aviso de proporciones bajo las tres tablas
+                .andExpect(content().string(containsString("Las cantidades se usan como proporciones entre insumos; el sistema calcula las cantidades reales seg")))
+                .andExpect(content().string(containsString("la OG y el volumen del lote.")))
+                .andExpect(content().string(containsString("con uso Hervor se usan como proporci")))
+                .andExpect(content().string(containsString("Whirlpool y Dry hop se escalan seg")))
+                .andExpect(content().string(containsString("el volumen base de la receta.")))
+                // Las ventanas emergentes solo avisan que falta elegir el insumo
+                .andExpect(content().string(containsString("data-error=\"insumo\"")))
+                .andExpect(content().string(not(containsString("data-error=\"cantidad\""))))
+                .andExpect(content().string(not(containsString("data-error=\"duplicado\""))))
+                .andReturn().getResponse().getContentAsString();
+        // El aviso de maltas y levaduras (mismo texto) aparece una vez por tabla
+        assertThat(html.split("Las cantidades se usan como proporciones entre insumos", -1)).hasSize(3);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-49: una cantidad en 0, vacía, negativa o no numérica en una fila se informa debajo de la tabla y en el resumen, resalta la fila y conserva todas las filas, en el alta y en la modificación")
+    void alta_ymodificacion_debenInformarCantidadesInvalidasPorFila() throws Exception {
+        stubInsumos();
+
+        // Alta: cantidad 0 en la malta, vacía en el lúpulo en Hervor y negativa en la levadura
+        mockMvc.perform(recetaValida(post("/recetas"),
+                        "version.detallesMalta[0].cantidad", "0",
+                        "version.detallesLupulo[0].cantidad", "",
+                        "version.detallesLevadura[0].cantidad", "-3"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo crear la receta")))
+                .andExpect(content().string(containsString("La cantidad de cada malta debe ser mayor a 0")))
+                .andExpect(content().string(containsString("La cantidad de cada levadura debe ser mayor a 0")))
+                .andExpect(matchesPatternLocal("text-rose-600\">La cantidad de cada l.pulo es obligatoria<"))
+                // Filas resaltadas y todas las filas conservadas
+                .andExpect(matchesPatternLocal("<tr[^>]*data-prefijo=\"version\\.detallesMalta\"[^>]*bg-rose-50"))
+                .andExpect(matchesPatternLocal("<tr[^>]*data-prefijo=\"version\\.detallesLupulo\"[^>]*bg-rose-50"))
+                .andExpect(matchesPatternLocal("<tr[^>]*data-prefijo=\"version\\.detallesLevadura\"[^>]*bg-rose-50"))
+                .andExpect(matchesPatternLocal("name=\"version\\.detallesMalta\\[0\\]\\.idMalta\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.detallesLupulo\\[1\\]\\.idLupulo\"[^>]*value=\"2\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.detallesLevadura\\[0\\]\\.idLevadura\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Cascade<"));
+
+        // El mismo mensaje de dos filas se muestra una sola vez debajo de la tabla
+        String html = mockMvc.perform(recetaValida(post("/recetas"),
+                        "version.detallesLupulo[0].cantidad", "0",
+                        "version.detallesLupulo[1].cantidad", "-5"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html.split("text-rose-600\">La cantidad de cada l.pulo debe ser mayor a 0<", -1)).hasSize(2);
+
+        // Texto no numérico: error de conversión claro y la fila se conserva
+        mockMvc.perform(recetaValida(post("/recetas"), "version.detallesMalta[0].cantidad", "abc"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("un número válido")))
+                .andExpect(matchesPatternLocal("name=\"version\\.detallesMalta\\[0\\]\\.idMalta\"[^>]*value=\"1\""));
+
+        // Modificación: mismo comportamiento dentro del formulario de modificación
+        mockMvc.perform(recetaValida(post("/recetas/7"), "version.detallesMalta[0].cantidad", ""))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo modificar la receta")))
+                .andExpect(content().string(containsString("La cantidad de cada malta es obligatoria")))
+                .andExpect(content().string(containsString("action=\"/recetas/7\"")))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Pilsen<"));
+
+        verify(recetaServicio, never()).altaReceta(any());
+        verify(recetaServicio, never()).modificarReceta(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-50: un lúpulo sin uso, o con tiempo de hervor negativo, se rechaza con su mensaje; un lúpulo en Hervor sin tiempo de hervor lo rechaza el service y el formulario conserva las filas")
+    void alta_debeInformarErroresDelUsoYDelTiempoDeHervor() throws Exception {
+        stubInsumos();
+
+        mockMvc.perform(recetaValida(post("/recetas"), "version.detallesLupulo[1].uso", ""))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("es obligatorio")))
+                .andExpect(matchesPatternLocal("El uso de cada l.pulo es obligatorio"))
+                .andExpect(matchesPatternLocal("<tr[^>]*data-prefijo=\"version\\.detallesLupulo\"[^>]*bg-rose-50"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Citra<"));
+
+        mockMvc.perform(recetaValida(post("/recetas"), "version.detallesLupulo[0].tiempoDeHervor", "-10"))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("El tiempo de hervor de cada l.pulo debe ser mayor a 0"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Cascade<"));
+        verify(recetaServicio, never()).altaReceta(any());
+
+        // Hervor sin tiempo: Bean Validation lo deja pasar y lo rechaza la regla cruzada del service
+        when(recetaServicio.altaReceta(any())).thenThrow(new ReglaNegocioException(
+                "El tiempo de hervor de cada lúpulo con uso HERVOR debe ser mayor a 0 y menor a la duración estimada del hervido"));
+        mockMvc.perform(recetaValida(post("/recetas"), "version.detallesLupulo[0].tiempoDeHervor", ""))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo crear la receta")))
+                .andExpect(matchesPatternLocal("El tiempo de hervor de cada l.pulo con uso HERVOR debe ser mayor a 0 y menor a la duraci"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Cascade<"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Citra<"));
+
+        ArgumentCaptor<RecetaFormDTO> captor = ArgumentCaptor.forClass(RecetaFormDTO.class);
+        verify(recetaServicio).altaReceta(captor.capture());
+        assertThat(captor.getValue().getVersion().getDetallesLupulo().get(0).getTiempoDeHervor()).isNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-51: un dry hop sin etapa de uso y una malta repetida los rechaza el service; el formulario vuelve con el motivo y con todas las filas")
+    void alta_ymodificacion_debenInformarReglasDeFilasDelService() throws Exception {
+        stubInsumos();
+
+        // Dry hop sin etapa: la etapa llega vacía y el service informa la regla
+        when(recetaServicio.altaReceta(any())).thenThrow(new ReglaNegocioException(
+                "La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION"));
+        mockMvc.perform(recetaValida(post("/recetas"), "version.detallesLupulo[1].etapaDeUso", ""))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("DRY_HOP debe ser FERMENTACION o MADURACION")))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Citra<"));
+        ArgumentCaptor<RecetaFormDTO> alta = ArgumentCaptor.forClass(RecetaFormDTO.class);
+        verify(recetaServicio).altaReceta(alta.capture());
+        assertThat(alta.getValue().getVersion().getDetallesLupulo().get(1).getEtapaDeUso()).isNull();
+
+        // Malta repetida: dos filas con la misma malta, ambas se conservan
+        when(recetaServicio.modificarReceta(eq(7L), any())).thenThrow(new ReglaNegocioException(
+                "La receta no puede tener la misma malta más de una vez"));
+        String html = mockMvc.perform(recetaValida(post("/recetas/7"),
+                        "version.detallesMalta[1].idMalta", "1",
+                        "version.detallesMalta[1].cantidad", "2"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("No se pudo modificar la receta")))
+                .andExpect(matchesPatternLocal("La receta no puede tener la misma malta m.s de una vez"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("name=\"version.detallesMalta[0].idMalta\"", "name=\"version.detallesMalta[1].idMalta\"");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-52: un POST armado a mano con una fila sin insumo o con índices con huecos no produce un error 500: vuelve al formulario con el mensaje y sin llamar al service")
+    void alta_ymodificacion_debenResistirRequestsMalformados() throws Exception {
+        stubInsumos();
+
+        // Fila de malta sin idMalta (solo con cantidad)
+        LinkedMultiValueMap<String, String> sinMalta = parametrosBasicos();
+        sinMalta.remove("version.detallesMalta[0].idMalta");
+        mockMvc.perform(post("/recetas").with(csrf()).params(sinMalta))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("Cada malta de la receta debe estar seleccionada")))
+                .andExpect(matchesPatternLocal("<tr[^>]*data-prefijo=\"version\\.detallesMalta\"[^>]*bg-rose-50"))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Cascade<"));
+
+        // Fila de lúpulo sin idLupulo ni uso, y fila de levadura vacía
+        LinkedMultiValueMap<String, String> filasVacias = parametrosBasicos();
+        filasVacias.remove("version.detallesLupulo[1].idLupulo");
+        filasVacias.remove("version.detallesLupulo[1].uso");
+        filasVacias.remove("version.detallesLevadura[0].idLevadura");
+        filasVacias.set("version.detallesLevadura[0].cantidad", "");
+        mockMvc.perform(post("/recetas/7").with(csrf()).params(filasVacias))
+                .andExpect(status().isOk())
+                .andExpect(matchesPatternLocal("Cada l.pulo de la receta debe estar seleccionado"))
+                .andExpect(content().string(containsString("Cada levadura de la receta debe estar seleccionada")))
+                .andExpect(content().string(containsString("La cantidad de cada levadura es obligatoria")));
+
+        // Índices con huecos: solo existe detallesMalta[2]; Spring completa las filas [0] y [1] vacías y se informan
+        LinkedMultiValueMap<String, String> conHuecos = parametrosBasicos();
+        conHuecos.remove("version.detallesMalta[0].idMalta");
+        conHuecos.remove("version.detallesMalta[0].cantidad");
+        conHuecos.add("version.detallesMalta[2].idMalta", "1");
+        conHuecos.add("version.detallesMalta[2].cantidad", "3");
+        mockMvc.perform(post("/recetas").with(csrf()).params(conHuecos))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(containsString("Cada malta de la receta debe estar seleccionada")))
+                .andExpect(matchesPatternLocal("name=\"version\\.detallesMalta\\[2\\]\\.idMalta\"[^>]*value=\"1\""))
+                .andExpect(matchesPatternLocal("data-celda=\"nombre\">Pilsen<"));
+
+        verify(recetaServicio, never()).altaReceta(any());
+        verify(recetaServicio, never()).modificarReceta(any(), any());
+    }
+
     // ==================== datos de prueba ====================
 
     /**
