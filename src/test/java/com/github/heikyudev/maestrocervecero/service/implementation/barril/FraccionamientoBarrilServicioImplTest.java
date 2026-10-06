@@ -276,7 +276,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar un fraccionamiento sobre un barril en estado operativo CON_CERVEZA");
+                .hasMessage("Solo se puede registrar un fraccionamiento sobre un barril en estado operativo Con cerveza");
 
         verify(barrilRepository, never()).save(any());
         verify(fraccionamientoBarrilRepository, never()).save(any());
@@ -494,7 +494,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.anularFraccionamientoBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular fraccionamientos de barril en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular fraccionamientos de barril en estado Registrado");
 
         verifyNoInteractions(barrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository);
         verify(fraccionamientoBarrilRepository, never()).save(any());
@@ -578,7 +578,7 @@ class FraccionamientoBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.anularFraccionamientoBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular un fraccionamiento cuyo barril asociado se encuentre en estado operativo CON_CERVEZA");
+                .hasMessage("Solo se puede anular un fraccionamiento cuyo barril asociado se encuentre en estado operativo Con cerveza");
 
         verify(barrilRepository, never()).save(any());
         verify(fraccionamientoBarrilRepository, never()).save(any());

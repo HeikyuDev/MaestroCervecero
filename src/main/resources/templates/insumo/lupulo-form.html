@@ -48,7 +48,7 @@
                             class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                             th:classappend="${#fields.hasErrors('formato')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <option value="">Seleccioná un formato</option>
-                        <option th:each="f : ${formatos}" th:value="${f}" th:text="${f}">PELLET</option>
+                        <option th:each="f : ${formatos}" th:value="${f}"><th:block th:replace="~{receta/formato :: formatoLupulo(${f})}">Pellet</th:block></option>
                     </select>
                     <p th:if="${#fields.hasErrors('formato')}" th:errors="*{formato}" class="mt-1 text-xs text-rose-600"></p>
                 </div>

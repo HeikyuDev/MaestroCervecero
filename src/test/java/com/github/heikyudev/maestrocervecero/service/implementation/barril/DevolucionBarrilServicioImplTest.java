@@ -252,7 +252,7 @@ class DevolucionBarrilServicioImplTest {
 
         assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar una devolución sobre un barril en estado operativo DESPACHADO");
+                .hasMessage("Solo se puede registrar una devolución sobre un barril en estado operativo Despachado");
 
         verify(barrilRepository, never()).save(any());
         verify(devolucionBarrilRepository, never()).save(any());
@@ -428,7 +428,7 @@ class DevolucionBarrilServicioImplTest {
 
         assertThatThrownBy(() -> devolucionBarrilServicio.anularDevolucionBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular devoluciones de barril en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular devoluciones de barril en estado Registrado");
 
         verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
         verify(devolucionBarrilRepository, never()).save(any());
@@ -512,7 +512,7 @@ class DevolucionBarrilServicioImplTest {
 
         assertThatThrownBy(() -> devolucionBarrilServicio.anularDevolucionBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular una devolución cuyo barril asociado se encuentre en estado operativo EN_LIMPIEZA");
+                .hasMessage("Solo se puede anular una devolución cuyo barril asociado se encuentre en estado operativo En limpieza");
 
         verify(barrilRepository, never()).save(any());
         verify(devolucionBarrilRepository, never()).save(any());

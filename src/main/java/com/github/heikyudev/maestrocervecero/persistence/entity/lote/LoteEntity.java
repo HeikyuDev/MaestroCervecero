@@ -81,6 +81,6 @@ public class LoteEntity extends AuditableEntity<String> {
         return this.etapas.stream()
                 .filter(etapa -> etapa.getEtapa() == tipo)
                 .findFirst()
-                .orElseThrow(() -> new RecursoNoEncontradoException("El lote no tiene una etapa de " + tipo));
+                .orElseThrow(() -> new RecursoNoEncontradoException("El lote no tiene una etapa de " + tipo.getEtiqueta()));
     }
 }

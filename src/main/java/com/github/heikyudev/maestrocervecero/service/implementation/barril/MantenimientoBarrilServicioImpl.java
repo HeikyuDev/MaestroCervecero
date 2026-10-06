@@ -116,7 +116,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
 
         // 5. Validar que el barril se encuentre en estado operativo EN_MANTENIMIENTO
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_MANTENIMIENTO) {
-            throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un barril en estado operativo EN_MANTENIMIENTO");
+            throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un barril en estado operativo En mantenimiento");
         }
 
         // 6. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
@@ -176,7 +176,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
 
         // 3. Validar que el mantenimiento se encuentre en estado REGISTRADO
         if (mantenimientoBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular mantenimientos de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular mantenimientos de barril en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
@@ -199,7 +199,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(mantenimientoBarrilEntity.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + mantenimientoBarrilEntity.getBarril().getId()));
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
-            throw new ReglaNegocioException("Solo se puede anular un mantenimiento cuyo barril asociado se encuentre en estado operativo DISPONIBLE");
+            throw new ReglaNegocioException("Solo se puede anular un mantenimiento cuyo barril asociado se encuentre en estado operativo Disponible");
         }
 
         // 6. Restablecer el estado operativo del barril a EN_MANTENIMIENTO y persistirlo

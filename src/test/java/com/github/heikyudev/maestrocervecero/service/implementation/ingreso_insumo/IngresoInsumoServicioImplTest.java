@@ -199,7 +199,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden registrar ingresos de ítems de órdenes de compra en estado PENDIENTE");
+                .hasMessage("Solo se pueden registrar ingresos de ítems de órdenes de compra en estado Pendiente");
 
         verify(ingresoInsumoRepository, never()).save(any());
     }
@@ -735,7 +735,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular ingresos de insumo en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular ingresos de insumo en estado Registrado");
 
         verify(ingresoInsumoRepository, never()).save(any());
     }

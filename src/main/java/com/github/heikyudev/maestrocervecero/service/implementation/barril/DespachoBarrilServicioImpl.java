@@ -132,7 +132,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
 
         // 7. Validar que el barril se encuentre en estado operativo CON_CERVEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.CON_CERVEZA) {
-            throw new ReglaNegocioException("Solo se puede registrar un despacho sobre un barril en estado operativo CON_CERVEZA");
+            throw new ReglaNegocioException("Solo se puede registrar un despacho sobre un barril en estado operativo Con cerveza");
         }
 
         // 8. Validar que la fecha estimada de devolución sea posterior o igual a la fecha de despacho
@@ -199,7 +199,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
 
         // 3. Validar que el despacho se encuentre en estado REGISTRADO
         if (despachoBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular despachos de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular despachos de barril en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
@@ -222,7 +222,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(despachoBarrilEntity.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + despachoBarrilEntity.getBarril().getId()));
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DESPACHADO) {
-            throw new ReglaNegocioException("Solo se puede anular un despacho cuyo barril asociado se encuentre en estado operativo DESPACHADO");
+            throw new ReglaNegocioException("Solo se puede anular un despacho cuyo barril asociado se encuentre en estado operativo Despachado");
         }
 
         // 6. Restablecer el estado operativo del barril a CON_CERVEZA y persistirlo

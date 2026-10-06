@@ -117,7 +117,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
 
         // 5. Validar que el equipamiento se encuentre en estado operativo EN_LIMPIEZA
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_LIMPIEZA) {
-            throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo EN_LIMPIEZA");
+            throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo En limpieza");
         }
 
         // 6. Validar que la fecha de limpieza sea posterior a la última operación registrada sobre
@@ -186,7 +186,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
 
         // 3. Validar que la limpieza se encuentre en estado REGISTRADO
         if (limpiezaEquipamientoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular limpiezas de equipamiento en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular limpiezas de equipamiento en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
@@ -205,7 +205,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(limpiezaEquipamientoEntity.getEquipamiento().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + limpiezaEquipamientoEntity.getEquipamiento().getId()));
         if (equipamientoEntity.getEstadoOperativo() != limpiezaEquipamientoEntity.getEstadoOperativoResultante()) {
-            throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo " + limpiezaEquipamientoEntity.getEstadoOperativoResultante());
+            throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo " + limpiezaEquipamientoEntity.getEstadoOperativoResultante().getEtiqueta());
         }
 
         // 6. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo

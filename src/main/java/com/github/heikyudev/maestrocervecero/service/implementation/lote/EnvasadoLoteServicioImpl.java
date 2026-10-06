@@ -106,7 +106,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
         // 3. Validar que el barril se encuentre en estado operativo DISPONIBLE
         if (barril.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
-            throw new ReglaNegocioException("El barril debe encontrarse en estado operativo DISPONIBLE para poder envasar en él");
+            throw new ReglaNegocioException("El barril debe encontrarse en estado operativo Disponible para poder envasar en él");
         }
 
         // 4. Validar que la cantidad a envasar sea mayor a cero
@@ -178,13 +178,13 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
         // 3. Validar que el envasado se encuentre en estado REGISTRADO
         if (envasadoLote.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular envasados en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular envasados en estado Registrado");
         }
 
         // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION
         LoteEntity lote = envasadoLote.getEtapaLote().getLote();
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder anular un envasado");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder anular un envasado");
         }
 
         // 5. Recuperar el barril bloqueado para escritura y validar que mantenga su contenido intacto
@@ -220,7 +220,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     private void validarEtapaHabilitadaParaEnvasado(EtapaLoteEntity etapaLote) {
         LoteEntity lote = etapaLote.getLote();
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder registrar un envasado");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder registrar un envasado");
         }
 
         if (etapaLote.getEstado() != EstadoEtapaLote.EN_CURSO) {
@@ -229,7 +229,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
         TipoEtapa tipoEtapa = etapaLote.getEtapa();
         if (!tipoEtapa.isPermiteRegistrarEnvasado()) {
-            throw new ReglaNegocioException("La etapa " + tipoEtapa + " no admite el registro de envasados");
+            throw new ReglaNegocioException("La etapa " + tipoEtapa.getEtiqueta() + " no admite el registro de envasados");
         }
     }
 }

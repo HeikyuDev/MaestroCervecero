@@ -72,7 +72,7 @@ class OllaHervorControllerTest {
                 .andExpect(view().name("equipamiento/olla-lista"))
                 .andExpect(content().string(containsString("Gestión de Equipamiento")))
                 .andExpect(content().string(containsString("OLLA-01")))
-                .andExpect(content().string(containsString("EN USO")))
+                .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString("100,00")))
                 .andExpect(content().string(containsString("80,00")))
                 .andExpect(content().string(containsString("8,00")))

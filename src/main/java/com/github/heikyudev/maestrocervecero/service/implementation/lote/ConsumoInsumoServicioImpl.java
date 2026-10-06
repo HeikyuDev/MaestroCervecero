@@ -275,12 +275,12 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
 
         // 3. Validar que el consumo se encuentre en estado REGISTRADO
         if (consumoInsumo.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular consumos de insumo en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular consumos de insumo en estado Registrado");
         }
 
         // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION
         if (consumoInsumo.getEtapaLote().getLote().getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder anular un consumo de insumo");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder anular un consumo de insumo");
         }
 
         // 5. Validar que la etapa se encuentre en curso
@@ -336,7 +336,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
 
         TipoEtapa tipoEtapa = etapaLote.getEtapa();
         if (!tipoEtapa.isPermiteRegistrarConsumo()) {
-            throw new ReglaNegocioException("La etapa de tipo " + tipoEtapa + " no permite registrar consumos de insumo");
+            throw new ReglaNegocioException("La etapa de tipo " + tipoEtapa.getEtiqueta() + " no permite registrar consumos de insumo");
         }
     }
 

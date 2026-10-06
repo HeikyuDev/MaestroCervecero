@@ -155,7 +155,7 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
 
         // 3. Validar que el ajuste se encuentre en estado REGISTRADO
         if (ajusteInsumoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular ajustes de insumo en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular ajustes de insumo en estado Registrado");
         }
 
         // 4. Recuperar el lote de insumo bloqueado para escritura (no alcanza con navegar la

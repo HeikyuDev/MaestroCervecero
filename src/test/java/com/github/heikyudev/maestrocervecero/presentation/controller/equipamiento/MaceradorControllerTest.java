@@ -72,7 +72,7 @@ class MaceradorControllerTest {
                 .andExpect(view().name("equipamiento/macerador-lista"))
                 .andExpect(content().string(containsString("Gestión de Equipamiento")))
                 .andExpect(content().string(containsString("MAC-01")))
-                .andExpect(content().string(containsString("EN USO")))
+                .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString("100,00")))
                 .andExpect(content().string(containsString("80,00")))
                 .andExpect(content().string(containsString("2,00")))

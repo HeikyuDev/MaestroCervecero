@@ -42,6 +42,6 @@ class LoteEntityTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteSinEtapas.obtenerEtapaPorTipo(TipoEtapa.MACERACION))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El lote no tiene una etapa de MACERACION");
+                .hasMessage("El lote no tiene una etapa de Maceración");
     }
 }

@@ -147,18 +147,18 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
         // 3. Validar que la planificación se encuentre en estado PENDIENTE
         if (planificacionProduccionEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden anular planificaciones de producción en estado PENDIENTE");
+            throw new ReglaNegocioException("Solo se pueden anular planificaciones de producción en estado Pendiente");
         }
 
         // 4. Validar que no tenga lotes pendientes o en ejecución: primero hay que cancelarlos
         if (loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(id, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))) {
-            throw new ReglaNegocioException("No se puede anular la planificación de producción porque tiene al menos un lote en estado PENDIENTE o EN_EJECUCION asociado");
+            throw new ReglaNegocioException("No se puede anular la planificación de producción porque tiene al menos un lote en estado Pendiente o En ejecución asociado");
         }
 
         // 5. Validar que no tenga ningún lote finalizado: la anulación es para errores de carga,
         //    no para producción que ya ocurrió
         if (loteRepository.existsByPlanificacionProduccion_IdAndEstado(id, EstadoLote.FINALIZADO)) {
-            throw new ReglaNegocioException("No se puede anular la planificación de producción porque tiene al menos un lote en estado FINALIZADO asociado");
+            throw new ReglaNegocioException("No se puede anular la planificación de producción porque tiene al menos un lote en estado Finalizado asociado");
         }
 
         // 6. Aplicar la anulación sobre la entidad administrada por persistencia
@@ -200,19 +200,19 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
         // 3. Validar que la planificación se encuentre en estado PENDIENTE
         if (planificacionProduccionEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden finalizar planificaciones de producción en estado PENDIENTE");
+            throw new ReglaNegocioException("Solo se pueden finalizar planificaciones de producción en estado Pendiente");
         }
 
         // 4. Validar que no tenga lotes pendientes o en ejecución: primero hay que cancelarlos
         if (loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(id, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))) {
-            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque tiene al menos un lote en estado PENDIENTE o EN_EJECUCION asociado");
+            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque tiene al menos un lote en estado Pendiente o En ejecución asociado");
         }
 
         // 5. Validar que tenga al menos un lote finalizado: la finalización forzada cierra una
         //    planificación que sí llegó a producir algo pero no completó la cantidad solicitada;
         //    si no produjo nada, corresponde anularla en lugar de finalizarla
         if (!loteRepository.existsByPlanificacionProduccion_IdAndEstado(id, EstadoLote.FINALIZADO)) {
-            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado FINALIZADO asociado; corresponde anularla en su lugar");
+            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado; corresponde anularla en su lugar");
         }
 
         // 6. Aplicar la finalización forzada sobre la entidad administrada por persistencia

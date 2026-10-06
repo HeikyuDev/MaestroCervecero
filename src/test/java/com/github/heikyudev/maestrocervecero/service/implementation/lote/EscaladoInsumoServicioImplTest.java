@@ -124,7 +124,7 @@ class EscaladoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> escaladoInsumoServicio.calcularRequerimientosLupulo(versionReceta, 100.0, loteSinEtapas))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El lote no tiene una etapa de MADURACION");
+                .hasMessage("El lote no tiene una etapa de Maduración");
     }
 
     // ==================== calcularRequerimientosLevadura ====================

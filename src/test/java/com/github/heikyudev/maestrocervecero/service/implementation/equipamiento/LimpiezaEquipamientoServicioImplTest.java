@@ -245,7 +245,7 @@ class LimpiezaEquipamientoServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo EN_LIMPIEZA");
+                .hasMessage("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo En limpieza");
 
         verify(equipamientoRepository, never()).save(any());
         verify(limpiezaEquipamientoRepository, never()).save(any());
@@ -415,7 +415,7 @@ class LimpiezaEquipamientoServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular limpiezas de equipamiento en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular limpiezas de equipamiento en estado Registrado");
 
         verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
         verify(limpiezaEquipamientoRepository, never()).save(any());
@@ -448,7 +448,7 @@ class LimpiezaEquipamientoServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo DISPONIBLE");
+                .hasMessage("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo Disponible");
 
         verify(equipamientoRepository, never()).save(any());
         verify(limpiezaEquipamientoRepository, never()).save(any());

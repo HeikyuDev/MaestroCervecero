@@ -124,7 +124,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         // 5. Validar que el barril se encuentre en estado operativo DESPACHADO (implica que existe
         //    un despacho REGISTRADO sobre él, ver nota de diseño en el javadoc de este método)
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DESPACHADO) {
-            throw new ReglaNegocioException("Solo se puede registrar una devolución sobre un barril en estado operativo DESPACHADO");
+            throw new ReglaNegocioException("Solo se puede registrar una devolución sobre un barril en estado operativo Despachado");
         }
 
         // 6. Validar que la fecha de devolución sea posterior a la última operación registrada
@@ -184,7 +184,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
 
         // 3. Validar que la devolución se encuentre en estado REGISTRADO
         if (devolucionBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular devoluciones de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular devoluciones de barril en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
@@ -207,7 +207,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(devolucionBarrilEntity.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + devolucionBarrilEntity.getBarril().getId()));
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_LIMPIEZA) {
-            throw new ReglaNegocioException("Solo se puede anular una devolución cuyo barril asociado se encuentre en estado operativo EN_LIMPIEZA");
+            throw new ReglaNegocioException("Solo se puede anular una devolución cuyo barril asociado se encuentre en estado operativo En limpieza");
         }
 
         // 6. Restablecer el estado operativo del barril a DESPACHADO y persistirlo

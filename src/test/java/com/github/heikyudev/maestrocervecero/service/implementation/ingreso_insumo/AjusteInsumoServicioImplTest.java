@@ -482,7 +482,7 @@ class AjusteInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ajusteInsumoServicio.anularAjusteInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular ajustes de insumo en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular ajustes de insumo en estado Registrado");
 
         verify(ajusteInsumoRepository, never()).save(any());
     }

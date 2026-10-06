@@ -72,7 +72,7 @@ class MolinoControllerTest {
                 .andExpect(view().name("equipamiento/molino-lista"))
                 .andExpect(content().string(containsString("Gestión de Equipamiento")))
                 .andExpect(content().string(containsString("MOL-01")))
-                .andExpect(content().string(containsString("EN USO")))
+                .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString("150,00")))
                 .andExpect(content().string(containsString("50")))
                 .andExpect(content().string(containsString("href=\"/equipamiento/molinos\"")))

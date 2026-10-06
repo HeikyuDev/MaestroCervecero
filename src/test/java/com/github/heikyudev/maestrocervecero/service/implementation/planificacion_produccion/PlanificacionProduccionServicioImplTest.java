@@ -311,7 +311,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular planificaciones de producción en estado PENDIENTE");
+                .hasMessage("Solo se pueden anular planificaciones de producción en estado Pendiente");
 
         verifyNoInteractions(loteRepository);
         verify(planificacionProduccionRepository, never()).save(any());
@@ -327,7 +327,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede anular la planificación de producción porque tiene al menos un lote en estado PENDIENTE o EN_EJECUCION asociado");
+                .hasMessage("No se puede anular la planificación de producción porque tiene al menos un lote en estado Pendiente o En ejecución asociado");
 
         verify(planificacionProduccionRepository, never()).save(any());
     }
@@ -343,7 +343,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede anular la planificación de producción porque tiene al menos un lote en estado FINALIZADO asociado");
+                .hasMessage("No se puede anular la planificación de producción porque tiene al menos un lote en estado Finalizado asociado");
 
         verify(planificacionProduccionRepository, never()).save(any());
     }
@@ -418,7 +418,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden finalizar planificaciones de producción en estado PENDIENTE");
+                .hasMessage("Solo se pueden finalizar planificaciones de producción en estado Pendiente");
 
         verifyNoInteractions(loteRepository);
         verify(planificacionProduccionRepository, never()).save(any());
@@ -434,7 +434,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la planificación de producción porque tiene al menos un lote en estado PENDIENTE o EN_EJECUCION asociado");
+                .hasMessage("No se puede finalizar la planificación de producción porque tiene al menos un lote en estado Pendiente o En ejecución asociado");
 
         verify(planificacionProduccionRepository, never()).save(any());
     }
@@ -450,7 +450,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado FINALIZADO asociado; corresponde anularla en su lugar");
+                .hasMessage("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado; corresponde anularla en su lugar");
 
         verify(planificacionProduccionRepository, never()).save(any());
     }

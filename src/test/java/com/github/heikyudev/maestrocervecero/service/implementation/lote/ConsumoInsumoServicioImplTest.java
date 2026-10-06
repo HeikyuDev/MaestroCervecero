@@ -219,7 +219,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de tipo ENVASADO no permite registrar consumos de insumo");
+                .hasMessage("La etapa de tipo Envasado no permite registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -487,7 +487,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de tipo ENVASADO no permite registrar consumos de insumo");
+                .hasMessage("La etapa de tipo Envasado no permite registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -765,7 +765,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular consumos de insumo en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular consumos de insumo en estado Registrado");
         verify(consumoInsumoRepository, never()).save(any());
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository);
     }
@@ -782,7 +782,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote debe encontrarse en estado EN_EJECUCION para poder anular un consumo de insumo");
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder anular un consumo de insumo");
         verify(consumoInsumoRepository, never()).save(any());
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository);
     }

@@ -200,7 +200,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 2. Validar que el barril no se encuentre CON_CERVEZA ni DESPACHADO
         if (barrilEntity.getEstadoOperativo() == EstadoOperativoBarril.CON_CERVEZA
                 || barrilEntity.getEstadoOperativo() == EstadoOperativoBarril.DESPACHADO) {
-            throw new ReglaNegocioException("No se puede dar de baja el barril porque se encuentra en estado operativo CON_CERVEZA o DESPACHADO.");
+            throw new ReglaNegocioException("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado.");
         }
 
         // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio

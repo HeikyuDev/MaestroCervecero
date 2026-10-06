@@ -113,7 +113,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
 
         // 5. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
-            throw new ReglaNegocioException("Solo se puede registrar una falla sobre un equipamiento en estado operativo DISPONIBLE");
+            throw new ReglaNegocioException("Solo se puede registrar una falla sobre un equipamiento en estado operativo Disponible");
         }
 
         // 6. Validar que la fecha de falla sea posterior a la última operación registrada sobre
@@ -170,7 +170,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
 
         // 3. Validar que la falla se encuentre en estado REGISTRADO
         if (fallaEquipamientoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular fallas de equipamiento en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular fallas de equipamiento en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
@@ -190,7 +190,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(fallaEquipamientoEntity.getEquipamiento().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + fallaEquipamientoEntity.getEquipamiento().getId()));
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_MANTENIMIENTO) {
-            throw new ReglaNegocioException("Solo se puede anular una falla cuyo equipamiento asociado se encuentre en estado operativo EN_MANTENIMIENTO");
+            throw new ReglaNegocioException("Solo se puede anular una falla cuyo equipamiento asociado se encuentre en estado operativo En mantenimiento");
         }
 
         // 6. Restablecer el estado operativo del equipamiento a DISPONIBLE y persistirlo

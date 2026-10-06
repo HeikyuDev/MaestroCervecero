@@ -115,7 +115,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(ordenCompraFormDTO.getIdPlanificacionProduccion())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + ordenCompraFormDTO.getIdPlanificacionProduccion()));
         if (planificacionProduccionEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden asociar órdenes de compra a planificaciones de producción en estado PENDIENTE");
+            throw new ReglaNegocioException("Solo se pueden asociar órdenes de compra a planificaciones de producción en estado Pendiente");
         }
 
         // 4. Localizar la última versión activa del proveedor seleccionado
@@ -165,14 +165,14 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
 
         // 3. Validar que la orden se encuentre en estado PENDIENTE
         if (ordenCompraEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden anular órdenes de compra en estado PENDIENTE");
+            throw new ReglaNegocioException("Solo se pueden anular órdenes de compra en estado Pendiente");
         }
 
         // 4. Validar que la orden no tenga ingresos de insumo REGISTRADO asociados: una anulación
         //    corresponde a un error de carga (ítem olvidado, cantidad mal solicitada, etc.), no a una
         //    compra que ya empezó a recibirse
         if (ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
-            throw new ReglaNegocioException("No se puede anular la orden de compra porque tiene al menos un ingreso de insumo en estado REGISTRADO asociado");
+            throw new ReglaNegocioException("No se puede anular la orden de compra porque tiene al menos un ingreso de insumo en estado Registrado asociado");
         }
 
         // 5. Aplicar la anulación sobre la entidad administrada por persistencia
@@ -212,7 +212,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
 
         // 3. Validar que la orden se encuentre en estado PENDIENTE
         if (ordenCompraEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden finalizar órdenes de compra en estado PENDIENTE");
+            throw new ReglaNegocioException("Solo se pueden finalizar órdenes de compra en estado Pendiente");
         }
 
         // 4. Validar que la orden tenga al menos un ingreso de insumo REGISTRADO asociado: la
@@ -220,7 +220,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         //    completar (cantidad ingresada menor a la solicitada, proveedor discontinuado, etc.);
         //    si no recibió nada, corresponde anularla en lugar de finalizarla
         if (!ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
-            throw new ReglaNegocioException("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado REGISTRADO asociado; corresponde anularla en su lugar");
+            throw new ReglaNegocioException("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado Registrado asociado; corresponde anularla en su lugar");
         }
 
         // 5. Aplicar la finalización forzada sobre la entidad administrada por persistencia

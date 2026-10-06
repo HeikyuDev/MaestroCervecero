@@ -252,7 +252,7 @@ class FallaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar una falla sobre un barril en estado operativo DISPONIBLE");
+                .hasMessage("Solo se puede registrar una falla sobre un barril en estado operativo Disponible");
 
         verify(barrilRepository, never()).save(any());
         verify(fallaBarrilRepository, never()).save(any());
@@ -368,7 +368,7 @@ class FallaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular fallas de barril en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular fallas de barril en estado Registrado");
 
         verifyNoInteractions(mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
         verify(fallaBarrilRepository, never()).save(any());
@@ -401,7 +401,7 @@ class FallaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular una falla cuyo barril asociado se encuentre en estado operativo EN_MANTENIMIENTO");
+                .hasMessage("Solo se puede anular una falla cuyo barril asociado se encuentre en estado operativo En mantenimiento");
 
         verify(barrilRepository, never()).save(any());
         verify(fallaBarrilRepository, never()).save(any());

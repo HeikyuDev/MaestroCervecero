@@ -120,7 +120,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
 
         // 5. Validar que el barril se encuentre en estado operativo EN_LIMPIEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_LIMPIEZA) {
-            throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un barril en estado operativo EN_LIMPIEZA");
+            throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un barril en estado operativo En limpieza");
         }
 
         // 6. Validar que la fecha de limpieza sea posterior a la última operación registrada sobre
@@ -192,7 +192,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
 
         // 3. Validar que la limpieza se encuentre en estado REGISTRADO
         if (limpiezaBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular limpiezas de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular limpiezas de barril en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
@@ -214,7 +214,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(limpiezaBarrilEntity.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + limpiezaBarrilEntity.getBarril().getId()));
         if (barrilEntity.getEstadoOperativo() != limpiezaBarrilEntity.getEstadoOperativoResultante()) {
-            throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo barril asociado se encuentre en estado operativo " + limpiezaBarrilEntity.getEstadoOperativoResultante());
+            throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo barril asociado se encuentre en estado operativo " + limpiezaBarrilEntity.getEstadoOperativoResultante().getEtiqueta());
         }
 
         // 6. Restablecer el estado operativo del barril a EN_LIMPIEZA y persistirlo

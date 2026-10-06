@@ -124,7 +124,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
 
         // 6. Validar que el barril se encuentre en estado operativo CON_CERVEZA
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.CON_CERVEZA) {
-            throw new ReglaNegocioException("Solo se puede registrar un fraccionamiento sobre un barril en estado operativo CON_CERVEZA");
+            throw new ReglaNegocioException("Solo se puede registrar un fraccionamiento sobre un barril en estado operativo Con cerveza");
         }
 
         // 7. Validar que la cantidad a extraer no supere el contenido actual del barril
@@ -202,7 +202,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
 
         // 3. Validar que el fraccionamiento se encuentre en estado REGISTRADO
         if (fraccionamientoBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular fraccionamientos de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular fraccionamientos de barril en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
@@ -224,7 +224,7 @@ public class FraccionamientoBarrilServicioImpl implements IFraccionamientoBarril
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(fraccionamientoBarrilEntity.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + fraccionamientoBarrilEntity.getBarril().getId()));
         if (barrilEntity.getEstadoOperativo() != fraccionamientoBarrilEntity.getEstadoOperativoResultante()) {
-            throw new ReglaNegocioException("Solo se puede anular un fraccionamiento cuyo barril asociado se encuentre en estado operativo " + fraccionamientoBarrilEntity.getEstadoOperativoResultante());
+            throw new ReglaNegocioException("Solo se puede anular un fraccionamiento cuyo barril asociado se encuentre en estado operativo " + fraccionamientoBarrilEntity.getEstadoOperativoResultante().getEtiqueta());
         }
 
         // 6. Restituir la cantidad extraída al contenido actual del barril, restablecer su estado

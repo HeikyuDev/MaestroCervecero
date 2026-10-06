@@ -33,7 +33,7 @@
             <select id="formato" name="formato"
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
                 <option value="">Todos</option>
-                <option th:each="f : ${formatos}" th:value="${f}" th:selected="${f == filtroFormato}" th:text="${f}">PELLET</option>
+                <option th:each="f : ${formatos}" th:value="${f}" th:selected="${f == filtroFormato}"><th:block th:replace="~{receta/formato :: formatoLupulo(${f})}">Pellet</th:block></option>
             </select>
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
@@ -62,7 +62,7 @@
             <tr th:each="l : ${lupulos.content}" class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.nombre}">Cascade</td>
                 <td class="px-4 py-3">
-                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold" th:text="${l.formato}">PELLET</span>
+                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"><th:block th:replace="~{receta/formato :: formatoLupulo(${l.formato})}">Pellet</th:block></span>
                 </td>
                 <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(l.aa, 1, 'POINT', 2, 'COMMA')} + ' %'">5,50 %</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.unidadDeMedida.simbolo}">g</td>

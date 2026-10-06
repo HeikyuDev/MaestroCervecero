@@ -573,7 +573,7 @@ class ProveedorServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> proveedorServicio.bajaProveedor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el proveedor porque tiene una orden de compra en estado PENDIENTE asociada");
+                .hasMessage("No se puede dar de baja el proveedor porque tiene una orden de compra en estado Pendiente asociada");
 
         verify(proveedorRepository, never()).save(any());
     }

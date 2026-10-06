@@ -72,7 +72,7 @@ class FermentadorControllerTest {
                 .andExpect(view().name("equipamiento/fermentador-lista"))
                 .andExpect(content().string(containsString("Gestión de Equipamiento")))
                 .andExpect(content().string(containsString("FER-01")))
-                .andExpect(content().string(containsString("EN USO")))
+                .andExpect(content().string(containsString("En uso")))
                 .andExpect(content().string(containsString("100,00")))
                 .andExpect(content().string(containsString("80,00")))
                 .andExpect(content().string(containsString("50")))

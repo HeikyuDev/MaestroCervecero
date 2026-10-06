@@ -113,7 +113,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
 
         // 5. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_MANTENIMIENTO) {
-            throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo EN_MANTENIMIENTO");
+            throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo En mantenimiento");
         }
 
         // 6. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
@@ -170,7 +170,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
 
         // 3. Validar que el mantenimiento se encuentre en estado REGISTRADO
         if (mantenimientoEquipamientoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular mantenimientos de equipamiento en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular mantenimientos de equipamiento en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
@@ -190,7 +190,7 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
         EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(mantenimientoEquipamientoEntity.getEquipamiento().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + mantenimientoEquipamientoEntity.getEquipamiento().getId()));
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
-            throw new ReglaNegocioException("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo DISPONIBLE");
+            throw new ReglaNegocioException("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo Disponible");
         }
 
         // 6. Restablecer el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo

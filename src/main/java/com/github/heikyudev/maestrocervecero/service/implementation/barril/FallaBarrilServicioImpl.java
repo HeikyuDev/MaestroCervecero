@@ -115,7 +115,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
 
         // 5. Validar que el barril se encuentre en estado operativo DISPONIBLE
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
-            throw new ReglaNegocioException("Solo se puede registrar una falla sobre un barril en estado operativo DISPONIBLE");
+            throw new ReglaNegocioException("Solo se puede registrar una falla sobre un barril en estado operativo Disponible");
         }
 
         // 6. Validar que la fecha de falla sea posterior a la última operación registrada sobre
@@ -175,7 +175,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
 
         // 3. Validar que la falla se encuentre en estado REGISTRADO
         if (fallaBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular fallas de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular fallas de barril en estado Registrado");
         }
 
         // 4. Validar que sea la operación más reciente registrada sobre el barril, comparando
@@ -198,7 +198,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
         BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(fallaBarrilEntity.getBarril().getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + fallaBarrilEntity.getBarril().getId()));
         if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.EN_MANTENIMIENTO) {
-            throw new ReglaNegocioException("Solo se puede anular una falla cuyo barril asociado se encuentre en estado operativo EN_MANTENIMIENTO");
+            throw new ReglaNegocioException("Solo se puede anular una falla cuyo barril asociado se encuentre en estado operativo En mantenimiento");
         }
 
         // 6. Restablecer el estado operativo del barril a DISPONIBLE y persistirlo

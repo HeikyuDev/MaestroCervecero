@@ -193,7 +193,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         // 2. Validar que ninguna versión del proveedor (histórica o activa) tenga una orden de
         //    compra en estado PENDIENTE asociada
         if (ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(id, EstadoSolicitud.PENDIENTE)) {
-            throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene una orden de compra en estado PENDIENTE asociada");
+            throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene una orden de compra en estado Pendiente asociada");
         }
 
         // 3. Ejecutamos la baja lógica: cambiamos el estado, persistimos el cambio y retornamos

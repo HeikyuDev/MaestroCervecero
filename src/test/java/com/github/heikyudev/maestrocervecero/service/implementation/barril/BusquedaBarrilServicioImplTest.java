@@ -275,7 +275,7 @@ class BusquedaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> busquedaBarrilServicio.anularBusquedaBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular búsquedas de barril en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular búsquedas de barril en estado Registrado");
 
         verifyNoInteractions(solicitudBusquedaRepository);
         verify(busquedaBarrilRepository, never()).save(any());

@@ -51,6 +51,6 @@ Localiza el barril primero; recién si existe se valida la capacidad (mayor a 0 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BB-01**|Baja de barril inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No llama a `save()`.|
-|**CP-BB-02**|Barril en estado operativo CON_CERVEZA|`id: 1L` (Existe), `estadoOperativo: CON_CERVEZA`|`estadoOperativo == CON_CERVEZA` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("No se puede dar de baja el barril porque se encuentra en estado operativo CON_CERVEZA o DESPACHADO."). No llama a `save()`.|
+|**CP-BB-02**|Barril en estado operativo CON_CERVEZA|`id: 1L` (Existe), `estadoOperativo: CON_CERVEZA`|`estadoOperativo == CON_CERVEZA` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado."). No llama a `save()`.|
 |**CP-BB-03**|Barril en estado operativo DESPACHADO|`id: 1L` (Existe), `estadoOperativo: DESPACHADO`|`estadoOperativo == DESPACHADO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` (mismo mensaje que CP-BB-02). No llama a `save()`.|
 |**CP-BB-04**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe), `estadoOperativo: DISPONIBLE` (ni CON_CERVEZA ni DESPACHADO)|Ambas comparaciones $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del barril dado de baja.|

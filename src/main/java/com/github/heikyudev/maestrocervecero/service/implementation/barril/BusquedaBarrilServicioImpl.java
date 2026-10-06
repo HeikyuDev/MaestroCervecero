@@ -126,7 +126,7 @@ public class BusquedaBarrilServicioImpl implements IBusquedaBarrilServicio {
 
         // 3. Validar que la búsqueda se encuentre en estado REGISTRADO
         if (busquedaBarrilEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular búsquedas de barril en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular búsquedas de barril en estado Registrado");
         }
 
         // 4. Restablecer la solicitud de búsqueda asociada a buscado = false y persistirla

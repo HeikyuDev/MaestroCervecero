@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Representa el estado operativo actual de un {@link EquipamientoEntity} dentro
@@ -11,9 +12,13 @@ import lombok.Getter;
  * service correspondiente, que llama a {@code setEstadoOperativo(...)}.
  */
 @Getter
+@RequiredArgsConstructor
 public enum EstadoOperativo {
-    DISPONIBLE,
-    EN_USO,
-    EN_LIMPIEZA,
-    EN_MANTENIMIENTO
+    DISPONIBLE("Disponible"),
+    EN_USO("En uso"),
+    EN_LIMPIEZA("En limpieza"),
+    EN_MANTENIMIENTO("En mantenimiento");
+
+    /** Nombre legible del estado, el que se muestra al usuario. */
+    private final String etiqueta;
 }

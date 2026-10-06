@@ -14,23 +14,24 @@ import lombok.RequiredArgsConstructor;
  * lo valida el service, no el tipo — este enum siempre representa el universo
  * completo de las 6 etapas posibles.
  * <p>
- * Cada valor sabe qué operaciones se pueden registrar durante esa etapa (usado
- * por la capa de presentación para mostrar/ocultar acciones según corresponda).
- * La validación de negocio real (por ejemplo, qué tipo de insumo se puede
- * consumir en cada etapa: Malta solo en Maceración, Levadura solo en
- * Fermentación) la resuelve el service — este flag es solo una ayuda de UI, no
- * reemplaza esa validación.
+ * Cada valor trae su nombre legible ({@code etiqueta}), que es el que se muestra
+ * al usuario en los mensajes, y sabe qué operaciones se pueden registrar durante esa
+ * etapa: {@code permiteRegistrarConsumo} y {@code permiteRegistrarEnvasado} los consultan
+ * los services de consumo de insumo y de envasado para rechazar el registro en una etapa
+ * que no lo admite. La validación del tipo de insumo que se puede consumir en cada
+ * etapa (Malta solo en Maceración, Levadura solo en Fermentación) la resuelve el service.
  */
 @Getter
 @RequiredArgsConstructor
 public enum TipoEtapa {
-    MOLIENDA(false, false),
-    MACERACION(true, false),
-    HERVIDO(true, false),
-    FERMENTACION(true, false),
-    MADURACION(true, false),
-    ENVASADO(false, true);
+    MOLIENDA("Molienda", false, false),
+    MACERACION("Maceración", true, false),
+    HERVIDO("Hervido", true, false),
+    FERMENTACION("Fermentación", true, false),
+    MADURACION("Maduración", true, false),
+    ENVASADO("Envasado", false, true);
 
+    private final String etiqueta;
     private final boolean permiteRegistrarConsumo;
     private final boolean permiteRegistrarEnvasado;
 }

@@ -494,7 +494,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque se encuentra en estado operativo CON_CERVEZA o DESPACHADO.");
+                .hasMessage("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado.");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -507,7 +507,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque se encuentra en estado operativo CON_CERVEZA o DESPACHADO.");
+                .hasMessage("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado.");
 
         verify(barrilRepository, never()).save(any());
     }

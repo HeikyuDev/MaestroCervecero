@@ -151,7 +151,7 @@ public class LoteServicioImpl implements ILoteServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + loteFormDTO.getIdPlanificacionProduccion()));
 
         if (planificacionProduccion.getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("La planificación de producción debe encontrarse en estado PENDIENTE para poder registrar un lote");
+            throw new ReglaNegocioException("La planificación de producción debe encontrarse en estado Pendiente para poder registrar un lote");
         }
 
         // 2. Validar que los equipamientos seleccionados estén registrados en el sistema
@@ -228,7 +228,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado PENDIENTE
         if (lote.getEstado() != EstadoLote.PENDIENTE) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado PENDIENTE para poder iniciarse");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado Pendiente para poder iniciarse");
         }
 
         // 3. Bloquear y validar que el equipamiento asociado al lote se encuentre DISPONIBLE
@@ -306,7 +306,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 3. Validar que el lote se encuentre en un estado que permita cancelarlo
         if (lote.getEstado() != EstadoLote.PENDIENTE && lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado PENDIENTE o EN_EJECUCION para poder cancelarse");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado Pendiente o En ejecución para poder cancelarse");
         }
 
         // 4. Liberar todas las reservas de insumo del lote todavía pendientes. Cancelar NO revierte
@@ -354,7 +354,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder finalizar una etapa");
         }
 
         // 3. Validar que la etapa actual (EN_CURSO) sea Molienda
@@ -396,7 +396,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder finalizar una etapa");
         }
 
         // 3. Validar que la etapa actual (EN_CURSO) sea Maceración
@@ -448,7 +448,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder finalizar una etapa");
         }
 
         // 3. Validar que la etapa actual (EN_CURSO) sea Hervido
@@ -505,7 +505,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder finalizar una etapa");
         }
 
         // 3. Validar que la etapa actual (EN_CURSO) sea Fermentación
@@ -558,7 +558,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder finalizar una etapa");
         }
 
         // 3. Validar que la etapa actual (EN_CURSO) sea Maduración
@@ -614,7 +614,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe encontrarse en estado EN_EJECUCION para poder finalizar una etapa");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder finalizar una etapa");
         }
 
         // 3. Validar que la etapa actual (EN_CURSO) sea Envasado
@@ -707,7 +707,7 @@ public class LoteServicioImpl implements ILoteServicio {
                 .orElseThrow(() -> new ReglaNegocioException("El lote no tiene ninguna etapa en curso"));
 
         if (etapaActual.getEtapa() != tipoEsperado) {
-            throw new ReglaNegocioException("La etapa actual del lote es " + etapaActual.getEtapa() + ", no " + tipoEsperado);
+            throw new ReglaNegocioException("La etapa actual del lote es " + etapaActual.getEtapa().getEtiqueta() + ", no " + tipoEsperado.getEtiqueta());
         }
         return etapaActual;
     }

@@ -263,7 +263,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden asociar órdenes de compra a planificaciones de producción en estado PENDIENTE");
+                .hasMessage("Solo se pueden asociar órdenes de compra a planificaciones de producción en estado Pendiente");
 
         verifyNoInteractions(proveedorRepository, catalogoProveedorRepository);
         verify(ordenCompraRepository, never()).save(any());
@@ -453,7 +453,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.anularOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular órdenes de compra en estado PENDIENTE");
+                .hasMessage("Solo se pueden anular órdenes de compra en estado Pendiente");
 
         verifyNoInteractions(ingresoInsumoRepository);
         verify(ordenCompraRepository, never()).save(any());
@@ -471,7 +471,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.anularOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede anular la orden de compra porque tiene al menos un ingreso de insumo en estado REGISTRADO asociado");
+                .hasMessage("No se puede anular la orden de compra porque tiene al menos un ingreso de insumo en estado Registrado asociado");
 
         verify(ordenCompraRepository, never()).save(any());
     }
@@ -549,7 +549,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden finalizar órdenes de compra en estado PENDIENTE");
+                .hasMessage("Solo se pueden finalizar órdenes de compra en estado Pendiente");
 
         verifyNoInteractions(ingresoInsumoRepository);
         verify(ordenCompraRepository, never()).save(any());
@@ -567,7 +567,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado REGISTRADO asociado; corresponde anularla en su lugar");
+                .hasMessage("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado Registrado asociado; corresponde anularla en su lugar");
 
         verify(ordenCompraRepository, never()).save(any());
     }

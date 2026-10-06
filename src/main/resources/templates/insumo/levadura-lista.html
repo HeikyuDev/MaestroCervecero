@@ -33,7 +33,7 @@
             <select id="tipo" name="tipo"
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
                 <option value="">Todos</option>
-                <option th:each="t : ${tipos}" th:value="${t}" th:selected="${t == filtroTipo}" th:text="${t}">ALE</option>
+                <option th:each="t : ${tipos}" th:value="${t}" th:selected="${t == filtroTipo}"><th:block th:replace="~{receta/formato :: tipoLevadura(${t})}">Ale</th:block></option>
             </select>
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
@@ -62,7 +62,7 @@
             <tr th:each="l : ${levaduras.content}" class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.nombre}">US-05</td>
                 <td class="px-4 py-3">
-                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold" th:text="${l.tipo}">ALE</span>
+                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"><th:block th:replace="~{receta/formato :: tipoLevadura(${l.tipo})}">Ale</th:block></span>
                 </td>
                 <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(l.cantidadCelulasPorGramo, 1, 'POINT', 0, 'COMMA')}">6.000.000.000</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.unidadDeMedida.simbolo}">g</td>

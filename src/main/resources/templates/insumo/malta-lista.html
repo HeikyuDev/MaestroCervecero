@@ -33,7 +33,7 @@
             <select id="tipo" name="tipo"
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
                 <option value="">Todos</option>
-                <option th:each="t : ${tipos}" th:value="${t}" th:selected="${t == filtroTipo}" th:text="${t}">BASE</option>
+                <option th:each="t : ${tipos}" th:value="${t}" th:selected="${t == filtroTipo}"><th:block th:replace="~{receta/formato :: tipoMalta(${t})}">Base</th:block></option>
             </select>
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
@@ -62,7 +62,7 @@
             <tr th:each="m : ${maltas.content}" class="hover:bg-slate-50">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${m.nombre}">Pilsen</td>
                 <td class="px-4 py-3">
-                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold" th:text="${m.tipo}">BASE</span>
+                    <span class="inline-block px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold"><th:block th:replace="~{receta/formato :: tipoMalta(${m.tipo})}">Base</th:block></span>
                 </td>
                 <td class="px-4 py-3 text-slate-700" th:text="${m.potencialExtracto} + ' %'">80 %</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${m.unidadDeMedida.simbolo}">kg</td>

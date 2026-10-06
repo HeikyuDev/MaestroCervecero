@@ -7,4 +7,4 @@ Antes vivía (por error de ubicación) en `EscaladoInsumoServicioImpl`: no es re
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-LE-01**|Etapa encontrada|Lote con sus 6 etapas, `tipo: HERVIDO`|`etapas.stream().filter(...).findFirst()` $\rightarrow$ **Presente**|Retorna la `EtapaLoteEntity` cuyo `etapa` es `HERVIDO`.|
-|**CP-LE-02**|Etapa no encontrada|Lote sin etapas, `tipo: MACERACION`|`etapas.stream().filter(...).findFirst()` $\rightarrow$ **vacío**|Lanza `RecursoNoEncontradoException` con mensaje "El lote no tiene una etapa de MACERACION".|
+|**CP-LE-02**|Etapa no encontrada|Lote sin etapas, `tipo: MACERACION`|`etapas.stream().filter(...).findFirst()` $\rightarrow$ **vacío**|Lanza `RecursoNoEncontradoException` con mensaje "El lote no tiene una etapa de Maceración".|

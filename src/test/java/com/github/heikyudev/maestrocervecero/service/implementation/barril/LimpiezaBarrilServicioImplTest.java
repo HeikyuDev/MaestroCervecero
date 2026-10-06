@@ -255,7 +255,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.registrarLimpiezaBarril(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar una limpieza sobre un barril en estado operativo EN_LIMPIEZA");
+                .hasMessage("Solo se puede registrar una limpieza sobre un barril en estado operativo En limpieza");
 
         verifyNoInteractions(mantenimientoBarrilRepository);
         verify(barrilRepository, never()).save(any());
@@ -421,7 +421,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.anularLimpiezaBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular limpiezas de barril en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular limpiezas de barril en estado Registrado");
 
         verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository, fallaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository);
         verify(limpiezaBarrilRepository, never()).save(any());
@@ -454,7 +454,7 @@ class LimpiezaBarrilServicioImplTest {
 
         assertThatThrownBy(() -> limpiezaBarrilServicio.anularLimpiezaBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular una limpieza cuyo barril asociado se encuentre en estado operativo DISPONIBLE");
+                .hasMessage("Solo se puede anular una limpieza cuyo barril asociado se encuentre en estado operativo Disponible");
 
         verify(barrilRepository, never()).save(any());
         verify(limpiezaBarrilRepository, never()).save(any());

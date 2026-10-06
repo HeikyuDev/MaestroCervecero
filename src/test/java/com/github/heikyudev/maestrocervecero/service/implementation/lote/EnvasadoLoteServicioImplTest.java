@@ -173,7 +173,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote debe encontrarse en estado EN_EJECUCION para poder registrar un envasado");
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder registrar un envasado");
 
         verifyNoInteractions(barrilRepository, envasadoLoteRepository);
     }
@@ -199,7 +199,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa MADURACION no admite el registro de envasados");
+                .hasMessage("La etapa Maduración no admite el registro de envasados");
 
         verifyNoInteractions(barrilRepository, envasadoLoteRepository);
     }
@@ -229,7 +229,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El barril debe encontrarse en estado operativo DISPONIBLE para poder envasar en él");
+                .hasMessage("El barril debe encontrarse en estado operativo Disponible para poder envasar en él");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -462,7 +462,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(1L, anularFormDTO("Error de carga")))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular envasados en estado REGISTRADO");
+                .hasMessage("Solo se pueden anular envasados en estado Registrado");
 
         verifyNoInteractions(barrilRepository);
         verify(envasadoLoteRepository, never()).save(any());
@@ -478,7 +478,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(1L, anularFormDTO("Error de carga")))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote debe encontrarse en estado EN_EJECUCION para poder anular un envasado");
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder anular un envasado");
 
         verifyNoInteractions(barrilRepository);
         verify(envasadoLoteRepository, never()).save(any());

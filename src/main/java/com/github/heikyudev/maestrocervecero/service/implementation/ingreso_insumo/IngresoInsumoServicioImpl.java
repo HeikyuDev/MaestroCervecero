@@ -101,7 +101,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 2. Validar que la orden de compra de ese ítem se encuentre en estado PENDIENTE
         if (detalleCompraEntity.getOrdenCompra().getEstado() != EstadoSolicitud.PENDIENTE) {
-            throw new ReglaNegocioException("Solo se pueden registrar ingresos de ítems de órdenes de compra en estado PENDIENTE");
+            throw new ReglaNegocioException("Solo se pueden registrar ingresos de ítems de órdenes de compra en estado Pendiente");
         }
 
         // 3. Validar que la cantidad recibida sea mayor a cero y no supere la cantidad pendiente de entrega del ítem
@@ -232,7 +232,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 3. Validar que el ingreso se encuentre en estado REGISTRADO
         if (ingresoInsumoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
-            throw new ReglaNegocioException("Solo se pueden anular ingresos de insumo en estado REGISTRADO");
+            throw new ReglaNegocioException("Solo se pueden anular ingresos de insumo en estado Registrado");
         }
 
         // 4. Bloquear el lote de insumo asociado para escritura, y validar que la cantidad del

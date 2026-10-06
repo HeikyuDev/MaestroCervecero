@@ -13,7 +13,7 @@ Lógica extraída de `LoteServicioImpl` sin cambios (ver docs/Dominio/Escalado/E
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-EI-CL-01**|Calcula HERVOR (Tinseth) y DRY_HOP (escalado lineal) en la misma llamada, resolviendo la etapa de cada detalle _(Camino feliz, ejemplo de EscaladoDelLupulo.md)_|OG `1.050`, IBU objetivo `35`, volumen base `20.0`, `volumenObjetivo: 100.0`; Cascade (AA 5.5%, Pellet, 60min, 30g base) y Centennial (AA 10%, Pellet, 15min, 10g base) en HERVOR/Hervido; Citra (15g base) en DRY_HOP/Maduración|Fórmula de Tinseth (Parte 1) para los de HERVOR, escalado lineal (Paso 7) para el de DRY_HOP|Retorna 3 requerimientos: Cascade ≈ `192.6g` y Centennial ≈ `64.2g`, ambos asociados a la etapa Hervido; Citra `= 75.0g` exactos, asociado a la etapa Maduración.|
-|**CP-EI-CL-02**|El lote no tiene la etapa de uso indicada por un detalle|Detalle de lúpulo con `etapaDeUso: MADURACION`, lote sin etapas|`lote.getEtapas().stream().filter(...).findFirst()` $\rightarrow$ **vacío**|Lanza `RecursoNoEncontradoException` con mensaje "El lote no tiene una etapa de MADURACION".|
+|**CP-EI-CL-02**|El lote no tiene la etapa de uso indicada por un detalle|Detalle de lúpulo con `etapaDeUso: MADURACION`, lote sin etapas|`lote.getEtapas().stream().filter(...).findFirst()` $\rightarrow$ **vacío**|Lanza `RecursoNoEncontradoException` con mensaje "El lote no tiene una etapa de Maduración".|
 
 ### 3. `calcularRequerimientosLevadura(VersionRecetaEntity versionReceta, double volumenObjetivo)`
 
