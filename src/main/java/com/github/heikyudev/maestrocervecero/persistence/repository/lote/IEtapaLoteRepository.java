@@ -15,7 +15,7 @@ import java.util.Optional;
  * Hasta ahora, las etapas de un lote solo se accedían indirectamente a través de
  * {@link com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity#getEtapas()}.
  * Este repositorio existe para poder resolver una etapa puntual por su propio ID (por ejemplo, al
- * registrar una medición, donde el formulario indica directamente sobre qué etapa se mide).
+ * registrar un consumo, donde el Controller indica directamente sobre qué etapa se registra).
  * </p>
  */
 @Repository

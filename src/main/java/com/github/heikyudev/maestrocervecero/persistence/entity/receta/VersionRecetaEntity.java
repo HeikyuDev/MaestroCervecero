@@ -78,8 +78,4 @@ public class VersionRecetaEntity implements VersionadoEntity {
     @Builder.Default
     @OneToMany(mappedBy = "versionReceta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<DetalleLevaduraEntity> detallesLevadura = new ArrayList<>();
-
-    @Builder.Default
-    @OneToMany(mappedBy = "versionReceta", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<PlanMonitoreoEtapaEntity> planesMonitoreo = new ArrayList<>();
 }

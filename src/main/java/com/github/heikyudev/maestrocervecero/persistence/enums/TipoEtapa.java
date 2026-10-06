@@ -10,10 +10,9 @@ import lombok.RequiredArgsConstructor;
  * <p>
  * Se reutiliza también en el módulo de Receta: para indicar en qué etapa se
  * incorpora un lúpulo Dry Hop ({@code DetalleLupuloEntity.etapaDeUso}, donde el
- * service restringe el valor a FERMENTACION o MADURACION) y qué etapa supervisa
- * un plan de monitoreo ({@code EtapaDeControlEntity.etapaAControlar}). En ambos
- * casos el subconjunto válido lo valida el service, no el tipo — este enum siempre
- * representa el universo completo de las 6 etapas posibles.
+ * service restringe el valor a FERMENTACION o MADURACION). El subconjunto válido
+ * lo valida el service, no el tipo — este enum siempre representa el universo
+ * completo de las 6 etapas posibles.
  * <p>
  * Cada valor sabe qué operaciones se pueden registrar durante esa etapa (usado
  * por la capa de presentación para mostrar/ocultar acciones según corresponda).
@@ -25,14 +24,13 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TipoEtapa {
-    MOLIENDA(false, false, false),
-    MACERACION(true, true, false),
-    HERVIDO(true, true, false),
-    FERMENTACION(true, true, false),
-    MADURACION(true, true, false),
-    ENVASADO(false, false, true);
+    MOLIENDA(false, false),
+    MACERACION(true, false),
+    HERVIDO(true, false),
+    FERMENTACION(true, false),
+    MADURACION(true, false),
+    ENVASADO(false, true);
 
-    private final boolean permiteRegistrarMediciones;
     private final boolean permiteRegistrarConsumo;
     private final boolean permiteRegistrarEnvasado;
 }

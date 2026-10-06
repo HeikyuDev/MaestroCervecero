@@ -15,9 +15,6 @@
  *     datos son los data-* del botón "Elegir" elegido) para que la página reaccione a la selección.
  *   data-baja-url / data-baja-nombre
  *                                 botón que abre el diálogo de confirmación de baja (#dialogo-baja).
- *   data-descripcion-titulo / data-descripcion-texto
- *                                 botón que abre el visor de descripción (#dialogo-descripcion); se cierra con
- *                                 data-cerrar-descripcion, con Esc o con un clic en el fondo.
  *
  * Dentro del modal del buscador:
  *   data-cerrar-modal             cierra el modal.
@@ -157,14 +154,6 @@
         dialogo.showModal();
     }
 
-    function abrirDescripcion(boton) {
-        var dialogo = document.getElementById('dialogo-descripcion');
-        if (!dialogo) { return; }
-        dialogo.querySelector('[data-descripcion-titulo-destino]').textContent = boton.getAttribute('data-descripcion-titulo');
-        dialogo.querySelector('[data-descripcion-texto-destino]').textContent = boton.getAttribute('data-descripcion-texto');
-        dialogo.showModal();
-    }
-
     function accionSelector(boton) {
         var selector = boton.closest('[data-selector]');
         function asignar(entidad) {
@@ -206,17 +195,6 @@
         var baja = evento.target.closest('[data-baja-url]');
         if (baja) {
             abrirConfirmacionBaja(baja);
-            return;
-        }
-        var descripcion = evento.target.closest('[data-descripcion-texto]');
-        if (descripcion) {
-            abrirDescripcion(descripcion);
-            return;
-        }
-        var dialogoDescripcion = document.getElementById('dialogo-descripcion');
-        if (dialogoDescripcion && (evento.target === dialogoDescripcion || evento.target.closest('[data-cerrar-descripcion]'))) {
-            // El contenido del diálogo lo cubre por completo: un clic directo sobre el diálogo es un clic en el fondo
-            dialogoDescripcion.close();
             return;
         }
         if (evento.target.closest('#dialogo-baja [data-cerrar-dialogo]')) {

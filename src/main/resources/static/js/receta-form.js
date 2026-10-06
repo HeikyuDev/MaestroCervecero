@@ -1,6 +1,5 @@
 /*
- * Formulario de receta: tablas de maltas, lúpulos y levaduras con ventana emergente para agregar filas, y
- * plan de monitoreo con ventana emergente para agregar planes (más abajo, "Plan de monitoreo").
+ * Formulario de receta: tablas de maltas, lúpulos y levaduras con ventana emergente para agregar filas.
  *
  * El servidor pinta las filas que la receta ya tiene y deja, por cada tabla, una <template> con una fila
  * vacía (receta/receta-form-filas.html). Este archivo solo reacciona a los atributos data-* de la página:
@@ -30,26 +29,6 @@
  * Índices: Spring solo enlaza listas sin huecos (detallesMalta[0], [1], [2]...). Por eso después de
  * cada alta o baja de fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el
  * formulario; así el próximo índice libre es siempre la cantidad de filas.
- *
- * Plan de monitoreo (sección [data-plan-monitoreo], fuera de las tablas anteriores):
- *   data-abrir-plan              botón "Agregar plan de monitoreo": abre #dialogo-agregar-plan.
- *   data-plan                    bloque de un plan; data-plan-campo es su campo oculto idEtapaControl.
- *   data-parametro-plan          fila de un parámetro dentro del bloque; sus campos ocultos son data-campo
- *                                (idParametroControl, valorMinimo, valorIdeal, valorMaximo).
- *   data-quitar-plan             botón "Quitar plan" del bloque.
- *   template[data-plantilla-plan] y template[data-plantilla-parametro-plan]
- *                                bloque vacío y fila de parámetro que se clonan al confirmar la ventana.
- * Dentro de la ventana (#dialogo-agregar-plan):
- *   data-bloque="etapa|parametro"  contenedor de cada selector de entidad.
- *   data-campo-plan              campos del mini formulario (minimo, ideal, maximo).
- *   data-agregar-parametro       agrega el parámetro elegido (con sus valores) a la tabla del plan.
- *   data-parametro-dialogo       fila de esa tabla (los datos viajan en sus data-*);
- *                                data-quitar-parametro-dialogo la quita.
- *   data-confirmar-plan          "Agregar a la receta": agrega el bloque completo; data-cerrar-plan cierra.
- *   data-error="etapa|parametro" avisos de que falta elegir la entidad (lo único que se comprueba acá).
- * El servidor valida el plan (etapa, parámetros, valores y rangos) igual que el resto del formulario. Los índices
- * son de dos niveles (version.planesMonitoreo[i].detallesParametroControl[j].campo) y se renumeran ambos al
- * agregar o quitar un plan y al enviar el formulario.
  */
 (function () {
     'use strict';
@@ -210,223 +189,13 @@
         dialogo.close();
     }
 
-    // ---------- Plan de monitoreo ----------
-
-    function dialogoPlan() { return document.getElementById('dialogo-agregar-plan'); }
-
-    function seccionPlanes() { return document.querySelector('[data-plan-monitoreo]'); }
-
-    function selectorDe(dialogo, bloque) { return dialogo.querySelector('[data-bloque="' + bloque + '"] [data-selector]'); }
-
-    function idDe(selector) { return selector.querySelector('[data-selector-id]').value; }
-
-    function textoDe(selector) { return selector.querySelector('[data-selector-texto]').value; }
-
-    function mostrarAvisoPlan(dialogo, nombre, mostrar) {
-        dialogo.querySelector('[data-error="' + nombre + '"]').hidden = !mostrar;
-    }
-
-    function vaciarSelector(selector) {
-        selector.querySelector('[data-selector-id]').value = '';
-        selector.querySelector('[data-selector-texto]').value = '';
-        ['etapa', 'unidad', 'minimo', 'maximo'].forEach(function (dato) { selector.removeAttribute('data-' + dato); });
-    }
-
-    /** Escribe la unidad del parámetro elegido en las etiquetas de los valores y muestra su rango admitido. */
-    function actualizarUnidadParametro(dialogo) {
-        var selector = selectorDe(dialogo, 'parametro');
-        var elegido = idDe(selector) !== '' && selector.hasAttribute('data-unidad');
-        var unidad = elegido ? selector.getAttribute('data-unidad') : '';
-        dialogo.querySelectorAll('[data-unidad-parametro]').forEach(function (etiqueta) {
-            etiqueta.textContent = unidad || 'unidad';
-        });
-        dialogo.querySelector('[data-rango-parametro]').textContent = elegido
-            ? 'Rango admitido: ' + formatearNumero(selector.getAttribute('data-minimo')) + '–'
-                + formatear(selector.getAttribute('data-maximo'), unidad)
-            : 'Elegí un parámetro para ver su unidad y su rango admitido.';
-    }
-
-    /** Deja la ventana vacía: sin etapa, sin parámetros en la tabla, con el mini formulario limpio y sin avisos. */
-    function reiniciarPlan(dialogo) {
-        vaciarSelector(selectorDe(dialogo, 'etapa'));
-        vaciarSelector(selectorDe(dialogo, 'parametro'));
-        dialogo.querySelectorAll('[data-campo-plan]').forEach(function (campo) { campo.value = ''; });
-        dialogo.querySelectorAll('[data-parametro-dialogo]').forEach(function (fila) { fila.remove(); });
-        dialogo.querySelector('[data-parametros-dialogo-vacio]').hidden = false;
-        mostrarAvisoPlan(dialogo, 'etapa', false);
-        mostrarAvisoPlan(dialogo, 'parametro', false);
-        actualizarUnidadParametro(dialogo);
-    }
-
-    function abrirPlan() {
-        var dialogo = dialogoPlan();
-        reiniciarPlan(dialogo);
-        dialogo.showModal();
-        selectorDe(dialogo, 'etapa').querySelector('[data-selector-texto]').focus();
-    }
-
-    function valorPlan(dialogo, campo) {
-        return dialogo.querySelector('[data-campo-plan="' + campo + '"]').value;
-    }
-
-    /**
-     * Agrega a la tabla de la ventana el parámetro elegido con los valores tal como se escribieron (sin validarlos).
-     * Sin parámetro elegido no hay nada que mostrar: solo se avisa.
-     */
-    function agregarParametroAlPlan(dialogo) {
-        var selector = selectorDe(dialogo, 'parametro');
-        if (idDe(selector) === '') {
-            mostrarAvisoPlan(dialogo, 'parametro', true);
-            return;
-        }
-        mostrarAvisoPlan(dialogo, 'parametro', false);
-
-        var unidad = selector.getAttribute('data-unidad') || '';
-        var datos = {
-            id: idDe(selector), nombre: textoDe(selector), unidad: unidad,
-            minimo: valorPlan(dialogo, 'minimo'), ideal: valorPlan(dialogo, 'ideal'), maximo: valorPlan(dialogo, 'maximo')
-        };
-
-        var fila = dialogo.querySelector('template[data-plantilla-parametro-dialogo]').content.firstElementChild.cloneNode(true);
-        Object.keys(datos).forEach(function (dato) { fila.setAttribute('data-' + dato, datos[dato]); });
-        fila.querySelector('[data-celda="nombre"]').textContent = datos.nombre;
-        ['minimo', 'ideal', 'maximo'].forEach(function (valor) {
-            fila.querySelector('[data-celda="' + valor + '"]').textContent = formatear(datos[valor], unidad);
-        });
-
-        var vacia = dialogo.querySelector('[data-parametros-dialogo-vacio]');
-        vacia.parentNode.insertBefore(fila, vacia);
-        vacia.hidden = true;
-
-        vaciarSelector(selector);
-        dialogo.querySelectorAll('[data-campo-plan]').forEach(function (campo) { campo.value = ''; });
-        actualizarUnidadParametro(dialogo);
-    }
-
-    /**
-     * Renumera los dos niveles de índices: cada plan (version.planesMonitoreo[i]) y, dentro de él, cada parámetro
-     * (detallesParametroControl[j]), sin huecos y en el orden en que se ven. Muestra u oculta el texto de sin planes.
-     */
-    function sincronizarPlanes() {
-        var seccion = seccionPlanes();
-        if (!seccion) { return; }
-        var planes = seccion.querySelectorAll('[data-planes] > [data-plan]');
-        planes.forEach(function (plan, i) {
-            plan.querySelector('[data-plan-campo]').name = 'version.planesMonitoreo[' + i + '].idEtapaControl';
-            plan.querySelectorAll('[data-parametro-plan]').forEach(function (fila, j) {
-                fila.querySelectorAll('[data-campo]').forEach(function (campo) {
-                    campo.name = 'version.planesMonitoreo[' + i + '].detallesParametroControl[' + j + '].' + campo.getAttribute('data-campo');
-                });
-            });
-        });
-        seccion.querySelector('[data-planes-vacio]').hidden = planes.length > 0;
-    }
-
-    /** Arma el bloque completo del plan con lo cargado en la ventana y lo agrega a la receta. */
-    function confirmarPlan(dialogo) {
-        var selector = selectorDe(dialogo, 'etapa');
-        // Sin etapa de control no hay nada que mostrar en el bloque: es lo único que se comprueba acá
-        if (idDe(selector) === '') {
-            mostrarAvisoPlan(dialogo, 'etapa', true);
-            return;
-        }
-
-        var seccion = seccionPlanes();
-        var plan = seccion.querySelector('template[data-plantilla-plan]').content.firstElementChild.cloneNode(true);
-        plan.querySelector('[data-plan-campo]').value = idDe(selector);
-        plan.querySelector('[data-celda="nombre"]').textContent = textoDe(selector);
-        plan.querySelector('[data-celda="etapa"]').textContent = ETAPAS[selector.getAttribute('data-etapa')] || '';
-        plan.querySelector('[data-etapa-bloque]').hidden = false;
-
-        var plantilla = seccion.querySelector('template[data-plantilla-parametro-plan]');
-        var cuerpo = plan.querySelector('[data-parametros-plan]');
-        dialogo.querySelectorAll('[data-parametro-dialogo]').forEach(function (origen) {
-            var fila = plantilla.content.firstElementChild.cloneNode(true);
-            var unidad = origen.getAttribute('data-unidad');
-            var campos = {
-                idParametroControl: origen.getAttribute('data-id'), valorMinimo: origen.getAttribute('data-minimo'),
-                valorIdeal: origen.getAttribute('data-ideal'), valorMaximo: origen.getAttribute('data-maximo')
-            };
-            fila.querySelectorAll('[data-campo]').forEach(function (campo) {
-                campo.value = campos[campo.getAttribute('data-campo')];
-            });
-            fila.querySelector('[data-celda="nombre"]').textContent = origen.getAttribute('data-nombre');
-            fila.querySelector('[data-celda="valorMinimo"]').textContent = formatear(campos.valorMinimo, unidad);
-            fila.querySelector('[data-celda="valorIdeal"]').textContent = formatear(campos.valorIdeal, unidad);
-            fila.querySelector('[data-celda="valorMaximo"]').textContent = formatear(campos.valorMaximo, unidad);
-            cuerpo.appendChild(fila);
-        });
-
-        seccion.querySelector('[data-planes]').appendChild(plan);
-        sincronizarPlanes();
-        dialogo.close();
-    }
-
-    document.addEventListener('click', function (evento) {
-        if (evento.target.closest('[data-abrir-plan]')) {
-            abrirPlan();
-            return;
-        }
-        var quitarPlan = evento.target.closest('[data-quitar-plan]');
-        if (quitarPlan) {
-            quitarPlan.closest('[data-plan]').remove();
-            sincronizarPlanes();
-            return;
-        }
-        var quitarParametro = evento.target.closest('[data-quitar-parametro-dialogo]');
-        if (quitarParametro) {
-            var dialogo = quitarParametro.closest('dialog');
-            quitarParametro.closest('[data-parametro-dialogo]').remove();
-            dialogo.querySelector('[data-parametros-dialogo-vacio]').hidden =
-                dialogo.querySelectorAll('[data-parametro-dialogo]').length > 0;
-            return;
-        }
-        if (evento.target.closest('[data-agregar-parametro]')) {
-            agregarParametroAlPlan(dialogoPlan());
-            return;
-        }
-        if (evento.target.closest('[data-confirmar-plan]')) {
-            confirmarPlan(dialogoPlan());
-            return;
-        }
-        if (evento.target.closest('[data-cerrar-plan]')) {
-            dialogoPlan().close();
-        }
-    });
-
     // Al elegir algo en un selector de una ventana, el aviso de "falta elegir" deja de tener sentido
     document.addEventListener('selector:cambio', function (evento) {
         var selector = evento.target;
         var ventana = selector.closest('dialog');
         if (!ventana || !evento.detail || !evento.detail.id) { return; }
-        var bloque = selector.closest('[data-bloque]');
-        var aviso = ventana.querySelector('[data-error="' + (bloque ? bloque.getAttribute('data-bloque') : 'insumo') + '"]');
+        var aviso = ventana.querySelector('[data-error="insumo"]');
         if (aviso) { aviso.hidden = true; }
-    });
-
-    // Al elegir (o quitar) la etapa de control o el parámetro, el selector guarda los datos que necesita el plan
-    document.addEventListener('selector:cambio', function (evento) {
-        var selector = evento.target;
-        var dialogo = dialogoPlan();
-        if (!dialogo || !dialogo.contains(selector)) { return; }
-        var datos = evento.detail.datos || {};
-        ['etapa', 'unidad', 'minimo', 'maximo'].forEach(function (dato) {
-            if (datos[dato] === undefined) {
-                selector.removeAttribute('data-' + dato);
-            } else {
-                selector.setAttribute('data-' + dato, datos[dato]);
-            }
-        });
-        if (selector === selectorDe(dialogo, 'parametro')) { actualizarUnidadParametro(dialogo); }
-    });
-
-    // Enter en un valor del mini formulario equivale a "Agregar parámetro"
-    document.addEventListener('keydown', function (evento) {
-        var campo = evento.target.closest ? evento.target.closest('input[data-campo-plan]') : null;
-        if (campo && evento.key === 'Enter') {
-            evento.preventDefault();
-            agregarParametroAlPlan(campo.closest('dialog'));
-        }
     });
 
     // ---------- Eventos ----------
@@ -475,11 +244,9 @@
         var formulario = document.getElementById('receta-form');
         var secciones = document.querySelectorAll('[data-detalle]');
         secciones.forEach(sincronizar);
-        sincronizarPlanes();
-        // Última garantía antes de enviar: índices sin huecos en las tres tablas y en los dos niveles del plan
+        // Última garantía antes de enviar: índices sin huecos en las tres tablas
         formulario.addEventListener('submit', function () {
             secciones.forEach(sincronizar);
-            sincronizarPlanes();
         });
     });
 })();

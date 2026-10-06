@@ -6,35 +6,16 @@
 |**CP-FR-02**|Nombre nulo no restringe la búsqueda|`nombre: null`, `pageable: PageRequest.of(0, 10)`|El service propaga `nombre: null` tal cual al repositorio|Retorna `Page<RecetaResponseDTO>` con todas las recetas activas (equivalente a no filtrar).|
 |**CP-FR-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`|`filtrarRecetas("Inexistente", pageable)` está vacío|Retorna `Page<RecetaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
 
-### 2. `filtrarDetallesParametroControl(Long idPlanMonitoreoEtapa)`
-
-`idPlanMonitoreoEtapa` lo elige el usuario, típicamente entre las opciones que ya le devolvió `filtrarPlanesMonitoreo` (ver más abajo) — por eso este método no necesita volver a validar ninguna correspondencia con una etapa. No pagina: la lista de detalles configurados en un plan de monitoreo es siempre acotada.
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-FDPC-01**|Plan de monitoreo existente|`idPlanMonitoreoEtapa: 1L` (con 1 detalle configurado)|`planMonitoreoEtapaRepository.findById(1L)` → **Presente**|Retorna `List<DetalleParametroControlResponseDTO>` con el detalle mapeado, incluida la unidad de medida del parámetro de control.|
-|**CP-FDPC-02**|Plan de monitoreo de etapa inexistente|`idPlanMonitoreoEtapa: 99L` (No existe)|`planMonitoreoEtapaRepository.findById(99L)` → **Optional.empty()**|Lanza `RecursoNoEncontradoException`.|
-
-### 3. `filtrarPlanesMonitoreo(Long idEtapaLote)`
-
-`idEtapaLote` no lo tipea el usuario: lo determina el sistema según en qué etapa de qué lote se está parado (por ejemplo, al entrar a la futura pantalla "Registrar Medición" estando en el contexto de la etapa de Maceración de un lote). A partir de esa única etapa de lote, tanto el tipo de etapa a controlar como la versión de receta vigente para ese lote (navegando `etapaLote.lote.planificacionProduccion.versionReceta`) se derivan solos. No pagina.
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-FPM-01**|Filtra únicamente los planes cuya etapa a controlar coincide con la etapa del lote|`idEtapaLote: 1L` (etapa del lote: FERMENTACION), versión de receta con 2 planes de monitoreo (uno FERMENTACION, otro MACERACION)|`plan.etapaControl.etapaAControlar == etapaLote.etapa` filtra la lista|Retorna `List<PlanMonitoreoEtapaResponseDTO>` con únicamente el plan de FERMENTACION.|
-|**CP-FPM-02**|Etapa de lote inexistente|`idEtapaLote: 99L` (No existe)|`etapaLoteRepository.findById(99L)` → **Optional.empty()**|Lanza `RecursoNoEncontradoException`.|
-|**CP-FPM-03**|Ningún plan de la receta corresponde al tipo de etapa del lote|`idEtapaLote: 1L` (etapa del lote: FERMENTACION), versión de receta con 1 plan (MACERACION)|Ningún plan cumple `plan.etapaControl.etapaAControlar == etapaLote.etapa`|Retorna `List<PlanMonitoreoEtapaResponseDTO>` vacía.|
-
-### 4. `buscarPorId(Long id)`
+### 2. `buscarPorId(Long id)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Receta encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `RecetaResponseDTO` con los datos de la entidad.|
 |**CP-BI-02**|Receta inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la receta con ID: 99".|
 
-### 5. `altaReceta(RecetaFormDTO recetaFormDTO)`
+### 3. `altaReceta(RecetaFormDTO recetaFormDTO)`
 
-Se concentran las reglas de negocio de la versión inicial. En todos los casos de falla, el resto de los datos del DTO son válidos. Las validaciones de la versión se ejecutan en este orden: datos generales, maltas, lúpulos (cantidades, etapa de uso según el uso, existencia de HERVOR, tiempo de hervor y duplicados), levaduras y plan de monitoreo; recién después se valida el nombre y se resuelven las referencias a la BD.
+Se concentran las reglas de negocio de la versión inicial. En todos los casos de falla, el resto de los datos del DTO son válidos. Las validaciones de la versión se ejecutan en este orden: datos generales, maltas, lúpulos (cantidades, etapa de uso según el uso, existencia de Hervor, tiempo de hervor y duplicados) y levaduras; recién después se valida el nombre y se resuelven las referencias a la BD.
 
 |**ID**|**Nombre del Caso**| **Datos de Entrada (Escenario)**                                                                       |**Condición Evaluada**|**Resultado Esperado**|
 |---|---|--------------------------------------------------------------------------------------------------------|---|---|
@@ -65,29 +46,17 @@ Se concentran las reglas de negocio de la versión inicial. En todos los casos d
 |**CP-AR-25**|Malta inexistente| `idMalta: 99L` (No existe en BD)                                                                       |`maltaRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No ejecuta `save()`.|
 |**CP-AR-26**|Lúpulo inexistente| `idLupulo: 99L` (No existe en BD)                                                                      |`lupuloRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No ejecuta `save()`.|
 |**CP-AR-27**|Levadura inexistente| `idLevadura: 99L` (No existe en BD)                                                                    |`levaduraRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No ejecuta `save()`.|
-|**CP-AR-28**|Etapa de control inexistente| `idEtapaControl: 99L` (No existe en BD)                                                                |`etapaControlRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No ejecuta `save()`.|
-|**CP-AR-29**|Parámetro de control inexistente| `idParametroControl: 99L` (No existe en BD)                                                            |`parametroControlRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No ejecuta `save()`.|
-|**CP-AR-30**|Valor mínimo mayor al valor máximo| `valorMinimo: 25.0`, `valorMaximo: 18.0`                                                               |`valorMinimo == null \| valorMaximo == null \| min > max` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No ejecuta `save()`.|
-|**CP-AR-31**|Valor ideal fuera del rango planificado| `valorMinimo: 18.0`, `valorMaximo: 22.0`, `valorIdeal: 25.0`                                           |`valorIdeal < min \| valorIdeal > max` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No ejecuta `save()`.|
-|**CP-AR-32**|Mínimo planificado inferior al límite teórico| `valorMinimo: -5.0`; parámetro con `valorMinimo: 0.0`                                                  |`valorMinimo < parametroControl.getValorMinimo()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No ejecuta `save()`.|
-|**CP-AR-33**|Máximo planificado superior al límite teórico| `valorMaximo: 110.0`; parámetro con `valorMaximo: 100.0`                                               |`valorMaximo > parametroControl.getValorMaximo()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No ejecuta `save()`.|
-|**CP-AR-34**|Rango planificado en los límites teóricos _(Límite válido)_| `valorMinimo: 0.0`, `valorMaximo: 100.0`, `valorIdeal: 0.0`; parámetro con límites `0.0` y `100.0`     |Todas las validaciones de rango $\rightarrow$ **FALSE**|Persiste el detalle de parámetro de control y retorna DTO.|
-|**CP-AR-35**|Alta sin plan de monitoreo _(Opcional)_| DTO válido con `planesMonitoreo: null`                                                                 |`Optional.ofNullable(planesMonitoreo)` $\rightarrow$ **Vacío**|Persiste la receta sin planes de monitoreo. No consulta `etapaControlRepository`.|
-|**CP-AR-36**|Alta exitosa _(Camino feliz)_| DTO válido: 2 maltas, 3 lúpulos (1 HERVOR), 1 levadura, 1 plan de monitoreo, `nombre: "IPA Nueva"` (Único) |Todas las validaciones $\rightarrow$ **FALSE**|Persiste la receta con `estado = ACTIVO` y 1 versión en `esUltimaVersion = true`, y retorna DTO.|
-|**CP-AR-37**|Etapa de uso de un lúpulo HERVOR distinta de HERVIDO|Lúpulo con `uso: HERVOR`, `etapaDeUso: FERMENTACION`|`uso != DRY_HOP \| etapaDeUso != HERVIDO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO". No consulta la BD.|
+|**CP-AR-36**|Alta exitosa _(Camino feliz)_| DTO válido: 2 maltas, 3 lúpulos (1 HERVOR), 1 levadura, `nombre: "IPA Nueva"` (Único) |Todas las validaciones $\rightarrow$ **FALSE**|Persiste la receta con `estado = ACTIVO` y 1 versión en `esUltimaVersion = true`, y retorna DTO.|
+|**CP-AR-37**|Etapa de uso de un lúpulo HERVOR distinta de HERVIDO|Lúpulo con `uso: HERVOR`, `etapaDeUso: FERMENTACION`|`uso != DRY_HOP \| etapaDeUso != HERVIDO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La etapa de uso de un lúpulo con uso Hervor o Whirlpool debe ser Hervido". No consulta la BD.|
 |**CP-AR-38**|Etapa de uso de un lúpulo WHIRLPOOL distinta de HERVIDO|1 lúpulo HERVOR válido + 1 lúpulo con `uso: WHIRLPOOL`, `etapaDeUso: MADURACION`|`uso != DRY_HOP \| etapaDeUso != HERVIDO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje del caso anterior. No consulta la BD.|
-|**CP-AR-39**|Etapa de uso de un lúpulo DRY_HOP en HERVIDO|1 lúpulo HERVOR válido + 1 lúpulo con `uso: DRY_HOP`, `etapaDeUso: HERVIDO`|`uso == DRY_HOP \| etapaDeUso != FERMENTACION y != MADURACION` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION". No consulta la BD.|
-|**CP-AR-40**|Etapa de uso de un lúpulo nula|Lúpulo con `uso: HERVOR`, `etapaDeUso: null`|`etapaDeUso != HERVIDO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO". No consulta la BD.|
+|**CP-AR-39**|Etapa de uso de un lúpulo DRY_HOP en HERVIDO|1 lúpulo HERVOR válido + 1 lúpulo con `uso: DRY_HOP`, `etapaDeUso: HERVIDO`|`uso == DRY_HOP \| etapaDeUso != FERMENTACION y != MADURACION` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La etapa de uso de un lúpulo con uso Dry hop debe ser Fermentación o Maduración". No consulta la BD.|
+|**CP-AR-40**|Etapa de uso de un lúpulo nula|Lúpulo con `uso: HERVOR`, `etapaDeUso: null`|`etapaDeUso != HERVIDO` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La etapa de uso de un lúpulo con uso Hervor o Whirlpool debe ser Hervido". No consulta la BD.|
 |**CP-AR-41**|Malta repetida en la receta|2 detalles de malta con el mismo `idMalta: 1L`|`hayRepetidos(idMalta)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La receta no puede tener la misma malta más de una vez". No consulta la BD.|
 |**CP-AR-42**|Levadura repetida en la receta|2 detalles de levadura con el mismo `idLevadura: 1L`|`hayRepetidos(idLevadura)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La receta no puede tener la misma levadura más de una vez". No consulta la BD.|
 |**CP-AR-43**|Lúpulo repetido con el mismo uso y tiempo de hervor|2 lúpulos con `idLupulo: 1L`, `uso: HERVOR`, `tiempoDeHervor: 30.0`|`hayRepetidos(idLupulo, uso, tiempoDeHervor)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La receta no puede repetir un lúpulo con el mismo uso y el mismo tiempo de hervor". No consulta la BD.|
 |**CP-AR-44**|Lúpulo no HERVOR repetido: el tiempo de hervor cuenta como 0|1 lúpulo HERVOR válido + 2 lúpulos con `idLupulo: 1L`, `uso: WHIRLPOOL`, uno con `tiempoDeHervor: null` y otro con `tiempoDeHervor: 15.0`|Tiempo normalizado a `0.0` para uso distinto de HERVOR; `hayRepetidos(idLupulo, uso, tiempoNormalizado)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje del caso anterior. No consulta la BD.|
 |**CP-AR-45**|Mismo lúpulo HERVOR con distinto tiempo de hervor _(Válido)_|2 lúpulos con `idLupulo: 1L`, `uso: HERVOR`, `tiempoDeHervor: 30.0` y `15.0`|`hayRepetidos(idLupulo, uso, tiempoDeHervor)` $\rightarrow$ **FALSE**|Persiste la receta con ambos detalles de lúpulo.|
 |**CP-AR-46**|Mismo lúpulo con distinto uso _(Válido)_|2 lúpulos con `idLupulo: 1L`: uno `HERVOR` (30.0) y otro `DRY_HOP` en `FERMENTACION`|`hayRepetidos(idLupulo, uso, tiempoDeHervor)` $\rightarrow$ **FALSE**|Persiste la receta con ambos detalles de lúpulo.|
-|**CP-AR-47**|Misma etapa de control en dos planes de monitoreo|2 planes con el mismo `idEtapaControl: 1L`|`hayRepetidos(idEtapaControl)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La receta no puede tener más de un plan de monitoreo para la misma etapa de control". No consulta la BD.|
-|**CP-AR-48**|Plan de monitoreo sin parámetros de control|1 plan con `detallesParametroControl: List.of()`|`detallesParametroControl == null \| isEmpty()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "Cada plan de monitoreo debe tener al menos un parámetro de control". No consulta la BD.|
-|**CP-AR-49**|Parámetro de control repetido dentro de un plan|1 plan con 2 detalles con el mismo `idParametroControl: 1L`|`hayRepetidos(idParametroControl)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "Un plan de monitoreo no puede repetir el mismo parámetro de control". No consulta la BD.|
-|**CP-AR-50**|Mismo parámetro de control en planes de distinta etapa _(Válido)_|2 planes con `idEtapaControl: 1L` y `2L`, ambos con el parámetro `idParametroControl: 1L`|Etapas de control distintas y parámetros únicos dentro de cada plan $\rightarrow$ **FALSE**|Persiste la receta con 2 planes de monitoreo.|
 |**CP-AR-51**|OG objetivo menor al mínimo _(Límite inf. inválido)_|`ogObjetivo: 1.019`|`ogObjetivo` fuera de 1,020 a 1,120 $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con mensaje "La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)". No consulta la BD.|
 |**CP-AR-52**|OG objetivo mayor al máximo _(Límite sup. inválido)_|`ogObjetivo: 1.121`|`ogObjetivo` fuera de 1,020 a 1,120 $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de OG. No consulta la BD.|
 |**CP-AR-53**|OG objetivo con cuatro decimales|`ogObjetivo: 1.0505`|`ogObjetivo` con más de 3 decimales $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` con el mismo mensaje de OG. No consulta la BD.|
@@ -100,9 +69,9 @@ Se concentran las reglas de negocio de la versión inicial. En todos los casos d
 |**CP-AR-60**|OG y FG en los límites superiores _(Válido)_|`ogObjetivo: 1.120`, `fgObjetivo: 1.040`|Ambas densidades dentro de rango y con a lo sumo 3 decimales $\rightarrow$ **FALSE**|Persiste la receta con OG 1.120 y FG 1.040.|
 |**CP-AR-61**|OG y FG con dos y tres decimales _(Válido)_|`ogObjetivo: 1.05`, `fgObjetivo: 1.015`|Ambas densidades dentro de rango y con a lo sumo 3 decimales $\rightarrow$ **FALSE**|Persiste la receta con OG 1.05 y FG 1.015.|
 
-### 6. `modificarReceta(Long id, RecetaFormDTO recetaFormDTO)`
+### 4. `modificarReceta(Long id, RecetaFormDTO recetaFormDTO)`
 
-Valida el versionado, los fallos por reglas de negocio y la existencia del registro. Las validaciones de datos generales, detalles y rangos son las mismas del alta (**CP-AR-01** a **CP-AR-22**, **CP-AR-30** a **CP-AR-34** y **CP-AR-37** a **CP-AR-61**), por lo que se agrupan por validador.
+Valida el versionado, los fallos por reglas de negocio y la existencia del registro. Las validaciones de datos generales, detalles y rangos son las mismas del alta (**CP-AR-01** a **CP-AR-22** y **CP-AR-37** a **CP-AR-46** y **CP-AR-51** a **CP-AR-61**), por lo que se agrupan por validador.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -110,7 +79,6 @@ Valida el versionado, los fallos por reglas de negocio y la existencia del regis
 |**CP-MR-02**|Falla por detalles de malta|`id: 1L`, `detallesMalta: List.of()`|`validarDetallesMalta` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No busca por ID ni persiste.|
 |**CP-MR-03**|Falla por detalles de lúpulo|`id: 1L`, lúpulos sin uso HERVOR|`validarDetallesLupulo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No busca por ID ni persiste.|
 |**CP-MR-04**|Falla por detalles de levadura|`id: 1L`, `detallesLevadura: List.of()`|`validarDetallesLevadura` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No busca por ID ni persiste.|
-|**CP-MR-05**|Falla por rango de parámetro de control|`id: 1L`, `valorMinimo: 25.0`, `valorMaximo: 18.0`|`validarRangoDetalleParametroControl` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No ejecuta `save()`.|
 |**CP-MR-06**|Nombre en uso por otra receta|`id: 1L`, `nombre: "RECETA-EXISTENTE"`|`existsByNombre...AndRecetaIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No busca por ID ni persiste.|
 |**CP-MR-07**|Conservar el nombre propio actual|`id: 1L`, `nombre: "IPA Clásica"` (Misma receta)|`existsByNombre...AndRecetaIdNot` $\rightarrow$ **FALSE**|Permite registrar la nueva versión, persiste y retorna DTO.|
 |**CP-MR-08**|Receta no encontrada por ID|`id: 99L` (No existe en BD), DTO válido|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No persiste.|
@@ -121,9 +89,6 @@ Valida el versionado, los fallos por reglas de negocio y la existencia del regis
 |**CP-MR-13**|Falla por malta repetida|`id: 1L`, 2 detalles con el mismo `idMalta`|`validarDetallesMalta` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-14**|Falla por levadura repetida|`id: 1L`, 2 detalles con el mismo `idLevadura`|`validarDetallesLevadura` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-15**|Falla por lúpulo repetido con el mismo uso y tiempo de hervor|`id: 1L`, 2 lúpulos con el mismo `idLupulo`, `uso: HERVOR` y `tiempoDeHervor`|`validarDetallesLupulo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-MR-16**|Falla por misma etapa de control en dos planes|`id: 1L`, 2 planes con el mismo `idEtapaControl`|`validarPlanesMonitoreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-MR-17**|Falla por plan de monitoreo sin parámetros|`id: 1L`, 1 plan con `detallesParametroControl: List.of()`|`validarPlanesMonitoreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
-|**CP-MR-18**|Falla por parámetro de control repetido en un plan|`id: 1L`, 1 plan con 2 detalles con el mismo `idParametroControl`|`validarPlanesMonitoreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-19**|Falla: OG objetivo menor al mínimo _(Límite inf. inválido)_|`id: 1L`, `ogObjetivo: 1.019`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-20**|Falla: OG objetivo mayor al máximo _(Límite sup. inválido)_|`id: 1L`, `ogObjetivo: 1.121`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-21**|Falla: OG objetivo con cuatro decimales|`id: 1L`, `ogObjetivo: 1.0505`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
@@ -133,7 +98,7 @@ Valida el versionado, los fallos por reglas de negocio y la existencia del regis
 |**CP-MR-25**|Falla: FG objetivo con cuatro decimales|`id: 1L`, `fgObjetivo: 1.0105`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-MR-26**|Falla: FG objetivo nula|`id: 1L`, `fgObjetivo: null`|`validarDatosGenerales` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException`. No consulta la BD.|
 
-### 7. `bajaReceta(Long id)`
+### 5. `bajaReceta(Long id)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

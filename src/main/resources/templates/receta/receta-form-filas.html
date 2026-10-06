@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <!--
-    Filas de las tablas de maltas, lúpulos y levaduras del formulario de receta y bloques del plan de monitoreo.
+    Filas de las tablas de maltas, lúpulos y levaduras del formulario de receta.
 
     Cada fila lleva sus datos en campos ocultos con el nombre indexado que espera el RecetaFormDTO
     (por ejemplo version.detallesMalta[0].idMalta). Las mismas filas se usan para pintar lo que ya
@@ -69,67 +69,6 @@
             <i class="bi bi-trash"></i> Quitar
         </button>
     </td>
-</tr>
-
-<!--
-    Plan de monitoreo: un bloque por plan (etapa de control + tabla de sus parámetros) con campos ocultos de dos
-    niveles, version.planesMonitoreo[i].idEtapaControl y
-    version.planesMonitoreo[i].detallesParametroControl[j].(idParametroControl|valorMinimo|valorIdeal|valorMaximo).
-    /js/receta-form.js recalcula ambos índices (data-plan-campo en el bloque, data-campo en cada fila) al agregar
-    o quitar un plan y al enviar el formulario.
-
-    plan: nombre y etapaAControlar son los de la etapa de control (nombre null si ya no existe); conEtapa muestra
-    "etapa a controlar"; detalles son los DetalleParametroControlFormDTO del plan (null en la plantilla); los datos de
-    cada parámetro (nombre, unidad) salen del mapa parametrosControlPorId del modelo.
-    parametroPlan: unidad es la unidad de medida del parámetro; cada valor se muestra con ella.
--->
-
-<div th:fragment="plan(indice, idEtapaControl, nombre, etapaAControlar, conEtapa, detalles, conError)" data-plan
-     class="border rounded-lg overflow-hidden" th:classappend="${conError} ? 'border-rose-400' : 'border-slate-200'">
-    <input type="hidden" data-plan-campo="idEtapaControl" th:name="|version.planesMonitoreo[${indice}].idEtapaControl|" th:value="${idEtapaControl}">
-    <div class="flex items-center justify-between gap-4 px-4 py-3 text-sm" th:classappend="${conError} ? 'bg-rose-50' : 'bg-slate-50'">
-        <div>
-            <span class="font-semibold text-slate-900" data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Etapa de control no disponible'">Control de densidad</span>
-            <span class="text-slate-500" data-etapa-bloque th:hidden="${!conEtapa}">- etapa a controlar: <span data-celda="etapa"><th:block th:replace="~{receta/formato :: etapa(${etapaAControlar})}"></th:block></span></span>
-        </div>
-        <button type="button" data-quitar-plan
-                class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-colors">
-            <i class="bi bi-trash"></i> Quitar plan
-        </button>
-    </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left">
-            <thead class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            <tr>
-                <th class="px-4 py-3">Parámetro</th>
-                <th class="px-4 py-3">Mínimo</th>
-                <th class="px-4 py-3">Ideal</th>
-                <th class="px-4 py-3">Máximo</th>
-            </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100" data-parametros-plan>
-            <th:block th:each="d, di : ${detalles}" th:with="parametro=${parametrosControlPorId.get(d.idParametroControl)}">
-                <tr th:replace="~{receta/receta-form-filas :: parametroPlan(${indice}, ${di.index}, ${d.idParametroControl},
-                        ${parametro?.nombre}, ${parametro != null ? parametro.unidadDeMedida : ''},
-                        ${d.valorMinimo}, ${d.valorIdeal}, ${d.valorMaximo},
-                        ${#fields.hasErrors('version.planesMonitoreo[' + indice + '].detallesParametroControl[' + di.index + '].*')})}"></tr>
-            </th:block>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<tr th:fragment="parametroPlan(indicePlan, indice, idParametro, nombre, unidad, minimo, ideal, maximo, conError)" data-parametro-plan th:classappend="${conError} ? 'bg-rose-50'">
-    <td class="px-4 py-3 font-medium text-slate-900">
-        <input type="hidden" data-campo="idParametroControl" th:name="|version.planesMonitoreo[${indicePlan}].detallesParametroControl[${indice}].idParametroControl|" th:value="${idParametro}">
-        <input type="hidden" data-campo="valorMinimo" th:name="|version.planesMonitoreo[${indicePlan}].detallesParametroControl[${indice}].valorMinimo|" th:value="${minimo}">
-        <input type="hidden" data-campo="valorIdeal" th:name="|version.planesMonitoreo[${indicePlan}].detallesParametroControl[${indice}].valorIdeal|" th:value="${ideal}">
-        <input type="hidden" data-campo="valorMaximo" th:name="|version.planesMonitoreo[${indicePlan}].detallesParametroControl[${indice}].valorMaximo|" th:value="${maximo}">
-        <span data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Parámetro no disponible'">Temperatura</span>
-    </td>
-    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="valorMinimo"><th:block th:replace="~{receta/formato :: medida(${minimo}, ${unidad != null ? unidad : ''})}"></th:block></td>
-    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="valorIdeal"><th:block th:replace="~{receta/formato :: medida(${ideal}, ${unidad != null ? unidad : ''})}"></th:block></td>
-    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="valorMaximo"><th:block th:replace="~{receta/formato :: medida(${maximo}, ${unidad != null ? unidad : ''})}"></th:block></td>
 </tr>
 
 </html>

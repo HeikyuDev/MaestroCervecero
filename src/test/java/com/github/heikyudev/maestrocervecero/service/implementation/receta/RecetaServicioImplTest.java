@@ -1,46 +1,29 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.receta;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleParametroControlEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.PlanMonitoreoEtapaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
-import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IPlanMonitoreoEtapaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleMaltaFormDTO;
-import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleParametroControlFormDTO;
-import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.PlanMonitoreoEtapaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.RecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.VersionRecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleParametroControlResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,7 +37,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -72,8 +54,6 @@ class RecetaServicioImplTest {
     private static final Long MALTA_ID = 1L;
     private static final Long LUPULO_ID = 1L;
     private static final Long LEVADURA_ID = 1L;
-    private static final Long ETAPA_CONTROL_ID = 1L;
-    private static final Long PARAMETRO_CONTROL_ID = 1L;
 
     @Mock
     private IRecetaRepository recetaRepository;
@@ -86,15 +66,7 @@ class RecetaServicioImplTest {
     @Mock
     private ILevaduraRepository levaduraRepository;
     @Mock
-    private IEtapaControlRepository etapaControlRepository;
-    @Mock
-    private IParametroControlRepository parametroControlRepository;
-    @Mock
     private IPlanificacionProduccionRepository planificacionProduccionRepository;
-    @Mock
-    private IEtapaLoteRepository etapaLoteRepository;
-    @Mock
-    private IPlanMonitoreoEtapaRepository planMonitoreoEtapaRepository;
 
     @InjectMocks
     private RecetaServicioImpl recetaServicio;
@@ -154,95 +126,6 @@ class RecetaServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
         verify(recetaRepository).filtrarRecetas("Inexistente", pageable);
-    }
-
-    // ==================== filtrarDetallesParametroControl ====================
-
-    @Test
-    @DisplayName("CP-FDPC-01: filtrarDetallesParametroControl retorna los detalles configurados en el plan de monitoreo indicado")
-    void filtrarDetallesParametroControl_debeRetornarDetallesDelPlanIndicado() {
-        // === PREPARACION DE DATOS ===
-        EtapaControlEntity etapaControl = EtapaControlEntity.builder().id(1L).nombre("Fermentación Inicial").etapaAControlar(TipoEtapa.FERMENTACION).estado(Estado.ACTIVO).build();
-        ParametroControlEntity parametroControl = ParametroControlEntity.builder().id(1L).nombre("pH").unidadDeMedida("pH").valorMinimo(0.0).valorMaximo(14.0).estado(Estado.ACTIVO).build();
-        DetalleParametroControlEntity detalle = DetalleParametroControlEntity.builder().id(1L).valorMinimo(4.0).valorMaximo(5.5).valorIdeal(5.0).parametroControl(parametroControl).build();
-        PlanMonitoreoEtapaEntity plan = PlanMonitoreoEtapaEntity.builder().id(1L).etapaControl(etapaControl).detallesParametroControl(List.of(detalle)).build();
-        when(planMonitoreoEtapaRepository.findById(1L)).thenReturn(Optional.of(plan));
-
-        // === EJECUCION ===
-        List<DetalleParametroControlResponseDTO> resultado = recetaServicio.filtrarDetallesParametroControl(1L);
-
-        // === ASSERTS ===
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).getId()).isEqualTo(1L);
-        assertThat(resultado.get(0).getValorIdeal()).isEqualTo(5.0);
-        assertThat(resultado.get(0).getParametroControl().getNombre()).isEqualTo("pH");
-        assertThat(resultado.get(0).getParametroControl().getUnidadDeMedida()).isEqualTo("pH");
-    }
-
-    @Test
-    @DisplayName("CP-FDPC-02: filtrarDetallesParametroControl lanza RecursoNoEncontradoException si el plan de monitoreo de etapa no existe")
-    void filtrarDetallesParametroControl_debeLanzarExcepcionSiPlanNoExiste() {
-        // === PREPARACION DE DATOS ===
-        when(planMonitoreoEtapaRepository.findById(99L)).thenReturn(Optional.empty());
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> recetaServicio.filtrarDetallesParametroControl(99L))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el plan de monitoreo de etapa con ID: 99");
-    }
-
-    // ==================== filtrarPlanesMonitoreo ====================
-
-    @Test
-    @DisplayName("CP-FPM-01: filtrarPlanesMonitoreo retorna únicamente los planes cuya etapa a controlar coincide con el tipo de etapa del lote")
-    void filtrarPlanesMonitoreo_debeRetornarSoloLosPlanesQueCoincidenConLaEtapa() {
-        // === PREPARACION DE DATOS ===
-        EtapaControlEntity etapaControlFermentacion = EtapaControlEntity.builder().id(1L).nombre("Fermentación Inicial").etapaAControlar(TipoEtapa.FERMENTACION).estado(Estado.ACTIVO).build();
-        EtapaControlEntity etapaControlMaceracion = EtapaControlEntity.builder().id(2L).nombre("Maceración").etapaAControlar(TipoEtapa.MACERACION).estado(Estado.ACTIVO).build();
-        PlanMonitoreoEtapaEntity planFermentacion = PlanMonitoreoEtapaEntity.builder().id(1L).etapaControl(etapaControlFermentacion).detallesParametroControl(List.of()).build();
-        PlanMonitoreoEtapaEntity planMaceracion = PlanMonitoreoEtapaEntity.builder().id(2L).etapaControl(etapaControlMaceracion).detallesParametroControl(List.of()).build();
-        VersionRecetaEntity versionReceta = crearVersionRecetaConPlanes(List.of(planFermentacion, planMaceracion));
-        LoteEntity lote = crearLoteConVersionReceta(versionReceta);
-        EtapaLoteEntity etapaLote = EtapaLoteEntity.builder().id(1L).etapa(TipoEtapa.FERMENTACION).estado(EstadoEtapaLote.EN_CURSO).lote(lote).build();
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-
-        // === EJECUCION ===
-        List<PlanMonitoreoEtapaResponseDTO> resultado = recetaServicio.filtrarPlanesMonitoreo(1L);
-
-        // === ASSERTS ===
-        assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).getId()).isEqualTo(1L);
-        assertThat(resultado.get(0).getEtapaControl().getEtapaAControlar()).isEqualTo(TipoEtapa.FERMENTACION);
-    }
-
-    @Test
-    @DisplayName("CP-FPM-02: filtrarPlanesMonitoreo lanza RecursoNoEncontradoException si la etapa de lote no existe")
-    void filtrarPlanesMonitoreo_debeLanzarExcepcionSiEtapaLoteNoExiste() {
-        // === PREPARACION DE DATOS ===
-        when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> recetaServicio.filtrarPlanesMonitoreo(99L))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró la etapa de lote con ID: 99");
-    }
-
-    @Test
-    @DisplayName("CP-FPM-03: filtrarPlanesMonitoreo retorna una lista vacía cuando ningún plan de la receta corresponde al tipo de etapa del lote")
-    void filtrarPlanesMonitoreo_debeRetornarListaVaciaSinCoincidencias() {
-        // === PREPARACION DE DATOS ===
-        EtapaControlEntity etapaControlMaceracion = EtapaControlEntity.builder().id(2L).nombre("Maceración").etapaAControlar(TipoEtapa.MACERACION).estado(Estado.ACTIVO).build();
-        PlanMonitoreoEtapaEntity planMaceracion = PlanMonitoreoEtapaEntity.builder().id(2L).etapaControl(etapaControlMaceracion).detallesParametroControl(List.of()).build();
-        VersionRecetaEntity versionReceta = crearVersionRecetaConPlanes(List.of(planMaceracion));
-        LoteEntity lote = crearLoteConVersionReceta(versionReceta);
-        EtapaLoteEntity etapaLote = EtapaLoteEntity.builder().id(1L).etapa(TipoEtapa.FERMENTACION).estado(EstadoEtapaLote.EN_CURSO).lote(lote).build();
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-
-        // === EJECUCION ===
-        List<PlanMonitoreoEtapaResponseDTO> resultado = recetaServicio.filtrarPlanesMonitoreo(1L);
-
-        // === ASSERTS ===
-        assertThat(resultado).isEmpty();
     }
 
     // ==================== buscarPorId ====================
@@ -479,7 +362,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La receta debe tener al menos un lúpulo con uso HERVOR");
+                .hasMessage("La receta debe tener al menos un lúpulo con uso Hervor");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -494,7 +377,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El tiempo de hervor de cada lúpulo con uso HERVOR debe ser mayor a 0 y menor a la duración estimada del hervido");
+                .hasMessage("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -509,7 +392,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El tiempo de hervor de cada lúpulo con uso HERVOR debe ser mayor a 0 y menor a la duración estimada del hervido");
+                .hasMessage("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -665,157 +548,7 @@ class RecetaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AR-28: altaReceta lanza RecursoNoEncontradoException y no persiste cuando la etapa de control referenciada no existe")
-    void altaReceta_debeRechazarEtapaControlInexistente() {
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(99L,
-                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
-        when(maltaRepository.findById(MALTA_ID)).thenReturn(Optional.of(maltaEntity(MALTA_ID)));
-        when(lupuloRepository.findById(LUPULO_ID)).thenReturn(Optional.of(lupuloEntity(LUPULO_ID)));
-        when(levaduraRepository.findById(LEVADURA_ID)).thenReturn(Optional.of(levaduraEntity(LEVADURA_ID)));
-        when(etapaControlRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró la etapa de control con ID: 99");
-
-        verify(recetaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AR-29: altaReceta lanza RecursoNoEncontradoException y no persiste cuando el parámetro de control referenciado no existe")
-    void altaReceta_debeRechazarParametroControlInexistente() {
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, 99L))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
-        when(maltaRepository.findById(MALTA_ID)).thenReturn(Optional.of(maltaEntity(MALTA_ID)));
-        when(lupuloRepository.findById(LUPULO_ID)).thenReturn(Optional.of(lupuloEntity(LUPULO_ID)));
-        when(levaduraRepository.findById(LEVADURA_ID)).thenReturn(Optional.of(levaduraEntity(LEVADURA_ID)));
-        when(etapaControlRepository.findById(ETAPA_CONTROL_ID)).thenReturn(Optional.of(etapaControlEntity(ETAPA_CONTROL_ID)));
-        when(parametroControlRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró el parámetro de control con ID: 99");
-
-        verify(recetaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AR-30: altaReceta lanza ReglaNegocioException y no persiste cuando el valor mínimo planificado es mayor al máximo")
-    void altaReceta_debeRechazarValorMinimoMayorAlMaximo() {
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(25.0, 18.0, 20.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor mínimo del parámetro de control 'Temperatura' no puede ser mayor al valor máximo");
-
-        verify(recetaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AR-31: altaReceta lanza ReglaNegocioException y no persiste cuando el valor ideal está fuera del rango planificado")
-    void altaReceta_debeRechazarValorIdealFueraDeRango() {
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(18.0, 22.0, 25.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor ideal del parámetro de control 'Temperatura' debe estar dentro del rango mínimo y máximo definido");
-
-        verify(recetaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AR-32: altaReceta lanza ReglaNegocioException y no persiste cuando el mínimo planificado es inferior al límite teórico")
-    void altaReceta_debeRechazarMinimoInferiorAlLimiteTeorico() {
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(-5.0, 10.0, 5.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor mínimo del parámetro de control 'Temperatura' no puede ser inferior al valor mínimo posible (0.0)");
-
-        verify(recetaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AR-33: altaReceta lanza ReglaNegocioException y no persiste cuando el máximo planificado es superior al límite teórico")
-    void altaReceta_debeRechazarMaximoSuperiorAlLimiteTeorico() {
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(90.0, 110.0, 100.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor máximo del parámetro de control 'Temperatura' no puede ser superior al valor máximo posible (100.0)");
-
-        verify(recetaRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AR-34: altaReceta persiste cuando el rango planificado coincide exactamente con los límites teóricos (límite válido)")
-    void altaReceta_debePersistirConRangoEnLimitesTeoricos() {
-        // === PREPARACION DE DATOS ===
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(0.0, 100.0, 0.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        mockearAltaExitosa(versionFormDTO);
-
-        // === EJECUCION ===
-        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
-
-        // === ASSERTS ===
-        assertThat(resultado.getVersion().getPlanesMonitoreo()).hasSize(1);
-        verify(recetaRepository).save(any(RecetaEntity.class));
-    }
-
-    @Test
-    @DisplayName("CP-AR-35: altaReceta persiste sin plan de monitoreo y no consulta etapaControlRepository (opcional)")
-    void altaReceta_debePersistirSinPlanDeMonitoreo() {
-        // === PREPARACION DE DATOS ===
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().planesMonitoreo(null).build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        mockearAltaExitosa(versionFormDTO);
-
-        // === EJECUCION ===
-        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
-
-        // === ASSERTS ===
-        assertThat(resultado.getVersion().getPlanesMonitoreo()).isEmpty();
-        verifyNoInteractions(etapaControlRepository, parametroControlRepository);
-    }
-
-    @Test
-    @DisplayName("CP-AR-36: altaReceta persiste la receta completa con maltas, lúpulos, levadura y plan de monitoreo (camino feliz)")
+    @DisplayName("CP-AR-36: altaReceta persiste la receta completa con maltas, lúpulos y levadura (camino feliz)")
     void altaReceta_debePersistirRecetaCompleta() {
         // === PREPARACION DE DATOS ===
         VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
@@ -825,8 +558,6 @@ class RecetaServicioImplTest {
                         detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, 1L),
                         detalleLupuloFormDTO(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, null, 2L),
                         detalleLupuloFormDTO(15.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, null, 3L)))
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID))))
                 .build();
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
         mockearAltaExitosa(versionFormDTO);
@@ -842,7 +573,6 @@ class RecetaServicioImplTest {
         assertThat(versionGuardada.getDetallesMalta()).hasSize(2);
         assertThat(versionGuardada.getDetallesLupulo()).hasSize(3);
         assertThat(versionGuardada.getDetallesLevadura()).hasSize(1);
-        assertThat(versionGuardada.getPlanesMonitoreo()).hasSize(1);
         assertThat(resultado.getVersion().isEsUltimaVersion()).isTrue();
         // El alta siempre debe registrar a la receta como ACTIVA, sin importar lo que traiga el FormDTO
         assertThat(captor.getValue().getEstado()).isEqualTo(Estado.ACTIVO);
@@ -858,7 +588,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+                .hasMessage("La etapa de uso de un lúpulo con uso Hervor o Whirlpool debe ser Hervido");
 
         verifyNoRepositoryInteractions();
     }
@@ -874,7 +604,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+                .hasMessage("La etapa de uso de un lúpulo con uso Hervor o Whirlpool debe ser Hervido");
 
         verifyNoRepositoryInteractions();
     }
@@ -890,7 +620,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION");
+                .hasMessage("La etapa de uso de un lúpulo con uso Dry hop debe ser Fermentación o Maduración");
 
         verifyNoRepositoryInteractions();
     }
@@ -904,7 +634,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+                .hasMessage("La etapa de uso de un lúpulo con uso Hervor o Whirlpool debe ser Hervido");
 
         verifyNoRepositoryInteractions();
     }
@@ -1010,72 +740,6 @@ class RecetaServicioImplTest {
         ArgumentCaptor<RecetaEntity> captor = ArgumentCaptor.forClass(RecetaEntity.class);
         verify(recetaRepository).save(captor.capture());
         assertThat(captor.getValue().getVersiones().get(0).getDetallesLupulo()).hasSize(2);
-    }
-
-    @Test
-    @DisplayName("CP-AR-47: altaReceta lanza ReglaNegocioException cuando la misma etapa de control aparece en dos planes de monitoreo")
-    void altaReceta_debeRechazarEtapaControlRepetidaEnPlanes() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
-                .planesMonitoreo(List.of(
-                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID)),
-                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(10.0, 15.0, 12.0, 2L))))
-                .build());
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La receta no puede tener más de un plan de monitoreo para la misma etapa de control");
-
-        verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-AR-48: altaReceta lanza ReglaNegocioException cuando un plan de monitoreo no tiene parámetros de control")
-    void altaReceta_debeRechazarPlanSinParametrosDeControl() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID)))
-                .build());
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Cada plan de monitoreo debe tener al menos un parámetro de control");
-
-        verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-AR-49: altaReceta lanza ReglaNegocioException cuando un plan de monitoreo repite el mismo parámetro de control")
-    void altaReceta_debeRechazarParametroDeControlRepetidoEnPlan() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID),
-                        detalleParametroControlFormDTO(10.0, 15.0, 12.0, PARAMETRO_CONTROL_ID))))
-                .build());
-
-        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Un plan de monitoreo no puede repetir el mismo parámetro de control");
-
-        verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-AR-50: altaReceta persiste cuando el mismo parámetro de control se usa en planes de etapas de control distintas")
-    void altaReceta_debePersistirMismoParametroEnPlanesDeDistintaEtapa() {
-        // === PREPARACION DE DATOS ===
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(
-                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID)),
-                        planMonitoreoEtapaFormDTO(2L, detalleParametroControlFormDTO(10.0, 15.0, 12.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        mockearAltaExitosa(versionFormDTO);
-
-        // === EJECUCION ===
-        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
-
-        // === ASSERTS ===
-        assertThat(resultado.getVersion().getPlanesMonitoreo()).hasSize(2);
-        verify(recetaRepository).save(any(RecetaEntity.class));
     }
 
     @Test
@@ -1262,7 +926,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La receta debe tener al menos un lúpulo con uso HERVOR");
+                .hasMessage("La receta debe tener al menos un lúpulo con uso Hervor");
 
         verifyNoRepositoryInteractions();
     }
@@ -1277,28 +941,6 @@ class RecetaServicioImplTest {
                 .hasMessage("La receta debe tener al menos una levadura");
 
         verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-MR-05: modificarReceta lanza ReglaNegocioException y no persiste cuando el rango del parámetro de control es inválido")
-    void modificarReceta_debeRechazarRangoDeParametroControlInvalido() {
-        // === PREPARACION DE DATOS ===
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(25.0, 18.0, 20.0, PARAMETRO_CONTROL_ID))))
-                .build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor mínimo del parámetro de control 'Temperatura' no puede ser mayor al valor máximo");
-
-        verify(recetaRepository, never()).save(any());
     }
 
     @Test
@@ -1325,7 +967,7 @@ class RecetaServicioImplTest {
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
         when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
+        mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
 
         // === EJECUCION ===
@@ -1381,7 +1023,7 @@ class RecetaServicioImplTest {
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, versionActivaPrevia);
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
         when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
+        mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
 
         // === EJECUCION ===
@@ -1408,7 +1050,7 @@ class RecetaServicioImplTest {
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, version1, version2, version3);
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
         when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
+        mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
 
         // === EJECUCION ===
@@ -1431,7 +1073,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION");
+                .hasMessage("La etapa de uso de un lúpulo con uso Dry hop debe ser Fermentación o Maduración");
 
         verifyNoRepositoryInteractions();
     }
@@ -1476,52 +1118,6 @@ class RecetaServicioImplTest {
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La receta no puede repetir un lúpulo con el mismo uso y el mismo tiempo de hervor");
-
-        verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-MR-16: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando la misma etapa de control aparece en dos planes")
-    void modificarReceta_debeRechazarEtapaControlRepetidaEnPlanes() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
-                .planesMonitoreo(List.of(
-                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID)),
-                        planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID, detalleParametroControlFormDTO(10.0, 15.0, 12.0, 2L))))
-                .build());
-
-        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La receta no puede tener más de un plan de monitoreo para la misma etapa de control");
-
-        verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-MR-17: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando un plan de monitoreo no tiene parámetros de control")
-    void modificarReceta_debeRechazarPlanSinParametrosDeControl() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID)))
-                .build());
-
-        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Cada plan de monitoreo debe tener al menos un parámetro de control");
-
-        verifyNoRepositoryInteractions();
-    }
-
-    @Test
-    @DisplayName("CP-MR-18: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando un plan repite el mismo parámetro de control")
-    void modificarReceta_debeRechazarParametroDeControlRepetidoEnPlan() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
-                .planesMonitoreo(List.of(planMonitoreoEtapaFormDTO(ETAPA_CONTROL_ID,
-                        detalleParametroControlFormDTO(18.0, 22.0, 20.0, PARAMETRO_CONTROL_ID),
-                        detalleParametroControlFormDTO(10.0, 15.0, 12.0, PARAMETRO_CONTROL_ID))))
-                .build());
-
-        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Un plan de monitoreo no puede repetir el mismo parámetro de control");
 
         verifyNoRepositoryInteractions();
     }
@@ -1670,7 +1266,7 @@ class RecetaServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> recetaServicio.bajaReceta(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la receta porque tiene una planificación de producción en estado PENDIENTE asociada");
+                .hasMessage("No se puede dar de baja la receta porque tiene una planificación de producción en estado Pendiente asociada");
 
         verify(recetaRepository, never()).save(any());
     }
@@ -1696,29 +1292,21 @@ class RecetaServicioImplTest {
 
     private void verifyNoRepositoryInteractions() {
         verifyNoInteractions(recetaRepository, versionRecetaRepository, maltaRepository, lupuloRepository,
-                levaduraRepository, etapaControlRepository, parametroControlRepository, planificacionProduccionRepository);
+                levaduraRepository, planificacionProduccionRepository);
     }
 
-    private void mockearInsumosYPlanesMonitoreo(VersionRecetaFormDTO versionFormDTO) {
+    private void mockearInsumos(VersionRecetaFormDTO versionFormDTO) {
         versionFormDTO.getDetallesMalta().forEach(detalle ->
                 when(maltaRepository.findById(detalle.getIdMalta())).thenReturn(Optional.of(maltaEntity(detalle.getIdMalta()))));
         versionFormDTO.getDetallesLupulo().forEach(detalle ->
                 when(lupuloRepository.findById(detalle.getIdLupulo())).thenReturn(Optional.of(lupuloEntity(detalle.getIdLupulo()))));
         versionFormDTO.getDetallesLevadura().forEach(detalle ->
                 when(levaduraRepository.findById(detalle.getIdLevadura())).thenReturn(Optional.of(levaduraEntity(detalle.getIdLevadura()))));
-
-        List<PlanMonitoreoEtapaFormDTO> planes = Optional.ofNullable(versionFormDTO.getPlanesMonitoreo()).orElse(List.of());
-        planes.forEach(plan -> {
-            when(etapaControlRepository.findById(plan.getIdEtapaControl())).thenReturn(Optional.of(etapaControlEntity(plan.getIdEtapaControl())));
-            plan.getDetallesParametroControl().forEach(detalle ->
-                    when(parametroControlRepository.findById(detalle.getIdParametroControl()))
-                            .thenReturn(Optional.of(parametroControlEntity(detalle.getIdParametroControl(), 0.0, 100.0))));
-        });
     }
 
     private void mockearAltaExitosa(VersionRecetaFormDTO versionFormDTO) {
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue(versionFormDTO.getNombre())).thenReturn(false);
-        mockearInsumosYPlanesMonitoreo(versionFormDTO);
+        mockearInsumos(versionFormDTO);
         when(recetaRepository.save(any(RecetaEntity.class))).thenAnswer(invocation -> {
             RecetaEntity entidadGuardada = invocation.getArgument(0);
             entidadGuardada.setId(1L);
@@ -1767,22 +1355,6 @@ class RecetaServicioImplTest {
         return DetalleLevaduraFormDTO.builder().cantidad(cantidad).idLevadura(idLevadura).build();
     }
 
-    private static DetalleParametroControlFormDTO detalleParametroControlFormDTO(Double valorMinimo, Double valorMaximo, Double valorIdeal, Long idParametroControl) {
-        return DetalleParametroControlFormDTO.builder()
-                .valorMinimo(valorMinimo)
-                .valorMaximo(valorMaximo)
-                .valorIdeal(valorIdeal)
-                .idParametroControl(idParametroControl)
-                .build();
-    }
-
-    private static PlanMonitoreoEtapaFormDTO planMonitoreoEtapaFormDTO(Long idEtapaControl, DetalleParametroControlFormDTO... detalles) {
-        return PlanMonitoreoEtapaFormDTO.builder()
-                .idEtapaControl(idEtapaControl)
-                .detallesParametroControl(List.of(detalles))
-                .build();
-    }
-
     private static MaltaEntity maltaEntity(Long id) {
         return MaltaEntity.builder().id(id).nombre("Malta Pilsen").build();
     }
@@ -1793,14 +1365,6 @@ class RecetaServicioImplTest {
 
     private static LevaduraEntity levaduraEntity(Long id) {
         return LevaduraEntity.builder().id(id).nombre("US-05").build();
-    }
-
-    private static EtapaControlEntity etapaControlEntity(Long id) {
-        return EtapaControlEntity.builder().id(id).nombre("Fermentación Inicial").etapaAControlar(TipoEtapa.FERMENTACION).build();
-    }
-
-    private static ParametroControlEntity parametroControlEntity(Long id, Double valorMinimo, Double valorMaximo) {
-        return ParametroControlEntity.builder().id(id).nombre("Temperatura").unidadDeMedida("°C").valorMinimo(valorMinimo).valorMaximo(valorMaximo).build();
     }
 
     private static VersionRecetaEntity crearVersionRecetaEntity(Long id, String nombre, boolean esUltimaVersion) {
@@ -1833,29 +1397,4 @@ class RecetaServicioImplTest {
         return crearRecetaEntityConVersiones(id, crearVersionRecetaEntity(id, nombre, true));
     }
 
-    private static VersionRecetaEntity crearVersionRecetaConPlanes(List<PlanMonitoreoEtapaEntity> planes) {
-        VersionRecetaEntity versionReceta = crearVersionRecetaEntity(1L, "IPA Test", true);
-        versionReceta.setPlanesMonitoreo(planes);
-        return versionReceta;
-    }
-
-    private static LoteEntity crearLoteConVersionReceta(VersionRecetaEntity versionReceta) {
-        PlanificacionProduccionEntity planificacion = PlanificacionProduccionEntity.builder()
-                .id(1L)
-                .estado(EstadoSolicitud.PENDIENTE)
-                .fechaInicioEstimada(LocalDate.now())
-                .fechaFinalizacionEstimada(LocalDate.now().plusDays(30))
-                .cantidadAProducir(100.0)
-                .versionReceta(versionReceta)
-                .build();
-        return LoteEntity.builder()
-                .id(1L)
-                .identificadorInterno("IPA Test-1")
-                .volumenObjetivo(20.0)
-                .estado(EstadoLote.EN_EJECUCION)
-                .fechaInicioEstimada(LocalDate.now())
-                .fechaFinalizacionEstimada(LocalDate.now().plusDays(20))
-                .planificacionProduccion(planificacion)
-                .build();
-    }
 }

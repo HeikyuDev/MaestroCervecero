@@ -130,15 +130,4 @@ public class VersionRecetaFormDTO {
     @NotEmpty(message = "La receta debe tener al menos una levadura")
     @Builder.Default
     private List<DetalleLevaduraFormDTO> detallesLevadura = new ArrayList<>();
-
-    /**
-     * Lista de planes de monitoreo de etapa asociados a esta versión de receta.
-     * <p>
-     * Cada elemento de la lista representa un plan de monitoreo específico para una etapa de control
-     * y sus parámetros de control planificados para la receta.
-     * </p>
-     */
-    @Valid
-    @Builder.Default
-    private List<PlanMonitoreoEtapaFormDTO> planesMonitoreo = new ArrayList<>();
 }

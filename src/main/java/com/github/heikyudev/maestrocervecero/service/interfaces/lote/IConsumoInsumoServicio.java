@@ -82,7 +82,7 @@ public interface IConsumoInsumoServicio {
      * escalado de la receta y cuánto de eso ya fue consumido.
      * <p>
      * {@code idEtapaLote} no lo tipea el usuario: lo determina el contexto de la pantalla de
-     * gestión de consumos (una etapa de lote puntual), igual que en {@code filtrarMedicionesLote}.
+     * gestión de consumos (una etapa de lote puntual).
      * Deliberadamente NO se basa en {@code ReservaInsumoEntity} para la cantidad requerida: las
      * reservas son una asignación de stock que un ajuste (merma) puede reducir a 0, mientras que lo
      * que la receta realmente requiere no cambia — por eso se recalcula desde la receta cada vez,

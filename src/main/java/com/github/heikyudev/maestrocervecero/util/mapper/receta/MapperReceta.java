@@ -3,22 +3,16 @@ package com.github.heikyudev.maestrocervecero.util.mapper.receta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleParametroControlEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.PlanMonitoreoEtapaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleMaltaResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleParametroControlResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
-import com.github.heikyudev.maestrocervecero.util.mapper.etapa_control.MapperEtapaControl;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLevadura;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLupulo;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperMalta;
-import com.github.heikyudev.maestrocervecero.util.mapper.parametro_control.MapperParametroControl;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 
 /**
@@ -73,7 +67,7 @@ public class MapperReceta {
 
     /**
      * Mapea una instancia de {@link VersionRecetaEntity} a {@link VersionRecetaResponseDTO},
-     * incluyendo sus detalles de malta, lúpulo, levadura y planes de monitoreo.
+     * incluyendo sus detalles de malta, lúpulo, levadura.
      * <p>
      * Público para que otros módulos que referencian directamente una versión de receta
      * (por ejemplo, {@code MapperPlanificacionProduccion}) puedan reutilizar este mapeo sin duplicarlo.
@@ -108,9 +102,6 @@ public class MapperReceta {
                         .toList())
                 .detallesLevadura(versionRecetaEntity.getDetallesLevadura().stream()
                         .map(MapperReceta::mapDetalleLevadura)
-                        .toList())
-                .planesMonitoreo(versionRecetaEntity.getPlanesMonitoreo().stream()
-                        .map(MapperReceta::mapPlanMonitoreoEtapa)
                         .toList())
                 .build();
     }
@@ -160,49 +151,6 @@ public class MapperReceta {
                 .id(detalleLevaduraEntity.getId())
                 .cantidad(detalleLevaduraEntity.getCantidad())
                 .levadura(MapperLevadura.toDTO(detalleLevaduraEntity.getLevadura()))
-                .build();
-    }
-
-    /**
-     * Mapea una instancia de {@link PlanMonitoreoEtapaEntity} a {@link PlanMonitoreoEtapaResponseDTO},
-     * incluyendo la etapa de control y los detalles de parámetros de control asociados.
-     * <p>
-     * Público para que otros servicios que referencian directamente un plan de monitoreo de etapa
-     * (por ejemplo, {@code RecetaServicioImpl.filtrarPlanesMonitoreo}) puedan reutilizar este
-     * mapeo sin duplicarlo.
-     * </p>
-     *
-     * @param planMonitoreoEtapaEntity Entidad de plan de monitoreo de etapa a convertir.
-     * @return Objeto DTO correspondiente.
-     */
-    public static PlanMonitoreoEtapaResponseDTO mapPlanMonitoreoEtapa(PlanMonitoreoEtapaEntity planMonitoreoEtapaEntity) {
-        return PlanMonitoreoEtapaResponseDTO.builder()
-                .id(planMonitoreoEtapaEntity.getId())
-                .etapaControl(MapperEtapaControl.toDTO(planMonitoreoEtapaEntity.getEtapaControl()))
-                .detallesParametroControl(planMonitoreoEtapaEntity.getDetallesParametroControl().stream()
-                        .map(MapperReceta::mapDetalleParametroControl)
-                        .toList())
-                .build();
-    }
-
-    /**
-     * Mapea una instancia de {@link DetalleParametroControlEntity} a {@link DetalleParametroControlResponseDTO},
-     * incluyendo la información del parámetro de control asociado.
-     * <p>
-     * Público para que otros módulos que referencian directamente un detalle de parámetro de
-     * control (por ejemplo, {@code MapperMedicionLote}) puedan reutilizar este mapeo sin duplicarlo.
-     * </p>
-     *
-     * @param detalleParametroControlEntity Entidad de detalle de parámetro de control a convertir.
-     * @return Objeto DTO correspondiente.
-     */
-    public static DetalleParametroControlResponseDTO mapDetalleParametroControl(DetalleParametroControlEntity detalleParametroControlEntity) {
-        return DetalleParametroControlResponseDTO.builder()
-                .id(detalleParametroControlEntity.getId())
-                .valorMinimo(detalleParametroControlEntity.getValorMinimo())
-                .valorMaximo(detalleParametroControlEntity.getValorMaximo())
-                .valorIdeal(detalleParametroControlEntity.getValorIdeal())
-                .parametroControl(MapperParametroControl.toDTO(detalleParametroControlEntity.getParametroControl()))
                 .build();
     }
 }

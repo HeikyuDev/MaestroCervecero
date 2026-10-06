@@ -2,38 +2,27 @@ package com.github.heikyudev.maestrocervecero.service.implementation.receta;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
-import com.github.heikyudev.maestrocervecero.persistence.entity.etapa_control.EtapaControlEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.parametro_control.ParametroControlEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleParametroControlEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.receta.PlanMonitoreoEtapaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
-import com.github.heikyudev.maestrocervecero.persistence.repository.etapa_control.IEtapaControlRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.parametro_control.IParametroControlRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IPlanMonitoreoEtapaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleMaltaFormDTO;
-import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleParametroControlFormDTO;
-import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.PlanMonitoreoEtapaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.RecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.VersionRecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -41,8 +30,6 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleParametroControlResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
@@ -54,10 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -75,11 +60,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
     private final IMaltaRepository maltaRepository;
     private final ILupuloRepository lupuloRepository;
     private final ILevaduraRepository levaduraRepository;
-    private final IEtapaControlRepository etapaControlRepository;
-    private final IParametroControlRepository parametroControlRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
-    private final IEtapaLoteRepository etapaLoteRepository;
-    private final IPlanMonitoreoEtapaRepository planMonitoreoEtapaRepository;
 
     /**
      * Recupera una página de recetas activas registradas en el sistema, filtradas opcionalmente
@@ -101,59 +82,6 @@ public class RecetaServicioImpl implements IRecetaServicio {
     }
 
     /**
-     * Obtiene los detalles de parámetro de control configurados en un plan de monitoreo de etapa.
-     * <p>
-     * {@code idPlanMonitoreoEtapa} lo elige el usuario, típicamente entre las opciones devueltas
-     * por {@link #filtrarPlanesMonitoreo(Long)} (que ya vienen correctamente acotadas a la etapa
-     * actual del lote) — por eso este método no necesita volver a validar la correspondencia con
-     * ninguna etapa.
-     * </p>
-     *
-     * @param idPlanMonitoreoEtapa El ID del plan de monitoreo de etapa elegido por el usuario.
-     * @return Los detalles de parámetro de control configurados en ese plan, en formato DTO.
-     * @throws RecursoNoEncontradoException Si el plan de monitoreo de etapa referenciado no existe.
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public List<DetalleParametroControlResponseDTO> filtrarDetallesParametroControl(Long idPlanMonitoreoEtapa) {
-        PlanMonitoreoEtapaEntity planMonitoreoEtapa = planMonitoreoEtapaRepository.findById(idPlanMonitoreoEtapa)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el plan de monitoreo de etapa con ID: " + idPlanMonitoreoEtapa));
-
-        return planMonitoreoEtapa.getDetallesParametroControl().stream()
-                .map(MapperReceta::mapDetalleParametroControl)
-                .toList();
-    }
-
-    /**
-     * Obtiene los planes de monitoreo configurados para la etapa (tipo) de una etapa de lote
-     * determinada, dentro de la versión de receta que está utilizando el lote en ejecución.
-     * <p>
-     * {@code idEtapaLote} no lo tipea el usuario: lo determina el sistema según en qué etapa de
-     * qué lote se está parado. A partir de esa única etapa de lote, tanto el tipo de etapa a
-     * controlar como la versión de receta vigente para ese lote (navegando
-     * {@code etapaLote.lote.planificacionProduccion.versionReceta}) se derivan solos.
-     * </p>
-     *
-     * @param idEtapaLote El ID de la etapa de lote actual.
-     * @return Los planes de monitoreo de esa versión de receta cuya etapa a controlar coincide con
-     *         el tipo de etapa del lote indicado, en formato DTO. Vacía si no hay ninguno configurado.
-     * @throws RecursoNoEncontradoException Si la etapa de lote referenciada no existe.
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public List<PlanMonitoreoEtapaResponseDTO> filtrarPlanesMonitoreo(Long idEtapaLote) {
-        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
-
-        VersionRecetaEntity versionReceta = etapaLote.getLote().getPlanificacionProduccion().getVersionReceta();
-
-        return versionReceta.getPlanesMonitoreo().stream()
-                .filter(plan -> plan.getEtapaControl().getEtapaAControlar() == etapaLote.getEtapa())
-                .map(MapperReceta::mapPlanMonitoreoEtapa)
-                .toList();
-    }
-
-    /**
      * Busca y retorna una receta específica mediante su identificador único.
      *
      * @param id Identificador clave primaria de la receta buscada.
@@ -171,7 +99,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * Registra una nueva receta en el sistema junto con su versión inicial.
      * <p>
      * {@link RecetaEntity} no tiene datos propios: toda la información productiva (volumen, OG,
-     * FG, duraciones, maltas, lúpulos, levaduras y plan de monitoreo opcional) se registra en la
+     * FG, duraciones, maltas, lúpulos, levaduras) se registra en la
      * primera {@link VersionRecetaEntity}, marcada como {@code esUltimaVersion = true}. Gracias al
      * {@code CascadeType.ALL} declarado en las relaciones, persistir la receta persiste en cascada
      * toda la versión y sus detalles.
@@ -179,9 +107,9 @@ public class RecetaServicioImpl implements IRecetaServicio {
      *
      * @param recetaFormDTO Objeto DTO que contiene los datos de creación de la receta y su versión inicial.
      * @return {@link RecetaResponseDTO} representativo de la receta guardada en la base de datos.
-     * @throws ReglaNegocioException Si alguno de los datos de la versión, sus detalles o su plan de monitoreo incumple las reglas de negocio.
+     * @throws ReglaNegocioException Si alguno de los datos de la versión, sus detalles incumple las reglas de negocio.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una receta activa.
-     * @throws RecursoNoEncontradoException Si alguna malta, lúpulo, levadura, etapa de control o parámetro de control referenciado no existe.
+     * @throws RecursoNoEncontradoException Si alguna malta, lúpulo o levadura referenciada no existe.
      */
     @Override
     @Transactional
@@ -194,7 +122,6 @@ public class RecetaServicioImpl implements IRecetaServicio {
         validarDetallesMalta(versionFormDTO.getDetallesMalta());
         validarDetallesLupulo(versionFormDTO.getDetallesLupulo(), versionFormDTO.getDuracionHervido());
         validarDetallesLevadura(versionFormDTO.getDetallesLevadura());
-        validarPlanesMonitoreo(obtenerPlanesMonitoreo(versionFormDTO));
 
         // 2. Validar si el nombre ya está registrado en otra receta activa (case-insensitive)
         if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue(versionFormDTO.getNombre())) {
@@ -222,8 +149,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * @param id Identificador clave primaria de la receta a modificar.
      * @param recetaFormDTO DTO que contiene los nuevos datos de la versión de la receta.
      * @return {@link RecetaResponseDTO} representativo de la receta con la nueva versión aplicada.
-     * @throws ReglaNegocioException Si alguno de los datos de la versión, sus detalles o su plan de monitoreo incumple las reglas de negocio.
-     * @throws RecursoNoEncontradoException Si no se localiza una receta activa por el ID proporcionado, o si alguna malta, lúpulo, levadura, etapa de control o parámetro de control referenciado no existe.
+     * @throws ReglaNegocioException Si alguno de los datos de la versión, sus detalles incumple las reglas de negocio.
+     * @throws RecursoNoEncontradoException Si no se localiza una receta activa por el ID proporcionado, o si alguna malta, lúpulo o levadura referenciada no existe.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra receta activa.
      */
     @Override
@@ -237,7 +164,6 @@ public class RecetaServicioImpl implements IRecetaServicio {
         validarDetallesMalta(versionFormDTO.getDetallesMalta());
         validarDetallesLupulo(versionFormDTO.getDetallesLupulo(), versionFormDTO.getDuracionHervido());
         validarDetallesLevadura(versionFormDTO.getDetallesLevadura());
-        validarPlanesMonitoreo(obtenerPlanesMonitoreo(versionFormDTO));
 
         // 2. Validar duplicación excluyendo la propia receta, de modo que conservar el nombre
         //    actual no falle contra el mismo registro
@@ -249,8 +175,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
         RecetaEntity recetaEntity = recetaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id));
 
-        // 4. Construir la nueva versión primero: si alguna malta, lúpulo, levadura, etapa de
-        //    control o parámetro de control no existe, esto lanza antes de tocar la versión anterior
+        // 4. Construir la nueva versión primero: si alguna malta, lúpulo o levadura
+        //    no existe, esto lanza antes de tocar la versión anterior
         VersionRecetaEntity nuevaVersionRecetaEntity = construirVersion(versionFormDTO, recetaEntity);
 
         // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa (si
@@ -285,7 +211,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         // 2. Validar que ninguna versión de la receta (histórica o activa) tenga una planificación de
         //    producción en estado PENDIENTE asociada
         if (planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(id, EstadoSolicitud.PENDIENTE)) {
-            throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una planificación de producción en estado PENDIENTE asociada");
+            throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una planificación de producción en estado Pendiente asociada");
         }
 
         // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
@@ -404,18 +330,18 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
         if (detallesLupulo.stream().anyMatch(detalle -> detalle.getUso() != null
                 && detalle.getUso() != UsoLupulo.DRY_HOP && detalle.getEtapaDeUso() != TipoEtapa.HERVIDO)) {
-            throw new ReglaNegocioException("La etapa de uso de un lúpulo con uso HERVOR o WHIRLPOOL debe ser HERVIDO");
+            throw new ReglaNegocioException("La etapa de uso de un lúpulo con uso Hervor o Whirlpool debe ser Hervido");
         }
         if (detallesLupulo.stream().anyMatch(detalle -> detalle.getUso() == UsoLupulo.DRY_HOP
                 && detalle.getEtapaDeUso() != TipoEtapa.FERMENTACION && detalle.getEtapaDeUso() != TipoEtapa.MADURACION)) {
-            throw new ReglaNegocioException("La etapa de uso de un lúpulo con uso DRY_HOP debe ser FERMENTACION o MADURACION");
+            throw new ReglaNegocioException("La etapa de uso de un lúpulo con uso Dry hop debe ser Fermentación o Maduración");
         }
 
         List<DetalleLupuloFormDTO> lupulosHervor = detallesLupulo.stream()
                 .filter(detalle -> detalle.getUso() == UsoLupulo.HERVOR)
                 .toList();
         if (lupulosHervor.isEmpty()) {
-            throw new ReglaNegocioException("La receta debe tener al menos un lúpulo con uso HERVOR");
+            throw new ReglaNegocioException("La receta debe tener al menos un lúpulo con uso Hervor");
         }
 
         boolean hayTiempoDeHervorInvalido = lupulosHervor.stream()
@@ -423,7 +349,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
                         || detalle.getTiempoDeHervor() <= 0
                         || detalle.getTiempoDeHervor() >= duracionHervido);
         if (hayTiempoDeHervorInvalido) {
-            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso HERVOR debe ser mayor a 0 y menor a la duración estimada del hervido");
+            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
         }
 
         // El tiempo de hervor solo aplica a HERVOR: para cualquier otro uso cuenta como 0, igual que al persistir
@@ -458,33 +384,6 @@ public class RecetaServicioImpl implements IRecetaServicio {
     }
 
     /**
-     * Valida el plan de monitoreo (opcional): que una misma etapa de control no aparezca en más de
-     * un plan de la receta, que cada plan tenga al menos un parámetro de control y que un mismo
-     * parámetro de control no se repita dentro de un plan.
-     *
-     * @param planesMonitoreo Lista de planes de monitoreo de etapa a validar (puede estar vacía).
-     * @throws ReglaNegocioException Si se repite una etapa de control, algún plan no tiene parámetros
-     * de control o algún plan repite un parámetro de control.
-     */
-    private static void validarPlanesMonitoreo(List<PlanMonitoreoEtapaFormDTO> planesMonitoreo) {
-        if (hayRepetidos(planesMonitoreo.stream().map(PlanMonitoreoEtapaFormDTO::getIdEtapaControl).toList())) {
-            throw new ReglaNegocioException("La receta no puede tener más de un plan de monitoreo para la misma etapa de control");
-        }
-        boolean hayPlanSinParametros = planesMonitoreo.stream()
-                .anyMatch(plan -> plan.getDetallesParametroControl() == null || plan.getDetallesParametroControl().isEmpty());
-        if (hayPlanSinParametros) {
-            throw new ReglaNegocioException("Cada plan de monitoreo debe tener al menos un parámetro de control");
-        }
-        boolean hayParametroRepetido = planesMonitoreo.stream()
-                .anyMatch(plan -> hayRepetidos(plan.getDetallesParametroControl().stream()
-                        .map(DetalleParametroControlFormDTO::getIdParametroControl)
-                        .toList()));
-        if (hayParametroRepetido) {
-            throw new ReglaNegocioException("Un plan de monitoreo no puede repetir el mismo parámetro de control");
-        }
-    }
-
-    /**
      * Indica si la lista de claves contiene algún elemento repetido (admite claves nulas).
      *
      * @param claves Claves a comparar entre sí.
@@ -499,7 +398,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
     /**
      * Construye la {@link VersionRecetaEntity} completa a partir del DTO de formulario, incluyendo
-     * sus detalles de malta, lúpulo, levadura y plan de monitoreo (opcional).
+     * sus detalles de malta, lúpulo y levadura.
      *
      * @param versionFormDTO Datos de la versión de receta a construir.
      * @param recetaEntity Receta contenedora a la que pertenece esta versión.
@@ -531,10 +430,6 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
         versionRecetaEntity.getDetallesLevadura().addAll(versionFormDTO.getDetallesLevadura().stream()
                 .map(detalle -> construirDetalleLevadura(detalle, versionRecetaEntity))
-                .toList());
-
-        versionRecetaEntity.getPlanesMonitoreo().addAll(obtenerPlanesMonitoreo(versionFormDTO).stream()
-                .map(plan -> construirPlanMonitoreoEtapa(plan, versionRecetaEntity))
                 .toList());
 
         return versionRecetaEntity;
@@ -605,101 +500,5 @@ public class RecetaServicioImpl implements IRecetaServicio {
                 .levadura(levaduraEntity)
                 .versionReceta(versionRecetaEntity)
                 .build();
-    }
-
-    /**
-     * Construye el plan de monitoreo de etapa a partir del DTO de formulario, resolviendo la
-     * etapa de control referenciada por su identificador y sus detalles de parámetros de control.
-     *
-     * @param planFormDTO Datos del plan de monitoreo de etapa.
-     * @param versionRecetaEntity Versión de receta a la que pertenece este plan.
-     * @return Entidad de plan de monitoreo de etapa vinculada a la etapa de control y a la versión de receta.
-     * @throws RecursoNoEncontradoException Si no existe una etapa de control activa con el ID indicado.
-     */
-    private PlanMonitoreoEtapaEntity construirPlanMonitoreoEtapa(PlanMonitoreoEtapaFormDTO planFormDTO, VersionRecetaEntity versionRecetaEntity) {
-        EtapaControlEntity etapaControlEntity = etapaControlRepository.findById(planFormDTO.getIdEtapaControl())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de control con ID: " + planFormDTO.getIdEtapaControl()));
-
-        PlanMonitoreoEtapaEntity planMonitoreoEtapaEntity = PlanMonitoreoEtapaEntity.builder()
-                .etapaControl(etapaControlEntity)
-                .versionReceta(versionRecetaEntity)
-                .build();
-
-        List<DetalleParametroControlFormDTO> detallesParametroControl = Optional.ofNullable(planFormDTO.getDetallesParametroControl())
-                .orElse(Collections.emptyList());
-
-        planMonitoreoEtapaEntity.getDetallesParametroControl().addAll(detallesParametroControl.stream()
-                .map(detalle -> construirDetalleParametroControl(detalle, planMonitoreoEtapaEntity))
-                .toList());
-
-        return planMonitoreoEtapaEntity;
-    }
-
-    /**
-     * Construye el detalle de parámetro de control a partir del DTO de formulario, resolviendo el
-     * parámetro de control referenciado por su identificador y validando su rango contra los
-     * límites teóricos definidos para ese parámetro.
-     *
-     * @param detalleFormDTO Datos del detalle de parámetro de control.
-     * @param planMonitoreoEtapaEntity Plan de monitoreo de etapa al que pertenece este detalle.
-     * @return Entidad de detalle de parámetro de control vinculada al parámetro de control y al plan de monitoreo.
-     * @throws RecursoNoEncontradoException Si no existe un parámetro de control activo con el ID indicado.
-     * @throws ReglaNegocioException Si el rango ingresado es inválido o excede los límites teóricos del parámetro de control.
-     */
-    private DetalleParametroControlEntity construirDetalleParametroControl(DetalleParametroControlFormDTO detalleFormDTO, PlanMonitoreoEtapaEntity planMonitoreoEtapaEntity) {
-        ParametroControlEntity parametroControlEntity = parametroControlRepository.findById(detalleFormDTO.getIdParametroControl())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el parámetro de control con ID: " + detalleFormDTO.getIdParametroControl()));
-
-        validarRangoDetalleParametroControl(detalleFormDTO, parametroControlEntity);
-
-        return DetalleParametroControlEntity.builder()
-                .valorMinimo(detalleFormDTO.getValorMinimo())
-                .valorMaximo(detalleFormDTO.getValorMaximo())
-                .valorIdeal(detalleFormDTO.getValorIdeal())
-                .parametroControl(parametroControlEntity)
-                .planMonitoreoEtapa(planMonitoreoEtapaEntity)
-                .build();
-    }
-
-    /**
-     * Valida el rango planificado de un detalle de parámetro de control: que el mínimo no supere
-     * al máximo, que el ideal caiga dentro de ese rango, y que el rango planificado no exceda los
-     * límites teóricos (mínimo y máximo posibles) definidos para el parámetro de control.
-     *
-     * @param detalleFormDTO Datos del detalle de parámetro de control a validar.
-     * @param parametroControlEntity Parámetro de control referenciado, con sus límites teóricos.
-     * @throws ReglaNegocioException Si el rango planificado es inválido o excede los límites teóricos.
-     */
-    private static void validarRangoDetalleParametroControl(DetalleParametroControlFormDTO detalleFormDTO, ParametroControlEntity parametroControlEntity) {
-        Double valorMinimo = detalleFormDTO.getValorMinimo();
-        Double valorMaximo = detalleFormDTO.getValorMaximo();
-        Double valorIdeal = detalleFormDTO.getValorIdeal();
-
-        if (valorMinimo == null || valorMaximo == null || valorMinimo > valorMaximo) {
-            throw new ReglaNegocioException("El valor mínimo del parámetro de control '" + parametroControlEntity.getNombre() + "' no puede ser mayor al valor máximo");
-        }
-        if (valorIdeal == null || valorIdeal < valorMinimo || valorIdeal > valorMaximo) {
-            throw new ReglaNegocioException("El valor ideal del parámetro de control '" + parametroControlEntity.getNombre() + "' debe estar dentro del rango mínimo y máximo definido");
-        }
-        if (valorMinimo < parametroControlEntity.getValorMinimo()) {
-            throw new ReglaNegocioException("El valor mínimo del parámetro de control '" + parametroControlEntity.getNombre()
-                    + "' no puede ser inferior al valor mínimo posible (" + parametroControlEntity.getValorMinimo() + ")");
-        }
-        if (valorMaximo > parametroControlEntity.getValorMaximo()) {
-            throw new ReglaNegocioException("El valor máximo del parámetro de control '" + parametroControlEntity.getNombre()
-                    + "' no puede ser superior al valor máximo posible (" + parametroControlEntity.getValorMaximo() + ")");
-        }
-    }
-
-    /**
-     * Obtiene la lista de planes de monitoreo de la versión, tratando un valor nulo como una
-     * lista vacía. El plan de monitoreo es opcional: el usuario puede optar por no configurar
-     * ningún control de etapa para la receta.
-     *
-     * @param versionFormDTO Datos de la versión de receta.
-     * @return Lista de planes de monitoreo de etapa, nunca nula.
-     */
-    private static List<PlanMonitoreoEtapaFormDTO> obtenerPlanesMonitoreo(VersionRecetaFormDTO versionFormDTO) {
-        return Optional.ofNullable(versionFormDTO.getPlanesMonitoreo()).orElse(Collections.emptyList());
     }
 }

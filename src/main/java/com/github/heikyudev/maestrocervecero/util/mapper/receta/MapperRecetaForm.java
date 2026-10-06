@@ -4,12 +4,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleMaltaFormDTO;
-import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleParametroControlFormDTO;
-import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.PlanMonitoreoEtapaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.RecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.VersionRecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 
@@ -55,7 +52,6 @@ public class MapperRecetaForm {
                 .detallesMalta(new ArrayList<>())
                 .detallesLupulo(new ArrayList<>())
                 .detallesLevadura(new ArrayList<>())
-                .planesMonitoreo(new ArrayList<>())
                 .build();
 
         version.getDetallesMalta().forEach(detalle -> versionForm.getDetallesMalta().add(
@@ -72,8 +68,6 @@ public class MapperRecetaForm {
                         .cantidad(detalle.getCantidad())
                         .build()));
 
-        version.getPlanesMonitoreo().forEach(plan -> versionForm.getPlanesMonitoreo().add(mapPlan(plan)));
-
         return RecetaFormDTO.builder().version(versionForm).build();
     }
 
@@ -89,22 +83,5 @@ public class MapperRecetaForm {
                 .etapaDeUso(detalle.getEtapaDeUso())
                 .tiempoDeHervor(detalle.getUso() == UsoLupulo.HERVOR ? detalle.getTiempoDeHervor() : null)
                 .build();
-    }
-
-    private static PlanMonitoreoEtapaFormDTO mapPlan(PlanMonitoreoEtapaResponseDTO plan) {
-        PlanMonitoreoEtapaFormDTO planForm = PlanMonitoreoEtapaFormDTO.builder()
-                .idEtapaControl(plan.getEtapaControl().getId())
-                .detallesParametroControl(new ArrayList<>())
-                .build();
-
-        plan.getDetallesParametroControl().forEach(detalle -> planForm.getDetallesParametroControl().add(
-                DetalleParametroControlFormDTO.builder()
-                        .idParametroControl(detalle.getParametroControl().getId())
-                        .valorMinimo(detalle.getValorMinimo())
-                        .valorIdeal(detalle.getValorIdeal())
-                        .valorMaximo(detalle.getValorMaximo())
-                        .build()));
-
-        return planForm;
     }
 }

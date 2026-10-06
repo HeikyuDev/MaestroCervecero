@@ -90,11 +90,6 @@ public class VersionRecetaResponseDTO {
     private List<DetalleLevaduraResponseDTO> detallesLevadura;
 
     /**
-     * Lista de planes de monitoreo de etapa asociados a la versión de receta.
-     */
-    private List<PlanMonitoreoEtapaResponseDTO> planesMonitoreo;
-
-    /**
      * Duración total estimada de la receta, legible: suma de las duraciones en minutos
      * (maceración + hervido), expresada en horas y minutos, más las duraciones en días
      * (fermentación + maduración). Una duración nula cuenta como cero y las unidades en cero se

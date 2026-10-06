@@ -1,6 +1,6 @@
 ### 1. `filtrarLotesInsumoReservados(Long idEtapaLote, Long idInsumo)`
 
-`idEtapaLote` no lo tipea el usuario: lo determina el contexto de la pantalla (igual que en `filtrarInsumosRequeridos`/`filtrarMedicionesLote`). `idInsumo` sí lo elige el usuario, al seleccionar uno de los insumos devueltos por `filtrarInsumosRequeridos`.
+`idEtapaLote` no lo tipea el usuario: lo determina el contexto de la pantalla (igual que en `filtrarInsumosRequeridos`). `idInsumo` sí lo elige el usuario, al seleccionar uno de los insumos devueltos por `filtrarInsumosRequeridos`.
 
 Devuelve TODAS las reservas de ese insumo en esa etapa, incluidas las que ya se agotaron (cantidad reservada en 0, por un consumo o por una merma de `AjusteInsumo`): mostrar solo las que todavía tienen cantidad, u ordenarlas primero, es una decisión de presentación del frontend, no un filtro de este método.
 

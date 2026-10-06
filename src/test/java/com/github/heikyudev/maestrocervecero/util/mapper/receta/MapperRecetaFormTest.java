@@ -5,16 +5,12 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.DetalleLupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.RecetaFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.receta.VersionRecetaFormDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.etapa_control.EtapaControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.parametro_control.ParametroControlResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleMaltaResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleParametroControlResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.PlanMonitoreoEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
@@ -42,13 +38,6 @@ class MapperRecetaFormTest {
                                 .lupulo(LupuloResponseDTO.builder().id(22L).nombre("Citra").build()).build()))
                 .detallesLevadura(List.of(DetalleLevaduraResponseDTO.builder().id(1L).cantidad(11.5)
                         .levadura(LevaduraResponseDTO.builder().id(31L).nombre("US-05").build()).build()))
-                .planesMonitoreo(List.of(PlanMonitoreoEtapaResponseDTO.builder().id(1L)
-                        .etapaControl(EtapaControlResponseDTO.builder().id(41L).nombre("Control de densidad").build())
-                        .detallesParametroControl(List.of(DetalleParametroControlResponseDTO.builder().id(1L)
-                                .valorMinimo(1.01).valorIdeal(1.012).valorMaximo(1.015)
-                                .parametroControl(ParametroControlResponseDTO.builder().id(51L).nombre("Densidad").build())
-                                .build()))
-                        .build()))
                 .build();
         return RecetaResponseDTO.builder().id(7L).version(version).build();
     }
@@ -103,21 +92,6 @@ class MapperRecetaFormTest {
     }
 
     @Test
-    @DisplayName("CP-MRF-04: los planes de monitoreo conservan la etapa de control y el rango de cada parámetro")
-    void toFormDTO_debeConservarLosPlanesDeMonitoreo() {
-        VersionRecetaFormDTO version = MapperRecetaForm.toFormDTO(receta()).getVersion();
-
-        assertThat(version.getPlanesMonitoreo()).hasSize(1);
-        assertThat(version.getPlanesMonitoreo().get(0).getIdEtapaControl()).isEqualTo(41L);
-        assertThat(version.getPlanesMonitoreo().get(0).getDetallesParametroControl()).hasSize(1);
-        var parametro = version.getPlanesMonitoreo().get(0).getDetallesParametroControl().get(0);
-        assertThat(parametro.getIdParametroControl()).isEqualTo(51L);
-        assertThat(parametro.getValorMinimo()).isEqualTo(1.01);
-        assertThat(parametro.getValorIdeal()).isEqualTo(1.012);
-        assertThat(parametro.getValorMaximo()).isEqualTo(1.015);
-    }
-
-    @Test
     @DisplayName("CP-MRF-05: una receta nula devuelve null y una sin versión vigente devuelve un formulario vacío con listas inicializadas")
     void toFormDTO_debeManejarRecetaNulaOSinVersion() {
         assertThat(MapperRecetaForm.toFormDTO(null)).isNull();
@@ -127,6 +101,5 @@ class MapperRecetaFormTest {
         assertThat(vacio.getVersion().getDetallesMalta()).isEmpty();
         assertThat(vacio.getVersion().getDetallesLupulo()).isEmpty();
         assertThat(vacio.getVersion().getDetallesLevadura()).isEmpty();
-        assertThat(vacio.getVersion().getPlanesMonitoreo()).isEmpty();
     }
 }
