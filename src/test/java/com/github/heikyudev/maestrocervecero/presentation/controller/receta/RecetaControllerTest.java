@@ -546,7 +546,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Guardar cambios")))
                 .andExpect(content().string(containsString("Al guardar se registra una nueva versi")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.nombre\"[^>]*value=\"Pale Ale\".*")))
-                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.volumenBase\"[^>]*value=\"20\\.0\".*")))
+                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.volumenBase\"[^>]*value=\"20\".*")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.duracionHervido\"[^>]*value=\"90\".*")))
                 // Malta: campos ocultos indexados y fila visible con el nombre del insumo
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesMalta\\[0\\]\\.idMalta\"[^>]*value=\"1\".*")))
@@ -561,6 +561,24 @@ class RecetaControllerTest {
                 // La tabla de cada seccion ya no muestra el texto de tabla vacia visible
                 .andExpect(content().string(matchesPattern("(?s).*data-fila-vacia[^>]*hidden.*")))
                 .andExpect(content().string(not(containsString("action=\"/recetas\""))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-53: el formulario de modificación muestra los números enteros sin decimales sobrantes (20 y no 20.0)")
+    void formularioEdicion_debeMostrarLosNumerosSinDecimalesSobrantes() throws Exception {
+        when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
+        stubInsumos();
+
+        mockMvc.perform(get("/recetas/7/editar"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.volumenBase\"[^>]*value=\"20\".*")))
+                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.relacionDeEmpaste\"[^>]*value=\"3\".*")))
+                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesMalta\\[0\\]\\.cantidad\"[^>]*value=\"4\\.5\".*")))
+                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLupulo\\[1\\]\\.tiempoDeHervor\"[^>]*value=\"60\".*")))
+                .andExpect(content().string(not(containsString("value=\"20.0\""))))
+                .andExpect(content().string(not(containsString("value=\"3.0\""))))
+                .andExpect(content().string(not(containsString("value=\"60.0\""))));
     }
 
     @Test
@@ -580,7 +598,7 @@ class RecetaControllerTest {
                 .andExpect(result -> assertThat(result.getResponse().getContentAsString().split("data-campo=\"tiempoDeHervor\"", -1).length - 1).isEqualTo(2))
                 // Fila 1: Cascade, Hervor con 60 minutos
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLupulo\\[1\\]\\.uso\"[^>]*value=\"HERVOR\".*")))
-                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLupulo\\[1\\]\\.tiempoDeHervor\"[^>]*value=\"60\\.0\".*")))
+                .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLupulo\\[1\\]\\.tiempoDeHervor\"[^>]*value=\"60\".*")))
                 // Fila 2: Citra, Dry hop en fermentacion, sin tiempo de hervor
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLupulo\\[2\\]\\.uso\"[^>]*value=\"DRY_HOP\".*")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"version\\.detallesLupulo\\[2\\]\\.etapaDeUso\"[^>]*value=\"FERMENTACION\".*")))
@@ -760,7 +778,7 @@ class RecetaControllerTest {
                 // Filas ya cargadas, con el nombre que resuelve el servidor
                 .andExpect(matchesPatternLocal("name=\"version\\.detallesMalta\\[0\\]\\.idMalta\"[^>]*value=\"1\""))
                 .andExpect(matchesPatternLocal("data-celda=\"nombre\">Pilsen<"))
-                .andExpect(matchesPatternLocal("name=\"version\\.detallesLupulo\\[0\\]\\.tiempoDeHervor\"[^>]*value=\"60\\.0\""))
+                .andExpect(matchesPatternLocal("name=\"version\\.detallesLupulo\\[0\\]\\.tiempoDeHervor\"[^>]*value=\"60\""))
                 .andExpect(matchesPatternLocal("data-celda=\"nombre\">Cascade<"))
                 .andExpect(matchesPatternLocal("data-celda=\"nombre\">Citra<"))
                 .andExpect(matchesPatternLocal("name=\"version\\.detallesLevadura\\[0\\]\\.idLevadura\"[^>]*value=\"1\""))
@@ -1051,8 +1069,10 @@ class RecetaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(matchesPatternLocal("type=\"text\"[^>]*id=\"ogObjetivo\"[^>]*inputmode=\"numeric\"[^>]*pattern=\"\\[0-9\\]\\{4\\}\"[^>]*maxlength=\"4\""))
                 .andExpect(matchesPatternLocal("type=\"text\"[^>]*id=\"fgObjetivo\"[^>]*inputmode=\"numeric\"[^>]*pattern=\"\\[0-9\\]\\{4\\}\"[^>]*maxlength=\"4\""))
-                .andExpect(content().string(containsString("4 dígitos: 1050 equivale a 1,050 (entre 1020 y 1120)")))
-                .andExpect(content().string(containsString("4 dígitos: 1010 equivale a 1,010 (entre 1000 y 1040)")));
+                .andExpect(content().string(containsString("4 dígitos: 1050 = 1,050")))
+                .andExpect(content().string(containsString("Entre 1020 y 1120")))
+                .andExpect(content().string(containsString("4 dígitos: 1010 = 1,010")))
+                .andExpect(content().string(containsString("Entre 1000 y 1040")));
 
         when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
         stubInsumos();

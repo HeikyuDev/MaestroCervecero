@@ -19,7 +19,7 @@
 <tr th:fragment="malta(indice, idMalta, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesMalta" th:classappend="${conError} ? 'bg-rose-50'">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idMalta" th:name="|version.detallesMalta[${indice}].idMalta|" th:value="${idMalta}">
-        <input type="hidden" data-campo="cantidad" th:name="|version.detallesMalta[${indice}].cantidad|" th:value="${cantidad}">
+        <input type="hidden" data-campo="cantidad" th:name="|version.detallesMalta[${indice}].cantidad|" th:value="${cantidad != null ? (cantidad == cantidad.intValue() ? cantidad.intValue() : cantidad) : null}">
         <span data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Malta no disponible'">Pilsen</span>
     </td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'kg')}"></th:block></td>
@@ -35,14 +35,14 @@
 <tr th:fragment="lupulo(indice, idLupulo, nombre, cantidad, uso, etapaDeUso, tiempoDeHervor, conTiempo, conError)" data-fila data-prefijo="version.detallesLupulo" th:classappend="${conError} ? 'bg-rose-50'">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idLupulo" th:name="|version.detallesLupulo[${indice}].idLupulo|" th:value="${idLupulo}">
-        <input type="hidden" data-campo="cantidad" th:name="|version.detallesLupulo[${indice}].cantidad|" th:value="${cantidad}">
+        <input type="hidden" data-campo="cantidad" th:name="|version.detallesLupulo[${indice}].cantidad|" th:value="${cantidad != null ? (cantidad == cantidad.intValue() ? cantidad.intValue() : cantidad) : null}">
         <input type="hidden" data-campo="uso" th:name="|version.detallesLupulo[${indice}].uso|" th:value="${uso}">
         <input type="hidden" data-campo="etapaDeUso" th:name="|version.detallesLupulo[${indice}].etapaDeUso|" th:value="${etapaDeUso}">
-        <input type="hidden" data-campo="tiempoDeHervor" th:if="${conTiempo}" th:name="|version.detallesLupulo[${indice}].tiempoDeHervor|" th:value="${tiempoDeHervor}">
+        <input type="hidden" data-campo="tiempoDeHervor" th:if="${conTiempo}" th:name="|version.detallesLupulo[${indice}].tiempoDeHervor|" th:value="${tiempoDeHervor != null ? (tiempoDeHervor == tiempoDeHervor.intValue() ? tiempoDeHervor.intValue() : tiempoDeHervor) : null}">
         <span data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Lúpulo no disponible'">Cascade</span>
     </td>
-    <td class="px-4 py-3 text-slate-700" data-celda="uso"><th:block th:replace="~{receta/formato :: usoLupulo(${uso})}"></th:block></td>
-    <td class="px-4 py-3 text-slate-700" data-celda="etapaDeUso"><th:block th:replace="~{receta/formato :: etapa(${etapaDeUso})}"></th:block></td>
+    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="uso"><th:block th:replace="~{receta/formato :: usoLupulo(${uso})}"></th:block></td>
+    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="etapaDeUso"><th:block th:replace="~{receta/formato :: etapa(${etapaDeUso})}"></th:block></td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="tiempoDeHervor">
         <th:block th:if="${conTiempo}"><th:block th:replace="~{receta/formato :: medida(${tiempoDeHervor}, 'min')}"></th:block></th:block>
         <th:block th:unless="${conTiempo}">-</th:block>
@@ -59,7 +59,7 @@
 <tr th:fragment="levadura(indice, idLevadura, nombre, cantidad, conError)" data-fila data-prefijo="version.detallesLevadura" th:classappend="${conError} ? 'bg-rose-50'">
     <td class="px-4 py-3 font-medium text-slate-900">
         <input type="hidden" data-campo="idLevadura" th:name="|version.detallesLevadura[${indice}].idLevadura|" th:value="${idLevadura}">
-        <input type="hidden" data-campo="cantidad" th:name="|version.detallesLevadura[${indice}].cantidad|" th:value="${cantidad}">
+        <input type="hidden" data-campo="cantidad" th:name="|version.detallesLevadura[${indice}].cantidad|" th:value="${cantidad != null ? (cantidad == cantidad.intValue() ? cantidad.intValue() : cantidad) : null}">
         <span data-celda="nombre" th:text="${nombre != null} ? ${nombre} : 'Levadura no disponible'">US-05</span>
     </td>
     <td class="px-4 py-3 text-slate-700 whitespace-nowrap" data-celda="cantidad"><th:block th:replace="~{receta/formato :: medida(${cantidad}, 'g')}"></th:block></td>

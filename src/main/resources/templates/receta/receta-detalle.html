@@ -97,7 +97,7 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${version.detallesMalta}">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${d.malta.nombre}">Pilsen</td>
-                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: tipoMalta(${d.malta.tipo})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: tipoMalta(${d.malta.tipo})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.cantidad})}"></th:block></td>
             </tr>
             <tr th:if="${#lists.isEmpty(version.detallesMalta)}">
@@ -127,10 +127,10 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${version.detallesLupulo}">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${d.lupulo.nombre}">Cascade</td>
-                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: formatoLupulo(${d.lupulo.formato})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: formatoLupulo(${d.lupulo.formato})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.lupulo.aa})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: usoLupulo(${d.uso})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: etapa(${d.etapaDeUso})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: usoLupulo(${d.uso})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: etapa(${d.etapaDeUso})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
                     <th:block th:if="${d.uso.name() == 'HERVOR'}"><th:block th:replace="~{receta/formato :: numero(${d.tiempoDeHervor})}"></th:block></th:block>
                     <th:block th:unless="${d.uso.name() == 'HERVOR'}">-</th:block>
@@ -160,7 +160,7 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${version.detallesLevadura}">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${d.levadura.nombre}">US-05</td>
-                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: tipoLevadura(${d.levadura.tipo})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: tipoLevadura(${d.levadura.tipo})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.cantidad})}"></th:block></td>
             </tr>
             <tr th:if="${#lists.isEmpty(version.detallesLevadura)}">
