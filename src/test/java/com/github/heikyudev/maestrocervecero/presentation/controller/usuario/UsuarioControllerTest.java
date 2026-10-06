@@ -76,7 +76,7 @@ class UsuarioControllerTest {
                 .andExpect(content().string(containsString("carlos@mail.com")))
                 .andExpect(content().string(containsString("Carlos")))
                 .andExpect(content().string(containsString("Gomez")))
-                .andExpect(content().string(containsString("GERENTE DE COMPRAS")))
+                .andExpect(content().string(containsString("Gerente de Compras")))
                 .andExpect(content().string(containsString("/usuarios/nuevo")))
                 .andExpect(content().string(containsString("/usuarios/7/editar")))
                 .andExpect(content().string(containsString("data-baja-url=\"/usuarios/7/baja\"")))
@@ -178,7 +178,7 @@ class UsuarioControllerTest {
                 .andExpect(content().string(not(containsString("Nombre completo"))))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("Crear usuario")))
-                .andExpect(content().string(containsString("GERENTE DE PRODUCCION")))
+                .andExpect(content().string(containsString("Gerente de Producción")))
                 .andExpect(content().string(not(containsString("No se pudo crear el usuario"))));
     }
 
@@ -552,6 +552,33 @@ class UsuarioControllerTest {
         mockMvc.perform(get("/usuarios/nuevo"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("La contraseña debe tener entre 8 y 72 caracteres y no puede contener espacios en blanco")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-32: el listado y el filtro muestran el rol con su nombre legible, no con el nombre de la constante")
+    void listado_debeMostrarElRolConSuEtiquetaLegible() throws Exception {
+        when(usuarioServicio.filtrarUsuarios(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(usuario(7L, "carlos", Rol.GERENTE_DE_PRODUCCION)), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/usuarios"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(">Gerente de Producción<")))
+                .andExpect(content().string(containsString("value=\"GERENTE_DE_PRODUCCION\"")))
+                .andExpect(content().string(not(containsString("GERENTE DE PRODUCCION"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-33: el encabezado muestra el rol del usuario autenticado con su nombre legible")
+    void encabezado_debeMostrarElRolConSuEtiquetaLegible() throws Exception {
+        when(usuarioServicio.filtrarUsuarios(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        mockMvc.perform(get("/usuarios"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*text-amber-500 font-medium\">\\s*Administrador\\s*</p>.*")))
+                .andExpect(content().string(not(containsString("[ROL]"))));
     }
 
     // ==================== helpers ====================

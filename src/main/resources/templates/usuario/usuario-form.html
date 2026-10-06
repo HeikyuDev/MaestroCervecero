@@ -96,7 +96,7 @@
                     <span class="block text-sm font-medium text-slate-700 mb-1">Rol <span class="text-rose-600" title="Obligatorio">*</span></span>
                     <input type="hidden" th:field="*{rol}">
                     <div class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600"
-                         th:text="${#strings.replace(usuarioForm.rol, '_', ' ')}">ROL</div>
+                         th:text="${usuarioForm.rol.etiqueta}">Rol</div>
                     <p class="mt-1 text-xs text-slate-400">No podés cambiar tu propio rol.</p>
                     <p th:if="${#fields.hasErrors('rol')}" th:errors="*{rol}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
@@ -108,7 +108,7 @@
                             th:classappend="${#fields.hasErrors('rol')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <option value="">Seleccioná un rol</option>
                         <option th:each="r : ${roles}" th:value="${r}"
-                                th:text="${#strings.replace(r, '_', ' ')}">ROL</option>
+                                th:text="${r.etiqueta}">Rol</option>
                     </select>
                     <p th:if="${#fields.hasErrors('rol')}" th:errors="*{rol}" class="mt-1 text-xs text-rose-600"></p>
                 </div>

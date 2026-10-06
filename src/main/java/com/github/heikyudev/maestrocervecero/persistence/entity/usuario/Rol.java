@@ -11,13 +11,15 @@ import java.util.Set;
  * administración, es una decisión de código que refleja los puestos reales de la cervecería
  * (producción, compras, depósito, administración).
  * <p>
+ * Cada valor trae su nombre legible ({@code etiqueta}), que es el que se muestra al usuario.
+ * <p>
  * {@code UserDetailServiceImpl} vuelca el nombre del Rol como authority {@code ROLE_<nombre>}
  * y cada Permiso del set como authority propia sin prefijo (ver esa clase para el detalle).
  */
 @Getter
 @RequiredArgsConstructor
 public enum Rol {
-    GERENTE_DE_PRODUCCION(Set.of(
+    GERENTE_DE_PRODUCCION("Gerente de Producción", Set.of(
             Permiso.INSUMO_CREAR,
             Permiso.INSUMO_MODIFICAR,
             Permiso.INSUMO_ELIMINAR,
@@ -58,7 +60,7 @@ public enum Rol {
             Permiso.AJUSTE_STOCK_CONSULTAR
     )),
 
-    OPERARIO_DE_PRODUCCION(Set.of(
+    OPERARIO_DE_PRODUCCION("Operario de Producción", Set.of(
             Permiso.EQUIPAMIENTO_CONSULTAR,
             Permiso.BARRIL_CONSULTAR,
             Permiso.LOTE_INICIAR,
@@ -89,7 +91,7 @@ public enum Rol {
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR
     )),
 
-    GERENTE_DE_COMPRAS(Set.of(
+    GERENTE_DE_COMPRAS("Gerente de Compras", Set.of(
             Permiso.PRESENTACION_COMERCIAL_CREAR,
             Permiso.PRESENTACION_COMERCIAL_MODIFICAR,
             Permiso.PRESENTACION_COMERCIAL_ELIMINAR,
@@ -106,7 +108,7 @@ public enum Rol {
             Permiso.PLANIFICACION_PRODUCCION_CONSULTAR
     )),
 
-    ENCARGADO_DE_DEPOSITO(Set.of(
+    ENCARGADO_DE_DEPOSITO("Encargado de Depósito", Set.of(
             Permiso.INGRESO_INSUMO_REGISTRAR,
             Permiso.INGRESO_INSUMO_ANULAR,
             Permiso.INGRESO_INSUMO_CONSULTAR,
@@ -114,7 +116,7 @@ public enum Rol {
             Permiso.ORDEN_COMPRA_CONSULTAR
     )),
 
-    GERENTE_COMERCIAL(Set.of(
+    GERENTE_COMERCIAL("Gerente Comercial", Set.of(
             Permiso.CLIENTE_CREAR,
             Permiso.CLIENTE_MODIFICAR,
             Permiso.CLIENTE_ELIMINAR,
@@ -131,7 +133,7 @@ public enum Rol {
             Permiso.DEVOLUCION_BARRIL_CONSULTAR
     )),
 
-    ADMINISTRADOR(Set.of(
+    ADMINISTRADOR("Administrador", Set.of(
             Permiso.PAIS_CREAR,
             Permiso.PAIS_MODIFICAR,
             Permiso.PAIS_ELIMINAR,
@@ -150,5 +152,6 @@ public enum Rol {
             Permiso.USUARIO_CONSULTAR
     ));
 
+    private final String etiqueta;
     private final Set<Permiso> permisos;
 }

@@ -28,7 +28,7 @@
             <p class="font-semibold text-slate-200" sec:authentication="name">Usuario</p>
             <p class="text-amber-500 font-medium" th:each="auth : ${#authentication.principal.authorities}"
                 th:if="${#strings.startsWith(auth.authority, 'ROLE_')}"
-                th:text="${#strings.replace(#strings.replace(auth.authority, 'ROLE_', ''), '_', ' ')}">
+                th:text="${T(com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol).valueOf(#strings.replace(auth.authority, 'ROLE_', '')).etiqueta}">
                 [ROL]
             </p>
         </div>
