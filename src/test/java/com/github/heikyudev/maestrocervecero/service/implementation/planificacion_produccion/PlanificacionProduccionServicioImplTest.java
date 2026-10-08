@@ -1,12 +1,14 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.planificacion_produccion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
@@ -15,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,9 +51,13 @@ class PlanificacionProduccionServicioImplTest {
     private IRecetaRepository recetaRepository;
     @Mock
     private ILoteRepository loteRepository;
+    @Mock
+    private IConfiguracionProduccionRepository configuracionProduccionRepository;
 
     @InjectMocks
     private PlanificacionProduccionServicioImpl planificacionProduccionServicio;
+
+    private static final LocalDate FECHA_INICIO_SUGERENCIA = LocalDate.of(2026, 11, 2);
 
     // ==================== filtrarPlanificacionesProduccion ====================
 
@@ -477,6 +484,371 @@ class PlanificacionProduccionServicioImplTest {
         verify(planificacionProduccionRepository).save(planificacion);
     }
 
+    // ==================== sugerirFechaFinalizacion ====================
+
+    @Test
+    @DisplayName("CP-SF-01: sugerirFechaFinalizacion retorna la sugerencia de 4000 L con 14 lotes de 18 días (camino feliz)")
+    void sugerirFechaFinalizacion_debeRetornarSugerenciaExitosa() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 4000.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2027, 7, 25));
+        assertThat(resultado.getCantidadLotes()).isEqualTo(14);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        verify(planificacionProduccionRepository, never()).save(any());
+        verify(recetaRepository, never()).save(any());
+        verify(configuracionProduccionRepository, never()).save(any());
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-02: sugerirFechaFinalizacion copia al DTO los datos de la simulación")
+    void sugerirFechaFinalizacion_debeCopiarLosDatosDeLaSimulacionAlDTO() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 4000.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 2));
+        assertThat(resultado.getCapacidadLoteEstandar()).isEqualTo(300.0);
+        assertThat(resultado.getCantidadLotes()).isEqualTo(14);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+    }
+
+    @Test
+    @DisplayName("CP-SF-03: sugerirFechaFinalizacion con múltiplo exacto de la capacidad da 2 lotes y no 3 (límite)")
+    void sugerirFechaFinalizacion_debeCalcularDosLotesConMultiploExacto() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 600.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(2);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 12, 9));
+    }
+
+    @Test
+    @DisplayName("CP-SF-04: sugerirFechaFinalizacion con cantidad igual a la capacidad da 1 lote (límite)")
+    void sugerirFechaFinalizacion_debeCalcularUnLoteConCantidadIgualALaCapacidad() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 300.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(1);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 20));
+    }
+
+    @Test
+    @DisplayName("CP-SF-05: sugerirFechaFinalizacion con cantidad menor a la capacidad da 1 lote sin días de margen")
+    void sugerirFechaFinalizacion_debeCalcularUnLoteConCantidadMenorALaCapacidad() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(1);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 20));
+    }
+
+    @Test
+    @DisplayName("CP-SF-06: sugerirFechaFinalizacion con cantidad decimal que no es múltiplo redondea a 2 lotes")
+    void sugerirFechaFinalizacion_debeRedondearHaciaArribaConCantidadDecimal() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 450.5, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(2);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 12, 9));
+    }
+
+    @Test
+    @DisplayName("CP-SF-07: sugerirFechaFinalizacion con cantidad apenas por encima de un múltiplo exacto da 3 lotes (límite)")
+    void sugerirFechaFinalizacion_debeCalcularTresLotesApenasPorEncimaDeUnMultiploExacto() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 600.1, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(3);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 12, 28));
+    }
+
+    @Test
+    @DisplayName("CP-SF-08: sugerirFechaFinalizacion con día de brewing de exactamente 1440 minutos cuenta 1 día (límite)")
+    void sugerirFechaFinalizacion_debeContarUnDiaDeBrewingConExactamente1440Minutos() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(600, 840, 10, 7)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(1);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 20));
+    }
+
+    @Test
+    @DisplayName("CP-SF-09: sugerirFechaFinalizacion con día de brewing de 1441 minutos se redondea hacia arriba a 2 días (límite)")
+    void sugerirFechaFinalizacion_debeRedondearHaciaArribaConDiaDeBrewingDe1441Minutos() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(600, 841, 10, 7)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(1);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(19L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 21));
+    }
+
+    @Test
+    @DisplayName("CP-SF-10: sugerirFechaFinalizacion con duraciones de brewing en cero o nulas cuenta 0 días de brewing")
+    void sugerirFechaFinalizacion_debeContarCeroDiasDeBrewingConDuracionesEnCeroONulas() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(0, 0, 10, 7)));
+        when(recetaRepository.findById(2L)).thenReturn(Optional.of(recetaConDuraciones(null, null, 10, 7)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultadoEnCero = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA);
+        SugerenciaFechaFinalizacionResponseDTO resultadoNulo = planificacionProduccionServicio.sugerirFechaFinalizacion(2L, 100.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultadoEnCero.getDuracionLoteDias()).isEqualTo(17L);
+        assertThat(resultadoEnCero.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 19));
+        assertThat(resultadoNulo.getDuracionLoteDias()).isEqualTo(17L);
+        assertThat(resultadoNulo.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 19));
+    }
+
+    @Test
+    @DisplayName("CP-SF-11: sugerirFechaFinalizacion con duraciones de fermentación y maduración nulas las cuenta como 0")
+    void sugerirFechaFinalizacion_debeContarCeroConFermentacionYMaduracionNulas() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 90, null, null)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        // === EJECUCION ===
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadLotes()).isEqualTo(1);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(1L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 3));
+    }
+
+    @Test
+    @DisplayName("CP-SF-12: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la cantidad a producir es nula")
+    void sugerirFechaFinalizacion_debeRechazarCantidadNula() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, null, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-13: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la cantidad a producir es cero (límite)")
+    void sugerirFechaFinalizacion_debeRechazarCantidadEnCero() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 0.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-14: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la cantidad a producir es negativa")
+    void sugerirFechaFinalizacion_debeRechazarCantidadNegativa() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, -5.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-15: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la cantidad a producir no es finita")
+    void sugerirFechaFinalizacion_debeRechazarCantidadNoFinita() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, Double.NaN, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, Double.POSITIVE_INFINITY, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-16: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la fecha de inicio estimada es nula")
+    void sugerirFechaFinalizacion_debeRechazarFechaInicioNula() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio estimada es obligatoria");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-17: sugerirFechaFinalizacion valida la cantidad antes que la fecha")
+    void sugerirFechaFinalizacion_debeValidarLaCantidadAntesQueLaFecha() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, null, null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-18: sugerirFechaFinalizacion lanza RecursoNoEncontradoException cuando la receta no existe o está dada de baja")
+    void sugerirFechaFinalizacion_debeRechazarRecetaInexistente() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(99L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la receta con ID: 99");
+        verifyNoInteractions(configuracionProduccionRepository);
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-19: sugerirFechaFinalizacion lanza RecursoNoEncontradoException cuando la receta no tiene versión activa")
+    void sugerirFechaFinalizacion_debeRechazarRecetaSinVersionActiva() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(crearRecetaConVersion(1L, false)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró una versión activa para la receta con ID: 1");
+        verifyNoInteractions(configuracionProduccionRepository);
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-20: sugerirFechaFinalizacion lanza RecursoNoEncontradoException cuando no existe la configuración de producción")
+    void sugerirFechaFinalizacion_debeRechazarConfiguracionInexistente() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-21: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la capacidad de lote estándar es nula")
+    void sugerirFechaFinalizacion_debeRechazarCapacidadNula() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(null)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-22: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la capacidad de lote estándar es cero (límite), sin dividir por cero")
+    void sugerirFechaFinalizacion_debeRechazarCapacidadEnCero() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(0.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-23: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la capacidad de lote estándar es negativa")
+    void sugerirFechaFinalizacion_debeRechazarCapacidadNegativa() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(-300.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-24: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la cantidad de lotes excede el máximo representable")
+    void sugerirFechaFinalizacion_debeRechazarCantidadDeLotesMayorAIntegerMaxValue() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(1.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 3.0E10, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir es demasiado grande para la capacidad de lote estándar configurada");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-26: sugerirFechaFinalizacion no invoca colaboradores posteriores a la validación fallida ni ejecuta save()")
+    void sugerirFechaFinalizacion_noDebeInvocarColaboradoresPosterioresNiPersistir() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(null)));
+
+        // === EJECUCION Y ASSERTS ===
+        // Orden de validación: cantidad, fecha, receta, versión activa, configuración, capacidad, cantidad de lotes
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
+        verify(planificacionProduccionRepository, never()).save(any());
+        verify(recetaRepository, never()).save(any());
+        verify(configuracionProduccionRepository, never()).save(any());
+        verifyNoInteractions(loteRepository);
+    }
+
     // ==================== helpers ====================
 
     private static PlanificacionProduccionFormDTO.PlanificacionProduccionFormDTOBuilder planificacionFormDTOValidoBuilder(Long idReceta) {
@@ -520,6 +892,27 @@ class PlanificacionProduccionServicioImplTest {
 
         recetaEntity.getVersiones().add(versionRecetaEntity);
         return recetaEntity;
+    }
+
+    private static RecetaEntity recetaBaseSugerencia() {
+        return recetaConDuraciones(60, 90, 10, 7);
+    }
+
+    private static RecetaEntity recetaConDuraciones(Integer maceracion, Integer hervido, Integer fermentacion, Integer maduracion) {
+        RecetaEntity recetaEntity = crearRecetaConVersion(1L, true);
+        VersionRecetaEntity version = recetaEntity.getVersiones().get(0);
+        version.setDuracionMaceracion(maceracion);
+        version.setDuracionHervido(hervido);
+        version.setDuracionFermentacion(fermentacion);
+        version.setDuracionMaduracion(maduracion);
+        return recetaEntity;
+    }
+
+    private static ConfiguracionProduccionEntity crearConfiguracion(Double capacidadLoteEstandar) {
+        return ConfiguracionProduccionEntity.builder()
+                .id(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .capacidadLoteEstandar(capacidadLoteEstandar)
+                .build();
     }
 
     private static PlanificacionProduccionEntity crearPlanificacionEntity(Long id, EstadoSolicitud estado, LocalDate fechaInicioEstimada) {

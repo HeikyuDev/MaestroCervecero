@@ -7,8 +7,11 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteForm
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 /**
  * Interfaz que define los servicios relacionados con la gestión de lotes.
@@ -268,4 +271,18 @@ public interface ILoteServicio {
      *                               etapa actual (EN_CURSO) no es Envasado.
      */
     LoteResponseDTO finalizarEnvasado(Long id);
+
+    /**
+     * Lista los lotes reales de una planificación de producción, en una versión liviana pensada
+     * para el detalle de la planificación y el cronograma.
+     * <p>
+     * Incluye los lotes en cualquier estado (pendientes, en ejecución, finalizados y cancelados),
+     * ordenados por fecha de inicio estimada ascendente y, ante igual fecha, por ID ascendente.
+     * </p>
+     *
+     * @param idPlanificacionProduccion El ID de la planificación de producción cuyos lotes se quieren listar.
+     * @return Los lotes de la planificación en formato DTO de cronograma, o una lista vacía si todavía no tiene lotes.
+     * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
+     */
+    List<LoteCronogramaResponseDTO> listarLotesDePlanificacion(Long idPlanificacionProduccion);
 }

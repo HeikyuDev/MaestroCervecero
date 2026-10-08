@@ -104,4 +104,26 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      * @return {@code true} si existe al menos un lote en ese estado asociado a esa planificación, {@code false} en caso contrario.
      */
     boolean existsByPlanificacionProduccion_IdAndEstado(Long idPlanificacionProduccion, EstadoLote estado);
+
+    /**
+     * Recupera todos los lotes (en cualquier estado) de una planificación de producción, ordenados
+     * por fecha de inicio estimada ascendente y, ante igual fecha, por ID ascendente.
+     * <p>
+     * Carga en una sola consulta todo lo que necesita el cronograma: la planificación con su versión
+     * de receta, las etapas del lote y el equipamiento de cada etapa. Los {@code LEFT JOIN FETCH} de
+     * etapas y equipamiento garantizan que un lote sin etapas igualmente se devuelva, y el
+     * {@code DISTINCT} evita lotes repetidos por el producto con las etapas.
+     * </p>
+     *
+     * @param idPlanificacionProduccion El ID de la planificación de producción cuyos lotes se quieren recuperar.
+     * @return Los lotes de la planificación con sus relaciones cargadas, o una lista vacía si no tiene ninguno.
+     */
+    @Query("SELECT DISTINCT l FROM LoteEntity l " +
+            "JOIN FETCH l.planificacionProduccion p " +
+            "JOIN FETCH p.versionReceta " +
+            "LEFT JOIN FETCH l.etapas e " +
+            "LEFT JOIN FETCH e.equipamiento " +
+            "WHERE p.id = :idPlanificacionProduccion " +
+            "ORDER BY l.fechaInicioEstimada ASC, l.id ASC")
+    List<LoteEntity> buscarLotesDePlanificacionConCronograma(@Param("idPlanificacionProduccion") Long idPlanificacionProduccion);
 }

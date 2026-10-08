@@ -44,8 +44,10 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoIns
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
+import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -607,8 +609,7 @@ public class LoteServicioImpl implements ILoteServicio {
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
-    public LoteResponseDTO finalizarEnvasado(Long id) {
-        // 1. Validar que el lote esté registrado en el sistema
+    public LoteResponseDTO finalizarEnvasado(Long id) {        // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
@@ -1155,5 +1156,29 @@ public class LoteServicioImpl implements ILoteServicio {
         long diasTotales = diasBrewDayYEnvasado + versionReceta.getDuracionFermentacion() + versionReceta.getDuracionMaduracion();
 
         return fechaInicioEstimada.plusDays(diasTotales);
+    }
+
+    /**
+     * Lista los lotes reales de una planificación de producción, en una versión liviana pensada
+     * para el detalle de la planificación y el cronograma.
+     * <p>
+     * Incluye los lotes en cualquier estado, ordenados por fecha de inicio estimada ascendente y,
+     * ante igual fecha, por ID ascendente.
+     * </p>
+     *
+     * @param idPlanificacionProduccion El ID de la planificación de producción cuyos lotes se quieren listar.
+     * @return Los lotes de la planificación en formato {@link LoteCronogramaResponseDTO}, o una lista vacía si todavía no tiene lotes.
+     * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<LoteCronogramaResponseDTO> listarLotesDePlanificacion(Long idPlanificacionProduccion) {
+        // 1. Validar que la planificación de producción exista
+        if (!planificacionProduccionRepository.existsById(idPlanificacionProduccion)) {
+            throw new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + idPlanificacionProduccion);
+        }
+
+        // 2. Recuperar los lotes con sus relaciones y mapearlos al DTO de cronograma
+        return MapperLoteCronograma.toDTOList(loteRepository.buscarLotesDePlanificacionConCronograma(idPlanificacionProduccion));
     }
 }

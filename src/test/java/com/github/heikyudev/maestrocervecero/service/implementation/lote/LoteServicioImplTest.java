@@ -56,6 +56,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.Levadur
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1959,6 +1960,88 @@ class LoteServicioImplTest {
         assertThat(detalleCorchos.getSubtotal()).isEqualByComparingTo("5.0000");
     }
 
+    // ==================== listarLotesDePlanificacion ====================
+
+    @Test
+    @DisplayName("CP-LP-01: listarLotesDePlanificacion lanza RecursoNoEncontradoException cuando la planificación de producción no existe")
+    void listarLotesDePlanificacion_debeLanzarExcepcionSiPlanificacionNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(99L)).thenReturn(false);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.listarLotesDePlanificacion(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la planificación de producción con ID: 99");
+        verifyNoInteractions(loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-LP-02: listarLotesDePlanificacion retorna una lista vacía cuando la planificación no tiene lotes")
+    void listarLotesDePlanificacion_debeRetornarListaVaciaSinLotes() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).isNotNull().isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-LP-03: listarLotesDePlanificacion mapea los lotes de la planificación en todos los estados, sin filtrar")
+    void listarLotesDePlanificacion_debeMapearLotesEnVariosEstados() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(
+                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
+                crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION),
+                crearLoteParaCronograma(12L, EstadoLote.PENDIENTE)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(3);
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getEstado)
+                .containsExactly(EstadoLote.FINALIZADO, EstadoLote.EN_EJECUCION, EstadoLote.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-LP-04: listarLotesDePlanificacion conserva el orden devuelto por la consulta")
+    void listarLotesDePlanificacion_debeConservarElOrdenDeLaConsulta() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(
+                crearLoteParaCronograma(12L, EstadoLote.PENDIENTE),
+                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
+                crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(12L, 10L, 11L);
+    }
+
+    @Test
+    @DisplayName("CP-LP-05: listarLotesDePlanificacion consulta con el ID recibido y no persiste nada")
+    void listarLotesDePlanificacion_debeConsultarConElIdRecibido() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(7L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(7L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.listarLotesDePlanificacion(7L);
+
+        // === ASSERTS ===
+        verify(planificacionProduccionRepository, times(1)).existsById(7L);
+        verify(loteRepository, times(1)).buscarLotesDePlanificacionConCronograma(7L);
+        verify(loteRepository, never()).save(any());
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
     // ==================== helpers ====================
 
     private static EtapaLoteEntity findEtapa(LoteEntity lote, TipoEtapa tipo) {
@@ -2218,6 +2301,12 @@ class LoteServicioImplTest {
                 .planificacionProduccion(planificacion)
                 .etapas(new ArrayList<>())
                 .build();
+    }
+
+    private static LoteEntity crearLoteParaCronograma(Long id, EstadoLote estado) {
+        LoteEntity lote = crearLoteMinimo(id, "IPA Test-" + id);
+        lote.setEstado(estado);
+        return lote;
     }
 
     private static LoteEntity crearLoteRegistradoBase(EstadoLote estado) {
