@@ -4,14 +4,17 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -126,4 +129,70 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
             "WHERE p.id = :idPlanificacionProduccion " +
             "ORDER BY l.fechaInicioEstimada ASC, l.id ASC")
     List<LoteEntity> buscarLotesDePlanificacionConCronograma(@Param("idPlanificacionProduccion") Long idPlanificacionProduccion);
+
+    /**
+     * Recupera los lotes del cronograma global, opcionalmente de un solo fermentador, ordenados por
+     * identificador interno del fermentador, fecha de inicio estimada y ID ascendentes.
+     * <p>
+     * El fermentador de un lote es el equipamiento de su etapa de Fermentación. Siempre devuelve los
+     * lotes PENDIENTE y EN_EJECUCION; los FINALIZADO (por fecha de finalización) y los CANCELADO
+     * (por fecha de cancelación) solo si ocurrieron desde {@code desde} (inclusive), o todos si
+     * {@code incluirHistorial} es {@code true}. Carga en una sola consulta la planificación con su
+     * versión de receta, las etapas y el equipamiento de cada etapa (sin {@code DISTINCT}: Hibernate
+     * ya deduplica la raíz, y PostgreSQL no admite ordenar por una columna ajena al {@code SELECT
+     * DISTINCT}).
+     * </p>
+     *
+     * @param idFermentador El ID del fermentador a listar, o {@code null} para listar todos.
+     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados y cancelados.
+     * @param desde Inicio del historial reciente (inclusive) para los lotes finalizados y cancelados.
+     * @return Los lotes con sus relaciones cargadas, o una lista vacía si no hay ninguno.
+     */
+    @Query("SELECT l FROM LoteEntity l " +
+            "JOIN FETCH l.planificacionProduccion p " +
+            "JOIN FETCH p.versionReceta " +
+            "JOIN FETCH l.etapas e " +
+            "JOIN FETCH e.equipamiento " +
+            "JOIN l.etapas ef " +
+            "JOIN ef.equipamiento f " +
+            "WHERE ef.etapa = 'FERMENTACION' " +
+            "AND (:idFermentador IS NULL OR f.id = :idFermentador) " +
+            "AND (l.estado IN ('PENDIENTE', 'EN_EJECUCION') " +
+            "OR :incluirHistorial = true " +
+            "OR (l.estado = 'FINALIZADO' AND l.fechaFinalizacion >= :desde) " +
+            "OR (l.estado = 'CANCELADO' AND l.fechaCancelacion >= :desde)) " +
+            "ORDER BY f.identificadorInterno ASC, l.fechaInicioEstimada ASC, l.id ASC")
+    List<LoteEntity> buscarLotesParaCronograma(@Param("idFermentador") Long idFermentador,
+                                               @Param("incluirHistorial") boolean incluirHistorial,
+                                               @Param("desde") LocalDateTime desde);
+
+    /**
+     * Recupera, bloqueándolos para escritura, los lotes PENDIENTE de un fermentador (el de su etapa
+     * de Fermentación), ordenados por fecha de inicio estimada y, ante igual fecha, por ID.
+     * <p>
+     * Se usa para reordenar la cola de un fermentador sin que otra operación concurrente la
+     * modifique al mismo tiempo. Carga la planificación de cada lote, que el reencadenado de fechas
+     * necesita, para evitar una consulta por lote.
+     * </p>
+     *
+     * @param idFermentador El ID del fermentador cuya cola pendiente se quiere recuperar.
+     * @return Los lotes pendientes del fermentador en el orden de la cola, o una lista vacía si no tiene ninguno.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT l FROM LoteEntity l " +
+            "JOIN FETCH l.planificacionProduccion " +
+            "JOIN l.etapas e " +
+            "WHERE l.estado = 'PENDIENTE' AND e.etapa = 'FERMENTACION' AND e.equipamiento.id = :idFermentador " +
+            "ORDER BY l.fechaInicioEstimada ASC, l.id ASC")
+    List<LoteEntity> buscarPendientesDeFermentadorParaReordenar(@Param("idFermentador") Long idFermentador);
+
+    /**
+     * Busca el lote EN_EJECUCION de un fermentador (el de su etapa de Fermentación), si lo hay.
+     *
+     * @param idFermentador El ID del fermentador.
+     * @return El lote en ejecución del fermentador, o vacío si no tiene ninguno.
+     */
+    @Query("SELECT l FROM LoteEntity l JOIN l.etapas e " +
+            "WHERE l.estado = 'EN_EJECUCION' AND e.etapa = 'FERMENTACION' AND e.equipamiento.id = :idFermentador")
+    Optional<LoteEntity> buscarLoteEnEjecucionDeFermentador(@Param("idFermentador") Long idFermentador);
 }

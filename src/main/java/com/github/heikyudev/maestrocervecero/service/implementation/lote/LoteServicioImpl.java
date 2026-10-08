@@ -59,7 +59,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +85,16 @@ public class LoteServicioImpl implements ILoteServicio {
     // Constantes fijas del sistema (ver docs/Dominio/Escalado/EscaladoDelAgua.md y EscaladoDeMalta.md)
     private static final double DESPLAZAMIENTO_GRANO_L_POR_KG = 0.7;
     private static final int HORAS_POR_DIA = 24;
+
+    // Antigüedad máxima, en días respecto de hoy, para que un lote finalizado o cancelado aparezca en el cronograma global
+    private static final int DIAS_HISTORIAL_RECIENTE = 14;
+
+    // Días de margen entre dos lotes consecutivos de un fermentador, destinados a su limpieza
+    private static final int DIAS_MARGEN_LIMPIEZA = 1;
+
+    private static final String MENSAJE_SOLO_MOVER_PENDIENTES = "Solo se pueden mover lotes en estado Pendiente";
+    private static final String MENSAJE_LOTE_YA_ES_PRIMERO_DE_LA_COLA = "El lote ya es el primero de la cola pendiente de su fermentador";
+    private static final String MENSAJE_LOTE_YA_ES_ULTIMO_DE_LA_COLA = "El lote ya es el último de la cola pendiente de su fermentador";
 
     // Estados de lote que todavía ocupan un lugar en el cronograma de un fermentador
     private static final List<EstadoLote> ESTADOS_QUE_OCUPAN_FERMENTADOR = List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION);
@@ -191,8 +203,9 @@ public class LoteServicioImpl implements ILoteServicio {
         // 6. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
         String identificadorInterno = generarIdentificadorInterno(versionReceta);
 
-        // 7. Calcular la planificación del lote en el cronograma del fermentador seleccionado
-        LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador);
+        // 7. Calcular la planificación del lote en el cronograma del fermentador seleccionado (nunca antes de
+        //    la fecha de inicio estimada de su planificación de producción ni antes de hoy)
+        LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador, planificacionProduccion);
         LocalDate fechaFinalizacionEstimada = calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino, masaMaltaEscalada, versionReceta);
 
         // 8. Construir el lote y sus 6 etapas (todas en PENDIENTE), y persistir
@@ -1122,8 +1135,14 @@ public class LoteServicioImpl implements ILoteServicio {
     /**
      * Calcula la fecha de inicio estimada del lote encolándolo detrás del último lote que ya
      * tiene reservado un lugar en el cronograma del fermentador seleccionado (lotes en estado
-     * PENDIENTE o EN_EJECUCION). Si el fermentador no tiene ningún lote planificado, el lote
-     * arranca hoy.
+     * PENDIENTE o EN_EJECUCION): el día siguiente a su fecha de finalización estimada, o hoy si el
+     * fermentador no tiene ningún lote planificado.
+     * <p>
+     * Un lote nunca arranca antes de la fecha de inicio estimada de su planificación de producción
+     * ni antes de hoy, así que el resultado es
+     * {@code max(día siguiente al último lote o hoy, fechaInicioEstimada de la planificación, hoy)}.
+     * Pueden quedar huecos en la cola del fermentador.
+     * </p>
      * <p>
      * El cronograma solo se lleva por fermentador: es el único equipo cuyo tiempo de uso se mide
      * en días/meses (fermentación + maduración + envasado); molino, macerador y olla de hervor se
@@ -1131,10 +1150,12 @@ public class LoteServicioImpl implements ILoteServicio {
      * iniciar el lote.
      * </p>
      */
-    private LocalDate calcularFechaInicioEstimada(FermentadorEntity fermentador) {
-        return loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(fermentador, ESTADOS_QUE_OCUPAN_FERMENTADOR)
-                .map(ultimaFechaFinalizacionEstimada -> ultimaFechaFinalizacionEstimada.plusDays(1))
-                .orElse(LocalDate.now());
+    private LocalDate calcularFechaInicioEstimada(FermentadorEntity fermentador, PlanificacionProduccionEntity planificacionProduccion) {
+        LocalDate hoy = LocalDate.now();
+        LocalDate fechaPorCola = loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(fermentador, ESTADOS_QUE_OCUPAN_FERMENTADOR)
+                .map(ultimaFechaFinalizacionEstimada -> ultimaFechaFinalizacionEstimada.plusDays(DIAS_MARGEN_LIMPIEZA))
+                .orElse(hoy);
+        return maxima(fechaPorCola, planificacionProduccion.getFechaInicioEstimada(), hoy);
     }
 
     /**
@@ -1180,5 +1201,166 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Recuperar los lotes con sus relaciones y mapearlos al DTO de cronograma
         return MapperLoteCronograma.toDTOList(loteRepository.buscarLotesDePlanificacionConCronograma(idPlanificacionProduccion));
+    }
+
+    /**
+     * Lista los lotes de todas las planificaciones para el cronograma global, por fermentador.
+     * Ver {@link ILoteServicio#listarLotesParaCronograma(Long, boolean)}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, boolean incluirHistorial) {
+        // 1. Si se pidió un fermentador puntual, validar que exista y esté activo (findById ya filtra por estado ACTIVO)
+        if (idFermentador != null) {
+            fermentadorRepository.findById(idFermentador)
+                    .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador));
+        }
+
+        // 2. Recuperar los lotes con sus relaciones; el historial reciente se mide desde el inicio del día de hoy menos 14 días
+        LocalDateTime desde = LocalDate.now().minusDays(DIAS_HISTORIAL_RECIENTE).atStartOfDay();
+
+        return MapperLoteCronograma.toDTOList(loteRepository.buscarLotesParaCronograma(idFermentador, incluirHistorial, desde));
+    }
+
+    /**
+     * Sube un lote una posición en la cola de pendientes de su fermentador y reencadena las fechas.
+     * Ver {@link ILoteServicio#subirLoteEnCola(Long)}.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteCronogramaResponseDTO subirLoteEnCola(Long idLote) {
+        return moverLoteEnCola(idLote, -1);
+    }
+
+    /**
+     * Baja un lote una posición en la cola de pendientes de su fermentador y reencadena las fechas.
+     * Ver {@link ILoteServicio#bajarLoteEnCola(Long)}.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
+    public LoteCronogramaResponseDTO bajarLoteEnCola(Long idLote) {
+        return moverLoteEnCola(idLote, +1);
+    }
+
+    /**
+     * Intercambia un lote PENDIENTE con su vecino en la cola de su fermentador y reencadena las
+     * fechas de toda la cola.
+     *
+     * @param idLote El ID del lote a mover.
+     * @param desplazamiento {@code -1} para subirlo (adelantarlo), {@code +1} para bajarlo (retrasarlo).
+     */
+    private LoteCronogramaResponseDTO moverLoteEnCola(Long idLote, int desplazamiento) {
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+
+        // 2. Validar que el lote se encuentre en estado PENDIENTE
+        if (lote.getEstado() != EstadoLote.PENDIENTE) {
+            throw new ReglaNegocioException(MENSAJE_SOLO_MOVER_PENDIENTES);
+        }
+
+        // 3. Resolver su fermentador y bloquear toda la cola pendiente de ese fermentador
+        Long idFermentador = lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).getEquipamiento().getId();
+        List<LoteEntity> colaPendiente = new ArrayList<>(loteRepository.buscarPendientesDeFermentadorParaReordenar(idFermentador));
+
+        // 4. Ubicar el lote en la cola ya bloqueada (si no está, otra operación lo sacó de PENDIENTE después del paso 2)
+        int indice = colaPendiente.indexOf(lote);
+        if (indice < 0) {
+            throw new ReglaNegocioException(MENSAJE_SOLO_MOVER_PENDIENTES);
+        }
+
+        // 5. Validar que tenga un vecino hacia el cual moverse
+        int indiceVecino = indice + desplazamiento;
+        if (indiceVecino < 0) {
+            throw new ReglaNegocioException(MENSAJE_LOTE_YA_ES_PRIMERO_DE_LA_COLA);
+        }
+        if (indiceVecino >= colaPendiente.size()) {
+            throw new ReglaNegocioException(MENSAJE_LOTE_YA_ES_ULTIMO_DE_LA_COLA);
+        }
+
+        // 6. Intercambiar con el vecino y reencadenar las fechas de toda la cola en el nuevo orden
+        Collections.swap(colaPendiente, indice, indiceVecino);
+        reencadenarLotesPendientes(idFermentador, colaPendiente);
+
+        return MapperLoteCronograma.toDTO(lote);
+    }
+
+    /**
+     * Reencadena las fechas estimadas de los lotes PENDIENTE de un fermentador según el orden de la
+     * lista recibida. Es reutilizable por cualquier operación que cambie la cola (reordenarla, o
+     * liberar el fermentador al finalizar o cancelar un lote).
+     * <p>
+     * Algoritmo, con {@code hoy = LocalDate.now()}:
+     * </p>
+     * <ol>
+     *     <li>La duración de cada lote, en días, se conserva tal como está guardada:
+     *     {@code DAYS.between(fechaInicioEstimada, fechaFinalizacionEstimada)}. Un lote sin
+     *     alguna de las dos fechas, o con duración negativa, aborta la operación.</li>
+     *     <li>La base inicial es el día siguiente a la fechaFinalizacionEstimada del lote
+     *     EN_EJECUCION del fermentador (o {@code hoy} si esa fecha es nula), o {@code hoy} si el
+     *     fermentador no tiene ningún lote en ejecución.</li>
+     *     <li>Para cada lote, en el orden recibido:
+     *     {@code inicio = max(base, fechaInicioEstimada de su planificación, hoy)} y
+     *     {@code fin = inicio + duración}; la nueva base es {@code fin + 1 día} (el día de margen es
+     *     la limpieza del fermentador). Así ningún lote arranca antes de su planificación ni antes
+     *     de hoy, y pueden quedar huecos en la cola.</li>
+     *     <li>Solo se guardan los lotes cuyas fechas efectivamente cambiaron.</li>
+     * </ol>
+     *
+     * @param idFermentador El ID del fermentador dueño de la cola.
+     * @param lotesPendientesEnOrden Los lotes PENDIENTE del fermentador, en el orden deseado de la cola.
+     * @throws ReglaNegocioException Si algún lote no tiene sus fechas estimadas o su duración es negativa.
+     */
+    private void reencadenarLotesPendientes(Long idFermentador, List<LoteEntity> lotesPendientesEnOrden) {
+        LocalDate hoy = LocalDate.now();
+
+        // 1. Calcular y validar la duración de cada lote antes de modificar nada
+        List<Long> duracionesEnDias = lotesPendientesEnOrden.stream()
+                .map(this::calcularDuracionEnDias)
+                .toList();
+
+        // 2. Base inicial: el día siguiente a que termine el lote en ejecución de ese fermentador, u hoy
+        LocalDate base = loteRepository.buscarLoteEnEjecucionDeFermentador(idFermentador)
+                .map(LoteEntity::getFechaFinalizacionEstimada)
+                .map(fin -> fin.plusDays(DIAS_MARGEN_LIMPIEZA))
+                .orElse(hoy);
+
+        // 3. Encadenar los lotes en el orden recibido, respetando la planificación y hoy como pisos
+        List<LoteEntity> lotesModificados = new ArrayList<>();
+        for (int i = 0; i < lotesPendientesEnOrden.size(); i++) {
+            LoteEntity lotePendiente = lotesPendientesEnOrden.get(i);
+            LocalDate inicio = maxima(base, lotePendiente.getPlanificacionProduccion().getFechaInicioEstimada(), hoy);
+            LocalDate fin = inicio.plusDays(duracionesEnDias.get(i));
+
+            if (!inicio.equals(lotePendiente.getFechaInicioEstimada()) || !fin.equals(lotePendiente.getFechaFinalizacionEstimada())) {
+                lotePendiente.setFechaInicioEstimada(inicio);
+                lotePendiente.setFechaFinalizacionEstimada(fin);
+                lotesModificados.add(lotePendiente);
+            }
+
+            base = fin.plusDays(DIAS_MARGEN_LIMPIEZA);
+        }
+
+        // 4. Persistir solo los lotes cuyas fechas cambiaron
+        if (!lotesModificados.isEmpty()) {
+            loteRepository.saveAll(lotesModificados);
+        }
+    }
+
+    private long calcularDuracionEnDias(LoteEntity lote) {
+        if (lote.getFechaInicioEstimada() == null || lote.getFechaFinalizacionEstimada() == null) {
+            throw new ReglaNegocioException("El lote " + lote.getIdentificadorInterno() + " no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
+        }
+        long duracion = ChronoUnit.DAYS.between(lote.getFechaInicioEstimada(), lote.getFechaFinalizacionEstimada());
+        if (duracion < 0) {
+            throw new ReglaNegocioException("El lote " + lote.getIdentificadorInterno() + " tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
+        }
+        return duracion;
+    }
+
+    private static LocalDate maxima(LocalDate primera, LocalDate segunda, LocalDate tercera) {
+        return Collections.max(List.of(primera, segunda, tercera));
     }
 }

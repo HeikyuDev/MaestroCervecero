@@ -83,7 +83,10 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -467,7 +470,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         mockearEquipamientoBase();
         mockearConfiguracionYReceta();
-        LocalDate ultimaFechaFinalizacion = LocalDate.of(2026, 10, 1);
+        LocalDate ultimaFechaFinalizacion = LocalDate.now().plusDays(5);
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(ultimaFechaFinalizacion));
         ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
         when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
@@ -478,8 +481,52 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         LoteEntity guardado = captor.getValue();
-        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 10, 2));
-        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.of(2026, 10, 24));
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(6));
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(28));
+    }
+
+    @Test
+    @DisplayName("CP-RL-19: registrarLote — planificación que inicia en el futuro: el lote arranca el día de inicio de la planificación")
+    void registrarLote_debeArrancarElDiaDeInicioDeLaPlanificacionSiEsPosteriorAlResultadoHabitual() {
+        // === PREPARACION DE DATOS ===
+        LocalDate inicioPlanificacion = LocalDate.now().plusDays(10);
+        mockearEquipamientoBase(inicioPlanificacion);
+        mockearConfiguracionYReceta();
+        // Resultado habitual: último lote termina dentro de 3 días => arrancaría dentro de 4 días
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(LocalDate.now().plusDays(3)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        LoteEntity guardado = captor.getValue();
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(inicioPlanificacion);
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(inicioPlanificacion.plusDays(22));
+    }
+
+    @Test
+    @DisplayName("CP-RL-20: registrarLote — planificación que inicia antes del resultado habitual: la fecha de inicio no cambia")
+    void registrarLote_noDebeCambiarLaFechaDeInicioSiLaPlanificacionInicioAntesDelResultadoHabitual() {
+        // === PREPARACION DE DATOS ===
+        LocalDate inicioPlanificacion = LocalDate.now().minusDays(5);
+        mockearEquipamientoBase(inicioPlanificacion);
+        mockearConfiguracionYReceta();
+        // Resultado habitual: último lote termina dentro de 7 días => arranca dentro de 8 días
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(LocalDate.now().plusDays(7)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        LoteEntity guardado = captor.getValue();
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(8));
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(30));
     }
 
     @Test
@@ -2042,21 +2089,813 @@ class LoteServicioImplTest {
         verify(planificacionProduccionRepository, never()).save(any());
     }
 
+    // ==================== listarLotesParaCronograma ====================
+
+    @Test
+    @DisplayName("CP-LC-01: listarLotesParaCronograma sin fermentador no valida y mapea todos los lotes en el orden recibido")
+    void listarLotesParaCronograma_debeMapearEnElOrdenRecibidoSinValidarFermentador() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of(
+                crearLoteParaCronograma(12L, EstadoLote.PENDIENTE),
+                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
+                crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, false);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class));
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(12L, 10L, 11L);
+        verifyNoInteractions(fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-LC-02: listarLotesParaCronograma con fermentador existente propaga el filtro a la consulta")
+    void listarLotesParaCronograma_debePropagarElFiltroDeFermentadorExistente() {
+        // === PREPARACION DE DATOS ===
+        when(fermentadorRepository.findById(5L)).thenReturn(Optional.of(crearFermentador(5L, 20.0)));
+        when(loteRepository.buscarLotesParaCronograma(eq(5L), eq(false), any(LocalDateTime.class))).thenReturn(List.of(
+                crearLoteParaCronograma(10L, EstadoLote.PENDIENTE),
+                crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(5L, false);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(eq(5L), eq(false), any(LocalDateTime.class));
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(10L, 11L);
+    }
+
+    @Test
+    @DisplayName("CP-LC-03: listarLotesParaCronograma lanza RecursoNoEncontradoException cuando el fermentador no existe o está inactivo")
+    void listarLotesParaCronograma_debeLanzarExcepcionSiFermentadorNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(fermentadorRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(99L, false))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el fermentador con ID: 99");
+        verify(loteRepository, never()).buscarLotesParaCronograma(any(), anyBoolean(), any());
+    }
+
+    @Test
+    @DisplayName("CP-LC-04: listarLotesParaCronograma sin historial consulta desde el inicio del día de hoy menos 14 días")
+    void listarLotesParaCronograma_debeConsultarConVentanaDe14DiasSinHistorial() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of());
+        ArgumentCaptor<LocalDateTime> desdeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+
+        // === EJECUCION ===
+        loteServicio.listarLotesParaCronograma(null, false);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(false), desdeCaptor.capture());
+        assertThat(desdeCaptor.getValue()).isEqualTo(hoy.minusDays(14).atStartOfDay());
+    }
+
+    @Test
+    @DisplayName("CP-LC-05: listarLotesParaCronograma con historial completo propaga el indicador y no filtra en el service")
+    void listarLotesParaCronograma_debePropagarElIndicadorDeHistorialCompleto() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(true), any(LocalDateTime.class))).thenReturn(List.of(
+                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
+                crearLoteParaCronograma(11L, EstadoLote.CANCELADO)));
+        ArgumentCaptor<LocalDateTime> desdeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, true);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(true), desdeCaptor.capture());
+        assertThat(desdeCaptor.getValue()).isEqualTo(hoy.minusDays(14).atStartOfDay());
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(10L, 11L);
+    }
+
+    @Test
+    @DisplayName("CP-LC-06: listarLotesParaCronograma retorna una lista vacía cuando no hay lotes")
+    void listarLotesParaCronograma_debeRetornarListaVaciaSinLotes() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of());
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, false);
+
+        // === ASSERTS ===
+        assertThat(resultado).isNotNull().isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-LC-07: listarLotesParaCronograma mapea los lotes en todos los estados sin filtrar")
+    void listarLotesParaCronograma_debeMapearLotesEnTodosLosEstados() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of(
+                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
+                crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION),
+                crearLoteParaCronograma(12L, EstadoLote.PENDIENTE),
+                crearLoteParaCronograma(13L, EstadoLote.CANCELADO)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, false);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getEstado)
+                .containsExactly(EstadoLote.FINALIZADO, EstadoLote.EN_EJECUCION, EstadoLote.PENDIENTE, EstadoLote.CANCELADO);
+        verify(loteRepository, never()).save(any());
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    // ==================== subirLoteEnCola ====================
+
+    @Test
+    @DisplayName("CP-SQ-01: subirLoteEnCola lanza RecursoNoEncontradoException cuando el lote no existe")
+    void subirLoteEnCola_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 99");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-SQ-02: subirLoteEnCola lanza ReglaNegocioException cuando el lote está EN_EJECUCION")
+    void subirLoteEnCola_debeLanzarExcepcionSiLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(10L)).thenReturn(Optional.of(crearLoteParaCronograma(10L, EstadoLote.EN_EJECUCION)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(10L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-SQ-03: subirLoteEnCola lanza ReglaNegocioException cuando el lote está FINALIZADO")
+    void subirLoteEnCola_debeLanzarExcepcionSiLoteFinalizado() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(10L)).thenReturn(Optional.of(crearLoteParaCronograma(10L, EstadoLote.FINALIZADO)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(10L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-SQ-04: subirLoteEnCola lanza ReglaNegocioException cuando el lote está CANCELADO")
+    void subirLoteEnCola_debeLanzarExcepcionSiLoteCancelado() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(10L)).thenReturn(Optional.of(crearLoteParaCronograma(10L, EstadoLote.CANCELADO)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(10L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-SQ-05: subirLoteEnCola lanza RecursoNoEncontradoException cuando el lote no tiene etapa de Fermentación")
+    void subirLoteEnCola_debeLanzarExcepcionSiLoteSinEtapaDeFermentacion() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(crearLoteParaCronograma(11L, EstadoLote.PENDIENTE)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(11L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("El lote no tiene una etapa de Fermentación");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-SQ-06: subirLoteEnCola lanza ReglaNegocioException cuando el lote ya no figura en la cola bloqueada")
+    void subirLoteEnCola_debeLanzarExcepcionSiElLoteYaNoFiguraEnLaCola() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteCDeLaCola(hoy), crearLoteDDeLaCola(hoy)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-SQ-07: subirLoteEnCola lanza ReglaNegocioException cuando el lote ya es el primero de la cola")
+    void subirLoteEnCola_debeLanzarExcepcionSiLoteYaEsElPrimero() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote ya es el primero de la cola pendiente de su fermentador");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(50));
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-08: subirLoteEnCola lanza ReglaNegocioException cuando la cola tiene un único lote pendiente")
+    void subirLoteEnCola_debeLanzarExcepcionSiLaColaTieneUnSoloLote() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote ya es el primero de la cola pendiente de su fermentador");
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-SQ-09: subirLoteEnCola intercambia D con C y reencadena las fechas de la cola completa")
+    void subirLoteEnCola_debeReencadenarLaColaCompletaAlSubirD() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.subirLoteEnCola(13L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteD, loteC);
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteD, hoy.plusDays(30), hoy.plusDays(45));
+        assertFechas(loteC, hoy.plusDays(46), hoy.plusDays(66));
+        assertThat(resultado.getId()).isEqualTo(13L);
+        assertFechas(resultado, hoy.plusDays(30), hoy.plusDays(45));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-10: subirLoteEnCola sube el segundo lote de una cola de dos sin lote en ejecución")
+    void subirLoteEnCola_debeEncadenarDesdeHoySinLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.subirLoteEnCola(12L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(resultado, hoy, hoy.plusDays(20));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-11: subirLoteEnCola usa hoy como base cuando el lote en ejecución no tiene fechaFinalizacionEstimada")
+    void subirLoteEnCola_debeUsarHoyCuandoElLoteEnEjecucionNoTieneFechaDeFin() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, null)));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.subirLoteEnCola(12L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(resultado, hoy, hoy.plusDays(20));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-12: subirLoteEnCola nunca arranca antes de hoy aunque la base o la planificación sean anteriores")
+    void subirLoteEnCola_debeRespetarHoyComoPiso() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.minusDays(5), hoy.plusDays(13), hoy.minusDays(30));
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(14), hoy.plusDays(34), hoy.minusDays(30));
+        when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.minusDays(3))));
+
+        // === EJECUCION ===
+        loteServicio.subirLoteEnCola(12L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-13: subirLoteEnCola respeta el inicio de una planificación futura y encadena la cola detrás")
+    void subirLoteEnCola_debeRespetarElInicioDeUnaPlanificacionFutura() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLotePendienteEnCola(13L, hoy.plusDays(51), hoy.plusDays(66), hoy.plusDays(60));
+        when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.subirLoteEnCola(13L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteD, loteC);
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteD, hoy.plusDays(60), hoy.plusDays(75));
+        assertFechas(loteC, hoy.plusDays(76), hoy.plusDays(96));
+        assertFechas(resultado, hoy.plusDays(60), hoy.plusDays(75));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-14: subirLoteEnCola lanza ReglaNegocioException si un lote pendiente no tiene fechas estimadas, sin mutar nada")
+    void subirLoteEnCola_debeLanzarExcepcionSiUnLoteNoTieneFechasEstimadas() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        loteC.setFechaFinalizacionEstimada(null);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(13L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertThat(loteC.getFechaInicioEstimada()).isEqualTo(hoy.plusDays(30));
+        assertThat(loteC.getFechaFinalizacionEstimada()).isNull();
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-15: subirLoteEnCola lanza ReglaNegocioException si un lote pendiente tiene duración negativa, sin mutar nada")
+    void subirLoteEnCola_debeLanzarExcepcionSiUnLoteTieneDuracionNegativa() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(25), hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(13L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(25));
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-17: subirLoteEnCola opera solo sobre la cola del fermentador de la etapa de Fermentación del lote")
+    void subirLoteEnCola_debeOperarSoloSobreLaColaDelFermentadorDelLote() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
+
+        // === EJECUCION ===
+        loteServicio.subirLoteEnCola(13L);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarPendientesDeFermentadorParaReordenar(5L);
+        verify(loteRepository, times(1)).buscarLoteEnEjecucionDeFermentador(5L);
+        verify(loteRepository, never()).buscarPendientesDeFermentadorParaReordenar(6L);
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(6L);
+        assertThat(capturarLotesGuardados()).allSatisfy(lote ->
+                assertThat(lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).getEquipamiento().getId()).isEqualTo(5L));
+    }
+
+    // ==================== bajarLoteEnCola ====================
+
+    @Test
+    @DisplayName("CP-BQ-01: bajarLoteEnCola lanza RecursoNoEncontradoException cuando el lote no existe")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 99");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-BQ-02: bajarLoteEnCola lanza ReglaNegocioException cuando el lote está EN_EJECUCION")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(10L)).thenReturn(Optional.of(crearLoteParaCronograma(10L, EstadoLote.EN_EJECUCION)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(10L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-BQ-03: bajarLoteEnCola lanza ReglaNegocioException cuando el lote está FINALIZADO")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLoteFinalizado() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(10L)).thenReturn(Optional.of(crearLoteParaCronograma(10L, EstadoLote.FINALIZADO)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(10L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-BQ-04: bajarLoteEnCola lanza ReglaNegocioException cuando el lote está CANCELADO")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLoteCancelado() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(10L)).thenReturn(Optional.of(crearLoteParaCronograma(10L, EstadoLote.CANCELADO)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(10L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-BQ-05: bajarLoteEnCola lanza RecursoNoEncontradoException cuando el lote no tiene etapa de Fermentación")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLoteSinEtapaDeFermentacion() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(crearLoteParaCronograma(11L, EstadoLote.PENDIENTE)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("El lote no tiene una etapa de Fermentación");
+        verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-BQ-06: bajarLoteEnCola lanza ReglaNegocioException cuando el lote ya no figura en la cola bloqueada")
+    void bajarLoteEnCola_debeLanzarExcepcionSiElLoteYaNoFiguraEnLaCola() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteCDeLaCola(hoy), crearLoteDDeLaCola(hoy)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden mover lotes en estado Pendiente");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-BQ-07: bajarLoteEnCola lanza ReglaNegocioException cuando el lote ya es el último de la cola")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLoteYaEsElUltimo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(13L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote ya es el último de la cola pendiente de su fermentador");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(50));
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-08: bajarLoteEnCola lanza ReglaNegocioException cuando la cola tiene un único lote pendiente")
+    void bajarLoteEnCola_debeLanzarExcepcionSiLaColaTieneUnSoloLote() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote ya es el último de la cola pendiente de su fermentador");
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-BQ-09: bajarLoteEnCola intercambia B con C y reencadena las fechas de la cola completa")
+    void bajarLoteEnCola_debeReencadenarLaColaCompletaAlBajarB() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy.plusDays(11), hoy.plusDays(31));
+        assertFechas(loteB, hoy.plusDays(32), hoy.plusDays(50));
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertThat(resultado.getId()).isEqualTo(11L);
+        assertFechas(resultado, hoy.plusDays(32), hoy.plusDays(50));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-10: bajarLoteEnCola baja el primer lote de una cola de dos sin lote en ejecución")
+    void bajarLoteEnCola_debeEncadenarDesdeHoySinLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.empty());
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(resultado, hoy.plusDays(21), hoy.plusDays(39));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-11: bajarLoteEnCola usa hoy como base cuando el lote en ejecución no tiene fechaFinalizacionEstimada")
+    void bajarLoteEnCola_debeUsarHoyCuandoElLoteEnEjecucionNoTieneFechaDeFin() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, null)));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(resultado, hoy.plusDays(21), hoy.plusDays(39));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-12: bajarLoteEnCola nunca arranca antes de hoy aunque la base o la planificación sean anteriores")
+    void bajarLoteEnCola_debeRespetarHoyComoPiso() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.minusDays(5), hoy.plusDays(13), hoy.minusDays(30));
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(14), hoy.plusDays(34), hoy.minusDays(30));
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.minusDays(3))));
+
+        // === EJECUCION ===
+        loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
+        assertFechas(loteC, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-13: bajarLoteEnCola respeta el inicio de una planificación futura y encadena la cola detrás")
+    void bajarLoteEnCola_debeRespetarElInicioDeUnaPlanificacionFutura() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(50), hoy.plusDays(60));
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB, loteD);
+        assertFechas(loteC, hoy.plusDays(60), hoy.plusDays(80));
+        assertFechas(loteB, hoy.plusDays(81), hoy.plusDays(99));
+        assertFechas(loteD, hoy.plusDays(100), hoy.plusDays(115));
+        assertFechas(resultado, hoy.plusDays(81), hoy.plusDays(99));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-14: bajarLoteEnCola lanza ReglaNegocioException si un lote pendiente no tiene fechas estimadas, sin mutar nada")
+    void bajarLoteEnCola_debeLanzarExcepcionSiUnLoteNoTieneFechasEstimadas() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        loteC.setFechaFinalizacionEstimada(null);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertThat(loteC.getFechaInicioEstimada()).isEqualTo(hoy.plusDays(30));
+        assertThat(loteC.getFechaFinalizacionEstimada()).isNull();
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-15: bajarLoteEnCola lanza ReglaNegocioException si un lote pendiente tiene duración negativa")
+    void bajarLoteEnCola_debeLanzarExcepcionSiUnLoteTieneDuracionNegativa() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(25), hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(25));
+        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+    }
+
+    @Test
+    @DisplayName("CP-BQ-17: bajarLoteEnCola opera solo sobre la cola del fermentador de la etapa de Fermentación del lote")
+    void bajarLoteEnCola_debeOperarSoloSobreLaColaDelFermentadorDelLote() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteD = crearLoteDDeLaCola(hoy);
+        when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
+
+        // === EJECUCION ===
+        loteServicio.bajarLoteEnCola(11L);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarPendientesDeFermentadorParaReordenar(5L);
+        verify(loteRepository, times(1)).buscarLoteEnEjecucionDeFermentador(5L);
+        verify(loteRepository, never()).buscarPendientesDeFermentadorParaReordenar(6L);
+        verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(6L);
+        assertThat(capturarLotesGuardados()).allSatisfy(lote ->
+                assertThat(lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).getEquipamiento().getId()).isEqualTo(5L));
+    }
+
     // ==================== helpers ====================
+
+    /**
+     * Construye un lote PENDIENTE de la cola de un fermentador (id 5) con sus fechas estimadas, la
+     * fecha de inicio estimada de su planificación y una etapa de FERMENTACION en ese fermentador.
+     */
+    private static LoteEntity crearLotePendienteEnCola(Long id, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada, LocalDate inicioPlanificacion) {
+        LoteEntity lote = crearLoteParaCronograma(id, EstadoLote.PENDIENTE);
+        lote.setFechaInicioEstimada(fechaInicioEstimada);
+        lote.setFechaFinalizacionEstimada(fechaFinalizacionEstimada);
+        lote.getPlanificacionProduccion().setFechaInicioEstimada(inicioPlanificacion);
+        lote.getEtapas().add(EtapaLoteEntity.builder()
+                .id(id * 10)
+                .etapa(TipoEtapa.FERMENTACION)
+                .estado(EstadoEtapaLote.PENDIENTE)
+                .equipamiento(crearFermentador(5L, 20.0))
+                .lote(lote)
+                .build());
+        return lote;
+    }
+
+    /** Lote B de la cola base: id 11, 18 días, de {@code hoy + 11} a {@code hoy + 29}. */
+    private static LoteEntity crearLoteBDeLaCola(LocalDate hoy) {
+        return crearLotePendienteEnCola(11L, hoy.plusDays(11), hoy.plusDays(29), hoy);
+    }
+
+    /** Lote C de la cola base: id 12, 20 días, de {@code hoy + 30} a {@code hoy + 50}. */
+    private static LoteEntity crearLoteCDeLaCola(LocalDate hoy) {
+        return crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(50), hoy);
+    }
+
+    /** Lote D de la cola base: id 13, 15 días, de {@code hoy + 51} a {@code hoy + 66}. */
+    private static LoteEntity crearLoteDDeLaCola(LocalDate hoy) {
+        return crearLotePendienteEnCola(13L, hoy.plusDays(51), hoy.plusDays(66), hoy);
+    }
+
+    private static LoteEntity crearLoteEnEjecucionParaCola(Long id, LocalDate fechaFinalizacionEstimada) {
+        LoteEntity lote = crearLoteParaCronograma(id, EstadoLote.EN_EJECUCION);
+        lote.setFechaFinalizacionEstimada(fechaFinalizacionEstimada);
+        return lote;
+    }
+
+    private static void assertFechas(LoteEntity lote, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
+        assertThat(lote.getFechaInicioEstimada()).isEqualTo(fechaInicioEstimada);
+        assertThat(lote.getFechaFinalizacionEstimada()).isEqualTo(fechaFinalizacionEstimada);
+    }
+
+    private static void assertFechas(LoteCronogramaResponseDTO lote, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {
+        assertThat(lote.getFechaInicioEstimada()).isEqualTo(fechaInicioEstimada);
+        assertThat(lote.getFechaFinalizacionEstimada()).isEqualTo(fechaFinalizacionEstimada);
+    }
+
+    private void verificarSinColaNiPersistencia() {
+        verify(loteRepository, never()).buscarPendientesDeFermentadorParaReordenar(any());
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    private List<LoteEntity> capturarLotesGuardados() {
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LoteEntity>> captor = ArgumentCaptor.forClass(List.class);
+        verify(loteRepository, times(1)).saveAll(captor.capture());
+        return captor.getValue();
+    }
 
     private static EtapaLoteEntity findEtapa(LoteEntity lote, TipoEtapa tipo) {
         return lote.getEtapas().stream().filter(e -> e.getEtapa() == tipo).findFirst().orElseThrow();
     }
 
     private void mockearPlanificacionPendienteBase() {
+        mockearPlanificacionPendienteBase(LocalDate.now());
+    }
+
+    private void mockearPlanificacionPendienteBase(LocalDate fechaInicioEstimadaPlanificacion) {
         RecetaEntity receta = crearReceta(5L, 3L);
         VersionRecetaEntity versionReceta = versionRecetaMaltaBase(receta);
         PlanificacionProduccionEntity planificacion = crearPlanificacion(1L, EstadoSolicitud.PENDIENTE, versionReceta);
+        planificacion.setFechaInicioEstimada(fechaInicioEstimadaPlanificacion);
         when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
     }
 
     private void mockearEquipamientoBase() {
-        mockearPlanificacionPendienteBase();
+        mockearEquipamientoBase(LocalDate.now());
+    }
+
+    private void mockearEquipamientoBase(LocalDate fechaInicioEstimadaPlanificacion) {
+        mockearPlanificacionPendienteBase(fechaInicioEstimadaPlanificacion);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
         when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
         when(ollaHervorRepository.findById(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));

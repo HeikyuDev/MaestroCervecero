@@ -56,6 +56,12 @@ public interface ILoteServicio {
      * correspondiente (Molino para Molienda, Macerador para Maceración, Olla de Hervor para
      * Hervido, y el mismo Fermentador para Fermentación, Maduración y Envasado).
      * </p>
+     * <p>
+     * La fecha de inicio estimada del lote es el día siguiente a la finalización estimada del último
+     * lote pendiente o en ejecución de ese fermentador (u hoy si no tiene ninguno), pero nunca
+     * anterior a la fecha de inicio estimada de la planificación de producción del lote ni a hoy;
+     * por eso pueden quedar huecos en la cola del fermentador.
+     * </p>
      *
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.
@@ -285,4 +291,99 @@ public interface ILoteServicio {
      * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
      */
     List<LoteCronogramaResponseDTO> listarLotesDePlanificacion(Long idPlanificacionProduccion);
+
+    /**
+     * Lista los lotes de todas las planificaciones de producción para el cronograma global, que se
+     * organiza por línea de producción: cada línea es un fermentador, y en su carril conviven,
+     * intercalados, los lotes de todas las planificaciones que lo usan.
+     * <p>
+     * Reglas:
+     * </p>
+     * <ul>
+     *     <li>Siempre incluye los lotes EN_EJECUCION y PENDIENTE.</li>
+     *     <li>Los lotes FINALIZADO y CANCELADO se incluyen solo si finalizaron o se cancelaron dentro
+     *     de los últimos 14 días respecto de hoy (historial reciente), salvo que
+     *     {@code incluirHistorial} sea {@code true}: en ese caso se incluyen todos.</li>
+     *     <li>El orden es por identificador interno del fermentador, luego por fecha de inicio
+     *     estimada y, ante igual fecha, por ID. El orden de la cola de un fermentador es, entonces,
+     *     el de la fecha de inicio estimada de sus lotes (no existe un campo de orden aparte). Como
+     *     ningún lote arranca antes de la fecha de inicio estimada de su planificación ni antes de
+     *     hoy, la cola puede tener huecos entre lotes.</li>
+     *     <li>No incluye operaciones de equipamiento (limpieza, mantenimiento, falla).</li>
+     *     <li>Los carriles de fermentadores sin lotes no se devuelven: completarlos es tarea del
+     *     Controller.</li>
+     * </ul>
+     *
+     * @param idFermentador El ID del fermentador cuyo carril se quiere listar, o {@code null} para listar todos.
+     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados y cancelados sin límite de antigüedad.
+     * @return Los lotes en formato DTO de cronograma, o una lista vacía si no hay ninguno.
+     * @throws RecursoNoEncontradoException Si se informa un {@code idFermentador} que no existe o no es un fermentador activo.
+     */
+    List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, boolean incluirHistorial);
+
+    /**
+     * Sube un lote una posición en la cola de lotes PENDIENTE de su fermentador (lo adelanta), y
+     * reencadena las fechas de toda la cola.
+     * <p>
+     * La cola está formada por los lotes PENDIENTE del fermentador del lote, de cualquier
+     * planificación, ordenados por fecha de inicio estimada y, ante igual fecha, por ID. Tras el
+     * intercambio se reencadenan las fechas de todos los lotes PENDIENTE de ese fermentador en el
+     * nuevo orden:
+     * </p>
+     * <ul>
+     *     <li>Cada lote conserva su propia duración (fecha de finalización estimada menos fecha de
+     *     inicio estimada, en días, tal como están guardadas).</li>
+     *     <li>El primer lote pendiente arranca a partir del día siguiente a la fecha de finalización
+     *     estimada del lote EN_EJECUCION de ese fermentador, o de hoy si no hay ninguno (misma regla
+     *     que usa {@link #registrarLote(LoteFormDTO)}).</li>
+     *     <li>Cada lote pendiente siguiente arranca a partir de un día después de que termina el
+     *     anterior (el día de margen es la limpieza del fermentador).</li>
+     *     <li>Ningún lote arranca antes de la fecha de inicio estimada de su planificación de
+     *     producción ni antes de hoy: la fecha de inicio de cada lote es el máximo entre esas tres
+     *     fechas. Por eso pueden quedar huecos en la cola.</li>
+     *     <li>Los lotes EN_EJECUCION, FINALIZADO y CANCELADO nunca se mueven.</li>
+     * </ul>
+     * <p>
+     * Ejemplo: con la cola A (en ejecución), B, C, D, subir D deja A, B, D, C: D arranca donde
+     * arrancaba C, y C se corre hacia la derecha detrás de D, cada uno con su duración. Si D
+     * pertenece a una planificación que recién inicia dentro de 10 días, D conserva como mínimo
+     * esa fecha de inicio aunque el lote anterior termine antes, y queda un hueco en la cola.
+     * </p>
+     * <p>
+     * La operación es transaccional y bloquea los lotes pendientes del fermentador para evitar
+     * reordenamientos concurrentes. Se audita como una modificación del lote. La lógica de
+     * reencadenado se reutilizará más adelante cuando un lote finalice o se cancele.
+     * </p>
+     *
+     * @param idLote El ID del lote a subir.
+     * @return El lote movido, con sus nuevas fechas estimadas.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado PENDIENTE ("Solo se pueden mover lotes en estado Pendiente"),
+     *                               o si es el primer lote pendiente de la cola de su fermentador.
+     */
+    LoteCronogramaResponseDTO subirLoteEnCola(Long idLote);
+
+    /**
+     * Baja un lote una posición en la cola de lotes PENDIENTE de su fermentador (lo retrasa), y
+     * reencadena las fechas de toda la cola.
+     * <p>
+     * Es la operación inversa de {@link #subirLoteEnCola(Long)} y comparte con ella las mismas
+     * reglas de cola, reencadenado de fechas (duración propia de cada lote, primer pendiente
+     * detrás del lote EN_EJECUCION u hoy, un día de margen entre lotes, y piso en la fecha de
+     * inicio estimada de la planificación de cada lote y en hoy), bloqueo y auditoría.
+     * </p>
+     * <p>
+     * Ejemplo: con la cola A (en ejecución), B, C, D, bajar B deja A, C, B, D: C arranca donde
+     * arrancaba B, y B se corre hacia la derecha detrás de C, cada uno con su duración. Si C
+     * pertenece a una planificación que recién inicia dentro de 10 días, C no arranca antes de esa
+     * fecha (queda un hueco) y B se encadena detrás de C.
+     * </p>
+     *
+     * @param idLote El ID del lote a bajar.
+     * @return El lote movido, con sus nuevas fechas estimadas.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado PENDIENTE ("Solo se pueden mover lotes en estado Pendiente"),
+     *                               o si es el último lote pendiente de la cola de su fermentador.
+     */
+    LoteCronogramaResponseDTO bajarLoteEnCola(Long idLote);
 }
