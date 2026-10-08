@@ -83,9 +83,9 @@ class MaltaControllerTest {
                 // Las pestañas llevan íconos propios (trigo, lúpulo, burbujas), no de Bootstrap Icons
                 .andExpect(content().string(containsString("<svg")))
                 .andExpect(content().string(not(containsString("bi-basket"))))
-                // La sección de la sidebar se llama "Administración"; "Configuración" queda para los parámetros
+                // La sección de la sidebar de los maestros se llama "Administración"; los parámetros van en "Configuración"
                 .andExpect(content().string(containsString("Administración")))
-                .andExpect(content().string(not(containsString(">Configuración<"))))
+                .andExpect(content().string(containsString(">Configuración<")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Pilsen\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/maltas/nuevo\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/maltas/4/editar\"")))

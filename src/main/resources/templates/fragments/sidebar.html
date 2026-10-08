@@ -56,8 +56,7 @@
 
         <!--
             ADMINISTRACIÓN: los datos que se definen una vez (insumos, equipamiento, recetas, ubicaciones, usuarios) y alimentan
-            al resto del sistema. Va debajo de la operación diaria. El nombre "Configuración" queda
-            reservado para los parámetros del sistema (duraciones estimadas, valores parametrizables).
+            al resto del sistema. Va debajo de la operación diaria.
         -->
         <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ADMINISTRADOR')">
             <p th:replace="~{fragments/sidebar ::seccion('Administración')}"></p>
@@ -82,6 +81,12 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/ubicaciones/paises', ${opcionActiva}, 'ubicaciones', 'bi-globe', 'Gestión de Ubicaciones')}"></a>
                 <a th:replace="~{fragments/sidebar ::enlace('/usuarios', ${opcionActiva}, 'usuarios', 'bi-people', 'Gestión de Usuarios')}"></a>
             </th:block>
+        </th:block>
+
+        <!-- CONFIGURACIÓN: parámetros del sistema que ajusta el Gerente de Producción -->
+        <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+            <p th:replace="~{fragments/sidebar ::seccion('Configuración')}"></p>
+            <a th:replace="~{fragments/sidebar ::enlace('/configuracion-produccion', ${opcionActiva}, 'configuracion-produccion', 'bi-sliders', 'Configuración de Producción')}"></a>
         </th:block>
 
         <!-- SISTEMA: control del propio sistema (Administrador) -->
