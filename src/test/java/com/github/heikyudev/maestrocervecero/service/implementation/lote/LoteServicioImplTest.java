@@ -2907,7 +2907,6 @@ class LoteServicioImplTest {
         lenient().when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta));
         ConfiguracionProduccionEntity configuracion = ConfiguracionProduccionEntity.builder()
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
-                .velocidadEstandarMolienda(50.0)
                 .velocidadEstandarEnvasado(10.0)
                 .capacidadLoteEstandar(20.0)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(80.0)

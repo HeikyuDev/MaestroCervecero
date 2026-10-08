@@ -38,7 +38,7 @@ class ConfiguracionProduccionServicioImplTest {
     @DisplayName("CP-BC-01: buscarConfiguracion retorna la configuración vigente (camino feliz)")
     void buscar_debeRetornarConfiguracionVigente() {
         // === PREPARACION DE DATOS ===
-        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(6.0, 12.0, 25.0, 90.0,
+        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(12.0, 25.0, 90.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
 
@@ -47,29 +47,16 @@ class ConfiguracionProduccionServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(ConfiguracionProduccionEntity.SINGLETON_ID);
-        assertThat(resultado.getVelocidadEstandarMolienda()).isEqualTo(6.0);
+        assertThat(resultado.getVelocidadEstandarEnvasado()).isEqualTo(12.0);
         assertThat(resultado.getCriterioSeleccionPlanSecuencial()).isEqualTo(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA);
     }
 
     // ==================== actualizarConfiguracion ====================
 
     @Test
-    @DisplayName("CP-AC-01: actualizarConfiguracion lanza ReglaNegocioException cuando la velocidad estándar de molienda es nula")
-    void actualizar_debeRechazarVelocidadMoliendaNula() {
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(null, 12.0, 25.0, 90.0,
-                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
-
-        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Todos los parámetros de configuración son obligatorios");
-
-        verify(configuracionProduccionRepository, never()).save(any());
-    }
-
-    @Test
     @DisplayName("CP-AC-02: actualizarConfiguracion lanza ReglaNegocioException cuando el criterio secuencial es nulo")
     void actualizar_debeRechazarCriterioSecuencialNulo() {
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(6.0, 12.0, 25.0, 90.0,
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
                 null, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
@@ -82,12 +69,12 @@ class ConfiguracionProduccionServicioImplTest {
     @Test
     @DisplayName("CP-AC-03: actualizarConfiguracion lanza ReglaNegocioException cuando la velocidad estándar de envasado es cero (límite)")
     void actualizar_debeRechazarVelocidadEnvasadoEnCero() {
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(6.0, 0.0, 25.0, 90.0,
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(0.0, 25.0, 90.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las velocidades y la capacidad de lote estándar deben ser mayores a cero");
+                .hasMessage("La velocidad de envasado y la capacidad de lote estándar deben ser mayores a cero");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }
@@ -95,7 +82,7 @@ class ConfiguracionProduccionServicioImplTest {
     @Test
     @DisplayName("CP-AC-04: actualizarConfiguracion lanza ReglaNegocioException cuando la capacidad de lote estándar es negativa")
     void actualizar_debeRechazarCapacidadLoteNegativa() {
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(6.0, 12.0, -5.0, 90.0,
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, -5.0, 90.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
@@ -107,7 +94,7 @@ class ConfiguracionProduccionServicioImplTest {
     @Test
     @DisplayName("CP-AC-05: actualizarConfiguracion lanza ReglaNegocioException cuando el porcentaje mínimo de consumo es negativo")
     void actualizar_debeRechazarPorcentajeNegativo() {
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(6.0, 12.0, 25.0, -1.0,
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, -1.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
@@ -120,7 +107,7 @@ class ConfiguracionProduccionServicioImplTest {
     @Test
     @DisplayName("CP-AC-06: actualizarConfiguracion lanza ReglaNegocioException cuando el porcentaje mínimo de consumo supera 100")
     void actualizar_debeRechazarPorcentajeMayorACien() {
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(6.0, 12.0, 25.0, 101.0,
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 101.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
@@ -133,38 +120,37 @@ class ConfiguracionProduccionServicioImplTest {
     @DisplayName("CP-AC-07: actualizarConfiguracion acepta el porcentaje mínimo de consumo en los límites 0 y 100 (camino feliz)")
     void actualizar_debeAceptarPorcentajeEnLosLimites() {
         // === PREPARACION DE DATOS ===
-        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(6.0, 12.0, 25.0, 50.0,
+        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(12.0, 25.0, 50.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
         when(configuracionProduccionRepository.save(any(ConfiguracionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION Y ASSERTS ===
-        ConfiguracionProduccionFormDTO conCero = configuracionFormDTO(6.0, 12.0, 25.0, 0.0,
+        ConfiguracionProduccionFormDTO conCero = configuracionFormDTO(12.0, 25.0, 0.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
         assertThat(configuracionProduccionServicio.actualizarConfiguracion(conCero).getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(0.0);
 
-        ConfiguracionProduccionFormDTO conCien = configuracionFormDTO(6.0, 12.0, 25.0, 100.0,
+        ConfiguracionProduccionFormDTO conCien = configuracionFormDTO(12.0, 25.0, 100.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
         assertThat(configuracionProduccionServicio.actualizarConfiguracion(conCien).getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(100.0);
     }
 
     @Test
-    @DisplayName("CP-AC-08: actualizarConfiguracion actualiza correctamente los 6 parámetros (camino feliz)")
+    @DisplayName("CP-AC-08: actualizarConfiguracion actualiza correctamente los 5 parámetros (camino feliz)")
     void actualizar_debeActualizarCorrectamente() {
         // === PREPARACION DE DATOS ===
-        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(5.0, 10.0, 20.0, 80.0,
+        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(10.0, 20.0, 80.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD, CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA);
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
         when(configuracionProduccionRepository.save(any(ConfiguracionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(6.0, 12.0, 25.0, 90.0,
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         // === EJECUCION ===
         ConfiguracionProduccionResponseDTO resultado = configuracionProduccionServicio.actualizarConfiguracion(formDTO);
 
         // === ASSERTS ===
-        assertThat(resultado.getVelocidadEstandarMolienda()).isEqualTo(6.0);
         assertThat(resultado.getVelocidadEstandarEnvasado()).isEqualTo(12.0);
         assertThat(resultado.getCapacidadLoteEstandar()).isEqualTo(25.0);
         assertThat(resultado.getPorcentajeMinimoConsumoParaAvanzarEtapa()).isEqualTo(90.0);
@@ -175,10 +161,9 @@ class ConfiguracionProduccionServicioImplTest {
 
     // ==================== Helpers ====================
 
-    private static ConfiguracionProduccionFormDTO configuracionFormDTO(Double velocidadMolienda, Double velocidadEnvasado, Double capacidadLote, Double porcentajeMinimo,
+    private static ConfiguracionProduccionFormDTO configuracionFormDTO(Double velocidadEnvasado, Double capacidadLote, Double porcentajeMinimo,
                                                                         CriterioSeleccionPlanSecuencial criterioSecuencial, CriterioSeleccionPlanConcurrente criterioConcurrente) {
         return ConfiguracionProduccionFormDTO.builder()
-                .velocidadEstandarMolienda(velocidadMolienda)
                 .velocidadEstandarEnvasado(velocidadEnvasado)
                 .capacidadLoteEstandar(capacidadLote)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
@@ -187,11 +172,10 @@ class ConfiguracionProduccionServicioImplTest {
                 .build();
     }
 
-    private static ConfiguracionProduccionEntity crearConfiguracionEntity(double velocidadMolienda, double velocidadEnvasado, double capacidadLote, double porcentajeMinimo,
+    private static ConfiguracionProduccionEntity crearConfiguracionEntity(double velocidadEnvasado, double capacidadLote, double porcentajeMinimo,
                                                                            CriterioSeleccionPlanSecuencial criterioSecuencial, CriterioSeleccionPlanConcurrente criterioConcurrente) {
         return ConfiguracionProduccionEntity.builder()
                 .id(ConfiguracionProduccionEntity.SINGLETON_ID)
-                .velocidadEstandarMolienda(velocidadMolienda)
                 .velocidadEstandarEnvasado(velocidadEnvasado)
                 .capacidadLoteEstandar(capacidadLote)
                 .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)

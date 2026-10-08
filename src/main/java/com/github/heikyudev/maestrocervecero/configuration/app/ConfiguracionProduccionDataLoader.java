@@ -33,7 +33,6 @@ public class ConfiguracionProduccionDataLoader implements CommandLineRunner {
                 // Seccion 1: estimacion de fecha de finalizacion
                 .capacidadLoteEstandar(300.0)      // Lotes de 300 Litros
                 .velocidadEstandarEnvasado(100.0)  // 100 Litros por hora
-                .velocidadEstandarMolienda(200.0)  // 200 Kilogramos por hora
                 // Seccion 2: lotes
                 .porcentajeMinimoConsumoParaAvanzarEtapa(80.0) // 80% de lo requerido, por defecto
                 // Seccion 3: generacion automatica de planes de produccion

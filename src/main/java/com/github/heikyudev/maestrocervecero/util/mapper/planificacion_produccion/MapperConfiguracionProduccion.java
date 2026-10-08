@@ -22,7 +22,6 @@ public class MapperConfiguracionProduccion {
 
         return ConfiguracionProduccionResponseDTO.builder()
                 .id(configuracionProduccionEntity.getId())
-                .velocidadEstandarMolienda(configuracionProduccionEntity.getVelocidadEstandarMolienda())
                 .velocidadEstandarEnvasado(configuracionProduccionEntity.getVelocidadEstandarEnvasado())
                 .capacidadLoteEstandar(configuracionProduccionEntity.getCapacidadLoteEstandar())
                 .porcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionEntity.getPorcentajeMinimoConsumoParaAvanzarEtapa())

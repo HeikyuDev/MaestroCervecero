@@ -24,11 +24,6 @@ public class ConfiguracionProduccionResponseDTO {
     private Long id;
 
     /**
-     * Velocidad estándar de molienda (kg/h).
-     */
-    private Double velocidadEstandarMolienda;
-
-    /**
      * Velocidad estándar de envasado (L/h).
      */
     private Double velocidadEstandarEnvasado;

@@ -36,15 +36,14 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
      *
      * @param configuracionProduccionFormDTO Los nuevos valores de configuración.
      * @return La configuración de producción actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado, si alguna velocidad o capacidad no es mayor a cero, o si el porcentaje mínimo de consumo no está entre 0 y 100.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es mayor a cero, o si el porcentaje mínimo de consumo no está entre 0 y 100.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.CONFIGURACION_PRODUCCION)
     public ConfiguracionProduccionResponseDTO actualizarConfiguracion(ConfiguracionProduccionFormDTO configuracionProduccionFormDTO) {
         // 1. Validar que se hayan informado todos los parámetros
-        if (configuracionProduccionFormDTO.getVelocidadEstandarMolienda() == null
-                || configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() == null
+        if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() == null
                 || configuracionProduccionFormDTO.getCapacidadLoteEstandar() == null
                 || configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() == null
                 || configuracionProduccionFormDTO.getCriterioSeleccionPlanSecuencial() == null
@@ -52,11 +51,10 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
             throw new ReglaNegocioException("Todos los parámetros de configuración son obligatorios");
         }
 
-        // 2. Validar que las velocidades y la capacidad de lote sean mayores a cero
-        if (configuracionProduccionFormDTO.getVelocidadEstandarMolienda() <= 0
-                || configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() <= 0
+        // 2. Validar que la velocidad de envasado y la capacidad de lote sean mayores a cero
+        if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() <= 0
                 || configuracionProduccionFormDTO.getCapacidadLoteEstandar() <= 0) {
-            throw new ReglaNegocioException("Las velocidades y la capacidad de lote estándar deben ser mayores a cero");
+            throw new ReglaNegocioException("La velocidad de envasado y la capacidad de lote estándar deben ser mayores a cero");
         }
 
         // 3. Validar que el porcentaje mínimo de consumo para avanzar de etapa esté entre 0 y 100
@@ -66,7 +64,6 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
 
         // 4. Localizar la configuración vigente, aplicar los nuevos valores y persistirla
         ConfiguracionProduccionEntity configuracionProduccionEntity = buscarEntidadSingleton();
-        configuracionProduccionEntity.setVelocidadEstandarMolienda(configuracionProduccionFormDTO.getVelocidadEstandarMolienda());
         configuracionProduccionEntity.setVelocidadEstandarEnvasado(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado());
         configuracionProduccionEntity.setCapacidadLoteEstandar(configuracionProduccionFormDTO.getCapacidadLoteEstandar());
         configuracionProduccionEntity.setPorcentajeMinimoConsumoParaAvanzarEtapa(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa());

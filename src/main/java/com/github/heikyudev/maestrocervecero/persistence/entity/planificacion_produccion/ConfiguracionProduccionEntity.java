@@ -40,9 +40,6 @@ public class ConfiguracionProduccionEntity extends AuditableEntity<String> {
 
     // === SECCION 1: estimación de la fecha de finalización de una planificación de producción ===
 
-    @Column(name = "velocidad_estandar_molienda", nullable = false)
-    private Double velocidadEstandarMolienda;
-
     @Column(name = "velocidad_estandar_envasado", nullable = false)
     private Double velocidadEstandarEnvasado;
 

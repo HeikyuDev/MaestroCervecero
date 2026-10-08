@@ -21,11 +21,6 @@ import lombok.NoArgsConstructor;
 public class ConfiguracionProduccionFormDTO {
 
     /**
-     * Velocidad estándar de molienda (kg/h), usada para estimar la duración de esa etapa.
-     */
-    private Double velocidadEstandarMolienda;
-
-    /**
      * Velocidad estándar de envasado (L/h), usada para estimar la duración de esa etapa.
      */
     private Double velocidadEstandarEnvasado;
