@@ -1,21 +1,27 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 
 /**
  * DTO de formulario para el Registro de una Planificación de Producción.
  * <p>
- * Es inmutable (no expone setters) y contiene únicamente los datos ingresados por el usuario.
- * No incluye {@code id} (la identidad la define la base de datos).
+ * Contiene únicamente los datos ingresados por el usuario. No incluye {@code id} (la identidad la
+ * define la base de datos). Las fechas viajan en formato ISO ({@code yyyy-MM-dd}), el de un campo
+ * {@code type="date"}.
  * </p>
  */
 @Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,16 +30,22 @@ public class PlanificacionProduccionFormDTO {
     /**
      * Fecha estimada de inicio de la planificación de producción.
      */
+    @NotNull(message = "La fecha de inicio estimada es obligatoria")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate fechaInicioEstimada;
 
     /**
      * Fecha estimada de finalización de la planificación de producción.
      */
+    @NotNull(message = "La fecha de finalización estimada es obligatoria")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate fechaFinalizacionEstimada;
 
     /**
      * Cantidad a producir, en litros.
      */
+    @NotNull(message = "La cantidad a producir es obligatoria")
+    @Positive(message = "La cantidad a producir debe ser mayor a 0")
     private Double cantidadAProducir;
 
     /**
@@ -46,5 +58,6 @@ public class PlanificacionProduccionFormDTO {
      * a la planificación de producción.
      * </p>
      */
+    @NotNull(message = "La receta es obligatoria")
     private Long idReceta;
 }

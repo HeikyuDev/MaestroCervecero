@@ -1,0 +1,50 @@
+## Casos de prueba de `GanttPlanificacionBuilder`
+
+**Tipo de prueba:** unitaria (clase `GanttPlanificacionBuilderTest`), sin Spring ni mocks. Verifica que `GanttPlanificacionBuilder.construir(lotes, inicioPlanificacion, finPlanificacion, hoy)` convierta los `LoteCronogramaResponseDTO` de una planificación en el `GanttPlanificacionVista` que dibuja la plantilla `planificacion_produccion/gantt.html`. La plantilla no hace cuentas: toda la geometría se calcula acá. Recibe la fecha de hoy como parámetro, por eso los resultados son deterministas.
+
+**Reglas de cada barra** (las fechas son días completos y el último día cuenta):
+- `PENDIENTE`: de la fecha de inicio estimada a la de finalización estimada.
+- `EN_EJECUCION`: del inicio real (solo la fecha) a la finalización estimada. Lo ya transcurrido (del inicio hasta hoy, ambos incluidos) es el progreso, en % del ancho de la barra, acotado entre 0 y 100.
+- `FINALIZADO`: del inicio real a la finalización real.
+- `CANCELADO`: del inicio real a la cancelación si el lote había arrancado; si nunca arrancó, las fechas estimadas.
+- Si falta una fecha real se usa la estimada; si el fin queda antes del inicio se acota a un solo día; un lote sin ninguna fecha no se dibuja.
+
+**Geometría:**
+- El eje va del menor inicio al mayor fin entre las barras y las fechas estimadas de la planificación, con un día de margen a cada lado. `totalDias` cuenta ambos extremos.
+- Una barra tiene `izquierdaPct = días desde el inicio del eje / totalDias * 100` y `anchoPct = días de la barra / totalDias * 100`, redondeados a 2 decimales. El ancho mínimo es 1 %; si con ese mínimo la barra se saldría del eje, se corre a la izquierda.
+- El inicio estimado de la planificación se marca al comienzo de su día y el fin estimado al cierre de su último día. La marca de hoy va al centro de su día y solo existe si cae dentro del eje.
+- Las marcas del eje (`dd/MM`) van cada día si el eje tiene hasta 14 días, de a 7 hasta 120, de a 14 hasta 365 y de a 28 después, empezando por el primer día del eje.
+- `anchoMinimoPx = totalDias * 24`, acotado entre 720 y 3600.
+- Hay un carril por fermentador, ordenados por identificador sin distinguir mayúsculas; los lotes sin fermentador van al final, en el carril "Sin fermentador". Las barras de un carril se ordenan por fecha de inicio y, ante igual fecha, por id.
+
+Los ejemplos usan fechas de julio de 2027 (`fecha(d)` = `d/07/2027`).
+
+---
+
+### `construir(...)`
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-GPB-01** | Sin lotes | Lista vacía, planificación del 01/07 al 25/07, hoy 10/07 | No hay barras que dibujar | `vacio: true`, sin carriles. Eje del 30/06 al 26/07 (`totalDias: 27`); `inicioPlanificacionPct: 3.7`, `finPlanificacionPct: 96.3`, `hoyPct: 38.89`; `anchoMinimoPx: 720`. |
+| **CP-GPB-02** | Sin lotes ni fechas de planificación | Lista `null`, fechas de planificación `null`, hoy 10/07 | No hay ninguna fecha de referencia salvo hoy | `vacio: true`. Eje del 09/07 al 11/07 (`totalDias: 3`), `hoyPct: 50.0`, marcas de planificación `null`, marcas "09/07", "10/07" y "11/07" en 0.0, 33.33 y 66.67. |
+| **CP-GPB-03** | Un lote pendiente | Lote `PENDIENTE` "PALE_ALE-1" en "F-01", estimado del 05/07 al 08/07, molino "M-01", macerador "MA-01", olla "O-01"; planificación del 05/07 al 08/07 | Pendiente = fechas estimadas, último día inclusive | Eje del 04/07 al 09/07 (`totalDias: 6`). Un carril "F-01" con una barra `pendiente`, etiqueta "PALE_ALE-1 - Pendiente", `desde` 05/07, `hasta` 08/07, `izquierdaPct: 16.67`, `anchoPct: 66.67`, `progresoPct: 0.0`. El tooltip lista las fechas estimadas, "Inicio real: -", "Fin real: -", "Volumen: 300 L" y los tres equipos. |
+| **CP-GPB-04** | Dos lotes concurrentes | "PALE_ALE-2" en "F-02" y "PALE_ALE-1" en "F-01", ambos del 05/07 al 08/07 (se pasan en ese orden) | Un carril por fermentador, ordenados por identificador | Dos carriles: "F-01" (lote 1) y "F-02" (lote 2), cada uno con una barra de `izquierdaPct: 16.67` y `anchoPct: 66.67`. |
+| **CP-GPB-05** | Lotes secuenciales en un carril | "PALE_ALE-2" del 06/07 al 10/07 y "PALE_ALE-1" del 01/07 al 05/07, ambos en "F-01" (en ese orden); planificación del 01/07 al 10/07 | Las barras de un carril se ordenan por inicio y no se superponen | Eje de 12 días. Un carril con las barras de los lotes 1 y 2 en ese orden: `izquierdaPct` 8.33 y 50.0, `anchoPct` 41.67 cada una; la primera termina antes de que empiece la segunda. |
+| **CP-GPB-06** | Lote en ejecución | Lote `EN_EJECUCION` con inicio real 02/07 08:00 y fin estimado 11/07; planificación del 01/07 al 12/07; hoy 06/07 | En ejecución = inicio real a fin estimado, con progreso | Eje de 14 días. Barra `en-ejecucion`, etiqueta "PALE_ALE-1 - En ejecución", del 02/07 al 11/07, `izquierdaPct: 14.29`, `anchoPct: 71.43`, `progresoPct: 50.0` (5 de 10 días); el tooltip incluye "Inicio real: 02/07/2027 08:00". |
+| **CP-GPB-07** | Progreso acotado | El lote del caso anterior con hoy 20/06, hoy 01/08 y hoy 11/07 | El progreso no baja de 0 ni pasa de 100 | `progresoPct`: 0.0 antes del inicio, 100.0 después del fin estimado y 100.0 el último día. |
+| **CP-GPB-08** | Lote finalizado | Lote `FINALIZADO` estimado del 01/07 al 05/07, inicio real 02/07 09:00 y fin real 08/07 17:00; planificación del 01/07 al 05/07 | Finalizado = inicio real a fin real | Eje de 10 días. Barra `finalizado`, etiqueta "PALE_ALE-1 - Finalizado", del 02/07 al 08/07, `izquierdaPct: 20.0`, `anchoPct: 70.0`, `progresoPct: 0.0`; el tooltip incluye "Fin real: 08/07/2027 17:00". |
+| **CP-GPB-09** | Lote cancelado que había arrancado | Lote `CANCELADO` estimado del 01/07 al 10/07, inicio real 03/07 10:00 y cancelación 05/07 15:00 | Cancelado con inicio real = inicio real a cancelación | Eje de 12 días. Barra `cancelado`, etiqueta "PALE_ALE-1 - Cancelado", del 03/07 al 05/07, `izquierdaPct: 25.0`, `anchoPct: 25.0`; el tooltip incluye "Cancelación: 05/07/2027 15:00". |
+| **CP-GPB-10** | Lote cancelado que nunca arrancó | Lote `CANCELADO` estimado del 02/07 al 04/07, sin inicio real, cancelado el 01/07; planificación del 01/07 al 10/07 | Cancelado sin inicio real = fechas estimadas | Barra del 02/07 al 04/07, `izquierdaPct: 16.67`, `anchoPct: 25.0`. |
+| **CP-GPB-11** | Fechas faltantes o invertidas | Lote `FINALIZADO` sin fechas reales (estimado del 01/07 al 05/07) y lote `PENDIENTE` con fin (05/07) anterior al inicio (10/07) | Se usan las estimadas y el fin se acota al inicio | La barra del finalizado va del 01/07 al 05/07; la del invertido del 10/07 al 10/07. |
+| **CP-GPB-12** | Lote sin fechas | Único lote `PENDIENTE` sin ninguna fecha | No se puede ubicar en el tiempo | No se dibuja: `vacio: true` y sin carriles. |
+| **CP-GPB-13** | Rango del eje | Lote estimado del 01/07 al 12/07 y planificación del 05/07 al 08/07 | El eje abarca barras y planificación, más un día de margen | Eje del 30/06 al 13/07 (`totalDias: 14`); `inicioPlanificacionPct: 35.71`, `finPlanificacionPct: 64.29`. |
+| **CP-GPB-14** | Paso de las marcas | `pasoDeMarcas` con 3, 14, 15, 120, 121, 365 y 366 días | El paso depende del largo del eje | Devuelve 1, 1, 7, 7, 14, 14 y 28. |
+| **CP-GPB-15** | Marcas semanales | Sin lotes, planificación del 01/07 al 29/08 | Un eje de 62 días usa marcas semanales | 9 marcas: la primera "30/06" en 0.0, la segunda "07/07" en 11.29 y la última "25/08" en 90.32. |
+| **CP-GPB-16** | Marcas diarias y semanales | Sin lotes, planificación del 05/07 al 08/07, y otra del 01/07 al 25/07 | Eje de 6 días y de 27 días | Marcas diarias "04/07" a "09/07" en el primero; "30/06", "07/07", "14/07" y "21/07" en 0.0, 25.93, 51.85 y 77.78 en el segundo. |
+| **CP-GPB-17** | Marca de hoy dentro y fuera del eje | Planificación del 01/07 al 25/07 (eje del 30/06 al 26/07) y hoy 30/06, 26/07, 29/06, 27/07 y `null` | Hoy solo se marca dentro del eje | `hoyPct`: 1.85 (primer día), 98.15 (último día) y `null` en los otros tres casos. |
+| **CP-GPB-18** | Marcas de la planificación y bordes de la barra | Lote y planificación con las mismas fechas (05/07 al 08/07) | El inicio se marca al comienzo de su día y el fin al cierre del último | `inicioPlanificacionPct: 16.67` (igual al borde izquierdo de la barra) y `finPlanificacionPct: 83.33` (el borde derecho de la barra, con tolerancia de redondeo). |
+| **CP-GPB-19** | Ancho mínimo de barra | Lote de un día (15/06/2027) y planificación del 01/01 al 31/12/2027 | Un día ocupa menos de 1 % del eje | `totalDias: 367`, `anchoPct: 1.0`, `izquierdaPct: 45.23`. |
+| **CP-GPB-20** | Barra mínima al final del eje | Lote de un día (31/12/2027) y planificación del 01/01 al 31/12/2027 | Con el ancho mínimo se saldría del eje | `anchoPct: 1.0` e `izquierdaPct: 99.0`. |
+| **CP-GPB-21** | Ancho mínimo del área de tiempo | Sin lotes: ejes de 6, 102 y 367 días | `totalDias * 24` acotado entre 720 y 3600 | `anchoMinimoPx`: 720, 2448 y 3600. |
+| **CP-GPB-22** | Orden de los carriles | Lotes en "F-10", sin fermentador, "F-02" y "f-01" | Orden por identificador sin distinguir mayúsculas; sin fermentador al final | Carriles "f-01", "F-02", "F-10" y "Sin fermentador". |
+| **CP-GPB-23** | Orden de barras con igual inicio | Lotes con id 5 y 3, ambos del 01/07 al 03/07 en "F-01" | Desempate por id | Las barras quedan en el orden de los lotes 3 y 5. |

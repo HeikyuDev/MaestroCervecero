@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Diagrama de Gantt de una planificación: HTML y CSS propios, sin librerías. No hace ninguna cuenta: dibuja
+    la geometría que ya calculó GanttPlanificacionBuilder (posiciones y anchos en % del eje de tiempo).
+
+    Un carril por fermentador, con su identificador en una columna fija a la izquierda; el área de tiempo
+    se desplaza horizontalmente cuando es más ancha que la pantalla. Las barras llevan el texto truncado y
+    el detalle del lote en el tooltip (title).
+
+    Colores por estado del lote (la misma paleta en las barras y en la leyenda): pendiente azul, en ejecución
+    ámbar (lo transcurrido sólido y lo que falta rayado), finalizado verde, cancelado gris rayado y tachado.
+
+    Uso: <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>
+-->
+<div th:fragment="gantt(vista)">
+
+    <style>
+        .gantt-color--pendiente { background: #2563eb; color: #ffffff; }
+        .gantt-color--en-ejecucion { background: repeating-linear-gradient(45deg, #fde68a, #fde68a 6px, #fcd34d 6px, #fcd34d 12px); color: #1e293b; }
+        .gantt-color--finalizado { background: #047857; color: #ffffff; }
+        .gantt-color--cancelado { background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 6px, #cbd5e1 6px, #cbd5e1 12px); color: #475569; box-shadow: inset 0 0 0 1px #94a3b8; }
+        .gantt-barra { position: absolute; top: 0.5rem; bottom: 0.5rem; display: flex; align-items: center; overflow: hidden; border-radius: 0.375rem; }
+        .gantt-barra--cancelado span { text-decoration: line-through; }
+        .gantt-progreso { position: absolute; top: 0; bottom: 0; left: 0; background: #f59e0b; }
+        .gantt-muestra { display: inline-block; width: 1.5rem; height: 0.75rem; border-radius: 0.25rem; }
+    </style>
+
+    <!-- Leyenda -->
+    <ul class="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Leyenda del diagrama">
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente"></span> Pendiente</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--en-ejecucion"></span> En ejecución (lo ya transcurrido, sólido)</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--finalizado"></span> Finalizado</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--cancelado"></span> Cancelado</li>
+        <li class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-rose-500"></span> Hoy</li>
+        <li class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-dashed border-slate-500"></span> Inicio y fin estimados de la planificación</li>
+    </ul>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200" data-gantt>
+        <div class="flex" th:style="|min-width: ${vista.anchoMinimoPx + 144}px|">
+
+            <!-- Columna fija de fermentadores -->
+            <div class="sticky left-0 z-20 w-36 shrink-0 border-r border-slate-200 bg-white">
+                <div class="h-8 border-b border-slate-200 bg-slate-50 px-3 flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Fermentador</div>
+                <div th:each="c : ${vista.carriles}" th:text="${c.etiqueta}" th:title="${c.etiqueta}"
+                     class="h-12 border-b border-slate-100 px-3 flex items-center truncate text-sm font-medium text-slate-800">F-01</div>
+            </div>
+
+            <!-- Área de tiempo -->
+            <div class="relative min-w-0 flex-1">
+
+                <!-- Líneas de la grilla (detrás de las barras) -->
+                <div class="pointer-events-none absolute inset-0" aria-hidden="true">
+                    <span th:each="m : ${vista.marcasEje}" th:style="|left: ${m.posicionPct}%|"
+                          class="absolute top-8 bottom-0 border-l border-slate-100"></span>
+                </div>
+
+                <!-- Eje de fechas -->
+                <div class="relative h-8 border-b border-slate-200 bg-slate-50">
+                    <span th:each="m : ${vista.marcasEje}" th:text="${m.etiqueta}" th:style="|left: ${m.posicionPct}%|"
+                          class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xs text-slate-500">01/07</span>
+                </div>
+
+                <!-- Carriles con sus barras -->
+                <div th:each="c : ${vista.carriles}" class="relative h-12 border-b border-slate-100">
+                    <div th:each="b : ${c.barras}" role="img" tabindex="0"
+                         th:title="${b.tooltip}" th:attr="aria-label=${b.tooltip}"
+                         th:style="|left: ${b.izquierdaPct}%; width: ${b.anchoPct}%|"
+                         th:classappend="|gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}|"
+                         class="gantt-barra focus:outline-none focus:ring-2 focus:ring-slate-800">
+                        <div th:if="${b.progresoPct > 0}" th:style="|width: ${b.progresoPct}%|" class="gantt-progreso"></div>
+                        <span th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
+                    </div>
+                </div>
+
+                <!-- Marcas: hoy y fechas estimadas de la planificación (sobre las barras) -->
+                <div class="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+                    <span th:if="${vista.inicioPlanificacionPct != null}" th:style="|left: ${vista.inicioPlanificacionPct}%|"
+                          title="Inicio estimado de la planificación"
+                          class="absolute top-8 bottom-0 border-l-2 border-dashed border-slate-500"></span>
+                    <span th:if="${vista.finPlanificacionPct != null}" th:style="|left: ${vista.finPlanificacionPct}%|"
+                          title="Fin estimado de la planificación"
+                          class="absolute top-8 bottom-0 border-l-2 border-dashed border-slate-500"></span>
+                    <span th:if="${vista.hoyPct != null}" th:style="|left: ${vista.hoyPct}%|" data-gantt-hoy
+                          title="Hoy"
+                          class="absolute top-8 bottom-0 border-l-2 border-rose-500"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</html>

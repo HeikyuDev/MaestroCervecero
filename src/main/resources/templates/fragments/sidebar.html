@@ -38,6 +38,11 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-droplet-half', 'Control de Lotes')}"></a>
             </th:block>
 
+            <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->
+            <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
+                <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar-check', 'Planificación de Producción')}"></a>
+            </th:block>
+
             <!-- ÓRDENES DE COMPRA (Gerente de Compras) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
                 <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'compras', 'bi-cart3', 'Órdenes de Compra')}"></a>

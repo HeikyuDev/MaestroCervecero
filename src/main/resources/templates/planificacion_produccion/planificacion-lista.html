@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#planificacion-lista-content}, 'planificaciones')}">
+<body>
+
+<div id="planificacion-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Planificación de Producción</h1>
+            <p class="text-sm text-slate-500">Planificaciones registradas, con la última registrada arriba.</p>
+        </div>
+        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/planificaciones-produccion/nueva}"
+           class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+            <i class="bi bi-plus-lg"></i> Nueva planificación
+        </a>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/planificaciones-produccion}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
+                    @{/planificaciones-produccion/buscador/recetas}, null, null, true, false, 'Seleccionar receta')}"></div>
+        </div>
+        <div>
+            <label for="estado" class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+            <select id="estado" name="estado"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Pendiente</option>
+            </select>
+        </div>
+        <div>
+            <label for="fechaInicio" class="block text-xs font-medium text-slate-500 mb-1">Fecha de inicio estimada</label>
+            <input type="date" id="fechaInicio" name="fechaInicio" th:value="${filtroFechaInicio}" autocomplete="off" placeholder="Ej: 01/07/2027"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div class="md:col-span-3 flex items-center justify-end gap-3">
+            <a th:href="@{/planificaciones-produccion}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-3 py-3 whitespace-nowrap">Receta</th>
+                <th class="px-3 py-3 whitespace-nowrap">Litros a producir (L)</th>
+                <th class="px-3 py-3 whitespace-nowrap">Inicio estimado</th>
+                <th class="px-3 py-3 whitespace-nowrap">Fin estimado</th>
+                <th class="px-3 py-3 whitespace-nowrap">Estado</th>
+                <th class="px-3 py-3 text-right whitespace-nowrap">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="p : ${planificaciones.content}" class="hover:bg-slate-50">
+                <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${p.versionReceta.nombre}">Pale Ale</td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${p.cantidadAProducir})}"></th:block></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaInicioEstimada})}"></th:block></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaFinalizacionEstimada})}"></th:block></td>
+                <td class="px-3 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${p.estado})}"></span></td>
+                <td class="px-3 py-3">
+                    <div class="flex items-center justify-end gap-0.5">
+                        <a th:href="@{/planificaciones-produccion/{id}(id=${p.id})}" title="Ver estado actual" aria-label="Ver estado actual"
+                           class="p-1.5 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-base"></i>
+                        </a>
+                        <th:block th:if="${p.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                            <button type="button" title="Finalizar planificación" aria-label="Finalizar planificación"
+                                    data-motivo-dialogo="dialogo-finalizar"
+                                    th:data-motivo-url="@{/planificaciones-produccion/{id}/finalizar(id=${p.id})}"
+                                    th:data-motivo-nombre="${p.versionReceta.nombre}"
+                                    class="shrink-0 whitespace-nowrap p-1.5 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                                <i class="bi bi-check2-circle text-base"></i>
+                            </button>
+                            <button type="button" title="Anular planificación" aria-label="Anular planificación"
+                                    data-motivo-dialogo="dialogo-anular"
+                                    th:data-motivo-url="@{/planificaciones-produccion/{id}/anular(id=${p.id})}"
+                                    th:data-motivo-nombre="${p.versionReceta.nombre}"
+                                    class="shrink-0 whitespace-nowrap p-1.5 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                <i class="bi bi-x-circle text-base"></i>
+                            </button>
+                        </th:block>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${planificaciones.empty}">
+                <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-calendar-check block text-3xl mb-2"></i>
+                    No se encontraron planificaciones de producción con los criterios indicados.
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificaciones',
+                ${planificaciones.hasPrevious()} ? @{/planificaciones-produccion(pagina=${planificaciones.number - 1}, idReceta=${filtroIdReceta}, estado=${filtroEstado}, fechaInicio=${filtroFechaInicio})} : null,
+                ${planificaciones.hasNext()} ? @{/planificaciones-produccion(pagina=${planificaciones.number + 1}, idReceta=${filtroIdReceta}, estado=${filtroEstado}, fechaInicio=${filtroFechaInicio})} : null,
+                false)}"></div>
+    </div>
+
+    <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar planificación',
+                'Se cierra de forma forzada y queda registrado el motivo. Solo procede si ya tiene un lote finalizado y ninguno pendiente ni en ejecución.',
+                'Finalizar', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle')}"></div>
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular planificación',
+                'Se anula y queda registrado el motivo. Solo procede si no tiene lotes pendientes, en ejecución ni finalizados.',
+                'Anular', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle')}"></div>
+    </th:block>
+</div>
+
+</body>
+</html>

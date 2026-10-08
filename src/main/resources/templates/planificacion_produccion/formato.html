@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Formatos de presentación del módulo de planificación de producción.
+
+    estadoPlanificacion(estado): etiqueta de color del estado de una planificación (azul pendiente,
+    verde finalizada, gris anulada), con su nombre legible.
+    estadoLote(estado): etiqueta de color del estado de un lote (azul pendiente, ámbar en ejecución,
+    verde finalizado, gris cancelado), con su nombre legible. Son los mismos colores del diagrama de Gantt.
+    fecha(valor): una fecha como dd/MM/yyyy, o un guion si no tiene valor.
+    fechaHora(valor): una fecha y hora como dd/MM/yyyy HH:mm, o un guion si no tiene valor.
+-->
+<span th:fragment="estadoPlanificacion(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'PENDIENTE'} ? 'bg-blue-50 text-blue-700'
+                    : (${estado.name() == 'FINALIZADA'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600')"
+      th:text="${estado.etiqueta}">Pendiente</span>
+
+<span th:fragment="estadoLote(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'PENDIENTE'} ? 'bg-blue-50 text-blue-700'
+                    : (${estado.name() == 'EN_EJECUCION'} ? 'bg-amber-50 text-amber-700'
+                    : (${estado.name() == 'FINALIZADO'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'))"
+      th:text="${estado.etiqueta}">Pendiente</span>
+
+<th:block th:fragment="fecha(valor)"><th:block th:text="${valor != null} ? ${#temporals.format(valor, 'dd/MM/yyyy')} : '-'">01/07/2027</th:block></th:block>
+
+<th:block th:fragment="fechaHora(valor)"><th:block th:text="${valor != null} ? ${#temporals.format(valor, 'dd/MM/yyyy HH:mm')} : '-'">01/07/2027 08:00</th:block></th:block>
+
+</html>

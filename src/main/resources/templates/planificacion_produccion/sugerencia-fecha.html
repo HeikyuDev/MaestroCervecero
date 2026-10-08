@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+    Fragmento que devuelve GET /planificaciones-produccion/sugerencia-fecha (HTML, no JSON). Con una
+    sugerencia lleva la fecha ISO en data-fecha-sugerida, que lee /js/planificacion-form.js; con un
+    rechazo del service (o un dato inválido) muestra el mensaje en estilo de error y no lleva ninguna fecha.
+-->
+<div th:fragment="sugerencia">
+    <p th:if="${sugerencia != null}" data-sugerencia th:data-fecha-sugerida="${sugerencia.fechaFinalizacionSugerida}"
+       class="text-xs text-slate-600"><i class="bi bi-info-circle text-slate-400"></i>
+        <span><th:block th:text="${sugerencia.cantidadLotes}">14</th:block> <th:block th:text="${sugerencia.cantidadLotes == 1} ? 'lote' : 'lotes'">lotes</th:block> de <th:block th:replace="~{receta/formato :: numero(${sugerencia.capacidadLoteEstandar})}"></th:block> L, de <th:block th:text="${sugerencia.duracionLoteDias}">18</th:block> <th:block th:text="${sugerencia.duracionLoteDias == 1} ? 'día' : 'días'">días</th:block> cada uno, con 1 día de limpieza entre lotes. Fin sugerido: <strong class="text-slate-900" th:text="${#temporals.format(sugerencia.fechaFinalizacionSugerida, 'dd/MM/yyyy')}">25/07/2027</strong>.</span></p>
+    <p th:if="${sugerencia == null}" data-sugerencia-error role="alert"
+       class="text-xs text-rose-600"><i class="bi bi-exclamation-circle"></i> <span th:text="${mensajeError}">Mensaje del service</span></p>
+</div>
+
+</body>
+</html>

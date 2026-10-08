@@ -15,6 +15,9 @@
  *     datos son los data-* del botón "Elegir" elegido) para que la página reaccione a la selección.
  *   data-baja-url / data-baja-nombre
  *                                 botón que abre el diálogo de confirmación de baja (#dialogo-baja).
+ *   data-motivo-dialogo / data-motivo-url / data-motivo-nombre
+ *                                 botón que abre un diálogo que pide un motivo (fragments/dialogo-motivo): el id
+ *                                 del diálogo, a dónde se envía y de qué es la acción.
  *
  * Dentro del modal del buscador:
  *   data-cerrar-modal             cierra el modal.
@@ -146,11 +149,12 @@
 
     // ---------- Eventos ----------
 
-    function abrirConfirmacionBaja(boton) {
-        var dialogo = document.getElementById('dialogo-baja');
+    /** Abre un diálogo de acción (baja o motivo): apunta su formulario a {url} y muestra de qué es {nombre}. */
+    function abrirDialogoDeAccion(dialogo, url, nombre) {
         if (!dialogo) { return; }
-        dialogo.querySelector('form').setAttribute('action', boton.getAttribute('data-baja-url'));
-        dialogo.querySelector('[data-baja-nombre-destino]').textContent = boton.getAttribute('data-baja-nombre');
+        dialogo.querySelector('form').setAttribute('action', url);
+        var destino = dialogo.querySelector('[data-baja-nombre-destino], [data-dialogo-nombre-destino]');
+        if (destino) { destino.textContent = nombre; }
         dialogo.showModal();
     }
 
@@ -194,11 +198,19 @@
     document.addEventListener('click', function (evento) {
         var baja = evento.target.closest('[data-baja-url]');
         if (baja) {
-            abrirConfirmacionBaja(baja);
+            abrirDialogoDeAccion(document.getElementById('dialogo-baja'),
+                baja.getAttribute('data-baja-url'), baja.getAttribute('data-baja-nombre'));
             return;
         }
-        if (evento.target.closest('#dialogo-baja [data-cerrar-dialogo]')) {
-            document.getElementById('dialogo-baja').close();
+        var motivo = evento.target.closest('[data-motivo-url]');
+        if (motivo) {
+            abrirDialogoDeAccion(document.getElementById(motivo.getAttribute('data-motivo-dialogo')),
+                motivo.getAttribute('data-motivo-url'), motivo.getAttribute('data-motivo-nombre'));
+            return;
+        }
+        var cierre = evento.target.closest('#dialogo-baja [data-cerrar-dialogo], dialog[data-dialogo-motivo] [data-cerrar-dialogo]');
+        if (cierre) {
+            cierre.closest('dialog').close();
             return;
         }
         var menu = evento.target.closest('[data-selector-menu]');
