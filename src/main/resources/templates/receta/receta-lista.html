@@ -47,7 +47,6 @@
                 <th class="px-3 py-3 whitespace-nowrap" title="OG objetivo">OG</th>
                 <th class="px-3 py-3 whitespace-nowrap" title="FG objetivo">FG</th>
                 <th class="px-3 py-3 whitespace-nowrap" title="IBU objetivo">IBU</th>
-                <th class="px-3 py-3 whitespace-nowrap" title="Duración total estimada">Duración total</th>
                 <th class="px-3 py-3 text-right whitespace-nowrap">Acciones</th>
             </tr>
             </thead>
@@ -58,7 +57,6 @@
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: gravedad(${r.version.ogObjetivo})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: gravedad(${r.version.fgObjetivo})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${r.version.ibuObjetivo})}"></th:block></td>
-                <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${r.version.duracionTotalEstimada}">14 días 2 h 30 min</td>
                 <td class="px-3 py-3">
                     <div class="flex items-center justify-end gap-0.5">
                         <a th:href="@{/recetas/{id}(id=${r.id})}" title="Ver detalle de la receta" aria-label="Ver detalle de la receta"

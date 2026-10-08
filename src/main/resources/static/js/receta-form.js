@@ -17,14 +17,17 @@
  * Dentro de cada ventana emergente (dialog[data-dialogo-agregar]):
  *   data-campo-modal             campo de captura (cantidad, uso, tiempoDeHervor, etapaDeUso).
  *   data-grupo                   bloque que solo aparece para ciertos usos del lúpulo.
- *   data-error="insumo"          aviso de que falta elegir el insumo (oculto mientras no haga falta).
+ *   data-error="<clave>"         aviso del campo (insumo, duplicado, cantidad, uso, tiempoDeHervor, etapaDeUso),
+ *                                oculto mientras no haga falta; el texto lo trae la página.
  *   data-confirmar-agregar       "Agregar a la receta".
  *   data-cerrar-agregar          cierra la ventana sin agregar.
  * El insumo se elige con el selector de entidad de /js/modales.js (data-selector).
  *
- * Este archivo no valida datos: lo que se escribe en la ventana se agrega a la fila tal cual y el servidor
- * lo valida al enviar el formulario (Bean Validation y reglas del service), igual que el resto de los
- * formularios. La única comprobación es que haya un insumo elegido, porque sin él no hay nada que mostrar.
+ * Validación: es una excepción acordada a la regla de "validar solo en el servidor". Estas ventanas arman
+ * filas de tablas que todavía no se enviaron, así que acá se frena la fila ANTES de que entre a la tabla
+ * (insumo elegido, cantidad mayor a 0, sin repetidos, y uso / tiempo de hervor / etapa del lúpulo). Los
+ * avisos se muestran dentro de la ventana, que queda abierta. Nada de esto reemplaza al servidor: al
+ * enviar el formulario valida todo de nuevo (Bean Validation y reglas del service).
  *
  * Índices: Spring solo enlaza listas sin huecos (detallesMalta[0], [1], [2]...). Por eso después de
  * cada alta o baja de fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el
@@ -109,9 +112,14 @@
 
     // ---------- Ventana emergente ----------
 
-    function mostrarAvisoInsumo(dialogo, mostrar) {
-        var aviso = dialogo.querySelector('[data-error="insumo"]');
+    /** Único lugar que muestra u oculta un aviso de la ventana, por su clave (data-error). */
+    function mostrarError(dialogo, clave, mostrar) {
+        var aviso = dialogo.querySelector('[data-error="' + clave + '"]');
         if (aviso) { aviso.hidden = !mostrar; }
+    }
+
+    function limpiarErrores(dialogo) {
+        dialogo.querySelectorAll('[data-error]').forEach(function (aviso) { aviso.hidden = true; });
     }
 
     /** Muestra solo los bloques que corresponden al uso elegido: tiempo de hervor (Hervor) o etapa (Dry hop). */
@@ -129,7 +137,7 @@
         dialogo.querySelector('[data-selector-id]').value = '';
         dialogo.querySelector('[data-selector-texto]').value = '';
         dialogo.querySelectorAll('[data-campo-modal]').forEach(function (campo) { campo.value = ''; });
-        mostrarAvisoInsumo(dialogo, false);
+        limpiarErrores(dialogo);
         actualizarGrupos(dialogo);
     }
 
@@ -174,14 +182,80 @@
         return {campos: campos, celdas: celdas};
     }
 
+    // ---------- Validación previa a agregar la fila ----------
+
+    function esMayorACero(valor) {
+        return valor !== '' && Number(valor) > 0;
+    }
+
+    /**
+     * Clave de repetición de una fila, la misma que usa el servidor (RecetaServicioImpl): la malta y la
+     * levadura por su id; el lúpulo por id + uso + tiempo de hervor (0 cuando el uso no es Hervor).
+     */
+    function claveDeRepetido(tipo, campos) {
+        if (tipo !== 'lupulo') { return String(campos[TIPOS[tipo].campoId]); }
+        var tiempo = campos.uso === 'HERVOR' ? Number(campos.tiempoDeHervor) : 0;
+        return [campos.idLupulo, campos.uso, tiempo].join('|');
+    }
+
+    /** Claves de las filas que ya están en la tabla, leídas de sus campos ocultos. */
+    function clavesExistentes(tipo, seccion) {
+        return Array.prototype.map.call(seccion.querySelectorAll('tbody [data-fila]'), function (fila) {
+            var campos = {};
+            fila.querySelectorAll('[data-campo]').forEach(function (campo) {
+                campos[campo.getAttribute('data-campo')] = campo.value;
+            });
+            return claveDeRepetido(tipo, campos);
+        });
+    }
+
+    /**
+     * Devuelve los problemas de la fila como [{clave, foco}]: la clave del aviso a mostrar y el elemento
+     * que recibe el foco. Vacía si la fila puede entrar a la tabla.
+     */
+    function validar(tipo, dialogo, seccion, campos) {
+        var problemas = [];
+        function falla(clave, nombreCampo) {
+            problemas.push({clave: clave, foco: campoModal(dialogo, nombreCampo)});
+        }
+
+        if (!esMayorACero(campos.cantidad)) { falla('cantidad', 'cantidad'); }
+
+        if (tipo === 'lupulo') {
+            if (!campos.uso) {
+                falla('uso', 'uso');
+            } else if (campos.uso === 'HERVOR' && !esMayorACero(campos.tiempoDeHervor)) {
+                falla('tiempoDeHervor', 'tiempoDeHervor');
+            } else if (campos.uso === 'DRY_HOP' && !campos.etapaDeUso) {
+                falla('etapaDeUso', 'etapaDeUso');
+            }
+        }
+
+        // El repetido solo se evalúa con el resto de los datos bien: la clave del lúpulo depende de ellos
+        if (!problemas.length && clavesExistentes(tipo, seccion).indexOf(claveDeRepetido(tipo, campos)) !== -1) {
+            problemas.push({clave: 'duplicado', foco: dialogo.querySelector('[data-selector-texto]')});
+        }
+        return problemas;
+    }
+
     function confirmarAgregar(dialogo) {
         var tipo = dialogo.getAttribute('data-dialogo-agregar');
         var seccion = document.querySelector('[data-detalle="' + tipo + '"]');
         var datos = leer(tipo, dialogo);
 
-        // Sin insumo no hay nada que mostrar en la fila: es lo único que se comprueba acá
+        limpiarErrores(dialogo);
+
+        // Sin insumo no hay nada que mostrar en la fila
         if (!datos.campos[TIPOS[tipo].campoId]) {
-            mostrarAvisoInsumo(dialogo, true);
+            mostrarError(dialogo, 'insumo', true);
+            dialogo.querySelector('[data-selector-texto]').focus();
+            return;
+        }
+
+        var problemas = validar(tipo, dialogo, seccion, datos.campos);
+        if (problemas.length) {
+            problemas.forEach(function (problema) { mostrarError(dialogo, problema.clave, true); });
+            if (problemas[0].foco) { problemas[0].foco.focus(); }
             return;
         }
 
@@ -189,14 +263,20 @@
         dialogo.close();
     }
 
-    // Al elegir algo en un selector de una ventana, el aviso de "falta elegir" deja de tener sentido
+    // Al elegir algo en un selector de una ventana, los avisos del insumo dejan de tener sentido
     document.addEventListener('selector:cambio', function (evento) {
-        var selector = evento.target;
-        var ventana = selector.closest('dialog');
+        var ventana = evento.target.closest('dialog');
         if (!ventana || !evento.detail || !evento.detail.id) { return; }
-        var aviso = ventana.querySelector('[data-error="insumo"]');
-        if (aviso) { aviso.hidden = true; }
+        mostrarError(ventana, 'insumo', false);
+        mostrarError(ventana, 'duplicado', false);
     });
+
+    /** Al corregir un campo de la ventana se oculta su aviso (y el de repetido, que depende de varios campos). */
+    function corregido(campo) {
+        var ventana = campo.closest('dialog');
+        mostrarError(ventana, campo.getAttribute('data-campo-modal'), false);
+        mostrarError(ventana, 'duplicado', false);
+    }
 
     // ---------- Eventos ----------
 
@@ -229,6 +309,12 @@
         var campo = evento.target.closest('[data-campo-modal]');
         if (!campo) { return; }
         if (campo.getAttribute('data-campo-modal') === 'uso') { actualizarGrupos(campo.closest('dialog')); }
+        corregido(campo);
+    });
+
+    document.addEventListener('input', function (evento) {
+        var campo = evento.target.closest ? evento.target.closest('[data-campo-modal]') : null;
+        if (campo) { corregido(campo); }
     });
 
     // Enter en un campo de la ventana equivale a "Agregar a la receta"

@@ -1,7 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.receta;
 import lombok.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -88,36 +87,4 @@ public class VersionRecetaResponseDTO {
      * Lista de detalles de levadura asociados a la versión de receta.
      */
     private List<DetalleLevaduraResponseDTO> detallesLevadura;
-
-    /**
-     * Duración total estimada de la receta, legible: suma de las duraciones en minutos
-     * (maceración + hervido), expresada en horas y minutos, más las duraciones en días
-     * (fermentación + maduración). Una duración nula cuenta como cero y las unidades en cero se
-     * omiten (por ejemplo, "14 días 2 h 30 min", "1 día" o "45 min"). Si no hay ninguna
-     * duración, devuelve "0 min".
-     *
-     * @return El texto de la duración total estimada.
-     */
-    public String getDuracionTotalEstimada() {
-        int dias = valorOCero(duracionFermentacion) + valorOCero(duracionMaduracion);
-        int minutosTotales = valorOCero(duracionMaceracion) + valorOCero(duracionHervido);
-        int horas = minutosTotales / 60;
-        int minutos = minutosTotales % 60;
-
-        List<String> partes = new ArrayList<>();
-        if (dias > 0) {
-            partes.add(dias + (dias == 1 ? " día" : " días"));
-        }
-        if (horas > 0) {
-            partes.add(horas + " h");
-        }
-        if (minutos > 0) {
-            partes.add(minutos + " min");
-        }
-        return partes.isEmpty() ? "0 min" : String.join(" ", partes);
-    }
-
-    private static int valorOCero(Integer valor) {
-        return valor == null ? 0 : valor;
-    }
 }

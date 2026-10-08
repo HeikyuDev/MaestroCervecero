@@ -89,7 +89,7 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-RCC-01: el GERENTE_DE_PRODUCCION ve el listado con los datos de la versión vigente, la duración total y las acciones por fila")
+    @DisplayName("CP-RCC-01: el GERENTE_DE_PRODUCCION ve el listado con los datos de la versión vigente, y las acciones por fila")
     void listado_debeMostrarLasRecetasParaGerenteDeProduccion() throws Exception {
         when(recetaServicio.filtrarRecetas(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(receta(7L, "Pale Ale")), PageRequest.of(0, 20), 1));
@@ -103,11 +103,11 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("OG objetivo")))
                 .andExpect(content().string(containsString("FG objetivo")))
                 .andExpect(content().string(containsString("IBU objetivo")))
-                .andExpect(content().string(containsString("Duración total estimada")))
+                .andExpect(content().string(not(containsString("Duración total"))))
                 .andExpect(content().string(containsString(">20<")))
                 .andExpect(content().string(containsString(">1,050<")))
                 .andExpect(content().string(containsString(">35<")))
-                .andExpect(content().string(containsString("14 días 2 h 30 min")))
+                .andExpect(content().string(not(containsString("14 días"))))
                 .andExpect(content().string(not(containsString("20.0"))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Pale Ale\"")))
                 .andExpect(content().string(containsString("href=\"/recetas/nuevo\"")))
@@ -253,7 +253,7 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-RCC-11: el detalle muestra todas las secciones de la versión vigente con sus unidades, enums legibles y la duración total")
+    @DisplayName("CP-RCC-11: el detalle muestra todas las secciones de la versión vigente con sus unidades, enums legibles y sin duración total")
     void detalle_debeMostrarTodasLasSecciones() throws Exception {
         when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
 
@@ -276,8 +276,8 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Hervido (minutos)")))
                 .andExpect(content().string(containsString("Fermentación (días)")))
                 .andExpect(content().string(containsString("Maduración (días)")))
-                .andExpect(content().string(containsString("Duración total estimada")))
-                .andExpect(content().string(containsString("14 días 2 h 30 min")))
+                .andExpect(content().string(not(containsString("Duración total"))))
+                .andExpect(content().string(not(containsString("14 días"))))
                 // Maltas
                 .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
                 .andExpect(content().string(containsString("Pilsen")))
@@ -1101,13 +1101,60 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("con uso Hervor se usan como proporci")))
                 .andExpect(content().string(containsString("Whirlpool y Dry hop se escalan seg")))
                 .andExpect(content().string(containsString("el volumen base de la receta.")))
-                // Las ventanas emergentes solo avisan que falta elegir el insumo
+                // Las ventanas emergentes traen sus avisos (el detalle se verifica en CP-RCC-54 y CP-RCC-55)
                 .andExpect(content().string(containsString("data-error=\"insumo\"")))
-                .andExpect(content().string(not(containsString("data-error=\"cantidad\""))))
-                .andExpect(content().string(not(containsString("data-error=\"duplicado\""))))
+                .andExpect(content().string(containsString("data-error=\"cantidad\"")))
+                .andExpect(content().string(containsString("data-error=\"duplicado\"")))
                 .andReturn().getResponse().getContentAsString();
         // El aviso de maltas y levaduras (mismo texto) aparece una vez por tabla
         assertThat(html.split("Las cantidades se usan como proporciones entre insumos", -1)).hasSize(3);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-54: las ventanas de malta y de levadura traen los avisos de insumo, repetido y cantidad, ocultos")
+    void ventanasMaltaYLevadura_debenTraerSusAvisosDeValidacion() throws Exception {
+        String html = mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        String malta = ventana(html, "malta");
+        assertThat(malta).contains(aviso("insumo", "Seleccioná un insumo"),
+                aviso("duplicado", "Esa malta ya está en la receta"),
+                aviso("cantidad", "Ingresá una cantidad mayor a 0"));
+
+        String levadura = ventana(html, "levadura");
+        assertThat(levadura).contains(aviso("insumo", "Seleccioná un insumo"),
+                aviso("duplicado", "Esa levadura ya está en la receta"),
+                aviso("cantidad", "Ingresá una cantidad mayor a 0"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-55: la ventana de lúpulo trae los avisos de insumo, repetido, cantidad, uso, tiempo de hervor y etapa de uso, ocultos")
+    void ventanaLupulo_debeTraerSusAvisosDeValidacion() throws Exception {
+        String html = mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(ventana(html, "lupulo")).contains(
+                aviso("insumo", "Seleccioná un insumo"),
+                aviso("duplicado", "Ese lúpulo ya está en la receta con el mismo uso y tiempo de hervor"),
+                aviso("cantidad", "Ingresá una cantidad mayor a 0"),
+                aviso("uso", "Elegí el uso del lúpulo"),
+                aviso("tiempoDeHervor", "Ingresá el tiempo de hervor en minutos (mayor a 0)"),
+                aviso("etapaDeUso", "Elegí la etapa de uso"));
+    }
+
+    /** Fragmento de la ventana emergente "agregar" del tipo indicado (malta, lupulo o levadura). */
+    private static String ventana(String html, String tipo) {
+        int inicio = html.indexOf("id=\"dialogo-agregar-" + tipo + "\"");
+        assertThat(inicio).isGreaterThanOrEqualTo(0);
+        return html.substring(inicio, html.indexOf("</dialog>", inicio));
+    }
+
+    private static String aviso(String clave, String texto) {
+        return "<p data-error=\"" + clave + "\" hidden class=\"mt-1 text-xs text-rose-600\">" + texto + "</p>";
     }
 
     @Test
