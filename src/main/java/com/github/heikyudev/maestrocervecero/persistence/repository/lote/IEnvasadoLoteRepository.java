@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -63,4 +65,37 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
      */
     @Query("SELECT COALESCE(SUM(e.cantidadEnvasada), 0.0) FROM EnvasadoLoteEntity e WHERE e.etapaLote.id = :idEtapaLote AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
     double sumarCantidadEnvasadaRegistrada(@Param("idEtapaLote") Long idEtapaLote);
+
+    /**
+     * Suma, por planificación de producción, la cantidad envasada de los envasados {@code REGISTRADO}
+     * (los anulados no cuentan) de cualquier lote de la planificación. Es una única consulta para un
+     * conjunto de planificaciones (por ejemplo, las de una página del listado), para evitar una consulta por fila.
+     * <p>
+     * Camino: envasado &rarr; etapa de lote &rarr; lote &rarr; planificación de producción. Las
+     * planificaciones sin ningún envasado registrado no aparecen en el resultado.
+     * </p>
+     *
+     * @param idsPlanificacion Los IDs de las planificaciones de producción a consultar.
+     * @return Una lista de filas {@code [idPlanificacion (Long), litrosProducidos (Double)]}.
+     */
+    @Query("SELECT l.planificacionProduccion.id, SUM(e.cantidadEnvasada) FROM EnvasadoLoteEntity e "
+            + "JOIN e.etapaLote et JOIN et.lote l "
+            + "WHERE l.planificacionProduccion.id IN :idsPlanificacion "
+            + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO "
+            + "GROUP BY l.planificacionProduccion.id")
+    List<Object[]> sumarLitrosProducidosPorPlanificacion(@Param("idsPlanificacion") Collection<Long> idsPlanificacion);
+
+    /**
+     * Suma la cantidad envasada de los envasados {@code REGISTRADO} (los anulados no cuentan) de
+     * cualquier lote de una planificación de producción puntual. Es la variante de una sola planificación
+     * de {@link #sumarLitrosProducidosPorPlanificacion(Collection)}.
+     *
+     * @param idPlanificacion El ID de la planificación de producción.
+     * @return Los litros producidos, o {@code 0.0} si la planificación no tiene ningún envasado registrado.
+     */
+    @Query("SELECT COALESCE(SUM(e.cantidadEnvasada), 0.0) FROM EnvasadoLoteEntity e "
+            + "JOIN e.etapaLote et JOIN et.lote l "
+            + "WHERE l.planificacionProduccion.id = :idPlanificacion "
+            + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
+    double sumarLitrosProducidosDePlanificacion(@Param("idPlanificacion") Long idPlanificacion);
 }

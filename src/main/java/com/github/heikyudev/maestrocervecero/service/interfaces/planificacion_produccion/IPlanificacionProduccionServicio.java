@@ -33,7 +33,9 @@ public interface IPlanificacionProduccionServicio {
      * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
      * @param fechaInicio Fecha de inicio estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de planificaciones de producción que cumplen los criterios indicados, en formato DTO.
+     * @return Una página de planificaciones de producción que cumplen los criterios indicados, en formato DTO. Cada una incluye sus
+     * litros producidos ({@code litrosProducidos}): la suma de la cantidad envasada de los envasados {@code REGISTRADO}
+     * (no anulados) de cualquier lote de la planificación, o {@code 0.0} si no tiene ninguno.
      */
     Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesProduccion(Long idReceta, EstadoSolicitud estado, LocalDate fechaInicio, Pageable pageable);
 
@@ -41,7 +43,8 @@ public interface IPlanificacionProduccionServicio {
      * Obtiene una planificación de producción activa por su ID.
      *
      * @param id El ID de la planificación de producción.
-     * @return La planificación de producción correspondiente al ID.
+     * @return La planificación de producción correspondiente al ID, con sus litros producidos ({@code litrosProducidos}, calculados
+     * como en {@link #filtrarPlanificacionesProduccion}).
      */
     PlanificacionProduccionResponseDTO buscarPorId(Long id);
 
@@ -50,6 +53,8 @@ public interface IPlanificacionProduccionServicio {
      *
      * @param planificacionProduccionFormDTO Los datos de la planificación de producción a registrar.
      * @return La planificación de producción registrada.
+     * @throws ReglaNegocioException Si la cantidad a producir no es mayor a 0, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), o si la fecha de finalización estimada es anterior a la fecha de inicio estimada.
+     * @throws RecursoNoEncontradoException Si la receta referenciada no existe, o si no tiene ninguna versión activa.
      */
     PlanificacionProduccionResponseDTO registrarPlanificacionProduccion(PlanificacionProduccionFormDTO planificacionProduccionFormDTO);
 
@@ -95,7 +100,7 @@ public interface IPlanificacionProduccionServicio {
      * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
      * @return La sugerencia con la fecha de finalización y los datos de la simulación.
      * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita o no es mayor a cero, si la fecha de inicio estimada es nula, si la capacidad de lote estándar configurada no es mayor a cero, o si la cantidad de lotes resultante excede el máximo representable ({@code Integer.MAX_VALUE}).
+     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita o no es mayor a cero, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a cero, o si la cantidad de lotes resultante excede el máximo representable ({@code Integer.MAX_VALUE}).
      */
     SugerenciaFechaFinalizacionResponseDTO sugerirFechaFinalizacion(Long idReceta, Double cantidadAProducir, LocalDate fechaInicioEstimada);
 }

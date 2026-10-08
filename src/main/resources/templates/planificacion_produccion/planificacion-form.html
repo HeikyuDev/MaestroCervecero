@@ -46,7 +46,7 @@
 
                 <div>
                     <label for="fechaInicioEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de inicio estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="date" id="fechaInicioEstimada" th:field="*{fechaInicioEstimada}" autocomplete="off" placeholder="Ej: 01/07/2027"
+                    <input type="date" id="fechaInicioEstimada" th:field="*{fechaInicioEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 01/07/2027"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('fechaInicioEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('fechaInicioEstimada')}" th:errors="*{fechaInicioEstimada}" class="mt-1 text-xs text-rose-600"></p>
@@ -55,7 +55,7 @@
                 <div>
                     <label for="fechaFinalizacionEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de fin estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <div class="flex items-stretch gap-2">
-                        <input type="date" id="fechaFinalizacionEstimada" th:field="*{fechaFinalizacionEstimada}" autocomplete="off" placeholder="Ej: 25/07/2027"
+                        <input type="date" id="fechaFinalizacionEstimada" th:field="*{fechaFinalizacionEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 25/07/2027"
                                class="min-w-0 flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                                th:classappend="${#fields.hasErrors('fechaFinalizacionEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                         <button type="button" data-sugerir-fecha th:data-sugerencia-url="@{/planificaciones-produccion/sugerencia-fecha}"

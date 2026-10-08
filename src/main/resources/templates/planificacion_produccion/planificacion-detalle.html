@@ -11,6 +11,22 @@
         <div>
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Estado actual de la planificación</h1>
             <p class="text-sm text-slate-500">Datos de la planificación, sus lotes y el cronograma.</p>
+            <!-- Avance de la producción: litros envasados (registrados) de todos los lotes frente a lo solicitado -->
+            <div class="mt-3 max-w-md" data-progreso-produccion>
+                <p class="text-sm text-slate-700">
+                    Producido: <strong class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planificacion.litrosProducidos})}"></th:block> L</strong>
+                    de <th:block th:replace="~{receta/formato :: numero(${planificacion.cantidadAProducir})}"></th:block> L
+                    (<th:block th:text="${porcentajeProducido}">0</th:block>%)
+                    <span th:if="${litrosExcedidos > 0}" class="text-emerald-700" data-superado>&middot; Superó lo solicitado por <th:block th:replace="~{receta/formato :: numero(${litrosExcedidos})}"></th:block> L</span>
+                    <span th:unless="${litrosExcedidos > 0}" class="text-slate-500" data-faltan>&middot; Faltan <th:block th:replace="~{receta/formato :: numero(${litrosFaltantes})}"></th:block> L</span>
+                </p>
+                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Avance de la producción"
+                     aria-valuemin="0" aria-valuemax="100" th:aria-valuenow="${porcentajeBarra}">
+                    <div class="h-full rounded-full" data-barra-progreso
+                         th:classappend="${porcentajeProducido >= 100} ? 'bg-emerald-500' : 'bg-amber-500'"
+                         th:style="|width: ${porcentajeBarra}%|"></div>
+                </div>
+            </div>
         </div>
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-3">
             <a th:href="@{/planificaciones-produccion}"

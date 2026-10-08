@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
@@ -38,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -52,12 +54,14 @@ class PlanificacionProduccionServicioImplTest {
     @Mock
     private ILoteRepository loteRepository;
     @Mock
+    private IEnvasadoLoteRepository envasadoLoteRepository;
+    @Mock
     private IConfiguracionProduccionRepository configuracionProduccionRepository;
 
     @InjectMocks
     private PlanificacionProduccionServicioImpl planificacionProduccionServicio;
 
-    private static final LocalDate FECHA_INICIO_SUGERENCIA = LocalDate.of(2026, 11, 2);
+    private static final LocalDate FECHA_INICIO_SUGERENCIA = LocalDate.of(2099, 11, 2);
 
     // ==================== filtrarPlanificacionesProduccion ====================
 
@@ -115,6 +119,45 @@ class PlanificacionProduccionServicioImplTest {
         verify(planificacionProduccionRepository).filtrarPlanificacionesProduccion(99L, null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FPP-04: filtrarPlanificacionesProduccion mapea los litros producidos con una sola consulta de agregación y 0.0 para las planificaciones sin envasados")
+    void filtrarPlanificacionesProduccion_debeMapearLitrosProducidosConUnaSolaConsulta() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        PlanificacionProduccionEntity planificacion1 = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        PlanificacionProduccionEntity planificacion2 = crearPlanificacionEntity(2L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 2));
+        PlanificacionProduccionEntity planificacion3 = crearPlanificacionEntity(3L, EstadoSolicitud.FINALIZADA, LocalDate.of(2026, 3, 3));
+        when(planificacionProduccionRepository.filtrarPlanificacionesProduccion(null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(planificacion1, planificacion2, planificacion3), pageable, 3));
+        when(envasadoLoteRepository.sumarLitrosProducidosPorPlanificacion(List.of(1L, 2L, 3L)))
+                .thenReturn(List.<Object[]>of(new Object[]{1L, 2350.0}, new Object[]{3L, 100.5}));
+
+        // === EJECUCION ===
+        Page<PlanificacionProduccionResponseDTO> resultado = planificacionProduccionServicio.filtrarPlanificacionesProduccion(null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).extracting(PlanificacionProduccionResponseDTO::getLitrosProducidos)
+                .containsExactly(2350.0, 0.0, 100.5);
+        verify(envasadoLoteRepository, times(1)).sumarLitrosProducidosPorPlanificacion(List.of(1L, 2L, 3L));
+        verify(envasadoLoteRepository, never()).sumarLitrosProducidosDePlanificacion(any());
+    }
+
+    @Test
+    @DisplayName("CP-FPP-05: filtrarPlanificacionesProduccion no consulta los litros producidos cuando la página está vacía")
+    void filtrarPlanificacionesProduccion_noDebeConsultarLitrosProducidosConPaginaVacia() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(planificacionProduccionRepository.filtrarPlanificacionesProduccion(99L, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<PlanificacionProduccionResponseDTO> resultado = planificacionProduccionServicio.filtrarPlanificacionesProduccion(99L, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).isEmpty();
+        verifyNoInteractions(envasadoLoteRepository);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -143,6 +186,37 @@ class PlanificacionProduccionServicioImplTest {
                 .hasMessage("No se encontró la planificación de producción con ID: 99");
 
         verify(planificacionProduccionRepository).findById(99L);
+    }
+
+    @Test
+    @DisplayName("CP-BI-03: buscarPorId retorna los litros producidos de la planificación")
+    void buscarPorId_debeRetornarLitrosProducidos() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(1250.5);
+
+        // === EJECUCION ===
+        PlanificacionProduccionResponseDTO resultado = planificacionProduccionServicio.buscarPorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLitrosProducidos()).isEqualTo(1250.5);
+        verify(envasadoLoteRepository).sumarLitrosProducidosDePlanificacion(1L);
+    }
+
+    @Test
+    @DisplayName("CP-BI-04: buscarPorId retorna 0.0 litros producidos cuando la planificación no tiene envasados registrados")
+    void buscarPorId_debeRetornarCeroLitrosProducidosSinEnvasados() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
+
+        // === EJECUCION ===
+        PlanificacionProduccionResponseDTO resultado = planificacionProduccionServicio.buscarPorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getLitrosProducidos()).isEqualTo(0.0);
     }
 
     // ==================== registrarPlanificacionProduccion ====================
@@ -199,8 +273,8 @@ class PlanificacionProduccionServicioImplTest {
     @DisplayName("CP-RPP-05: registrarPlanificacionProduccion lanza ReglaNegocioException cuando la fecha de finalización estimada es anterior a la de inicio")
     void registrar_debeRechazarFechaFinalizacionAnteriorAInicio() {
         PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
-                .fechaInicioEstimada(LocalDate.of(2026, 4, 1))
-                .fechaFinalizacionEstimada(LocalDate.of(2026, 3, 1))
+                .fechaInicioEstimada(LocalDate.of(2099, 4, 1))
+                .fechaFinalizacionEstimada(LocalDate.of(2099, 3, 1))
                 .build();
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
@@ -241,8 +315,8 @@ class PlanificacionProduccionServicioImplTest {
     @DisplayName("CP-RPP-08: registrarPlanificacionProduccion registra la planificación en estado PENDIENTE con la versión activa de la receta (camino feliz)")
     void registrar_debeRegistrarCorrectamente() {
         // === PREPARACION DE DATOS ===
-        LocalDate fechaInicio = LocalDate.of(2026, 3, 1);
-        LocalDate fechaFin = LocalDate.of(2026, 4, 1);
+        LocalDate fechaInicio = LocalDate.of(2099, 3, 1);
+        LocalDate fechaFin = LocalDate.of(2099, 4, 1);
         PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
                 .fechaInicioEstimada(fechaInicio)
                 .fechaFinalizacionEstimada(fechaFin)
@@ -268,6 +342,41 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(guardada.getVersionReceta()).isSameAs(receta.getVersiones().get(0));
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-09: registrarPlanificacionProduccion lanza ReglaNegocioException cuando la fecha de inicio estimada es anterior a hoy (ayer)")
+    void registrar_debeRechazarFechaInicioAnteriorAHoy() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
+                .fechaInicioEstimada(LocalDate.now().minusDays(1))
+                .fechaFinalizacionEstimada(LocalDate.now().plusDays(30))
+                .build();
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio estimada no puede ser anterior a la fecha actual");
+
+        verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-10: registrarPlanificacionProduccion acepta una fecha de inicio estimada igual a hoy (límite)")
+    void registrar_debeAceptarFechaInicioIgualAHoy() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
+                .fechaInicioEstimada(LocalDate.now())
+                .fechaFinalizacionEstimada(LocalDate.now().plusDays(30))
+                .build();
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(crearRecetaConVersion(1L, true)));
+        when(planificacionProduccionRepository.save(any(PlanificacionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        PlanificacionProduccionResponseDTO resultado = planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        assertThat(resultado.getFechaInicioEstimada()).isEqualTo(formDTO.getFechaInicioEstimada());
+        verify(planificacionProduccionRepository).save(any(PlanificacionProduccionEntity.class));
     }
 
     // ==================== anularPlanificacionProduccion ====================
@@ -497,7 +606,7 @@ class PlanificacionProduccionServicioImplTest {
         SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 4000.0, FECHA_INICIO_SUGERENCIA);
 
         // === ASSERTS ===
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2027, 7, 25));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2100, 7, 25));
         assertThat(resultado.getCantidadLotes()).isEqualTo(14);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
         verify(planificacionProduccionRepository, never()).save(any());
@@ -517,7 +626,7 @@ class PlanificacionProduccionServicioImplTest {
         SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 4000.0, FECHA_INICIO_SUGERENCIA);
 
         // === ASSERTS ===
-        assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 2));
+        assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2099, 11, 2));
         assertThat(resultado.getCapacidadLoteEstandar()).isEqualTo(300.0);
         assertThat(resultado.getCantidadLotes()).isEqualTo(14);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
@@ -536,7 +645,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(2);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 12, 9));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 9));
     }
 
     @Test
@@ -552,7 +661,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(1);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 20));
     }
 
     @Test
@@ -568,7 +677,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(1);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 20));
     }
 
     @Test
@@ -584,7 +693,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(2);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 12, 9));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 9));
     }
 
     @Test
@@ -600,7 +709,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(3);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 12, 28));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 28));
     }
 
     @Test
@@ -616,7 +725,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(1);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 20));
     }
 
     @Test
@@ -632,7 +741,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(1);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(19L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 21));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 21));
     }
 
     @Test
@@ -649,9 +758,9 @@ class PlanificacionProduccionServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultadoEnCero.getDuracionLoteDias()).isEqualTo(17L);
-        assertThat(resultadoEnCero.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 19));
+        assertThat(resultadoEnCero.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 19));
         assertThat(resultadoNulo.getDuracionLoteDias()).isEqualTo(17L);
-        assertThat(resultadoNulo.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 19));
+        assertThat(resultadoNulo.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 19));
     }
 
     @Test
@@ -667,7 +776,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(1);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(1L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2026, 11, 3));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 11, 3));
     }
 
     @Test
@@ -839,7 +948,7 @@ class PlanificacionProduccionServicioImplTest {
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(null)));
 
         // === EJECUCION Y ASSERTS ===
-        // Orden de validación: cantidad, fecha, receta, versión activa, configuración, capacidad, cantidad de lotes
+        // Orden de validación: cantidad, fecha, fecha no anterior a hoy, receta, versión activa, configuración, capacidad, cantidad de lotes
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
@@ -849,12 +958,22 @@ class PlanificacionProduccionServicioImplTest {
         verifyNoInteractions(loteRepository);
     }
 
+    @Test
+    @DisplayName("CP-SF-27: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la fecha de inicio estimada es anterior a hoy (ayer), antes de consultar la receta")
+    void sugerirFechaFinalizacion_debeRechazarFechaInicioAnteriorAHoy() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, LocalDate.now().minusDays(1)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio estimada no puede ser anterior a la fecha actual");
+        verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
     // ==================== helpers ====================
 
     private static PlanificacionProduccionFormDTO.PlanificacionProduccionFormDTOBuilder planificacionFormDTOValidoBuilder(Long idReceta) {
         return PlanificacionProduccionFormDTO.builder()
-                .fechaInicioEstimada(LocalDate.of(2026, 3, 1))
-                .fechaFinalizacionEstimada(LocalDate.of(2026, 4, 1))
+                .fechaInicioEstimada(LocalDate.of(2099, 3, 1))
+                .fechaFinalizacionEstimada(LocalDate.of(2099, 4, 1))
                 .cantidadAProducir(100.0)
                 .idReceta(idReceta);
     }

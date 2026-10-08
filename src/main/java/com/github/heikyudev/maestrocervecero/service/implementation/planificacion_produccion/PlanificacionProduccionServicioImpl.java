@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_pr
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
@@ -33,7 +34,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -43,10 +46,12 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     // Constantes de la estimación de la fecha de finalización (ver sugerirFechaFinalizacion)
     private static final int MINUTOS_POR_DIA = 1440;
     private static final int DIAS_MARGEN_LIMPIEZA_FERMENTADOR = 1;
+    private static final String MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY = "La fecha de inicio estimada no puede ser anterior a la fecha actual";
 
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IRecetaRepository recetaRepository;
     private final ILoteRepository loteRepository;
+    private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IConfiguracionProduccionRepository configuracionProduccionRepository;
 
     /**
@@ -63,26 +68,38 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
      * @param fechaInicio Fecha de inicio estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
-     * @return {@link Page} que contiene los objetos {@link PlanificacionProduccionResponseDTO} correspondientes.
+     * @return {@link Page} que contiene los objetos {@link PlanificacionProduccionResponseDTO} correspondientes, cada uno con sus litros producidos (0.0 si no tiene envasados registrados).
      */
     @Override
     @Transactional(readOnly = true)
     public Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesProduccion(Long idReceta, EstadoSolicitud estado, LocalDate fechaInicio, Pageable pageable) {
-        return planificacionProduccionRepository.filtrarPlanificacionesProduccion(idReceta, estado, fechaInicio, pageable).map(MapperPlanificacionProduccion::toDTO);
+        Page<PlanificacionProduccionEntity> pagina = planificacionProduccionRepository.filtrarPlanificacionesProduccion(idReceta, estado, fechaInicio, pageable);
+
+        // Una sola consulta de agregación para todas las planificaciones de la página (evita una consulta por fila)
+        List<Long> ids = pagina.getContent().stream().map(PlanificacionProduccionEntity::getId).toList();
+        Map<Long, Double> litrosProducidosPorId = new HashMap<>();
+        if (!ids.isEmpty()) {
+            for (Object[] fila : envasadoLoteRepository.sumarLitrosProducidosPorPlanificacion(ids)) {
+                litrosProducidosPorId.put(((Number) fila[0]).longValue(), ((Number) fila[1]).doubleValue());
+            }
+        }
+
+        return pagina.map(p -> MapperPlanificacionProduccion.toDTO(p, litrosProducidosPorId.getOrDefault(p.getId(), 0.0)));
     }
 
     /**
      * Busca y retorna una planificación de producción específica mediante su identificador único.
      *
      * @param id Identificador clave primaria de la planificación de producción buscada.
-     * @return Objeto {@link PlanificacionProduccionResponseDTO} con la información de la planificación de producción encontrada.
+     * @return Objeto {@link PlanificacionProduccionResponseDTO} con la información de la planificación de producción encontrada, incluidos sus litros producidos.
      * @throws RecursoNoEncontradoException Si no existe ninguna planificación de producción activa con el ID especificado.
      */
     @Override
     @Transactional(readOnly = true)
     public PlanificacionProduccionResponseDTO buscarPorId(Long id) {
-        return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + id)));
+        PlanificacionProduccionEntity planificacion = planificacionProduccionRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + id));
+        return MapperPlanificacionProduccion.toDTO(planificacion, envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(id));
     }
 
     /**
@@ -95,7 +112,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      *
      * @param planificacionProduccionFormDTO Objeto DTO que contiene los datos de creación de la planificación de producción.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción guardada en la base de datos, en estado {@code PENDIENTE}.
-     * @throws ReglaNegocioException Si la cantidad a producir no es mayor a 0, o si la fecha de finalización estimada es anterior a la fecha de inicio estimada.
+     * @throws ReglaNegocioException Si la cantidad a producir no es mayor a 0, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), o si la fecha de finalización estimada es anterior a la fecha de inicio estimada.
      * @throws RecursoNoEncontradoException Si la receta referenciada no existe, o si no tiene ninguna versión activa.
      */
     @Override
@@ -107,17 +124,27 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
             throw new ReglaNegocioException("La cantidad a producir debe ser mayor a 0");
         }
 
-        // 2. Validar que la fecha de finalización estimada no sea anterior a la fecha de inicio estimada
+        // 2. Validar que se hayan informado ambas fechas
         LocalDate fechaInicioEstimada = planificacionProduccionFormDTO.getFechaInicioEstimada();
         LocalDate fechaFinalizacionEstimada = planificacionProduccionFormDTO.getFechaFinalizacionEstimada();
-        if (fechaInicioEstimada == null || fechaFinalizacionEstimada == null || fechaFinalizacionEstimada.isBefore(fechaInicioEstimada)) {
+        if (fechaInicioEstimada == null || fechaFinalizacionEstimada == null) {
             throw new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
         }
 
-        // 3. Resolver la última versión activa de la receta seleccionada
+        // 3. Validar que la fecha de inicio estimada no sea anterior a la fecha actual (hoy es válido)
+        if (fechaInicioEstimada.isBefore(LocalDate.now())) {
+            throw new ReglaNegocioException(MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY);
+        }
+
+        // 4. Validar que la fecha de finalización estimada no sea anterior a la fecha de inicio estimada
+        if (fechaFinalizacionEstimada.isBefore(fechaInicioEstimada)) {
+            throw new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
+        }
+
+        // 5. Resolver la última versión activa de la receta seleccionada
         VersionRecetaEntity versionRecetaEntity = obtenerVersionActiva(planificacionProduccionFormDTO.getIdReceta());
 
-        // 4. Crear la entidad de la planificación de producción a partir del DTO de formulario
+        // 6. Crear la entidad de la planificación de producción a partir del DTO de formulario
         PlanificacionProduccionEntity planificacionProduccionEntity = PlanificacionProduccionEntity.builder()
                 .fechaInicioEstimada(fechaInicioEstimada)
                 .fechaFinalizacionEstimada(fechaFinalizacionEstimada)
@@ -126,7 +153,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
                 .versionReceta(versionRecetaEntity)
                 .build();
 
-        // 5. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
+        // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperPlanificacionProduccion.toDTO(planificacionProduccionRepository.save(planificacionProduccionEntity));
     }
 
@@ -250,7 +277,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a cero.
      * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
      * @return {@link SugerenciaFechaFinalizacionResponseDTO} con la fecha de finalización sugerida y los datos de la simulación.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula o no es mayor a cero, si la fecha de inicio estimada es nula, o si la capacidad de lote estándar configurada no es mayor a cero.
+     * @throws ReglaNegocioException Si la cantidad a producir es nula o no es mayor a cero, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), o si la capacidad de lote estándar configurada no es mayor a cero.
      * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
      */
     @Override
@@ -266,21 +293,26 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
             throw new ReglaNegocioException("La fecha de inicio estimada es obligatoria");
         }
 
-        // 3. Resolver la última versión activa de la receta seleccionada
+        // 3. Validar que la fecha de inicio estimada no sea anterior a la fecha actual (hoy es válido)
+        if (fechaInicioEstimada.isBefore(LocalDate.now())) {
+            throw new ReglaNegocioException(MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY);
+        }
+
+        // 4. Resolver la última versión activa de la receta seleccionada
         VersionRecetaEntity versionRecetaEntity = obtenerVersionActiva(idReceta);
 
-        // 4. Localizar la configuración de producción vigente
+        // 5. Localizar la configuración de producción vigente
         ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
                 .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
 
-        // 5. Validar la capacidad de lote estándar (defensivo: la configuración ya lo exige al guardarse)
+        // 6. Validar la capacidad de lote estándar (defensivo: la configuración ya lo exige al guardarse)
         Double capacidadLoteEstandar = configuracion.getCapacidadLoteEstandar();
         if (capacidadLoteEstandar == null || !Double.isFinite(capacidadLoteEstandar) || capacidadLoteEstandar <= 0) {
             throw new ReglaNegocioException("La capacidad de lote estándar configurada debe ser mayor a 0");
         }
 
-        // 6. Cantidad de lotes: división decimal exacta redondeada hacia arriba. No se usa Math.ceil
+        // 7. Cantidad de lotes: división decimal exacta redondeada hacia arriba. No se usa Math.ceil
         //    sobre la división de doubles porque el error de punto flotante puede inflar un cociente
         //    exacto (ej. 600 / 300) y sumar un lote de más; con BigDecimal los múltiplos exactos dan el entero justo.
         BigDecimal lotes = BigDecimal.valueOf(cantidadAProducir)
@@ -290,7 +322,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
         int cantidadLotes = lotes.intValue();
 
-        // 7. Duración de cada lote en días: día de brewing (maceración + hervido, en minutos, hacia arriba
+        // 8. Duración de cada lote en días: día de brewing (maceración + hervido, en minutos, hacia arriba
         //    a días completos; división entera con redondeo hacia arriba) + fermentación + maduración
         long minutosBrewDay = (long) Objects.requireNonNullElse(versionRecetaEntity.getDuracionMaceracion(), 0)
                 + Objects.requireNonNullElse(versionRecetaEntity.getDuracionHervido(), 0);
@@ -299,13 +331,13 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
                 + Objects.requireNonNullElse(versionRecetaEntity.getDuracionFermentacion(), 0)
                 + Objects.requireNonNullElse(versionRecetaEntity.getDuracionMaduracion(), 0);
 
-        // 8. Fecha de finalización: lotes secuenciales en un único fermentador. El lote k termina
+        // 9. Fecha de finalización: lotes secuenciales en un único fermentador. El lote k termina
         //    duracionLoteDias después de su inicio y el siguiente empieza un día después (margen de
         //    limpieza), por lo que el último termina en: inicio + N * duración + (N - 1) * margen
         LocalDate fechaFinalizacionSugerida = fechaInicioEstimada
                 .plusDays(cantidadLotes * duracionLoteDias + (long) (cantidadLotes - 1) * DIAS_MARGEN_LIMPIEZA_FERMENTADOR);
 
-        // 9. Armar la sugerencia (nada se persiste)
+        // 10. Armar la sugerencia (nada se persiste)
         return SugerenciaFechaFinalizacionResponseDTO.builder()
                 .fechaInicioEstimada(fechaInicioEstimada)
                 .fechaFinalizacionSugerida(fechaFinalizacionSugerida)

@@ -41,6 +41,14 @@ public class PlanificacionProduccionResponseDTO {
     private Double cantidadAProducir;
 
     /**
+     * Litros producidos: suma de la cantidad envasada de los envasados {@code REGISTRADO} (no anulados) de
+     * cualquier lote de la planificación. Lo completan {@code filtrarPlanificacionesProduccion} y
+     * {@code buscarPorId}; vale {@code 0.0} si no hay envasados registrados o si el DTO proviene de otra operación.
+     */
+    @Builder.Default
+    private Double litrosProducidos = 0.0;
+
+    /**
      * Fecha y hora en la que se finalizó la planificación de producción (finalización normal o forzada).
      * Queda en {@code null} mientras la planificación está en estado {@code PENDIENTE}.
      */

@@ -357,6 +357,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: 01/07/2027\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 25/07/2027\"")))
                 .andExpect(content().string(containsString("type=\"date\"")))
+                .andExpect(content().string(containsString("min=\"" + LocalDate.now() + "\"")))
                 .andExpect(content().string(containsString("<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>")))
                 .andExpect(content().string(containsString("Registrar planificación")))
                 .andExpect(content().string(containsString("href=\"/planificaciones-produccion\"")))
@@ -1069,6 +1070,78 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verifyNoInteractions(recetaServicio);
+    }
+
+    // ==================== Litros producidos ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-58: el listado muestra la columna \"Producido (L)\" con los litros producidos formateados (2.350) y 0 si no hay envasados")
+    void listado_debeMostrarLaColumnaProducidoConElFormatoDeNumeros() throws Exception {
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(
+                        planificacionBuilder(7L, "Pale Ale", EstadoSolicitud.PENDIENTE).litrosProducidos(2350.0).build(),
+                        planificacionBuilder(8L, "Stout", EstadoSolicitud.PENDIENTE).litrosProducidos(250.5).build(),
+                        planificacion(9L, "Lager", EstadoSolicitud.PENDIENTE)), PageRequest.of(0, 20), 3));
+
+        mockMvc.perform(get("/planificaciones-produccion"))
+                .andExpect(status().isOk())
+                // La columna va justo después de "Litros a producir (L)"
+                .andExpect(content().string(matchesPattern("(?s).*Litros a producir \\(L\\)</th>\\s*<th[^>]*>Producido \\(L\\)</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>2\\.350<.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>250,5<.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>0<.*")))
+                .andExpect(content().string(not(containsString("2350.0"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-59: el estado actual muestra el avance parcial: \"Producido: 250 L de 600 L (42%) · Faltan 350 L\" y la barra al 42%")
+    void detalle_debeMostrarElAvanceParcial() throws Exception {
+        when(planificacionServicio.buscarPorId(7L))
+                .thenReturn(planificacionBuilder(7L, "Pale Ale", EstadoSolicitud.PENDIENTE).litrosProducidos(250.0).build());
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*Producido: <strong[^>]*>250 L</strong>\\s+de 600 L\\s+\\(42%\\).*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-faltan[^>]*>&middot; Faltan 350 L<.*")))
+                .andExpect(content().string(not(containsString("Superó lo solicitado"))))
+                .andExpect(content().string(containsString("role=\"progressbar\"")))
+                .andExpect(content().string(containsString("aria-valuenow=\"42\"")))
+                .andExpect(content().string(matchesPattern("(?s).*data-barra-progreso[^>]*style=\"width: 42%\".*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-60: el estado actual sin envasados muestra \"Producido: 0 L de 600 L (0%) · Faltan 600 L\" y la barra vacía")
+    void detalle_debeMostrarElAvanceEnCeroSinEnvasados() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*Producido: <strong[^>]*>0 L</strong>\\s+de 600 L\\s+\\(0%\\).*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-faltan[^>]*>&middot; Faltan 600 L<.*")))
+                .andExpect(content().string(containsString("aria-valuenow=\"0\"")))
+                .andExpect(content().string(matchesPattern("(?s).*data-barra-progreso[^>]*style=\"width: 0%\".*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-61: el estado actual que superó lo solicitado muestra \"Superó lo solicitado por 1.750 L\" en lugar de \"Faltan\" y la barra tope al 100%")
+    void detalle_debeMostrarLoQueSuperoLoSolicitado() throws Exception {
+        when(planificacionServicio.buscarPorId(7L))
+                .thenReturn(planificacionBuilder(7L, "Pale Ale", EstadoSolicitud.PENDIENTE).litrosProducidos(2350.0).build());
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*Producido: <strong[^>]*>2\\.350 L</strong>\\s+de 600 L\\s+\\(392%\\).*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-superado[^>]*>&middot; Superó lo solicitado por 1\\.750 L<.*")))
+                .andExpect(content().string(not(containsString("Faltan"))))
+                .andExpect(content().string(containsString("aria-valuenow=\"100\"")))
+                .andExpect(content().string(matchesPattern("(?s).*data-barra-progreso[^>]*style=\"width: 100%\".*")));
     }
 
     // ==================== Datos de prueba ====================

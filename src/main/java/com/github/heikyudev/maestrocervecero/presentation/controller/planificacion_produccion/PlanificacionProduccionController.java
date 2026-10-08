@@ -160,6 +160,7 @@ public class PlanificacionProduccionController {
         model.addAttribute("lotesEnEjecucion", contar(lotes, EstadoLote.EN_EJECUCION));
         model.addAttribute("lotesFinalizados", contar(lotes, EstadoLote.FINALIZADO));
         model.addAttribute("lotesCancelados", contar(lotes, EstadoLote.CANCELADO));
+        cargarAvanceProduccion(model, planificacion);
         model.addAttribute("gantt", GanttPlanificacionBuilder.construir(lotes,
                 planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada(), LocalDate.now()));
         return VISTA_DETALLE;
@@ -272,6 +273,25 @@ public class PlanificacionProduccionController {
         } catch (RecursoNoEncontradoException e) {
             return null;
         }
+    }
+
+    /**
+     * Calcula lo que el encabezado del estado actual muestra del avance: litros faltantes o excedidos
+     * (solo uno de los dos es mayor a cero), el porcentaje producido y el de la barra (tope 100).
+     */
+    private static void cargarAvanceProduccion(Model model, PlanificacionProduccionResponseDTO planificacion) {
+        double solicitado = planificacion.getCantidadAProducir() != null ? planificacion.getCantidadAProducir() : 0.0;
+        double producido = planificacion.getLitrosProducidos() != null ? planificacion.getLitrosProducidos() : 0.0;
+        long porcentaje = solicitado > 0 ? Math.round(producido * 100 / solicitado) : 0;
+
+        model.addAttribute("litrosFaltantes", redondear(Math.max(0, solicitado - producido)));
+        model.addAttribute("litrosExcedidos", redondear(Math.max(0, producido - solicitado)));
+        model.addAttribute("porcentajeProducido", porcentaje);
+        model.addAttribute("porcentajeBarra", Math.min(100, porcentaje));
+    }
+
+    private static double redondear(double valor) {
+        return Math.round(valor * 100) / 100.0;
     }
 
     private static long contar(List<LoteCronogramaResponseDTO> lotes, EstadoLote estado) {

@@ -17,11 +17,24 @@ public class MapperPlanificacionProduccion {
      * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
      */
     public static PlanificacionProduccionResponseDTO toDTO(PlanificacionProduccionEntity planificacionProduccionEntity) {
+        return toDTO(planificacionProduccionEntity, 0.0);
+    }
+
+    /**
+     * Igual que {@link #toDTO(PlanificacionProduccionEntity)}, informando además los litros producidos
+     * (dato calculado por una consulta de agregación, no almacenado en la entidad).
+     *
+     * @param planificacionProduccionEntity Entidad de planificación de producción a convertir.
+     * @param litrosProducidos Suma de la cantidad envasada de los envasados registrados de la planificación.
+     * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
+     */
+    public static PlanificacionProduccionResponseDTO toDTO(PlanificacionProduccionEntity planificacionProduccionEntity, double litrosProducidos) {
         if (planificacionProduccionEntity == null) {
             return null;
         }
 
         return PlanificacionProduccionResponseDTO.builder()
+                .litrosProducidos(litrosProducidos)
                 .id(planificacionProduccionEntity.getId())
                 .fechaInicioEstimada(planificacionProduccionEntity.getFechaInicioEstimada())
                 .fechaFinalizacionEstimada(planificacionProduccionEntity.getFechaFinalizacionEstimada())
