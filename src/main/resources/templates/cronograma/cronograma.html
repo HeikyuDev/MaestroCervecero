@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#cronograma-content}, 'cronograma')}">
+<body>
+
+<!--
+    Cronograma de producción global (solo el Gerente de Producción): el diagrama de Gantt con un carril por
+    fermentador y, debajo, la cola de lotes pendientes de cada uno, donde se puede subir o bajar un lote.
+    El diagrama es el mismo fragmento del estado actual de una planificación (planificacion_produccion/gantt).
+    No valida nada: las reglas de la cola las valida el servidor y su rechazo vuelve a esta página como alerta.
+-->
+<div id="cronograma-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Cronograma de Producción</h1>
+        <p class="text-sm text-slate-500">Lotes de todas las planificaciones por fermentador y el orden de la cola de lotes pendientes.</p>
+    </div>
+
+    <!-- Filtros -->
+    <form th:action="@{/cronograma-produccion}" method="get" novalidate data-cronograma-filtros
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div>
+            <label for="idFermentador" class="block text-xs font-medium text-slate-500 mb-1">Fermentador</label>
+            <select id="idFermentador" name="idFermentador"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="f : ${fermentadores}" th:value="${f.id}" th:selected="${f.id == filtroIdFermentador}"
+                        th:text="${f.identificadorInterno}">F-01</option>
+            </select>
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Planificación a destacar</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacion', ${filtroIdPlanificacion}, ${filtroPlanificacionTexto},
+                    @{/cronograma-produccion/buscador/planificaciones}, null, null, true, false, 'Seleccionar planificación')}"></div>
+        </div>
+        <div class="flex items-center h-10">
+            <label for="incluirHistorial" class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" id="incluirHistorial" name="incluirHistorial" value="true" th:checked="${filtroHistorial}"
+                       class="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500/40">
+                Mostrar finalizados y cancelados anteriores
+            </label>
+        </div>
+        <div class="md:col-span-3 flex items-center justify-end gap-3">
+            <a th:href="@{/cronograma-produccion}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-funnel"></i> Aplicar
+            </button>
+        </div>
+    </form>
+
+    <!-- Diagrama de Gantt: un carril por fermentador, con los lotes de todas las planificaciones -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Cronograma de lotes</h2>
+        <div class="p-5">
+            <p th:if="${filtroIdPlanificacion != null}" class="mb-3 text-xs text-slate-500">
+                Los lotes que no son de <strong th:text="${filtroPlanificacionTexto}">Plan #7</strong> se muestran atenuados.
+            </p>
+            <div th:if="${#lists.isEmpty(gantt.carriles)}" data-cronograma-sin-fermentadores class="py-8 text-center text-slate-400">
+                <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
+                No hay fermentadores activos ni lotes para mostrar
+            </div>
+            <th:block th:unless="${#lists.isEmpty(gantt.carriles)}">
+                <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>
+                <p th:if="${gantt.vacio}" data-cronograma-sin-lotes class="mt-3 text-center text-sm text-slate-400">
+                    No hay lotes para mostrar con los criterios indicados
+                </p>
+            </th:block>
+        </div>
+    </section>
+
+    <!-- Cola pendiente de cada fermentador -->
+    <section th:each="cola : ${colas}" data-cola th:attr="data-cola-fermentador=${cola.fermentador}"
+             class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">
+            Cola pendiente de <span th:text="${cola.fermentador}">F-01</span>
+        </h2>
+
+        <!-- El lote en ejecución ocupa el fermentador y no se mueve: va arriba de la cola solo como contexto -->
+        <div th:if="${cola.enEjecucion != null}" data-cola-en-ejecucion
+             th:classappend="${cola.enEjecucionAtenuado} ? 'opacity-50'"
+             class="px-5 py-3 border-b border-slate-100 bg-amber-50/50 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span class="text-xs font-semibold uppercase tracking-wider text-amber-700">En ejecución (no se puede mover)</span>
+            <span class="font-medium text-slate-900" th:text="${cola.enEjecucion.identificadorInterno}">PALE_ALE-1</span>
+            <span class="text-slate-700" th:text="${cola.enEjecucion.nombreReceta}">Pale Ale</span>
+            <span class="text-slate-700" th:if="${cola.enEjecucion.idPlanificacionProduccion != null}"
+                  th:text="|Plan #${cola.enEjecucion.idPlanificacionProduccion}|">Plan #7</span>
+            <span class="text-slate-700 whitespace-nowrap">
+                Fin estimado: <th:block th:replace="~{planificacion_produccion/formato :: fecha(${cola.enEjecucion.fechaFinalizacionEstimada})}"></th:block>
+            </span>
+        </div>
+
+        <div th:if="${#lists.isEmpty(cola.pendientes)}" data-cola-vacia class="px-5 py-8 text-center text-slate-400">
+            <i class="bi bi-hourglass block text-3xl mb-2"></i>
+            No hay lotes pendientes en este fermentador
+        </div>
+
+        <div th:unless="${#lists.isEmpty(cola.pendientes)}" class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-2 py-3 whitespace-nowrap">#</th>
+                    <th class="px-2 py-3 whitespace-nowrap">Lote</th>
+                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Receta</th>
+                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Plan</th>
+                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Vol. (L)</th>
+                    <th class="px-2 py-3 whitespace-nowrap">Inicio</th>
+                    <th class="px-2 py-3 whitespace-nowrap">Fin</th>
+                    <th class="px-2 py-3 text-right whitespace-nowrap">Mover</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="item : ${cola.pendientes}" data-cola-fila th:attr="data-lote=${item.lote.id}"
+                    th:classappend="${item.atenuado} ? 'opacity-50'" class="hover:bg-slate-50">
+                    <td class="px-2 py-3 font-semibold text-slate-700 whitespace-nowrap" th:text="${item.posicion}">1</td>
+                    <td class="px-2 py-3 whitespace-nowrap">
+                        <div class="font-medium text-slate-900" th:text="${item.lote.identificadorInterno}">PALE_ALE-1</div>
+                        <!-- Debajo de xl, receta, planificación y volumen van como detalle del lote para que la fila entre sin desplazarse -->
+                        <div class="xl:hidden text-xs text-slate-500" data-cola-detalle-compacto>
+                            <span th:text="${item.lote.nombreReceta}">Pale Ale</span> ·
+                            <span th:text="|Plan #${item.lote.idPlanificacionProduccion}|">Plan #7</span> ·
+                            <span><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block> L</span>
+                        </div>
+                    </td>
+                    <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${item.lote.nombreReceta}">Pale Ale</td>
+                    <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap" th:text="|#${item.lote.idPlanificacionProduccion}|">#7</td>
+                    <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaInicioEstimada})}"></th:block></td>
+                    <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaFinalizacionEstimada})}"></th:block></td>
+                    <td class="px-2 py-3">
+                        <div class="flex items-center justify-end gap-1">
+                            <form th:action="@{/cronograma-produccion/lotes/{id}/subir(id=${item.lote.id})}" method="post" novalidate class="m-0">
+                                <input type="hidden" name="idFermentador" th:if="${filtroIdFermentador != null}" th:value="${filtroIdFermentador}">
+                                <input type="hidden" name="idPlanificacion" th:if="${filtroIdPlanificacion != null}" th:value="${filtroIdPlanificacion}">
+                                <input type="hidden" name="incluirHistorial" th:if="${filtroHistorial}" value="true">
+                                <button type="submit" data-mover="subir" th:attr="data-lote=${item.lote.id}" th:disabled="${item.primero}"
+                                        title="Subir una posición" aria-label="Subir una posición"
+                                        class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600">
+                                    <i class="bi bi-arrow-up"></i> Subir
+                                </button>
+                            </form>
+                            <form th:action="@{/cronograma-produccion/lotes/{id}/bajar(id=${item.lote.id})}" method="post" novalidate class="m-0">
+                                <input type="hidden" name="idFermentador" th:if="${filtroIdFermentador != null}" th:value="${filtroIdFermentador}">
+                                <input type="hidden" name="idPlanificacion" th:if="${filtroIdPlanificacion != null}" th:value="${filtroIdPlanificacion}">
+                                <input type="hidden" name="incluirHistorial" th:if="${filtroHistorial}" value="true">
+                                <button type="submit" data-mover="bajar" th:attr="data-lote=${item.lote.id}" th:disabled="${item.ultimo}"
+                                        title="Bajar una posición" aria-label="Bajar una posición"
+                                        class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-2 py-1 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600">
+                                    <i class="bi bi-arrow-down"></i> Bajar
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+</body>
+</html>

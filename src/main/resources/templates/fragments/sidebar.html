@@ -43,6 +43,11 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar-check', 'Planificación de Producción')}"></a>
             </th:block>
 
+            <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/cronograma-produccion', ${opcionActiva}, 'cronograma', 'bi-bar-chart-steps', 'Cronograma de Producción')}"></a>
+            </th:block>
+
             <!-- ÓRDENES DE COMPRA (Gerente de Compras) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
                 <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'compras', 'bi-cart3', 'Órdenes de Compra')}"></a>

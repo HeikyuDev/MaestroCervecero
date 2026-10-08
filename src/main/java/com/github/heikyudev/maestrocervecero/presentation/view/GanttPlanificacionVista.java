@@ -10,7 +10,9 @@ import java.util.List;
  * Modelo de vista del diagrama de Gantt de una planificación de producción.
  * <p>
  * Contiene toda la geometría ya calculada (posiciones y anchos en porcentaje del eje de tiempo) para
- * que la plantilla solo la dibuje, sin hacer cuentas. Lo arma {@link GanttPlanificacionBuilder}.
+ * que la plantilla solo la dibuje, sin hacer cuentas. Lo arman {@link GanttPlanificacionBuilder} (una
+ * planificación) y {@link CronogramaProduccionBuilder} (el cronograma global, que no tiene marcas de
+ * planificación y puede tener carriles sin barras).
  * </p>
  */
 @Value
@@ -73,7 +75,12 @@ public class GanttPlanificacionVista {
     Double finPlanificacionPct;
 
     /**
-     * Carril del diagrama: un fermentador con sus lotes en orden cronológico.
+     * {@code true} si el diagrama destaca una planificación y atenúa las barras de las demás (cronograma global).
+     */
+    boolean planificacionResaltada;
+
+    /**
+     * Carril del diagrama: un fermentador con sus lotes en orden cronológico. Puede no tener barras.
      */
     @Value
     @Builder
@@ -111,6 +118,9 @@ public class GanttPlanificacionVista {
 
         /** Porción ya transcurrida de la barra, en % de su ancho. Solo es mayor a cero en un lote en ejecución. */
         double progresoPct;
+
+        /** {@code true} si la barra se dibuja atenuada porque su lote no es de la planificación destacada. */
+        boolean atenuada;
     }
 
     /**

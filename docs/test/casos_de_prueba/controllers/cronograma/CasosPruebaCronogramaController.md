@@ -1,0 +1,87 @@
+## Casos de prueba de `CronogramaController`
+
+**Tipo de prueba:** capa web (`@WebMvcTest`, clase `CronogramaControllerTest`). Se ejecutan sobre Spring MVC, Spring Security (`SecurityConfig`, con CSRF y `@PreAuthorize`), el `ControllerAdvices` y las plantillas Thymeleaf reales; los services (`ILoteServicio`, `IFermentadorServicio`, `IPlanificacionProduccionServicio`) están simulados (mock) y no hay base de datos. Las reglas de la cola (qué lotes se pueden mover y cómo se reencadenan las fechas) se prueban aparte, en el service de lotes; la geometría del diagrama, en `services/lote/CasosPruebaGanttCronogramaBuilder.md` y `services/planificacion_produccion/CasosPruebaGanttPlanificacionBuilder.md`.
+
+**Roles requeridos:** todo el controller es solo del `GERENTE_DE_PRODUCCION` (`@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")` a nivel de clase). Cualquier otro rol es rechazado en todos los endpoints: redirige con alerta `danger` y no llega a ningún service.
+
+**Convenciones de los resultados:**
+- _"Redirige con alerta"_ significa una respuesta 3xx con los atributos flash `mensaje` y `tipo` que muestra el layout. Un POST sin token CSRF es rechazado (3xx) y no llega al service.
+- La pantalla (`GET /cronograma-produccion`) tiene tres partes: los filtros, el diagrama de Gantt (reutiliza el fragmento `planificacion_produccion/gantt`, el mismo del estado actual de una planificación) y, debajo, la cola de lotes pendientes de cada fermentador.
+- Los filtros son el fermentador (desplegable con "Todos" y los fermentadores activos en orden alfabético por identificador), la planificación a destacar (selector con buscador: campo en blanco con ícono de lista y botón para quitar) y la casilla "Mostrar finalizados y cancelados anteriores". El formulario es `novalidate`: el servidor es el único que valida.
+- El diagrama tiene un carril por fermentador activo (todos los que el filtro permite, con o sin lotes; uno sin lotes muestra "Sin lotes en este período"), con los lotes de todas las planificaciones intercalados. Cada barra dice receta, planificación y lote ("Pale Ale - Plan #7 - PALE_ALE-1"). Hay leyenda, línea y bandera de "Hoy", etiquetas del eje alineadas hacia adentro en los bordes, columna de fermentadores fija y desplazamiento horizontal.
+- La planificación elegida no quita lotes: atenúa las barras y las filas de cola de los lotes de otras planificaciones y la leyenda lo explica.
+- Cada cola lista los lotes pendientes de su fermentador, en el orden de los carriles, con posición, lote, receta, plan, volumen, inicio y fin estimados (receta, plan y volumen son columnas desde el ancho `xl`; debajo se muestran como detalle compacto bajo el lote, sin desplazamiento horizontal) y los botones compactos "Subir" (`bi-arrow-up`) y "Bajar" (`bi-arrow-down`), cada uno un formulario POST con token CSRF. "Subir" queda desactivado en la primera fila y "Bajar" en la última (solo ayuda visual: el servidor igual valida y rechaza con su mensaje). Si el fermentador tiene un lote en ejecución se muestra arriba de la cola como "En ejecución (no se puede mover)", sin botones. Sin pendientes: "No hay lotes pendientes en este fermentador".
+- Los parámetros llegan como texto y se interpretan con tolerancia: un valor inválido se ignora y la página avisa con una alerta de advertencia (nunca un error del servidor). Un fermentador inexistente o inactivo y una planificación inexistente también se ignoran con aviso. La casilla de historial acepta `true` u `on`; cualquier otro valor equivale a no tildada.
+- Mover un lote es un Post-Redirect-Get: el éxito redirige a `/cronograma-produccion` con la alerta "Lote <identificador> movido en la cola: ahora del <inicio> al <fin>" (fechas `dd/MM/yyyy`) y conserva en la URL solo los filtros válidos (`idFermentador`, `idPlanificacion`, `incluirHistorial=true`); los botones los envían como campos ocultos. Un rechazo del service (`ReglaNegocioException`, alerta `warning`) o un lote inexistente (`RecursoNoEncontradoException`, alerta `danger`) vuelve al origen (header `Referer`) mostrando el mensaje del service.
+- La sidebar muestra "Cronograma de Producción" (ícono `bi-bar-chart-steps`) en la sección Operación para el `GERENTE_DE_PRODUCCION`.
+
+---
+
+### 1. `GET /cronograma-produccion` — `mostrarCronograma(...)`
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-CGC-01** | Cronograma con lotes | Rol `GERENTE_DE_PRODUCCION`. Fermentadores "F-01" y "F-02"; lotes "PALE_ALE-1" (en ejecución) y "PALE_ALE-2" (pendiente) del plan 7 en "F-01", y "STOUT-1" (pendiente) del plan 8 en "F-02" | El rol está autorizado | Responde 200 con la vista `cronograma/cronograma`. Muestra el título, el formulario de filtros (`novalidate`, "Todos", la casilla de historial, "Aplicar" y "Limpiar"), el diagrama (`data-gantt`, las etiquetas "Pale Ale - Plan #7 - PALE_ALE-1", "Pale Ale - Plan #7 - PALE_ALE-2" y "Stout - Plan #8 - STOUT-1", colores de pendiente y en ejecución, línea y bandera de hoy, `overflow-x-auto`, columna fija `sticky left-0`) y las secciones de cola de "F-01" y "F-02". Llama al service con fermentador `null` e historial `false`. |
+| **CP-CGC-02** | Carriles vacíos | Dos fermentadores activos y ningún lote | Todo fermentador activo tiene carril | Un carril vacío por fermentador con "Sin lotes en este período" (2), el aviso "No hay lotes para mostrar con los criterios indicados" y, en cada cola, "No hay lotes pendientes en este fermentador" (2). No hay botones de mover. |
+| **CP-CGC-03** | Sin fermentadores ni lotes | Ningún fermentador activo y ningún lote | No hay nada que dibujar | Muestra "No hay fermentadores activos ni lotes para mostrar"; sin diagrama ni secciones de cola. |
+| **CP-CGC-04** | Fermentadores activos | Dos fermentadores activos | Se piden todos, ordenados | Pide al service de fermentadores, sin filtros, una única página de tamaño máximo con ordenamiento por `identificadorInterno`. "F-01" y "F-02" aparecen como opciones del filtro, en ese orden. |
+| **CP-CGC-05** | Filtros hacia el service | `idFermentador: 2`, `incluirHistorial: true` | Los dos criterios son opcionales y se combinan | Llama al service con `2` y `true`. El filtro deja elegido "F-02", la casilla tildada, un solo carril y solo la cola de "F-02". |
+| **CP-CGC-06** | Casilla de historial | `incluirHistorial` = `on`, `no` y vacío | Solo `true` u `on` tildan la casilla | `on` llama al service con `true`; `no` y vacío, con `false`. |
+| **CP-CGC-07** | Colas y botones de mover | "F-01" con 3 pendientes (lotes 1, 2, 3) y "F-02" con 1 (lote 4) | Subir desactivado en el primero y Bajar en el último de cada cola | Las secciones van en el orden "F-01", "F-02" y las filas en orden de cola. "Subir" está desactivado en los lotes 1 y 4 y activo en el 2 y el 3; "Bajar" está desactivado en los lotes 3 y 4 y activo en el 1 y el 2. |
+| **CP-CGC-08** | Botones como formularios POST | 2 pendientes (lotes 1 y 2) en "F-01" | Cada botón envía un POST con CSRF | Hay formularios `method="post"` hacia `/cronograma-produccion/lotes/1/subir`, `/1/bajar`, `/2/subir` y `/2/bajar`, con `_csrf`, los íconos `bi-arrow-up` y `bi-arrow-down`, los textos "Subir" y "Bajar" y `whitespace-nowrap`. |
+| **CP-CGC-09** | Lote en ejecución | "F-01" con un finalizado, un en ejecución (lote 2), un pendiente (lote 3) y un cancelado | El lote en ejecución no se mueve | Se muestra arriba de la cola como "En ejecución (no se puede mover)", antes de las filas. La cola tiene una sola fila (lote 3) y no hay botones de los lotes 1, 2 ni 4. |
+| **CP-CGC-10** | Datos de la fila | 1 pendiente "PALE_ALE-1" del plan 7, receta "Pale Ale", 300.0 L, del 01/07/2027 al 05/07/2027 | La fila muestra lo necesario para decidir | Muestra las columnas "Vol. (L)", "Inicio" y "Fin", el lote, "#7", "300" (no `300.0`) y las fechas "01/07/2027" y "05/07/2027". |
+| **CP-CGC-11** | Selector de planificación | Rol `GERENTE_DE_PRODUCCION` | Elegir una entidad relacionada es un buscador, no un combo | El filtro es el selector de entidad: campo `idPlanificacion` en blanco con ícono `bi-list-ul`, `data-buscador-url="/cronograma-produccion/buscador/planificaciones"`, placeholder "Seleccionar planificación" y botón para quitar la selección; sin menú de alta. |
+| **CP-CGC-12** | Planificación destacada | `idPlanificacion: 7` (existe: "Pale Ale"); lotes del plan 7 (lote 1) y del plan 8 (lote 2) en "F-01" | El filtro no quita lotes: atenúa los de otras planificaciones | Se dibujan las dos barras; solo la del plan 8 va atenuada. En la cola, la fila del lote 2 lleva `opacity-50` y la del lote 1 no. La leyenda explica el atenuado, el selector muestra "Plan #7 - Pale Ale" con `idPlanificacion` oculto en 7. |
+| **CP-CGC-13** | Sin planificación destacada | Dos lotes de planificaciones distintas | Sin criterio no se atenúa nada | Ninguna barra ni fila lleva el atenuado, la leyenda no lo menciona y no se consulta ninguna planificación. |
+| **CP-CGC-14** | Los botones conservan los filtros | `idFermentador: 3`, `idPlanificacion: 7`, `incluirHistorial: true` | Mover vuelve a la misma vista | Los formularios de subir y bajar del lote llevan los tres campos ocultos con esos valores. El service recibe `3` y `true`. |
+| **CP-CGC-15** | Sin filtros | 1 pendiente, sin parámetros | Sin filtros no hay campos ocultos | Los formularios de mover no llevan `idFermentador`, `idPlanificacion` ni `incluirHistorial`. |
+| **CP-CGC-16** | Parámetros inválidos | `idFermentador: abc`, `idPlanificacion: -5`, `incluirHistorial: xyz` | Un valor inválido se ignora y se avisa | Responde 200 (no un error del servidor) con la alerta de advertencia que explica que el fermentador y la planificación indicados no son válidos. Llama al service con `null` y `false` y no consulta ninguna planificación. |
+| **CP-CGC-17** | Fermentador inexistente | `idFermentador: 99` que no está entre los activos | Se ignora y se listan todos | Alerta "no existe o no está activo"; se muestra la cola de "F-01". El service recibe `null` y `false`. |
+| **CP-CGC-18** | Planificación inexistente | `idPlanificacion: 99`; el service de planificaciones lanza `RecursoNoEncontradoException` | Se ignora y no se destaca ninguna | Responde 200 con un aviso que dice que la planificación no existe; ninguna barra va atenuada y la leyenda no menciona el atenuado. |
+| **CP-CGC-19** | Alerta flash | Atributos flash `mensaje` ("Lote DEMO-3 movido en la cola") y `tipo` `success` | El layout muestra la alerta del Post-Redirect-Get | La página incluye el mensaje con el estilo de éxito. |
+| **CP-CGC-20** | Sidebar | Rol `GERENTE_DE_PRODUCCION` | El cronograma es operación diaria | "Cronograma de Producción" (`/cronograma-produccion`, ícono `bi-bar-chart-steps`) aparece en la sección Operación, antes de Administración, resaltada como opción activa. |
+
+---
+
+### 2. `POST /cronograma-produccion/lotes/{id}/subir` — `subirLote(...)`
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-CGC-21** | Subir correctamente | Lote 3; el service lo mueve y devuelve "DEMO-3" del 12/11/2026 al 30/11/2026 | Éxito | Llama al service solo con `subirLoteEnCola(3)`. Redirige a `/cronograma-produccion` con la alerta de éxito "Lote DEMO-3 movido en la cola: ahora del 12/11/2026 al 30/11/2026". |
+| **CP-CGC-22** | Subir conserva los filtros | Lote 3 con `idFermentador: 2`, `idPlanificacion: 7`, `incluirHistorial: true` | PRG con los mismos filtros | Redirige a `/cronograma-produccion?idFermentador=2&idPlanificacion=7&incluirHistorial=true` con alerta de éxito. |
+| **CP-CGC-23** | Filtros inválidos en el POST | `idFermentador: abc`, `idPlanificacion` vacío, `incluirHistorial: no` | Solo viajan los filtros válidos | Redirige a `/cronograma-produccion` sin parámetros y con alerta de éxito. |
+| **CP-CGC-24** | Rechazo del service | El service lanza `ReglaNegocioException("Solo se pueden mover lotes en estado Pendiente")`; `Referer: /cronograma-produccion?idFermentador=2` | Una regla incumplida no es un error del servidor | Vuelve al origen (`Referer`) con la alerta `warning` y el mensaje del service. |
+| **CP-CGC-25** | Lote inexistente | El service lanza `RecursoNoEncontradoException` para el lote 99 | El recurso no existe | Vuelve al origen con la alerta `danger` y el mensaje del service. |
+
+---
+
+### 3. `POST /cronograma-produccion/lotes/{id}/bajar` — `bajarLote(...)`
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-CGC-26** | Bajar correctamente | Lote 4 con `idFermentador: 2`; el service devuelve "DEMO-4" del 01/12/2026 al 15/12/2026 | Éxito | Llama al service solo con `bajarLoteEnCola(4)`. Redirige a `/cronograma-produccion?idFermentador=2` con la alerta "Lote DEMO-4 movido en la cola: ahora del 01/12/2026 al 15/12/2026". |
+| **CP-CGC-27** | Rechazo del service | El service lanza `ReglaNegocioException` ("El lote ya es el último de la cola de su fermentador") | Una regla incumplida | Vuelve al origen con la alerta `warning` y ese mensaje. |
+| **CP-CGC-28** | Lote inexistente | El service lanza `RecursoNoEncontradoException` para el lote 99 | El recurso no existe | Vuelve al origen con la alerta `danger` y el mensaje del service. |
+| **CP-CGC-29** | Sin token CSRF | POST de subir y de bajar sin `_csrf` | Spring Security exige el token | Ambos son rechazados (3xx) y el service de lotes no se invoca. |
+
+---
+
+### 4. `GET /cronograma-produccion/buscador/planificaciones` — `buscarPlanificaciones(...)`
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-CGC-30** | Fragmento del buscador | Planificaciones 8 ("Stout", Finalizada) y 7 ("Pale Ale", Pendiente, 600 L, inicio 01/07/2027) | El buscador devuelve un fragmento, no una página | Responde 200 con la vista `cronograma/buscador-planificacion :: buscador`, sin `<html`. Muestra "Buscar planificación", el criterio "Receta" con el placeholder "Ej: Pale Ale" (formulario `data-modal-buscar` hacia el mismo endpoint), las columnas con el litro, el inicio y el estado legible ("Pendiente", "Finalizada") y por fila el botón "Elegir" con `data-id` (7, 8) y `data-texto="Plan #7 - Pale Ale"`. |
+| **CP-CGC-31** | Orden de las planificaciones | Sin parámetros | La última registrada va arriba | Pide al service todas las planificaciones sin filtrar por receta, estado ni fecha y con ordenamiento por `id` descendente. |
+| **CP-CGC-32** | Criterio de receta | Planificaciones "Stout" (9), "Pale Ale" (8) e "Imperial Stout" (7); `receta: " STOUT "` | Coincidencia parcial, sin distinguir mayúsculas ni espacios sobrantes | Muestra la 9 y la 7 y no la 8; el campo conserva el criterio. |
+| **CP-CGC-33** | Paginación de a 8 | 10 planificaciones de "Pale Ale"; `receta: pale`, páginas 0 y 1 | Páginas de 8, última registrada arriba | La primera página tiene 8 filas (de la 10 a la 3), "Página 1 de 2" y los links de paginación marcados `data-modal-get="true"` con `pagina=1` y `receta=pale`. La segunda trae las 2 restantes (2 y 1) y el link `pagina=0`. |
+| **CP-CGC-34** | Sin resultados y página negativa | `receta: zzz`; y `pagina: -3` | Mensaje claro; una página negativa equivale a la primera | Muestra "No se encontraron planificaciones con los criterios indicados."; con la página negativa responde 200 con la primera página. |
+
+---
+
+### 5. Roles no autorizados
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-CGC-35** | Ver el cronograma y el buscador | Roles `GERENTE_DE_COMPRAS`, `OPERARIO_DE_PRODUCCION` y `ADMINISTRADOR`: `GET /cronograma-produccion` y `GET /cronograma-produccion/buscador/planificaciones` | `@PreAuthorize` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. No se invoca ningún service. |
+| **CP-CGC-36** | Subir y bajar lotes | Los mismos tres roles: `POST /cronograma-produccion/lotes/3/subir` y `/bajar` con CSRF | `@PreAuthorize` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. El service de lotes no se invoca. |
