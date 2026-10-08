@@ -116,7 +116,12 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("bi-x-circle")))
                 // La tabla se desplaza horizontalmente dentro de su tarjeta y las celdas no se parten
                 .andExpect(content().string(containsString("overflow-x-auto")))
-                .andExpect(content().string(containsString("whitespace-nowrap")));
+                .andExpect(content().string(containsString("whitespace-nowrap")))
+                // Debajo de xl, Inicio y Fin comparten una celda y las columnas completas se muestran desde xl
+                .andExpect(content().string(containsString("title=\"Inicio estimado y fin estimado\"")))
+                .andExpect(content().string(containsString("hidden xl:table-cell")))
+                .andExpect(content().string(containsString("aria-label=\"Finalizar planificación\"")))
+                .andExpect(content().string(containsString("aria-label=\"Anular planificación\"")));
     }
 
     @Test
@@ -1086,8 +1091,8 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
-                // La columna va justo después de "Litros a producir (L)"
-                .andExpect(content().string(matchesPattern("(?s).*Litros a producir \\(L\\)</th>\\s*<th[^>]*>Producido \\(L\\)</th>.*")))
+                // La columna va justo después de "Litros (L)" (título completo: "Litros a producir (L)")
+                .andExpect(content().string(matchesPattern("(?s).*>Litros \\(L\\)</th>\\s*<th[^>]*>Producido \\(L\\)</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>2\\.350<.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>250,5<.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>0<.*")))
