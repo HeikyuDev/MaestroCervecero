@@ -58,6 +58,11 @@ public class GanttPlanificacionVista {
     Double hoyPct;
 
     /**
+     * Alineación de la bandera "Hoy" respecto de su posición, o {@code null} si hoy queda fuera del eje.
+     */
+    Alineacion hoyAlineacion;
+
+    /**
      * Posición (en %) del inicio estimado de la planificación, o {@code null} si no tiene fecha.
      */
     Double inicioPlanificacionPct;
@@ -115,5 +120,25 @@ public class GanttPlanificacionVista {
     public static class MarcaEje {
         double posicionPct;
         String etiqueta;
+
+        /** Cómo se ubica la etiqueta respecto de su posición, para que nunca quede recortada en los bordes. */
+        Alineacion alineacion;
+    }
+
+    /**
+     * Ubicación de una etiqueta respecto del punto del eje al que apunta.
+     */
+    public enum Alineacion {
+        /** La etiqueta empieza en el punto (para las del borde izquierdo). */
+        IZQUIERDA,
+        /** La etiqueta se centra sobre el punto. */
+        CENTRO,
+        /** La etiqueta termina en el punto (para las del borde derecho). */
+        DERECHA;
+
+        /** Nombre en minúsculas, para armar el nombre de la clase CSS. */
+        public String clave() {
+            return name().toLowerCase();
+        }
     }
 }

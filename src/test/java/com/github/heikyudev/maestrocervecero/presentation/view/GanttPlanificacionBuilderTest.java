@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.view;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Alineacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Carril;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
@@ -468,6 +469,50 @@ class GanttPlanificacionBuilderTest {
 
         // Assert
         assertThat(vista.getCarriles().get(0).getBarras()).extracting(Barra::getIdLote).containsExactly(3L, 5L);
+    }
+
+    // ==================== Alineación de etiquetas ====================
+
+    @Test
+    @DisplayName("CP-GPB-24: la etiqueta de la marca del borde izquierdo se alinea a la izquierda, la del borde derecho a la derecha y las demás al centro")
+    void lasEtiquetasDeLosBordesSeAlineanHaciaAdentro() {
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(
+                List.of(), LocalDate.of(2027, 7, 1), LocalDate.of(2027, 7, 27), HOY_LEJANO);
+
+        // Assert
+        assertThat(vista.getTotalDias()).isEqualTo(29);
+        assertThat(vista.getMarcasEje()).extracting(m -> m.getEtiqueta())
+                .containsExactly("30/06", "07/07", "14/07", "21/07", "28/07");
+        assertThat(vista.getMarcasEje()).extracting(m -> m.getAlineacion())
+                .containsExactly(Alineacion.IZQUIERDA, Alineacion.CENTRO, Alineacion.CENTRO, Alineacion.CENTRO, Alineacion.DERECHA);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-25: el límite de borde es del 4 % del eje: hasta 4 % se alinea a la izquierda, desde 96 % a la derecha y entre ambos al centro")
+    void elLimiteDeBordeEsDelCuatroPorCiento() {
+        assertThat(GanttPlanificacionBuilder.alineacionPara(0.0)).isEqualTo(Alineacion.IZQUIERDA);
+        assertThat(GanttPlanificacionBuilder.alineacionPara(4.0)).isEqualTo(Alineacion.IZQUIERDA);
+        assertThat(GanttPlanificacionBuilder.alineacionPara(4.01)).isEqualTo(Alineacion.CENTRO);
+        assertThat(GanttPlanificacionBuilder.alineacionPara(95.99)).isEqualTo(Alineacion.CENTRO);
+        assertThat(GanttPlanificacionBuilder.alineacionPara(96.0)).isEqualTo(Alineacion.DERECHA);
+        assertThat(GanttPlanificacionBuilder.alineacionPara(100.0)).isEqualTo(Alineacion.DERECHA);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-26: la bandera de hoy se alinea según su cercanía a los bordes y no existe si hoy queda fuera del eje")
+    void laBanderaDeHoySeAlineaSegunElBorde() {
+        // Act
+        GanttPlanificacionVista primerDia = GanttPlanificacionBuilder.construir(List.of(), fecha(1), fecha(25), LocalDate.of(2027, 6, 30));
+        GanttPlanificacionVista medio = GanttPlanificacionBuilder.construir(List.of(), fecha(1), fecha(25), fecha(10));
+        GanttPlanificacionVista ultimoDia = GanttPlanificacionBuilder.construir(List.of(), fecha(1), fecha(25), fecha(26));
+        GanttPlanificacionVista fuera = GanttPlanificacionBuilder.construir(List.of(), fecha(1), fecha(25), fecha(27));
+
+        // Assert
+        assertThat(primerDia.getHoyAlineacion()).isEqualTo(Alineacion.IZQUIERDA);
+        assertThat(medio.getHoyAlineacion()).isEqualTo(Alineacion.CENTRO);
+        assertThat(ultimoDia.getHoyAlineacion()).isEqualTo(Alineacion.DERECHA);
+        assertThat(fuera.getHoyAlineacion()).isNull();
     }
 
     // ==================== Datos de prueba ====================

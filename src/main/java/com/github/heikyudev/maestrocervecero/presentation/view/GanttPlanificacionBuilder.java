@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.view;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Alineacion;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Carril;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.MarcaEje;
@@ -43,6 +44,8 @@ public final class GanttPlanificacionBuilder {
     static final int PX_POR_DIA = 24;
     static final int ANCHO_MINIMO_PX = 720;
     static final int ANCHO_MAXIMO_PX = 3600;
+    /** Distancia al borde (en % del eje) por debajo de la cual una etiqueta centrada se recortaría (unos 29 px de 720). */
+    static final double MARGEN_BORDE_PCT = 4.0;
     static final String CARRIL_SIN_FERMENTADOR = "Sin fermentador";
 
     private static final DateTimeFormatter FORMATO_MARCA = DateTimeFormatter.ofPattern("dd/MM");
@@ -96,6 +99,8 @@ public final class GanttPlanificacionBuilder {
         LocalDate rangoHasta = maximo.plusDays(1);
         int totalDias = (int) ChronoUnit.DAYS.between(rangoDesde, rangoHasta) + 1;
 
+        Double hoyPct = posicionDeHoy(hoy, rangoDesde, rangoHasta, totalDias);
+
         return GanttPlanificacionVista.builder()
                 .rangoDesde(rangoDesde)
                 .rangoHasta(rangoHasta)
@@ -104,7 +109,8 @@ public final class GanttPlanificacionBuilder {
                 .vacio(tramos.isEmpty())
                 .carriles(armarCarriles(tramos, rangoDesde, totalDias, hoy))
                 .marcasEje(armarMarcasEje(rangoDesde, rangoHasta, totalDias))
-                .hoyPct(posicionDeHoy(hoy, rangoDesde, rangoHasta, totalDias))
+                .hoyPct(hoyPct)
+                .hoyAlineacion(hoyPct == null ? null : alineacionPara(hoyPct))
                 .inicioPlanificacionPct(inicioPlanificacion == null ? null
                         : porcentaje(ChronoUnit.DAYS.between(rangoDesde, inicioPlanificacion), totalDias))
                 .finPlanificacionPct(finPlanificacion == null ? null
@@ -244,9 +250,24 @@ public final class GanttPlanificacionBuilder {
         int paso = pasoDeMarcas(totalDias);
         List<MarcaEje> marcas = new ArrayList<>();
         for (LocalDate dia = rangoDesde; !dia.isAfter(rangoHasta); dia = dia.plusDays(paso)) {
-            marcas.add(new MarcaEje(porcentaje(ChronoUnit.DAYS.between(rangoDesde, dia), totalDias), dia.format(FORMATO_MARCA)));
+            double posicion = porcentaje(ChronoUnit.DAYS.between(rangoDesde, dia), totalDias);
+            marcas.add(new MarcaEje(posicion, dia.format(FORMATO_MARCA), alineacionPara(posicion)));
         }
         return marcas;
+    }
+
+    /**
+     * Las etiquetas pegadas a un borde se anclan hacia adentro (la del borde izquierdo empieza en su punto y la
+     * del derecho termina en él); el resto se centra. Así ninguna queda recortada por el contenedor.
+     */
+    static Alineacion alineacionPara(double posicionPct) {
+        if (posicionPct <= MARGEN_BORDE_PCT) {
+            return Alineacion.IZQUIERDA;
+        }
+        if (posicionPct >= 100.0 - MARGEN_BORDE_PCT) {
+            return Alineacion.DERECHA;
+        }
+        return Alineacion.CENTRO;
     }
 
     /**

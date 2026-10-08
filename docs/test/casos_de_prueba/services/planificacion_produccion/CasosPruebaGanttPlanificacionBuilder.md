@@ -13,7 +13,7 @@
 - El eje va del menor inicio al mayor fin entre las barras y las fechas estimadas de la planificación, con un día de margen a cada lado. `totalDias` cuenta ambos extremos.
 - Una barra tiene `izquierdaPct = días desde el inicio del eje / totalDias * 100` y `anchoPct = días de la barra / totalDias * 100`, redondeados a 2 decimales. El ancho mínimo es 1 %; si con ese mínimo la barra se saldría del eje, se corre a la izquierda.
 - El inicio estimado de la planificación se marca al comienzo de su día y el fin estimado al cierre de su último día. La marca de hoy va al centro de su día y solo existe si cae dentro del eje.
-- Las marcas del eje (`dd/MM`) van cada día si el eje tiene hasta 14 días, de a 7 hasta 120, de a 14 hasta 365 y de a 28 después, empezando por el primer día del eje.
+- Las marcas del eje (`dd/MM`) van cada día si el eje tiene hasta 14 días, de a 7 hasta 120, de a 14 hasta 365 y de a 28 después, empezando por el primer día del eje. Cada marca lleva una alineación (`IZQUIERDA` si está a 4 % o menos del inicio del eje, `DERECHA` si está a 4 % o menos del final, `CENTRO` en el resto) para que la plantilla ancle las etiquetas de los bordes hacia adentro; la bandera "Hoy" usa la misma regla (`hoyAlineacion`).
 - `anchoMinimoPx = totalDias * 24`, acotado entre 720 y 3600.
 - Hay un carril por fermentador, ordenados por identificador sin distinguir mayúsculas; los lotes sin fermentador van al final, en el carril "Sin fermentador". Las barras de un carril se ordenan por fecha de inicio y, ante igual fecha, por id.
 
@@ -48,3 +48,6 @@ Los ejemplos usan fechas de julio de 2027 (`fecha(d)` = `d/07/2027`).
 | **CP-GPB-21** | Ancho mínimo del área de tiempo | Sin lotes: ejes de 6, 102 y 367 días | `totalDias * 24` acotado entre 720 y 3600 | `anchoMinimoPx`: 720, 2448 y 3600. |
 | **CP-GPB-22** | Orden de los carriles | Lotes en "F-10", sin fermentador, "F-02" y "f-01" | Orden por identificador sin distinguir mayúsculas; sin fermentador al final | Carriles "f-01", "F-02", "F-10" y "Sin fermentador". |
 | **CP-GPB-23** | Orden de barras con igual inicio | Lotes con id 5 y 3, ambos del 01/07 al 03/07 en "F-01" | Desempate por id | Las barras quedan en el orden de los lotes 3 y 5. |
+| **CP-GPB-24** | Alineación de las etiquetas del eje | Sin lotes, planificación del 01/07 al 27/07 (eje de 29 días, marcas semanales) | Las etiquetas de los bordes se anclan hacia adentro para no recortarse | Marcas "30/06", "07/07", "14/07", "21/07" y "28/07" con alineación `IZQUIERDA`, `CENTRO`, `CENTRO`, `CENTRO` y `DERECHA`. |
+| **CP-GPB-25** | Límite de borde de la alineación | `alineacionPara` con 0, 4, 4.01, 95.99, 96 y 100 (% del eje) | Hasta 4 % del eje es borde izquierdo y desde 96 % borde derecho | `IZQUIERDA`, `IZQUIERDA`, `CENTRO`, `CENTRO`, `DERECHA` y `DERECHA`. |
+| **CP-GPB-26** | Alineación de la bandera de hoy | Planificación del 01/07 al 25/07 (eje del 30/06 al 26/07) y hoy 30/06, 10/07, 26/07 y 27/07 | La bandera "Hoy" se alinea según su cercanía a los bordes | `hoyAlineacion`: `IZQUIERDA` (primer día), `CENTRO`, `DERECHA` (último día) y `null` cuando hoy queda fuera del eje. |
