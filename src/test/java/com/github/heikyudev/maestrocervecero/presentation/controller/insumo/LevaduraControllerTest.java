@@ -159,7 +159,7 @@ class LevaduraControllerTest {
                 .andExpect(content().string(containsString("action=\"/insumos/levaduras\"")))
                 .andExpect(content().string(containsString("value=\"HIBRIDA\"")))
                 .andExpect(content().string(containsString("la define el sistema")))
-                .andExpect(content().string(containsString("Células viables por gramo (en millones)")))
+                .andExpect(content().string(containsString("Células viables (millones/g)")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 20000\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Safale US-05\"")))
                 .andExpect(content().string(containsString("20000 equivale a 20.000.000.000")))
