@@ -35,11 +35,6 @@ public class MapperOrdenCompra {
                 .detallesCompra(ordenCompraEntity.getDetallesCompra().stream()
                         .map(MapperDetalleCompra::toDTO)
                         .toList())
-                // === AUDITABLE ENTITY ===
-                .createdBy(ordenCompraEntity.getCreatedBy())
-                .createdDate(ordenCompraEntity.getCreatedDate())
-                .lastModifiedBy(ordenCompraEntity.getLastModifiedBy())
-                .lastModifiedDate(ordenCompraEntity.getLastModifiedDate())
                 .build();
     }
 }

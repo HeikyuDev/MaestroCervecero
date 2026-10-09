@@ -29,11 +29,6 @@ public class MapperAjusteInsumo {
                 .estado(ajusteInsumoEntity.getEstado())
                 .fechaAnulacion(ajusteInsumoEntity.getFechaAnulacion())
                 .motivoAnulacion(ajusteInsumoEntity.getMotivoAnulacion())
-                // === AUDITABLE ENTITY ===
-                .createdBy(ajusteInsumoEntity.getCreatedBy())
-                .createdDate(ajusteInsumoEntity.getCreatedDate())
-                .lastModifiedBy(ajusteInsumoEntity.getLastModifiedBy())
-                .lastModifiedDate(ajusteInsumoEntity.getLastModifiedDate())
                 .build();
     }
 }

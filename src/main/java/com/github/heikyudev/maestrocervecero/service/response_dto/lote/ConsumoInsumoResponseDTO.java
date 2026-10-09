@@ -66,26 +66,4 @@ public class ConsumoInsumoResponseDTO {
      * Lote de insumo del que se descontó este consumo.
      */
     private LoteInsumoResponseDTO loteInsumo;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que registró el consumo.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del consumo.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el consumo por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del consumo.
-     */
-    private LocalDateTime lastModifiedDate;
 }

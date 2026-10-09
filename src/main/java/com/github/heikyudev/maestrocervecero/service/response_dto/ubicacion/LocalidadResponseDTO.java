@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una localidad.
@@ -41,26 +40,4 @@ public class LocalidadResponseDTO {
      * Estado lógico de la localidad (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la localidad.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la localidad.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la localidad por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la localidad.
-     */
-    private LocalDateTime lastModifiedDate;
 }

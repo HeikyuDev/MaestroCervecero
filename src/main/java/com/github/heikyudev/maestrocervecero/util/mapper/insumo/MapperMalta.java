@@ -26,11 +26,6 @@ public class MapperMalta {
                 .tipo(maltaEntity.getTipo())
                 .potencialExtracto(maltaEntity.getPotencialExtracto())
                 .estado(maltaEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(maltaEntity.getCreatedBy())
-                .createdDate(maltaEntity.getCreatedDate())
-                .lastModifiedBy(maltaEntity.getLastModifiedBy())
-                .lastModifiedDate(maltaEntity.getLastModifiedDate())
                 .build();
     }
 }

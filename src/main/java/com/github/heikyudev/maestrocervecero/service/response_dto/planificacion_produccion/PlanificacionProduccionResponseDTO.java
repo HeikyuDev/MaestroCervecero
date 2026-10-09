@@ -81,26 +81,4 @@ public class PlanificacionProduccionResponseDTO {
      * Versión de receta utilizada en esta planificación de producción.
      */
     private VersionRecetaResponseDTO versionReceta;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que registró la planificación de producción.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la planificación de producción.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la planificación de producción por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la planificación de producción.
-     */
-    private LocalDateTime lastModifiedDate;
 }

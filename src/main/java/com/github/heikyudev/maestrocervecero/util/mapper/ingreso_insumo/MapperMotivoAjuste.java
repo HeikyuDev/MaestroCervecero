@@ -25,11 +25,6 @@ public class MapperMotivoAjuste {
                 .nombre(motivoAjusteEntity.getNombre())
                 .tipoAjuste(motivoAjusteEntity.getTipoAjuste())
                 .estado(motivoAjusteEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(motivoAjusteEntity.getCreatedBy())
-                .createdDate(motivoAjusteEntity.getCreatedDate())
-                .lastModifiedBy(motivoAjusteEntity.getLastModifiedBy())
-                .lastModifiedDate(motivoAjusteEntity.getLastModifiedDate())
                 .build();
     }
 }

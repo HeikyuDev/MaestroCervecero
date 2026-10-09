@@ -25,11 +25,6 @@ public class MapperLocalidad {
                 .codigoPostal(localidadEntity.getCodigoPostal())
                 .provincia(MapperProvincia.toDTO(localidadEntity.getProvincia()))
                 .estado(localidadEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(localidadEntity.getCreatedBy())
-                .createdDate(localidadEntity.getCreatedDate())
-                .lastModifiedBy(localidadEntity.getLastModifiedBy())
-                .lastModifiedDate(localidadEntity.getLastModifiedDate())
                 .build();
     }
 }

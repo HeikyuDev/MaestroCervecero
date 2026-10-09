@@ -26,11 +26,6 @@ public class MapperLupulo {
                 .formato(lupuloEntity.getFormato())
                 .aa(lupuloEntity.getAa())
                 .estado(lupuloEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(lupuloEntity.getCreatedBy())
-                .createdDate(lupuloEntity.getCreatedDate())
-                .lastModifiedBy(lupuloEntity.getLastModifiedBy())
-                .lastModifiedDate(lupuloEntity.getLastModifiedDate())
                 .build();
     }
 }

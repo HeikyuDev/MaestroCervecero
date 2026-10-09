@@ -30,11 +30,6 @@ public class MapperLimpiezaBarril {
                 .fechaAnulacion(limpiezaBarrilEntity.getFechaAnulacion())
                 .motivoAnulacion(limpiezaBarrilEntity.getMotivoAnulacion())
                 .barril(MapperBarril.toDTO(limpiezaBarrilEntity.getBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(limpiezaBarrilEntity.getCreatedBy())
-                .createdDate(limpiezaBarrilEntity.getCreatedDate())
-                .lastModifiedBy(limpiezaBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(limpiezaBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

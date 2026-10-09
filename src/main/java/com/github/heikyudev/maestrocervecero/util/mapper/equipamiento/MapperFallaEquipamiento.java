@@ -29,11 +29,6 @@ public class MapperFallaEquipamiento {
                 .fechaAnulacion(fallaEquipamientoEntity.getFechaAnulacion())
                 .motivoAnulacion(fallaEquipamientoEntity.getMotivoAnulacion())
                 .equipamiento(MapperEquipamiento.toDTO(fallaEquipamientoEntity.getEquipamiento()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(fallaEquipamientoEntity.getCreatedBy())
-                .createdDate(fallaEquipamientoEntity.getCreatedDate())
-                .lastModifiedBy(fallaEquipamientoEntity.getLastModifiedBy())
-                .lastModifiedDate(fallaEquipamientoEntity.getLastModifiedDate())
                 .build();
     }
 }

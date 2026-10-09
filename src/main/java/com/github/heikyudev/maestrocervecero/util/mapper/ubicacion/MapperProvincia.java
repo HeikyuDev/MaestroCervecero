@@ -24,11 +24,6 @@ public class MapperProvincia {
                 .nombre(provinciaEntity.getNombre())
                 .pais(MapperPais.toDTO(provinciaEntity.getPais()))
                 .estado(provinciaEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(provinciaEntity.getCreatedBy())
-                .createdDate(provinciaEntity.getCreatedDate())
-                .lastModifiedBy(provinciaEntity.getLastModifiedBy())
-                .lastModifiedDate(provinciaEntity.getLastModifiedDate())
                 .build();
     }
 }

@@ -80,26 +80,4 @@ public class LoteResponseDTO {
      * Detalle de los costos directos adicionales aplicados al lote.
      */
     private List<DetalleCostoDirectoResponseDTO> detallesCostoDirecto;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que registró el lote.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del lote.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el lote por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del lote.
-     */
-    private LocalDateTime lastModifiedDate;
 }

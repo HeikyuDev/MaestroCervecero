@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una presentación comercial.
@@ -42,26 +41,4 @@ public class PresentacionComercialResponseDTO {
      * Estado lógico de la presentación comercial (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la presentación comercial.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la presentación comercial.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la presentación comercial por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la presentación comercial.
-     */
-    private LocalDateTime lastModifiedDate;
 }

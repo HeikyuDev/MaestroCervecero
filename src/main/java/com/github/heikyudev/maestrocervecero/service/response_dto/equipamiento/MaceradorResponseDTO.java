@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Est
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta que representa los datos de un Macerador.
@@ -62,26 +61,4 @@ public class MaceradorResponseDTO {
      * Estado lógico del macerador (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el macerador.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del macerador.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el macerador por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del macerador.
-     */
-    private LocalDateTime lastModifiedDate;
 }

@@ -29,11 +29,6 @@ public class MapperFallaBarril {
                 .fechaAnulacion(fallaBarrilEntity.getFechaAnulacion())
                 .motivoAnulacion(fallaBarrilEntity.getMotivoAnulacion())
                 .barril(MapperBarril.toDTO(fallaBarrilEntity.getBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(fallaBarrilEntity.getCreatedBy())
-                .createdDate(fallaBarrilEntity.getCreatedDate())
-                .lastModifiedBy(fallaBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(fallaBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

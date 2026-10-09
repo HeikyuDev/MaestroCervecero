@@ -43,11 +43,6 @@ public class MapperReceta {
                 .contadorLotes(recetaEntity.getContadorLotes())
                 .version(mapVersionActual(recetaEntity))
                 .estado(recetaEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(recetaEntity.getCreatedBy())
-                .createdDate(recetaEntity.getCreatedDate())
-                .lastModifiedBy(recetaEntity.getLastModifiedBy())
-                .lastModifiedDate(recetaEntity.getLastModifiedDate())
                 .build();
     }
 

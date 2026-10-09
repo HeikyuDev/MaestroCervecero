@@ -75,26 +75,4 @@ public class OrdenCompraResponseDTO {
      * Detalle de los ítems del catálogo del proveedor solicitados en esta compra.
      */
     private List<DetalleCompraResponseDTO> detallesCompra;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que registró la orden de compra.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la orden de compra.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la orden de compra por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la orden de compra.
-     */
-    private LocalDateTime lastModifiedDate;
 }

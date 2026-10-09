@@ -32,11 +32,6 @@ public class MapperFraccionamientoBarril {
                 .cantidadExtraida(fraccionamientoBarrilEntity.getCantidadFraccionada())
                 .estadoOperativoResultante(fraccionamientoBarrilEntity.getEstadoOperativoResultante())
                 .barril(MapperBarril.toDTO(fraccionamientoBarrilEntity.getBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(fraccionamientoBarrilEntity.getCreatedBy())
-                .createdDate(fraccionamientoBarrilEntity.getCreatedDate())
-                .lastModifiedBy(fraccionamientoBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(fraccionamientoBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

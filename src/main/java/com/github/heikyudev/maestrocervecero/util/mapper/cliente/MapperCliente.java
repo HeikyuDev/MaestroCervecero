@@ -28,11 +28,6 @@ public class MapperCliente {
                 .direccion(clienteEntity.getDireccion())
                 .localidad(MapperLocalidad.toDTO(clienteEntity.getLocalidad()))
                 .estado(clienteEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(clienteEntity.getCreatedBy())
-                .createdDate(clienteEntity.getCreatedDate())
-                .lastModifiedBy(clienteEntity.getLastModifiedBy())
-                .lastModifiedDate(clienteEntity.getLastModifiedDate())
                 .build();
     }
 }

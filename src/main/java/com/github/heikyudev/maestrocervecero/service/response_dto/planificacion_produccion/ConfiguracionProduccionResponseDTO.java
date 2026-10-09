@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta que representa la configuración general de producción.
@@ -47,10 +46,4 @@ public class ConfiguracionProduccionResponseDTO {
      * Criterio para elegir la combinación de equipos de un plan en modalidad concurrente.
      */
     private CriterioSeleccionPlanConcurrente criterioSeleccionPlanConcurrente;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

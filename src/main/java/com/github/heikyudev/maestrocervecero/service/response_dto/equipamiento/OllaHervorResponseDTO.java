@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Est
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta que representa los datos de una olla de hervor.
@@ -58,26 +57,4 @@ public class OllaHervorResponseDTO {
      * Estado lógico de la olla de hervor (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la olla de hervor.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la olla de hervor.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la olla de hervor por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la olla de hervor.
-     */
-    private LocalDateTime lastModifiedDate;
 }

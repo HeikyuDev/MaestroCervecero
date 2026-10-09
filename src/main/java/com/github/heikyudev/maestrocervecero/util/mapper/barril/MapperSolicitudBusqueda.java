@@ -27,11 +27,6 @@ public class MapperSolicitudBusqueda {
                 .observaciones(solicitudBusquedaEntity.getObservaciones())
                 .buscado(solicitudBusquedaEntity.isBuscado())
                 .despachoBarril(MapperDespachoBarril.toDTO(solicitudBusquedaEntity.getDespachoBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(solicitudBusquedaEntity.getCreatedBy())
-                .createdDate(solicitudBusquedaEntity.getCreatedDate())
-                .lastModifiedBy(solicitudBusquedaEntity.getLastModifiedBy())
-                .lastModifiedDate(solicitudBusquedaEntity.getLastModifiedDate())
                 .build();
     }
 }

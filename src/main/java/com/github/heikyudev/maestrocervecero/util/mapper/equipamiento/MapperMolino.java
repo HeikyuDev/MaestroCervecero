@@ -27,11 +27,6 @@ public class MapperMolino {
                 .rendimientoMolienda(molinoEntity.getRendimientoMolienda())
                 .usosMaximosAntesMantenimiento(molinoEntity.getUsosMaximosAntesMantenimiento())
                 .estado(molinoEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(molinoEntity.getCreatedBy())
-                .createdDate(molinoEntity.getCreatedDate())
-                .lastModifiedBy(molinoEntity.getLastModifiedBy())
-                .lastModifiedDate(molinoEntity.getLastModifiedDate())
                 .build();
     }
 }

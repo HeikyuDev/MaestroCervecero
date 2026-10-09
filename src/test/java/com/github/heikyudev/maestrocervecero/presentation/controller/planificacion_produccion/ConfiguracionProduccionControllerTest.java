@@ -23,7 +23,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -129,30 +128,6 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*<option value=\"FERMENTADOR_LIBERACION_MAS_TEMPRANA\" selected=\"selected\">.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<option value=\"MENOR_CANTIDAD_DE_LOTES\" selected=\"selected\">.*")))
                 .andExpect(content().string(not(containsString("<option value=\"FERMENTADOR_MAYOR_CAPACIDAD\" selected"))));
-    }
-
-    @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CPC-04: muestra la última modificación con fecha y usuario si la hay, y la omite si la configuración nunca se modificó")
-    void caso_cp_cpc_04() throws Exception {
-        // === PREPARACION DE DATOS ===
-        ConfiguracionProduccionResponseDTO sinModificar = ConfiguracionProduccionResponseDTO.builder()
-                .id(1L).velocidadEstandarEnvasado(100.0).capacidadLoteEstandar(300.0)
-                .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
-                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_MAYOR_CAPACIDAD)
-                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES)
-                .build();
-        when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion(), sinModificar);
-
-        // === EJECUCION Y VERIFICACION ===
-        mockMvc.perform(get(URL))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Última modificación:")))
-                .andExpect(content().string(containsString("01/10/2026 10:30")))
-                .andExpect(content().string(containsString("gerente.produccion")));
-        mockMvc.perform(get(URL))
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Última modificación"))));
     }
 
     @ParameterizedTest
@@ -372,8 +347,6 @@ class ConfiguracionProduccionControllerTest {
                 .porcentajeMinimoConsumoParaAvanzarEtapa(90.0)
                 .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
                 .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES)
-                .lastModifiedBy("gerente.produccion")
-                .lastModifiedDate(LocalDateTime.of(2026, 10, 1, 10, 30))
                 .build();
     }
 }

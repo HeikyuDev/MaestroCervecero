@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar un motivo de ajuste.
@@ -38,26 +37,4 @@ public class MotivoAjusteResponseDTO {
      * Estado lógico del motivo de ajuste (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el motivo de ajuste.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del motivo de ajuste.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el motivo de ajuste por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del motivo de ajuste.
-     */
-    private LocalDateTime lastModifiedDate;
 }

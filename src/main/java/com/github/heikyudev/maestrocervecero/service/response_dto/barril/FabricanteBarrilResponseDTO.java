@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta que representa los datos de un Fabricante de Barril.
@@ -51,26 +50,4 @@ public class FabricanteBarrilResponseDTO {
      * Estado lógico del fabricante de barril (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el fabricante de barril.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del fabricante de barril.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el fabricante de barril por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del fabricante de barril.
-     */
-    private LocalDateTime lastModifiedDate;
 }

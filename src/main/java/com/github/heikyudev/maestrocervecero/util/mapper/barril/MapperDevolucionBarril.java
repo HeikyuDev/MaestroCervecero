@@ -29,11 +29,6 @@ public class MapperDevolucionBarril {
                 .fechaAnulacion(devolucionBarrilEntity.getFechaAnulacion())
                 .motivoAnulacion(devolucionBarrilEntity.getMotivoAnulacion())
                 .barril(MapperBarril.toDTO(devolucionBarrilEntity.getBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(devolucionBarrilEntity.getCreatedBy())
-                .createdDate(devolucionBarrilEntity.getCreatedDate())
-                .lastModifiedBy(devolucionBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(devolucionBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

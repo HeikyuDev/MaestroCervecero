@@ -32,11 +32,6 @@ public class MapperDespachoBarril {
                 .fechaDevolucionEstimada(despachoBarrilEntity.getFechaDevolucionEstimada())
                 .barril(MapperBarril.toDTO(despachoBarrilEntity.getBarril()))
                 .cliente(MapperCliente.toDTO(despachoBarrilEntity.getCliente()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(despachoBarrilEntity.getCreatedBy())
-                .createdDate(despachoBarrilEntity.getCreatedDate())
-                .lastModifiedBy(despachoBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(despachoBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

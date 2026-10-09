@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una provincia.
@@ -36,26 +35,4 @@ public class ProvinciaResponseDTO {
      * Estado lógico de la provincia (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la provincia.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la provincia.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la provincia por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la provincia.
-     */
-    private LocalDateTime lastModifiedDate;
 }

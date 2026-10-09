@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una levadura.
@@ -49,26 +48,4 @@ public class LevaduraResponseDTO implements InsumoResponseDTO {
      * Estado lógico de la levadura (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la levadura.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la levadura.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la levadura por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la levadura.
-     */
-    private LocalDateTime lastModifiedDate;
 }

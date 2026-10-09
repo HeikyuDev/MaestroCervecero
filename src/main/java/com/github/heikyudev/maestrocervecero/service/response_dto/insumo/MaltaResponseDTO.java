@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar una malta.
@@ -49,26 +48,4 @@ public class MaltaResponseDTO implements InsumoResponseDTO {
      * Estado lógico de la malta (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la malta.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la malta.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la malta por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la malta.
-     */
-    private LocalDateTime lastModifiedDate;
 }

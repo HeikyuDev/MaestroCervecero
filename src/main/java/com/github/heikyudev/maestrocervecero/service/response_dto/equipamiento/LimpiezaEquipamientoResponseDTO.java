@@ -58,10 +58,4 @@ public class LimpiezaEquipamientoResponseDTO {
      * Equipamiento sobre el que se registró la limpieza.
      */
     private EquipamientoResponseDTO equipamiento;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta que representa los datos de un Molino.
@@ -51,26 +50,4 @@ public class MolinoResponseDTO {
      * Estado lógico del molino (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el molino.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del molino.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el molino por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del molino.
-     */
-    private LocalDateTime lastModifiedDate;
 }

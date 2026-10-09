@@ -63,10 +63,4 @@ public class DespachoBarrilResponseDTO {
      * Cliente al que se le despachó el barril.
      */
     private ClienteResponseDTO cliente;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

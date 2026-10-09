@@ -25,11 +25,6 @@ public class MapperFermentador {
                 .capacidadUtil(fermentadorEntity.getCapacidadUtil())
                 .usosMaximosAntesMantenimiento(fermentadorEntity.getUsosMaximosAntesMantenimiento())
                 .estado(fermentadorEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(fermentadorEntity.getCreatedBy())
-                .createdDate(fermentadorEntity.getCreatedDate())
-                .lastModifiedBy(fermentadorEntity.getLastModifiedBy())
-                .lastModifiedDate(fermentadorEntity.getLastModifiedDate())
                 .build();
     }
 }

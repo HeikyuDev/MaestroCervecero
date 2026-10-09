@@ -27,11 +27,6 @@ public class MapperBusquedaBarril {
                 .fechaAnulacion(busquedaBarrilEntity.getFechaAnulacion())
                 .motivoAnulacion(busquedaBarrilEntity.getMotivoAnulacion())
                 .solicitudBusqueda(MapperSolicitudBusqueda.toDTO(busquedaBarrilEntity.getSolicitudBusqueda()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(busquedaBarrilEntity.getCreatedBy())
-                .createdDate(busquedaBarrilEntity.getCreatedDate())
-                .lastModifiedBy(busquedaBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(busquedaBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

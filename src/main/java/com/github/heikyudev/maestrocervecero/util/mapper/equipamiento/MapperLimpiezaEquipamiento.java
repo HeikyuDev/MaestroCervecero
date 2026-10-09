@@ -31,11 +31,6 @@ public class MapperLimpiezaEquipamiento {
                 .fechaAnulacion(limpiezaEquipamientoEntity.getFechaAnulacion())
                 .motivoAnulacion(limpiezaEquipamientoEntity.getMotivoAnulacion())
                 .equipamiento(MapperEquipamiento.toDTO(limpiezaEquipamientoEntity.getEquipamiento()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(limpiezaEquipamientoEntity.getCreatedBy())
-                .createdDate(limpiezaEquipamientoEntity.getCreatedDate())
-                .lastModifiedBy(limpiezaEquipamientoEntity.getLastModifiedBy())
-                .lastModifiedDate(limpiezaEquipamientoEntity.getLastModifiedDate())
                 .build();
     }
 }

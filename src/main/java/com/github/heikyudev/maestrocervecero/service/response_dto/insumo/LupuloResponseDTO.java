@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar un lúpulo.
@@ -49,26 +48,4 @@ public class LupuloResponseDTO implements InsumoResponseDTO {
      * Estado lógico del lúpulo (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la lupulo.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del lupulo.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el lupulo por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del lupulo.
-     */
-    private LocalDateTime lastModifiedDate;
 }

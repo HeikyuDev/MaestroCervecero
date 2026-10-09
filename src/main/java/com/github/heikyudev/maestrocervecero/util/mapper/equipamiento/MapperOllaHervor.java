@@ -29,11 +29,6 @@ public class MapperOllaHervor {
                 .perdidaPorTrub(ollaHervorEntity.getPerdidaPorTrub())
                 .usosMaximosAntesMantenimiento(ollaHervorEntity.getUsosMaximosAntesMantenimiento())
                 .estado(ollaHervorEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(ollaHervorEntity.getCreatedBy())
-                .createdDate(ollaHervorEntity.getCreatedDate())
-                .lastModifiedBy(ollaHervorEntity.getLastModifiedBy())
-                .lastModifiedDate(ollaHervorEntity.getLastModifiedDate())
                 .build();
     }
 }

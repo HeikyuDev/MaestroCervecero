@@ -51,10 +51,4 @@ public class FallaEquipamientoResponseDTO {
      * Equipamiento sobre el que se registró la falla.
      */
     private EquipamientoResponseDTO equipamiento;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

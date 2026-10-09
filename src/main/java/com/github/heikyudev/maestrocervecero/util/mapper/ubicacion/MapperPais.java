@@ -23,11 +23,6 @@ public class MapperPais {
                 .id(paisEntity.getId())
                 .nombre(paisEntity.getNombre())
                 .estado(paisEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(paisEntity.getCreatedBy())
-                .createdDate(paisEntity.getCreatedDate())
-                .lastModifiedBy(paisEntity.getLastModifiedBy())
-                .lastModifiedDate(paisEntity.getLastModifiedDate())
                 .build();
     }
 }

@@ -51,10 +51,4 @@ public class DevolucionBarrilResponseDTO {
      * Barril sobre el que se registró la devolución.
      */
     private BarrilResponseDTO barril;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

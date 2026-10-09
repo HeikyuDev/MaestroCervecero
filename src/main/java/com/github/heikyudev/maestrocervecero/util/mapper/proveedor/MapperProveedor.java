@@ -24,11 +24,6 @@ public class MapperProveedor {
                 .id(proveedorEntity.getId())
                 .version(mapVersionActual(proveedorEntity))
                 .estado(proveedorEntity.getEstado())
-                // AUDITABLE ENTITY
-                .createdBy(proveedorEntity.getCreatedBy())
-                .createdDate(proveedorEntity.getCreatedDate())
-                .lastModifiedBy(proveedorEntity.getLastModifiedBy())
-                .lastModifiedDate(proveedorEntity.getLastModifiedDate())
                 .build();
     }
 

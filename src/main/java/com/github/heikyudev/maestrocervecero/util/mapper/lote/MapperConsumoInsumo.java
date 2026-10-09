@@ -32,11 +32,6 @@ public class MapperConsumoInsumo {
                 .tipoConsumo(consumoInsumoEntity.getTipoConsumo())
                 .etapaLote(MapperEtapaLote.toDTO(consumoInsumoEntity.getEtapaLote()))
                 .loteInsumo(MapperLoteInsumo.toDTO(consumoInsumoEntity.getLoteInsumo()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(consumoInsumoEntity.getCreatedBy())
-                .createdDate(consumoInsumoEntity.getCreatedDate())
-                .lastModifiedBy(consumoInsumoEntity.getLastModifiedBy())
-                .lastModifiedDate(consumoInsumoEntity.getLastModifiedDate())
                 .build();
     }
 }

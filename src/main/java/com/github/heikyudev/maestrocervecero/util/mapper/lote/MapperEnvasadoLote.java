@@ -30,11 +30,6 @@ public class MapperEnvasadoLote {
                 .estado(envasadoLoteEntity.getEstado())
                 .etapaLote(MapperEtapaLote.toDTO(envasadoLoteEntity.getEtapaLote()))
                 .barril(MapperBarril.toDTO(envasadoLoteEntity.getBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(envasadoLoteEntity.getCreatedBy())
-                .createdDate(envasadoLoteEntity.getCreatedDate())
-                .lastModifiedBy(envasadoLoteEntity.getLastModifiedBy())
-                .lastModifiedDate(envasadoLoteEntity.getLastModifiedDate())
                 .build();
     }
 }

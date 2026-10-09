@@ -26,11 +26,6 @@ public class MapperLevadura {
                 .tipo(levaduraEntity.getTipo())
                 .cantidadCelulasPorGramo(levaduraEntity.getCantidadCelulasPorGramo())
                 .estado(levaduraEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(levaduraEntity.getCreatedBy())
-                .createdDate(levaduraEntity.getCreatedDate())
-                .lastModifiedBy(levaduraEntity.getLastModifiedBy())
-                .lastModifiedDate(levaduraEntity.getLastModifiedDate())
                 .build();
     }
 }

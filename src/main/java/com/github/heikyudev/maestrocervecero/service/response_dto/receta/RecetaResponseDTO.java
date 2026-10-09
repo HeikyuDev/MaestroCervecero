@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEnt
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.*;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para la entidad {@link RecetaEntity}.
@@ -34,26 +33,4 @@ public class RecetaResponseDTO {
      * Estado lógico de la receta (activa o dada de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó la receta.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación de la receta.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó la receta por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación de la receta.
-     */
-    private LocalDateTime lastModifiedDate;
 }

@@ -28,11 +28,6 @@ public class MapperUsuario {
                 .correo(usuarioEntity.getCorreo())
                 .rol(usuarioEntity.getRol())
                 .estado(usuarioEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(usuarioEntity.getCreatedBy())
-                .createdDate(usuarioEntity.getCreatedDate())
-                .lastModifiedBy(usuarioEntity.getLastModifiedBy())
-                .lastModifiedDate(usuarioEntity.getLastModifiedDate())
                 .build();
     }
 }

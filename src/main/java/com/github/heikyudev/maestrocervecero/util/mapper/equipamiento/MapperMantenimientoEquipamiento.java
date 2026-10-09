@@ -30,11 +30,6 @@ public class MapperMantenimientoEquipamiento {
                 .fechaAnulacion(mantenimientoEquipamientoEntity.getFechaAnulacion())
                 .motivoAnulacion(mantenimientoEquipamientoEntity.getMotivoAnulacion())
                 .equipamiento(MapperEquipamiento.toDTO(mantenimientoEquipamientoEntity.getEquipamiento()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(mantenimientoEquipamientoEntity.getCreatedBy())
-                .createdDate(mantenimientoEquipamientoEntity.getCreatedDate())
-                .lastModifiedBy(mantenimientoEquipamientoEntity.getLastModifiedBy())
-                .lastModifiedDate(mantenimientoEquipamientoEntity.getLastModifiedDate())
                 .build();
     }
 }

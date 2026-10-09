@@ -56,26 +56,4 @@ public class AjusteInsumoResponseDTO {
      * Motivo por el cual se anuló el ajuste de insumo. {@code null} si sigue REGISTRADO.
      */
     private String motivoAnulacion;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el ajuste de insumo.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del ajuste de insumo.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el ajuste de insumo por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del ajuste de insumo.
-     */
-    private LocalDateTime lastModifiedDate;
 }

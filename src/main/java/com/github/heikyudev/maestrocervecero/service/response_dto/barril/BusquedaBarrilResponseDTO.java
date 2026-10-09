@@ -41,10 +41,4 @@ public class BusquedaBarrilResponseDTO {
      * Solicitud de búsqueda sobre la que se registró esta búsqueda.
      */
     private SolicitudBusquedaResponseDTO solicitudBusqueda;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

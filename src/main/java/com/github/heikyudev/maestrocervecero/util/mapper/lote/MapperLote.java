@@ -39,11 +39,6 @@ public class MapperLote {
                 .detallesCostoDirecto(loteEntity.getDetallesCostoDirecto().stream()
                         .map(MapperDetalleCostoDirecto::toDTO)
                         .toList())
-                // === AUDITABLE ENTITY ===
-                .createdBy(loteEntity.getCreatedBy())
-                .createdDate(loteEntity.getCreatedDate())
-                .lastModifiedBy(loteEntity.getLastModifiedBy())
-                .lastModifiedDate(loteEntity.getLastModifiedDate())
                 .build();
     }
 }

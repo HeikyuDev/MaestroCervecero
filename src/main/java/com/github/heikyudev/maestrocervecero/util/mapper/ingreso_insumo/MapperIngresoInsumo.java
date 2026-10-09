@@ -33,10 +33,6 @@ public class MapperIngresoInsumo {
                 .estado(ingresoInsumoEntity.getEstado())
                 .detalleCompra(MapperDetalleCompra.toDTO(ingresoInsumoEntity.getDetalleCompra()))
                 .loteInsumo(MapperLoteInsumo.toDTO(ingresoInsumoEntity.getLoteInsumo()))
-                .createdBy(ingresoInsumoEntity.getCreatedBy())
-                .createdDate(ingresoInsumoEntity.getCreatedDate())
-                .lastModifiedBy(ingresoInsumoEntity.getLastModifiedBy())
-                .lastModifiedDate(ingresoInsumoEntity.getLastModifiedDate())
                 .build();
     }
 }

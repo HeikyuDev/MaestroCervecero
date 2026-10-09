@@ -53,26 +53,4 @@ public class EnvasadoLoteResponseDTO {
      * Barril al que se traspasó la cerveza.
      */
     private BarrilResponseDTO barril;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que registró el envasado.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del envasado.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el envasado por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del envasado.
-     */
-    private LocalDateTime lastModifiedDate;
 }

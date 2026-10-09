@@ -40,10 +40,4 @@ public class SolicitudBusquedaResponseDTO {
      * Despacho de barril sobre el que se solicitó la búsqueda.
      */
     private DespachoBarrilResponseDTO despachoBarril;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

@@ -564,9 +564,5 @@ class UsuarioServicioImplTest {
         assertThat(dto.getTelefono()).isEqualTo(entidad.getTelefono());
         assertThat(dto.getRol()).isEqualTo(entidad.getRol());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
-        assertThat(dto.getCreatedBy()).isEqualTo(entidad.getCreatedBy());
-        assertThat(dto.getCreatedDate()).isEqualTo(entidad.getCreatedDate());
-        assertThat(dto.getLastModifiedBy()).isEqualTo(entidad.getLastModifiedBy());
-        assertThat(dto.getLastModifiedDate()).isEqualTo(entidad.getLastModifiedDate());
     }
 }

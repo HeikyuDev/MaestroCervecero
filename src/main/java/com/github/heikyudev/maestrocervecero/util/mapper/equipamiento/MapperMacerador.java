@@ -29,11 +29,6 @@ public class MapperMacerador {
                 .eficienciaMaceracion(maceradorEntity.getEficienciaMaceracion())
                 .usosMaximosAntesMantenimiento(maceradorEntity.getUsosMaximosAntesMantenimiento())
                 .estado(maceradorEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(maceradorEntity.getCreatedBy())
-                .createdDate(maceradorEntity.getCreatedDate())
-                .lastModifiedBy(maceradorEntity.getLastModifiedBy())
-                .lastModifiedDate(maceradorEntity.getLastModifiedDate())
                 .build();
     }
 }

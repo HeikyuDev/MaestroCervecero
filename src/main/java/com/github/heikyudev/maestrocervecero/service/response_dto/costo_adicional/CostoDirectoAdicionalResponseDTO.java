@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar un costo directo adicional.
@@ -37,26 +36,4 @@ public class CostoDirectoAdicionalResponseDTO {
      * Estado lógico del costo directo adicional (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el costo directo adicional.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del costo directo adicional.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el costo directo adicional por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del costo directo adicional.
-     */
-    private LocalDateTime lastModifiedDate;
 }

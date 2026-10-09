@@ -25,11 +25,6 @@ public class MapperCostoDirectoAdicional {
                 .nombre(costoDirectoAdicionalEntity.getNombre())
                 .costoPorLitro(costoDirectoAdicionalEntity.getCostoPorLitro())
                 .estado(costoDirectoAdicionalEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(costoDirectoAdicionalEntity.getCreatedBy())
-                .createdDate(costoDirectoAdicionalEntity.getCreatedDate())
-                .lastModifiedBy(costoDirectoAdicionalEntity.getLastModifiedBy())
-                .lastModifiedDate(costoDirectoAdicionalEntity.getLastModifiedDate())
                 .build();
     }
 }

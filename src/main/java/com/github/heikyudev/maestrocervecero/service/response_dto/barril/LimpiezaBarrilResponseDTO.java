@@ -58,10 +58,4 @@ public class LimpiezaBarrilResponseDTO {
      * Barril sobre el que se registró la limpieza.
      */
     private BarrilResponseDTO barril;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

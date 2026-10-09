@@ -8,7 +8,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta que representa los datos de un Fermentador.
@@ -52,26 +51,4 @@ public class FermentadorResponseDTO {
      * Estado lógico del fermentador (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el fermentador.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del fermentador.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el fermentador por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del fermentador.
-     */
-    private LocalDateTime lastModifiedDate;
 }

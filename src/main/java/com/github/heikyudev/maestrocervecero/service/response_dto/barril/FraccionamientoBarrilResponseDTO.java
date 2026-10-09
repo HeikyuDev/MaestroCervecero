@@ -63,10 +63,4 @@ public class FraccionamientoBarrilResponseDTO {
      * Barril del cual se extrajo la cerveza.
      */
     private BarrilResponseDTO barril;
-
-    // === AUDITABLE ENTITY ===
-    private String createdBy;
-    private LocalDateTime createdDate;
-    private String lastModifiedBy;
-    private LocalDateTime lastModifiedDate;
 }

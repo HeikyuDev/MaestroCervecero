@@ -45,11 +45,6 @@ public class MapperPlanificacionProduccion {
                 .motivoAnulacion(planificacionProduccionEntity.getMotivoAnulacion())
                 .estado(planificacionProduccionEntity.getEstado())
                 .versionReceta(MapperReceta.toDTO(planificacionProduccionEntity.getVersionReceta()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(planificacionProduccionEntity.getCreatedBy())
-                .createdDate(planificacionProduccionEntity.getCreatedDate())
-                .lastModifiedBy(planificacionProduccionEntity.getLastModifiedBy())
-                .lastModifiedDate(planificacionProduccionEntity.getLastModifiedDate())
                 .build();
     }
 }

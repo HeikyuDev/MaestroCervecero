@@ -27,11 +27,6 @@ public class MapperBarril {
                 .usosMaximosAntesMantenimiento(barrilEntity.getUsosMaximosAntesMantenimiento())
                 .estado(barrilEntity.getEstado())
                 .fabricante(MapperFabricanteBarril.toDTO(barrilEntity.getFabricante()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(barrilEntity.getCreatedBy())
-                .createdDate(barrilEntity.getCreatedDate())
-                .lastModifiedBy(barrilEntity.getLastModifiedBy())
-                .lastModifiedDate(barrilEntity.getLastModifiedDate())
                 .build();
     }
 }

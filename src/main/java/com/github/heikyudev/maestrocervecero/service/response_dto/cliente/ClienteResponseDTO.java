@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 
 /**
  * DTO de respuesta para representar un cliente.
@@ -52,26 +51,4 @@ public class ClienteResponseDTO {
      * Estado lógico del cliente (activo o dado de baja).
      */
     private Estado estado;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que creó el cliente.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del cliente.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el cliente por ultima ves.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del cliente.
-     */
-    private LocalDateTime lastModifiedDate;
 }

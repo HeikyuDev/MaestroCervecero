@@ -10,9 +10,6 @@
     <div>
         <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Configuración de Producción</h1>
         <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
-        <p th:if="${vigente != null and vigente.lastModifiedDate != null}" class="mt-1 text-xs text-slate-400">
-            Última modificación: <span th:text="${#temporals.format(vigente.lastModifiedDate, 'dd/MM/yyyy HH:mm')}">01/10/2026 10:30</span><span th:if="${vigente.lastModifiedBy != null}"> por <span th:text="${vigente.lastModifiedBy}">gerente</span></span>
-        </p>
     </div>
 
     <form th:action="@{/configuracion-produccion}" th:object="${configuracionForm}" method="post" novalidate

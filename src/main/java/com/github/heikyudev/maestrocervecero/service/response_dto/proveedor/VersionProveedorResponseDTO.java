@@ -66,5 +66,4 @@ public class VersionProveedorResponseDTO {
      * Catálogo de productos que ofrece el proveedor (insumo + presentación comercial).
      */
     private List<CatalogoProveedorResponseDTO> catalogoProveedor;
-
 }

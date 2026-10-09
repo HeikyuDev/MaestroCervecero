@@ -30,11 +30,6 @@ public class MapperMantenimientoBarril {
                 .fechaAnulacion(mantenimientoBarrilEntity.getFechaAnulacion())
                 .motivoAnulacion(mantenimientoBarrilEntity.getMotivoAnulacion())
                 .barril(MapperBarril.toDTO(mantenimientoBarrilEntity.getBarril()))
-                // === AUDITABLE ENTITY ===
-                .createdBy(mantenimientoBarrilEntity.getCreatedBy())
-                .createdDate(mantenimientoBarrilEntity.getCreatedDate())
-                .lastModifiedBy(mantenimientoBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(mantenimientoBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }

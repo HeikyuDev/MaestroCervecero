@@ -73,26 +73,4 @@ public class IngresoInsumoResponseDTO {
      * Lote de insumo al que se sumó (o que se creó con) la cantidad recibida.
      */
     private LoteInsumoResponseDTO loteInsumo;
-
-    // === AUDITABLE ENTITY ===
-
-    /**
-     * Nombre del usuario que registró el ingreso.
-     */
-    private String createdBy;
-
-    /**
-     * Fecha de creación del ingreso.
-     */
-    private LocalDateTime createdDate;
-
-    /**
-     * Nombre del usuario que modificó el ingreso por última vez.
-     */
-    private String lastModifiedBy;
-
-    /**
-     * Fecha de la última modificación del ingreso.
-     */
-    private LocalDateTime lastModifiedDate;
 }

@@ -26,11 +26,6 @@ public class MapperPresentacionComercial {
                 .cantidad(presentacionComercialEntity.getCantidad())
                 .unidadDeMedida(presentacionComercialEntity.getUnidadDeMedida())
                 .estado(presentacionComercialEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(presentacionComercialEntity.getCreatedBy())
-                .createdDate(presentacionComercialEntity.getCreatedDate())
-                .lastModifiedBy(presentacionComercialEntity.getLastModifiedBy())
-                .lastModifiedDate(presentacionComercialEntity.getLastModifiedDate())
                 .build();
     }
 }

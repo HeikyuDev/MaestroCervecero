@@ -27,11 +27,6 @@ public class MapperFabricanteBarril {
                 .telefono(fabricanteBarrilEntity.getTelefono())
                 .email(fabricanteBarrilEntity.getEmail())
                 .estado(fabricanteBarrilEntity.getEstado())
-                // === AUDITABLE ENTITY ===
-                .createdBy(fabricanteBarrilEntity.getCreatedBy())
-                .createdDate(fabricanteBarrilEntity.getCreatedDate())
-                .lastModifiedBy(fabricanteBarrilEntity.getLastModifiedBy())
-                .lastModifiedDate(fabricanteBarrilEntity.getLastModifiedDate())
                 .build();
     }
 }
