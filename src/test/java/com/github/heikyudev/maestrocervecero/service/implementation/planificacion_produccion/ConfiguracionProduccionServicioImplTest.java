@@ -99,7 +99,7 @@ class ConfiguracionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100");
+                .hasMessage("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100 inclusive");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }

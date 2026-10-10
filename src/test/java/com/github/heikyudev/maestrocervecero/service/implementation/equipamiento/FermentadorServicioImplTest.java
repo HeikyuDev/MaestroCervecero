@@ -146,7 +146,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(fermentadorRepository);
@@ -160,7 +160,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -266,7 +266,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La existencia del fermentador se valida antes que las reglas de negocio sobre sus datos
         verify(fermentadorRepository).findById(1L);

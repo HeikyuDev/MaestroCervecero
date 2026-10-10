@@ -127,7 +127,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     /**
      * Actualiza la información de un macerador existente en la base de datos.
      * <p>
-     * Valida el porcentaje que la capacidad util no sea mayor a la capacidad total, que la eficiencia de maceracion se encuentre entre 40 y 100 inclusive,
+     * Valida el porcentaje que la capacidad útil sea menor a la capacidad total, que la eficiencia de maceración se encuentre entre 40 y 100 inclusive,
      * luego localiza el macerador por su ID y verifica que el nuevo identificador no colisione con el de otro macerador activo (case-insensitive),
      * permitiendo conservar el propio nombre actual.
      * </p>

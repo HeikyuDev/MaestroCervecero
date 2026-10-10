@@ -252,7 +252,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
+                .hasMessage("Las fechas de inicio y finalización estimadas son obligatorias");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }
@@ -264,7 +264,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
+                .hasMessage("Las fechas de inicio y finalización estimadas son obligatorias");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }

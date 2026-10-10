@@ -143,7 +143,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(maceradorRepository);
@@ -156,7 +156,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -168,7 +168,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total y la capacidad util son obligatorias.");
+                .hasMessage("La capacidad total y la capacidad útil son obligatorias.");
 
         verifyNoInteractions(maceradorRepository);
     }

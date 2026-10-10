@@ -208,7 +208,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La densidad original objetivo (OG) debe ser mayor a la densidad final objetivo (FG)");
+                .hasMessage("La densidad inicial (OG) debe ser mayor a la densidad final (FG)");
 
         verifyNoRepositoryInteractions();
     }
@@ -220,7 +220,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La densidad original objetivo (OG) debe ser mayor a la densidad final objetivo (FG)");
+                .hasMessage("La densidad inicial (OG) debe ser mayor a la densidad final (FG)");
 
         verifyNoRepositoryInteractions();
     }
@@ -233,7 +233,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El IBU objetivo no puede ser negativo");
+                .hasMessage("El IBU objetivo debe ser mayor o igual a 0");
 
         verifyNoRepositoryInteractions();
     }

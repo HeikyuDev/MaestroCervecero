@@ -6,7 +6,7 @@ Aquí se concentran las principales reglas de validación del negocio
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-01**|Capacidad total nula|`capacidadTotal: null`, `capacidadUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadTotal == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La capacidad total y la capacidad util son obligatorias."). No consulta la BD.|
+|**CP-01**|Capacidad total nula|`capacidadTotal: null`, `capacidadUtil: 80.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadTotal == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La capacidad total y la capacidad útil son obligatorias."). No consulta la BD.|
 |**CP-02**|Capacidad útil mayor a total|`capacidadTotal: 100.0`, `capacidadUtil: 120.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-03**|Capacidad útil igual a total _(Límite)_|`capacidadTotal: 100.0`, `capacidadUtil: 100.0`, `eficiencia: 75.0`, `id: "MAC-01"`|`capacidadUtil >= capacidadTotal` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
 |**CP-04**|Eficiencia de maceración nula|`capacidadTotal: 100.0`, `capacidadUtil: 80.0`, `eficiencia: null`, `id: "MAC-01"`|`eficienciaMaceracion == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La eficiencia de maceración es obligatoria."). No consulta la BD.|

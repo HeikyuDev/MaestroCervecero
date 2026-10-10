@@ -17,14 +17,14 @@ public class MetodosEquipamiento {
      *
      * @param capacidadTotal Capacidad total del Equipamiento.
      * @param capacidadUtil  Capacidad util del Equipamiento.
-     * @throws ReglaNegocioException Si alguna es nula, si la capacidad util es mayor o igual a la capacidad total, o si alguna no es un número mayor a 0 o supera el máximo.
+     * @throws ReglaNegocioException Si alguna es nula, si la capacidad útil es mayor o igual a la capacidad total, o si alguna no es un número mayor a 0 o supera el máximo.
      */
     public static void validarCapacidadUtil(Double capacidadTotal, Double capacidadUtil) {
         if (capacidadTotal == null || capacidadUtil == null) {
-            throw new ReglaNegocioException("La capacidad total y la capacidad util son obligatorias.");
+            throw new ReglaNegocioException("La capacidad total y la capacidad útil son obligatorias.");
         }
         if (capacidadUtil >= capacidadTotal) {
-            throw new ReglaNegocioException("La capacidad util no puede ser mayor a la capacidad total.");
+            throw new ReglaNegocioException("La capacidad útil debe ser menor a la capacidad total");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(capacidadTotal,
                 LimitesTecnicos.CAPACIDAD_EQUIPO_MAXIMA_LITROS, "La capacidad total", "litros");

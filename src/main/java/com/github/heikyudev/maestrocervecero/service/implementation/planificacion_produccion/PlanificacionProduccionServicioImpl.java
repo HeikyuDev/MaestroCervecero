@@ -134,7 +134,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         LocalDate fechaInicioEstimada = planificacionProduccionFormDTO.getFechaInicioEstimada();
         LocalDate fechaFinalizacionEstimada = planificacionProduccionFormDTO.getFechaFinalizacionEstimada();
         if (fechaInicioEstimada == null || fechaFinalizacionEstimada == null) {
-            throw new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
+            throw new ReglaNegocioException("Las fechas de inicio y finalización estimadas son obligatorias");
         }
 
         // 3. Validar que la fecha de inicio estimada no sea anterior a la fecha actual (hoy es válido)

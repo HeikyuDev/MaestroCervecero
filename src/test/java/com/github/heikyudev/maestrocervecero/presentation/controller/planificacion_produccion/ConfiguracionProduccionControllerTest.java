@@ -205,7 +205,7 @@ class ConfiguracionProduccionControllerTest {
     void caso_cp_cpc_09() throws Exception {
         // === PREPARACION DE DATOS ===
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
-        doThrow(new ReglaNegocioException("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100"))
+        doThrow(new ReglaNegocioException("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100 inclusive"))
                 .when(configuracionServicio).actualizarConfiguracion(any());
 
         // === EJECUCION Y VERIFICACION ===
@@ -218,7 +218,7 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))
                 .andExpect(content().string(containsString("No se pudo guardar la configuración")))
-                .andExpect(content().string(containsString("debe estar entre 0 y 100")))
+                .andExpect(content().string(containsString("debe estar entre 0 y 100 inclusive")))
                 .andExpect(content().string(containsString("name=\"capacidadLoteEstandar\" value=\"250\"")))
                 .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"80\"")))
                 .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"150\"")))

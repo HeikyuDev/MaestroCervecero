@@ -272,10 +272,10 @@ public class RecetaServicioImpl implements IRecetaServicio {
             throw new ReglaNegocioException("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
         }
         if (versionFormDTO.getOgObjetivo() <= versionFormDTO.getFgObjetivo()) {
-            throw new ReglaNegocioException("La densidad original objetivo (OG) debe ser mayor a la densidad final objetivo (FG)");
+            throw new ReglaNegocioException("La densidad inicial (OG) debe ser mayor a la densidad final (FG)");
         }
         if (versionFormDTO.getIbuObjetivo() == null || versionFormDTO.getIbuObjetivo() < 0) {
-            throw new ReglaNegocioException("El IBU objetivo no puede ser negativo");
+            throw new ReglaNegocioException("El IBU objetivo debe ser mayor o igual a 0");
         }
         ValidacionesNumericas.validarEnteroMayorOIgualACeroConMaximo(versionFormDTO.getIbuObjetivo(),
                 LimitesTecnicos.IBU_MAXIMO, "El IBU objetivo", "IBU");
