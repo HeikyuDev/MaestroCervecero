@@ -197,13 +197,19 @@ public class MolinoServicioImpl implements IMolinoServicio {
     }
 
     /**
-     * Valida que el rendimiento de molienda sea un número finito mayor a 0 que no supere
+     * Valida que el rendimiento de molienda haya sido informado, sea mayor a 0, sea un número finito y no supere
      * {@link LimitesTecnicos#RENDIMIENTO_MOLINO_MAXIMO_KG_H} kg/h.
      *
      * @param rendimientoMolienda Rendimiento de molienda a validar.
      * @throws ReglaNegocioException Si el rendimiento de molienda es nulo, NaN, infinito, menor o igual a 0 o supera el máximo.
      */
     public static void validarRendimientoMolienda(Double rendimientoMolienda) {
+        if (rendimientoMolienda == null) {
+            throw new ReglaNegocioException("El rendimiento de molienda es obligatorio.");
+        }
+        if (rendimientoMolienda <= 0) {
+            throw new ReglaNegocioException("El rendimiento de molienda debe ser mayor a 0.");
+        }
         ValidacionesNumericas.validarMayorACeroConMaximo(rendimientoMolienda,
                 LimitesTecnicos.RENDIMIENTO_MOLINO_MAXIMO_KG_H, "El rendimiento de molienda", "kg/h");
     }

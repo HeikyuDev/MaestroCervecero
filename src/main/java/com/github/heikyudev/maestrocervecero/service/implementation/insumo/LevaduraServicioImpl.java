@@ -211,12 +211,9 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * (no en millones): la conversión desde millones, si el usuario la usa, es de la capa web.
      *
      * @param cantidadCelulasPorGramo Cantidad de células viables por gramo a validar.
-     * @throws ReglaNegocioException Si la cantidad es nula, NaN, infinita, no es mayor a 0 o queda fuera del rango permitido.
+     * @throws ReglaNegocioException Si la cantidad es nula, queda fuera del rango permitido o es NaN.
      */
     private static void validarCantidadCelulasPorGramo(Double cantidadCelulasPorGramo) {
-        if (cantidadCelulasPorGramo != null && !Double.isFinite(cantidadCelulasPorGramo)) {
-            throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser un número mayor a 0");
-        }
         if (cantidadCelulasPorGramo == null) {
             throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a "
                     + "6.000.000.000 y menor o igual a 20.000.000.000");
@@ -226,5 +223,6 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
             throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a "
                     + "6.000.000.000 y menor o igual a 20.000.000.000");
         }
+        ValidacionesNumericas.validarMayorACero(cantidadCelulasPorGramo, "La cantidad de células viables por gramo");
     }
 }

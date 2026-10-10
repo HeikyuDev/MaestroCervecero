@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOl
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OllaHervorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperOllaHervor;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -236,15 +237,16 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param evaporacion Evaporación de la olla de hervor, en litros por hora.
      * @param capacidadUtil Capacidad útil de la olla de hervor, en litros (ya validada).
-     * @throws ReglaNegocioException Si la evaporación es nula, NaN, infinita, no es mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si la evaporación es nula, no es mayor a 0, supera la capacidad útil o es NaN.
      */
     public static void validarEvaporacion(Double evaporacion, Double capacidadUtil) {
         if (evaporacion == null) {
             throw new ReglaNegocioException("La evaporación es obligatoria.");
         }
-        if (!Double.isFinite(evaporacion) || evaporacion <= 0 || evaporacion > capacidadUtil) {
+        if (evaporacion <= 0 || evaporacion > capacidadUtil) {
             throw new ReglaNegocioException("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
         }
+        ValidacionesNumericas.validarMayorACero(evaporacion, "La evaporación");
     }
 
     /**
@@ -252,15 +254,16 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param perdidaPorTrub Pérdida por trub de la olla de hervor, en litros.
      * @param capacidadUtil Capacidad útil de la olla de hervor, en litros (ya validada).
-     * @throws ReglaNegocioException Si la pérdida por trub es nula, NaN, infinita, no es mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si la pérdida por trub es nula, no es mayor a 0, supera la capacidad útil o es NaN.
      */
     public static void validarPerdidaPorTrub(Double perdidaPorTrub, Double capacidadUtil) {
         if (perdidaPorTrub == null) {
             throw new ReglaNegocioException("La pérdida por trub es obligatoria.");
         }
-        if (!Double.isFinite(perdidaPorTrub) || perdidaPorTrub <= 0 || perdidaPorTrub > capacidadUtil) {
+        if (perdidaPorTrub <= 0 || perdidaPorTrub > capacidadUtil) {
             throw new ReglaNegocioException("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
         }
+        ValidacionesNumericas.validarMayorACero(perdidaPorTrub, "La pérdida por trub");
     }
 
 }

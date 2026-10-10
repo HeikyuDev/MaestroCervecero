@@ -478,7 +478,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -490,7 +490,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
 
         verifyNoInteractions(lupuloRepository);
     }

@@ -15,7 +15,7 @@
 
 ### 3. `altaLupulo(LupuloFormDTO formDTO)`
 
-Los ácidos alfa deben ser un número real: NaN o infinito se rechazan con "El porcentaje de ácidos alfa debe ser un número mayor a 0". Además deben ser mayores a 0% y menores o iguales a 25% (mensaje: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%", que también se usa para nulo, cero y negativos) y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
+Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25% (mensaje: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%", que también se usa para nulo, cero, negativos e infinitos). Un valor NaN se rechaza con "El porcentaje de ácidos alfa debe ser un número mayor a 0" y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -29,8 +29,8 @@ Los ácidos alfa deben ser un número real: NaN o infinito se rechazan con "El p
 |**CP-AL-08**|Ácidos alfa mayores a 25 _(Límite sup.)_|`aa: 25.01`, `nombre: "Cascade"`|`aa > 25` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
 |**CP-AL-09**|Ácidos alfa en límite superior válido|`aa: 25`, `nombre: "Super Alpha"`|`aa <= 0 \| aa > 25` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `aa = 25`.|
 |**CP-AL-10**|El porcentaje de ácidos alfa es NaN|`aa: Double.NaN` (resto válido)|El porcentaje de ácidos alfa es NaN $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
-|**CP-AL-11**|El porcentaje de ácidos alfa es infinito positivo|`aa: Double.POSITIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito positivo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
-|**CP-AL-12**|El porcentaje de ácidos alfa es infinito negativo|`aa: Double.NEGATIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito negativo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
+|**CP-AL-11**|El porcentaje de ácidos alfa es infinito positivo|`aa: Double.POSITIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito positivo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"). No consulta la BD.|
+|**CP-AL-12**|El porcentaje de ácidos alfa es infinito negativo|`aa: Double.NEGATIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito negativo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"). No consulta la BD.|
 |**CP-AL-13**|El porcentaje de ácidos alfa es exactamente 25 (valor límite válido)|`aa: 25.0` (resto válido)|El porcentaje de ácidos alfa es exactamente 25 (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 |**CP-AL-14**|El nombre tiene 101 caracteres|`nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
 |**CP-AL-15**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|

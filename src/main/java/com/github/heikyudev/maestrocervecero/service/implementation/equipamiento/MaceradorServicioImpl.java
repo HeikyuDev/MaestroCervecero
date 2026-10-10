@@ -248,18 +248,19 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     }
 
     /**
-     * Valida que la eficiencia de maceración sea un número finito entre 40 y 100 inclusive.
+     * Valida que la eficiencia de maceración esté entre 40 y 100 inclusive y que sea un número.
      *
      * @param eficienciaMaceracion Eficiencia de maceración del macerador.
-     * @throws ReglaNegocioException Si la eficiencia de maceración es NaN, infinita o no está entre 40 y 100 inclusive.
+     * @throws ReglaNegocioException Si la eficiencia de maceración es nula, no está entre 40 y 100 inclusive o es NaN.
      */
     public static void validarEficienciaMaceracion(Double eficienciaMaceracion) {
         if (eficienciaMaceracion == null) {
             throw new ReglaNegocioException("La eficiencia de maceración es obligatoria.");
         }
-        if (!Double.isFinite(eficienciaMaceracion) || eficienciaMaceracion < 40 || eficienciaMaceracion > 100) {
+        if (eficienciaMaceracion < 40 || eficienciaMaceracion > 100) {
             throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
         }
+        ValidacionesNumericas.validarMayorACero(eficienciaMaceracion, "La eficiencia de maceración");
     }
 
 }
