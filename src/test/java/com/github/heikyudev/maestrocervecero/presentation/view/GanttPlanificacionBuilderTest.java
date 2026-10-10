@@ -515,6 +515,71 @@ class GanttPlanificacionBuilderTest {
         assertThat(fuera.getHoyAlineacion()).isNull();
     }
 
+    // ==================== Tope de marcas del eje ====================
+
+    @Test
+    @DisplayName("CP-GPB-27: el paso de las marcas crece (56, 91, 182, 365 y múltiplos de 365 días) cuando con 28 días habría más de 150 marcas")
+    void elPasoDeLasMarcasCreceParaNoSuperarElMaximo() {
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(4200)).isEqualTo(28);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(4201)).isEqualTo(56);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(8400)).isEqualTo(56);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(8401)).isEqualTo(91);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(13650)).isEqualTo(91);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(13651)).isEqualTo(182);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(27300)).isEqualTo(182);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(27301)).isEqualTo(365);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(54750)).isEqualTo(365);
+        assertThat(GanttPlanificacionBuilder.pasoDeMarcas(54751)).isEqualTo(730);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-28: un eje de 10 años (3.655 días) lleva 131 marcas de a 28 días, con el año en la etiqueta (dd/MM/yy)")
+    void unEjeDeDiezAniosNoSuperaElMaximoDeMarcas() {
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(
+                List.of(), LocalDate.of(2027, 1, 1), LocalDate.of(2036, 12, 31), HOY_LEJANO);
+
+        // Assert
+        assertThat(vista.getTotalDias()).isEqualTo(3655);
+        assertThat(vista.getMarcasEje()).hasSize(131);
+        assertThat(vista.getMarcasEje().get(0).getEtiqueta()).isEqualTo("31/12/26");
+        assertThat(vista.getMarcasEje().get(0).getPosicionPct()).isEqualTo(0.0);
+        assertThat(vista.getMarcasEje().get(0).getAlineacion()).isEqualTo(Alineacion.IZQUIERDA);
+        assertThat(vista.getMarcasEje().get(130).getEtiqueta()).isEqualTo("18/12/36");
+    }
+
+    @Test
+    @DisplayName("CP-GPB-29: un eje de 30 años (10.960 días) lleva 121 marcas de a 91 días, con posiciones crecientes dentro del eje")
+    void unEjeDeTreintaAniosAmpliaElPasoDeLasMarcas() {
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(
+                List.of(), LocalDate.of(2027, 1, 1), LocalDate.of(2056, 12, 31), HOY_LEJANO);
+
+        // Assert
+        assertThat(vista.getTotalDias()).isEqualTo(10960);
+        assertThat(vista.getMarcasEje()).hasSize(121);
+        assertThat(vista.getMarcasEje().get(0).getEtiqueta()).isEqualTo("31/12/26");
+        assertThat(vista.getMarcasEje().get(120).getEtiqueta()).isEqualTo("23/11/56");
+        assertThat(vista.getMarcasEje().get(120).getPosicionPct()).isLessThanOrEqualTo(100.0);
+        assertThat(vista.getMarcasEje()).extracting(m -> m.getPosicionPct()).isSorted();
+    }
+
+    @Test
+    @DisplayName("CP-GPB-30: el año aparece en la etiqueta solo cuando el eje supera los 365 días: 365 días dd/MM y 366 días dd/MM/yy")
+    void laEtiquetaLlevaElAnioSoloEnEjesDeMasDeUnAnio() {
+        // Act
+        GanttPlanificacionVista deUnAnio = GanttPlanificacionBuilder.construir(
+                List.of(), LocalDate.of(2027, 1, 2), LocalDate.of(2027, 12, 30), HOY_LEJANO);
+        GanttPlanificacionVista deMasDeUnAnio = GanttPlanificacionBuilder.construir(
+                List.of(), LocalDate.of(2027, 1, 2), LocalDate.of(2027, 12, 31), HOY_LEJANO);
+
+        // Assert
+        assertThat(deUnAnio.getTotalDias()).isEqualTo(365);
+        assertThat(deUnAnio.getMarcasEje().get(0).getEtiqueta()).isEqualTo("01/01");
+        assertThat(deMasDeUnAnio.getTotalDias()).isEqualTo(366);
+        assertThat(deMasDeUnAnio.getMarcasEje().get(0).getEtiqueta()).isEqualTo("01/01/27");
+    }
+
     // ==================== Datos de prueba ====================
 
     private static LocalDate fecha(int dia) {

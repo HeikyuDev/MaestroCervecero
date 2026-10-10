@@ -159,6 +159,93 @@ class ConfiguracionProduccionServicioImplTest {
         verify(configuracionProduccionRepository).save(configuracion);
     }
 
+    @Test
+    @DisplayName("CP-AC-09: actualizarConfiguracion lanza ReglaNegocioException cuando la velocidad de envasado es NaN o +Infinity")
+    void actualizar_debeRechazarVelocidadEnvasadoNoFinita() {
+        for (double valor : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
+            ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(valor, 25.0, 90.0,
+                    CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+            assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("La velocidad de envasado debe ser un número mayor a 0");
+        }
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-10: actualizarConfiguracion lanza ReglaNegocioException cuando la capacidad de lote estándar es NaN o +Infinity")
+    void actualizar_debeRechazarCapacidadLoteNoFinita() {
+        for (double valor : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
+            ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, valor, 90.0,
+                    CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+            assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("La capacidad de lote estándar debe ser un número mayor a 0");
+        }
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-11: actualizarConfiguracion lanza ReglaNegocioException cuando el porcentaje mínimo de consumo es NaN")
+    void actualizar_debeRechazarPorcentajeNaN() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, Double.NaN,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje mínimo de consumo para avanzar de etapa debe ser un número mayor o igual a 0");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-12: actualizarConfiguracion acepta la velocidad de envasado y la capacidad de lote estándar iguales a sus techos de 100.000 (límite)")
+    void actualizar_debeAceptarVelocidadYCapacidadEnSusTechos() {
+        ConfiguracionProduccionEntity configuracion = crearConfiguracionEntity(12.0, 25.0, 50.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
+        when(configuracionProduccionRepository.save(any(ConfiguracionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(100_000.0, 100_000.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        ConfiguracionProduccionResponseDTO resultado = configuracionProduccionServicio.actualizarConfiguracion(formDTO);
+
+        assertThat(resultado.getVelocidadEstandarEnvasado()).isEqualTo(100_000.0);
+        assertThat(resultado.getCapacidadLoteEstandar()).isEqualTo(100_000.0);
+        verify(configuracionProduccionRepository).save(configuracion);
+    }
+
+    @Test
+    @DisplayName("CP-AC-13: actualizarConfiguracion lanza ReglaNegocioException cuando la velocidad de envasado supera el techo de 100.000 L/h")
+    void actualizar_debeRechazarVelocidadEnvasadoSobreElTecho() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(100_000.01, 25.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La velocidad de envasado no puede superar 100.000 litros por hora");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-14: actualizarConfiguracion lanza ReglaNegocioException cuando la capacidad de lote estándar supera el techo de 100.000 L")
+    void actualizar_debeRechazarCapacidadLoteSobreElTecho() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 100_000.01, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar no puede superar 100.000 litros");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
     // ==================== Helpers ====================
 
     private static ConfiguracionProduccionFormDTO configuracionFormDTO(Double velocidadEnvasado, Double capacidadLote, Double porcentajeMinimo,

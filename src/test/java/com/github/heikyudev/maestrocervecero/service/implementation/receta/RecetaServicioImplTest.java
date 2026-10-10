@@ -28,6 +28,9 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaR
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -39,6 +42,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -889,6 +893,62 @@ class RecetaServicioImplTest {
         verify(recetaRepository).save(any(RecetaEntity.class));
     }
 
+    @Test
+    @DisplayName("CP-AR-62: altaReceta lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void altaReceta_debeRechazarNombreDeMasDeCienCaracteres() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre("a".repeat(101)).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-63: altaReceta persiste cuando el nombre tiene exactamente 100 caracteres")
+    void altaReceta_debePersistirConNombreDeCienCaracteres() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().nombre("a".repeat(100)).build();
+        mockearAltaExitosa(versionFormDTO);
+
+        recetaServicio.altaReceta(recetaFormDTO(versionFormDTO));
+
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
+    @ParameterizedTest(name = "CP-AR-64: {0}")
+    @MethodSource("versionesConNumerosNoFinitos")
+    @DisplayName("CP-AR-64: altaReceta lanza ReglaNegocioException y no consulta la BD cuando un número es NaN o infinito")
+    void altaReceta_debeRechazarNumerosNoFinitos(String descripcion, VersionRecetaFormDTO version, String mensaje) {
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @ParameterizedTest(name = "CP-AR-65: {0}")
+    @MethodSource("versionesSobreElTecho")
+    @DisplayName("CP-AR-65: altaReceta lanza ReglaNegocioException y no consulta la BD cuando un número supera su techo técnico")
+    void altaReceta_debeRechazarNumerosSobreElTecho(String descripcion, VersionRecetaFormDTO version, String mensaje) {
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @ParameterizedTest(name = "CP-AR-66: {0}")
+    @MethodSource("versionesEnElTecho")
+    @DisplayName("CP-AR-66: altaReceta persiste cuando un número vale exactamente su techo técnico")
+    void altaReceta_debePersistirNumerosEnElTecho(String descripcion, VersionRecetaFormDTO version) {
+        mockearAltaExitosa(version);
+
+        recetaServicio.altaReceta(recetaFormDTO(version));
+
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
     // ==================== modificarReceta ====================
 
     @Test
@@ -1218,6 +1278,62 @@ class RecetaServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @Test
+    @DisplayName("CP-MR-27: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void modificarReceta_debeRechazarNombreDeMasDeCienCaracteres() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre("a".repeat(101)).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-28: modificarReceta persiste la nueva versión cuando el nombre tiene exactamente 100 caracteres")
+    void modificarReceta_debePersistirConNombreDeCienCaracteres() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().nombre("a".repeat(100)).build();
+        mockearModificacionExitosa(versionFormDTO);
+
+        recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO));
+
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
+    @ParameterizedTest(name = "CP-MR-29: {0}")
+    @MethodSource("versionesConNumerosNoFinitos")
+    @DisplayName("CP-MR-29: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando un número es NaN o infinito")
+    void modificarReceta_debeRechazarNumerosNoFinitos(String descripcion, VersionRecetaFormDTO version, String mensaje) {
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @ParameterizedTest(name = "CP-MR-30: {0}")
+    @MethodSource("versionesSobreElTecho")
+    @DisplayName("CP-MR-30: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando un número supera su techo técnico")
+    void modificarReceta_debeRechazarNumerosSobreElTecho(String descripcion, VersionRecetaFormDTO version, String mensaje) {
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @ParameterizedTest(name = "CP-MR-31: {0}")
+    @MethodSource("versionesEnElTecho")
+    @DisplayName("CP-MR-31: modificarReceta persiste la nueva versión cuando un número vale exactamente su techo técnico")
+    void modificarReceta_debePersistirNumerosEnElTecho(String descripcion, VersionRecetaFormDTO version) {
+        mockearModificacionExitosa(version);
+
+        recetaServicio.modificarReceta(1L, recetaFormDTO(version));
+
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
     // ==================== bajaReceta ====================
 
     @Test
@@ -1312,6 +1428,63 @@ class RecetaServicioImplTest {
             entidadGuardada.setId(1L);
             return entidadGuardada;
         });
+    }
+
+    private void mockearModificacionExitosa(VersionRecetaFormDTO versionFormDTO) {
+        RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(versionFormDTO.getNombre(), 1L)).thenReturn(false);
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        mockearInsumos(versionFormDTO);
+        when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
+    }
+
+    // ==================== fuentes de casos parametrizados ====================
+
+    private static List<DetalleLupuloFormDTO> lupuloHervor(double cantidad, double tiempoDeHervor) {
+        return List.of(detalleLupuloFormDTO(cantidad, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, tiempoDeHervor, LUPULO_ID));
+    }
+
+    static Stream<Arguments> versionesConNumerosNoFinitos() {
+        return Stream.of(
+                Arguments.of("volumenBase NaN", versionValidaBuilder().volumenBase(Double.NaN).build(), "El volumen base debe ser un número mayor a 0"),
+                Arguments.of("volumenBase +Infinity", versionValidaBuilder().volumenBase(Double.POSITIVE_INFINITY).build(), "El volumen base debe ser un número mayor a 0"),
+                Arguments.of("relacionDeEmpaste NaN", versionValidaBuilder().relacionDeEmpaste(Double.NaN).build(), "La relación de empaste debe ser un número mayor a 0"),
+                Arguments.of("relacionDeEmpaste +Infinity", versionValidaBuilder().relacionDeEmpaste(Double.POSITIVE_INFINITY).build(), "La relación de empaste debe ser un número mayor a 0"),
+                Arguments.of("cantidad de malta NaN", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.NaN, MALTA_ID))).build(), "La cantidad de cada malta debe ser un número mayor a 0"),
+                Arguments.of("cantidad de malta +Infinity", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.POSITIVE_INFINITY, MALTA_ID))).build(), "La cantidad de cada malta debe ser un número mayor a 0"),
+                Arguments.of("cantidad de lúpulo NaN", versionValidaBuilder().detallesLupulo(lupuloHervor(Double.NaN, 30.0)).build(), "La cantidad de cada lúpulo debe ser un número mayor a 0"),
+                Arguments.of("cantidad de lúpulo +Infinity", versionValidaBuilder().detallesLupulo(lupuloHervor(Double.POSITIVE_INFINITY, 30.0)).build(), "La cantidad de cada lúpulo debe ser un número mayor a 0"),
+                Arguments.of("cantidad de levadura NaN", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(Double.NaN, LEVADURA_ID))).build(), "La cantidad de cada levadura debe ser un número mayor a 0"),
+                Arguments.of("cantidad de levadura +Infinity", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(Double.POSITIVE_INFINITY, LEVADURA_ID))).build(), "La cantidad de cada levadura debe ser un número mayor a 0"),
+                Arguments.of("tiempoDeHervor NaN", versionValidaBuilder().detallesLupulo(lupuloHervor(30.0, Double.NaN)).build(), "El tiempo de hervor debe ser un número mayor a 0"));
+    }
+
+    static Stream<Arguments> versionesSobreElTecho() {
+        return Stream.of(
+                Arguments.of("volumenBase 100000,01", versionValidaBuilder().volumenBase(100_000.01).build(), "El volumen base no puede superar 100.000 litros"),
+                Arguments.of("relacionDeEmpaste 20,01", versionValidaBuilder().relacionDeEmpaste(20.01).build(), "La relación de empaste no puede superar 20 L/kg"),
+                Arguments.of("ibuObjetivo 501", versionValidaBuilder().ibuObjetivo(501).build(), "El IBU objetivo no puede superar 500 IBU"),
+                Arguments.of("duracionMaceracion 10081", versionValidaBuilder().duracionMaceracion(10_081).build(), "La duración estimada de la maceración no puede superar 10.080 minutos"),
+                Arguments.of("duracionHervido 10081", versionValidaBuilder().duracionHervido(10_081).build(), "La duración estimada del hervido no puede superar 10.080 minutos"),
+                Arguments.of("duracionFermentacion 3651", versionValidaBuilder().duracionFermentacion(3_651).build(), "La duración estimada de la fermentación no puede superar 3.650 días"),
+                Arguments.of("duracionMaduracion 3651", versionValidaBuilder().duracionMaduracion(3_651).build(), "La duración estimada de la maduración no puede superar 3.650 días"),
+                Arguments.of("cantidad de malta 1000000,01", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(1_000_000.01, MALTA_ID))).build(), "La cantidad de cada malta no puede superar 1.000.000 kg"),
+                Arguments.of("cantidad de lúpulo 1000000,01", versionValidaBuilder().detallesLupulo(lupuloHervor(1_000_000.01, 30.0)).build(), "La cantidad de cada lúpulo no puede superar 1.000.000 g"),
+                Arguments.of("cantidad de levadura 1000000,01", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(1_000_000.01, LEVADURA_ID))).build(), "La cantidad de cada levadura no puede superar 1.000.000 g"));
+    }
+
+    static Stream<Arguments> versionesEnElTecho() {
+        return Stream.of(
+                Arguments.of("volumenBase 100000", versionValidaBuilder().volumenBase(100_000.0).build()),
+                Arguments.of("relacionDeEmpaste 20", versionValidaBuilder().relacionDeEmpaste(20.0).build()),
+                Arguments.of("ibuObjetivo 500", versionValidaBuilder().ibuObjetivo(500).build()),
+                Arguments.of("duracionMaceracion 10080", versionValidaBuilder().duracionMaceracion(10_080).build()),
+                Arguments.of("duracionHervido 10080", versionValidaBuilder().duracionHervido(10_080).build()),
+                Arguments.of("duracionFermentacion 3650", versionValidaBuilder().duracionFermentacion(3_650).build()),
+                Arguments.of("duracionMaduracion 3650", versionValidaBuilder().duracionMaduracion(3_650).build()),
+                Arguments.of("cantidad de malta 1000000", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(1_000_000.0, MALTA_ID))).build()),
+                Arguments.of("cantidad de lúpulo 1000000", versionValidaBuilder().detallesLupulo(lupuloHervor(1_000_000.0, 30.0)).build()),
+                Arguments.of("cantidad de levadura 1000000", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(1_000_000.0, LEVADURA_ID))).build()));
     }
 
     // ==================== helpers de construcción ====================

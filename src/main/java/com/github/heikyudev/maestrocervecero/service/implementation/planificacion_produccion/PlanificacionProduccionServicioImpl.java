@@ -24,6 +24,8 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanificacionProduccion;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +36,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +49,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     // Constantes de la estimación de la fecha de finalización (ver sugerirFechaFinalizacion)
     private static final int MINUTOS_POR_DIA = 1440;
     private static final int DIAS_MARGEN_LIMPIEZA_FERMENTADOR = 1;
+    private static final String MENSAJE_RANGO_PLANIFICACION_EXCEDIDO = "La planificación no puede durar más de 5 años (1.825 días) entre el inicio y el fin estimados";
     private static final String MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY = "La fecha de inicio estimada no puede ser anterior a la fecha actual";
 
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
@@ -112,7 +116,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      *
      * @param planificacionProduccionFormDTO Objeto DTO que contiene los datos de creación de la planificación de producción.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción guardada en la base de datos, en estado {@code PENDIENTE}.
-     * @throws ReglaNegocioException Si la cantidad a producir no es mayor a 0, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), o si la fecha de finalización estimada es anterior a la fecha de inicio estimada.
+     * @throws ReglaNegocioException Si la cantidad a producir no es un número finito mayor a 0 o supera el máximo técnico, si la fecha de inicio estimada es anterior a la fecha actual (hoy es válido), si la fecha de finalización estimada es anterior a la fecha de inicio estimada, o si entre ambas pasan más de 1.825 días (5 años).
      * @throws RecursoNoEncontradoException Si la receta referenciada no existe, o si no tiene ninguna versión activa.
      */
     @Override
@@ -123,6 +127,8 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         if (planificacionProduccionFormDTO.getCantidadAProducir() == null || planificacionProduccionFormDTO.getCantidadAProducir() <= 0) {
             throw new ReglaNegocioException("La cantidad a producir debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarMayorACeroConMaximo(planificacionProduccionFormDTO.getCantidadAProducir(),
+                LimitesTecnicos.CANTIDAD_A_PRODUCIR_MAXIMA_LITROS, "La cantidad a producir", "litros");
 
         // 2. Validar que se hayan informado ambas fechas
         LocalDate fechaInicioEstimada = planificacionProduccionFormDTO.getFechaInicioEstimada();
@@ -139,6 +145,11 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         // 4. Validar que la fecha de finalización estimada no sea anterior a la fecha de inicio estimada
         if (fechaFinalizacionEstimada.isBefore(fechaInicioEstimada)) {
             throw new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
+        }
+
+        // 4 bis. Validar que el rango entre el inicio y el fin estimados no supere el máximo permitido
+        if (ChronoUnit.DAYS.between(fechaInicioEstimada, fechaFinalizacionEstimada) > LimitesTecnicos.RANGO_MAXIMO_PLANIFICACION_DIAS) {
+            throw new ReglaNegocioException(MENSAJE_RANGO_PLANIFICACION_EXCEDIDO);
         }
 
         // 5. Resolver la última versión activa de la receta seleccionada
@@ -167,7 +178,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param id Identificador clave primaria de la planificación de producción a anular.
      * @param anulacionFormDTO DTO que contiene el motivo de la anulación.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la planificación no se encuentra en estado {@code PENDIENTE}, si tiene al menos un lote en estado {@code PENDIENTE} o {@code EN_EJECUCION} asociado, o si tiene al menos un lote en estado {@code FINALIZADO} asociado.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera los 255 caracteres, si la planificación no se encuentra en estado {@code PENDIENTE}, si tiene al menos un lote en estado {@code PENDIENTE} o {@code EN_EJECUCION} asociado, o si tiene al menos un lote en estado {@code FINALIZADO} asociado.
      * @throws RecursoNoEncontradoException Si la planificación de producción con el ID especificado no existe.
      */
     @Override
@@ -178,6 +189,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(anulacionFormDTO.getMotivoAnulacion(), LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la planificación de producción. Si no existe, se dispara RecursoNoEncontradoException
         PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(id)
@@ -220,7 +232,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param id Identificador clave primaria de la planificación de producción a finalizar.
      * @param finalizacionFormDTO DTO que contiene el motivo de la finalización forzada.
      * @return {@link PlanificacionProduccionResponseDTO} representativo de la planificación de producción finalizada.
-     * @throws ReglaNegocioException Si el motivo de finalización no fue informado, si la planificación no se encuentra en estado {@code PENDIENTE}, si tiene al menos un lote en estado {@code PENDIENTE} o {@code EN_EJECUCION} asociado, o si no tiene ningún lote en estado {@code FINALIZADO} asociado.
+     * @throws ReglaNegocioException Si el motivo de finalización no fue informado o supera los 255 caracteres, si la planificación no se encuentra en estado {@code PENDIENTE}, si tiene al menos un lote en estado {@code PENDIENTE} o {@code EN_EJECUCION} asociado, o si no tiene ningún lote en estado {@code FINALIZADO} asociado.
      * @throws RecursoNoEncontradoException Si la planificación de producción con el ID especificado no existe.
      */
     @Override
@@ -231,6 +243,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         if (finalizacionFormDTO.getMotivoFinalizacion() == null || finalizacionFormDTO.getMotivoFinalizacion().isBlank()) {
             throw new ReglaNegocioException("El motivo de finalización es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(finalizacionFormDTO.getMotivoFinalizacion(), LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de finalización");
 
         // 2. Localizar la planificación de producción. Si no existe, se dispara RecursoNoEncontradoException
         PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(id)
@@ -277,7 +290,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a cero.
      * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
      * @return {@link SugerenciaFechaFinalizacionResponseDTO} con la fecha de finalización sugerida y los datos de la simulación.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula o no es mayor a cero, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), o si la capacidad de lote estándar configurada no es mayor a cero.
+     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita, no es mayor a cero o supera el máximo técnico, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a cero, o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
      * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
      */
     @Override
@@ -322,6 +335,10 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
         int cantidadLotes = lotes.intValue();
 
+        // 7 bis. Validar el techo técnico de la cantidad a producir (después de la cantidad de lotes: una
+        //        cantidad absurda frente a la capacidad se informa como tal, con su mensaje propio)
+        ValidacionesNumericas.validarMaximo(cantidadAProducir, LimitesTecnicos.CANTIDAD_A_PRODUCIR_MAXIMA_LITROS, "La cantidad a producir", "litros");
+
         // 8. Duración de cada lote en días: día de brewing (maceración + hervido, en minutos, hacia arriba
         //    a días completos; división entera con redondeo hacia arriba) + fermentación + maduración
         long minutosBrewDay = (long) Objects.requireNonNullElse(versionRecetaEntity.getDuracionMaceracion(), 0)
@@ -333,9 +350,15 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
         // 9. Fecha de finalización: lotes secuenciales en un único fermentador. El lote k termina
         //    duracionLoteDias después de su inicio y el siguiente empieza un día después (margen de
-        //    limpieza), por lo que el último termina en: inicio + N * duración + (N - 1) * margen
-        LocalDate fechaFinalizacionSugerida = fechaInicioEstimada
-                .plusDays(cantidadLotes * duracionLoteDias + (long) (cantidadLotes - 1) * DIAS_MARGEN_LIMPIEZA_FERMENTADOR);
+        //    limpieza), por lo que el último termina en: inicio + N * duración + (N - 1) * margen.
+        //    Los días se calculan con aritmética long y se comparan contra el rango máximo antes de
+        //    construir la fecha, para que una simulación absurda no desborde el LocalDate
+        long diasTotales = cantidadLotes * duracionLoteDias + (long) (cantidadLotes - 1) * DIAS_MARGEN_LIMPIEZA_FERMENTADOR;
+        if (diasTotales > LimitesTecnicos.RANGO_MAXIMO_PLANIFICACION_DIAS) {
+            throw new ReglaNegocioException("La simulación supera los 5 años (" + cantidadLotes + " lotes de " + duracionLoteDias
+                    + " días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
+        }
+        LocalDate fechaFinalizacionSugerida = fechaInicioEstimada.plusDays(diasTotales);
 
         // 10. Armar la sugerencia (nada se persiste)
         return SugerenciaFechaFinalizacionResponseDTO.builder()

@@ -47,9 +47,16 @@ final class GanttGeometria {
     static final int ANCHO_MAXIMO_PX = 3600;
     /** Distancia al borde (en % del eje) por debajo de la cual una etiqueta centrada se recortaría (unos 29 px de 720). */
     static final double MARGEN_BORDE_PCT = 4.0;
+    /** Cantidad máxima de marcas del eje: protege a la vista de ejes de muchos años. */
+    static final int MAXIMO_MARCAS_EJE = 150;
+    /** Pasos, en días, a los que se pasa (en orden) cuando el paso base daría más marcas que el máximo. */
+    private static final int[] PASOS_AMPLIADOS = {56, 91, 182, 365};
+    /** Días del eje a partir de los cuales la etiqueta de cada marca incluye el año. */
+    private static final int DIAS_EJE_CON_ANIO = 365;
     static final String CARRIL_SIN_FERMENTADOR = "Sin fermentador";
 
     private static final DateTimeFormatter FORMATO_MARCA = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter FORMATO_MARCA_CON_ANIO = DateTimeFormatter.ofPattern("dd/MM/yy");
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final String SIN_DATO = "-";
@@ -185,10 +192,11 @@ final class GanttGeometria {
 
     private static List<MarcaEje> armarMarcasEje(LocalDate rangoDesde, LocalDate rangoHasta, int totalDias) {
         int paso = pasoDeMarcas(totalDias);
+        DateTimeFormatter formato = totalDias > DIAS_EJE_CON_ANIO ? FORMATO_MARCA_CON_ANIO : FORMATO_MARCA;
         List<MarcaEje> marcas = new ArrayList<>();
         for (LocalDate dia = rangoDesde; !dia.isAfter(rangoHasta); dia = dia.plusDays(paso)) {
             double posicion = porcentaje(ChronoUnit.DAYS.between(rangoDesde, dia), totalDias);
-            marcas.add(new MarcaEje(posicion, dia.format(FORMATO_MARCA), alineacionPara(posicion)));
+            marcas.add(new MarcaEje(posicion, dia.format(formato), alineacionPara(posicion)));
         }
         return marcas;
     }
@@ -209,8 +217,19 @@ final class GanttGeometria {
 
     /**
      * Cada día si el eje es corto; si no, de a una, dos o cuatro semanas, para que las etiquetas no se encimen.
+     * Si con cuatro semanas el eje seguiría teniendo más de {@link #MAXIMO_MARCAS_EJE} marcas, el paso crece
+     * (8 semanas, 91, 182 y 365 días y, más allá, múltiplos de 365) hasta que entren.
      */
     static int pasoDeMarcas(int totalDias) {
+        int paso = pasoBase(totalDias);
+        int siguiente = 0;
+        while (cantidadDeMarcas(totalDias, paso) > MAXIMO_MARCAS_EJE) {
+            paso = siguiente < PASOS_AMPLIADOS.length ? PASOS_AMPLIADOS[siguiente++] : paso + 365;
+        }
+        return paso;
+    }
+
+    private static int pasoBase(int totalDias) {
         if (totalDias <= 14) {
             return 1;
         }
@@ -221,6 +240,11 @@ final class GanttGeometria {
             return 14;
         }
         return 28;
+    }
+
+    /** Marcas que salen al recorrer el eje (de {@code totalDias - 1} días de largo) de a {@code paso} días. */
+    private static long cantidadDeMarcas(int totalDias, int paso) {
+        return (totalDias - 1) / paso + 1;
     }
 
     /**

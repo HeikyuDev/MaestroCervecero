@@ -33,6 +33,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaSe
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -252,12 +254,17 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * @throws ReglaNegocioException Si alguno de los datos generales incumple su regla de negocio.
      */
     private static void validarDatosGenerales(VersionRecetaFormDTO versionFormDTO) {
+        ValidacionesNumericas.validarLongitudMaxima(versionFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
         if (versionFormDTO.getVolumenBase() == null || versionFormDTO.getVolumenBase() <= 0) {
             throw new ReglaNegocioException("El volumen base debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarMayorACeroConMaximo(versionFormDTO.getVolumenBase(),
+                LimitesTecnicos.VOLUMEN_BASE_RECETA_MAXIMO_LITROS, "El volumen base", "litros");
         if (versionFormDTO.getRelacionDeEmpaste() == null || versionFormDTO.getRelacionDeEmpaste() <= 0) {
             throw new ReglaNegocioException("La relación de empaste debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarMayorACeroConMaximo(versionFormDTO.getRelacionDeEmpaste(),
+                LimitesTecnicos.RELACION_EMPASTE_MAXIMA_L_POR_KG, "La relación de empaste", "L/kg");
         if (!esGravedadValida(versionFormDTO.getOgObjetivo(), OG_MINIMA, OG_MAXIMA)) {
             throw new ReglaNegocioException("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
         }
@@ -270,18 +277,28 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (versionFormDTO.getIbuObjetivo() == null || versionFormDTO.getIbuObjetivo() < 0) {
             throw new ReglaNegocioException("El IBU objetivo no puede ser negativo");
         }
+        ValidacionesNumericas.validarEnteroMayorOIgualACeroConMaximo(versionFormDTO.getIbuObjetivo(),
+                LimitesTecnicos.IBU_MAXIMO, "El IBU objetivo", "IBU");
         if (versionFormDTO.getDuracionMaceracion() == null || versionFormDTO.getDuracionMaceracion() <= 0) {
             throw new ReglaNegocioException("La duración estimada de la maceración debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionMaceracion(),
+                LimitesTecnicos.DURACION_MACERACION_HERVIDO_MAXIMA_MINUTOS, "La duración estimada de la maceración", "minutos");
         if (versionFormDTO.getDuracionHervido() == null || versionFormDTO.getDuracionHervido() <= 0) {
             throw new ReglaNegocioException("La duración estimada del hervido debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionHervido(),
+                LimitesTecnicos.DURACION_MACERACION_HERVIDO_MAXIMA_MINUTOS, "La duración estimada del hervido", "minutos");
         if (versionFormDTO.getDuracionFermentacion() == null || versionFormDTO.getDuracionFermentacion() <= 0) {
             throw new ReglaNegocioException("La duración estimada de la fermentación debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionFermentacion(),
+                LimitesTecnicos.DURACION_FERMENTACION_MADURACION_MAXIMA_DIAS, "La duración estimada de la fermentación", "días");
         if (versionFormDTO.getDuracionMaduracion() == null || versionFormDTO.getDuracionMaduracion() <= 0) {
             throw new ReglaNegocioException("La duración estimada de la maduración debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionMaduracion(),
+                LimitesTecnicos.DURACION_FERMENTACION_MADURACION_MAXIMA_DIAS, "La duración estimada de la maduración", "días");
     }
 
     /**
@@ -300,6 +317,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayCantidadInvalida) {
             throw new ReglaNegocioException("La cantidad de cada malta debe ser mayor a 0");
         }
+        detallesMalta.forEach(detalle -> ValidacionesNumericas.validarMayorACeroConMaximo(detalle.getCantidad(),
+                LimitesTecnicos.CANTIDAD_INSUMO_RECETA_MAXIMA, "La cantidad de cada malta", "kg"));
         if (hayRepetidos(detallesMalta.stream().map(DetalleMaltaFormDTO::getIdMalta).toList())) {
             throw new ReglaNegocioException("La receta no puede tener la misma malta más de una vez");
         }
@@ -327,6 +346,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayCantidadInvalida) {
             throw new ReglaNegocioException("La cantidad de cada lúpulo debe ser mayor a 0");
         }
+        detallesLupulo.forEach(detalle -> ValidacionesNumericas.validarMayorACeroConMaximo(detalle.getCantidad(),
+                LimitesTecnicos.CANTIDAD_INSUMO_RECETA_MAXIMA, "La cantidad de cada lúpulo", "g"));
 
         if (detallesLupulo.stream().anyMatch(detalle -> detalle.getUso() != null
                 && detalle.getUso() != UsoLupulo.DRY_HOP && detalle.getEtapaDeUso() != TipoEtapa.HERVIDO)) {
@@ -351,6 +372,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayTiempoDeHervorInvalido) {
             throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
         }
+        lupulosHervor.forEach(detalle -> ValidacionesNumericas.validarMayorACero(detalle.getTiempoDeHervor(), "El tiempo de hervor"));
 
         // El tiempo de hervor solo aplica a HERVOR: para cualquier otro uso cuenta como 0, igual que al persistir
         boolean hayLupuloRepetido = hayRepetidos(detallesLupulo.stream()
@@ -378,6 +400,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (hayCantidadInvalida) {
             throw new ReglaNegocioException("La cantidad de cada levadura debe ser mayor a 0");
         }
+        detallesLevadura.forEach(detalle -> ValidacionesNumericas.validarMayorACeroConMaximo(detalle.getCantidad(),
+                LimitesTecnicos.CANTIDAD_INSUMO_RECETA_MAXIMA, "La cantidad de cada levadura", "g"));
         if (hayRepetidos(detallesLevadura.stream().map(DetalleLevaduraFormDTO::getIdLevadura).toList())) {
             throw new ReglaNegocioException("La receta no puede tener la misma levadura más de una vez");
         }

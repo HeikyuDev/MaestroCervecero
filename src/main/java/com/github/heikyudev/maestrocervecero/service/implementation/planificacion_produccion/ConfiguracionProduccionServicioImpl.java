@@ -10,6 +10,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IConfiguracionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.ConfiguracionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperConfiguracionProduccion;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,7 +38,7 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
      *
      * @param configuracionProduccionFormDTO Los nuevos valores de configuración.
      * @return La configuración de producción actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es mayor a cero, o si el porcentaje mínimo de consumo no está entre 0 y 100.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es un número mayor a cero o supera su máximo técnico, o si el porcentaje mínimo de consumo no es un número entre 0 y 100.
      */
     @Override
     @Transactional
@@ -56,11 +58,17 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
                 || configuracionProduccionFormDTO.getCapacidadLoteEstandar() <= 0) {
             throw new ReglaNegocioException("La velocidad de envasado y la capacidad de lote estándar deben ser mayores a cero");
         }
+        ValidacionesNumericas.validarMayorACeroConMaximo(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado(),
+                LimitesTecnicos.VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA, "La velocidad de envasado", "litros por hora");
+        ValidacionesNumericas.validarMayorACeroConMaximo(configuracionProduccionFormDTO.getCapacidadLoteEstandar(),
+                LimitesTecnicos.CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS, "La capacidad de lote estándar", "litros");
 
         // 3. Validar que el porcentaje mínimo de consumo para avanzar de etapa esté entre 0 y 100
         if (configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() < 0 || configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() > 100) {
             throw new ReglaNegocioException("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100");
         }
+        ValidacionesNumericas.validarMayorOIgualACero(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa(),
+                "El porcentaje mínimo de consumo para avanzar de etapa");
 
         // 4. Localizar la configuración vigente, aplicar los nuevos valores y persistirla
         ConfiguracionProduccionEntity configuracionProduccionEntity = buscarEntidadSingleton();

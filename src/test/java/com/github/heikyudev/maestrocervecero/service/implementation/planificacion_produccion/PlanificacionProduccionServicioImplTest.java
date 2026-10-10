@@ -379,6 +379,88 @@ class PlanificacionProduccionServicioImplTest {
         verify(planificacionProduccionRepository).save(any(PlanificacionProduccionEntity.class));
     }
 
+    @Test
+    @DisplayName("CP-RPP-11: registrarPlanificacionProduccion lanza ReglaNegocioException cuando la cantidad a producir es NaN")
+    void registrar_debeRechazarCantidadAProducirNaN() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L).cantidadAProducir(Double.NaN).build();
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
+
+        verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-12: registrarPlanificacionProduccion lanza ReglaNegocioException cuando la cantidad a producir es +Infinity")
+    void registrar_debeRechazarCantidadAProducirInfinita() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L).cantidadAProducir(Double.POSITIVE_INFINITY).build();
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
+
+        verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-13: registrarPlanificacionProduccion acepta una cantidad a producir igual al techo de 10.000.000 L (límite)")
+    void registrar_debeAceptarCantidadAProducirEnElTecho() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L).cantidadAProducir(10_000_000.0).build();
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(crearRecetaConVersion(1L, true)));
+        when(planificacionProduccionRepository.save(any(PlanificacionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanificacionProduccionResponseDTO resultado = planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO);
+
+        assertThat(resultado.getCantidadAProducir()).isEqualTo(10_000_000.0);
+        verify(planificacionProduccionRepository).save(any(PlanificacionProduccionEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RPP-14: registrarPlanificacionProduccion lanza ReglaNegocioException cuando la cantidad a producir supera el techo de 10.000.000 L")
+    void registrar_debeRechazarCantidadAProducirSobreElTecho() {
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L).cantidadAProducir(10_000_000.01).build();
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir no puede superar 10.000.000 litros");
+
+        verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RPP-15: registrarPlanificacionProduccion acepta un rango de exactamente 1.825 días entre el inicio y el fin estimados (límite)")
+    void registrar_debeAceptarRangoDe1825Dias() {
+        LocalDate inicio = LocalDate.of(2099, 3, 1);
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
+                .fechaInicioEstimada(inicio)
+                .fechaFinalizacionEstimada(inicio.plusDays(1825))
+                .build();
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(crearRecetaConVersion(1L, true)));
+        when(planificacionProduccionRepository.save(any(PlanificacionProduccionEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanificacionProduccionResponseDTO resultado = planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO);
+
+        assertThat(resultado.getFechaFinalizacionEstimada()).isEqualTo(inicio.plusDays(1825));
+        verify(planificacionProduccionRepository).save(any(PlanificacionProduccionEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RPP-16: registrarPlanificacionProduccion lanza ReglaNegocioException cuando el rango entre el inicio y el fin estimados es de 1.826 días")
+    void registrar_debeRechazarRangoDe1826Dias() {
+        LocalDate inicio = LocalDate.of(2099, 3, 1);
+        PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
+                .fechaInicioEstimada(inicio)
+                .fechaFinalizacionEstimada(inicio.plusDays(1826))
+                .build();
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La planificación no puede durar más de 5 años (1.825 días) entre el inicio y el fin estimados");
+
+        verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
+    }
+
     // ==================== anularPlanificacionProduccion ====================
 
     @Test
@@ -486,6 +568,34 @@ class PlanificacionProduccionServicioImplTest {
         verify(planificacionProduccionRepository).save(planificacion);
     }
 
+    @Test
+    @DisplayName("CP-APP-08: anularPlanificacionProduccion lanza ReglaNegocioException y no consulta la BD cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
+
+        verifyNoInteractions(planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APP-09: anularPlanificacionProduccion anula la planificación cuando el motivo de anulación tiene exactamente 255 caracteres (límite)")
+    void anular_debeAceptarMotivoDe255Caracteres() {
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("a".repeat(255));
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(false);
+        when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
+
+        planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO);
+
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.ANULADA);
+        verify(planificacionProduccionRepository).save(planificacion);
+    }
+
     // ==================== finalizarPlanificacionProduccion ====================
 
     @Test
@@ -590,6 +700,34 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(planificacion.getFechaFinalizacion()).isNotNull();
         assertThat(planificacion.getMotivoFinalizacion()).isEqualTo("Cantidad producida insuficiente");
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-FZPP-08: finalizarPlanificacionProduccion lanza ReglaNegocioException y no consulta la BD cuando el motivo de finalización tiene 256 caracteres")
+    void finalizar_debeRechazarMotivoDe256Caracteres() {
+        FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de finalización no puede superar 255 caracteres");
+
+        verifyNoInteractions(planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FZPP-09: finalizarPlanificacionProduccion finaliza la planificación cuando el motivo de finalización tiene exactamente 255 caracteres (límite)")
+    void finalizar_debeAceptarMotivoDe255Caracteres() {
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("a".repeat(255));
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
+        when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
+
+        planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO);
+
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
         verify(planificacionProduccionRepository).save(planificacion);
     }
 
@@ -966,6 +1104,67 @@ class PlanificacionProduccionServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La fecha de inicio estimada no puede ser anterior a la fecha actual");
         verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-SF-28: sugerirFechaFinalizacion acepta una cantidad a producir igual al techo de 10.000.000 L (límite)")
+    void sugerirFechaFinalizacion_debeAceptarCantidadEnElTecho() {
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 60, 0, 0)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(100_000.0)));
+
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 10_000_000.0, FECHA_INICIO_SUGERENCIA);
+
+        // 100 lotes de 1 día + 99 días de margen
+        assertThat(resultado.getCantidadLotes()).isEqualTo(100);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(FECHA_INICIO_SUGERENCIA.plusDays(199));
+    }
+
+    @Test
+    @DisplayName("CP-SF-29: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la cantidad a producir supera el techo de 10.000.000 L")
+    void sugerirFechaFinalizacion_debeRechazarCantidadSobreElTecho() {
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 60, 0, 0)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(100_000.0)));
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 10_000_000.01, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a producir no puede superar 10.000.000 litros");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-30: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la simulación supera los 5 años (100 lotes de 18 días = 1.899 días)")
+    void sugerirFechaFinalizacion_debeRechazarSimulacionDeMasDeCincoAnios() {
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 30_000.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La simulación supera los 5 años (100 lotes de 18 días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-SF-31: sugerirFechaFinalizacion acepta una simulación de exactamente 1.825 días (166 lotes de 10 días) (límite)")
+    void sugerirFechaFinalizacion_debeAceptarSimulacionDe1825Dias() {
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 90, 5, 4)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 49_800.0, FECHA_INICIO_SUGERENCIA);
+
+        assertThat(resultado.getCantidadLotes()).isEqualTo(166);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(10L);
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(FECHA_INICIO_SUGERENCIA.plusDays(1825));
+    }
+
+    @Test
+    @DisplayName("CP-SF-32: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la simulación es de 1.826 días (63 lotes de 28 días)")
+    void sugerirFechaFinalizacion_debeRechazarSimulacionDe1826Dias() {
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 90, 20, 7)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 18_900.0, FECHA_INICIO_SUGERENCIA))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La simulación supera los 5 años (63 lotes de 28 días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
     }
 
     // ==================== helpers ====================
