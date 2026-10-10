@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -142,7 +143,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(lupuloRepository);
@@ -155,7 +156,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -167,7 +168,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -305,7 +306,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(lupuloRepository);
@@ -454,6 +455,117 @@ class LupuloServicioImplTest {
         verify(lupuloRepository).findById(1L);
         verify(lupuloRepository).save(lupuloEntity);
         verify(lupuloRepository, never()).delete(any());
+    }
+
+    // ==================== validaciones técnicas de Lupulo (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-AL-10: altaLupulo lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de ácidos alfa es NaN")
+    void altaLupulo_debeRechazar_alfaAcidosNaN() {
+        LupuloFormDTO dto = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, Double.NaN);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-11: altaLupulo lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de ácidos alfa es infinito positivo")
+    void altaLupulo_debeRechazar_alfaAcidosInfinitos() {
+        LupuloFormDTO dto = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, Double.POSITIVE_INFINITY);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-12: altaLupulo lanza ReglaNegocioException y no consulta el repositorio cuando el porcentaje de ácidos alfa es infinito negativo")
+    void altaLupulo_debeRechazar_alfaAcidosInfinitosNegativos() {
+        LupuloFormDTO dto = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, Double.NEGATIVE_INFINITY);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-13: altaLupulo persiste con éxito cuando el porcentaje de ácidos alfa es exactamente 25 (valor límite válido)")
+    void altaLupulo_debeAceptar_alfaAcidosEnElMaximo() {
+        LupuloFormDTO dto = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 25.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("Cascade")).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> lupuloServicio.altaLupulo(dto)).doesNotThrowAnyException();
+
+        verify(lupuloRepository).save(any(LupuloEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AL-14: altaLupulo lanza ReglaNegocioException y no consulta el repositorio cuando el nombre tiene 101 caracteres")
+    void altaLupulo_debeRechazar_nombreDe101Caracteres() {
+        LupuloFormDTO dto = lupuloFormDTO("A".repeat(101), FormatoLupulo.PELLET, 6.0);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-15: altaLupulo persiste con éxito cuando el nombre tiene exactamente 100 caracteres (valor límite válido)")
+    void altaLupulo_debeAceptar_nombreDe100Caracteres() {
+        LupuloFormDTO dto = lupuloFormDTO("A".repeat(100), FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> lupuloServicio.altaLupulo(dto)).doesNotThrowAnyException();
+
+        verify(lupuloRepository).save(any(LupuloEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ML-06: modificarLupulo lanza ReglaNegocioException y no consulta la unicidad cuando el porcentaje de ácidos alfa es NaN")
+    void modificarLupulo_debeRechazar_alfaAcidosNaN() {
+        LupuloFormDTO dto = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, Double.NaN);
+
+        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-07: modificarLupulo lanza ReglaNegocioException y no consulta la unicidad cuando el nombre tiene 101 caracteres")
+    void modificarLupulo_debeRechazar_nombreDe101Caracteres() {
+        LupuloFormDTO dto = lupuloFormDTO("A".repeat(101), FormatoLupulo.PELLET, 6.0);
+
+        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-08: modificarLupulo persiste con éxito cuando el nombre tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarLupulo_debeAceptar_nombreDe100Caracteres() {
+        LupuloFormDTO dto = lupuloFormDTO("A".repeat(100), FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0)));
+        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> lupuloServicio.modificarLupulo(1L, dto)).doesNotThrowAnyException();
+
+        verify(lupuloRepository).save(any(LupuloEntity.class));
     }
 
     // ==================== helpers ====================

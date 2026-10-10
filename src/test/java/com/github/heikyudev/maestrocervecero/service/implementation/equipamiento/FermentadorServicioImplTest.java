@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,7 +146,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(fermentadorRepository);
@@ -159,7 +160,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -235,7 +236,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -248,7 +249,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -265,7 +266,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La existencia del fermentador se valida antes que las reglas de negocio sobre sus datos
         verify(fermentadorRepository).findById(1L);
@@ -364,7 +365,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -465,6 +466,288 @@ class FermentadorServicioImplTest {
                 .hasMessage("No se puede dar de baja el fermentador porque se encuentra en uso.");
 
         verify(fermentadorRepository, never()).save(any());
+    }
+
+    // ==================== validaciones técnicas de Fermentador (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-AF-08: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es NaN")
+    void altaFermentador_debeRechazar_capacidadTotalNaN() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", Double.NaN, 80.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-09: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es infinita positiva")
+    void altaFermentador_debeRechazar_capacidadTotalInfinita() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", Double.POSITIVE_INFINITY, 80.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-10: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es igual a cero (valor límite)")
+    void altaFermentador_debeRechazar_capacidadTotalCero() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 0.0, 0.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-11: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es negativa")
+    void altaFermentador_debeRechazar_capacidadTotalNegativa() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", -1.0, 80.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-12: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total supera 100.000 litros")
+    void altaFermentador_debeRechazar_capacidadTotalSuperaElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100000.01, 80.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total no puede superar 100.000 litros");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-13: altaFermentador persiste con éxito cuando la capacidad total es exactamente 100.000 litros (valor límite válido)")
+    void altaFermentador_debeAceptar_capacidadTotalEnElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100000.0, 99999.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fermentadorServicio.altaFermentador(dto)).doesNotThrowAnyException();
+
+        verify(fermentadorRepository).save(any(FermentadorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AF-14: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es NaN")
+    void altaFermentador_debeRechazar_capacidadUtilNaN() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, Double.NaN, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-15: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es igual a cero (valor límite)")
+    void altaFermentador_debeRechazar_capacidadUtilCero() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, 0.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-16: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es negativa")
+    void altaFermentador_debeRechazar_capacidadUtilNegativa() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, -1.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-17: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil supera 100.000 litros")
+    void altaFermentador_debeRechazar_capacidadUtilSuperaElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100000.0, 100000.01, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil no puede superar 100.000 litros");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-18: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son negativos")
+    void altaFermentador_debeRechazar_usosNegativos() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, 80.0, -1);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-19: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento superan 100.000")
+    void altaFermentador_debeRechazar_usosSuperanElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, 80.0, 100001);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-20: altaFermentador persiste con éxito cuando los usos máximos antes de mantenimiento son exactamente 100.000 (valor límite válido)")
+    void altaFermentador_debeAceptar_usosEnElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, 80.0, 100000);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fermentadorServicio.altaFermentador(dto)).doesNotThrowAnyException();
+
+        verify(fermentadorRepository).save(any(FermentadorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AF-21: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno tiene 101 caracteres")
+    void altaFermentador_debeRechazar_identificadorDe101Caracteres() {
+        FermentadorFormDTO dto = fermentadorFormDTO("A".repeat(101), 100.0, 80.0, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-22: altaFermentador persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void altaFermentador_debeAceptar_identificadorDe100Caracteres() {
+        FermentadorFormDTO dto = fermentadorFormDTO("A".repeat(100), 100.0, 80.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fermentadorServicio.altaFermentador(dto)).doesNotThrowAnyException();
+
+        verify(fermentadorRepository).save(any(FermentadorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MF-09: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total es NaN")
+    void modificarFermentador_debeRechazar_capacidadTotalNaN() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", Double.NaN, 80.0, 500);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verify(fermentadorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-10: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total supera 100.000 litros")
+    void modificarFermentador_debeRechazar_capacidadTotalSuperaElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100000.01, 80.0, 500);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total no puede superar 100.000 litros");
+
+        verify(fermentadorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-11: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad útil es NaN")
+    void modificarFermentador_debeRechazar_capacidadUtilNaN() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, Double.NaN, 500);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verify(fermentadorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-12: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento superan 100.000")
+    void modificarFermentador_debeRechazar_usosSuperanElMaximo() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, 80.0, 100001);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verify(fermentadorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-13: modificarFermentador lanza ReglaNegocioException y no consulta la unicidad cuando el identificador interno tiene 101 caracteres")
+    void modificarFermentador_debeRechazar_identificadorDe101Caracteres() {
+        FermentadorFormDTO dto = fermentadorFormDTO("A".repeat(101), 100.0, 80.0, 500);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verify(fermentadorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-14: modificarFermentador persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarFermentador_debeAceptar_identificadorDe100Caracteres() {
+        FermentadorFormDTO dto = fermentadorFormDTO("A".repeat(100), 100.0, 80.0, 500);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(crearFermentadorEntity(1L, "FER-01", 100.0, 80.0)));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fermentadorServicio.modificarFermentador(1L, dto)).doesNotThrowAnyException();
+
+        verify(fermentadorRepository).save(any(FermentadorEntity.class));
     }
 
     // ==================== helpers ====================

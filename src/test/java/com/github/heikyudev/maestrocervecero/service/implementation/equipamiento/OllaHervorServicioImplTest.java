@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,7 +146,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(ollaHervorRepository);
@@ -159,7 +160,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -378,7 +379,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -391,7 +392,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -531,7 +532,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -632,6 +633,355 @@ class OllaHervorServicioImplTest {
                 .hasMessage("No se puede dar de baja la olla de hervor porque se encuentra en uso.");
 
         verify(ollaHervorRepository, never()).save(any());
+    }
+
+    // ==================== validaciones técnicas de OllaHervor (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-AO-19: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es NaN")
+    void altaOllaHervor_debeRechazar_capacidadTotalNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", Double.NaN, 80.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-20: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es infinita positiva")
+    void altaOllaHervor_debeRechazar_capacidadTotalInfinita() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", Double.POSITIVE_INFINITY, 80.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-21: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es igual a cero (valor límite)")
+    void altaOllaHervor_debeRechazar_capacidadTotalCero() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 0.0, 0.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-22: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es negativa")
+    void altaOllaHervor_debeRechazar_capacidadTotalNegativa() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", -1.0, 80.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-23: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total supera 100.000 litros")
+    void altaOllaHervor_debeRechazar_capacidadTotalSuperaElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100000.01, 80.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total no puede superar 100.000 litros");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-24: altaOllaHervor persiste con éxito cuando la capacidad total es exactamente 100.000 litros (valor límite válido)")
+    void altaOllaHervor_debeAceptar_capacidadTotalEnElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100000.0, 99999.0, 5.0, 2.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("OLL-01")).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> ollaHervorServicio.altaOllaHervor(dto)).doesNotThrowAnyException();
+
+        verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AO-25: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es NaN")
+    void altaOllaHervor_debeRechazar_capacidadUtilNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, Double.NaN, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-26: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es igual a cero (valor límite)")
+    void altaOllaHervor_debeRechazar_capacidadUtilCero() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 0.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-27: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es negativa")
+    void altaOllaHervor_debeRechazar_capacidadUtilNegativa() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, -1.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-28: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil supera 100.000 litros")
+    void altaOllaHervor_debeRechazar_capacidadUtilSuperaElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100000.0, 100000.01, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil no puede superar 100.000 litros");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-29: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son negativos")
+    void altaOllaHervor_debeRechazar_usosNegativos() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, 2.0, -1);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-30: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento superan 100.000")
+    void altaOllaHervor_debeRechazar_usosSuperanElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, 2.0, 100001);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-31: altaOllaHervor persiste con éxito cuando los usos máximos antes de mantenimiento son exactamente 100.000 (valor límite válido)")
+    void altaOllaHervor_debeAceptar_usosEnElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, 2.0, 100000);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("OLL-01")).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> ollaHervorServicio.altaOllaHervor(dto)).doesNotThrowAnyException();
+
+        verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AO-32: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno tiene 101 caracteres")
+    void altaOllaHervor_debeRechazar_identificadorDe101Caracteres() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("A".repeat(101), 100.0, 80.0, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-33: altaOllaHervor persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void altaOllaHervor_debeAceptar_identificadorDe100Caracteres() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("A".repeat(100), 100.0, 80.0, 5.0, 2.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> ollaHervorServicio.altaOllaHervor(dto)).doesNotThrowAnyException();
+
+        verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AO-34: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la evaporación es NaN")
+    void altaOllaHervor_debeRechazar_evaporacionNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, Double.NaN, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-35: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la evaporación es infinita positiva")
+    void altaOllaHervor_debeRechazar_evaporacionInfinita() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, Double.POSITIVE_INFINITY, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-36: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la pérdida por trub es NaN")
+    void altaOllaHervor_debeRechazar_perdidaPorTrubNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, Double.NaN, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-37: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la pérdida por trub es infinita positiva")
+    void altaOllaHervor_debeRechazar_perdidaPorTrubInfinita() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, Double.POSITIVE_INFINITY, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MO-11: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total es NaN")
+    void modificarOllaHervor_debeRechazar_capacidadTotalNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", Double.NaN, 80.0, 5.0, 2.0, 500);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verify(ollaHervorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-12: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total supera 100.000 litros")
+    void modificarOllaHervor_debeRechazar_capacidadTotalSuperaElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100000.01, 80.0, 5.0, 2.0, 500);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total no puede superar 100.000 litros");
+
+        verify(ollaHervorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-13: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la evaporación es NaN")
+    void modificarOllaHervor_debeRechazar_evaporacionNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, Double.NaN, 2.0, 500);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+
+        verify(ollaHervorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-14: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando la pérdida por trub es NaN")
+    void modificarOllaHervor_debeRechazar_perdidaPorTrubNaN() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, Double.NaN, 500);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+
+        verify(ollaHervorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-15: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento superan 100.000")
+    void modificarOllaHervor_debeRechazar_usosSuperanElMaximo() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, 80.0, 5.0, 2.0, 100001);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verify(ollaHervorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-16: modificarOllaHervor lanza ReglaNegocioException y no consulta la unicidad cuando el identificador interno tiene 101 caracteres")
+    void modificarOllaHervor_debeRechazar_identificadorDe101Caracteres() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("A".repeat(101), 100.0, 80.0, 5.0, 2.0, 500);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verify(ollaHervorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-17: modificarOllaHervor persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarOllaHervor_debeAceptar_identificadorDe100Caracteres() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("A".repeat(100), 100.0, 80.0, 5.0, 2.0, 500);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(crearOllaHervorEntity(1L, "OLL-01", 100.0, 80.0, 5.0, 2.0)));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> ollaHervorServicio.modificarOllaHervor(1L, dto)).doesNotThrowAnyException();
+
+        verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
     }
 
     // ==================== helpers ====================

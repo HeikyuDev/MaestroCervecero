@@ -73,10 +73,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param ollaHervorFormDTO Objeto DTO que contiene los datos de creación de la olla de hervor.
      * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor guardada en la base de datos.
-     * @throws ReglaNegocioException Si la capacidad util es mayor o igual a la capacidad total.
-     * @throws ReglaNegocioException Si la evaporación no es mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException Si la pérdida por trub no es mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
+     * @throws ReglaNegocioException Si el identificador interno supera los 100 caracteres.
+     * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
+     * @throws ReglaNegocioException Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a una olla de hervor activa.
      */
     @Override
@@ -84,24 +85,27 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     @AuditableAction(accion = AccionAuditoria.CREAR,conceptoAuditoria = ConceptoAuditoria.OLLA_DE_HERVOR)
     public OllaHervorResponseDTO altaOllaHervor(OllaHervorFormDTO ollaHervorFormDTO) {
 
-        // 1. Validar que la capacidad util no sea mayor o igual a la capacidad total
+        // 1. Validar la longitud máxima del identificador interno
+        MetodosEquipamiento.validarLongitudIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
+
+        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 2. Validar que la evaporación sea mayor a 0 y no supere la capacidad útil
+        // 3. Validar que la evaporación sea un número mayor a 0 y no supere la capacidad útil
         validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 3. Validar que la pérdida por trub sea mayor a 0 y no supere la capacidad útil
+        // 4. Validar que la pérdida por trub sea un número mayor a 0 y no supere la capacidad útil
         validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 4. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 5. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
+        // 6. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(ollaHervorFormDTO.getIdentificadorInterno())) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 6. Crear la entidad OllaHervorEntity a partir del DTO de formulario
+        // 7. Crear la entidad OllaHervorEntity a partir del DTO de formulario
         OllaHervorEntity ollaHervorEntity = OllaHervorEntity.builder()
                 .identificadorInterno(ollaHervorFormDTO.getIdentificadorInterno())
                 // Cuando se da de alta una nueva olla de hervor, su estado operativo inicial es DISPONIBLE.
@@ -114,7 +118,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 7. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
+        // 8. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 
@@ -129,10 +133,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @param id                Identificador clave primaria de la olla de hervor a modificar.
      * @param ollaHervorFormDTO Objeto DTO que contiene los datos de modificación de la olla de hervor.
      * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor modificada en la base de datos.
-     * @throws ReglaNegocioException      Si la capacidad util es mayor o igual a la capacidad total.
-     * @throws ReglaNegocioException      Si la evaporación no es mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException      Si la pérdida por trub no es mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException      Si el identificador interno supera los 100 caracteres.
+     * @throws ReglaNegocioException      Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
+     * @throws ReglaNegocioException      Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException      Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
      * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
      */
@@ -144,34 +149,37 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
-        // 2. Validar que la capacidad util no sea mayor o igual a la capacidad total
+        // 2. Validar la longitud máxima del identificador interno
+        MetodosEquipamiento.validarLongitudIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
+
+        // 3. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 3. Validar que la evaporación sea mayor a 0 y no supere la capacidad útil
+        // 4. Validar que la evaporación sea un número mayor a 0 y no supere la capacidad útil
         validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 4. Validar que la pérdida por trub sea mayor a 0 y no supere la capacidad útil
+        // 5. Validar que la pérdida por trub sea un número mayor a 0 y no supere la capacidad útil
         validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub(), ollaHervorFormDTO.getCapacidadUtil());
 
-        // 5. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        // 6. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 6. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
+        // 7. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(ollaHervorFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 7. Validar que la olla de hervor no tenga comprometida una etapa pendiente de un lote.
+        // 8. Validar que la olla de hervor no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
             throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
         }
 
-        // 8. Validar que la olla de hervor no se encuentre actualmente en uso.
+        // 9. Validar que la olla de hervor no se encuentre actualmente en uso.
         if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
             throw new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso.");
         }
 
-        // 9. Actualizar los campos de la entidad con los valores del DTO de formulario
+        // 10. Actualizar los campos de la entidad con los valores del DTO de formulario
         ollaHervorEntity.setIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
         ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
@@ -179,7 +187,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         ollaHervorEntity.setPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
         ollaHervorEntity.setUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 10. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
+        // 11. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
     }
 
@@ -228,13 +236,13 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param evaporacion Evaporación de la olla de hervor, en litros por hora.
      * @param capacidadUtil Capacidad útil de la olla de hervor, en litros (ya validada).
-     * @throws ReglaNegocioException Si la evaporación es nula, no es mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si la evaporación es nula, NaN, infinita, no es mayor a 0 o supera la capacidad útil.
      */
     public static void validarEvaporacion(Double evaporacion, Double capacidadUtil) {
         if (evaporacion == null) {
             throw new ReglaNegocioException("La evaporación es obligatoria.");
         }
-        if (evaporacion <= 0 || evaporacion > capacidadUtil) {
+        if (!Double.isFinite(evaporacion) || evaporacion <= 0 || evaporacion > capacidadUtil) {
             throw new ReglaNegocioException("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
         }
     }
@@ -244,13 +252,13 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param perdidaPorTrub Pérdida por trub de la olla de hervor, en litros.
      * @param capacidadUtil Capacidad útil de la olla de hervor, en litros (ya validada).
-     * @throws ReglaNegocioException Si la pérdida por trub es nula, no es mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException Si la pérdida por trub es nula, NaN, infinita, no es mayor a 0 o supera la capacidad útil.
      */
     public static void validarPerdidaPorTrub(Double perdidaPorTrub, Double capacidadUtil) {
         if (perdidaPorTrub == null) {
             throw new ReglaNegocioException("La pérdida por trub es obligatoria.");
         }
-        if (perdidaPorTrub <= 0 || perdidaPorTrub > capacidadUtil) {
+        if (!Double.isFinite(perdidaPorTrub) || perdidaPorTrub <= 0 || perdidaPorTrub > capacidadUtil) {
             throw new ReglaNegocioException("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
         }
     }

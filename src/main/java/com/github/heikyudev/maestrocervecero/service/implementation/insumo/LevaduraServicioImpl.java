@@ -17,6 +17,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.ILevaduraServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLevadura;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -81,29 +83,32 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     /**
      * Registra una nueva levadura en el sistema.
      * <p>
-     * Valida que la cantidad de células viables por gramo esté entre 6.000.000.000 y 20.000.000.000, que el nombre no esté
+     * Valida que el nombre no supere los 100 caracteres, que la cantidad de células viables por gramo esté entre 6.000.000.000 y 20.000.000.000, que el nombre no esté
      * duplicado (case-insensitive) entre las levaduras activas, y asigna la unidad de medida fija
      * de negocio ({@code GRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param levaduraFormDTO Objeto DTO que contiene los datos de creación de la levadura.
      * @return {@link LevaduraResponseDTO} representativo de la levadura guardada en la base de datos.
-     * @throws ReglaNegocioException Si la cantidad de células viables por gramo no está entre 6.000.000.000 y 20.000.000.000.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres, si la cantidad de células viables por gramo no es un número o no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una levadura activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LEVADURA)
     public LevaduraResponseDTO altaLevadura(LevaduraFormDTO levaduraFormDTO) {
-        // 1. Validar la regla de negocio de la cantidad de células por gramo
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(levaduraFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar la regla de negocio de la cantidad de células por gramo
         validarCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 2. Validar si el nombre ya está registrado en otra levadura (case-insensitive)
+        // 3. Validar si el nombre ya está registrado en otra levadura (case-insensitive)
         if (levaduraRepository.existsByNombreIgnoreCase(levaduraFormDTO.getNombre())) {
             throw new RecursoDuplicadoException("Ya existe una levadura con el nombre '" + levaduraFormDTO.getNombre() + "'");
         }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos.
+        // 4. Creo la entidad que se va a almacenar en la base de datos.
         //    La unidad de medida es fija por regla de negocio y la asigna el service.
         LevaduraEntity levaduraEntity = LevaduraEntity.builder()
                 .nombre(levaduraFormDTO.getNombre())
@@ -113,14 +118,14 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperLevadura.toDTO(levaduraRepository.save(levaduraEntity));
     }
 
     /**
      * Actualiza la información de una levadura existente en la base de datos.
      * <p>
-     * Valida la cantidad de células por gramo antes de consultar la base de datos, luego localiza
+     * Valida la longitud del nombre y la cantidad de células por gramo antes de consultar la base de datos, luego localiza
      * la levadura por su ID y verifica que el nuevo nombre no colisione con el de otra levadura
      * activa (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
@@ -128,7 +133,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a modificar.
      * @param levaduraFormDTO DTO con la información actualizada.
      * @return {@link LevaduraResponseDTO} representativo de la levadura con los cambios aplicados.
-     * @throws ReglaNegocioException Si la cantidad de células viables por gramo no está entre 6.000.000.000 y 20.000.000.000.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres, si la cantidad de células viables por gramo no es un número o no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoNoEncontradoException Si no se localiza una levadura activa por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra levadura activa.
      */
@@ -136,26 +141,29 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LEVADURA)
     public LevaduraResponseDTO modificarLevadura(Long id, LevaduraFormDTO levaduraFormDTO) {
-        // 1. Validar la regla de negocio de la cantidad de células por gramo antes de consultar la base de datos
+        // 1. Validar la longitud máxima del nombre antes de consultar la base de datos
+        ValidacionesNumericas.validarLongitudMaxima(levaduraFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar la regla de negocio de la cantidad de células por gramo antes de consultar la base de datos
         validarCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 2. Localizar la levadura existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 3. Localizar la levadura existente. Si no existe, se dispara RecursoNoEncontradoException
         LevaduraEntity levaduraEntity = levaduraRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("La levadura no existe"));
 
-        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (levaduraRepository.existsByNombreIgnoreCaseAndIdNot(levaduraFormDTO.getNombre(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + levaduraFormDTO.getNombre() + "' ya está en uso por otra levadura");
         }
 
-        // 4. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 5. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (GRAMO).
         levaduraEntity.setNombre(levaduraFormDTO.getNombre());
         levaduraEntity.setTipo(levaduraFormDTO.getTipo());
         levaduraEntity.setCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperLevadura.toDTO(levaduraRepository.save(levaduraEntity));
     }
 
@@ -203,11 +211,11 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * (no en millones): la conversión desde millones, si el usuario la usa, es de la capa web.
      *
      * @param cantidadCelulasPorGramo Cantidad de células viables por gramo a validar.
-     * @throws ReglaNegocioException Si la cantidad es nula o queda fuera del rango permitido.
+     * @throws ReglaNegocioException Si la cantidad es nula, NaN, infinita, no es mayor a 0 o queda fuera del rango permitido.
      */
     private static void validarCantidadCelulasPorGramo(Double cantidadCelulasPorGramo) {
-        if (cantidadCelulasPorGramo == null
-                || cantidadCelulasPorGramo < CELULAS_VIABLES_MINIMO
+        ValidacionesNumericas.validarMayorACero(cantidadCelulasPorGramo, "La cantidad de células viables por gramo");
+        if (cantidadCelulasPorGramo < CELULAS_VIABLES_MINIMO
                 || cantidadCelulasPorGramo > CELULAS_VIABLES_MAXIMO) {
             throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a "
                     + "6.000.000.000 y menor o igual a 20.000.000.000");

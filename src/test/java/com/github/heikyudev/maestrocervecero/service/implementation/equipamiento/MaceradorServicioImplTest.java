@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -142,7 +143,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(maceradorRepository);
@@ -155,7 +156,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad util no puede ser mayor a la capacidad total.");
+                .hasMessage("La capacidad útil debe ser menor a la capacidad total");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -167,7 +168,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total y la capacidad util son obligatorias.");
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -304,7 +305,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -316,7 +317,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -440,7 +441,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verify(maceradorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -541,6 +542,472 @@ class MaceradorServicioImplTest {
                 .hasMessage("No se puede dar de baja el macerador porque se encuentra en uso.");
 
         verify(maceradorRepository, never()).save(any());
+    }
+
+    // ==================== validaciones técnicas de Macerador (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-14: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es NaN")
+    void altaMacerador_debeRechazar_capacidadTotalNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", Double.NaN, 80.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-15: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es infinita positiva")
+    void altaMacerador_debeRechazar_capacidadTotalInfinita() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", Double.POSITIVE_INFINITY, 80.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-16: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es igual a cero (valor límite)")
+    void altaMacerador_debeRechazar_capacidadTotalCero() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 0.0, 0.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-17: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total es negativa")
+    void altaMacerador_debeRechazar_capacidadTotalNegativa() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", -1.0, 80.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-18: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad total supera 100.000 litros")
+    void altaMacerador_debeRechazar_capacidadTotalSuperaElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100000.01, 80.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total no puede superar 100.000 litros");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-19: altaMacerador persiste con éxito cuando la capacidad total es exactamente 100.000 litros (valor límite válido)")
+    void altaMacerador_debeAceptar_capacidadTotalEnElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100000.0, 99999.0, 10.0, 75.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MAC-01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(dto)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-20: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es NaN")
+    void altaMacerador_debeRechazar_capacidadUtilNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, Double.NaN, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-21: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es igual a cero (valor límite)")
+    void altaMacerador_debeRechazar_capacidadUtilCero() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 0.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-22: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es negativa")
+    void altaMacerador_debeRechazar_capacidadUtilNegativa() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, -1.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-23: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil supera 100.000 litros")
+    void altaMacerador_debeRechazar_capacidadUtilSuperaElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100000.0, 100000.01, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil no puede superar 100.000 litros");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-24: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son negativos")
+    void altaMacerador_debeRechazar_usosNegativos() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, 75.0, -1);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-25: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento superan 100.000")
+    void altaMacerador_debeRechazar_usosSuperanElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, 75.0, 100001);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-26: altaMacerador persiste con éxito cuando los usos máximos antes de mantenimiento son exactamente 100.000 (valor límite válido)")
+    void altaMacerador_debeAceptar_usosEnElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, 75.0, 100000);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MAC-01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(dto)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-27: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno tiene 101 caracteres")
+    void altaMacerador_debeRechazar_identificadorDe101Caracteres() {
+        MaceradorFormDTO dto = maceradorFormDTO("A".repeat(101), 100.0, 80.0, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-28: altaMacerador persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void altaMacerador_debeAceptar_identificadorDe100Caracteres() {
+        MaceradorFormDTO dto = maceradorFormDTO("A".repeat(100), 100.0, 80.0, 10.0, 75.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(dto)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-29: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto es nulo")
+    void altaMacerador_debeRechazar_espacioMuertoNulo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, null, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-30: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto es NaN")
+    void altaMacerador_debeRechazar_espacioMuertoNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, Double.NaN, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-31: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto es infinito positivo")
+    void altaMacerador_debeRechazar_espacioMuertoInfinito() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, Double.POSITIVE_INFINITY, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-32: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto es negativo")
+    void altaMacerador_debeRechazar_espacioMuertoNegativo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, -1.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-33: altaMacerador persiste con éxito cuando el espacio muerto es igual a cero (valor límite válido)")
+    void altaMacerador_debeAceptar_espacioMuertoCero() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 0.0, 75.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MAC-01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(dto)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-34: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto es igual a la capacidad útil (valor límite)")
+    void altaMacerador_debeRechazar_espacioMuertoIgualACapacidadUtil() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 80.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser menor a la capacidad útil");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-35: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto es mayor a la capacidad útil")
+    void altaMacerador_debeRechazar_espacioMuertoMayorACapacidadUtil() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 90.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser menor a la capacidad útil");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-36: altaMacerador persiste con éxito cuando el espacio muerto es apenas menor a la capacidad útil (valor límite válido)")
+    void altaMacerador_debeAceptar_espacioMuertoJustoDebajoDeCapacidadUtil() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 79.99, 75.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MAC-01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(dto)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-37: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el espacio muerto supera 100.000 litros")
+    void altaMacerador_debeRechazar_espacioMuertoSuperaElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100000.0, 99999.0, 100000.01, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto no puede superar 100.000 litros");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-38: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la eficiencia de maceración es NaN")
+    void altaMacerador_debeRechazar_eficienciaNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, Double.NaN, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-39: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la eficiencia de maceración es infinita positiva")
+    void altaMacerador_debeRechazar_eficienciaInfinita() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, Double.POSITIVE_INFINITY, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-40: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la eficiencia de maceración es infinita negativa")
+    void altaMacerador_debeRechazar_eficienciaInfinitaNegativa() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, Double.NEGATIVE_INFINITY, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MM-09: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total es NaN")
+    void modificarMacerador_debeRechazar_capacidadTotalNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", Double.NaN, 80.0, 10.0, 75.0, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total debe ser un número mayor a 0");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-10: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la capacidad total supera 100.000 litros")
+    void modificarMacerador_debeRechazar_capacidadTotalSuperaElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100000.01, 80.0, 10.0, 75.0, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad total no puede superar 100.000 litros");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-11: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando el espacio muerto es NaN")
+    void modificarMacerador_debeRechazar_espacioMuertoNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, Double.NaN, 75.0, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-12: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando el espacio muerto es igual a la capacidad útil (valor límite)")
+    void modificarMacerador_debeRechazar_espacioMuertoIgualACapacidadUtil() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 80.0, 75.0, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El espacio muerto debe ser menor a la capacidad útil");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-13: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando la eficiencia de maceración es NaN")
+    void modificarMacerador_debeRechazar_eficienciaNaN() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, Double.NaN, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-14: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento superan 100.000")
+    void modificarMacerador_debeRechazar_usosSuperanElMaximo() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, 80.0, 10.0, 75.0, 100001);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-15: modificarMacerador lanza ReglaNegocioException y no consulta la unicidad cuando el identificador interno tiene 101 caracteres")
+    void modificarMacerador_debeRechazar_identificadorDe101Caracteres() {
+        MaceradorFormDTO dto = maceradorFormDTO("A".repeat(101), 100.0, 80.0, 10.0, 75.0, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verify(maceradorRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-16: modificarMacerador persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarMacerador_debeAceptar_identificadorDe100Caracteres() {
+        MaceradorFormDTO dto = maceradorFormDTO("A".repeat(100), 100.0, 80.0, 10.0, 75.0, 500);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 10.0, 75.0)));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.modificarMacerador(1L, dto)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
     }
 
     // ==================== helpers ====================

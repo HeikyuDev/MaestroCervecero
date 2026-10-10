@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -142,7 +143,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(levaduraRepository);
@@ -155,7 +156,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -167,7 +168,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -317,7 +318,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(levaduraRepository);
@@ -466,6 +467,129 @@ class LevaduraServicioImplTest {
         verify(levaduraRepository).findById(1L);
         verify(levaduraRepository).save(levaduraEntity);
         verify(levaduraRepository, never()).delete(any());
+    }
+
+    // ==================== validaciones técnicas de Levadura (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-AL-11: altaLevadura lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad de células por gramo es NaN")
+    void altaLevadura_debeRechazar_celulasNaN() {
+        LevaduraFormDTO dto = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, Double.NaN);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-12: altaLevadura lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad de células por gramo es infinita positiva")
+    void altaLevadura_debeRechazar_celulasInfinitas() {
+        LevaduraFormDTO dto = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, Double.POSITIVE_INFINITY);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-13: altaLevadura lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad de células por gramo es infinita negativa")
+    void altaLevadura_debeRechazar_celulasInfinitasNegativas() {
+        LevaduraFormDTO dto = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, Double.NEGATIVE_INFINITY);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-14: altaLevadura persiste con éxito cuando la cantidad de células por gramo es exactamente 6.000.000.000 (valor límite válido)")
+    void altaLevadura_debeAceptar_celulasEnElMinimo() {
+        LevaduraFormDTO dto = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 6_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("SafAle S-04")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> levaduraServicio.altaLevadura(dto)).doesNotThrowAnyException();
+
+        verify(levaduraRepository).save(any(LevaduraEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AL-15: altaLevadura persiste con éxito cuando la cantidad de células por gramo es exactamente 20.000.000.000 (valor límite válido)")
+    void altaLevadura_debeAceptar_celulasEnElMaximo() {
+        LevaduraFormDTO dto = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 20_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("SafAle S-04")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> levaduraServicio.altaLevadura(dto)).doesNotThrowAnyException();
+
+        verify(levaduraRepository).save(any(LevaduraEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AL-16: altaLevadura lanza ReglaNegocioException y no consulta el repositorio cuando el nombre tiene 101 caracteres")
+    void altaLevadura_debeRechazar_nombreDe101Caracteres() {
+        LevaduraFormDTO dto = levaduraFormDTO("A".repeat(101), TipoLevadura.ALE, 1.0E10);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-17: altaLevadura persiste con éxito cuando el nombre tiene exactamente 100 caracteres (valor límite válido)")
+    void altaLevadura_debeAceptar_nombreDe100Caracteres() {
+        LevaduraFormDTO dto = levaduraFormDTO("A".repeat(100), TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.existsByNombreIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> levaduraServicio.altaLevadura(dto)).doesNotThrowAnyException();
+
+        verify(levaduraRepository).save(any(LevaduraEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ML-06: modificarLevadura lanza ReglaNegocioException y no consulta la unicidad cuando la cantidad de células por gramo es NaN")
+    void modificarLevadura_debeRechazar_celulasNaN() {
+        LevaduraFormDTO dto = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, Double.NaN);
+
+        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-07: modificarLevadura lanza ReglaNegocioException y no consulta la unicidad cuando el nombre tiene 101 caracteres")
+    void modificarLevadura_debeRechazar_nombreDe101Caracteres() {
+        LevaduraFormDTO dto = levaduraFormDTO("A".repeat(101), TipoLevadura.ALE, 1.0E10);
+
+        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-08: modificarLevadura persiste con éxito cuando el nombre tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarLevadura_debeAceptar_nombreDe100Caracteres() {
+        LevaduraFormDTO dto = levaduraFormDTO("A".repeat(100), TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10)));
+        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> levaduraServicio.modificarLevadura(1L, dto)).doesNotThrowAnyException();
+
+        verify(levaduraRepository).save(any(LevaduraEntity.class));
     }
 
     // ==================== helpers ====================

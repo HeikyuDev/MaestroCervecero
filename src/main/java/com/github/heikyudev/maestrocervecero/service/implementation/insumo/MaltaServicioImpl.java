@@ -17,6 +17,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IMaltaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperMalta;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -76,29 +78,32 @@ public class MaltaServicioImpl implements IMaltaServicio {
     /**
      * Registra una nueva malta en el sistema.
      * <p>
-     * Valida que el extracto potencial sea mayor a 0% y menor o igual a 90%, que el nombre no esté
+     * Valida que el nombre no supere los 100 caracteres, que el extracto potencial sea mayor a 0% y menor o igual a 90%, que el nombre no esté
      * duplicado (case-insensitive) entre las maltas activas, y asigna la unidad de medida fija
      * de negocio ({@code KILOGRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param maltaFormDTO Objeto DTO que contiene los datos de creación de la malta.
      * @return {@link MaltaResponseDTO} representativo de la malta guardada en la base de datos.
-     * @throws ReglaNegocioException Si el extracto potencial no es mayor a 0% y menor o igual a 90%.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o si el extracto potencial no es mayor a 0% y menor o igual a 90%.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una malta activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MALTA)
     public MaltaResponseDTO altaMalta(MaltaFormDTO maltaFormDTO) {
-        // 1. Validar la regla de negocio del extracto potencial
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(maltaFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar la regla de negocio del extracto potencial
         validarPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
-        // 2. Validar si el nombre ya está registrado en otra malta (case-insensitive)
+        // 3. Validar si el nombre ya está registrado en otra malta (case-insensitive)
         if (maltaRepository.existsByNombreIgnoreCase(maltaFormDTO.getNombre())) {
             throw new RecursoDuplicadoException("Ya existe una malta con el nombre '" + maltaFormDTO.getNombre() + "'");
         }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos.
+        // 4. Creo la entidad que se va a almacenar en la base de datos.
         //    La unidad de medida es fija por regla de negocio y la asigna el service.
         MaltaEntity maltaEntity = MaltaEntity.builder()
                 .nombre(maltaFormDTO.getNombre())
@@ -108,14 +113,14 @@ public class MaltaServicioImpl implements IMaltaServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperMalta.toDTO(maltaRepository.save(maltaEntity));
     }
 
     /**
      * Actualiza la información de una malta existente en la base de datos.
      * <p>
-     * Valida el extracto potencial antes de consultar la base de datos, luego localiza la malta
+     * Valida la longitud del nombre y el extracto potencial antes de consultar la base de datos, luego localiza la malta
      * por su ID y verifica que el nuevo nombre no colisione con el de otra malta activa
      * (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
@@ -123,7 +128,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * @param id Identificador clave primaria de la malta a modificar.
      * @param maltaFormDTO DTO con la información actualizada.
      * @return {@link MaltaResponseDTO} representativo de la malta con los cambios aplicados.
-     * @throws ReglaNegocioException Si el extracto potencial no es mayor a 0% y menor o igual a 90%.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o si el extracto potencial no es mayor a 0% y menor o igual a 90%.
      * @throws RecursoNoEncontradoException Si no se localiza una malta activa por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra malta activa.
      */
@@ -131,26 +136,29 @@ public class MaltaServicioImpl implements IMaltaServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MALTA)
     public MaltaResponseDTO modificarMalta(Long id, MaltaFormDTO maltaFormDTO) {
-        // 1. Validar la regla de negocio del extracto potencial antes de consultar la base de datos
+        // 1. Validar la longitud máxima del nombre antes de consultar la base de datos
+        ValidacionesNumericas.validarLongitudMaxima(maltaFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar la regla de negocio del extracto potencial antes de consultar la base de datos
         validarPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
-        // 2. Localizar la malta existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 3. Localizar la malta existente. Si no existe, se dispara RecursoNoEncontradoException
         MaltaEntity maltaEntity = maltaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("La malta no existe"));
 
-        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (maltaRepository.existsByNombreIgnoreCaseAndIdNot(maltaFormDTO.getNombre(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + maltaFormDTO.getNombre() + "' ya está en uso por otra malta");
         }
 
-        // 4. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 5. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (KILOGRAMO).
         maltaEntity.setNombre(maltaFormDTO.getNombre());
         maltaEntity.setTipo(maltaFormDTO.getTipo());
         maltaEntity.setPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
-        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperMalta.toDTO(maltaRepository.save(maltaEntity));
     }
 

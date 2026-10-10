@@ -17,6 +17,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMo
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperMolino;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -72,24 +74,27 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param molinoFormDTO Datos del molino a crear.
      * @return {@link MolinoResponseDTO} con los datos del molino creado.
      * @throws RecursoDuplicadoException Si ya existe un equipamiento con el mismo identificador interno.
-     * @throws ReglaNegocioException      Si el rendimiento de molienda es menor o igual a 0, o si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
+     * @throws ReglaNegocioException      Si el identificador interno supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, o si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO altaMolino(MolinoFormDTO molinoFormDTO) {
-        // 1. Validar que el rendimiento de molienda sea mayor a 0.
+        // 1. Validar la longitud máxima del identificador interno.
+        MetodosEquipamiento.validarLongitudIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
+
+        // 2. Validar que el rendimiento de molienda sea un número mayor a 0 y no supere el máximo.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 2. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        // 3. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 3. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
+        // 4. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(molinoFormDTO.getIdentificadorInterno())) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 4. Crear la entidad MolinoEntity.
+        // 5. Crear la entidad MolinoEntity.
         MolinoEntity molinoEntity = MolinoEntity.builder().
                 identificadorInterno(molinoFormDTO.getIdentificadorInterno()).
                 rendimientoMolienda(molinoFormDTO.getRendimientoMolienda()).
@@ -98,7 +103,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
                 estado(Estado.ACTIVO).
                 build();
 
-        // 5. Guardar la entidad en la base de datos.
+        // 6. Guardar la entidad en la base de datos.
         return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 
@@ -110,7 +115,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @return {@link MolinoResponseDTO} con los datos del molino modificado.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno.
-     * @throws ReglaNegocioException         Si el rendimiento de molienda es menor o igual a 0, si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0, si el molino tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException         Si el identificador interno supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el molino tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -120,34 +125,37 @@ public class MolinoServicioImpl implements IMolinoServicio {
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // 2. Validar que el rendimiento de molienda sea mayor a 0.
+        // 2. Validar la longitud máxima del identificador interno.
+        MetodosEquipamiento.validarLongitudIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
+
+        // 3. Validar que el rendimiento de molienda sea un número mayor a 0 y no supere el máximo.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 3. Validar que los usos máximos antes de mantenimiento sean mayores a 0.
+        // 4. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 4. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
+        // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(molinoFormDTO.getIdentificadorInterno(), id)) {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 5. Validar que el molino no tenga comprometida una etapa pendiente de un lote (ni a
+        // 6. Validar que el molino no tenga comprometida una etapa pendiente de un lote (ni a
         //    punto de arrancar, ni futura dentro de un lote ya en ejecución).
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
             throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote.");
         }
 
-        // 6. Validar que el molino no se encuentre actualmente en uso.
+        // 7. Validar que el molino no se encuentre actualmente en uso.
         if (molinoEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
             throw new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso.");
         }
 
-        // 7. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
+        // 8. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
         molinoEntity.setIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
         molinoEntity.setRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
         molinoEntity.setUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 8. Guardar la entidad actualizada en la base de datos.
+        // 9. Guardar la entidad actualizada en la base de datos.
         return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 
@@ -189,17 +197,14 @@ public class MolinoServicioImpl implements IMolinoServicio {
     }
 
     /**
-     * Valida que el rendimiento de molienda sea mayor a 0.
+     * Valida que el rendimiento de molienda sea un número finito mayor a 0 que no supere
+     * {@link LimitesTecnicos#RENDIMIENTO_MOLINO_MAXIMO_KG_H} kg/h.
      *
      * @param rendimientoMolienda Rendimiento de molienda a validar.
-     * @throws ReglaNegocioException Si el rendimiento de molienda es menor o igual a 0.
+     * @throws ReglaNegocioException Si el rendimiento de molienda es nulo, NaN, infinito, menor o igual a 0 o supera el máximo.
      */
     public static void validarRendimientoMolienda(Double rendimientoMolienda) {
-        if (rendimientoMolienda == null) {
-            throw new ReglaNegocioException("El rendimiento de molienda es obligatorio.");
-        }
-        if (rendimientoMolienda <= 0) {
-            throw new ReglaNegocioException("El rendimiento de molienda debe ser mayor a 0.");
-        }
+        ValidacionesNumericas.validarMayorACeroConMaximo(rendimientoMolienda,
+                LimitesTecnicos.RENDIMIENTO_MOLINO_MAXIMO_KG_H, "El rendimiento de molienda", "kg/h");
     }
 }

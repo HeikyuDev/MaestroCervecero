@@ -17,6 +17,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.ILupuloServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLupulo;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -75,29 +77,32 @@ public class LupuloServicioImpl implements ILupuloServicio {
     /**
      * Registra un nuevo lúpulo en el sistema.
      * <p>
-     * Valida que los ácidos alfa sean mayores a 0% y menores o iguales a 25%, que el nombre no esté
+     * Valida que el nombre no supere los 100 caracteres, que los ácidos alfa sean mayores a 0% y menores o iguales a 25%, que el nombre no esté
      * duplicado (case-insensitive) entre los lúpulos activos, y asigna la unidad de medida fija
      * de negocio ({@code GRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param lupuloFormDTO Objeto DTO que contiene los datos de creación del lúpulo.
      * @return {@link LupuloResponseDTO} representativo del lúpulo guardado en la base de datos.
-     * @throws ReglaNegocioException Si los ácidos alfa no son mayores a 0% y menores o iguales a 25%.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres, si los ácidos alfa no son un número o si no son mayores a 0% y menores o iguales a 25%.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a un lúpulo activo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LUPULO)
     public LupuloResponseDTO altaLupulo(LupuloFormDTO lupuloFormDTO) {
-        // 1. Validar la regla de negocio de los alfa ácidos
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(lupuloFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar la regla de negocio de los alfa ácidos
         validarAlfaAcidos(lupuloFormDTO.getAa());
 
-        // 2. Validar si el nombre ya está registrado en otro lúpulo (case-insensitive)
+        // 3. Validar si el nombre ya está registrado en otro lúpulo (case-insensitive)
         if (lupuloRepository.existsByNombreIgnoreCase(lupuloFormDTO.getNombre())) {
             throw new RecursoDuplicadoException("Ya existe un lúpulo con el nombre '" + lupuloFormDTO.getNombre() + "'");
         }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos.
+        // 4. Creo la entidad que se va a almacenar en la base de datos.
         //    La unidad de medida es fija por regla de negocio y la asigna el service.
         LupuloEntity lupuloEntity = LupuloEntity.builder()
                 .nombre(lupuloFormDTO.getNombre())
@@ -107,14 +112,14 @@ public class LupuloServicioImpl implements ILupuloServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperLupulo.toDTO(lupuloRepository.save(lupuloEntity));
     }
 
     /**
      * Actualiza la información de un lúpulo existente en la base de datos.
      * <p>
-     * Valida el porcentaje de alfa ácidos antes de consultar la base de datos, luego localiza
+     * Valida la longitud del nombre y el porcentaje de alfa ácidos antes de consultar la base de datos, luego localiza
      * el lúpulo por su ID y verifica que el nuevo nombre no colisione con el de otro lúpulo
      * activo (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
@@ -122,7 +127,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @param id Identificador clave primaria del lúpulo a modificar.
      * @param lupuloFormDTO DTO con la información actualizada.
      * @return {@link LupuloResponseDTO} representativo del lúpulo con los cambios aplicados.
-     * @throws ReglaNegocioException Si los ácidos alfa no son mayores a 0% y menores o iguales a 25%.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres, si los ácidos alfa no son un número o si no son mayores a 0% y menores o iguales a 25%.
      * @throws RecursoNoEncontradoException Si no se localiza un lúpulo activo por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otro lúpulo activo.
      */
@@ -130,26 +135,29 @@ public class LupuloServicioImpl implements ILupuloServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LUPULO)
     public LupuloResponseDTO modificarLupulo(Long id, LupuloFormDTO lupuloFormDTO) {
-        // 1. Validar la regla de negocio de los alfa ácidos antes de consultar la base de datos
+        // 1. Validar la longitud máxima del nombre antes de consultar la base de datos
+        ValidacionesNumericas.validarLongitudMaxima(lupuloFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar la regla de negocio de los alfa ácidos antes de consultar la base de datos
         validarAlfaAcidos(lupuloFormDTO.getAa());
 
-        // 2. Localizar el lúpulo existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 3. Localizar el lúpulo existente. Si no existe, se dispara RecursoNoEncontradoException
         LupuloEntity lupuloEntity = lupuloRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("El lúpulo no existe"));
 
-        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (lupuloRepository.existsByNombreIgnoreCaseAndIdNot(lupuloFormDTO.getNombre(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + lupuloFormDTO.getNombre() + "' ya está en uso por otro lúpulo");
         }
 
-        // 4. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 5. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (GRAMO).
         lupuloEntity.setNombre(lupuloFormDTO.getNombre());
         lupuloEntity.setFormato(lupuloFormDTO.getFormato());
         lupuloEntity.setAa(lupuloFormDTO.getAa());
 
-        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperLupulo.toDTO(lupuloRepository.save(lupuloEntity));
     }
 
@@ -196,10 +204,11 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * iguales a {@value #ALFA_ACIDOS_MAXIMO}%.
      *
      * @param aa Porcentaje de ácidos alfa a validar.
-     * @throws ReglaNegocioException Si los ácidos alfa son nulos, no son mayores a 0% o superan el 25%.
+     * @throws ReglaNegocioException Si los ácidos alfa son nulos, NaN, infinitos, no son mayores a 0% o superan el 25%.
      */
     private static void validarAlfaAcidos(Double aa) {
-        if (aa == null || aa <= 0 || aa > ALFA_ACIDOS_MAXIMO) {
+        ValidacionesNumericas.validarMayorACero(aa, "El porcentaje de ácidos alfa");
+        if (aa > ALFA_ACIDOS_MAXIMO) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
         }
     }

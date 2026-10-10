@@ -15,7 +15,7 @@
 
 ### 3. `altaMalta(MaltaFormDTO maltaFormDTO)`
 
-El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Mensaje de error: "El extracto potencial debe ser mayor a 0% y menor o igual a 90%".
+El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Mensaje de error: "El extracto potencial debe ser mayor a 0% y menor o igual a 90%". El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -28,6 +28,8 @@ El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Mensaje de erro
 |**CP-AM-07**|Extracto potencial en límite inferior entero válido|`potencialExtracto: 1`, `nombre: "Malta Roasted"`|`potencialExtracto <= 0 \| potencialExtracto > 90` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `potencialExtracto = 1`.|
 |**CP-AM-08**|Extracto potencial en límite superior válido|`potencialExtracto: 90`, `nombre: "Malta Pale Ale"`|`potencialExtracto <= 0 \| potencialExtracto > 90` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `potencialExtracto = 90`.|
 |**CP-AM-09**|Extracto potencial igual a cero _(Límite inf.)_|`potencialExtracto: 0`, `nombre: "Pilsen"`|`potencialExtracto <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
+|**CP-AM-10**|El nombre tiene 101 caracteres|`nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
+|**CP-AM-11**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 
 ### 4. `modificarMalta(Long id, MaltaFormDTO maltaFormDTO)`
 
@@ -38,6 +40,8 @@ El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Mensaje de erro
 |**CP-MM-03**|Nombre en uso por otra malta|`id: 1L`, `nombre: "Pilsen"` (En uso por ID 2L)|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No persiste.|
 |**CP-MM-04**|Modificación exitosa _(Camino Feliz)_|`id: 1L` (Existe), `nombre: "Pilsen Nacional"`, DTO válido|Nombre libre y malta encontrada|Actualiza campos (`nombre`, `tipo`, `potencialExtracto`), mantiene `KILOGRAMO`, guarda y retorna DTO.|
 |**CP-MM-05**|Conservar nombre propio actual|`id: 1L`, `nombre: "pilsen"` (Misma malta)|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **FALSE**|Permite actualizar datos, persiste y retorna DTO.|
+|**CP-MM-06**|El nombre tiene 101 caracteres|`id: 1L` (existe), `nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
+|**CP-MM-07**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`id: 1L` (existe), `nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 
 ### 5. `bajaMalta(Long id)`
 

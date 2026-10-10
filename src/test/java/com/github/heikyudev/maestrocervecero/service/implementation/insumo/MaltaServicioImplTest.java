@@ -27,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -457,6 +458,57 @@ class MaltaServicioImplTest {
         verify(maltaRepository).findById(1L);
         verify(maltaRepository).save(maltaEntity);
         verify(maltaRepository, never()).delete(any());
+    }
+
+    // ==================== validaciones técnicas de Malta (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-AM-10: altaMalta lanza ReglaNegocioException y no consulta el repositorio cuando el nombre tiene 101 caracteres")
+    void altaMalta_debeRechazar_nombreDe101Caracteres() {
+        MaltaFormDTO dto = maltaFormDTO("A".repeat(101), TipoMalta.BASE, 80);
+
+        assertThatThrownBy(() -> maltaServicio.altaMalta(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(maltaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-11: altaMalta persiste con éxito cuando el nombre tiene exactamente 100 caracteres (valor límite válido)")
+    void altaMalta_debeAceptar_nombreDe100Caracteres() {
+        MaltaFormDTO dto = maltaFormDTO("A".repeat(100), TipoMalta.BASE, 80);
+        when(maltaRepository.existsByNombreIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maltaServicio.altaMalta(dto)).doesNotThrowAnyException();
+
+        verify(maltaRepository).save(any(MaltaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MM-06: modificarMalta lanza ReglaNegocioException y no consulta la unicidad cuando el nombre tiene 101 caracteres")
+    void modificarMalta_debeRechazar_nombreDe101Caracteres() {
+        MaltaFormDTO dto = maltaFormDTO("A".repeat(101), TipoMalta.BASE, 80);
+
+        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(maltaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MM-07: modificarMalta persiste con éxito cuando el nombre tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarMalta_debeAceptar_nombreDe100Caracteres() {
+        MaltaFormDTO dto = maltaFormDTO("A".repeat(100), TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80)));
+        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maltaServicio.modificarMalta(1L, dto)).doesNotThrowAnyException();
+
+        verify(maltaRepository).save(any(MaltaEntity.class));
     }
 
     // ==================== helpers ====================

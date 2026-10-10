@@ -15,7 +15,7 @@
 
 ### 3. `altaLupulo(LupuloFormDTO formDTO)`
 
-Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%. Mensaje de error: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%".
+Los ácidos alfa deben ser un número finito mayor a 0 (mensaje: "El porcentaje de ácidos alfa debe ser un número mayor a 0"), menor o igual a 25% (mensaje: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%") y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -28,6 +28,12 @@ Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%. Mensaje de er
 |**CP-AL-07**|Ácidos alfa en límite inferior entero válido|`aa: 1`, `nombre: "Saaz"`|`aa <= 0 \| aa > 25` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `aa = 1`.|
 |**CP-AL-08**|Ácidos alfa mayores a 25 _(Límite sup.)_|`aa: 25.01`, `nombre: "Cascade"`|`aa > 25` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
 |**CP-AL-09**|Ácidos alfa en límite superior válido|`aa: 25`, `nombre: "Super Alpha"`|`aa <= 0 \| aa > 25` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `aa = 25`.|
+|**CP-AL-10**|El porcentaje de ácidos alfa es NaN|`aa: Double.NaN` (resto válido)|El porcentaje de ácidos alfa es NaN $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
+|**CP-AL-11**|El porcentaje de ácidos alfa es infinito positivo|`aa: Double.POSITIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito positivo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
+|**CP-AL-12**|El porcentaje de ácidos alfa es infinito negativo|`aa: Double.NEGATIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito negativo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
+|**CP-AL-13**|El porcentaje de ácidos alfa es exactamente 25 (valor límite válido)|`aa: 25.0` (resto válido)|El porcentaje de ácidos alfa es exactamente 25 (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
+|**CP-AL-14**|El nombre tiene 101 caracteres|`nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
+|**CP-AL-15**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 
 ### 4. `modificarLupulo(Long id, LupuloFormDTO formDTO)`
 
@@ -38,6 +44,9 @@ Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%. Mensaje de er
 |**CP-ML-03**|Nombre en uso por otro lúpulo|`id: 1L`, `nombre: "Citra"` (En uso por ID 2L)|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No persiste.|
 |**CP-ML-04**|Modificación exitosa _(Camino Feliz)_|`id: 1L` (Existe), `nombre: "Cascade Modificado"`, DTO válido|Nombre libre y lúpulo encontrado|Actualiza campos (`nombre`, `formato`, `aa`), mantiene `GRAMO`, guarda y retorna DTO.|
 |**CP-ML-05**|Conservar nombre propio actual|`id: 1L`, `nombre: "cascade"` (Mismo lúpulo)|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **FALSE**|Permite actualizar datos, persiste y retorna DTO.|
+|**CP-ML-06**|El porcentaje de ácidos alfa es NaN|`id: 1L` (existe), `aa: Double.NaN` (resto válido)|El porcentaje de ácidos alfa es NaN $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
+|**CP-ML-07**|El nombre tiene 101 caracteres|`id: 1L` (existe), `nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
+|**CP-ML-08**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`id: 1L` (existe), `nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 
 ### 5. `bajaLupulo(Long id)`
 

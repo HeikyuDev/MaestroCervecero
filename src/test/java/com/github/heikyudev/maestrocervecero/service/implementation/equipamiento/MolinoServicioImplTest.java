@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -145,7 +146,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda es obligatorio.");
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -158,7 +159,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(molinoRepository);
@@ -172,7 +173,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -268,7 +269,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -281,7 +282,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -298,7 +299,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
 
         // La existencia del molino se valida antes que las reglas de negocio sobre sus datos
         verify(molinoRepository).findById(1L);
@@ -315,7 +316,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
 
         verify(molinoRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -496,6 +497,208 @@ class MolinoServicioImplTest {
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository).save(molinoEntity);
         verify(molinoRepository, never()).delete(any());
+    }
+
+    // ==================== validaciones técnicas de Molino (números finitos, techos y longitudes) ====================
+
+    @Test
+    @DisplayName("CP-AM-10: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es NaN")
+    void altaMolino_debeRechazar_rendimientoNaN() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.NaN, 500);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-11: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es infinito positivo")
+    void altaMolino_debeRechazar_rendimientoInfinito() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.POSITIVE_INFINITY, 500);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-12: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es infinito negativo")
+    void altaMolino_debeRechazar_rendimientoInfinitoNegativo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.NEGATIVE_INFINITY, 500);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-13: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda supera 10.000 kg/h")
+    void altaMolino_debeRechazar_rendimientoSuperaElMaximo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 10000.01, 500);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda no puede superar 10.000 kg/h");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-14: altaMolino persiste con éxito cuando el rendimiento de molienda es exactamente 10.000 kg/h (valor límite válido)")
+    void altaMolino_debeAceptar_rendimientoEnElMaximo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 10000.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> molinoServicio.altaMolino(dto)).doesNotThrowAnyException();
+
+        verify(molinoRepository).save(any(MolinoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AM-15: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son negativos")
+    void altaMolino_debeRechazar_usosNegativos() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, -1);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento debe ser un número entero mayor a 0");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-16: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento superan 100.000")
+    void altaMolino_debeRechazar_usosSuperanElMaximo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, 100001);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-17: altaMolino persiste con éxito cuando los usos máximos antes de mantenimiento son exactamente 100.000 (valor límite válido)")
+    void altaMolino_debeAceptar_usosEnElMaximo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, 100000);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> molinoServicio.altaMolino(dto)).doesNotThrowAnyException();
+
+        verify(molinoRepository).save(any(MolinoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AM-18: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno tiene 101 caracteres")
+    void altaMolino_debeRechazar_identificadorDe101Caracteres() {
+        MolinoFormDTO dto = molinoFormDTO("A".repeat(101), 50.0, 500);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verifyNoInteractions(molinoRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-19: altaMolino persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void altaMolino_debeAceptar_identificadorDe100Caracteres() {
+        MolinoFormDTO dto = molinoFormDTO("A".repeat(100), 50.0, 500);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("A".repeat(100))).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> molinoServicio.altaMolino(dto)).doesNotThrowAnyException();
+
+        verify(molinoRepository).save(any(MolinoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MM-09: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el rendimiento de molienda es NaN")
+    void modificarMolino_debeRechazar_rendimientoNaN() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.NaN, 500);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+
+        verify(molinoRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-10: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el rendimiento de molienda supera 10.000 kg/h")
+    void modificarMolino_debeRechazar_rendimientoSuperaElMaximo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 10000.01, 500);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El rendimiento de molienda no puede superar 10.000 kg/h");
+
+        verify(molinoRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-11: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento superan 100.000")
+    void modificarMolino_debeRechazar_usosSuperanElMaximo() {
+        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, 100001);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+
+        verify(molinoRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-12: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el identificador interno tiene 101 caracteres")
+    void modificarMolino_debeRechazar_identificadorDe101Caracteres() {
+        MolinoFormDTO dto = molinoFormDTO("A".repeat(101), 50.0, 500);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno no puede superar 100 caracteres");
+
+        verify(molinoRepository).findById(1L);
+        verifyNoInteractions(equipamientoRepository);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-13: modificarMolino persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
+    void modificarMolino_debeAceptar_identificadorDe100Caracteres() {
+        MolinoFormDTO dto = molinoFormDTO("A".repeat(100), 50.0, 500);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> molinoServicio.modificarMolino(1L, dto)).doesNotThrowAnyException();
+
+        verify(molinoRepository).save(any(MolinoEntity.class));
     }
 
     // ==================== helpers ====================
