@@ -14,6 +14,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.RegistrarEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -39,6 +40,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
     private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
+    private final ILoteRepository loteRepository;
     private final IBarrilRepository barrilRepository;
 
     /**
@@ -95,10 +97,13 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.ENVASADO_LOTE)
     public EnvasadoLoteResponseDTO registrarEnvasadoLote(Long idEtapaLote, RegistrarEnvasadoLoteFormDTO registrarEnvasadoLoteFormDTO) {
-        // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar
+        // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar. El lote
+        //    se bloquea para escritura antes de validarlo: no puede intercalarse con otro envasado, con la
+        //    anulación de un envasado, con la finalización del envasado ni con la cancelación del mismo lote
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
-        validarEtapaHabilitadaParaEnvasado(etapaLote);
+        LoteEntity lote = bloquearLote(etapaLote.getLote().getId());
+        validarEtapaHabilitadaParaEnvasado(etapaLote, lote);
 
         // 2. Validar que el barril esté registrado en el sistema, bloqueándolo para escritura
         BarrilEntity barril = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(registrarEnvasadoLoteFormDTO.getIdBarril())
@@ -123,7 +128,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         // 6. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no
         //    supere el volumen objetivo del lote
         double totalEnvasadoPrevio = envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote);
-        double volumenObjetivo = etapaLote.getLote().getVolumenObjetivo();
+        double volumenObjetivo = lote.getVolumenObjetivo();
         if (totalEnvasadoPrevio + cantidad > volumenObjetivo) {
             throw new ReglaNegocioException("La cantidad a envasar supera el volumen objetivo del lote (quedan "
                     + (volumenObjetivo - totalEnvasadoPrevio) + " L disponibles para envasar)");
@@ -181,8 +186,8 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
             throw new ReglaNegocioException("Solo se pueden anular envasados en estado Registrado");
         }
 
-        // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION
-        LoteEntity lote = envasadoLote.getEtapaLote().getLote();
+        // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION, bloqueándolo para escritura
+        LoteEntity lote = bloquearLote(envasadoLote.getEtapaLote().getLote().getId());
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
             throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder anular un envasado");
         }
@@ -210,15 +215,28 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     }
 
     /**
+     * Recupera un lote bloqueándolo para escritura, para serializar las operaciones que modifican
+     * su total envasado o su estado.
+     *
+     * @param idLote El ID del lote.
+     * @return El lote bloqueado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     */
+    private LoteEntity bloquearLote(Long idLote) {
+        return loteRepository.buscarPorIdParaActualizar(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+    }
+
+    /**
      * Valida que una etapa de lote esté habilitada para registrar envasados: el lote asociado
      * debe estar EN_EJECUCION, la etapa debe ser la etapa actual del lote (EN_CURSO), y su tipo de
      * etapa debe admitir el registro de envasados (solo ENVASADO lo admite).
      *
      * @param etapaLote La etapa de lote a validar.
+     * @param lote El lote de la etapa, recuperado bloqueado para escritura.
      * @throws ReglaNegocioException Si alguna de las tres condiciones no se cumple.
      */
-    private void validarEtapaHabilitadaParaEnvasado(EtapaLoteEntity etapaLote) {
-        LoteEntity lote = etapaLote.getLote();
+    private void validarEtapaHabilitadaParaEnvasado(EtapaLoteEntity etapaLote, LoteEntity lote) {
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
             throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder registrar un envasado");
         }

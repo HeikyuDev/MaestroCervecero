@@ -231,8 +231,8 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * <p>
      * Al ser una operación transaccional, solo procede sobre planificaciones en estado {@code PENDIENTE}:
      * una planificación ya finalizada o ya anulada no puede volver a finalizarse. La finalización normal
-     * (cantidad producida mayor o igual a la cantidad solicitada) es responsabilidad del módulo
-     * de lotes, no de este método.
+     * (litros producidos mayor o igual a la cantidad solicitada, sin lotes pendientes ni en ejecución) ocurre
+     * sola al finalizar o cancelar el último lote de la planificación, no mediante este método.
      * </p>
      *
      * @param id Identificador clave primaria de la planificación de producción a finalizar.

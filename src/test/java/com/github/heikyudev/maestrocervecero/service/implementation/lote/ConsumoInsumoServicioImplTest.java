@@ -427,6 +427,22 @@ class ConsumoInsumoServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
     }
 
+    @Test
+    @DisplayName("CP-CR-14: registrarConsumoInsumoReservado lanza ReglaNegocioException si el lote está FINALIZADO (lote inmutable)")
+    void registrarReservado_debeLanzarExcepcionSiLoteFinalizado() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLote(EstadoLote.FINALIZADO);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.FINALIZADA, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote debe estar en ejecución para registrar consumos de insumo");
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
     // ==================== registrarConsumoInsumoDirecto ====================
 
     @Test

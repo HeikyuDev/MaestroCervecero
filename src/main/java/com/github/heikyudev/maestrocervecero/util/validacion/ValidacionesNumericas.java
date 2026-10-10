@@ -167,7 +167,14 @@ public final class ValidacionesNumericas {
         return new ReglaNegocioException(etiqueta + " no puede superar " + formatearNumero(maximo) + " " + unidad);
     }
 
-    private static String formatearNumero(double numero) {
+    /**
+     * Formatea un número con el estilo de la aplicación (separador de miles {@code .}, separador
+     * decimal {@code ,} y hasta dos decimales), por ejemplo {@code 1.250,5}.
+     *
+     * @param numero Número a formatear.
+     * @return El número formateado.
+     */
+    public static String formatearNumero(double numero) {
         DecimalFormatSymbols simbolos = DecimalFormatSymbols.getInstance(LOCALE_ES);
         simbolos.setGroupingSeparator('.');
         simbolos.setDecimalSeparator(',');

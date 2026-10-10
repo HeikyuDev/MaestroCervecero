@@ -48,6 +48,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -154,14 +155,17 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote registrado.
      * @throws RecursoNoEncontradoException Si la planificación de producción o alguno de los equipamientos referenciados no existe.
      * @throws ReglaNegocioException Si la planificación de producción no está en estado PENDIENTE, si el volumen objetivo es
-     *                               inválido, o si algún equipo seleccionado no tiene capacidad suficiente.
+     *                               inválido, si algún equipo seleccionado no tiene capacidad suficiente, o si los lotes de la
+     *                               planificación (litros ya producidos por sus lotes finalizados más el volumen objetivo de
+     *                               sus lotes pendientes y en ejecución) ya cubren la cantidad a producir.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO registrarLote(LoteFormDTO loteFormDTO) {
         // 1. Validar que la planificación de producción esté registrada y en estado PENDIENTE
-        PlanificacionProduccionEntity planificacionProduccion = planificacionProduccionRepository.findById(loteFormDTO.getIdPlanificacionProduccion())
+        //    (se bloquea para escritura: dos lotes registrados en simultáneo sobre la misma planificación no deben poder pasar ambos)
+        PlanificacionProduccionEntity planificacionProduccion = planificacionProduccionRepository.buscarPorIdParaActualizar(loteFormDTO.getIdPlanificacionProduccion())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + loteFormDTO.getIdPlanificacionProduccion()));
 
         if (planificacionProduccion.getEstado() != EstadoSolicitud.PENDIENTE) {
@@ -200,15 +204,19 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException("La mezcla de agua y grano (" + volumenMezclaMacerador + " L) desbordará el macerador seleccionado (capacidad útil: " + macerador.getCapacidadUtil() + " L)");
         }
 
-        // 6. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
+        // 6. Validar que la planificación todavía necesite lotes: lo ya producido por los lotes finalizados
+        //    más el volumen objetivo de los lotes vivos (sin contar el lote nuevo) no debe alcanzar la cantidad a producir
+        validarPlanificacionNecesitaMasLotes(planificacionProduccion);
+
+        // 7. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
         String identificadorInterno = generarIdentificadorInterno(versionReceta);
 
-        // 7. Calcular la planificación del lote en el cronograma del fermentador seleccionado (nunca antes de
+        // 8. Calcular la planificación del lote en el cronograma del fermentador seleccionado (nunca antes de
         //    la fecha de inicio estimada de su planificación de producción ni antes de hoy)
         LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador, planificacionProduccion);
         LocalDate fechaFinalizacionEstimada = calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino, masaMaltaEscalada, versionReceta);
 
-        // 8. Construir el lote y sus 6 etapas (todas en PENDIENTE), y persistir
+        // 9. Construir el lote y sus 6 etapas (todas en PENDIENTE), y persistir
         LoteEntity loteEntity = LoteEntity.builder()
                 .identificadorInterno(identificadorInterno)
                 .volumenObjetivo(volumenObjetivo)
@@ -298,6 +306,10 @@ public class LoteServicioImpl implements ILoteServicio {
      * fecha de cancelación del lote), y el equipamiento asociado a cada una se libera según
      * corresponda (ver {@link #actualizarEquipamientoAlCancelar}).
      * </p>
+     * <p>
+     * Si la planificación de producción del lote ya había alcanzado su cantidad a producir y este era
+     * su último lote pendiente o en ejecución, la planificación queda finalizada.
+     * </p>
      *
      * @param id El ID del lote a cancelar.
      * @param cancelacionLoteFormDTO Los datos de la cancelación (motivo).
@@ -315,8 +327,8 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException("El motivo de cancelación es obligatorio");
         }
 
-        // 2. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+        // 2. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 3. Validar que el lote se encuentre en un estado que permita cancelarlo
@@ -347,7 +359,13 @@ public class LoteServicioImpl implements ILoteServicio {
         //    punto donde se interrumpió el lote. Las etapas ya FINALIZADA no se tocan.
         cancelarEtapasNoFinalizadas(lote, fechaCancelacion);
 
-        return MapperLote.toDTO(loteRepository.save(lote));
+        LoteEntity loteCancelado = loteRepository.save(lote);
+        loteRepository.flush();
+
+        // 8. Si la planificación ya había cubierto su cantidad y este era su último lote vivo, se finaliza
+        finalizarPlanificacionSiCorresponde(lote.getPlanificacionProduccion().getId());
+
+        return MapperLote.toDTO(loteCancelado);
     }
 
     /**
@@ -616,14 +634,16 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra el fermentador asociado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, o si su
-     *                               etapa actual (EN_CURSO) no es Envasado.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su
+     *                               etapa actual (EN_CURSO) no es Envasado, o si no tiene litros
+     *                               envasados registrados.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
-    public LoteResponseDTO finalizarEnvasado(Long id) {        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+    public LoteResponseDTO finalizarEnvasado(Long id) {
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
@@ -634,26 +654,88 @@ public class LoteServicioImpl implements ILoteServicio {
         // 3. Validar que la etapa actual (EN_CURSO) sea Envasado
         EtapaLoteEntity etapaEnvasado = obtenerEtapaEnCursoValidando(lote, TipoEtapa.ENVASADO);
 
-        // 4. El fermentador utilizado pasa a estado EN_LIMPIEZA (concluyen las tres etapas que lo comparten)
+        // 4. Validar que el lote tenga litros envasados: un lote sin envasados no produjo nada y corresponde cancelarlo
+        BigDecimal totalEnvasado = BigDecimal.valueOf(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(etapaEnvasado.getId()));
+        if (totalEnvasado.signum() <= 0) {
+            throw new ReglaNegocioException("No se puede finalizar el envasado de un lote sin litros envasados. Si no se va a producir, debe cancelarse el lote");
+        }
+
+        // 5. El fermentador utilizado pasa a estado EN_LIMPIEZA (concluyen las tres etapas que lo comparten)
         Long idFermentador = etapaEnvasado.getEquipamiento().getId();
         FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentador)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador));
         fermentador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         fermentadorRepository.save(fermentador);
 
-        // 5. Finalizar la etapa de Envasado: es la última, no hay una siguiente a la que avanzar
+        // 6. Finalizar la etapa de Envasado: es la última, no hay una siguiente a la que avanzar
         etapaEnvasado.setEstado(EstadoEtapaLote.FINALIZADA);
         etapaEnvasado.setFechaFinalizacion(LocalDateTime.now());
 
-        // 6. Finalizar el lote: todo el proceso productivo quedó completo
+        // 7. Finalizar el lote: todo el proceso productivo quedó completo
         lote.setEstado(EstadoLote.FINALIZADO);
         lote.setFechaFinalizacion(LocalDateTime.now());
 
-        // 7. Registrar los costos directos adicionales del lote: uno por cada costo directo
+        // 8. Registrar los costos directos adicionales del lote: uno por cada costo directo
         //    adicional activo, aplicando su costo por litro vigente sobre el total efectivamente envasado
-        registrarCostosDirectosDelLote(lote, etapaEnvasado.getId());
+        registrarCostosDirectosDelLote(lote, totalEnvasado);
 
-        return MapperLote.toDTO(loteRepository.save(lote));
+        LoteEntity loteFinalizado = loteRepository.save(lote);
+        loteRepository.flush();
+
+        // 9. Si con este lote la planificación alcanzó su cantidad y no le quedan lotes vivos, se finaliza
+        finalizarPlanificacionSiCorresponde(lote.getPlanificacionProduccion().getId());
+
+        return MapperLote.toDTO(loteFinalizado);
+    }
+
+    /**
+     * Valida que los lotes de la planificación todavía no cubran su cantidad a producir: los litros
+     * ya producidos (envasados registrados de lotes finalizados) más el volumen objetivo de los lotes
+     * pendientes y en ejecución deben ser menores a la cantidad solicitada.
+     *
+     * @throws ReglaNegocioException Si los litros comprometidos alcanzan o superan la cantidad a producir.
+     */
+    private void validarPlanificacionNecesitaMasLotes(PlanificacionProduccionEntity planificacionProduccion) {
+        BigDecimal cantidadAProducir = BigDecimal.valueOf(planificacionProduccion.getCantidadAProducir());
+        BigDecimal comprometido = BigDecimal.valueOf(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(planificacionProduccion.getId()))
+                .add(BigDecimal.valueOf(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(planificacionProduccion.getId())));
+
+        if (comprometido.compareTo(cantidadAProducir) >= 0) {
+            throw new ReglaNegocioException("La planificación ya tiene lotes que cubren la cantidad a producir ("
+                    + ValidacionesNumericas.formatearNumero(comprometido.doubleValue()) + " L comprometidos de "
+                    + ValidacionesNumericas.formatearNumero(cantidadAProducir.doubleValue()) + " L solicitados)");
+        }
+    }
+
+    /**
+     * Finaliza la planificación de producción cuando ya cumplió su objetivo: sigue en estado PENDIENTE,
+     * los litros producidos (envasados registrados de lotes finalizados) alcanzan la cantidad a producir
+     * y no le quedan lotes pendientes ni en ejecución.
+     * <p>
+     * Debe invocarse con el lote que originó el cambio ya persistido y volcado ({@code flush}), para
+     * que las consultas lo vean. La planificación se bloquea para escritura; el orden de bloqueo es
+     * siempre lote y luego planificación.
+     * </p>
+     */
+    private void finalizarPlanificacionSiCorresponde(Long idPlanificacionProduccion) {
+        PlanificacionProduccionEntity planificacionProduccion = planificacionProduccionRepository.buscarPorIdParaActualizar(idPlanificacionProduccion)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + idPlanificacionProduccion));
+
+        if (planificacionProduccion.getEstado() != EstadoSolicitud.PENDIENTE) {
+            return;
+        }
+
+        BigDecimal litrosProducidos = BigDecimal.valueOf(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(idPlanificacionProduccion));
+        BigDecimal cantidadAProducir = BigDecimal.valueOf(planificacionProduccion.getCantidadAProducir());
+        if (litrosProducidos.compareTo(cantidadAProducir) < 0
+                || loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(idPlanificacionProduccion, ESTADOS_QUE_OCUPAN_FERMENTADOR)) {
+            return;
+        }
+
+        planificacionProduccion.setEstado(EstadoSolicitud.FINALIZADA);
+        planificacionProduccion.setFechaFinalizacion(LocalDateTime.now());
+        planificacionProduccion.setMotivoFinalizacion(null);
+        planificacionProduccionRepository.save(planificacionProduccion);
     }
 
     /**
@@ -668,8 +750,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * repositorio propio.
      * </p>
      */
-    private void registrarCostosDirectosDelLote(LoteEntity lote, Long idEtapaEnvasado) {
-        BigDecimal totalEnvasado = BigDecimal.valueOf(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaEnvasado));
+    private void registrarCostosDirectosDelLote(LoteEntity lote, BigDecimal totalEnvasado) {
         List<CostoDirectoAdicionalEntity> costosDirectosActivos = costoDirectoAdicionalRepository.findAllActivos();
 
         for (CostoDirectoAdicionalEntity costoDirectoAdicional : costosDirectosActivos) {

@@ -226,7 +226,7 @@ class LoteServicioImplTest {
     void registrarLote_debeLanzarExcepcionSiPlanificacionNoExiste() {
         // === PREPARACION DE DATOS ===
         LoteFormDTO formDTO = loteFormDTOBuilderBase().idPlanificacionProduccion(99L).build();
-        when(planificacionProduccionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
@@ -243,7 +243,7 @@ class LoteServicioImplTest {
         VersionRecetaEntity versionReceta = versionRecetaMaltaBase(receta);
         PlanificacionProduccionEntity planificacion = crearPlanificacion(1L, EstadoSolicitud.FINALIZADA, versionReceta);
         LoteFormDTO formDTO = loteFormDTOBase();
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
@@ -570,6 +570,181 @@ class LoteServicioImplTest {
         // indirectamente que masaMaltaEscalada se calculó según la fórmula de EscaladoDeMalta.md: si el total
         // fuera otro, la fechaFinalizacionEstimada (que depende de horasMolienda) también cambiaría.
         verify(loteRepository).save(any(LoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RL-21: registrarLote lanza ReglaNegocioException si lo comprometido es exactamente igual a la cantidad a producir (límite)")
+    void registrarLote_debeRechazarSiComprometidoIgualaLaCantidadAProducir() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(40.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(60.0);
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La planificación ya tiene lotes que cubren la cantidad a producir (100 L comprometidos de 100 L solicitados)");
+        verify(recetaRepository, never()).findByIdParaActualizarContador(any());
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RL-22: registrarLote lanza ReglaNegocioException si lo comprometido supera la cantidad a producir")
+    void registrarLote_debeRechazarSiComprometidoSuperaLaCantidadAProducir() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(130.0);
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La planificación ya tiene lotes que cubren la cantidad a producir (130 L comprometidos de 100 L solicitados)");
+        verify(recetaRepository, never()).findByIdParaActualizarContador(any());
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RL-23: registrarLote registra el lote si lo comprometido es menor a la cantidad a producir, sin contar el volumen del lote nuevo (límite válido)")
+    void registrarLote_debeRegistrarSiComprometidoEsMenorAunqueConElLoteNuevoSeSupere() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        RecetaEntity receta = crearReceta(5L, 3L);
+        when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta));
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(40.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(59.5);
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBuilderBase().volumenObjetivo(20.0).build();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoLote.PENDIENTE);
+        assertThat(receta.getContadorLotes()).isEqualTo(4L);
+    }
+
+    @Test
+    @DisplayName("CP-RL-24: registrarLote admite un cuarto lote de 600 L en una planificación de 2.000 L con 3 lotes vivos de 600 L")
+    void registrarLote_debeAdmitirCuartoLoteEnPlanificacionDe2000LitrosConTresLotesVivos() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase().setCantidadAProducir(2000.0);
+        mockearConfiguracionYReceta();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(1800.0);
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoLote.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-RL-25: registrarLote rechaza un quinto lote en una planificación de 2.000 L con 4 lotes vivos de 600 L")
+    void registrarLote_debeRechazarQuintoLoteEnPlanificacionDe2000LitrosConCuatroLotesVivos() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase().setCantidadAProducir(2000.0);
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(2400.0);
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La planificación ya tiene lotes que cubren la cantidad a producir (2.400 L comprometidos de 2.000 L solicitados)");
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RL-26: registrarLote cuenta lo efectivamente envasado de un lote finalizado, no su objetivo, y reabre cupo")
+    void registrarLote_debeContarLoEnvasadoDeUnLoteFinalizadoYReabrirCupo() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase().setCantidadAProducir(1800.0);
+        mockearConfiguracionYReceta();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(1600.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(0.0);
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoLote.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-RL-27: registrarLote no cuenta como comprometido un lote cancelado (ambas sumas devuelven cero)")
+    void registrarLote_noDebeContarLotesCanceladosComoComprometidos() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
+        when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(0.0);
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoLote.PENDIENTE);
+        verify(envasadoLoteRepository).sumarLitrosProducidosDePlanificacion(1L);
+        verify(loteRepository).sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L);
+        verify(loteRepository, never()).findAll();
+    }
+
+    @Test
+    @DisplayName("CP-RL-28: registrarLote valida la capacidad del fermentador antes que la cobertura de la planificación, sin consultar las sumas")
+    void registrarLote_debeValidarCapacidadAntesQueCoberturaDeLaPlanificacion() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        // Lotes que ya cubren la planificación (comprometido 120.0): no debe llegar a consultarse
+        lenient().when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(0.0);
+        lenient().when(loteRepository.sumarVolumenObjetivoDeLotesVivosDePlanificacion(1L)).thenReturn(120.0);
+        LoteFormDTO formDTO = loteFormDTOBuilderBase().volumenObjetivo(25.0).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("supera la capacidad útil del fermentador")
+                .hasMessageNotContaining("cubren la cantidad a producir");
+        verify(envasadoLoteRepository, never()).sumarLitrosProducidosDePlanificacion(any());
+        verify(loteRepository, never()).sumarVolumenObjetivoDeLotesVivosDePlanificacion(any());
+    }
+
+    @Test
+    @DisplayName("CP-RL-29: registrarLote recupera la planificación bloqueada para escritura, una sola vez y sin usar findById")
+    void registrarLote_debeRecuperarLaPlanificacionBloqueadaParaEscritura() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        verify(planificacionProduccionRepository, times(1)).buscarPorIdParaActualizar(1L);
+        verify(planificacionProduccionRepository, never()).findById(any());
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoLote.PENDIENTE);
     }
 
     // ==================== iniciarLote ====================
@@ -1026,7 +1201,7 @@ class LoteServicioImplTest {
     @DisplayName("CP-CL-01: cancelarLote lanza RecursoNoEncontradoException si el lote no existe")
     void cancelarLote_debeLanzarExcepcionSiLoteNoExiste() {
         // === PREPARACION DE DATOS ===
-        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+        when(loteRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.cancelarLote(99L, cancelacionLoteFormDTOBase()))
@@ -1064,7 +1239,7 @@ class LoteServicioImplTest {
     void cancelarLote_debeLanzarExcepcionSiLoteFinalizado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.FINALIZADO, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase()))
@@ -1078,7 +1253,7 @@ class LoteServicioImplTest {
     void cancelarLote_debeLanzarExcepcionSiLoteYaCancelado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.CANCELADO, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase()))
@@ -1092,7 +1267,8 @@ class LoteServicioImplTest {
     void cancelarLote_debeDejarTodoElEquipamientoDisponibleSiNingunaEtapaEnCurso() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         mockearEquipamientoParaIniciar(lote);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1120,7 +1296,8 @@ class LoteServicioImplTest {
     void cancelarLote_debeDejarMolinoEnLimpiezaSiMoliendaEnCurso() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         mockearEquipamientoParaIniciar(lote);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1147,7 +1324,8 @@ class LoteServicioImplTest {
     void cancelarLote_debeDejarFermentadorEnLimpiezaSiFermentacionEnCurso() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         mockearEquipamientoParaIniciar(lote);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -1175,7 +1353,8 @@ class LoteServicioImplTest {
     void cancelarLote_debeLiberarTodasLasReservas() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         mockearEquipamientoParaIniciar(lote);
 
         MaltaEntity malta = crearMalta(10L, "MaltaCancel", 75);
@@ -1206,7 +1385,8 @@ class LoteServicioImplTest {
     void cancelarLote_debeCancelarLoteCorrectamente() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         mockearEquipamientoParaIniciar(lote);
         ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
         when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
@@ -1236,7 +1416,8 @@ class LoteServicioImplTest {
         etapaMaceracion.setEstado(EstadoEtapaLote.FINALIZADA);
         LocalDateTime fechaFinalizacionOriginal = LocalDateTime.now().minusDays(2);
         etapaMaceracion.setFechaFinalizacion(fechaFinalizacionOriginal);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         lenient().when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L))
                 .thenReturn(Optional.of((MolinoEntity) findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento()));
         lenient().when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(3L))
@@ -1261,7 +1442,8 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION);
         EtapaLoteEntity etapaFermentacion = findEtapa(lote, TipoEtapa.FERMENTACION);
         LocalDateTime fechaInicioFermentacion = etapaFermentacion.getFechaInicio();
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         mockearEquipamientoParaIniciar(lote);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
@@ -1281,6 +1463,126 @@ class LoteServicioImplTest {
         assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getFechaInicio()).isNull();
         assertThat(findEtapa(lote, TipoEtapa.MADURACION).getFechaInicio()).isNull();
         assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getFechaInicio()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-CL-13: cancelarLote finaliza la planificación si los litros producidos igualan la cantidad y no quedan lotes vivos (límite)")
+    void cancelarLote_debeFinalizarLaPlanificacionSiLitrosIgualanLaCantidadYNoQuedanLotesVivos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarConPlanificacionDelLote();
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(100.0);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(planificacion.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        assertThat(planificacion.getMotivoFinalizacion()).isNull();
+        verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-CL-14: cancelarLote también finaliza la planificación si los litros producidos superan la cantidad y no quedan lotes vivos")
+    void cancelarLote_debeFinalizarLaPlanificacionSiLitrosSuperanLaCantidad() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarConPlanificacionDelLote();
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(120.0);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(planificacion.getFechaFinalizacion()).isNotNull();
+        assertThat(planificacion.getMotivoFinalizacion()).isNull();
+        verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-CL-15: cancelarLote no finaliza la planificación si quedan otros lotes vivos")
+    void cancelarLote_noDebeFinalizarLaPlanificacionSiQuedanLotesVivos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarConPlanificacionDelLote();
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(100.0);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(true);
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        assertThat(planificacion.getFechaFinalizacion()).isNull();
+        assertThat(planificacion.getMotivoFinalizacion()).isNull();
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CL-16: cancelarLote no finaliza la planificación si los litros producidos no alcanzan la cantidad, sin consultar los lotes vivos")
+    void cancelarLote_noDebeFinalizarLaPlanificacionSiLosLitrosNoAlcanzanLaCantidad() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarConPlanificacionDelLote();
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(60.0);
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        verify(loteRepository, never()).existsByPlanificacionProduccion_IdAndEstadoIn(any(), anyList());
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CL-17: cancelarLote no modifica una planificación que no está PENDIENTE ni consulta litros ni lotes vivos")
+    void cancelarLote_noDebeModificarUnaPlanificacionNoPendiente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarConPlanificacionDelLote();
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        LocalDateTime fechaFinalizacionOriginal = LocalDateTime.now().minusDays(3);
+        planificacion.setEstado(EstadoSolicitud.FINALIZADA);
+        planificacion.setFechaFinalizacion(fechaFinalizacionOriginal);
+        planificacion.setMotivoFinalizacion("Cierre forzado");
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(planificacion.getFechaFinalizacion()).isEqualTo(fechaFinalizacionOriginal);
+        assertThat(planificacion.getMotivoFinalizacion()).isEqualTo("Cierre forzado");
+        verify(envasadoLoteRepository, never()).sumarLitrosProducidosDePlanificacion(any());
+        verify(loteRepository, never()).existsByPlanificacionProduccion_IdAndEstadoIn(any(), anyList());
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CL-18: cancelarLote lanza RecursoNoEncontradoException si la planificación del lote no se encuentra al evaluar el cierre")
+    void cancelarLote_debeLanzarExcepcionSiLaPlanificacionDelLoteNoSeEncuentra() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.empty());
+        mockearEquipamientoParaIniciar(lote);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase()))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la planificación de producción con ID: 1");
+        verify(planificacionProduccionRepository, never()).save(any());
     }
 
     // ==================== finalizarMolienda ====================
@@ -1890,7 +2192,7 @@ class LoteServicioImplTest {
     @DisplayName("CP-FE-01: finalizarEnvasado lanza RecursoNoEncontradoException si el lote no existe")
     void finalizarEnvasado_debeLanzarExcepcionSiLoteNoExiste() {
         // === PREPARACION DE DATOS ===
-        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+        when(loteRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarEnvasado(99L))
@@ -1903,7 +2205,7 @@ class LoteServicioImplTest {
     void finalizarEnvasado_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
@@ -1916,7 +2218,7 @@ class LoteServicioImplTest {
     void finalizarEnvasado_debeLanzarExcepcionSiEtapaActualNoEsEnvasado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
@@ -1929,8 +2231,9 @@ class LoteServicioImplTest {
     void finalizarEnvasado_debeLanzarExcepcionSiFermentadorNoExiste() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.empty());
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(20.0);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
@@ -1943,9 +2246,11 @@ class LoteServicioImplTest {
     void finalizarEnvasado_debeFinalizarLoteCorrectamente() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
         when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(20.0);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
 
@@ -1980,7 +2285,8 @@ class LoteServicioImplTest {
     void finalizarEnvasado_debeRegistrarCostosDirectosDelLote() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
         FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
         when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -2005,6 +2311,163 @@ class LoteServicioImplTest {
                 .filter(detalle -> detalle.getCostoDirectoAdicional() == corchos).findFirst().orElseThrow();
         assertThat(detalleCorchos.getCostoPorLitroAplicado()).isEqualByComparingTo("0.25");
         assertThat(detalleCorchos.getSubtotal()).isEqualByComparingTo("5.0000");
+    }
+
+    @Test
+    @DisplayName("CP-FE-07: finalizarEnvasado lanza ReglaNegocioException y no cambia nada si el lote no tiene litros envasados")
+    void finalizarEnvasado_debeRechazarLoteSinLitrosEnvasados() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(0.0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede finalizar el envasado de un lote sin litros envasados. Si no se va a producir, debe cancelarse el lote");
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
+        assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        assertThat(lote.getDetallesCostoDirecto()).isEmpty();
+        verifyNoInteractions(fermentadorRepository, costoDirectoAdicionalRepository, planificacionProduccionRepository);
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-08: finalizarEnvasado finaliza la planificación si los litros producidos igualan la cantidad y no quedan lotes vivos (límite)")
+    void finalizarEnvasado_debeFinalizarLaPlanificacionSiLitrosIgualanLaCantidadYNoQuedanLotesVivos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(40.0);
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(100.0);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+        LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(planificacion.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
+        assertThat(planificacion.getMotivoFinalizacion()).isNull();
+        verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-FE-09: finalizarEnvasado también finaliza la planificación si los litros producidos superan la cantidad y no quedan lotes vivos")
+    void finalizarEnvasado_debeFinalizarLaPlanificacionSiLitrosSuperanLaCantidad() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(20.0);
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(130.0);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(planificacion.getFechaFinalizacion()).isNotNull();
+        assertThat(planificacion.getMotivoFinalizacion()).isNull();
+        verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-FE-10: finalizarEnvasado no finaliza la planificación si quedan lotes vivos")
+    void finalizarEnvasado_noDebeFinalizarLaPlanificacionSiQuedanLotesVivos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(20.0);
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(100.0);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(true);
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        assertThat(planificacion.getFechaFinalizacion()).isNull();
+        assertThat(planificacion.getMotivoFinalizacion()).isNull();
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-11: finalizarEnvasado no finaliza la planificación si los litros producidos no alcanzan la cantidad, sin consultar los lotes vivos")
+    void finalizarEnvasado_noDebeFinalizarLaPlanificacionSiLosLitrosNoAlcanzanLaCantidad() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(20.0);
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        when(envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(1L)).thenReturn(70.0);
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        verify(loteRepository, never()).existsByPlanificacionProduccion_IdAndEstadoIn(any(), anyList());
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-12: finalizarEnvasado no evalúa el cierre si la planificación no está PENDIENTE")
+    void finalizarEnvasado_noDebeEvaluarElCierreSiLaPlanificacionNoEstaPendiente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(20.0);
+        PlanificacionProduccionEntity planificacion = lote.getPlanificacionProduccion();
+        planificacion.setEstado(EstadoSolicitud.FINALIZADA);
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        verify(envasadoLoteRepository, never()).sumarLitrosProducidosDePlanificacion(any());
+        verify(loteRepository, never()).existsByPlanificacionProduccion_IdAndEstadoIn(any(), anyList());
+        verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-13: finalizarEnvasado finaliza un lote con menos litros que su volumen objetivo y calcula los costos sobre lo envasado")
+    void finalizarEnvasado_debeFinalizarLoteConMenosLitrosQueSuObjetivo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(400.0);
+        lote.setVolumenObjetivo(600.0);
+        CostoDirectoAdicionalEntity etiquetas = CostoDirectoAdicionalEntity.builder().id(1L).nombre("Etiquetas").costoPorLitro(BigDecimal.valueOf(0.50)).estado(Estado.ACTIVO).build();
+        when(costoDirectoAdicionalRepository.findAllActivos()).thenReturn(List.of(etiquetas));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(lote.getDetallesCostoDirecto()).hasSize(1);
+        DetalleCostoDirectoEntity detalle = lote.getDetallesCostoDirecto().get(0);
+        assertThat(detalle.getCostoPorLitroAplicado()).isEqualByComparingTo("0.50");
+        assertThat(detalle.getSubtotal()).isEqualByComparingTo("200.0000");
+        verify(envasadoLoteRepository, times(1)).sumarCantidadEnvasadaRegistrada(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-14: finalizarEnvasado lanza RecursoNoEncontradoException si la planificación del lote no se encuentra al evaluar el cierre")
+    void finalizarEnvasado_debeLanzarExcepcionSiLaPlanificacionDelLoteNoSeEncuentra() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.empty());
+        FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(20.0);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la planificación de producción con ID: 1");
+        verify(planificacionProduccionRepository, never()).save(any());
     }
 
     // ==================== listarLotesDePlanificacion ====================
@@ -2878,28 +3341,64 @@ class LoteServicioImplTest {
         return lote.getEtapas().stream().filter(e -> e.getEtapa() == tipo).findFirst().orElseThrow();
     }
 
-    private void mockearPlanificacionPendienteBase() {
-        mockearPlanificacionPendienteBase(LocalDate.now());
+    /**
+     * Prepara un lote EN_EJECUCION con Maceración EN_CURSO para los tests de cierre de planificación
+     * de {@code cancelarLote}: la planificación del lote se recupera bloqueada y se simula el guardado del lote.
+     */
+    private LoteEntity prepararLoteParaCancelarConPlanificacionDelLote() {
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
+        mockearEquipamientoParaIniciar(lote);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        return lote;
     }
 
-    private void mockearPlanificacionPendienteBase(LocalDate fechaInicioEstimadaPlanificacion) {
+    /**
+     * Prepara un lote EN_EJECUCION con Envasado EN_CURSO y {@code totalEnvasado} litros envasados para los
+     * tests de {@code finalizarEnvasado}: la planificación del lote se recupera bloqueada y se simula el guardado del lote.
+     */
+    private LoteEntity prepararLoteParaFinalizarEnvasado(double totalEnvasado) {
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
+        FermentadorEntity fermentador = crearFermentador(4L, EstadoOperativo.EN_USO, 20.0);
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(4L)).thenReturn(Optional.of(fermentador));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(totalEnvasado);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        return lote;
+    }
+
+    private PlanificacionProduccionEntity mockearPlanificacionPendienteBase() {
+        return mockearPlanificacionPendienteBase(LocalDate.now());
+    }
+
+    private PlanificacionProduccionEntity mockearPlanificacionPendienteBase(LocalDate fechaInicioEstimadaPlanificacion) {
         RecetaEntity receta = crearReceta(5L, 3L);
         VersionRecetaEntity versionReceta = versionRecetaMaltaBase(receta);
         PlanificacionProduccionEntity planificacion = crearPlanificacion(1L, EstadoSolicitud.PENDIENTE, versionReceta);
         planificacion.setFechaInicioEstimada(fechaInicioEstimadaPlanificacion);
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        return planificacion;
     }
 
-    private void mockearEquipamientoBase() {
-        mockearEquipamientoBase(LocalDate.now());
+    // La planificación del lote sigue PENDIENTE con 0 L producidos: finalizarPlanificacionSiCorresponde no la cierra
+    private void mockearPlanificacionDelLoteSinCierre(LoteEntity lote) {
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(lote.getPlanificacionProduccion().getId()))
+                .thenReturn(Optional.of(lote.getPlanificacionProduccion()));
     }
 
-    private void mockearEquipamientoBase(LocalDate fechaInicioEstimadaPlanificacion) {
-        mockearPlanificacionPendienteBase(fechaInicioEstimadaPlanificacion);
+    private PlanificacionProduccionEntity mockearEquipamientoBase() {
+        return mockearEquipamientoBase(LocalDate.now());
+    }
+
+    private PlanificacionProduccionEntity mockearEquipamientoBase(LocalDate fechaInicioEstimadaPlanificacion) {
+        PlanificacionProduccionEntity planificacion = mockearPlanificacionPendienteBase(fechaInicioEstimadaPlanificacion);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolino(1L, 5.0)));
         when(maceradorRepository.findById(2L)).thenReturn(Optional.of(crearMacerador(2L, 25.0, 5.0, 75.0)));
         when(ollaHervorRepository.findById(3L)).thenReturn(Optional.of(crearOllaHervor(3L, 30.0, 3.0, 2.0)));
         when(fermentadorRepository.findById(4L)).thenReturn(Optional.of(crearFermentador(4L, 20.0)));
+        return planificacion;
     }
 
     private void mockearConfiguracionYReceta() {

@@ -1,25 +1,25 @@
 ### 1. `filtrarPlanificacionesProduccion(Long idReceta, EstadoSolicitud estado, LocalDate fechaInicio, Pageable pageable)`
 
-Cada planificación de la página incluye sus litros producidos (`litrosProducidos`): la suma de `cantidadEnvasada` de los envasados en estado `REGISTRADO` (los anulados no cuentan) de cualquier lote de la planificación, calculada con una sola consulta de agregación para toda la página (`IEnvasadoLoteRepository.sumarLitrosProducidosPorPlanificacion`). Las planificaciones sin envasados registrados reciben `0.0`. Que la consulta excluya los envasados anulados es una responsabilidad de la consulta JPQL (filtra `estado = REGISTRADO`) y se verifica manualmente contra la base de datos; los tests del service solo verifican cómo se mapea el resultado de la agregación.
+Cada planificación de la página incluye sus litros producidos (`litrosProducidos`): la suma de `cantidadEnvasada` de los envasados en estado `REGISTRADO` (los anulados no cuentan) de los lotes en estado `FINALIZADO` de la planificación (los lotes `PENDIENTE`, `EN_EJECUCION` y `CANCELADO` no cuentan), calculada con una sola consulta de agregación para toda la página (`IEnvasadoLoteRepository.sumarLitrosProducidosPorPlanificacion`). Las planificaciones sin envasados registrados de lotes finalizados reciben `0.0`. Que la consulta excluya los envasados anulados y los lotes que no están finalizados es una responsabilidad de la consulta JPQL (filtra `estado = REGISTRADO` y `lote.estado = FINALIZADO`) y se verifica manualmente contra la base de datos; los tests del service solo verifican cómo se mapea el resultado de la agregación.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-FPP-01**|Filtra por los 3 criterios informados|`idReceta: 1L`, `estado: PENDIENTE`, `fechaInicio: 2026-03-01`, `pageable: PageRequest.of(0, 10)`, BD con 1 planificación que cumple los 3 criterios|`filtrarPlanificacionesProduccion(1L, PENDIENTE, 2026-03-01, pageable)` contiene elementos|Retorna `Page<PlanificacionProduccionResponseDTO>` con 1 elemento mapeado.|
 |**CP-FPP-02**|Los 3 criterios nulos no restringen la búsqueda|`idReceta: null`, `estado: null`, `fechaInicio: null`, `pageable: PageRequest.of(0, 10)`|El service propaga los 3 parámetros nulos tal cual al repositorio|Retorna `Page<PlanificacionProduccionResponseDTO>` con todas las planificaciones (equivalente a no filtrar).|
 |**CP-FPP-03**|Consulta sin coincidencias|`idReceta: 99L`, `estado: null`, `fechaInicio: null`, `pageable: PageRequest.of(0, 10)`|`filtrarPlanificacionesProduccion(99L, null, null, pageable)` está vacío|Retorna `Page<PlanificacionProduccionResponseDTO>` vacía (`getContent().isEmpty() == true`).|
-|**CP-FPP-04**|Litros producidos mapeados con una sola consulta|Página con 3 planificaciones (`id: 1L, 2L, 3L`); la agregación devuelve las filas `[1L, 2350.0]` y `[3L, 100.5]` (la 2 no tiene envasados)|Las filas de la agregación se asignan por ID de planificación|`litrosProducidos` de los DTO: `2350.0`, `0.0` y `100.5`. `sumarLitrosProducidosPorPlanificacion([1, 2, 3])` se invoca exactamente una vez y la variante de una sola planificación nunca.|
+|**CP-FPP-04**|Litros producidos mapeados con una sola consulta|Página con 3 planificaciones (`id: 1L, 2L, 3L`); la agregación devuelve las filas `[1L, 2350.0]` y `[3L, 100.5]` (la 2 no tiene envasados registrados de lotes finalizados)|Las filas de la agregación se asignan por ID de planificación|`litrosProducidos` de los DTO: `2350.0`, `0.0` y `100.5`. `sumarLitrosProducidosPorPlanificacion([1, 2, 3])` se invoca exactamente una vez y la variante de una sola planificación nunca.|
 |**CP-FPP-05**|Página vacía no consulta la agregación|`idReceta: 99L`, sin coincidencias|La página no tiene elementos|Retorna la página vacía y no invoca a `IEnvasadoLoteRepository`.|
 
 ### 2. `buscarPorId(Long id)`
 
-El DTO incluye los litros producidos de la planificación (`IEnvasadoLoteRepository.sumarLitrosProducidosDePlanificacion`), con el mismo criterio que en `filtrarPlanificacionesProduccion`.
+El DTO incluye los litros producidos de la planificación (`IEnvasadoLoteRepository.sumarLitrosProducidosDePlanificacion`: envasados `REGISTRADO` de sus lotes `FINALIZADO`), con el mismo criterio que en `filtrarPlanificacionesProduccion`.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Planificación de producción encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `PlanificacionProduccionResponseDTO` con los datos de la entidad.|
 |**CP-BI-02**|Planificación de producción inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la planificación de producción con ID: 99".|
-|**CP-BI-03**|Litros producidos de la planificación|`id: 1L` (Existe en BD); `sumarLitrosProducidosDePlanificacion(1L)` $\rightarrow$ `1250.5`|Se suman los envasados registrados de la planificación|Retorna `PlanificacionProduccionResponseDTO` con `litrosProducidos: 1250.5`.|
-|**CP-BI-04**|Planificación sin envasados registrados|`id: 1L` (Existe en BD); `sumarLitrosProducidosDePlanificacion(1L)` $\rightarrow$ `0.0`|No hay envasados registrados|Retorna `PlanificacionProduccionResponseDTO` con `litrosProducidos: 0.0`.|
+|**CP-BI-03**|Litros producidos de la planificación|`id: 1L` (Existe en BD); `sumarLitrosProducidosDePlanificacion(1L)` $\rightarrow$ `1250.5`|Se suman los envasados registrados de los lotes finalizados de la planificación|Retorna `PlanificacionProduccionResponseDTO` con `litrosProducidos: 1250.5`.|
+|**CP-BI-04**|Planificación sin envasados registrados de lotes finalizados|`id: 1L` (Existe en BD); `sumarLitrosProducidosDePlanificacion(1L)` $\rightarrow$ `0.0`|No hay envasados registrados de lotes finalizados (sin lotes, o con lotes pendientes, en ejecución o cancelados)|Retorna `PlanificacionProduccionResponseDTO` con `litrosProducidos: 0.0`.|
 
 ### 3. `registrarPlanificacionProduccion(PlanificacionProduccionFormDTO planificacionProduccionFormDTO)`
 
@@ -62,7 +62,7 @@ Solo procede sobre planificaciones en estado `PENDIENTE`, y solo si no tiene lot
 
 ### 5. `finalizarPlanificacionProduccion(Long id, FinalizacionForzadaPlanificacionProduccionFormDTO finalizacionFormDTO)`
 
-Solo procede sobre planificaciones en estado `PENDIENTE`, y solo si no tiene lotes en estado `PENDIENTE` o `EN_EJECUCION` (primero hay que cancelarlos) y tiene **al menos un** lote en estado `FINALIZADO` asociado (condición inversa a `anularPlanificacionProduccion`): la finalización forzada cierra una planificación que sí llegó a producir algo pero no completó la cantidad solicitada; si no produjo nada, corresponde anularla en lugar de finalizarla.
+Solo procede sobre planificaciones en estado `PENDIENTE`, y solo si no tiene lotes en estado `PENDIENTE` o `EN_EJECUCION` (primero hay que cancelarlos) y tiene **al menos un** lote en estado `FINALIZADO` asociado (condición inversa a `anularPlanificacionProduccion`): la finalización forzada cierra una planificación que sí llegó a producir algo pero no completó la cantidad solicitada; si no produjo nada, corresponde anularla en lugar de finalizarla. La finalización normal (litros producidos mayores o iguales a la cantidad solicitada y sin lotes pendientes ni en ejecución) no pasa por este método: ocurre sola al finalizar el envasado o cancelar el último lote de la planificación (ver CP-FE-08 a CP-FE-12 y CP-CL-13 a CP-CL-17 en `CasosPruebaLote.md`).
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

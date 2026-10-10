@@ -13,6 +13,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.RegistrarEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,7 +38,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -51,6 +55,9 @@ class EnvasadoLoteServicioImplTest {
 
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
+
+    @Mock
+    private ILoteRepository loteRepository;
 
     @Mock
     private IBarrilRepository barrilRepository;
@@ -170,6 +177,7 @@ class EnvasadoLoteServicioImplTest {
     void registrarEnvasadoLote_debeRechazarLoteNoEnEjecucion() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.PENDIENTE), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -183,6 +191,7 @@ class EnvasadoLoteServicioImplTest {
     void registrarEnvasadoLote_debeRechazarEtapaNoEnCurso() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.PENDIENTE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -196,6 +205,7 @@ class EnvasadoLoteServicioImplTest {
     void registrarEnvasadoLote_debeRechazarTipoEtapaNoPermiteEnvasado() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.MADURACION, EstadoEtapaLote.EN_CURSO);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -209,6 +219,7 @@ class EnvasadoLoteServicioImplTest {
     void registrarEnvasadoLote_debeRechazarBarrilInexistente() {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(99L, 30.0)))
@@ -225,6 +236,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.EN_LIMPIEZA);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
@@ -240,6 +252,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, null)))
@@ -255,6 +268,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 0.0)))
@@ -270,6 +284,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, -5.0)))
@@ -285,6 +300,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 60.0)))
@@ -302,6 +318,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> {
             EnvasadoLoteEntity entidadGuardada = invocation.getArgument(0);
@@ -327,6 +344,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> {
             EnvasadoLoteEntity entidadGuardada = invocation.getArgument(0);
@@ -364,6 +382,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         // === EJECUCION Y ASSERTS ===
@@ -383,6 +402,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(15.0);
 
@@ -403,6 +423,7 @@ class EnvasadoLoteServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
         BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(15.0);
         when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -415,6 +436,58 @@ class EnvasadoLoteServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         verify(barrilRepository).save(barril);
         verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-REL-16: registrarEnvasadoLote recupera el lote bloqueado antes de validarlo y de consultar el barril")
+    void registrarEnvasadoLote_debeBloquearElLoteAntesDeValidarlo() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0));
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(loteRepository, barrilRepository);
+        orden.verify(loteRepository).buscarPorIdParaActualizar(1L);
+        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
+        verify(loteRepository, times(1)).buscarPorIdParaActualizar(1L);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-REL-17: registrarEnvasadoLote lanza RecursoNoEncontradoException y no consulta nada más cuando el lote a bloquear no existe")
+    void registrarEnvasadoLote_debeRechazarLoteInexistenteAlBloquear() {
+        LoteEntity lote = crearLoteEntity(EstadoLote.EN_EJECUCION);
+        lote.setId(7L);
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 7");
+
+        verifyNoInteractions(barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-18: registrarEnvasadoLote lanza ReglaNegocioException y no consulta el barril cuando el lote está FINALIZADO")
+    void registrarEnvasadoLote_debeRechazarLoteFinalizado() {
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.FINALIZADO), TipoEtapa.ENVASADO, EstadoEtapaLote.FINALIZADA);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
+
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder registrar un envasado");
+
+        verifyNoInteractions(barrilRepository, envasadoLoteRepository);
     }
 
     // ==================== anularEnvasadoLote ====================
@@ -475,6 +548,7 @@ class EnvasadoLoteServicioImplTest {
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(1L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(1L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
 
         assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(1L, anularFormDTO("Error de carga")))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -491,6 +565,7 @@ class EnvasadoLoteServicioImplTest {
         BarrilEntity barril = crearBarrilEntity(5L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(1L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(1L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(5L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(1L, anularFormDTO("Error de carga")))
@@ -507,6 +582,7 @@ class EnvasadoLoteServicioImplTest {
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.DESPACHADO);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(10L, anularFormDTO("Error de carga")))
@@ -524,6 +600,7 @@ class EnvasadoLoteServicioImplTest {
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 45.0, EstadoOperativoBarril.CON_CERVEZA);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
 
         assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(10L, anularFormDTO("Error de carga")))
@@ -541,6 +618,7 @@ class EnvasadoLoteServicioImplTest {
         BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
         EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
         when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
         when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
         when(envasadoLoteRepository.save(envasadoLote)).thenReturn(envasadoLote);
 
@@ -559,6 +637,48 @@ class EnvasadoLoteServicioImplTest {
 
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         assertThat(resultado.getMotivoAnulacion()).isEqualTo("Error de carga");
+    }
+
+    @Test
+    @DisplayName("CP-AEL-10: anularEnvasadoLote recupera el lote bloqueado antes de validarlo y de consultar el barril")
+    void anularEnvasadoLote_debeBloquearElLoteAntesDeValidarlo() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
+        when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        when(envasadoLoteRepository.save(envasadoLote)).thenReturn(envasadoLote);
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.anularEnvasadoLote(10L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(loteRepository, barrilRepository);
+        orden.verify(loteRepository).buscarPorIdParaActualizar(1L);
+        orden.verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
+        verify(loteRepository, times(1)).buscarPorIdParaActualizar(1L);
+        assertThat(envasadoLote.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+    }
+
+    @Test
+    @DisplayName("CP-AEL-11: anularEnvasadoLote lanza RecursoNoEncontradoException y no consulta el barril ni persiste cuando el lote a bloquear no existe")
+    void anularEnvasadoLote_debeRechazarLoteInexistenteAlBloquear() {
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        etapaLote.getLote().setId(7L);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(10L, etapaLote, barril, 30.0, EstadoTransaccion.REGISTRADO);
+        when(envasadoLoteRepository.findById(10L)).thenReturn(Optional.of(envasadoLote));
+        when(loteRepository.buscarPorIdParaActualizar(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(10L, anularFormDTO("Error de carga")))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 7");
+
+        verifyNoInteractions(barrilRepository);
+        verify(envasadoLoteRepository, never()).save(any());
     }
 
     // ==================== helpers ====================

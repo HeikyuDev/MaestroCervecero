@@ -68,11 +68,12 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
 
     /**
      * Suma, por planificación de producción, la cantidad envasada de los envasados {@code REGISTRADO}
-     * (los anulados no cuentan) de cualquier lote de la planificación. Es una única consulta para un
-     * conjunto de planificaciones (por ejemplo, las de una página del listado), para evitar una consulta por fila.
+     * (los anulados no cuentan) de los lotes {@code FINALIZADO} de la planificación (los lotes
+     * pendientes, en ejecución o cancelados no cuentan). Es una única consulta para un conjunto de
+     * planificaciones (por ejemplo, las de una página del listado), para evitar una consulta por fila.
      * <p>
      * Camino: envasado &rarr; etapa de lote &rarr; lote &rarr; planificación de producción. Las
-     * planificaciones sin ningún envasado registrado no aparecen en el resultado.
+     * planificaciones sin ningún envasado registrado de un lote finalizado no aparecen en el resultado.
      * </p>
      *
      * @param idsPlanificacion Los IDs de las planificaciones de producción a consultar.
@@ -82,20 +83,23 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
             + "JOIN e.etapaLote et JOIN et.lote l "
             + "WHERE l.planificacionProduccion.id IN :idsPlanificacion "
             + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO "
+            + "AND l.estado = com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.FINALIZADO "
             + "GROUP BY l.planificacionProduccion.id")
     List<Object[]> sumarLitrosProducidosPorPlanificacion(@Param("idsPlanificacion") Collection<Long> idsPlanificacion);
 
     /**
-     * Suma la cantidad envasada de los envasados {@code REGISTRADO} (los anulados no cuentan) de
-     * cualquier lote de una planificación de producción puntual. Es la variante de una sola planificación
-     * de {@link #sumarLitrosProducidosPorPlanificacion(Collection)}.
+     * Suma la cantidad envasada de los envasados {@code REGISTRADO} (los anulados no cuentan) de los
+     * lotes {@code FINALIZADO} de una planificación de producción puntual (los lotes pendientes, en
+     * ejecución o cancelados no cuentan). Es la variante de una sola planificación de
+     * {@link #sumarLitrosProducidosPorPlanificacion(Collection)}.
      *
      * @param idPlanificacion El ID de la planificación de producción.
-     * @return Los litros producidos, o {@code 0.0} si la planificación no tiene ningún envasado registrado.
+     * @return Los litros producidos, o {@code 0.0} si la planificación no tiene ningún envasado registrado de un lote finalizado.
      */
     @Query("SELECT COALESCE(SUM(e.cantidadEnvasada), 0.0) FROM EnvasadoLoteEntity e "
             + "JOIN e.etapaLote et JOIN et.lote l "
             + "WHERE l.planificacionProduccion.id = :idPlanificacion "
-            + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO")
+            + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO "
+            + "AND l.estado = com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.FINALIZADO")
     double sumarLitrosProducidosDePlanificacion(@Param("idPlanificacion") Long idPlanificacion);
 }

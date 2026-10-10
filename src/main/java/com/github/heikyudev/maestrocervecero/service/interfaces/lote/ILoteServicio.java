@@ -66,6 +66,10 @@ public interface ILoteServicio {
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.
      * @throws RecursoNoEncontradoException Si la planificación de producción o alguno de los equipamientos referenciados no existe.
+     * @throws ReglaNegocioException Si la planificación de producción no está en estado PENDIENTE, si el volumen objetivo es
+     *                               inválido, si algún equipo seleccionado no tiene capacidad suficiente, o si los lotes de la
+     *                               planificación (litros ya producidos por sus lotes finalizados más el volumen objetivo de
+     *                               sus lotes pendientes y en ejecución) ya cubren la cantidad a producir.
      */
     LoteResponseDTO registrarLote(LoteFormDTO loteFormDTO);
 
@@ -100,6 +104,8 @@ public interface ILoteServicio {
      *     "En Limpieza".</li>
      *     <li>El equipamiento asociado a etapas todavía no ejecutadas pasa a estado "Disponible".</li>
      *     <li>El resto del equipamiento (ya usado en etapas previas) mantiene su estado.</li>
+     *     <li>Si la planificación de producción del lote ya había alcanzado su cantidad a producir y
+     *     este era su último lote pendiente o en ejecución, la planificación se finaliza sola.</li>
      * </ul>
      *
      * @param id El ID del lote a cancelar.
@@ -267,14 +273,21 @@ public interface ILoteServicio {
      *     <li>El lote pasa a estado "Finalizado".</li>
      *     <li>El fermentador utilizado (compartido por Fermentación, Maduración y Envasado) pasa a
      *     estado "En Limpieza".</li>
+     *     <li>Si con este lote los litros producidos de la planificación de producción (envasados
+     *     registrados de sus lotes finalizados) alcanzan la cantidad a producir y la planificación no
+     *     tiene más lotes pendientes ni en ejecución, la planificación se finaliza sola.</li>
      * </ul>
+     * <p>
+     * Un lote sin litros envasados registrados no puede finalizarse: si no se va a producir, se cancela.
+     * </p>
      *
      * @param id El ID del lote cuyo Envasado se quiere finalizar.
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra el fermentador asociado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, o si su
-     *                               etapa actual (EN_CURSO) no es Envasado.
+     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su
+     *                               etapa actual (EN_CURSO) no es Envasado, o si no tiene litros
+     *                               envasados registrados.
      */
     LoteResponseDTO finalizarEnvasado(Long id);
 

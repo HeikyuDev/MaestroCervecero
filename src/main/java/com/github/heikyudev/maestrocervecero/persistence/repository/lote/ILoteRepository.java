@@ -187,6 +187,34 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     List<LoteEntity> buscarPendientesDeFermentadorParaReordenar(@Param("idFermentador") Long idFermentador);
 
     /**
+     * Busca un lote por su ID bloqueándolo para escritura.
+     * <p>
+     * Se usa para serializar las operaciones que cambian el total envasado o el estado de un mismo
+     * lote (registrar o anular un envasado, finalizar su envasado o cancelarlo), de modo que no
+     * puedan intercalarse.
+     * </p>
+     *
+     * @param id El ID del lote.
+     * @return El lote bloqueado, o vacío si no existe.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT l FROM LoteEntity l WHERE l.id = :id")
+    Optional<LoteEntity> buscarPorIdParaActualizar(@Param("id") Long id);
+
+    /**
+     * Suma el volumen objetivo de los lotes vivos (PENDIENTE o EN_EJECUCION) de una planificación de
+     * producción. Representa los litros que esos lotes todavía se comprometieron a producir.
+     *
+     * @param idPlanificacion El ID de la planificación de producción.
+     * @return La suma de {@code volumenObjetivo} de sus lotes vivos, o {@code 0.0} si no tiene ninguno.
+     */
+    @Query("SELECT COALESCE(SUM(l.volumenObjetivo), 0.0) FROM LoteEntity l "
+            + "WHERE l.planificacionProduccion.id = :idPlanificacion "
+            + "AND l.estado IN (com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.PENDIENTE, "
+            + "com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.EN_EJECUCION)")
+    double sumarVolumenObjetivoDeLotesVivosDePlanificacion(@Param("idPlanificacion") Long idPlanificacion);
+
+    /**
      * Busca el lote EN_EJECUCION de un fermentador (el de su etapa de Fermentación), si lo hay.
      *
      * @param idFermentador El ID del fermentador.

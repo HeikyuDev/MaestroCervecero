@@ -18,8 +18,9 @@ import java.time.LocalDate;
  * <p>
  * A diferencia de los demás módulos, este no es un CRUD: una planificación de producción es un registro
  * transaccional que nunca se modifica ni se da de baja. Solo admite su registro inicial y dos
- * cierres excepcionales (anulación o finalización forzada); el cierre normal ocurre cuando la
- * cantidad producida alcanza la cantidad solicitada, algo que resuelve el módulo de lotes.
+ * cierres excepcionales (anulación o finalización forzada); el cierre normal ocurre solo: la
+ * planificación se finaliza cuando los litros producidos (envasados registrados de lotes finalizados)
+ * alcanzan la cantidad solicitada y ya no le quedan lotes pendientes ni en ejecución.
  * </p>
  */
 public interface IPlanificacionProduccionServicio {
@@ -35,7 +36,7 @@ public interface IPlanificacionProduccionServicio {
      * @param pageable La configuración de paginación.
      * @return Una página de planificaciones de producción que cumplen los criterios indicados, en formato DTO. Cada una incluye sus
      * litros producidos ({@code litrosProducidos}): la suma de la cantidad envasada de los envasados {@code REGISTRADO}
-     * (no anulados) de cualquier lote de la planificación, o {@code 0.0} si no tiene ninguno.
+     * (no anulados) de los lotes {@code FINALIZADO} de la planificación, o {@code 0.0} si no tiene ninguno.
      */
     Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesProduccion(Long idReceta, EstadoSolicitud estado, LocalDate fechaInicio, Pageable pageable);
 
