@@ -15,7 +15,7 @@
 
 ### 3. `altaLupulo(LupuloFormDTO formDTO)`
 
-Los ácidos alfa deben ser un número finito mayor a 0 (mensaje: "El porcentaje de ácidos alfa debe ser un número mayor a 0"), menor o igual a 25% (mensaje: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%") y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
+Los ácidos alfa deben ser un número real: NaN o infinito se rechazan con "El porcentaje de ácidos alfa debe ser un número mayor a 0". Además deben ser mayores a 0% y menores o iguales a 25% (mensaje: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%", que también se usa para nulo, cero y negativos) y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

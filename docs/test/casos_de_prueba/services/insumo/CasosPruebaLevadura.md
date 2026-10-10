@@ -19,7 +19,7 @@
 
 ### 3. `altaLevadura(LevaduraFormDTO formDTO)`
 
-La cantidad de células viables por gramo debe ser un número finito mayor a 0 (mensaje: "La cantidad de células viables por gramo debe ser un número mayor a 0") y estar entre 6.000.000.000 y 20.000.000.000 (mensaje: "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000"). El service trabaja en células (no en millones). El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
+La cantidad de células viables por gramo debe ser un número real: NaN o infinito se rechazan con "La cantidad de células viables por gramo debe ser un número mayor a 0". Además debe estar entre 6.000.000.000 y 20.000.000.000 (mensaje, que también se usa para nulo, cero y negativos: "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000"). El service trabaja en células (no en millones). El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |

@@ -207,7 +207,12 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @throws ReglaNegocioException Si los ácidos alfa son nulos, NaN, infinitos, no son mayores a 0% o superan el 25%.
      */
     private static void validarAlfaAcidos(Double aa) {
-        ValidacionesNumericas.validarMayorACero(aa, "El porcentaje de ácidos alfa");
+        if (aa != null && !Double.isFinite(aa)) {
+            throw new ReglaNegocioException("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+        }
+        if (aa == null || aa <= 0) {
+            throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+        }
         if (aa > ALFA_ACIDOS_MAXIMO) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
         }
