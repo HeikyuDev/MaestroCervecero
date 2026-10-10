@@ -98,6 +98,7 @@ class RecetaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-lista"))
                 .andExpect(content().string(containsString("Gestión de Recetas")))
+                .andExpect(content().string(containsString(">R7<")))
                 .andExpect(content().string(containsString("Pale Ale")))
                 .andExpect(content().string(containsString("Volumen base (L)")))
                 .andExpect(content().string(containsString("OG objetivo")))
@@ -262,6 +263,7 @@ class RecetaControllerTest {
                 .andExpect(view().name("receta/receta-detalle"))
                 // Datos generales
                 .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString(">R7<")))
                 .andExpect(content().string(containsString("Volumen base (L)")))
                 .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
                 .andExpect(content().string(containsString("OG objetivo")))

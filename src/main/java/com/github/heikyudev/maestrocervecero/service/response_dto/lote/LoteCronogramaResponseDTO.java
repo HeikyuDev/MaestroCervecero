@@ -27,7 +27,7 @@ public class LoteCronogramaResponseDTO {
     private Long id;
 
     /**
-     * Identificador interno autogenerado del lote (nombre de la receta + número de lote de esa receta). Ej: "PILSEN_CLASICA-3".
+     * Identificador interno autogenerado del lote ("R" + id de la receta + "-" + número de lote de esa receta). Ej: "R7-3".
      */
     private String identificadorInterno;
 

@@ -430,7 +430,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         LoteEntity guardado = captor.getValue();
         assertThat(guardado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
-        assertThat(guardado.getIdentificadorInterno()).isEqualTo("IPA Test-3");
+        assertThat(guardado.getIdentificadorInterno()).isEqualTo("R5-3");
         assertThat(receta.getContadorLotes()).isEqualTo(4L);
         assertThat(guardado.getEtapas()).hasSize(6);
         assertThat(guardado.getEtapas()).allMatch(e -> e.getEstado() == EstadoEtapaLote.PENDIENTE);
@@ -440,7 +440,7 @@ class LoteServicioImplTest {
         assertThat(findEtapa(guardado, TipoEtapa.FERMENTACION).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
         assertThat(findEtapa(guardado, TipoEtapa.MADURACION).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
         assertThat(findEtapa(guardado, TipoEtapa.ENVASADO).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("IPA Test-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("R5-3");
     }
 
     @Test

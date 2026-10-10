@@ -1173,7 +1173,7 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Genera el identificador interno del lote (nombre de la receta + número de lote de esa
+     * Genera el identificador interno del lote ("R" + id de la receta + "-" + número de lote de esa
      * receta), incrementando de forma segura el contador de lotes de la receta mediante un bloqueo
      * pesimista, para soportar el registro concurrente de múltiples lotes de la misma receta.
      */
@@ -1185,7 +1185,7 @@ public class LoteServicioImpl implements ILoteServicio {
         receta.setContadorLotes(numeroDeLote + 1);
         recetaRepository.save(receta);
 
-        return versionReceta.getNombre() + "-" + numeroDeLote;
+        return "R" + receta.getId() + "-" + numeroDeLote;
     }
 
     /**

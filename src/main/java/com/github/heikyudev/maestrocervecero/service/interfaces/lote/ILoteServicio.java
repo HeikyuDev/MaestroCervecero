@@ -23,7 +23,7 @@ public interface ILoteServicio {
      * etapa actualmente en curso y volumen objetivo.
      * <p>
      * {@code identificadorInterno} es el número autogenerado que el sistema le asigna al lote al
-     * registrarse (nombre de la receta + número de lote de esa receta), no un dato que el usuario
+     * registrarse ("R" + id de la receta + "-" + número de lote de esa receta, ej. "R7-3"), no un dato que el usuario
      * elija — la búsqueda es por coincidencia parcial, sin distinguir mayúsculas/minúsculas.
      * </p>
      *
@@ -51,7 +51,7 @@ public interface ILoteServicio {
      * <p>
      * Registrar un lote no es lo mismo que iniciarlo: en este paso no se valida stock de insumos
      * ni disponibilidad de los equipos seleccionados. Al registrarse, el sistema genera
-     * automáticamente el identificador interno del lote (nombre de la receta + número de lote de
+     * automáticamente el identificador interno del lote ("R" + id de la receta + "-" + número de lote de
      * esa receta) y crea sus 6 etapas en estado PENDIENTE, cada una asociada al equipamiento
      * correspondiente (Molino para Molienda, Macerador para Maceración, Olla de Hervor para
      * Hervido, y el mismo Fermentador para Fermentación, Maduración y Envasado).
