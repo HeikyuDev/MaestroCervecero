@@ -62,6 +62,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -87,6 +88,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -753,7 +755,7 @@ class LoteServicioImplTest {
     @DisplayName("CP-IL-01: iniciarLote lanza RecursoNoEncontradoException si el lote no existe")
     void iniciarLote_debeLanzarExcepcionSiLoteNoExiste() {
         // === PREPARACION DE DATOS ===
-        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+        when(loteRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(99L))
@@ -765,7 +767,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiLoteEnEjecucion() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBase(EstadoLote.EN_EJECUCION);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
@@ -778,7 +780,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiLoteCancelado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBase(EstadoLote.CANCELADO);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
@@ -790,7 +792,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiMolinoNoEncontradoAlIniciar() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBase(EstadoLote.PENDIENTE);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
@@ -804,7 +806,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiMolinoNoDisponible() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBaseConEstadosEquipamiento(EstadoOperativo.EN_USO, EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
 
         // === EJECUCION Y ASSERTS ===
@@ -818,7 +820,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiMaceradorNoDisponible() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBaseConEstadosEquipamiento(EstadoOperativo.DISPONIBLE, EstadoOperativo.EN_LIMPIEZA, EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
 
         // === EJECUCION Y ASSERTS ===
@@ -832,7 +834,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiOllaHervorNoDisponible() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBaseConEstadosEquipamiento(EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE, EstadoOperativo.EN_MANTENIMIENTO, EstadoOperativo.DISPONIBLE);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
 
         // === EJECUCION Y ASSERTS ===
@@ -846,7 +848,7 @@ class LoteServicioImplTest {
     void iniciarLote_debeLanzarExcepcionSiFermentadorNoDisponible() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteRegistradoBaseConEstadosEquipamiento(EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE, EstadoOperativo.EN_USO);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
 
         // === EJECUCION Y ASSERTS ===
@@ -861,7 +863,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
         LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         // requerimiento ≈ 3.70kg, disponible 2.0kg
         LoteInsumoEntity stockMalta = crearLoteInsumo(100L, malta, 2.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
@@ -881,7 +883,7 @@ class LoteServicioImplTest {
         MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
         LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, null);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
@@ -904,7 +906,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
         LevaduraEntity levadura = crearLevadura(12L, "LevaduraB", TipoLevadura.ALE, 2.0E10);
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
@@ -929,7 +931,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
         LevaduraEntity levadura = crearLevadura(12L, "LevaduraB", TipoLevadura.ALE, 2.0E10);
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         // malta insuficiente: requerimiento ≈3.70kg, disponible 2.0kg
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
@@ -960,7 +962,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
         LevaduraEntity levadura = crearLevadura(12L, "LevaduraB", TipoLevadura.ALE, 2.0E10);
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
@@ -997,7 +999,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
         LevaduraEntity levadura = crearLevadura(12L, "LevaduraB", TipoLevadura.ALE, 2.0E10);
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
@@ -1033,7 +1035,7 @@ class LoteServicioImplTest {
         DetalleLupuloEntity detalle = detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, lupulo);
         VersionRecetaEntity versionReceta = versionRecetaAislada(List.of(), List.of(detalle), List.of(), 1.050, 35, 20.0);
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLupulo = crearLoteInsumo(200L, lupulo, 60.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(20L)).thenReturn(List.of(stockLupulo));
@@ -1058,7 +1060,7 @@ class LoteServicioImplTest {
         DetalleLupuloEntity detalle = detalleLupulo(15.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, lupulo);
         VersionRecetaEntity versionReceta = versionRecetaAislada(List.of(), List.of(detalle), List.of(), 1.050, 35, 20.0);
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 100.0);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLupulo = crearLoteInsumo(201L, lupulo, 100.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(21L)).thenReturn(List.of(stockLupulo));
@@ -1081,7 +1083,7 @@ class LoteServicioImplTest {
         DetalleLevaduraEntity detalle = detalleLevadura(6.0, levadura);
         VersionRecetaEntity versionReceta = versionRecetaAislada(List.of(), List.of(), List.of(detalle), 1.050, 35, 20.0);
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLevadura = crearLoteInsumo(202L, levadura, 20.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(22L)).thenReturn(List.of(stockLevadura));
@@ -1106,7 +1108,7 @@ class LoteServicioImplTest {
         DetalleLupuloEntity dryHop = detalleLupulo(5.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, lupulo);
         VersionRecetaEntity versionReceta = versionRecetaAislada(List.of(), List.of(whirlpool, dryHop), List.of(), 1.050, 35, 20.0);
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0); // volumenObjetivo = volumenBase → ratio 1:1
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLupulo = crearLoteInsumo(203L, lupulo, 20.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(23L)).thenReturn(List.of(stockLupulo));
@@ -1147,7 +1149,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
         LevaduraEntity levadura = crearLevadura(12L, "LevaduraB", TipoLevadura.ALE, 2.0E10);
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
@@ -1193,6 +1195,81 @@ class LoteServicioImplTest {
         }
 
         assertThat(reservasCaptor.getValue()).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("CP-IL-20: iniciarLote — las fechas estimadas del lote iniciado pasan a ser las reales y conservan su duración")
+    void iniciarLote_debeConservarLaDuracionAlTrasladarLasFechasEstimadasAHoy() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = prepararInicioDeLoteConStockSuficiente(1L, hoy.plusDays(36), hoy.plusDays(56));
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
+        assertFechas(lote, hoy, hoy.plusDays(20));
+    }
+
+    @Test
+    @DisplayName("CP-IL-21: iniciarLote — iniciar un lote que no es el primero de la cola reencadena la cola a continuación")
+    void iniciarLote_debeReencadenarLaColaAContinuacionDelLoteIniciado() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteX = prepararInicioDeLoteConStockSuficiente(12L, hoy.plusDays(36), hoy.plusDays(56));
+        LoteEntity loteB = crearLotePendienteEnCola(10L, hoy.plusDays(1), hoy.plusDays(19), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(11L, hoy.plusDays(20), hoy.plusDays(35), hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(loteX));
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(12L);
+
+        // === ASSERTS ===
+        assertFechas(loteX, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteC, hoy.plusDays(40), hoy.plusDays(55));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-IL-22: iniciarLote — sin otros pendientes en el fermentador no hay nada que reencadenar")
+    void iniciarLote_noDebeReencadenarSiNoHayOtrosPendientesEnElFermentador() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = prepararInicioDeLoteConStockSuficiente(1L, hoy.plusDays(3), hoy.plusDays(13));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
+        assertFechas(lote, hoy, hoy.plusDays(10));
+        verify(loteRepository).buscarPendientesDeFermentadorParaReordenar(5L);
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-IL-23: iniciarLote — un pendiente cuya planificación inicia en el futuro no se adelanta al reencadenar")
+    void iniciarLote_noDebeAdelantarUnPendienteCuyaPlanificacionIniciaEnElFuturo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteX = prepararInicioDeLoteConStockSuficiente(12L, hoy.plusDays(36), hoy.plusDays(56));
+        LoteEntity loteB = crearLotePendienteEnCola(10L, hoy.plusDays(1), hoy.plusDays(19), hoy.plusDays(30));
+        LoteEntity loteC = crearLotePendienteEnCola(11L, hoy.plusDays(20), hoy.plusDays(35), hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(loteX));
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(12L);
+
+        // === ASSERTS ===
+        assertFechas(loteX, hoy, hoy.plusDays(20));
+        assertFechas(loteB, hoy.plusDays(30), hoy.plusDays(48));
+        assertFechas(loteC, hoy.plusDays(49), hoy.plusDays(64));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
     }
 
     // ==================== cancelarLote ====================
@@ -1263,32 +1340,24 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CL-06: cancelarLote — lote PENDIENTE sin ninguna etapa en curso: todo el equipamiento pasa a DISPONIBLE")
+    @DisplayName("CP-CL-06: cancelarLote — lote PENDIENTE: queda CANCELADO y no modifica el estado de ningún equipamiento")
     void cancelarLote_debeDejarTodoElEquipamientoDisponibleSiNingunaEtapaEnCurso() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearPlanificacionDelLoteSinCierre(lote);
-        mockearEquipamientoParaIniciar(lote);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // === EJECUCION ===
         loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
 
         // === ASSERTS ===
-        ArgumentCaptor<MolinoEntity> molinoCaptor = ArgumentCaptor.forClass(MolinoEntity.class);
-        ArgumentCaptor<MaceradorEntity> maceradorCaptor = ArgumentCaptor.forClass(MaceradorEntity.class);
-        ArgumentCaptor<OllaHervorEntity> ollaHervorCaptor = ArgumentCaptor.forClass(OllaHervorEntity.class);
-        ArgumentCaptor<FermentadorEntity> fermentadorCaptor = ArgumentCaptor.forClass(FermentadorEntity.class);
-        verify(molinoRepository).save(molinoCaptor.capture());
-        verify(maceradorRepository).save(maceradorCaptor.capture());
-        verify(ollaHervorRepository).save(ollaHervorCaptor.capture());
-        // El Fermentador se guarda UNA sola vez pese a estar asociado a 3 etapas (Fermentación/Maduración/Envasado)
-        verify(fermentadorRepository, times(1)).save(fermentadorCaptor.capture());
-        assertThat(molinoCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-        assertThat(maceradorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-        assertThat(ollaHervorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-        assertThat(fermentadorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        // Un lote PENDIENTE todavía no ocupó ningún equipamiento: no se consulta ni se guarda ninguno
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+        for (EtapaLoteEntity etapa : lote.getEtapas()) {
+            assertThat(((EquipamientoEntity) etapa.getEquipamiento()).getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_USO);
+        }
     }
 
     @Test
@@ -1583,6 +1652,127 @@ class LoteServicioImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la planificación de producción con ID: 1");
         verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CL-19: cancelarLote — lote EN_EJECUCION en una etapa temprana: actualiza el equipamiento y reencadena la cola desde mañana")
+    void cancelarLote_debeReencadenarLaColaDesdeMananaSiElLoteEstabaEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getEquipamiento().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        assertThat(findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        assertFechas(loteB, hoy.plusDays(1), hoy.plusDays(19));
+        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC)
+                .allSatisfy(pendiente -> assertThat(pendiente.getFechaInicioEstimada()).isAfterOrEqualTo(hoy.plusDays(1)));
+    }
+
+    @Test
+    @DisplayName("CP-CL-20: cancelarLote — un lote PENDIENTE compacta la cola desde hoy sin tocar el equipamiento")
+    void cancelarLote_debeCompactarLaColaDesdeHoySiElLoteEstabaPendiente() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.PENDIENTE, null);
+        lote.setFechaInicioEstimada(hoy);
+        lote.setFechaFinalizacionEstimada(hoy.plusDays(10));
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        assertFechas(loteB, hoy, hoy.plusDays(18));
+        assertFechas(loteC, hoy.plusDays(19), hoy.plusDays(39));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CL-21: cancelarLote — un lote PENDIENTE con otro lote en ejecución en el fermentador reencadena la cola detrás de ese lote")
+    void cancelarLote_debeReencadenarDetrasDelLoteEnEjecucionSiElCanceladoEstabaPendiente() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.PENDIENTE, null);
+        LoteEntity loteA = crearLoteEnEjecucionParaCola(20L, hoy.plusDays(5));
+        LoteEntity loteB = crearLoteBDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+        when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(loteA));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(loteB, hoy.plusDays(6), hoy.plusDays(24));
+        assertFechas(loteC, hoy.plusDays(25), hoy.plusDays(45));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
+        verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CL-22: cancelarLote — la planificación de un pendiente sigue siendo piso al reencadenar tras cancelar un lote EN_EJECUCION")
+    void cancelarLote_debeRespetarElPisoDeLaPlanificacionAlReencadenarTrasCancelarUnLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.plusDays(11), hoy.plusDays(29), hoy.plusDays(10));
+        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertFechas(loteB, hoy.plusDays(10), hoy.plusDays(28));
+        assertFechas(loteC, hoy.plusDays(29), hoy.plusDays(49));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-CL-23: cancelarLote — si no hay pendientes en la cola no hay nada que reencadenar y se evalúa igualmente el cierre de la planificación")
+    void cancelarLote_noDebeReencadenarSiLaColaPendienteEstaVacia() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.PENDIENTE, null);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        verify(loteRepository, never()).saveAll(anyList());
+        verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
+    }
+
+    @Test
+    @DisplayName("CP-CL-24: cancelarLote — el reencadenado ocurre antes de evaluar el cierre de la planificación")
+    void cancelarLote_debeReencadenarAntesDeEvaluarElCierreDeLaPlanificacion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteBDeLaCola(hoy), crearLoteCDeLaCola(hoy)));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(loteRepository, planificacionProduccionRepository);
+        orden.verify(loteRepository).saveAll(anyList());
+        orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
     }
 
     // ==================== finalizarMolienda ====================
@@ -2468,6 +2658,97 @@ class LoteServicioImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la planificación de producción con ID: 1");
         verify(planificacionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-15: finalizarEnvasado — la cola pendiente arranca como mínimo mañana")
+    void finalizarEnvasado_debeReencadenarLaColaPendienteDesdeManana() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy.minusDays(5));
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertFechas(loteB, hoy.plusDays(1), hoy.plusDays(19));
+        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-FE-16: finalizarEnvasado — un pendiente cuya planificación inicia en el futuro conserva su fecha posterior")
+    void finalizarEnvasado_noDebeModificarPendientesCuyaPlanificacionIniciaEnElFuturo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.plusDays(10), hoy.plusDays(28), hoy.plusDays(10));
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(29), hoy.plusDays(49), hoy);
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertFechas(loteB, hoy.plusDays(10), hoy.plusDays(28));
+        assertFechas(loteC, hoy.plusDays(29), hoy.plusDays(49));
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-FE-17: finalizarEnvasado — si el lote termina antes de lo estimado los pendientes se adelantan sin pasar de mañana ni de su planificación")
+    void finalizarEnvasado_debeAdelantarLosPendientesSinPasarDeMananaNiDeSuPlanificacion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity lote = prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
+        lote.setFechaFinalizacionEstimada(hoy.plusDays(10));
+        LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.plusDays(11), hoy.plusDays(29), hoy.minusDays(3));
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(50), hoy.plusDays(8));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertFechas(loteB, hoy.plusDays(1), hoy.plusDays(19));
+        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
+        assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
+    }
+
+    @Test
+    @DisplayName("CP-FE-18: finalizarEnvasado — sin lotes pendientes en el fermentador no hay nada que reencadenar")
+    void finalizarEnvasado_noDebeReencadenarSiNoHayLotesPendientesEnElFermentador() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-FE-19: finalizarEnvasado — el reencadenado ocurre antes de evaluar el cierre de la planificación")
+    void finalizarEnvasado_debeReencadenarAntesDeEvaluarElCierreDeLaPlanificacion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteBDeLaCola(hoy), crearLoteCDeLaCola(hoy)));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(loteRepository, planificacionProduccionRepository);
+        orden.verify(loteRepository).saveAll(anyList());
+        orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
     }
 
     // ==================== listarLotesDePlanificacion ====================
@@ -3367,6 +3648,63 @@ class LoteServicioImplTest {
         when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(totalEnvasado);
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         return lote;
+    }
+
+    /**
+     * Prepara un lote en el fermentador 5 (el de la cola de los casos de reencadenado) para {@code cancelarLote}:
+     * se recupera bloqueado, su planificación se recupera sin cierre y se simula el guardado.
+     */
+    private LoteEntity prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote estadoLote, TipoEtapa etapaEnCurso) {
+        LoteEntity lote = crearLoteParaCancelar(estadoLote, etapaEnCurso);
+        usarFermentadorDeLaCola(lote);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
+        mockearEquipamientoParaIniciar(lote);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        return lote;
+    }
+
+    /** Igual que {@link #prepararLoteParaFinalizarEnvasado} pero con el lote en el fermentador 5 de la cola. */
+    private LoteEntity prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola() {
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        usarFermentadorDeLaCola(lote);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearPlanificacionDelLoteSinCierre(lote);
+        FermentadorEntity fermentador = (FermentadorEntity) findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento();
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(5L)).thenReturn(Optional.of(fermentador));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(any())).thenReturn(20.0);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        return lote;
+    }
+
+    /**
+     * Prepara un lote PENDIENTE en el fermentador 5 con stock suficiente de sus 3 insumos, listo para
+     * {@code iniciarLote(idLote)}, con las fechas estimadas indicadas.
+     */
+    private LoteEntity prepararInicioDeLoteConStockSuficiente(Long idLote, LocalDate inicioEstimado, LocalDate finEstimado) {
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LupuloEntity lupulo = crearLupulo(11L, "LupuloB", 10, FormatoLupulo.PELLET);
+        LevaduraEntity levadura = crearLevadura(12L, "LevaduraB", TipoLevadura.ALE, 2.0E10);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
+        lote.setId(idLote);
+        lote.setFechaInicioEstimada(inicioEstimado);
+        lote.setFechaFinalizacionEstimada(finEstimado);
+        usarFermentadorDeLaCola(lote);
+        when(loteRepository.buscarPorIdParaActualizar(idLote)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+                .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
+        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+                .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
+        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+                .thenReturn(List.of(crearLoteInsumo(102L, levadura, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        return lote;
+    }
+
+    /** El fermentador del lote pasa a ser el 5, el de la cola de los casos de reencadenado. */
+    private static void usarFermentadorDeLaCola(LoteEntity lote) {
+        findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento().setId(5L);
     }
 
     private PlanificacionProduccionEntity mockearPlanificacionPendienteBase() {

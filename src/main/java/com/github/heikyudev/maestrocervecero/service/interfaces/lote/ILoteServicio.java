@@ -82,6 +82,13 @@ public interface ILoteServicio {
      * Olla de Hervor, Fermentador) esté disponible, y reserva los lotes de insumo necesarios
      * aplicando el criterio FEFO (First Expired, First Out).
      * </p>
+     * <p>
+     * Cualquier lote PENDIENTE puede iniciarse, sin importar su posición en la cola de su
+     * fermentador. Al iniciarlo, sus fechas estimadas pasan a ser las reales: la fecha de inicio
+     * estimada es hoy y la de finalización estimada es hoy más la duración con la que se planificó.
+     * A continuación, las fechas estimadas de los lotes pendientes del fermentador se reencadenan
+     * detrás de la finalización estimada del lote iniciado.
+     * </p>
      *
      * @param id El ID del lote a iniciar.
      * @return El lote iniciado.
@@ -100,10 +107,17 @@ public interface ILoteServicio {
      * </p>
      * <ul>
      *     <li>Libera automáticamente todas las reservas de insumo del lote todavía pendientes.</li>
-     *     <li>El equipamiento asociado a la etapa actualmente EN_CURSO pasa a estado
-     *     "En Limpieza".</li>
-     *     <li>El equipamiento asociado a etapas todavía no ejecutadas pasa a estado "Disponible".</li>
-     *     <li>El resto del equipamiento (ya usado en etapas previas) mantiene su estado.</li>
+     *     <li>Si el lote estaba "En ejecución", el equipamiento asociado a la etapa actualmente
+     *     EN_CURSO pasa a estado "En Limpieza".</li>
+     *     <li>Si el lote estaba "En ejecución", el equipamiento asociado a etapas todavía no
+     *     ejecutadas pasa a estado "Disponible".</li>
+     *     <li>Si el lote estaba "En ejecución", el resto del equipamiento (ya usado en etapas
+     *     previas) mantiene su estado.</li>
+     *     <li>Si el lote estaba "Pendiente", no se modifica el estado operativo de ningún equipamiento,
+     *     porque todavía no ocupó ninguno.</li>
+     *     <li>Las fechas estimadas de los lotes pendientes del fermentador del lote se reencadenan:
+     *     si el lote estaba "En ejecución", la cola arranca como mínimo el día siguiente a hoy por
+     *     la limpieza de sus equipos; si estaba "Pendiente", la cola se compacta desde hoy.</li>
      *     <li>Si la planificación de producción del lote ya había alcanzado su cantidad a producir y
      *     este era su último lote pendiente o en ejecución, la planificación se finaliza sola.</li>
      * </ul>
@@ -273,6 +287,8 @@ public interface ILoteServicio {
      *     <li>El lote pasa a estado "Finalizado".</li>
      *     <li>El fermentador utilizado (compartido por Fermentación, Maduración y Envasado) pasa a
      *     estado "En Limpieza".</li>
+     *     <li>Las fechas estimadas de los lotes pendientes del fermentador se reencadenan, con
+     *     inicio mínimo el día siguiente a hoy por la limpieza de los equipos.</li>
      *     <li>Si con este lote los litros producidos de la planificación de producción (envasados
      *     registrados de sus lotes finalizados) alcanzan la cantidad a producir y la planificación no
      *     tiene más lotes pendientes ni en ejecución, la planificación se finaliza sola.</li>
@@ -364,8 +380,10 @@ public interface ILoteServicio {
      * </p>
      * <p>
      * La operación es transaccional y bloquea los lotes pendientes del fermentador para evitar
-     * reordenamientos concurrentes. Se audita como una modificación del lote. La lógica de
-     * reencadenado se reutilizará más adelante cuando un lote finalice o se cancele.
+     * reordenamientos concurrentes. Se audita como una modificación del lote. El mismo
+     * reencadenado se aplica cuando un lote del fermentador se inicia, finaliza o cancela; si el lote
+     * que finaliza o se cancela estaba "En ejecución", ningún lote pendiente arranca antes del día
+     * siguiente a hoy.
      * </p>
      *
      * @param idLote El ID del lote a subir.
