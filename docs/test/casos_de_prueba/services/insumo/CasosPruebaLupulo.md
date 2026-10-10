@@ -15,22 +15,22 @@
 
 ### 3. `altaLupulo(LupuloFormDTO formDTO)`
 
-Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25% (mensaje: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%", que también se usa para nulo, cero, negativos e infinitos). Un valor NaN se rechaza con "El porcentaje de ácidos alfa debe ser un número mayor a 0" y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
+Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25% (mensaje para un valor mayor a 25 o infinito positivo: "Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"). Si falta, el mensaje es "Los ácidos alfa son obligatorios"; si es cero, negativo o infinito negativo, "Los ácidos alfa deben ser mayores a 0". Un valor NaN se rechaza con "El porcentaje de ácidos alfa debe ser un número mayor a 0" y el nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-AL-01**|Ácidos alfa nulo|`aa: null`, `nombre: "Cascade"`|`aa == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
-|**CP-AL-02**|Ácidos alfa igual a cero _(Límite inf.)_|`aa: 0`, `nombre: "Cascade"`|`aa <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
-|**CP-AL-03**|Ácidos alfa negativo|`aa: -1`, `nombre: "Cascade"`|`aa <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
+|**CP-AL-01**|Ácidos alfa nulo|`aa: null`, `nombre: "Cascade"`|`aa == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa son obligatorios"). No consulta la BD (`verifyNoInteractions`).|
+|**CP-AL-02**|Ácidos alfa igual a cero _(Límite inf.)_|`aa: 0`, `nombre: "Cascade"`|`aa <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0"). No consulta la BD (`verifyNoInteractions`).|
+|**CP-AL-03**|Ácidos alfa negativo|`aa: -1`, `nombre: "Cascade"`|`aa <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0"). No consulta la BD (`verifyNoInteractions`).|
 |**CP-AL-04**|Nombre duplicado|`aa: 6`, `nombre: "Citra"` (Existe en BD)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AL-05**|Nombre duplicado Case-Insensitive|`aa: 6`, `nombre: "citra"` (Existe `"Citra"`)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AL-06**|Alta exitosa y asignación de `GRAMO` _(Camino feliz)_|`aa: 12`, `nombre: "Mosaic"` (Único), `formato: PELLET`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad asignando fijamente `unidadDeMedida = GRAMO` y `estado = ACTIVO`, y retorna DTO.|
 |**CP-AL-07**|Ácidos alfa en límite inferior entero válido|`aa: 1`, `nombre: "Saaz"`|`aa <= 0 \| aa > 25` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `aa = 1`.|
-|**CP-AL-08**|Ácidos alfa mayores a 25 _(Límite sup.)_|`aa: 25.01`, `nombre: "Cascade"`|`aa > 25` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
+|**CP-AL-08**|Ácidos alfa mayores a 25 _(Límite sup.)_|`aa: 25.01`, `nombre: "Cascade"`|`aa > 25` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"). No consulta la BD (`verifyNoInteractions`).|
 |**CP-AL-09**|Ácidos alfa en límite superior válido|`aa: 25`, `nombre: "Super Alpha"`|`aa <= 0 \| aa > 25` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `aa = 25`.|
 |**CP-AL-10**|El porcentaje de ácidos alfa es NaN|`aa: Double.NaN` (resto válido)|El porcentaje de ácidos alfa es NaN $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El porcentaje de ácidos alfa debe ser un número mayor a 0"). No consulta la BD.|
 |**CP-AL-11**|El porcentaje de ácidos alfa es infinito positivo|`aa: Double.POSITIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito positivo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"). No consulta la BD.|
-|**CP-AL-12**|El porcentaje de ácidos alfa es infinito negativo|`aa: Double.NEGATIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito negativo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%"). No consulta la BD.|
+|**CP-AL-12**|El porcentaje de ácidos alfa es infinito negativo|`aa: Double.NEGATIVE_INFINITY` (resto válido)|El porcentaje de ácidos alfa es infinito negativo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Los ácidos alfa deben ser mayores a 0"). No consulta la BD.|
 |**CP-AL-13**|El porcentaje de ácidos alfa es exactamente 25 (valor límite válido)|`aa: 25.0` (resto válido)|El porcentaje de ácidos alfa es exactamente 25 (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 |**CP-AL-14**|El nombre tiene 101 caracteres|`nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
 |**CP-AL-15**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|

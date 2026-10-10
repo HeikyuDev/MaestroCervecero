@@ -19,11 +19,11 @@
 
 ### 3. `altaLevadura(LevaduraFormDTO formDTO)`
 
-La cantidad de células viables por gramo debe estar entre 6.000.000.000 y 20.000.000.000 (mensaje, que también se usa para nulo, cero, negativos e infinitos: "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000"). Un valor NaN se rechaza con "La cantidad de células viables por gramo debe ser un número mayor a 0". El service trabaja en células (no en millones). El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
+La cantidad de células viables por gramo debe estar entre 6.000.000.000 y 20.000.000.000 (mensaje para un valor fuera de ese rango, incluidos cero y negativos: "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000"; si falta, el mensaje es "La cantidad de células viables por gramo es obligatoria"). Un valor NaN se rechaza con "La cantidad de células viables por gramo debe ser un número mayor a 0". El service trabaja en células (no en millones). El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-AL-01** | Células por gramo nula | `celulas: null`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo == null` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
+| **CP-AL-01** | Células por gramo nula | `celulas: null`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo == null` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException` ("La cantidad de células viables por gramo es obligatoria"). No consulta la BD (`verifyNoInteractions`). |
 | **CP-AL-02** | Células por gramo igual a cero | `celulas: 0.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo < 6.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
 | **CP-AL-03** | Células por gramo negativa | `celulas: -1.0`, `nombre: "SafAle S-04"` | `cantidadCelulasPorGramo < 6.000.000.000` $\rightarrow$ **TRUE** | Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`). |
 | **CP-AL-04** | Nombre duplicado | `celulas: 1.0E10`, `nombre: "SafAle US-05"` (Existe en BD) | `existsByNombreIgnoreCase` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException`. No ejecuta `save()`. |

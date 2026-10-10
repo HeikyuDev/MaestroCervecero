@@ -15,19 +15,19 @@
 
 ### 3. `altaMalta(MaltaFormDTO maltaFormDTO)`
 
-El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Mensaje de error: "El extracto potencial debe ser mayor a 0% y menor o igual a 90%". El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
+El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Si falta, el mensaje es "El extracto potencial es obligatorio"; si es cero o negativo, "El extracto potencial debe ser mayor a 0"; si supera el máximo, "El extracto potencial debe ser mayor a 0% y menor o igual a 90%". El nombre no puede superar 100 caracteres (mensaje: "El nombre no puede superar 100 caracteres").
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-AM-01**|Extracto potencial nulo|`potencialExtracto: null`, `nombre: "Pilsen"`|`potencialExtracto == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
-|**CP-AM-02**|Extracto potencial negativo|`potencialExtracto: -1`, `nombre: "Pilsen"`|`potencialExtracto <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
-|**CP-AM-03**|Extracto potencial mayor a 90 _(Límite sup.)_|`potencialExtracto: 91`, `nombre: "Pilsen"`|`potencialExtracto > 90` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
+|**CP-AM-01**|Extracto potencial nulo|`potencialExtracto: null`, `nombre: "Pilsen"`|`potencialExtracto == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El extracto potencial es obligatorio"). No consulta la BD (`verifyNoInteractions`).|
+|**CP-AM-02**|Extracto potencial negativo|`potencialExtracto: -1`, `nombre: "Pilsen"`|`potencialExtracto <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El extracto potencial debe ser mayor a 0"). No consulta la BD (`verifyNoInteractions`).|
+|**CP-AM-03**|Extracto potencial mayor a 90 _(Límite sup.)_|`potencialExtracto: 91`, `nombre: "Pilsen"`|`potencialExtracto > 90` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El extracto potencial debe ser mayor a 0% y menor o igual a 90%"). No consulta la BD (`verifyNoInteractions`).|
 |**CP-AM-04**|Nombre duplicado|`potencialExtracto: 80`, `nombre: "Caramelo 60"` (Existe en BD)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AM-05**|Nombre duplicado Case-Insensitive|`potencialExtracto: 80`, `nombre: "caramelo 60"` (Existe `"Caramelo 60"`)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AM-06**|Alta exitosa y asignación de `KILOGRAMO` _(Camino feliz)_|`potencialExtracto: 80`, `nombre: "Chocolate"` (Único), `tipo: BASE`|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad asignando fijamente `unidadDeMedida = KILOGRAMO` y `estado = ACTIVO`, y retorna DTO.|
 |**CP-AM-07**|Extracto potencial en límite inferior entero válido|`potencialExtracto: 1`, `nombre: "Malta Roasted"`|`potencialExtracto <= 0 \| potencialExtracto > 90` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `potencialExtracto = 1`.|
 |**CP-AM-08**|Extracto potencial en límite superior válido|`potencialExtracto: 90`, `nombre: "Malta Pale Ale"`|`potencialExtracto <= 0 \| potencialExtracto > 90` $\rightarrow$ **FALSE**|Persiste con éxito y retorna DTO con `potencialExtracto = 90`.|
-|**CP-AM-09**|Extracto potencial igual a cero _(Límite inf.)_|`potencialExtracto: 0`, `nombre: "Pilsen"`|`potencialExtracto <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD (`verifyNoInteractions`).|
+|**CP-AM-09**|Extracto potencial igual a cero _(Límite inf.)_|`potencialExtracto: 0`, `nombre: "Pilsen"`|`potencialExtracto <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El extracto potencial debe ser mayor a 0"). No consulta la BD (`verifyNoInteractions`).|
 |**CP-AM-10**|El nombre tiene 101 caracteres|`nombre: "A" x 101 caracteres` (resto válido)|El nombre tiene 101 caracteres $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD.|
 |**CP-AM-11**|El nombre tiene exactamente 100 caracteres (valor límite válido)|`nombre: "A" x 100 caracteres` (resto válido)|El nombre tiene exactamente 100 caracteres (valor límite válido) $\rightarrow$ **FALSE** (se acepta)|Persiste con éxito y no lanza excepción.|
 

@@ -38,25 +38,35 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
      *
      * @param configuracionProduccionFormDTO Los nuevos valores de configuración.
      * @return La configuración de producción actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es un número mayor a cero o supera su máximo técnico, o si el porcentaje mínimo de consumo no es un número entre 0 y 100.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad no es un número mayor a 0 o supera su máximo técnico, o si el porcentaje mínimo de consumo no es un número entre 0 y 100.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.CONFIGURACION_PRODUCCION)
     public ConfiguracionProduccionResponseDTO actualizarConfiguracion(ConfiguracionProduccionFormDTO configuracionProduccionFormDTO) {
         // 1. Validar que se hayan informado todos los parámetros
-        if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() == null
-                || configuracionProduccionFormDTO.getCapacidadLoteEstandar() == null
-                || configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() == null
-                || configuracionProduccionFormDTO.getCriterioSeleccionPlanSecuencial() == null
-                || configuracionProduccionFormDTO.getCriterioSeleccionPlanConcurrente() == null) {
-            throw new ReglaNegocioException("Todos los parámetros de configuración son obligatorios");
+        if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() == null) {
+            throw new ReglaNegocioException("La velocidad de envasado es obligatoria");
+        }
+        if (configuracionProduccionFormDTO.getCapacidadLoteEstandar() == null) {
+            throw new ReglaNegocioException("La capacidad de lote estándar es obligatoria");
+        }
+        if (configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() == null) {
+            throw new ReglaNegocioException("El porcentaje mínimo de consumo es obligatorio");
+        }
+        if (configuracionProduccionFormDTO.getCriterioSeleccionPlanSecuencial() == null) {
+            throw new ReglaNegocioException("El criterio de selección secuencial es obligatorio");
+        }
+        if (configuracionProduccionFormDTO.getCriterioSeleccionPlanConcurrente() == null) {
+            throw new ReglaNegocioException("El criterio de selección concurrente es obligatorio");
         }
 
-        // 2. Validar que la velocidad de envasado y la capacidad de lote sean mayores a cero
-        if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() <= 0
-                || configuracionProduccionFormDTO.getCapacidadLoteEstandar() <= 0) {
-            throw new ReglaNegocioException("La velocidad de envasado y la capacidad de lote estándar deben ser mayores a cero");
+        // 2. Validar que la velocidad de envasado y la capacidad de lote sean mayores a 0
+        if (configuracionProduccionFormDTO.getVelocidadEstandarEnvasado() <= 0) {
+            throw new ReglaNegocioException("La velocidad de envasado debe ser mayor a 0");
+        }
+        if (configuracionProduccionFormDTO.getCapacidadLoteEstandar() <= 0) {
+            throw new ReglaNegocioException("La capacidad de lote estándar debe ser mayor a 0");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(configuracionProduccionFormDTO.getVelocidadEstandarEnvasado(),
                 LimitesTecnicos.VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA, "La velocidad de envasado", "litros por hora");

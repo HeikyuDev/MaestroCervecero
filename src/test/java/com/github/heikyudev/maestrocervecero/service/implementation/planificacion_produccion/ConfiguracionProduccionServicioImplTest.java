@@ -61,7 +61,7 @@ class ConfiguracionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Todos los parámetros de configuración son obligatorios");
+                .hasMessage("El criterio de selección secuencial es obligatorio");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }
@@ -74,7 +74,7 @@ class ConfiguracionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La velocidad de envasado y la capacidad de lote estándar deben ser mayores a cero");
+                .hasMessage("La velocidad de envasado debe ser mayor a 0");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }
@@ -86,7 +86,8 @@ class ConfiguracionProduccionServicioImplTest {
                 CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar debe ser mayor a 0");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }
@@ -242,6 +243,71 @@ class ConfiguracionProduccionServicioImplTest {
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La capacidad de lote estándar no puede superar 100.000 litros");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-15: actualizarConfiguracion lanza ReglaNegocioException cuando la velocidad estándar de envasado es nula")
+    void actualizar_debeRechazarVelocidadEnvasadoNula() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(null, 25.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La velocidad de envasado es obligatoria");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-16: actualizarConfiguracion lanza ReglaNegocioException cuando la capacidad de lote estándar es nula")
+    void actualizar_debeRechazarCapacidadLoteNula() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, null, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar es obligatoria");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-17: actualizarConfiguracion lanza ReglaNegocioException cuando el porcentaje mínimo de consumo es nulo")
+    void actualizar_debeRechazarPorcentajeNulo() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, null,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El porcentaje mínimo de consumo es obligatorio");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-18: actualizarConfiguracion lanza ReglaNegocioException cuando el criterio de selección concurrente es nulo")
+    void actualizar_debeRechazarCriterioConcurrenteNulo() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 25.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, null);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El criterio de selección concurrente es obligatorio");
+
+        verify(configuracionProduccionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AC-19: actualizarConfiguracion lanza ReglaNegocioException cuando la capacidad de lote estándar es cero (límite)")
+    void actualizar_debeRechazarCapacidadLoteEnCero() {
+        ConfiguracionProduccionFormDTO formDTO = configuracionFormDTO(12.0, 0.0, 90.0,
+                CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA, CriterioSeleccionPlanConcurrente.MENOR_CANTIDAD_DE_LOTES);
+
+        assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad de lote estándar debe ser mayor a 0");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }

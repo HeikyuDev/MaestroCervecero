@@ -35,6 +35,6 @@ public class MaltaFormDTO {
     /**
      * Extracto potencial en porcentaje. Regla de negocio: mayor a 0% y menor o igual a 90%.
      */
-    @NotNull(message = "El potencial de extracto es obligatorio")
+    @NotNull(message = "El extracto potencial es obligatorio")
     private Integer potencialExtracto;
 }

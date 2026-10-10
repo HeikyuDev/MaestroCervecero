@@ -184,7 +184,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El volumen base debe ser mayor a 0");
+                .hasMessage("El volumen base es obligatorio");
 
         verifyNoRepositoryInteractions();
     }
@@ -381,7 +381,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
+                .hasMessage("El tiempo de hervor de cada lúpulo debe ser mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -396,7 +396,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
+                .hasMessage("El tiempo de hervor de cada lúpulo con uso Hervor debe ser menor a la duración estimada del hervido");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -789,7 +789,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+                .hasMessage("La OG objetivo es obligatoria");
 
         verifyNoRepositoryInteractions();
     }
@@ -837,7 +837,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+                .hasMessage("La FG objetivo es obligatoria");
 
         verifyNoRepositoryInteractions();
     }
@@ -947,6 +947,17 @@ class RecetaServicioImplTest {
         recetaServicio.altaReceta(recetaFormDTO(version));
 
         verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
+    @ParameterizedTest(name = "CP-AR-67: {0}")
+    @MethodSource("versionesConCampoObligatorioNulo")
+    @DisplayName("CP-AR-67: altaReceta lanza ReglaNegocioException y no consulta la BD cuando falta un número obligatorio")
+    void altaReceta_debeRechazarNumerosObligatoriosNulos(String descripcion, VersionRecetaFormDTO version, String mensaje) {
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+
+        verifyNoRepositoryInteractions();
     }
 
     // ==================== modificarReceta ====================
@@ -1225,7 +1236,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+                .hasMessage("La OG objetivo es obligatoria");
 
         verifyNoRepositoryInteractions();
     }
@@ -1273,7 +1284,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
+                .hasMessage("La FG objetivo es obligatoria");
 
         verifyNoRepositoryInteractions();
     }
@@ -1332,6 +1343,17 @@ class RecetaServicioImplTest {
         recetaServicio.modificarReceta(1L, recetaFormDTO(version));
 
         verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
+    @ParameterizedTest(name = "CP-MR-32: {0}")
+    @MethodSource("versionesConCampoObligatorioNulo")
+    @DisplayName("CP-MR-32: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando falta un número obligatorio")
+    void modificarReceta_debeRechazarNumerosObligatoriosNulos(String descripcion, VersionRecetaFormDTO version, String mensaje) {
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(mensaje);
+
+        verifyNoRepositoryInteractions();
     }
 
     // ==================== bajaReceta ====================
@@ -1471,6 +1493,21 @@ class RecetaServicioImplTest {
                 Arguments.of("cantidad de malta 1000000,01", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(1_000_000.01, MALTA_ID))).build(), "La cantidad de cada malta no puede superar 1.000.000 kg"),
                 Arguments.of("cantidad de lúpulo 1000000,01", versionValidaBuilder().detallesLupulo(lupuloHervor(1_000_000.01, 30.0)).build(), "La cantidad de cada lúpulo no puede superar 1.000.000 g"),
                 Arguments.of("cantidad de levadura 1000000,01", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(1_000_000.01, LEVADURA_ID))).build(), "La cantidad de cada levadura no puede superar 1.000.000 g"));
+    }
+
+    static Stream<Arguments> versionesConCampoObligatorioNulo() {
+        return Stream.of(
+                Arguments.of("volumenBase null", versionValidaBuilder().volumenBase(null).build(), "El volumen base es obligatorio"),
+                Arguments.of("relacionDeEmpaste null", versionValidaBuilder().relacionDeEmpaste(null).build(), "La relación de empaste es obligatoria"),
+                Arguments.of("ibuObjetivo null", versionValidaBuilder().ibuObjetivo(null).build(), "El IBU objetivo es obligatorio"),
+                Arguments.of("duracionMaceracion null", versionValidaBuilder().duracionMaceracion(null).build(), "La duración estimada de la maceración es obligatoria"),
+                Arguments.of("duracionHervido null", versionValidaBuilder().duracionHervido(null).build(), "La duración estimada del hervido es obligatoria"),
+                Arguments.of("duracionFermentacion null", versionValidaBuilder().duracionFermentacion(null).build(), "La duración estimada de la fermentación es obligatoria"),
+                Arguments.of("duracionMaduracion null", versionValidaBuilder().duracionMaduracion(null).build(), "La duración estimada de la maduración es obligatoria"),
+                Arguments.of("cantidad de malta null", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(null, MALTA_ID))).build(), "La cantidad de cada malta es obligatoria"),
+                Arguments.of("cantidad de lúpulo null", versionValidaBuilder().detallesLupulo(List.of(detalleLupuloFormDTO(null, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 30.0, LUPULO_ID))).build(), "La cantidad de cada lúpulo es obligatoria"),
+                Arguments.of("cantidad de levadura null", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(null, LEVADURA_ID))).build(), "La cantidad de cada levadura es obligatoria"),
+                Arguments.of("tiempoDeHervor null", versionValidaBuilder().detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, null, LUPULO_ID))).build(), "El tiempo de hervor de cada lúpulo con uso Hervor es obligatorio"));
     }
 
     static Stream<Arguments> versionesEnElTecho() {

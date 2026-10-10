@@ -96,11 +96,11 @@ public interface IPlanificacionProduccionServicio {
      * </ul>
      *
      * @param idReceta ID de la receta contenedora cuya última versión activa se usa para la simulación.
-     * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a cero.
+     * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a 0.
      * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
      * @return La sugerencia con la fecha de finalización y los datos de la simulación.
      * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita o no es mayor a cero, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a cero, si la cantidad a producir supera el máximo técnico, si la cantidad de lotes resultante excede el máximo representable ({@code Integer.MAX_VALUE}), o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
+     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita o no es mayor a 0, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a 0, si la cantidad a producir supera el máximo técnico, si la cantidad de lotes resultante excede el máximo representable ({@code Integer.MAX_VALUE}), o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
      */
     SugerenciaFechaFinalizacionResponseDTO sugerirFechaFinalizacion(Long idReceta, Double cantidadAProducir, LocalDate fechaInicioEstimada);
 }

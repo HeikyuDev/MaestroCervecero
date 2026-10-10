@@ -173,7 +173,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación es obligatoria.");
+                .hasMessage("La evaporación es obligatoria");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -186,7 +186,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub es obligatoria.");
+                .hasMessage("La pérdida por trub es obligatoria");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -199,7 +199,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+                .hasMessage("La evaporación debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -212,7 +212,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+                .hasMessage("La evaporación no puede superar la capacidad útil de la olla");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -225,7 +225,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+                .hasMessage("La evaporación debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -238,7 +238,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+                .hasMessage("La pérdida por trub debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -251,7 +251,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+                .hasMessage("La pérdida por trub no puede superar la capacidad útil de la olla");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -264,7 +264,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+                .hasMessage("La pérdida por trub debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -379,7 +379,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -392,7 +392,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -532,7 +532,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -715,6 +715,19 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AO-38: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es nula")
+    void altaOllaHervor_debeRechazar_capacidadUtilNula() {
+        OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, null, 5.0, 2.0, 500);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil es obligatoria");
+
+        verifyNoInteractions(ollaHervorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
     @DisplayName("CP-AO-25: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es NaN")
     void altaOllaHervor_debeRechazar_capacidadUtilNaN() {
         OllaHervorFormDTO dto = ollaHervorFormDTO("OLL-01", 100.0, Double.NaN, 5.0, 2.0, 500);
@@ -760,7 +773,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -836,7 +849,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+                .hasMessage("La evaporación no puede superar la capacidad útil de la olla");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -862,7 +875,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+                .hasMessage("La pérdida por trub no puede superar la capacidad útil de la olla");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);

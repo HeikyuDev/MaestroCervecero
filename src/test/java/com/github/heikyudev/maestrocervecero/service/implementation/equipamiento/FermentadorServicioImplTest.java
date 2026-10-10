@@ -236,7 +236,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -249,7 +249,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -365,7 +365,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -548,6 +548,19 @@ class FermentadorServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AF-23: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es nula")
+    void altaFermentador_debeRechazar_capacidadUtilNula() {
+        FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, null, 500);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil es obligatoria");
+
+        verifyNoInteractions(fermentadorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
     @DisplayName("CP-AF-14: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es NaN")
     void altaFermentador_debeRechazar_capacidadUtilNaN() {
         FermentadorFormDTO dto = fermentadorFormDTO("FER-01", 100.0, Double.NaN, 500);
@@ -593,7 +606,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);

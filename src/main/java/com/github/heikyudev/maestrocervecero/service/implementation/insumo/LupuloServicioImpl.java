@@ -207,8 +207,11 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @throws ReglaNegocioException Si los ácidos alfa son nulos, no son mayores a 0%, superan el 25% o son NaN.
      */
     private static void validarAlfaAcidos(Double aa) {
-        if (aa == null || aa <= 0) {
-            throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+        if (aa == null) {
+            throw new ReglaNegocioException("Los ácidos alfa son obligatorios");
+        }
+        if (aa <= 0) {
+            throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0");
         }
         if (aa > ALFA_ACIDOS_MAXIMO) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");

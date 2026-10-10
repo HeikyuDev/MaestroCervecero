@@ -124,7 +124,10 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PLANIFICACION_PRODUCCION)
     public PlanificacionProduccionResponseDTO registrarPlanificacionProduccion(PlanificacionProduccionFormDTO planificacionProduccionFormDTO) {
         // 1. Validar la cantidad a producir
-        if (planificacionProduccionFormDTO.getCantidadAProducir() == null || planificacionProduccionFormDTO.getCantidadAProducir() <= 0) {
+        if (planificacionProduccionFormDTO.getCantidadAProducir() == null) {
+            throw new ReglaNegocioException("La cantidad a producir es obligatoria");
+        }
+        if (planificacionProduccionFormDTO.getCantidadAProducir() <= 0) {
             throw new ReglaNegocioException("La cantidad a producir debe ser mayor a 0");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(planificacionProduccionFormDTO.getCantidadAProducir(),
@@ -133,8 +136,11 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         // 2. Validar que se hayan informado ambas fechas
         LocalDate fechaInicioEstimada = planificacionProduccionFormDTO.getFechaInicioEstimada();
         LocalDate fechaFinalizacionEstimada = planificacionProduccionFormDTO.getFechaFinalizacionEstimada();
-        if (fechaInicioEstimada == null || fechaFinalizacionEstimada == null) {
-            throw new ReglaNegocioException("Las fechas de inicio y finalización estimadas son obligatorias");
+        if (fechaInicioEstimada == null) {
+            throw new ReglaNegocioException("La fecha de inicio estimada es obligatoria");
+        }
+        if (fechaFinalizacionEstimada == null) {
+            throw new ReglaNegocioException("La fecha de finalización estimada es obligatoria");
         }
 
         // 3. Validar que la fecha de inicio estimada no sea anterior a la fecha actual (hoy es válido)
@@ -287,19 +293,23 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * </p>
      *
      * @param idReceta ID de la receta contenedora cuya última versión activa se usa para la simulación.
-     * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a cero.
+     * @param cantidadAProducir Cantidad total a producir, en litros; debe ser mayor a 0.
      * @param fechaInicioEstimada Fecha en que comenzaría el primer lote; obligatoria.
      * @return {@link SugerenciaFechaFinalizacionResponseDTO} con la fecha de finalización sugerida y los datos de la simulación.
-     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita, no es mayor a cero o supera el máximo técnico, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a cero, o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
+     * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita, no es mayor a 0 o supera el máximo técnico, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a 0, o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
      * @throws RecursoNoEncontradoException Si la receta no existe (o está dada de baja), si no tiene una versión activa, o si no se encuentra la configuración de producción.
      */
     @Override
     @Transactional(readOnly = true)
     public SugerenciaFechaFinalizacionResponseDTO sugerirFechaFinalizacion(Long idReceta, Double cantidadAProducir, LocalDate fechaInicioEstimada) {
         // 1. Validar la cantidad a producir
-        if (cantidadAProducir == null || !Double.isFinite(cantidadAProducir) || cantidadAProducir <= 0) {
+        if (cantidadAProducir == null) {
+            throw new ReglaNegocioException("La cantidad a producir es obligatoria");
+        }
+        if (cantidadAProducir <= 0) {
             throw new ReglaNegocioException("La cantidad a producir debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarMayorACero(cantidadAProducir, "La cantidad a producir");
 
         // 2. Validar que se haya informado la fecha de inicio estimada
         if (fechaInicioEstimada == null) {
@@ -321,9 +331,13 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
         // 6. Validar la capacidad de lote estándar (defensivo: la configuración ya lo exige al guardarse)
         Double capacidadLoteEstandar = configuracion.getCapacidadLoteEstandar();
-        if (capacidadLoteEstandar == null || !Double.isFinite(capacidadLoteEstandar) || capacidadLoteEstandar <= 0) {
+        if (capacidadLoteEstandar == null) {
+            throw new ReglaNegocioException("La capacidad de lote estándar configurada es obligatoria");
+        }
+        if (capacidadLoteEstandar <= 0) {
             throw new ReglaNegocioException("La capacidad de lote estándar configurada debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarMayorACero(capacidadLoteEstandar, "La capacidad de lote estándar configurada");
 
         // 7. Cantidad de lotes: división decimal exacta redondeada hacia arriba. No se usa Math.ceil
         //    sobre la división de doubles porque el error de punto flotante puede inflar un cociente

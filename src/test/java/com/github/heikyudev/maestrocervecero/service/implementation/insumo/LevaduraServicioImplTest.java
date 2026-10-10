@@ -143,7 +143,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo es obligatoria");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(levaduraRepository);

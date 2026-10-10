@@ -709,7 +709,7 @@ class RecetaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-form"))
                 .andExpect(content().string(containsString("El volumen base debe ser mayor a 0")))
-                .andExpect(content().string(containsString("El IBU objetivo no puede ser negativo")))
+                .andExpect(content().string(containsString("El IBU objetivo debe ser mayor o igual a 0")))
                 .andExpect(content().string(containsString("La duraci")))
                 .andExpect(content().string(containsString("La cantidad de cada malta debe ser mayor a 0")))
                 .andExpect(content().string(containsString("La cantidad de cada levadura debe ser mayor a 0")));
@@ -1231,12 +1231,12 @@ class RecetaControllerTest {
 
         // Hervor sin tiempo: Bean Validation lo deja pasar y lo rechaza la regla cruzada del service
         when(recetaServicio.altaReceta(any())).thenThrow(new ReglaNegocioException(
-                "El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido"));
+                "El tiempo de hervor de cada lúpulo con uso Hervor es obligatorio"));
         mockMvc.perform(recetaValida(post("/recetas"), "version.detallesLupulo[0].tiempoDeHervor", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-form"))
                 .andExpect(content().string(containsString("No se pudo crear la receta")))
-                .andExpect(matchesPatternLocal("El tiempo de hervor de cada l.pulo con uso Hervor debe ser mayor a 0 y menor a la duraci"))
+                .andExpect(matchesPatternLocal("El tiempo de hervor de cada l.pulo con uso Hervor es obligatorio"))
                 .andExpect(matchesPatternLocal("data-celda=\"nombre\">Cascade<"))
                 .andExpect(matchesPatternLocal("data-celda=\"nombre\">Citra<"));
 

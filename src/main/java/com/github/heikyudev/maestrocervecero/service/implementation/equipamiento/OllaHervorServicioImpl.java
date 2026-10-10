@@ -241,10 +241,13 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      */
     public static void validarEvaporacion(Double evaporacion, Double capacidadUtil) {
         if (evaporacion == null) {
-            throw new ReglaNegocioException("La evaporación es obligatoria.");
+            throw new ReglaNegocioException("La evaporación es obligatoria");
         }
-        if (evaporacion <= 0 || evaporacion > capacidadUtil) {
-            throw new ReglaNegocioException("La evaporación debe ser mayor a 0 litros por hora y no superar la capacidad útil de la olla.");
+        if (evaporacion <= 0) {
+            throw new ReglaNegocioException("La evaporación debe ser mayor a 0");
+        }
+        if (evaporacion > capacidadUtil) {
+            throw new ReglaNegocioException("La evaporación no puede superar la capacidad útil de la olla");
         }
         ValidacionesNumericas.validarMayorACero(evaporacion, "La evaporación");
     }
@@ -258,10 +261,13 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      */
     public static void validarPerdidaPorTrub(Double perdidaPorTrub, Double capacidadUtil) {
         if (perdidaPorTrub == null) {
-            throw new ReglaNegocioException("La pérdida por trub es obligatoria.");
+            throw new ReglaNegocioException("La pérdida por trub es obligatoria");
         }
-        if (perdidaPorTrub <= 0 || perdidaPorTrub > capacidadUtil) {
-            throw new ReglaNegocioException("La pérdida por trub debe ser mayor a 0 litros y no superar la capacidad útil de la olla.");
+        if (perdidaPorTrub <= 0) {
+            throw new ReglaNegocioException("La pérdida por trub debe ser mayor a 0");
+        }
+        if (perdidaPorTrub > capacidadUtil) {
+            throw new ReglaNegocioException("La pérdida por trub no puede superar la capacidad útil de la olla");
         }
         ValidacionesNumericas.validarMayorACero(perdidaPorTrub, "La pérdida por trub");
     }

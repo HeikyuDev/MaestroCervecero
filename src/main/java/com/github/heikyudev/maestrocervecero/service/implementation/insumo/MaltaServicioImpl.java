@@ -208,7 +208,13 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * @throws ReglaNegocioException Si el extracto potencial es nulo, no es mayor a 0% o supera el 90%.
      */
     private static void validarPotencialExtracto(Integer potencialExtracto) {
-        if (potencialExtracto == null || potencialExtracto <= 0 || potencialExtracto > POTENCIAL_EXTRACTO_MAXIMO) {
+        if (potencialExtracto == null) {
+            throw new ReglaNegocioException("El extracto potencial es obligatorio");
+        }
+        if (potencialExtracto <= 0) {
+            throw new ReglaNegocioException("El extracto potencial debe ser mayor a 0");
+        }
+        if (potencialExtracto > POTENCIAL_EXTRACTO_MAXIMO) {
             throw new ReglaNegocioException("El extracto potencial debe ser mayor a 0% y menor o igual a "
                     + POTENCIAL_EXTRACTO_MAXIMO + "%");
         }

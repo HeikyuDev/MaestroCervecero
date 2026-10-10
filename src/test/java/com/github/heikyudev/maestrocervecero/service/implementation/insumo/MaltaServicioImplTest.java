@@ -143,7 +143,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
+                .hasMessage("El extracto potencial es obligatorio");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(maltaRepository);
@@ -156,7 +156,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
+                .hasMessage("El extracto potencial debe ser mayor a 0");
 
         verifyNoInteractions(maltaRepository);
     }
@@ -180,7 +180,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.altaMalta(maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
+                .hasMessage("El extracto potencial debe ser mayor a 0");
 
         verifyNoInteractions(maltaRepository);
     }
@@ -309,7 +309,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, maltaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El extracto potencial debe ser mayor a 0% y menor o igual a 90%");
+                .hasMessage("El extracto potencial debe ser mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(maltaRepository);

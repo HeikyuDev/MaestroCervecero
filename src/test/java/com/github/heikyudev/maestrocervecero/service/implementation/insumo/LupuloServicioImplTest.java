@@ -143,7 +143,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("Los ácidos alfa son obligatorios");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(lupuloRepository);
@@ -156,7 +156,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -168,7 +168,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -306,7 +306,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, lupuloFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(lupuloRepository);
@@ -490,7 +490,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
+                .hasMessage("Los ácidos alfa deben ser mayores a 0");
 
         verifyNoInteractions(lupuloRepository);
     }

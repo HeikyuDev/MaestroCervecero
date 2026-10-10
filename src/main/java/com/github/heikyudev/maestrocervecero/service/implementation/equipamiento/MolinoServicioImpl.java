@@ -205,10 +205,10 @@ public class MolinoServicioImpl implements IMolinoServicio {
      */
     public static void validarRendimientoMolienda(Double rendimientoMolienda) {
         if (rendimientoMolienda == null) {
-            throw new ReglaNegocioException("El rendimiento de molienda es obligatorio.");
+            throw new ReglaNegocioException("El rendimiento de molienda es obligatorio");
         }
         if (rendimientoMolienda <= 0) {
-            throw new ReglaNegocioException("El rendimiento de molienda debe ser mayor a 0.");
+            throw new ReglaNegocioException("El rendimiento de molienda debe ser mayor a 0");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(rendimientoMolienda,
                 LimitesTecnicos.RENDIMIENTO_MOLINO_MAXIMO_KG_H, "El rendimiento de molienda", "kg/h");

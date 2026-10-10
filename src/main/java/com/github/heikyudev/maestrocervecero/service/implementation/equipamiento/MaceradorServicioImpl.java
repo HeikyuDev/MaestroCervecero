@@ -240,6 +240,9 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @throws ReglaNegocioException Si el espacio muerto es nulo, NaN, infinito, negativo, supera el máximo o no es menor a la capacidad útil.
      */
     public static void validarEspacioMuerto(Double espacioMuerto, Double capacidadUtil) {
+        if (espacioMuerto == null) {
+            throw new ReglaNegocioException("El espacio muerto es obligatorio");
+        }
         ValidacionesNumericas.validarMayorOIgualACeroConMaximo(espacioMuerto,
                 LimitesTecnicos.CAPACIDAD_EQUIPO_MAXIMA_LITROS, "El espacio muerto", "litros");
         if (espacioMuerto >= capacidadUtil) {
@@ -255,10 +258,10 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      */
     public static void validarEficienciaMaceracion(Double eficienciaMaceracion) {
         if (eficienciaMaceracion == null) {
-            throw new ReglaNegocioException("La eficiencia de maceración es obligatoria.");
+            throw new ReglaNegocioException("La eficiencia de maceración es obligatoria");
         }
         if (eficienciaMaceracion < 40 || eficienciaMaceracion > 100) {
-            throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+            throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
         }
         ValidacionesNumericas.validarMayorACero(eficienciaMaceracion, "La eficiencia de maceración");
     }

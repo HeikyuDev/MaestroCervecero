@@ -215,8 +215,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      */
     private static void validarCantidadCelulasPorGramo(Double cantidadCelulasPorGramo) {
         if (cantidadCelulasPorGramo == null) {
-            throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a "
-                    + "6.000.000.000 y menor o igual a 20.000.000.000");
+            throw new ReglaNegocioException("La cantidad de células viables por gramo es obligatoria");
         }
         if (cantidadCelulasPorGramo < CELULAS_VIABLES_MINIMO
                 || cantidadCelulasPorGramo > CELULAS_VIABLES_MAXIMO) {

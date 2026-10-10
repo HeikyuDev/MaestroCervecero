@@ -168,7 +168,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total y la capacidad útil son obligatorias.");
+                .hasMessage("La capacidad total es obligatoria");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -180,7 +180,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración es obligatoria.");
+                .hasMessage("La eficiencia de maceración es obligatoria");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -192,7 +192,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -204,7 +204,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -305,7 +305,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -317,7 +317,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -441,7 +441,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verify(maceradorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -624,6 +624,19 @@ class MaceradorServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-41: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es nula")
+    void altaMacerador_debeRechazar_capacidadUtilNula() {
+        MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, null, 10.0, 75.0, 500);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad útil es obligatoria");
+
+        verifyNoInteractions(maceradorRepository);
+        verifyNoInteractions(equipamientoRepository);
+    }
+
+    @Test
     @DisplayName("CP-20: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando la capacidad útil es NaN")
     void altaMacerador_debeRechazar_capacidadUtilNaN() {
         MaceradorFormDTO dto = maceradorFormDTO("MAC-01", 100.0, Double.NaN, 10.0, 75.0, 500);
@@ -669,7 +682,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -732,7 +745,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+                .hasMessage("El espacio muerto es obligatorio");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -860,7 +873,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -873,7 +886,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive.");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);

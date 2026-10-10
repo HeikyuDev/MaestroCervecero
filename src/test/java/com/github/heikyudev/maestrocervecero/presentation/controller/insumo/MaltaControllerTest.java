@@ -234,7 +234,7 @@ class MaltaControllerTest {
                 .andExpect(content().string(containsString("No se pudo crear la malta")))
                 .andExpect(content().string(containsString("El nombre de la malta es obligatorio")))
                 .andExpect(content().string(containsString("El tipo de malta es obligatorio")))
-                .andExpect(content().string(containsString("El potencial de extracto es obligatorio")));
+                .andExpect(content().string(containsString("El extracto potencial es obligatorio")));
 
         verify(maltaServicio, never()).altaMalta(any());
     }

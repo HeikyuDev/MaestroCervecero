@@ -20,8 +20,11 @@ public class MetodosEquipamiento {
      * @throws ReglaNegocioException Si alguna es nula, si la capacidad útil es mayor o igual a la capacidad total, o si alguna no es un número mayor a 0 o supera el máximo.
      */
     public static void validarCapacidadUtil(Double capacidadTotal, Double capacidadUtil) {
-        if (capacidadTotal == null || capacidadUtil == null) {
-            throw new ReglaNegocioException("La capacidad total y la capacidad útil son obligatorias.");
+        if (capacidadTotal == null) {
+            throw new ReglaNegocioException("La capacidad total es obligatoria");
+        }
+        if (capacidadUtil == null) {
+            throw new ReglaNegocioException("La capacidad útil es obligatoria");
         }
         if (capacidadUtil >= capacidadTotal) {
             throw new ReglaNegocioException("La capacidad útil debe ser menor a la capacidad total");
@@ -40,10 +43,10 @@ public class MetodosEquipamiento {
      */
     public static void validarUsosMaximosAntesMantenimiento(Integer usosMaximosAntesMantenimiento) {
         if (usosMaximosAntesMantenimiento == null) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios.");
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios");
         }
         if (usosMaximosAntesMantenimiento <= 0) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0");
         }
         ValidacionesNumericas.validarEnteroMayorACeroConMaximo(usosMaximosAntesMantenimiento,
                 LimitesTecnicos.USOS_MAXIMOS_MANTENIMIENTO_MAXIMO,

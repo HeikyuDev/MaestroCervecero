@@ -23,7 +23,7 @@ public final class ValidacionesNumericas {
     }
 
     /**
-     * Valida que el valor sea un número finito mayor a cero.
+     * Valida que el valor sea un número finito mayor a 0.
      *
      * @param valor    Valor a validar.
      * @param etiqueta Frase que encabeza el mensaje (por ejemplo {@code "La capacidad total"}).
@@ -65,7 +65,7 @@ public final class ValidacionesNumericas {
     }
 
     /**
-     * Valida que el valor sea finito y mayor a cero, y luego que no supere el máximo.
+     * Valida que el valor sea finito y mayor a 0, y luego que no supere el máximo.
      *
      * @param valor    Valor a validar.
      * @param maximo   Máximo permitido (inclusive).
@@ -93,7 +93,7 @@ public final class ValidacionesNumericas {
     }
 
     /**
-     * Valida que el entero sea mayor a cero y no supere el máximo.
+     * Valida que el entero sea mayor a 0 y no supere el máximo.
      *
      * @param valor    Valor a validar.
      * @param maximo   Máximo permitido (inclusive).

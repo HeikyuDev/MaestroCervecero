@@ -228,7 +228,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser mayor a 0");
+                .hasMessage("La cantidad a producir es obligatoria");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }
@@ -252,7 +252,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las fechas de inicio y finalización estimadas son obligatorias");
+                .hasMessage("La fecha de inicio estimada es obligatoria");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }
@@ -264,7 +264,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las fechas de inicio y finalización estimadas son obligatorias");
+                .hasMessage("La fecha de finalización estimada es obligatoria");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }
@@ -923,7 +923,7 @@ class PlanificacionProduccionServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, null, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser mayor a 0");
+                .hasMessage("La cantidad a producir es obligatoria");
         verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
     }
 
@@ -953,10 +953,10 @@ class PlanificacionProduccionServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, Double.NaN, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser mayor a 0");
+                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, Double.POSITIVE_INFINITY, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser mayor a 0");
+                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
         verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
     }
 
@@ -976,7 +976,7 @@ class PlanificacionProduccionServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, null, null))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser mayor a 0");
+                .hasMessage("La cantidad a producir es obligatoria");
         verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
     }
 
@@ -1032,7 +1032,7 @@ class PlanificacionProduccionServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
+                .hasMessage("La capacidad de lote estándar configurada es obligatoria");
         verify(planificacionProduccionRepository, never()).save(any());
     }
 
@@ -1089,7 +1089,7 @@ class PlanificacionProduccionServicioImplTest {
         // Orden de validación: cantidad, fecha, fecha no anterior a hoy, receta, versión activa, configuración, capacidad, cantidad de lotes
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 100.0, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad de lote estándar configurada debe ser mayor a 0");
+                .hasMessage("La capacidad de lote estándar configurada es obligatoria");
         verify(planificacionProduccionRepository, never()).save(any());
         verify(recetaRepository, never()).save(any());
         verify(configuracionProduccionRepository, never()).save(any());

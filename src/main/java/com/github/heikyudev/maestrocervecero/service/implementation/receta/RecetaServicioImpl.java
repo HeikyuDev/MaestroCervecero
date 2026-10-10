@@ -255,18 +255,30 @@ public class RecetaServicioImpl implements IRecetaServicio {
      */
     private static void validarDatosGenerales(VersionRecetaFormDTO versionFormDTO) {
         ValidacionesNumericas.validarLongitudMaxima(versionFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
-        if (versionFormDTO.getVolumenBase() == null || versionFormDTO.getVolumenBase() <= 0) {
+        if (versionFormDTO.getVolumenBase() == null) {
+            throw new ReglaNegocioException("El volumen base es obligatorio");
+        }
+        if (versionFormDTO.getVolumenBase() <= 0) {
             throw new ReglaNegocioException("El volumen base debe ser mayor a 0");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(versionFormDTO.getVolumenBase(),
                 LimitesTecnicos.VOLUMEN_BASE_RECETA_MAXIMO_LITROS, "El volumen base", "litros");
-        if (versionFormDTO.getRelacionDeEmpaste() == null || versionFormDTO.getRelacionDeEmpaste() <= 0) {
+        if (versionFormDTO.getRelacionDeEmpaste() == null) {
+            throw new ReglaNegocioException("La relación de empaste es obligatoria");
+        }
+        if (versionFormDTO.getRelacionDeEmpaste() <= 0) {
             throw new ReglaNegocioException("La relación de empaste debe ser mayor a 0");
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(versionFormDTO.getRelacionDeEmpaste(),
                 LimitesTecnicos.RELACION_EMPASTE_MAXIMA_L_POR_KG, "La relación de empaste", "L/kg");
+        if (versionFormDTO.getOgObjetivo() == null) {
+            throw new ReglaNegocioException("La OG objetivo es obligatoria");
+        }
         if (!esGravedadValida(versionFormDTO.getOgObjetivo(), OG_MINIMA, OG_MAXIMA)) {
             throw new ReglaNegocioException("La densidad inicial (OG) debe estar entre 1,020 y 1,120 y tener como máximo tres decimales (por ejemplo 1,050)");
+        }
+        if (versionFormDTO.getFgObjetivo() == null) {
+            throw new ReglaNegocioException("La FG objetivo es obligatoria");
         }
         if (!esGravedadValida(versionFormDTO.getFgObjetivo(), FG_MINIMA, FG_MAXIMA)) {
             throw new ReglaNegocioException("La densidad final (FG) debe estar entre 1,000 y 1,040 y tener como máximo tres decimales (por ejemplo 1,010)");
@@ -274,27 +286,42 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (versionFormDTO.getOgObjetivo() <= versionFormDTO.getFgObjetivo()) {
             throw new ReglaNegocioException("La densidad inicial (OG) debe ser mayor a la densidad final (FG)");
         }
-        if (versionFormDTO.getIbuObjetivo() == null || versionFormDTO.getIbuObjetivo() < 0) {
+        if (versionFormDTO.getIbuObjetivo() == null) {
+            throw new ReglaNegocioException("El IBU objetivo es obligatorio");
+        }
+        if (versionFormDTO.getIbuObjetivo() < 0) {
             throw new ReglaNegocioException("El IBU objetivo debe ser mayor o igual a 0");
         }
         ValidacionesNumericas.validarEnteroMayorOIgualACeroConMaximo(versionFormDTO.getIbuObjetivo(),
                 LimitesTecnicos.IBU_MAXIMO, "El IBU objetivo", "IBU");
-        if (versionFormDTO.getDuracionMaceracion() == null || versionFormDTO.getDuracionMaceracion() <= 0) {
+        if (versionFormDTO.getDuracionMaceracion() == null) {
+            throw new ReglaNegocioException("La duración estimada de la maceración es obligatoria");
+        }
+        if (versionFormDTO.getDuracionMaceracion() <= 0) {
             throw new ReglaNegocioException("La duración estimada de la maceración debe ser mayor a 0");
         }
         ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionMaceracion(),
                 LimitesTecnicos.DURACION_MACERACION_HERVIDO_MAXIMA_MINUTOS, "La duración estimada de la maceración", "minutos");
-        if (versionFormDTO.getDuracionHervido() == null || versionFormDTO.getDuracionHervido() <= 0) {
+        if (versionFormDTO.getDuracionHervido() == null) {
+            throw new ReglaNegocioException("La duración estimada del hervido es obligatoria");
+        }
+        if (versionFormDTO.getDuracionHervido() <= 0) {
             throw new ReglaNegocioException("La duración estimada del hervido debe ser mayor a 0");
         }
         ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionHervido(),
                 LimitesTecnicos.DURACION_MACERACION_HERVIDO_MAXIMA_MINUTOS, "La duración estimada del hervido", "minutos");
-        if (versionFormDTO.getDuracionFermentacion() == null || versionFormDTO.getDuracionFermentacion() <= 0) {
+        if (versionFormDTO.getDuracionFermentacion() == null) {
+            throw new ReglaNegocioException("La duración estimada de la fermentación es obligatoria");
+        }
+        if (versionFormDTO.getDuracionFermentacion() <= 0) {
             throw new ReglaNegocioException("La duración estimada de la fermentación debe ser mayor a 0");
         }
         ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionFermentacion(),
                 LimitesTecnicos.DURACION_FERMENTACION_MADURACION_MAXIMA_DIAS, "La duración estimada de la fermentación", "días");
-        if (versionFormDTO.getDuracionMaduracion() == null || versionFormDTO.getDuracionMaduracion() <= 0) {
+        if (versionFormDTO.getDuracionMaduracion() == null) {
+            throw new ReglaNegocioException("La duración estimada de la maduración es obligatoria");
+        }
+        if (versionFormDTO.getDuracionMaduracion() <= 0) {
             throw new ReglaNegocioException("La duración estimada de la maduración debe ser mayor a 0");
         }
         ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getDuracionMaduracion(),
@@ -303,7 +330,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
     /**
      * Valida que la receta tenga al menos una malta, que todas las cantidades ingresadas
-     * sean estrictamente mayores a cero y que la misma malta no se repita.
+     * sean estrictamente mayores a 0 y que la misma malta no se repita.
      *
      * @param detallesMalta Lista de detalles de malta a validar.
      * @throws ReglaNegocioException Si la lista está vacía, alguna cantidad no es mayor a 0 o la misma malta se repite.
@@ -312,9 +339,10 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (detallesMalta == null || detallesMalta.isEmpty()) {
             throw new ReglaNegocioException("La receta debe tener al menos una malta");
         }
-        boolean hayCantidadInvalida = detallesMalta.stream()
-                .anyMatch(detalle -> detalle.getCantidad() == null || detalle.getCantidad() <= 0);
-        if (hayCantidadInvalida) {
+        if (detallesMalta.stream().anyMatch(detalle -> detalle.getCantidad() == null)) {
+            throw new ReglaNegocioException("La cantidad de cada malta es obligatoria");
+        }
+        if (detallesMalta.stream().anyMatch(detalle -> detalle.getCantidad() <= 0)) {
             throw new ReglaNegocioException("La cantidad de cada malta debe ser mayor a 0");
         }
         detallesMalta.forEach(detalle -> ValidacionesNumericas.validarMayorACeroConMaximo(detalle.getCantidad(),
@@ -326,7 +354,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
     /**
      * Valida que la receta tenga al menos un lúpulo, que todas las cantidades ingresadas sean
-     * estrictamente mayores a cero, que la etapa de uso de cada lúpulo sea coherente con su uso
+     * estrictamente mayores a 0, que la etapa de uso de cada lúpulo sea coherente con su uso
      * (HERVOR y WHIRLPOOL en HERVIDO; DRY_HOP en FERMENTACION o MADURACION), que exista al menos un
      * lúpulo con uso HERVOR, que el tiempo de hervor de cada lúpulo HERVOR sea mayor a 0 y menor a la
      * duración estimada del hervido, y que no se repita un mismo lúpulo con el mismo uso y tiempo de hervor.
@@ -341,9 +369,10 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (detallesLupulo == null || detallesLupulo.isEmpty()) {
             throw new ReglaNegocioException("La receta debe tener al menos un lúpulo");
         }
-        boolean hayCantidadInvalida = detallesLupulo.stream()
-                .anyMatch(detalle -> detalle.getCantidad() == null || detalle.getCantidad() <= 0);
-        if (hayCantidadInvalida) {
+        if (detallesLupulo.stream().anyMatch(detalle -> detalle.getCantidad() == null)) {
+            throw new ReglaNegocioException("La cantidad de cada lúpulo es obligatoria");
+        }
+        if (detallesLupulo.stream().anyMatch(detalle -> detalle.getCantidad() <= 0)) {
             throw new ReglaNegocioException("La cantidad de cada lúpulo debe ser mayor a 0");
         }
         detallesLupulo.forEach(detalle -> ValidacionesNumericas.validarMayorACeroConMaximo(detalle.getCantidad(),
@@ -365,12 +394,14 @@ public class RecetaServicioImpl implements IRecetaServicio {
             throw new ReglaNegocioException("La receta debe tener al menos un lúpulo con uso Hervor");
         }
 
-        boolean hayTiempoDeHervorInvalido = lupulosHervor.stream()
-                .anyMatch(detalle -> detalle.getTiempoDeHervor() == null
-                        || detalle.getTiempoDeHervor() <= 0
-                        || detalle.getTiempoDeHervor() >= duracionHervido);
-        if (hayTiempoDeHervorInvalido) {
-            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso Hervor debe ser mayor a 0 y menor a la duración estimada del hervido");
+        if (lupulosHervor.stream().anyMatch(detalle -> detalle.getTiempoDeHervor() == null)) {
+            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso Hervor es obligatorio");
+        }
+        if (lupulosHervor.stream().anyMatch(detalle -> detalle.getTiempoDeHervor() <= 0)) {
+            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo debe ser mayor a 0");
+        }
+        if (lupulosHervor.stream().anyMatch(detalle -> detalle.getTiempoDeHervor() >= duracionHervido)) {
+            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso Hervor debe ser menor a la duración estimada del hervido");
         }
         lupulosHervor.forEach(detalle -> ValidacionesNumericas.validarMayorACero(detalle.getTiempoDeHervor(), "El tiempo de hervor"));
 
@@ -386,7 +417,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
     /**
      * Valida que la receta tenga al menos una levadura, que todas las cantidades ingresadas
-     * sean estrictamente mayores a cero y que la misma levadura no se repita.
+     * sean estrictamente mayores a 0 y que la misma levadura no se repita.
      *
      * @param detallesLevadura Lista de detalles de levadura a validar.
      * @throws ReglaNegocioException Si la lista está vacía, alguna cantidad no es mayor a 0 o la misma levadura se repite.
@@ -395,9 +426,10 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (detallesLevadura == null || detallesLevadura.isEmpty()) {
             throw new ReglaNegocioException("La receta debe tener al menos una levadura");
         }
-        boolean hayCantidadInvalida = detallesLevadura.stream()
-                .anyMatch(detalle -> detalle.getCantidad() == null || detalle.getCantidad() <= 0);
-        if (hayCantidadInvalida) {
+        if (detallesLevadura.stream().anyMatch(detalle -> detalle.getCantidad() == null)) {
+            throw new ReglaNegocioException("La cantidad de cada levadura es obligatoria");
+        }
+        if (detallesLevadura.stream().anyMatch(detalle -> detalle.getCantidad() <= 0)) {
             throw new ReglaNegocioException("La cantidad de cada levadura debe ser mayor a 0");
         }
         detallesLevadura.forEach(detalle -> ValidacionesNumericas.validarMayorACeroConMaximo(detalle.getCantidad(),

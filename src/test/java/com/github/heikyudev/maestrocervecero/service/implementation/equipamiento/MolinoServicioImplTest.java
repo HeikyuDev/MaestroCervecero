@@ -146,7 +146,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda es obligatorio.");
+                .hasMessage("El rendimiento de molienda es obligatorio");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -159,7 +159,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(molinoRepository);
@@ -173,7 +173,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -269,7 +269,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -282,7 +282,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -299,7 +299,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         // La existencia del molino se valida antes que las reglas de negocio sobre sus datos
         verify(molinoRepository).findById(1L);
@@ -316,7 +316,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verify(molinoRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -534,7 +534,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser mayor a 0.");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -572,7 +572,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);

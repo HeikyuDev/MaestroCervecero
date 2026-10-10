@@ -29,7 +29,7 @@ public interface IConfiguracionProduccionServicio {
      *
      * @param configuracionProduccionFormDTO Los nuevos valores de configuración.
      * @return La configuración de producción actualizada.
-     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad de lote estándar no es un número finito mayor a cero o supera su máximo técnico, o si el porcentaje mínimo de consumo no es un número entre 0 y 100.
+     * @throws ReglaNegocioException Si algún parámetro no fue informado, si la velocidad de envasado o la capacidad de lote estándar no es un número finito mayor a 0 o supera su máximo técnico, o si el porcentaje mínimo de consumo no es un número entre 0 y 100.
      */
     ConfiguracionProduccionResponseDTO actualizarConfiguracion(ConfiguracionProduccionFormDTO configuracionProduccionFormDTO);
 }
