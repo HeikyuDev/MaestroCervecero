@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class LoteCronogramaResponseDTO {
 
     /**
@@ -107,4 +107,18 @@ public class LoteCronogramaResponseDTO {
      * (pendiente, finalizado o cancelado).
      */
     private TipoEtapa etapaActual;
+
+    /**
+     * Días que lleva de atraso un lote EN_EJECUCION: los transcurridos desde su fecha de finalización
+     * estimada hasta hoy. Es {@code 0} si el lote no está en ejecución o todavía no pasó su fecha estimada.
+     * La fecha estimada guardada no se modifica; este valor se calcula al consultar.
+     */
+    private int diasDeAtraso;
+
+    /**
+     * Días que el atraso del lote en ejecución de su fermentador corre a este lote PENDIENTE respecto de
+     * su fecha de inicio estimada guardada. Es {@code 0} si no está corrido. Se calcula al consultar, con
+     * un reencadenado virtual de la cola (sin guardar fechas).
+     */
+    private int diasDeDesplazamiento;
 }

@@ -580,7 +580,275 @@ class GanttPlanificacionBuilderTest {
         assertThat(deMasDeUnAnio.getMarcasEje().get(0).getEtiqueta()).isEqualTo("01/01/27");
     }
 
+    // ==================== Atraso y corrimiento ====================
+
+    @Test
+    @DisplayName("CP-GPB-31: un lote en ejecución atrasado extiende su barra hasta hoy (02/07 al 10/07, 9 días de un eje de 12) y marca aparte 3 días de atraso (33,33 %)")
+    void enEjecucionAtrasado_extiendeLaBarraHastaHoyYMarcaElAtraso() {
+        // Arrange
+        LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(lote), fecha(1), fecha(8), fecha(10));
+
+        // Assert
+        assertThat(vista.getRangoDesde()).isEqualTo(LocalDate.of(2027, 6, 30));
+        assertThat(vista.getRangoHasta()).isEqualTo(fecha(11));
+        assertThat(vista.getTotalDias()).isEqualTo(12);
+        Barra barra = vista.getCarriles().get(0).getBarras().get(0);
+        assertThat(barra.getEstadoClave()).isEqualTo("en-ejecucion");
+        assertThat(barra.getDesde()).isEqualTo(fecha(2));
+        assertThat(barra.getHasta()).isEqualTo(fecha(10));
+        assertThat(barra.getIzquierdaPct()).isEqualTo(16.67);
+        assertThat(barra.getAnchoPct()).isEqualTo(75.0);
+        assertThat(barra.getAtrasoPct()).isEqualTo(33.33);
+        assertThat(barra.getProgresoPct()).isEqualTo(100.0);
+        assertThat(barra.getDiasDeAtraso()).isEqualTo(3);
+        assertThat(barra.getDiasDeDesplazamiento()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-32: con un atraso de 7 días la barra va del 02/07 al 10/07 (9 días) y el atraso es la parte final (77,78 %)")
+    void enEjecucionConAtrasoDeCasiTodaLaBarra_marcaLaParteFinal() {
+        // Arrange
+        LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(3))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(7).build();
+
+        // Act
+        Barra barra = GanttPlanificacionBuilder.construir(List.of(lote), fecha(1), fecha(3), fecha(10))
+                .getCarriles().get(0).getBarras().get(0);
+
+        // Assert
+        assertThat(barra.getDesde()).isEqualTo(fecha(2));
+        assertThat(barra.getHasta()).isEqualTo(fecha(10));
+        assertThat(barra.getAtrasoPct()).isEqualTo(77.78);
+        assertThat(barra.getDiasDeAtraso()).isEqualTo(7);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-33: un lote en ejecución sin atraso no extiende ni marca su barra (02/07 al 11/07, atraso 0 %) y su tooltip no tiene línea de atraso")
+    void enEjecucionSinAtraso_noExtiendeNiMarcaLaBarra() {
+        // Arrange
+        LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(11))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(0).build();
+
+        // Act
+        Barra barra = GanttPlanificacionBuilder.construir(List.of(lote), fecha(1), fecha(12), fecha(6))
+                .getCarriles().get(0).getBarras().get(0);
+
+        // Assert
+        assertThat(barra.getDesde()).isEqualTo(fecha(2));
+        assertThat(barra.getHasta()).isEqualTo(fecha(11));
+        assertThat(barra.getIzquierdaPct()).isEqualTo(14.29);
+        assertThat(barra.getAnchoPct()).isEqualTo(71.43);
+        assertThat(barra.getAtrasoPct()).isEqualTo(0.0);
+        assertThat(barra.getDiasDeAtraso()).isEqualTo(0);
+        assertThat(barra.getTooltip()).doesNotContain("Atrasado");
+    }
+
+    @Test
+    @DisplayName("CP-GPB-34: un lote pendiente corrido 3 días se dibuja del 11/07 al 15/07 (eje de 10 días) y la planificación sigue marcada en sus fechas")
+    void pendienteCorrido_desplazaLasFechasDeLaBarra() {
+        // Arrange
+        LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", fecha(8), fecha(12))
+                .diasDeDesplazamiento(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(lote), fecha(8), fecha(12), fecha(10));
+
+        // Assert
+        assertThat(vista.getRangoDesde()).isEqualTo(fecha(7));
+        assertThat(vista.getRangoHasta()).isEqualTo(fecha(16));
+        assertThat(vista.getTotalDias()).isEqualTo(10);
+        Barra barra = vista.getCarriles().get(0).getBarras().get(0);
+        assertThat(barra.getEstadoClave()).isEqualTo("pendiente");
+        assertThat(barra.getDesde()).isEqualTo(fecha(11));
+        assertThat(barra.getHasta()).isEqualTo(fecha(15));
+        assertThat(barra.getIzquierdaPct()).isEqualTo(40.0);
+        assertThat(barra.getAnchoPct()).isEqualTo(50.0);
+        assertThat(barra.getDiasDeDesplazamiento()).isEqualTo(3);
+        assertThat(barra.getAtrasoPct()).isEqualTo(0.0);
+        assertThat(barra.getDiasDeAtraso()).isEqualTo(0);
+        assertThat(vista.getInicioPlanificacionPct()).isEqualTo(10.0);
+        assertThat(vista.getFinPlanificacionPct()).isEqualTo(60.0);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-35: un lote pendiente sin corrimiento usa sus fechas estimadas (05/07 al 08/07) y su tooltip no tiene línea de corrimiento")
+    void pendienteSinCorrimiento_usaLasFechasEstimadas() {
+        // Arrange
+        LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", fecha(5), fecha(8))
+                .diasDeDesplazamiento(0).build();
+
+        // Act
+        Barra barra = GanttPlanificacionBuilder.construir(List.of(lote), fecha(5), fecha(8), HOY_LEJANO)
+                .getCarriles().get(0).getBarras().get(0);
+
+        // Assert
+        assertThat(barra.getDesde()).isEqualTo(fecha(5));
+        assertThat(barra.getHasta()).isEqualTo(fecha(8));
+        assertThat(barra.getIzquierdaPct()).isEqualTo(16.67);
+        assertThat(barra.getAnchoPct()).isEqualTo(66.67);
+        assertThat(barra.getDiasDeDesplazamiento()).isEqualTo(0);
+        assertThat(barra.getTooltip()).doesNotContain("corrido");
+    }
+
+    @Test
+    @DisplayName("CP-GPB-36: el tooltip del lote en ejecución atrasado dice cuánto se atrasó respecto de la fecha estimada (3 días y 1 día), antes de \"Inicio estimado:\"")
+    void tooltipDelEnEjecucionAtrasado_dicePorCuantoSeAtraso() {
+        // Arrange
+        LoteCronogramaResponseDTO tresDias = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+        LoteCronogramaResponseDTO unDia = loteB(2L, "PALE_ALE-2", EstadoLote.EN_EJECUCION, "F-02", fecha(1), fecha(9))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(1).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(tresDias, unDia), fecha(1), fecha(9), fecha(10));
+
+        // Assert
+        String tooltipTresDias = barraDeLote(vista, 1L).getTooltip();
+        String tooltipUnDia = barraDeLote(vista, 2L).getTooltip();
+        assertThat(tooltipTresDias).contains("Atrasado 3 días respecto de la fecha estimada (07/07)");
+        assertThat(tooltipUnDia).contains("Atrasado 1 día respecto de la fecha estimada (09/07)");
+        assertThat(tooltipTresDias.indexOf("Atrasado")).isGreaterThan(tooltipTresDias.indexOf("PALE_ALE-1 - En ejecución"));
+        assertThat(tooltipTresDias.indexOf("Atrasado")).isLessThan(tooltipTresDias.indexOf("Inicio estimado:"));
+        assertThat(tooltipUnDia.indexOf("Atrasado")).isLessThan(tooltipUnDia.indexOf("Inicio estimado:"));
+    }
+
+    @Test
+    @DisplayName("CP-GPB-37: el tooltip del lote pendiente corrido dice la fecha planificada y cuánto se corrió (3 días y 1 día), antes de \"Inicio estimado:\" que muestra la fecha guardada")
+    void tooltipDelPendienteCorrido_diceLaFechaPlanificadaYElCorrimiento() {
+        // Arrange
+        LoteCronogramaResponseDTO tresDias = loteB(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", fecha(8), fecha(12))
+                .diasDeDesplazamiento(3).build();
+        LoteCronogramaResponseDTO unDia = loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-02", fecha(8), fecha(12))
+                .diasDeDesplazamiento(1).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(tresDias, unDia), fecha(8), fecha(12), fecha(10));
+
+        // Assert
+        String tooltipTresDias = barraDeLote(vista, 1L).getTooltip();
+        String tooltipUnDia = barraDeLote(vista, 2L).getTooltip();
+        assertThat(tooltipTresDias).contains("Planificado para el 08/07, corrido 3 días por atraso");
+        assertThat(tooltipUnDia).contains("Planificado para el 08/07, corrido 1 día por atraso");
+        assertThat(tooltipTresDias.indexOf("Planificado para")).isLessThan(tooltipTresDias.indexOf("Inicio estimado:"));
+        assertThat(tooltipUnDia.indexOf("Planificado para")).isLessThan(tooltipUnDia.indexOf("Inicio estimado:"));
+        assertThat(tooltipTresDias).contains("Inicio estimado: 08/07/2027");
+    }
+
+    @Test
+    @DisplayName("CP-GPB-38: sin atraso, sin corrimiento o sin fecha de finalización estimada que mostrar el tooltip no agrega ninguna leyenda")
+    void tooltipSinAtrasoNiCorrimiento_noAgregaLeyendas() {
+        // Arrange
+        LoteCronogramaResponseDTO sinAtraso = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(11))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(0).build();
+        LoteCronogramaResponseDTO sinCorrimiento = loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-02", fecha(8), fecha(12))
+                .diasDeDesplazamiento(0).build();
+        LoteCronogramaResponseDTO sinFechaDeFin = loteB(3L, "PALE_ALE-3", EstadoLote.EN_EJECUCION, "F-03", fecha(1), null)
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(
+                List.of(sinAtraso, sinCorrimiento, sinFechaDeFin), fecha(1), fecha(12), fecha(10));
+
+        // Assert
+        for (Long id : List.of(1L, 2L, 3L)) {
+            assertThat(barraDeLote(vista, id).getTooltip()).doesNotContain("Atrasado").doesNotContain("corrido");
+        }
+    }
+
+    @Test
+    @DisplayName("CP-GPB-39: el eje abarca las barras extendidas y corridas (30/06 al 16/07, 17 días) y las barras del carril no se superponen")
+    void elEjeAbarcaLasBarrasExtendidasYCorridas() {
+        // Arrange
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", fecha(8), fecha(12))
+                .diasDeDesplazamiento(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(enEjecucion, pendiente), fecha(1), fecha(5), fecha(10));
+
+        // Assert
+        assertThat(vista.getRangoDesde()).isEqualTo(LocalDate.of(2027, 6, 30));
+        assertThat(vista.getRangoHasta()).isEqualTo(fecha(16));
+        assertThat(vista.getTotalDias()).isEqualTo(17);
+        assertThat(vista.getCarriles()).hasSize(1);
+        Barra barraEnEjecucion = barraDeLote(vista, 1L);
+        Barra barraPendiente = barraDeLote(vista, 2L);
+        assertThat(barraEnEjecucion.getIzquierdaPct()).isEqualTo(11.76);
+        assertThat(barraEnEjecucion.getAnchoPct()).isEqualTo(52.94);
+        assertThat(barraPendiente.getDesde()).isEqualTo(fecha(11));
+        assertThat(barraPendiente.getHasta()).isEqualTo(fecha(15));
+        assertThat(barraPendiente.getIzquierdaPct()).isEqualTo(64.71);
+        assertThat(barraPendiente.getAnchoPct()).isEqualTo(29.41);
+        assertThat(barraEnEjecucion.getHasta()).isBefore(barraPendiente.getDesde());
+    }
+
+    @Test
+    @DisplayName("CP-GPB-40: los lotes finalizados y cancelados conservan sus fechas aunque lleguen con atraso y corrimiento (sin marca de atraso ni leyendas)")
+    void finalizadosYCancelados_noSeVenAfectadosPorElAtrasoNiElCorrimiento() {
+        // Arrange
+        LoteCronogramaResponseDTO finalizado = loteB(1L, "PALE_ALE-1", EstadoLote.FINALIZADO, "F-01", fecha(1), fecha(5))
+                .fechaInicio(fecha(2).atTime(9, 0)).fechaFinalizacion(fecha(8).atTime(17, 0))
+                .diasDeAtraso(3).diasDeDesplazamiento(3).build();
+        LoteCronogramaResponseDTO cancelado = loteB(2L, "PALE_ALE-2", EstadoLote.CANCELADO, "F-02", fecha(1), fecha(10))
+                .fechaInicio(fecha(3).atTime(10, 0)).fechaCancelacion(fecha(5).atTime(15, 0))
+                .diasDeAtraso(3).diasDeDesplazamiento(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(finalizado, cancelado), fecha(1), fecha(10), fecha(6));
+
+        // Assert
+        Barra barraFinalizada = barraDeLote(vista, 1L);
+        assertThat(barraFinalizada.getDesde()).isEqualTo(fecha(2));
+        assertThat(barraFinalizada.getHasta()).isEqualTo(fecha(8));
+        Barra barraCancelada = barraDeLote(vista, 2L);
+        assertThat(barraCancelada.getDesde()).isEqualTo(fecha(3));
+        assertThat(barraCancelada.getHasta()).isEqualTo(fecha(5));
+        for (Barra barra : List.of(barraFinalizada, barraCancelada)) {
+            assertThat(barra.getAtrasoPct()).isEqualTo(0.0);
+            assertThat(barra.getDiasDeAtraso()).isEqualTo(0);
+            assertThat(barra.getDiasDeDesplazamiento()).isEqualTo(0);
+            assertThat(barra.getTooltip()).doesNotContain("Atrasado").doesNotContain("corrido");
+        }
+    }
+
+    @Test
+    @DisplayName("CP-GPB-41: el corrimiento no mueve un lote en ejecución y el atraso no extiende un lote pendiente: cada valor aplica solo a su estado")
+    void cadaValorAplicaSoloASuEstado() {
+        // Arrange
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(11))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeDesplazamiento(3).build();
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-02", fecha(8), fecha(12))
+                .diasDeAtraso(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(enEjecucion, pendiente), fecha(1), fecha(12), fecha(6));
+
+        // Assert
+        Barra barraEnEjecucion = barraDeLote(vista, 1L);
+        assertThat(barraEnEjecucion.getDesde()).isEqualTo(fecha(2));
+        assertThat(barraEnEjecucion.getHasta()).isEqualTo(fecha(11));
+        assertThat(barraEnEjecucion.getDiasDeDesplazamiento()).isEqualTo(0);
+        Barra barraPendiente = barraDeLote(vista, 2L);
+        assertThat(barraPendiente.getDesde()).isEqualTo(fecha(8));
+        assertThat(barraPendiente.getHasta()).isEqualTo(fecha(12));
+        assertThat(barraPendiente.getAtrasoPct()).isEqualTo(0.0);
+        assertThat(barraPendiente.getDiasDeAtraso()).isEqualTo(0);
+    }
+
     // ==================== Datos de prueba ====================
+
+    private static Barra barraDeLote(GanttPlanificacionVista vista, Long idLote) {
+        return vista.getCarriles().stream()
+                .flatMap(carril -> carril.getBarras().stream())
+                .filter(barra -> idLote.equals(barra.getIdLote()))
+                .findFirst()
+                .orElseThrow();
+    }
 
     private static LocalDate fecha(int dia) {
         return LocalDate.of(2027, 7, dia);

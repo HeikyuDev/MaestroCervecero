@@ -119,6 +119,15 @@ public class GanttPlanificacionVista {
         /** Porción ya transcurrida de la barra, en % de su ancho. Solo es mayor a cero en un lote en ejecución. */
         double progresoPct;
 
+        /** Porción final de la barra que corresponde al atraso, en % de su ancho. Solo es mayor a cero en un lote en ejecución atrasado. */
+        double atrasoPct;
+
+        /** Días de atraso del lote en ejecución respecto de su fecha de finalización estimada; {@code 0} si no está atrasado. */
+        int diasDeAtraso;
+
+        /** Días que se corrió la barra de un lote pendiente por el atraso del lote en ejecución; {@code 0} si no está corrida. */
+        int diasDeDesplazamiento;
+
         /** {@code true} si la barra se dibuja atenuada porque su lote no es de la planificación destacada. */
         boolean atenuada;
     }

@@ -63,10 +63,13 @@ import java.util.ArrayList;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Implementación de {@link ILoteServicio}.
@@ -1313,8 +1316,21 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + idPlanificacionProduccion);
         }
 
-        // 2. Recuperar los lotes con sus relaciones y mapearlos al DTO de cronograma
-        return MapperLoteCronograma.toDTOList(loteRepository.buscarLotesDePlanificacionConCronograma(idPlanificacionProduccion));
+        // 2. Recuperar los lotes con sus relaciones
+        List<LoteEntity> lotes = loteRepository.buscarLotesDePlanificacionConCronograma(idPlanificacionProduccion);
+
+        // 3. El atraso y el corrimiento dependen de la cola completa de cada fermentador (de todas las planificaciones):
+        //    se recuperan los lotes vivos de los fermentadores involucrados, con una sola consulta
+        Set<Long> idsFermentadores = lotes.stream()
+                .filter(LoteServicioImpl::estaVivo)
+                .map(LoteServicioImpl::idFermentadorONulo)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        List<LoteEntity> vivosDeSusFermentadores = idsFermentadores.isEmpty() ? List.of()
+                : loteRepository.buscarVivosDeFermentadores(idsFermentadores);
+
+        // 4. Mapear al DTO de cronograma con el atraso y el corrimiento calculados
+        return mapearConAtraso(lotes, vivosDeSusFermentadores);
     }
 
     /**
@@ -1333,7 +1349,114 @@ public class LoteServicioImpl implements ILoteServicio {
         // 2. Recuperar los lotes con sus relaciones; el historial reciente se mide desde el inicio del día de hoy menos 14 días
         LocalDateTime desde = LocalDate.now().minusDays(DIAS_HISTORIAL_RECIENTE).atStartOfDay();
 
-        return MapperLoteCronograma.toDTOList(loteRepository.buscarLotesParaCronograma(idFermentador, incluirHistorial, desde));
+        List<LoteEntity> lotes = loteRepository.buscarLotesParaCronograma(idFermentador, incluirHistorial, desde);
+
+        // 3. Los lotes vivos ya vienen completos (la consulta siempre trae todos los PENDIENTE y EN_EJECUCION de cada
+        //    fermentador): con ellos se calcula el atraso y el corrimiento de las colas, sin otra consulta
+        return mapearConAtraso(lotes, lotes.stream().filter(LoteServicioImpl::estaVivo).toList());
+    }
+
+    /**
+     * Mapea los lotes al DTO de cronograma agregando el atraso del lote en ejecución y el corrimiento de
+     * los pendientes que lo siguen en la cola de su fermentador.
+     *
+     * @param lotes Los lotes a mostrar.
+     * @param vivosDeSusFermentadores Los lotes PENDIENTE y EN_EJECUCION de los fermentadores involucrados, de todas las planificaciones.
+     */
+    private List<LoteCronogramaResponseDTO> mapearConAtraso(List<LoteEntity> lotes, Collection<LoteEntity> vivosDeSusFermentadores) {
+        Map<Long, AtrasoDeLote> atrasos = calcularAtrasos(vivosDeSusFermentadores, LocalDate.now());
+        return lotes.stream()
+                .map(lote -> {
+                    LoteCronogramaResponseDTO dto = MapperLoteCronograma.toDTO(lote);
+                    AtrasoDeLote atraso = atrasos.get(lote.getId());
+                    return atraso == null ? dto : dto.toBuilder()
+                            .diasDeAtraso(atraso.diasDeAtraso())
+                            .diasDeDesplazamiento(atraso.diasDeDesplazamiento())
+                            .build();
+                })
+                .toList();
+    }
+
+    /**
+     * Atraso de un lote en ejecución y corrimiento de un lote pendiente, en días, calculados al consultar.
+     */
+    private record AtrasoDeLote(int diasDeAtraso, int diasDeDesplazamiento) {
+    }
+
+    /**
+     * Calcula, por fermentador, cuánto se atrasó su lote EN_EJECUCION y cuánto corre ese atraso a los lotes
+     * PENDIENTE de su cola. Es de solo lectura: no modifica ninguna fecha guardada.
+     * <p>
+     * Un lote en ejecución está atrasado cuando su fecha de finalización estimada es anterior a {@code hoy};
+     * su atraso son los días entre esa fecha y hoy. Solo en ese caso se arma el reencadenado virtual de la cola
+     * con {@link #encadenarInicios}, igual que el real pero con base {@code max(fin estimado, hoy) + 1 día} e inicio
+     * mínimo {@code hoy}; el corrimiento de cada pendiente es la diferencia entre el inicio resultante y el
+     * guardado, solo si es positiva (los huecos de la cola absorben parte del atraso). Si algún pendiente de
+     * la cola no tiene fechas estimadas válidas, esa cola no se corre.
+     * </p>
+     *
+     * @return El atraso o corrimiento por ID de lote; los lotes sin atraso ni corrimiento no figuran.
+     */
+    private Map<Long, AtrasoDeLote> calcularAtrasos(Collection<LoteEntity> vivos, LocalDate hoy) {
+        Map<Long, List<LoteEntity>> porFermentador = new LinkedHashMap<>();
+        for (LoteEntity lote : vivos) {
+            Long idFermentador = idFermentadorONulo(lote);
+            if (idFermentador != null) {
+                porFermentador.computeIfAbsent(idFermentador, k -> new ArrayList<>()).add(lote);
+            }
+        }
+
+        Map<Long, AtrasoDeLote> atrasos = new LinkedHashMap<>();
+        for (List<LoteEntity> cola : porFermentador.values()) {
+            LoteEntity enEjecucion = cola.stream().filter(l -> l.getEstado() == EstadoLote.EN_EJECUCION).findFirst().orElse(null);
+            if (enEjecucion == null || enEjecucion.getFechaFinalizacionEstimada() == null
+                    || !enEjecucion.getFechaFinalizacionEstimada().isBefore(hoy)) {
+                continue;
+            }
+            int diasDeAtraso = (int) ChronoUnit.DAYS.between(enEjecucion.getFechaFinalizacionEstimada(), hoy);
+            atrasos.put(enEjecucion.getId(), new AtrasoDeLote(diasDeAtraso, 0));
+
+            List<LoteEntity> pendientes = cola.stream()
+                    .filter(l -> l.getEstado() == EstadoLote.PENDIENTE)
+                    .sorted(Comparator.comparing(LoteEntity::getFechaInicioEstimada, Comparator.nullsLast(Comparator.naturalOrder()))
+                            .thenComparing(LoteEntity::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .toList();
+            if (pendientes.stream().anyMatch(l -> !tieneFechasEstimadasValidas(l))) {
+                continue;
+            }
+            List<Long> duraciones = pendientes.stream().map(this::calcularDuracionEnDias).toList();
+            List<LocalDate> iniciosDePlanificacion = pendientes.stream()
+                    .map(l -> l.getPlanificacionProduccion().getFechaInicioEstimada())
+                    .toList();
+            List<LocalDate> inicios = encadenarInicios(duraciones, iniciosDePlanificacion, hoy.plusDays(DIAS_MARGEN_LIMPIEZA), hoy);
+            for (int i = 0; i < pendientes.size(); i++) {
+                long corrimiento = ChronoUnit.DAYS.between(pendientes.get(i).getFechaInicioEstimada(), inicios.get(i));
+                if (corrimiento > 0) {
+                    atrasos.put(pendientes.get(i).getId(), new AtrasoDeLote(0, (int) corrimiento));
+                }
+            }
+        }
+        return atrasos;
+    }
+
+    private static boolean tieneFechasEstimadasValidas(LoteEntity lote) {
+        return lote.getFechaInicioEstimada() != null && lote.getFechaFinalizacionEstimada() != null
+                && !lote.getFechaFinalizacionEstimada().isBefore(lote.getFechaInicioEstimada());
+    }
+
+    private static boolean estaVivo(LoteEntity lote) {
+        return lote.getEstado() == EstadoLote.PENDIENTE || lote.getEstado() == EstadoLote.EN_EJECUCION;
+    }
+
+    /**
+     * ID del fermentador del lote (el equipamiento de su etapa de Fermentación), o {@code null} si no tiene.
+     */
+    private static Long idFermentadorONulo(LoteEntity lote) {
+        return lote.getEtapas().stream()
+                .filter(etapa -> etapa.getEtapa() == TipoEtapa.FERMENTACION && etapa.getEquipamiento() != null)
+                .map(etapa -> etapa.getEquipamiento().getId())
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -1437,7 +1560,8 @@ public class LoteServicioImpl implements ILoteServicio {
      *     lote que acaba de finalizar o de cancelarse estando en ejecución dejó sus equipos sucios y
      *     necesitan su día de limpieza.</li>
      *     <li>La base inicial es el día siguiente a la fechaFinalizacionEstimada del lote
-     *     EN_EJECUCION del fermentador (o el inicio mínimo si esa fecha es nula), o el inicio
+     *     EN_EJECUCION del fermentador, o a hoy si ese lote está atrasado (el fermentador sigue ocupado),
+     *     o el inicio
      *     mínimo si el fermentador no tiene ningún lote en ejecución.</li>
      *     <li>Para cada lote, en el orden recibido:
      *     {@code inicio = max(base, fechaInicioEstimada de su planificación, inicio mínimo)} y
@@ -1467,14 +1591,17 @@ public class LoteServicioImpl implements ILoteServicio {
         // 3. Base inicial: el día siguiente a que termine el lote en ejecución de ese fermentador, o el inicio mínimo
         LocalDate base = loteRepository.buscarLoteEnEjecucionDeFermentador(idFermentador)
                 .map(LoteEntity::getFechaFinalizacionEstimada)
-                .map(fin -> fin.plusDays(DIAS_MARGEN_LIMPIEZA))
+                .map(fin -> (fin.isBefore(hoy) ? hoy : fin).plusDays(DIAS_MARGEN_LIMPIEZA))
                 .orElse(inicioMinimo);
 
         // 4. Encadenar los lotes en el orden recibido, respetando la planificación y el inicio mínimo como pisos
+        List<LocalDate> inicios = encadenarInicios(duracionesEnDias,
+                lotesPendientesEnOrden.stream().map(l -> l.getPlanificacionProduccion().getFechaInicioEstimada()).toList(),
+                base, inicioMinimo);
         List<LoteEntity> lotesModificados = new ArrayList<>();
         for (int i = 0; i < lotesPendientesEnOrden.size(); i++) {
             LoteEntity lotePendiente = lotesPendientesEnOrden.get(i);
-            LocalDate inicio = maxima(base, lotePendiente.getPlanificacionProduccion().getFechaInicioEstimada(), inicioMinimo);
+            LocalDate inicio = inicios.get(i);
             LocalDate fin = inicio.plusDays(duracionesEnDias.get(i));
 
             if (!inicio.equals(lotePendiente.getFechaInicioEstimada()) || !fin.equals(lotePendiente.getFechaFinalizacionEstimada())) {
@@ -1482,14 +1609,41 @@ public class LoteServicioImpl implements ILoteServicio {
                 lotePendiente.setFechaFinalizacionEstimada(fin);
                 lotesModificados.add(lotePendiente);
             }
-
-            base = fin.plusDays(DIAS_MARGEN_LIMPIEZA);
         }
 
         // 5. Persistir solo los lotes cuyas fechas cambiaron
         if (!lotesModificados.isEmpty()) {
             loteRepository.saveAll(lotesModificados);
         }
+    }
+
+    /**
+     * Cálculo puro del encadenado de una cola: el inicio de cada lote, en el orden recibido. Lo comparten el
+     * reencadenado real ({@link #reencadenarLotesPendientes}) y el virtual del cronograma ({@link #calcularAtrasos}),
+     * para que ambos sigan siempre la misma regla.
+     * <p>
+     * {@code inicio = max(base, inicio estimado de su planificación, inicio mínimo)} y la base del lote
+     * siguiente es {@code inicio + duración + 1 día} (el día de margen es la limpieza del fermentador).
+     * Una planificación sin fecha de inicio no impone piso.
+     * </p>
+     *
+     * @param duracionesEnDias Duración de cada lote, en días.
+     * @param iniciosDePlanificacion Fecha de inicio estimada de la planificación de cada lote.
+     * @param base Primer día en que el fermentador está libre.
+     * @param inicioMinimo Piso de toda la cadena.
+     * @return El inicio de cada lote, en el mismo orden.
+     */
+    static List<LocalDate> encadenarInicios(List<Long> duracionesEnDias, List<LocalDate> iniciosDePlanificacion,
+                                            LocalDate base, LocalDate inicioMinimo) {
+        List<LocalDate> inicios = new ArrayList<>(duracionesEnDias.size());
+        LocalDate baseDelLote = base;
+        for (int i = 0; i < duracionesEnDias.size(); i++) {
+            LocalDate inicioDePlanificacion = iniciosDePlanificacion.get(i) == null ? inicioMinimo : iniciosDePlanificacion.get(i);
+            LocalDate inicio = maxima(baseDelLote, inicioDePlanificacion, inicioMinimo);
+            inicios.add(inicio);
+            baseDelLote = inicio.plusDays(duracionesEnDias.get(i)).plusDays(DIAS_MARGEN_LIMPIEZA);
+        }
+        return inicios;
     }
 
     private long calcularDuracionEnDias(LoteEntity lote) {

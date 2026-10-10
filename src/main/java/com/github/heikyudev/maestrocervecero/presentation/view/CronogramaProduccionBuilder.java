@@ -30,6 +30,8 @@ import java.util.stream.Stream;
  *     <li>La etiqueta de cada barra dice la receta, la planificación y el lote, porque en un carril conviven
  *     lotes de planificaciones distintas.</li>
  *     <li>Si se destaca una planificación, las barras (y filas de cola) de las demás se marcan como atenuadas.</li>
+ *     <li>El lote en ejecución atrasado extiende su barra hasta hoy (tramo de atraso) y los pendientes que su atraso
+ *     corre se dibujan desplazados; ambos datos llegan calculados en el lote y el eje abarca las barras extendidas y corridas.</li>
  *     <li>El eje abarca todas las barras y también el día de hoy; no hay marcas de inicio ni fin de planificación.</li>
  *     <li>La cola de un fermentador lista sus lotes PENDIENTE por fecha de inicio estimada (y, ante igual fecha, por
  *     id), con su posición; el primero no se puede subir y el último no se puede bajar. El lote EN_EJECUCION

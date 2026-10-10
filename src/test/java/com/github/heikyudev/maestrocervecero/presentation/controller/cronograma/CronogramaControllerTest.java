@@ -446,6 +446,31 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-37: la cola marca el lote en ejecucion atrasado y los pendientes corridos por ese atraso, con la fecha planificada en el tooltip; sin atraso no se muestra ninguna marca")
+    void cronograma_colaMarcaAtrasoYDesplazamiento() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        LoteCronogramaResponseDTO enEjecucion = lote(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
+                .toBuilder().diasDeAtraso(2).build();
+        LoteCronogramaResponseDTO corrido = lote(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
+                .toBuilder().diasDeDesplazamiento(2).build();
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                enEjecucion, corrido,
+                lote(3L, "STOUT-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("Atrasado 2 d").contains("Corrido 2 d");
+        assertThat(html).contains("Planificado para el 07/07, corrido 2 d");
+        assertThat(html.split("data-cola-atraso", -1)).hasSize(2);
+        assertThat(html.split("data-cola-desplazado", -1)).hasSize(2);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-CGC-16: parametros invalidos no rompen la pagina: se ignoran, se avisa con una alerta de advertencia y el service se invoca sin filtros")
     void cronograma_parametrosInvalidosSeIgnoran() throws Exception {
         // Arrange

@@ -91,6 +91,10 @@
             <span class="text-slate-700 whitespace-nowrap">
                 Fin estimado: <th:block th:replace="~{planificacion_produccion/formato :: fecha(${cola.enEjecucion.fechaFinalizacionEstimada})}"></th:block>
             </span>
+            <span th:if="${cola.enEjecucion.diasDeAtraso > 0}" data-cola-atraso
+                  th:text="|Atrasado ${cola.enEjecucion.diasDeAtraso} ${cola.enEjecucion.diasDeAtraso == 1 ? 'día' : 'días'}|"
+                  th:title="|Fin estimado vencido hace ${cola.enEjecucion.diasDeAtraso} ${cola.enEjecucion.diasDeAtraso == 1 ? 'día' : 'días'}|"
+                  class="inline-block whitespace-nowrap rounded bg-rose-600 px-1.5 text-[10px] font-semibold leading-4 text-white">Atrasado 2 días</span>
         </div>
 
         <div th:if="${#lists.isEmpty(cola.pendientes)}" data-cola-vacia class="px-5 py-8 text-center text-slate-400">
@@ -123,6 +127,11 @@
                             <span th:text="${item.lote.nombreReceta}">Pale Ale</span> ·
                             <span th:text="|Plan #${item.lote.idPlanificacionProduccion}|">Plan #7</span> ·
                             <span><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block> L</span>
+                        </div>
+                        <div th:if="${item.lote.diasDeDesplazamiento > 0}" data-cola-desplazado>
+                            <span th:text="|Corrido ${item.lote.diasDeDesplazamiento} ${item.lote.diasDeDesplazamiento == 1 ? 'día' : 'días'} por atraso|"
+                                  th:title="|Planificado para el ${#temporals.format(item.lote.fechaInicioEstimada, 'dd/MM')}, corrido ${item.lote.diasDeDesplazamiento} ${item.lote.diasDeDesplazamiento == 1 ? 'día' : 'días'} por atraso|"
+                                  class="inline-block whitespace-nowrap rounded bg-orange-500 px-1.5 text-[10px] font-semibold leading-4 text-white">Corrido 3 días por atraso</span>
                         </div>
                     </td>
                     <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${item.lote.nombreReceta}">Pale Ale</td>

@@ -218,6 +218,42 @@ class MapperLoteCronogramaTest {
         assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(12L, 10L, 11L);
     }
 
+    @Test
+    @DisplayName("CP-MLC-12: el mapper no calcula atraso ni corrimiento: un lote en ejecución y uno pendiente con fechas anteriores a hoy salen con ambos valores en 0")
+    void toDTO_noCalculaAtrasoNiCorrimiento() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity enEjecucion = crearLote(10L, EstadoLote.EN_EJECUCION, seisEtapasConEstado(EstadoEtapaLote.PENDIENTE));
+        enEjecucion.setFechaFinalizacionEstimada(LocalDate.now().minusDays(3));
+        LoteEntity pendiente = crearLote(11L, EstadoLote.PENDIENTE, seisEtapasConEstado(EstadoEtapaLote.PENDIENTE));
+        pendiente.setFechaInicioEstimada(LocalDate.now().minusDays(2));
+        pendiente.setFechaFinalizacionEstimada(LocalDate.now().plusDays(6));
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO dtoEnEjecucion = MapperLoteCronograma.toDTO(enEjecucion);
+        LoteCronogramaResponseDTO dtoPendiente = MapperLoteCronograma.toDTO(pendiente);
+
+        // === ASSERTS ===
+        assertThat(dtoEnEjecucion.getDiasDeAtraso()).isEqualTo(0);
+        assertThat(dtoEnEjecucion.getDiasDeDesplazamiento()).isEqualTo(0);
+        assertThat(dtoPendiente.getDiasDeAtraso()).isEqualTo(0);
+        assertThat(dtoPendiente.getDiasDeDesplazamiento()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("CP-MLC-13: toDTO con una etapa de fermentación sin equipamiento no lanza excepción y deja el fermentador en null")
+    void toDTO_noDebeFallarConEtapaSinEquipamiento() {
+        // === PREPARACION DE DATOS ===
+        List<EtapaLoteEntity> etapas = new ArrayList<>();
+        etapas.add(etapa(TipoEtapa.FERMENTACION, EstadoEtapaLote.PENDIENTE, null));
+        LoteEntity lote = crearLote(10L, EstadoLote.PENDIENTE, etapas);
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = MapperLoteCronograma.toDTO(lote);
+
+        // === ASSERTS ===
+        assertThat(resultado.getId()).isEqualTo(10L);
+    }
+
     // ==================== helpers ====================
 
     private static LoteEntity crearLote(Long id, EstadoLote estado, List<EtapaLoteEntity> etapas) {

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -165,6 +166,28 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     List<LoteEntity> buscarLotesParaCronograma(@Param("idFermentador") Long idFermentador,
                                                @Param("incluirHistorial") boolean incluirHistorial,
                                                @Param("desde") LocalDateTime desde);
+
+    /**
+     * Recupera los lotes vivos (PENDIENTE y EN_EJECUCION) de un conjunto de fermentadores (el de la
+     * etapa de Fermentación de cada lote), ordenados por fecha de inicio estimada y, ante igual fecha,
+     * por ID ascendentes. Es de solo lectura: no bloquea.
+     * <p>
+     * Sirve para calcular el atraso y el corrimiento de las colas en el cronograma. Carga en una sola
+     * consulta la planificación y las etapas con su equipamiento, para no consultar por lote.
+     * </p>
+     *
+     * @param idsFermentadores Los IDs de los fermentadores a consultar.
+     * @return Los lotes vivos de esos fermentadores con sus relaciones cargadas, o una lista vacía si no hay ninguno.
+     */
+    @Query("SELECT l FROM LoteEntity l " +
+            "JOIN FETCH l.planificacionProduccion " +
+            "JOIN FETCH l.etapas e " +
+            "JOIN FETCH e.equipamiento " +
+            "JOIN l.etapas ef " +
+            "WHERE ef.etapa = 'FERMENTACION' AND ef.equipamiento.id IN :idsFermentadores " +
+            "AND l.estado IN ('PENDIENTE', 'EN_EJECUCION') " +
+            "ORDER BY l.fechaInicioEstimada ASC, l.id ASC")
+    List<LoteEntity> buscarVivosDeFermentadores(@Param("idsFermentadores") Collection<Long> idsFermentadores);
 
     /**
      * Recupera, bloqueándolos para escritura, los lotes PENDIENTE de un fermentador (el de su etapa

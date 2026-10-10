@@ -41,6 +41,7 @@
 | **CP-CGC-18** | Planificación inexistente | `idPlanificacion: 99`; el service de planificaciones lanza `RecursoNoEncontradoException` | Se ignora y no se destaca ninguna | Responde 200 con un aviso que dice que la planificación no existe; ninguna barra va atenuada y la leyenda no menciona el atenuado. |
 | **CP-CGC-19** | Alerta flash | Atributos flash `mensaje` ("Lote DEMO-3 movido en la cola") y `tipo` `success` | El layout muestra la alerta del Post-Redirect-Get | La página incluye el mensaje con el estilo de éxito. |
 | **CP-CGC-20** | Sidebar | Rol `GERENTE_DE_PRODUCCION` | El cronograma es operación diaria | "Cronograma de Producción" (`/cronograma-produccion`, ícono `bi-bar-chart-steps`) aparece en la sección Operación, antes de Administración, resaltada como opción activa. |
+| **CP-CGC-37** | Marcas de atraso en la cola | Un lote en ejecución con 2 días de atraso y un pendiente del mismo fermentador corrido 2 días (inicio estimado 07/07); otro pendiente sin corrimiento en otro fermentador | La cola avisa del atraso y del corrimiento | Muestra "Atrasado 2 días" junto al lote en ejecución y "Corrido 2 días por atraso" bajo el lote corrido, con el tooltip "Planificado para el 07/07, corrido 2 días por atraso". El pendiente sin corrimiento no lleva marca. |
 
 ---
 

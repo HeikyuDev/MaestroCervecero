@@ -70,6 +70,7 @@ public class MapperLoteCronograma {
         return lote.getEtapas().stream()
                 .filter(etapa -> etapa.getEtapa() == tipo)
                 .map(EtapaLoteEntity::getEquipamiento)
+                .filter(java.util.Objects::nonNull)
                 .findFirst()
                 .orElse(null);
     }

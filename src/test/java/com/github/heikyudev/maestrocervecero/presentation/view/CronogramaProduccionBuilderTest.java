@@ -321,6 +321,110 @@ class CronogramaProduccionBuilderTest {
         assertThat(vista.getGantt().getCarriles().get(0).getBarras()).hasSize(4);
     }
 
+    // ==================== Atraso y corrimiento ====================
+
+    @Test
+    @DisplayName("CP-GCB-16: en un carril el lote en ejecución atrasado llega a hoy (02/07 al 10/07, atraso 33,33 %) y el pendiente se dibuja corrido 3 días (11/07 al 15/07) en un eje de 16 días")
+    void atrasoYCorrimientoEnUnCarril_extiendenYDesplazanLasBarras() {
+        // Arrange
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
+                .diasDeDesplazamiento(3).build();
+
+        // Act
+        GanttPlanificacionVista gantt = CronogramaProduccionBuilder.construir(
+                List.of(enEjecucion, pendiente), List.of("F-01"), null, fecha(10)).getGantt();
+
+        // Assert
+        assertThat(gantt.getRangoDesde()).isEqualTo(fecha(1));
+        assertThat(gantt.getRangoHasta()).isEqualTo(fecha(16));
+        assertThat(gantt.getTotalDias()).isEqualTo(16);
+        List<Barra> barras = gantt.getCarriles().get(0).getBarras();
+        Barra barraEnEjecucion = barras.get(0);
+        assertThat(barraEnEjecucion.getIdLote()).isEqualTo(1L);
+        assertThat(barraEnEjecucion.getDesde()).isEqualTo(fecha(2));
+        assertThat(barraEnEjecucion.getHasta()).isEqualTo(fecha(10));
+        assertThat(barraEnEjecucion.getIzquierdaPct()).isEqualTo(6.25);
+        assertThat(barraEnEjecucion.getAnchoPct()).isEqualTo(56.25);
+        assertThat(barraEnEjecucion.getAtrasoPct()).isEqualTo(33.33);
+        Barra barraPendiente = barras.get(1);
+        assertThat(barraPendiente.getIdLote()).isEqualTo(2L);
+        assertThat(barraPendiente.getDesde()).isEqualTo(fecha(11));
+        assertThat(barraPendiente.getHasta()).isEqualTo(fecha(15));
+        assertThat(barraPendiente.getIzquierdaPct()).isEqualTo(62.5);
+        assertThat(barraPendiente.getAnchoPct()).isEqualTo(31.25);
+        assertThat(barraPendiente.getDiasDeDesplazamiento()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("CP-GCB-17: el tooltip suma las leyendas de atraso y corrimiento después de \"Receta\" y \"Planificación\" y antes de \"Inicio estimado:\"")
+    void tooltipConAtrasoYCorrimiento_ubicaLasLeyendasDespuesDeRecetaYPlanificacion() {
+        // Arrange
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
+                .diasDeDesplazamiento(3).build();
+
+        // Act
+        List<Barra> barras = CronogramaProduccionBuilder.construir(
+                List.of(enEjecucion, pendiente), List.of("F-01"), null, fecha(10)).getGantt().getCarriles().get(0).getBarras();
+
+        // Assert
+        String tooltipEnEjecucion = barras.get(0).getTooltip();
+        assertThat(tooltipEnEjecucion).contains("Receta: Pale Ale", "Planificación: #7", "Atrasado 3 días respecto de la fecha estimada (07/07)");
+        assertThat(tooltipEnEjecucion.indexOf("Receta: Pale Ale")).isLessThan(tooltipEnEjecucion.indexOf("Planificación: #7"));
+        assertThat(tooltipEnEjecucion.indexOf("Planificación: #7")).isLessThan(tooltipEnEjecucion.indexOf("Atrasado"));
+        assertThat(tooltipEnEjecucion.indexOf("Atrasado")).isLessThan(tooltipEnEjecucion.indexOf("Inicio estimado:"));
+        String tooltipPendiente = barras.get(1).getTooltip();
+        assertThat(tooltipPendiente).contains("Planificado para el 08/07, corrido 3 días por atraso");
+        assertThat(tooltipPendiente.indexOf("Planificación: #7")).isLessThan(tooltipPendiente.indexOf("Planificado para"));
+        assertThat(tooltipPendiente.indexOf("Planificado para")).isLessThan(tooltipPendiente.indexOf("Inicio estimado:"));
+    }
+
+    @Test
+    @DisplayName("CP-GCB-18: la cola ordena los pendientes por fechas estimadas guardadas y conserva el corrimiento de cada lote; el lote en ejecución conserva su atraso")
+    void laColaConservaElAtrasoYElCorrimientoSinAlterarElOrden() {
+        // Arrange: se pasan en desorden
+        List<LoteCronogramaResponseDTO> lotes = List.of(
+                loteB(3L, "PALE_ALE-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(13), fecha(18)).diasDeDesplazamiento(3).build(),
+                loteB(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12)).diasDeDesplazamiento(3).build(),
+                loteB(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
+                        .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build());
+
+        // Act
+        ColaFermentador cola = CronogramaProduccionBuilder.construir(lotes, List.of("F-01"), null, fecha(10)).getColas().get(0);
+
+        // Assert
+        assertThat(cola.getEnEjecucion().getId()).isEqualTo(1L);
+        assertThat(cola.getEnEjecucion().getDiasDeAtraso()).isEqualTo(3);
+        assertThat(cola.getPendientes()).extracting(i -> i.getLote().getId()).containsExactly(2L, 3L);
+        assertThat(cola.getPendientes()).extracting(i -> i.getPosicion()).containsExactly(1, 2);
+        assertThat(cola.getPendientes()).extracting(i -> i.getLote().getDiasDeDesplazamiento()).containsExactly(3, 3);
+    }
+
+    @Test
+    @DisplayName("CP-GCB-19: al destacar otra planificación el lote en ejecución atrasado se atenúa pero conserva su atraso (33,33 %, 3 días)")
+    void unLoteAtenuado_conservaSuAtraso() {
+        // Arrange
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "STOUT-1", EstadoLote.EN_EJECUCION, "F-01", 8L, "Stout", fecha(2), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
+                .diasDeDesplazamiento(3).build();
+
+        // Act
+        List<Barra> barras = CronogramaProduccionBuilder.construir(
+                List.of(enEjecucion, pendiente), List.of("F-01"), 7L, fecha(10)).getGantt().getCarriles().get(0).getBarras();
+
+        // Assert
+        Barra barraAtenuada = barras.stream().filter(b -> b.getIdLote().equals(1L)).findFirst().orElseThrow();
+        Barra barraDestacada = barras.stream().filter(b -> b.getIdLote().equals(2L)).findFirst().orElseThrow();
+        assertThat(barraAtenuada.isAtenuada()).isTrue();
+        assertThat(barraAtenuada.getAtrasoPct()).isEqualTo(33.33);
+        assertThat(barraAtenuada.getDiasDeAtraso()).isEqualTo(3);
+        assertThat(barraDestacada.isAtenuada()).isFalse();
+    }
+
     // ==================== Datos de prueba ====================
 
     private static LocalDate fecha(int dia) {

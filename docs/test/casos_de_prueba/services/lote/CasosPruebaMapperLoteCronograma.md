@@ -1,6 +1,6 @@
 ## Casos de prueba de `MapperLoteCronograma`
 
-**Tipo de prueba:** unitaria (clase `MapperLoteCronogramaTest`), sin Spring ni mocks. Verifica la conversión de un `LoteEntity` en el `LoteCronogramaResponseDTO` que usa el cronograma de la planificación. El mapper solo lee las relaciones ya cargadas de la entidad (planificación, versión de receta y etapas con su equipamiento) y no ejecuta consultas.
+**Tipo de prueba:** unitaria (clase `MapperLoteCronogramaTest`), sin Spring ni mocks. Verifica la conversión de un `LoteEntity` en el `LoteCronogramaResponseDTO` que usa el cronograma de la planificación. El mapper solo lee las relaciones ya cargadas de la entidad (planificación, versión de receta y etapas con su equipamiento) y no ejecuta consultas. No calcula el atraso ni el corrimiento: `diasDeAtraso` y `diasDeDesplazamiento` salen en `0` y los completa `LoteServicioImpl` al consultar el cronograma (ver `CasosPruebaLote.md`, secciones 12 y 13).
 
 **Regla de conversión:** el fermentador es el equipamiento de la etapa `FERMENTACION`; el molino, el macerador y la olla de hervor son los equipamientos de las etapas `MOLIENDA`, `MACERACION` y `HERVIDO`. `etapaActual` es el tipo de la etapa con `estado = EN_CURSO`, o `null` si ninguna lo está. Si el lote no tiene la etapa de un tipo, los campos del equipamiento correspondiente quedan en `null`.
 
@@ -26,3 +26,5 @@
 | --- | --- | --- | --- | --- |
 | **CP-MLC-10** | Lista vacía | `lotes: []` | La lista de entrada no tiene elementos | Retorna una lista vacía. |
 | **CP-MLC-11** | Lista con elementos conserva el orden | 3 lotes con ids 12, 10 y 11, en ese orden | Cada lote se mapea con `toDTO` y el orden se conserva | Retorna 3 `LoteCronogramaResponseDTO` con ids 12, 10 y 11, en ese orden. |
+| **CP-MLC-12** | El mapper no calcula atraso ni corrimiento | Lote `EN_EJECUCION` con `fechaFinalizacionEstimada` anterior a hoy y lote `PENDIENTE` con `fechaInicioEstimada` anterior a hoy | El atraso depende de la cola completa del fermentador y no de un solo lote | En ambos DTO `diasDeAtraso: 0` y `diasDeDesplazamiento: 0`. |
+| **CP-MLC-13** | Etapa de fermentación sin equipamiento | Lote con una etapa `FERMENTACION` cuyo equipamiento es `null` | El mapper no debe fallar por datos incompletos | No lanza excepción; el DTO conserva el id del lote y el fermentador queda en `null`. |

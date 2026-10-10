@@ -76,8 +76,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -2833,6 +2837,190 @@ class LoteServicioImplTest {
         verify(planificacionProduccionRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-LP-06: listarLotesDePlanificacion — el lote en ejecución atrasado de otra planificación corre al pendiente de esta (desplazamiento de 3 días) sin tocar sus fechas")
+    void listarLotesDePlanificacion_debeCorrerAlPendienteConElAtrasoDeOtraPlanificacion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        LoteEntity loteB = crearLoteAtrasadoB(hoy);
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarVivosDeFermentadores(eq(Set.of(5L)))).thenReturn(List.of(loteA, loteB, loteC));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(1);
+        LoteCronogramaResponseDTO dtoB = resultado.get(0);
+        assertThat(dtoB.getId()).isEqualTo(11L);
+        assertThat(dtoB.getDiasDeDesplazamiento()).isEqualTo(3);
+        assertThat(dtoB.getDiasDeAtraso()).isEqualTo(0);
+        assertFechas(dtoB, hoy.minusDays(2), hoy.plusDays(6));
+    }
+
+    @Test
+    @DisplayName("CP-LP-07: listarLotesDePlanificacion — una sola consulta de lotes vivos con el conjunto de fermentadores, sin repetidos")
+    void listarLotesDePlanificacion_debeConsultarLosVivosUnaSolaVezConUnConjuntoDeFermentadores() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        LoteEntity loteB = crearLoteAtrasadoB(hoy);
+        LoteEntity loteB2 = crearLoteEnFermentador(13L, EstadoLote.PENDIENTE, 1L, 5L, hoy.plusDays(13), hoy.plusDays(16), hoy.minusDays(10));
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(loteB, loteB2));
+        when(loteRepository.buscarVivosDeFermentadores(any())).thenReturn(List.of(loteA, loteB, loteC, loteB2));
+
+        // === EJECUCION ===
+        loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        ArgumentCaptor<Collection<Long>> captor = capturadorDeFermentadores();
+        verify(loteRepository, times(1)).buscarVivosDeFermentadores(captor.capture());
+        assertThat(captor.getValue()).containsExactly(5L);
+    }
+
+    @Test
+    @DisplayName("CP-LP-08: listarLotesDePlanificacion — cada fermentador arma su propia cola: el atraso del fermentador 5 no corre al lote del 6")
+    void listarLotesDePlanificacion_debeArmarUnaColaPorFermentador() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        LoteEntity loteB = crearLoteAtrasadoB(hoy);
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+        LoteEntity loteD = crearLoteEnFermentador(14L, EstadoLote.PENDIENTE, 1L, 6L, hoy.plusDays(1), hoy.plusDays(7), hoy.minusDays(10));
+        LoteEntity loteE = crearLoteEnFermentador(20L, EstadoLote.EN_EJECUCION, 3L, 6L, hoy.minusDays(10), hoy.plusDays(2), hoy.minusDays(10));
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(loteB, loteD));
+        when(loteRepository.buscarVivosDeFermentadores(any())).thenReturn(List.of(loteA, loteB, loteC, loteE, loteD));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        ArgumentCaptor<Collection<Long>> captor = capturadorDeFermentadores();
+        verify(loteRepository, times(1)).buscarVivosDeFermentadores(captor.capture());
+        assertThat(captor.getValue()).containsExactlyInAnyOrder(5L, 6L);
+        assertThat(dtoDeLote(resultado, 11L).getDiasDeDesplazamiento()).isEqualTo(3);
+        assertThat(dtoDeLote(resultado, 14L).getDiasDeDesplazamiento()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("CP-LP-09: listarLotesDePlanificacion — una planificación sin lotes no consulta a los lotes vivos")
+    void listarLotesDePlanificacion_noDebeConsultarLosVivosSinLotes() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).isEmpty();
+        verify(loteRepository, never()).buscarVivosDeFermentadores(any());
+    }
+
+    @Test
+    @DisplayName("CP-LP-10: listarLotesDePlanificacion — con solo lotes finalizados o cancelados no consulta a los vivos y devuelve atraso y desplazamiento en 0")
+    void listarLotesDePlanificacion_noDebeConsultarLosVivosConLotesFinalizadosOCancelados() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(
+                crearLoteEnFermentador(10L, EstadoLote.FINALIZADO, 1L, 5L, hoy.minusDays(20), hoy.minusDays(10), hoy.minusDays(30)),
+                crearLoteEnFermentador(11L, EstadoLote.CANCELADO, 1L, 5L, hoy.minusDays(9), hoy.minusDays(5), hoy.minusDays(30))));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        verify(loteRepository, never()).buscarVivosDeFermentadores(any());
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado).allSatisfy(dto -> assertAtraso(dto, 0, 0));
+    }
+
+    @Test
+    @DisplayName("CP-LP-11: listarLotesDePlanificacion — un lote sin etapa de fermentación no tiene cola: no consulta a los vivos y su desplazamiento es 0")
+    void listarLotesDePlanificacion_noDebeConsultarLosVivosSinFermentador() {
+        // === PREPARACION DE DATOS ===
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(crearLoteParaCronograma(10L, EstadoLote.PENDIENTE)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        verify(loteRepository, never()).buscarVivosDeFermentadores(any());
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getDiasDeDesplazamiento()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("CP-LP-12: listarLotesDePlanificacion — el lote en ejecución de la propia planificación lleva su atraso y el pendiente su desplazamiento")
+    void listarLotesDePlanificacion_debeInformarElAtrasoDelLoteEnEjecucionPropio() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 1L, 5L, hoy.minusDays(20), hoy.minusDays(3), hoy.minusDays(10));
+        LoteEntity loteB = crearLoteAtrasadoB(hoy);
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(loteA, loteB));
+        when(loteRepository.buscarVivosDeFermentadores(any())).thenReturn(List.of(loteA, loteB, loteC));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+    }
+
+    @Test
+    @DisplayName("CP-LP-13: listarLotesDePlanificacion — sin lote en ejecución en el fermentador no hay corrimiento aunque la fecha guardada del pendiente esté en el pasado")
+    void listarLotesDePlanificacion_noDebeCorrerSinLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteEnFermentador(11L, EstadoLote.PENDIENTE, 1L, 5L, hoy.minusDays(5), hoy.plusDays(3), hoy.minusDays(10));
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarVivosDeFermentadores(eq(Set.of(5L)))).thenReturn(List.of(loteB, loteC));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(1);
+        assertAtraso(resultado.get(0), 0, 0);
+    }
+
+    @Test
+    @DisplayName("CP-LP-14: listarLotesDePlanificacion — el cálculo del atraso es de solo lectura: no persiste nada ni modifica las fechas estimadas")
+    void listarLotesDePlanificacion_noDebePersistirNiModificarFechas() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        LoteEntity loteB = crearLoteAtrasadoB(hoy);
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+        when(planificacionProduccionRepository.existsById(1L)).thenReturn(true);
+        when(loteRepository.buscarLotesDePlanificacionConCronograma(1L)).thenReturn(List.of(loteB));
+        when(loteRepository.buscarVivosDeFermentadores(any())).thenReturn(List.of(loteA, loteB, loteC));
+
+        // === EJECUCION ===
+        loteServicio.listarLotesDePlanificacion(1L);
+
+        // === ASSERTS ===
+        verify(loteRepository, never()).save(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        verify(planificacionProduccionRepository, never()).save(any());
+        assertThat(loteA.getFechaFinalizacionEstimada()).isEqualTo(hoy.minusDays(3));
+        assertFechas(loteB, hoy.minusDays(2), hoy.plusDays(6));
+        assertFechas(loteC, hoy.plusDays(7), hoy.plusDays(12));
+    }
+
     // ==================== listarLotesParaCronograma ====================
 
     @Test
@@ -2950,6 +3138,283 @@ class LoteServicioImplTest {
                 .containsExactly(EstadoLote.FINALIZADO, EstadoLote.EN_EJECUCION, EstadoLote.PENDIENTE, EstadoLote.CANCELADO);
         verify(loteRepository, never()).save(any());
         verify(loteRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-LC-08: listarLotesParaCronograma — un lote en ejecución que termina hoy o después no está atrasado: nadie se corre")
+    void listarLotesParaCronograma_noDebeInformarAtrasoSiElLoteEnEjecucionNoVencio() {
+        LocalDate hoy = LocalDate.now();
+        for (LocalDate finEstimado : List.of(hoy.plusDays(4), hoy)) {
+            // === PREPARACION DE DATOS ===
+            LoteEntity loteA = crearLoteAtrasadoA(hoy);
+            loteA.setFechaFinalizacionEstimada(finEstimado);
+            LoteEntity loteB = crearLoteAtrasadoB(hoy);
+            LoteEntity loteC = crearLoteAtrasadoC(hoy);
+
+            // === EJECUCION ===
+            List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(loteA, loteB, loteC);
+
+            // === ASSERTS ===
+            assertThat(resultado).allSatisfy(dto -> assertAtraso(dto, 0, 0));
+            assertFechas(dtoDeLote(resultado, 11L), hoy.minusDays(2), hoy.plusDays(6));
+            assertFechas(dtoDeLote(resultado, 12L), hoy.plusDays(7), hoy.plusDays(12));
+        }
+    }
+
+    @Test
+    @DisplayName("CP-LC-09: listarLotesParaCronograma — el lote en ejecución atrasado 3 días corre 3 días a toda la cola sin cambiar las fechas guardadas")
+    void listarLotesParaCronograma_debeCorrerATodaLaColaConElAtrasoDelLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(
+                crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy));
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+        assertFechas(dtoDeLote(resultado, 11L), hoy.minusDays(2), hoy.plusDays(6));
+    }
+
+    @Test
+    @DisplayName("CP-LC-10: listarLotesParaCronograma — un atraso de un solo día corre 1 día a los pendientes")
+    void listarLotesParaCronograma_debeInformarUnAtrasoDeUnDia() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        loteA.setFechaFinalizacionEstimada(hoy.minusDays(1));
+        LoteEntity loteB = crearLoteEnFermentador(11L, EstadoLote.PENDIENTE, 1L, 5L, hoy, hoy.plusDays(8), hoy.minusDays(10));
+        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(9), hoy.plusDays(14), hoy.minusDays(10));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(loteA, loteB, loteC);
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 10L), 1, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 1);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 1);
+    }
+
+    @Test
+    @DisplayName("CP-LC-11: listarLotesParaCronograma — un hueco en la cola absorbe parte del atraso: el segundo pendiente se corre menos que el primero")
+    void listarLotesParaCronograma_debeAbsorberParteDelAtrasoConUnHueco() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(9), hoy.plusDays(14), hoy.minusDays(10));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), loteC);
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 1);
+    }
+
+    @Test
+    @DisplayName("CP-LC-12: listarLotesParaCronograma — un hueco igual o mayor al atraso no corre al lote (un corrimiento no positivo no se informa)")
+    void listarLotesParaCronograma_noDebeCorrerAUnLoteConHuecoIgualOMayorAlAtraso() {
+        LocalDate hoy = LocalDate.now();
+        for (int inicioC : List.of(10, 12)) {
+            // === PREPARACION DE DATOS ===
+            LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(inicioC), hoy.plusDays(inicioC + 5), hoy.minusDays(10));
+
+            // === EJECUCION ===
+            List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), loteC);
+
+            // === ASSERTS ===
+            assertAtraso(dtoDeLote(resultado, 12L), 0, 0);
+            assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+            assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        }
+    }
+
+    @Test
+    @DisplayName("CP-LC-13: listarLotesParaCronograma — el inicio de la planificación es piso: un pendiente que inicia mucho después de hoy no se corre")
+    void listarLotesParaCronograma_noDebeCorrerALotesDeUnaPlanificacionFutura() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteEnFermentador(11L, EstadoLote.PENDIENTE, 1L, 5L, hoy.plusDays(30), hoy.plusDays(38), hoy.plusDays(30));
+        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(39), hoy.plusDays(44), hoy.minusDays(10));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy), loteB, loteC);
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 0);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 0);
+    }
+
+    @Test
+    @DisplayName("CP-LC-14: listarLotesParaCronograma — sin lote en ejecución no hay corrimiento aunque las fechas guardadas estén en el pasado")
+    void listarLotesParaCronograma_noDebeCorrerSinLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteB = crearLoteEnFermentador(11L, EstadoLote.PENDIENTE, 1L, 5L, hoy.minusDays(5), hoy.plusDays(3), hoy.minusDays(10));
+        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(4), hoy.plusDays(9), hoy.minusDays(10));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(loteB, loteC);
+
+        // === ASSERTS ===
+        assertThat(resultado).allSatisfy(dto -> assertAtraso(dto, 0, 0));
+    }
+
+    @Test
+    @DisplayName("CP-LC-15: listarLotesParaCronograma — un lote en ejecución atrasado sin pendientes informa su atraso y no falla")
+    void listarLotesParaCronograma_debeInformarElAtrasoSinPendientes() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy));
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(1);
+        assertAtraso(resultado.get(0), 3, 0);
+    }
+
+    @Test
+    @DisplayName("CP-LC-16: listarLotesParaCronograma — un lote en ejecución sin fecha de finalización estimada no tiene atraso y nadie se corre")
+    void listarLotesParaCronograma_noDebeInformarAtrasoSinFechaDeFinalizacionEstimada() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        loteA.setFechaFinalizacionEstimada(null);
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(loteA, crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy));
+
+        // === ASSERTS ===
+        assertThat(resultado).allSatisfy(dto -> assertAtraso(dto, 0, 0));
+    }
+
+    @Test
+    @DisplayName("CP-LC-17: listarLotesParaCronograma — una cola con un lote sin fechas válidas no se corre y no lanza excepción (conserva el atraso del lote en ejecución)")
+    void listarLotesParaCronograma_noDebeCorrerUnaColaConFechasInvalidas() {
+        LocalDate hoy = LocalDate.now();
+        for (int variante = 0; variante < 3; variante++) {
+            // === PREPARACION DE DATOS ===
+            LoteEntity loteC = crearLoteAtrasadoC(hoy);
+            switch (variante) {
+                case 0 -> loteC.setFechaFinalizacionEstimada(null);
+                case 1 -> loteC.setFechaInicioEstimada(null);
+                default -> {
+                    loteC.setFechaInicioEstimada(hoy.plusDays(12));
+                    loteC.setFechaFinalizacionEstimada(hoy.plusDays(7));
+                }
+            }
+
+            // === EJECUCION ===
+            List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), loteC);
+
+            // === ASSERTS ===
+            assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+            assertAtraso(dtoDeLote(resultado, 11L), 0, 0);
+            assertAtraso(dtoDeLote(resultado, 12L), 0, 0);
+        }
+    }
+
+    @Test
+    @DisplayName("CP-LC-18: listarLotesParaCronograma — dos fermentadores independientes: cada cola se reencadena por separado")
+    void listarLotesParaCronograma_debeCalcularCadaFermentadorPorSeparado() {
+        LocalDate hoy = LocalDate.now();
+        // E vencido hace 5 días y no vencido, en el fermentador 6
+        for (LocalDate finDeE : List.of(hoy.minusDays(5), hoy.plusDays(3))) {
+            // === PREPARACION DE DATOS ===
+            LoteEntity loteE = crearLoteEnFermentador(20L, EstadoLote.EN_EJECUCION, 3L, 6L, hoy.minusDays(20), finDeE, hoy.minusDays(10));
+            LoteEntity loteF = crearLoteEnFermentador(21L, EstadoLote.PENDIENTE, 3L, 6L, hoy.minusDays(4), hoy.plusDays(2), hoy.minusDays(10));
+
+            // === EJECUCION ===
+            List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(
+                    crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy), loteE, loteF);
+
+            // === ASSERTS ===
+            assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+            assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+            assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+            boolean eVencido = finDeE.isBefore(hoy);
+            assertAtraso(dtoDeLote(resultado, 20L), eVencido ? 5 : 0, 0);
+            assertAtraso(dtoDeLote(resultado, 21L), 0, eVencido ? 5 : 0);
+        }
+    }
+
+    @Test
+    @DisplayName("CP-LC-19: listarLotesParaCronograma — los lotes finalizados y cancelados no participan de la cola y se devuelven con atraso y desplazamiento en 0")
+    void listarLotesParaCronograma_noDebeIncluirFinalizadosNiCanceladosEnLaCola() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity finalizado = crearLoteEnFermentador(30L, EstadoLote.FINALIZADO, 1L, 5L, hoy.minusDays(20), hoy.minusDays(10), hoy.minusDays(30));
+        LoteEntity cancelado = crearLoteEnFermentador(31L, EstadoLote.CANCELADO, 1L, 5L, hoy.minusDays(9), hoy.minusDays(5), hoy.minusDays(30));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(
+                crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy), finalizado, cancelado);
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 30L), 0, 0);
+        assertAtraso(dtoDeLote(resultado, 31L), 0, 0);
+    }
+
+    @Test
+    @DisplayName("CP-LC-20: listarLotesParaCronograma — el orden de la cola sale de las fechas guardadas, no del orden recibido, y el resultado conserva el orden recibido")
+    void listarLotesParaCronograma_debeOrdenarLaColaPorFechasGuardadas() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(
+                crearLoteAtrasadoC(hoy), crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy));
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(12L, 10L, 11L);
+        assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+    }
+
+    @Test
+    @DisplayName("CP-LC-21: listarLotesParaCronograma — un lote pendiente sin etapa de fermentación no pertenece a ninguna cola y no altera el cálculo de las demás")
+    void listarLotesParaCronograma_noDebeIncluirEnLaColaAUnLoteSinEtapaDeFermentacion() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity sinFermentacion = crearLoteParaCronograma(40L, EstadoLote.PENDIENTE);
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(
+                crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy), sinFermentacion);
+
+        // === ASSERTS ===
+        assertAtraso(dtoDeLote(resultado, 40L), 0, 0);
+        assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+    }
+
+    @Test
+    @DisplayName("CP-LC-22: listarLotesParaCronograma — el atraso no agrega consultas ni modifica datos")
+    void listarLotesParaCronograma_noDebeAgregarConsultasNiModificarDatosAlCalcularElAtraso() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LoteEntity loteA = crearLoteAtrasadoA(hoy);
+        LoteEntity loteB = crearLoteAtrasadoB(hoy);
+        LoteEntity loteC = crearLoteAtrasadoC(hoy);
+
+        // === EJECUCION ===
+        listarCronogramaCon(loteA, loteB, loteC);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class));
+        verify(loteRepository, never()).buscarVivosDeFermentadores(any());
+        verify(loteRepository, never()).save(any());
+        verify(loteRepository, never()).saveAll(anyList());
+        assertThat(loteA.getFechaFinalizacionEstimada()).isEqualTo(hoy.minusDays(3));
+        assertFechas(loteB, hoy.minusDays(2), hoy.plusDays(6));
+        assertFechas(loteC, hoy.plusDays(7), hoy.plusDays(12));
     }
 
     // ==================== subirLoteEnCola ====================
@@ -3141,8 +3606,8 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SQ-12: subirLoteEnCola nunca arranca antes de hoy aunque la base o la planificación sean anteriores")
-    void subirLoteEnCola_debeRespetarHoyComoPiso() {
+    @DisplayName("CP-SQ-12: subirLoteEnCola con el lote en ejecución atrasado arranca desde mañana aunque la base y la planificación sean anteriores")
+    void subirLoteEnCola_debeArrancarDesdeMananaConElLoteEnEjecucionAtrasado() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.minusDays(5), hoy.plusDays(13), hoy.minusDays(30));
@@ -3156,8 +3621,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
-        assertFechas(loteC, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteC, hoy.plusDays(1), hoy.plusDays(21));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
     }
 
     @Test
@@ -3251,6 +3716,28 @@ class LoteServicioImplTest {
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(6L);
         assertThat(capturarLotesGuardados()).allSatisfy(lote ->
                 assertThat(lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).getEquipamiento().getId()).isEqualTo(5L));
+    }
+
+    @Test
+    @DisplayName("CP-SQ-18: subirLoteEnCola — con el lote en ejecución atrasado (o que termina hoy) el primer pendiente arranca mañana como mínimo, no hoy")
+    void subirLoteEnCola_debeArrancarMananaComoMinimoConElLoteEnEjecucionAtrasado() {
+        LocalDate hoy = LocalDate.now();
+        for (LocalDate finDelLoteEnEjecucion : List.of(hoy.minusDays(3), hoy.minusDays(1), hoy)) {
+            // === PREPARACION DE DATOS ===
+            LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
+            LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+            when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
+            when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
+            when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, finDelLoteEnEjecucion)));
+
+            // === EJECUCION ===
+            LoteCronogramaResponseDTO resultado = loteServicio.subirLoteEnCola(12L);
+
+            // === ASSERTS ===
+            assertFechas(loteC, hoy.plusDays(1), hoy.plusDays(21));
+            assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
+            assertFechas(resultado, hoy.plusDays(1), hoy.plusDays(21));
+        }
     }
 
     // ==================== bajarLoteEnCola ====================
@@ -3442,8 +3929,8 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BQ-12: bajarLoteEnCola nunca arranca antes de hoy aunque la base o la planificación sean anteriores")
-    void bajarLoteEnCola_debeRespetarHoyComoPiso() {
+    @DisplayName("CP-BQ-12: bajarLoteEnCola con el lote en ejecución atrasado arranca desde mañana aunque la base y la planificación sean anteriores")
+    void bajarLoteEnCola_debeArrancarDesdeMananaConElLoteEnEjecucionAtrasado() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.minusDays(5), hoy.plusDays(13), hoy.minusDays(30));
@@ -3457,8 +3944,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
-        assertFechas(loteC, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteC, hoy.plusDays(1), hoy.plusDays(21));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
     }
 
     @Test
@@ -3554,6 +4041,134 @@ class LoteServicioImplTest {
                 assertThat(lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).getEquipamiento().getId()).isEqualTo(5L));
     }
 
+    // ==================== encadenarInicios ====================
+
+    @Test
+    @DisplayName("CP-EI-01: encadenarInicios retorna una lista vacía cuando la cola está vacía")
+    void encadenarInicios_debeRetornarListaVaciaConColaVacia() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(List.of(), List.of(), hoy.plusDays(1), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-EI-02: encadenarInicios — un solo lote parte de la base")
+    void encadenarInicios_unSoloLoteDebePartirDeLaBase() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(8L), List.of(hoy.minusDays(5)), hoy.plusDays(1), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy.plusDays(1));
+    }
+
+    @Test
+    @DisplayName("CP-EI-03: encadenarInicios — una cadena sin huecos deja un día de margen entre un lote y el siguiente")
+    void encadenarInicios_cadenaSinHuecosDebeDejarUnDiaDeMargen() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+        LocalDate planificacion = hoy.minusDays(10);
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(8L, 5L, 10L), List.of(planificacion, planificacion, planificacion), hoy.plusDays(1), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(10), hoy.plusDays(16));
+    }
+
+    @Test
+    @DisplayName("CP-EI-04: encadenarInicios — el inicio de la planificación deja un hueco y la cadena sigue desde ahí")
+    void encadenarInicios_elInicioDeLaPlanificacionDebeDejarUnHuecoYContinuarDesdeAhi() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(8L, 5L, 10L), List.of(hoy.minusDays(10), hoy.plusDays(20), hoy.minusDays(10)), hoy.plusDays(1), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(20), hoy.plusDays(26));
+    }
+
+    @Test
+    @DisplayName("CP-EI-05: encadenarInicios — una planificación sin fecha de inicio no impone piso y no lanza NullPointerException")
+    void encadenarInicios_unaPlanificacionSinFechaNoDebeImponerPiso() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(8L, 5L), Arrays.asList(null, null), hoy.plusDays(1), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(10));
+    }
+
+    @Test
+    @DisplayName("CP-EI-06: encadenarInicios — el inicio mínimo es piso de toda la cadena")
+    void encadenarInicios_elInicioMinimoDebeSerPisoDeTodaLaCadena() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(4L, 5L), List.of(hoy.minusDays(10), hoy.minusDays(10)), hoy.minusDays(3), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy, hoy.plusDays(5));
+    }
+
+    @Test
+    @DisplayName("CP-EI-07: encadenarInicios — con planificación sin fecha y base anterior al mínimo el lote parte del inicio mínimo")
+    void encadenarInicios_conPlanificacionSinFechaYBaseAnteriorDebePartirDelInicioMinimo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(3L), Collections.singletonList(null), hoy.minusDays(5), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy);
+    }
+
+    @Test
+    @DisplayName("CP-EI-08: encadenarInicios — una base posterior a la planificación y al inicio mínimo manda")
+    void encadenarInicios_unaBasePosteriorATodoDebeMandar() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(4L), List.of(hoy.plusDays(2)), hoy.plusDays(15), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy.plusDays(15));
+    }
+
+    @Test
+    @DisplayName("CP-EI-09: encadenarInicios — un lote de duración cero deja igualmente el día de margen para el siguiente")
+    void encadenarInicios_unLoteDeDuracionCeroDebeDejarElDiaDeMargen() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LocalDate> resultado = LoteServicioImpl.encadenarInicios(
+                List.of(0L, 3L), List.of(hoy.minusDays(10), hoy.minusDays(10)), hoy.plusDays(1), hoy);
+
+        // === ASSERTS ===
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(2));
+    }
+
     // ==================== helpers ====================
 
     /**
@@ -3594,6 +4209,63 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteParaCronograma(id, EstadoLote.EN_EJECUCION);
         lote.setFechaFinalizacionEstimada(fechaFinalizacionEstimada);
         return lote;
+    }
+
+    /**
+     * Construye un lote en el fermentador indicado (etapa FERMENTACION) con sus fechas estimadas, la fecha de
+     * inicio estimada de su planificación y el ID de esa planificación.
+     */
+    private static LoteEntity crearLoteEnFermentador(Long id, EstadoLote estado, Long idPlanificacion, Long idFermentador,
+                                                     LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada,
+                                                     LocalDate inicioPlanificacion) {
+        LoteEntity lote = crearLoteParaCronograma(id, estado);
+        lote.setFechaInicioEstimada(fechaInicioEstimada);
+        lote.setFechaFinalizacionEstimada(fechaFinalizacionEstimada);
+        lote.getPlanificacionProduccion().setId(idPlanificacion);
+        lote.getPlanificacionProduccion().setFechaInicioEstimada(inicioPlanificacion);
+        lote.getEtapas().add(EtapaLoteEntity.builder()
+                .id(id * 10)
+                .etapa(TipoEtapa.FERMENTACION)
+                .estado(EstadoEtapaLote.PENDIENTE)
+                .equipamiento(crearFermentador(idFermentador, 20.0))
+                .lote(lote)
+                .build());
+        return lote;
+    }
+
+    /** Lote A del escenario de atraso: id 10, EN_EJECUCION en el fermentador 5 (planificación 2), con fin estimado {@code hoy - 3}. */
+    private static LoteEntity crearLoteAtrasadoA(LocalDate hoy) {
+        return crearLoteEnFermentador(10L, EstadoLote.EN_EJECUCION, 2L, 5L, hoy.minusDays(20), hoy.minusDays(3), hoy.minusDays(10));
+    }
+
+    /** Lote B del escenario de atraso: id 11, PENDIENTE en el fermentador 5 (planificación 1), de {@code hoy - 2} a {@code hoy + 6} (8 días). */
+    private static LoteEntity crearLoteAtrasadoB(LocalDate hoy) {
+        return crearLoteEnFermentador(11L, EstadoLote.PENDIENTE, 1L, 5L, hoy.minusDays(2), hoy.plusDays(6), hoy.minusDays(10));
+    }
+
+    /** Lote C del escenario de atraso: id 12, PENDIENTE en el fermentador 5 (planificación 2), de {@code hoy + 7} a {@code hoy + 12} (5 días). */
+    private static LoteEntity crearLoteAtrasadoC(LocalDate hoy) {
+        return crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(7), hoy.plusDays(12), hoy.minusDays(10));
+    }
+
+    /** Stubbea la consulta del cronograma global (sin fermentador ni historial) con los lotes dados y la invoca. */
+    private List<LoteCronogramaResponseDTO> listarCronogramaCon(LoteEntity... lotes) {
+        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of(lotes));
+        return loteServicio.listarLotesParaCronograma(null, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<Collection<Long>> capturadorDeFermentadores() {
+        return ArgumentCaptor.forClass(Collection.class);
+    }
+
+    private static LoteCronogramaResponseDTO dtoDeLote(List<LoteCronogramaResponseDTO> dtos, Long id) {
+        return dtos.stream().filter(dto -> id.equals(dto.getId())).findFirst().orElseThrow();
+    }
+
+    private static void assertAtraso(LoteCronogramaResponseDTO dto, int diasDeAtraso, int diasDeDesplazamiento) {
+        assertThat(dto.getDiasDeAtraso()).as("diasDeAtraso del lote %s", dto.getId()).isEqualTo(diasDeAtraso);
+        assertThat(dto.getDiasDeDesplazamiento()).as("diasDeDesplazamiento del lote %s", dto.getId()).isEqualTo(diasDeDesplazamiento);
     }
 
     private static void assertFechas(LoteEntity lote, LocalDate fechaInicioEstimada, LocalDate fechaFinalizacionEstimada) {

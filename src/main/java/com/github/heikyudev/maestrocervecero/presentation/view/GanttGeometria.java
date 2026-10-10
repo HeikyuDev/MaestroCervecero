@@ -32,9 +32,12 @@ import java.util.function.Function;
  * Reglas de cada barra, según el estado del lote (las fechas son días completos, el último inclusive):
  * </p>
  * <ul>
- *     <li>{@code PENDIENTE}: de la fecha de inicio estimada a la de finalización estimada.</li>
- *     <li>{@code EN_EJECUCION}: del inicio real a la finalización estimada; lo ya transcurrido (hasta hoy) se marca como progreso.</li>
- *     <li>{@code FINALIZADO}: del inicio real a la finalización real.</li>
+ *     <li>{@code PENDIENTE}: de la fecha de inicio estimada a la de finalización estimada, corridas los días de
+ *     desplazamiento del lote si lo atrasa el lote en ejecución de su fermentador.</li>
+ *     <li>{@code EN_EJECUCION}: del inicio real (la fecha) a la finalización estimada; lo ya transcurrido (hasta hoy) se
+ *     marca como progreso. Si está atrasado, la barra se extiende los días de atraso (hasta hoy) y esos días se
+ *     marcan aparte como atraso.</li>
+ *     <li>{@code FINALIZADO}: del inicio real a la finalización real (las fechas, no las horas).</li>
  *     <li>{@code CANCELADO}: del inicio real a la cancelación si había arrancado; si no, las fechas estimadas.</li>
  * </ul>
  */
@@ -58,6 +61,7 @@ final class GanttGeometria {
     private static final DateTimeFormatter FORMATO_MARCA = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter FORMATO_MARCA_CON_ANIO = DateTimeFormatter.ofPattern("dd/MM/yy");
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter FORMATO_DIA_MES = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final String SIN_DATO = "-";
 
@@ -102,7 +106,7 @@ final class GanttGeometria {
         switch (estadoDe(lote)) {
             case EN_EJECUCION -> {
                 desde = primero(dia(lote.getFechaInicio()), lote.getFechaInicioEstimada());
-                hasta = lote.getFechaFinalizacionEstimada();
+                hasta = corrida(lote.getFechaFinalizacionEstimada(), lote.getDiasDeAtraso());
             }
             case FINALIZADO -> {
                 desde = primero(dia(lote.getFechaInicio()), lote.getFechaInicioEstimada());
@@ -118,8 +122,8 @@ final class GanttGeometria {
                 }
             }
             default -> {
-                desde = lote.getFechaInicioEstimada();
-                hasta = lote.getFechaFinalizacionEstimada();
+                desde = corrida(lote.getFechaInicioEstimada(), lote.getDiasDeDesplazamiento());
+                hasta = corrida(lote.getFechaFinalizacionEstimada(), lote.getDiasDeDesplazamiento());
             }
         }
         if (desde == null && hasta == null) {
@@ -313,6 +317,10 @@ final class GanttGeometria {
                 porcentaje(ChronoUnit.DAYS.between(eje.desde(), tramo.desde()), eje.totalDias()), 100.0 - ancho));
 
         double progreso = 0;
+        double atraso = 0;
+        if (estado == EstadoLote.EN_EJECUCION && lote.getDiasDeAtraso() > 0) {
+            atraso = redondear(Math.min(lote.getDiasDeAtraso(), diasBarra) * 100.0 / diasBarra);
+        }
         if (estado == EstadoLote.EN_EJECUCION && hoy != null) {
             long transcurridos = Math.max(0, Math.min(diasBarra, ChronoUnit.DAYS.between(tramo.desde(), hoy) + 1));
             progreso = redondear(transcurridos * 100.0 / diasBarra);
@@ -329,13 +337,17 @@ final class GanttGeometria {
                 .izquierdaPct(izquierda)
                 .anchoPct(redondear(ancho))
                 .progresoPct(progreso)
+                .atrasoPct(atraso)
+                .diasDeAtraso(estado == EstadoLote.EN_EJECUCION ? lote.getDiasDeAtraso() : 0)
+                .diasDeDesplazamiento(estado == EstadoLote.PENDIENTE ? lote.getDiasDeDesplazamiento() : 0)
                 .atenuada(atenuada)
                 .build();
     }
 
     /**
      * Detalle del lote para el tooltip: fechas estimadas y reales, volumen y equipos. Las líneas extra se
-     * insertan debajo del título (ej. la planificación a la que pertenece el lote).
+     * insertan debajo del título (ej. la planificación a la que pertenece el lote). Si el lote en ejecución está
+     * atrasado o el pendiente está corrido por ese atraso, lo dice debajo de las líneas extra.
      */
     static String armarTooltip(LoteCronogramaResponseDTO lote, List<String> lineasExtra) {
         EstadoLote estado = estadoDe(lote);
@@ -343,6 +355,14 @@ final class GanttGeometria {
         texto.append(nombreDe(lote)).append(" - ").append(estado.getEtiqueta()).append('\n');
         for (String linea : lineasExtra) {
             texto.append(linea).append('\n');
+        }
+        if (estado == EstadoLote.EN_EJECUCION && lote.getDiasDeAtraso() > 0 && lote.getFechaFinalizacionEstimada() != null) {
+            texto.append("Atrasado ").append(dias(lote.getDiasDeAtraso())).append(" respecto de la fecha estimada (")
+                    .append(lote.getFechaFinalizacionEstimada().format(FORMATO_DIA_MES)).append(")\n");
+        }
+        if (estado == EstadoLote.PENDIENTE && lote.getDiasDeDesplazamiento() > 0 && lote.getFechaInicioEstimada() != null) {
+            texto.append("Planificado para el ").append(lote.getFechaInicioEstimada().format(FORMATO_DIA_MES))
+                    .append(", corrido ").append(dias(lote.getDiasDeDesplazamiento())).append(" por atraso\n");
         }
         texto.append("Inicio estimado: ").append(fecha(lote.getFechaInicioEstimada())).append('\n');
         texto.append("Fin estimado: ").append(fecha(lote.getFechaFinalizacionEstimada())).append('\n');
@@ -383,6 +403,15 @@ final class GanttGeometria {
 
     private static LocalDate dia(LocalDateTime fechaHora) {
         return fechaHora == null ? null : fechaHora.toLocalDate();
+    }
+
+    /** La fecha corrida {@code dias} días hacia adelante, o {@code null} si no hay fecha. */
+    private static LocalDate corrida(LocalDate fecha, int dias) {
+        return fecha == null ? null : fecha.plusDays(dias);
+    }
+
+    private static String dias(int cantidad) {
+        return cantidad + (cantidad == 1 ? " día" : " días");
     }
 
     private static LocalDate primero(LocalDate preferida, LocalDate alternativa) {
