@@ -143,7 +143,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El Username ya esta registrado");
+                .hasMessage("El nombre de usuario 'juanperez' ya está en uso");
 
         verify(usuarioRepository).existsByUsername("juanperez");
         verify(usuarioRepository, never()).save(any());
@@ -301,6 +301,30 @@ class UsuarioServicioImplTest {
         assertThat(resultado.getRol()).isEqualTo(Rol.GERENTE_DE_PRODUCCION);
         verify(usuarioRepository).existsByUsername("carlos_cervecero");
         verify(passwordEncoder).encode("ClaveSegura123");
+    }
+
+    @Test
+    @DisplayName("CP-AU-10: altaUsuario lanza ReglaNegocioException y no consulta la BD cuando algún dato de texto supera su longitud máxima")
+    void altaUsuario_debeRechazarTextosDemasiadoLargos() {
+        UsuarioFormDTO usernameLargo = usuarioFormDTO("u".repeat(51), "123456", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO nombreLargo = usuarioFormDTO("juan", "123456", "n".repeat(101), "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO apellidoLargo = UsuarioFormDTO.builder().username("juan").password("123456").nombre("Juan")
+                .apellido("a".repeat(101)).correo("juan@mail.com").telefono("1111").rol(Rol.OPERARIO_DE_PRODUCCION).build();
+        UsuarioFormDTO correoLargo = usuarioFormDTO("juan", "123456", "Juan", "c".repeat(256), "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO telefonoLargo = usuarioFormDTO("juan", "123456", "Juan", "juan@mail.com", "1".repeat(31), Rol.OPERARIO_DE_PRODUCCION);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(usernameLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre de usuario no puede superar 50 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(nombreLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre no puede superar 100 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(apellidoLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El apellido no puede superar 100 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(correoLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico no puede superar 255 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(telefonoLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 30 caracteres");
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
     }
 
     // ==================== modificarUsuario ====================
@@ -493,6 +517,30 @@ class UsuarioServicioImplTest {
         assertThat(usuarioEntity.getNombre()).isEqualTo("Juan Perez");
         verify(usuarioRepository, never()).save(any());
         verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-10: modificarUsuario lanza ReglaNegocioException y no consulta la BD cuando algún dato de texto supera su longitud máxima")
+    void modificarUsuario_debeRechazarTextosDemasiadoLargos() {
+        UsuarioFormDTO usernameLargo = usuarioFormDTO("u".repeat(51), "123456", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO nombreLargo = usuarioFormDTO("juan", "123456", "n".repeat(101), "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO apellidoLargo = UsuarioFormDTO.builder().username("juan").password("123456").nombre("Juan")
+                .apellido("a".repeat(101)).correo("juan@mail.com").telefono("1111").rol(Rol.OPERARIO_DE_PRODUCCION).build();
+        UsuarioFormDTO correoLargo = usuarioFormDTO("juan", "123456", "Juan", "c".repeat(256), "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO telefonoLargo = usuarioFormDTO("juan", "123456", "Juan", "juan@mail.com", "1".repeat(31), Rol.OPERARIO_DE_PRODUCCION);
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usernameLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre de usuario no puede superar 50 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, nombreLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre no puede superar 100 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, apellidoLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El apellido no puede superar 100 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, correoLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico no puede superar 255 caracteres");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, telefonoLargo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 30 caracteres");
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
     }
 
     // ==================== bajaUsuario ====================

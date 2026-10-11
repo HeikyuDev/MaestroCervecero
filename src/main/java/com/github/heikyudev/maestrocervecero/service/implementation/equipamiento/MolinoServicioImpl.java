@@ -115,7 +115,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @return {@link MolinoResponseDTO} con los datos del molino modificado.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno.
-     * @throws ReglaNegocioException         Si el identificador interno supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el molino tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException         Si el identificador interno supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el molino tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
      */
     @Override
     @Transactional
@@ -139,10 +139,10 @@ public class MolinoServicioImpl implements IMolinoServicio {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 6. Validar que el molino no tenga comprometida una etapa pendiente de un lote (ni a
+        // 6. Validar que el molino no tenga comprometida una etapa en estado Pendiente de un lote (ni a
         //    punto de arrancar, ni futura dentro de un lote ya en ejecución).
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 7. Validar que el molino no se encuentre actualmente en uso.
@@ -169,7 +169,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param id ID del molino a dar de baja.
      * @return {@link MolinoResponseDTO} con los datos del molino ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
-     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -179,9 +179,9 @@ public class MolinoServicioImpl implements IMolinoServicio {
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // 2. Validar que el molino no tenga comprometida una etapa pendiente de un lote.
+        // 2. Validar que el molino no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 3. Validar que el molino se encuentre disponible (no en uso, en limpieza ni en mantenimiento).

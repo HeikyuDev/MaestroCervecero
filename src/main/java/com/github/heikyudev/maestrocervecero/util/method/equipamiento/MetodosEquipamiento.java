@@ -48,9 +48,10 @@ public class MetodosEquipamiento {
         if (usosMaximosAntesMantenimiento <= 0) {
             throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0");
         }
-        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(usosMaximosAntesMantenimiento,
-                LimitesTecnicos.USOS_MAXIMOS_MANTENIMIENTO_MAXIMO,
-                "La cantidad de usos máximos antes de mantenimiento", "usos");
+        if (usosMaximosAntesMantenimiento > LimitesTecnicos.USOS_MAXIMOS_MANTENIMIENTO_MAXIMO) {
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento no pueden superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.USOS_MAXIMOS_MANTENIMIENTO_MAXIMO) + " usos");
+        }
     }
 
     /**

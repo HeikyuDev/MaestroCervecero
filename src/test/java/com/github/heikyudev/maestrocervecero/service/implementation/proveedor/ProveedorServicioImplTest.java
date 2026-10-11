@@ -541,7 +541,7 @@ class ProveedorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BP-02: bajaProveedor marca el estado como BAJA, persiste y retorna el DTO cuando no tiene órdenes de compra pendientes")
+    @DisplayName("CP-BP-02: bajaProveedor marca el estado como BAJA, persiste y retorna el DTO cuando no tiene órdenes de compra en estado Pendiente")
     void bajaProveedor_debeMarcarBajaYRetornarProveedorExistente() {
         // === PREPARACION DE DATOS ===
         ProveedorEntity proveedorEntity = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");

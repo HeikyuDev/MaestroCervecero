@@ -59,7 +59,7 @@
                 <th class="px-4 py-3">Capacidad útil (L)</th>
                 <th class="px-4 py-3">Evaporación (L/h)</th>
                 <th class="px-4 py-3">Pérdida por trub (L)</th>
-                <th class="px-4 py-3">Usos máx.</th>
+                <th class="px-4 py-3">Usos antes de mantenimiento</th>
                 <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
             </thead>
@@ -105,7 +105,7 @@
                 false)}"></div>
     </div>
 
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Si tiene una etapa pendiente de un lote o está en uso, el sistema no lo permitirá.')}"></div>
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Solo se puede dar de baja si está Disponible y no tiene lotes en estado Pendiente asociados.')}"></div>
 </div>
 
 </body>

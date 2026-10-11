@@ -139,7 +139,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La malta no existe");
+                .hasMessage("No se encontró la malta con ID: 99");
         verify(maltaRepository).findById(99L);
     }
 
@@ -332,7 +332,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.modificarMalta(99L, maltaFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La malta no existe");
+                .hasMessage("No se encontró la malta con ID: 99");
 
         verify(maltaRepository).findById(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de nombre
@@ -436,7 +436,7 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-05: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta forma parte de una planificación de producción pendiente")
+    @DisplayName("CP-BM-05: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta forma parte de una planificación de producción en estado Pendiente")
     void bajaMalta_debeRechazarSiFormaParteDePlanificacionPendiente() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
@@ -445,14 +445,14 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la malta porque forma parte de una planificación de producción pendiente");
+                .hasMessage("No se puede dar de baja la malta porque forma parte de una planificación de producción en estado Pendiente");
 
         verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
         verify(maltaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BM-06: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta se encuentra en una orden de compra pendiente")
+    @DisplayName("CP-BM-06: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta se encuentra en una orden de compra en estado Pendiente")
     void bajaMalta_debeRechazarSiSeEncuentraEnOrdenCompraPendiente() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
@@ -462,7 +462,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la malta porque se encuentra en al menos una orden de compra pendiente");
+                .hasMessage("No se puede dar de baja la malta porque se encuentra en al menos una orden de compra en estado Pendiente");
 
         verifyNoInteractions(catalogoProveedorRepository, loteInsumoRepository);
         verify(maltaRepository, never()).save(any());
@@ -505,7 +505,7 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-04: bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados")
+    @DisplayName("CP-BM-04: bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra en estado Pendiente, catálogo de proveedor activo ni stock asociados")
     void bajaMalta_debeMarcarBajaYRetornarMaltaExistente() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));

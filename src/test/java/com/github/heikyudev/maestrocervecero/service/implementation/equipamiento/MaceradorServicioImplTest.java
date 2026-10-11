@@ -192,7 +192,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -204,7 +204,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100");
 
         verifyNoInteractions(maceradorRepository);
     }
@@ -449,7 +449,7 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-07: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-MM-07: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa en estado Pendiente de un lote")
     void modificarMacerador_debeRechazarAsociacionALotePendiente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 85.0);
@@ -459,7 +459,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede modificar el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository, never()).save(any());
@@ -516,7 +516,7 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-BM-03: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa en estado Pendiente de un lote")
     void bajaMacerador_debeRechazarAsociacionALotePendiente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
@@ -524,7 +524,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository, never()).save(any());
@@ -573,7 +573,7 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-07: bajaMacerador informa primero la etapa pendiente de un lote cuando el macerador además no está disponible")
+    @DisplayName("CP-BM-07: bajaMacerador informa primero la etapa en estado Pendiente de un lote cuando el macerador además no está disponible")
     void bajaMacerador_debePriorizarEtapaPendienteSobreNoDisponible() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_USO);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
@@ -581,7 +581,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(maceradorRepository, never()).save(any());
     }
@@ -737,7 +737,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -915,7 +915,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -928,7 +928,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
+                .hasMessage("La eficiencia de maceración debe estar entre 40 y 100");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -1017,7 +1017,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(maceradorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

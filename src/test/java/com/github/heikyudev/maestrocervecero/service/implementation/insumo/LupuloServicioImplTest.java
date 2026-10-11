@@ -139,7 +139,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El lúpulo no existe");
+                .hasMessage("No se encontró el lúpulo con ID: 99");
         verify(lupuloRepository).findById(99L);
     }
 
@@ -329,7 +329,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(99L, lupuloFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El lúpulo no existe");
+                .hasMessage("No se encontró el lúpulo con ID: 99");
 
         verify(lupuloRepository).findById(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de nombre
@@ -433,7 +433,7 @@ class LupuloServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BL-05: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo forma parte de una planificación de producción pendiente")
+    @DisplayName("CP-BL-05: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo forma parte de una planificación de producción en estado Pendiente")
     void bajaLupulo_debeRechazarSiFormaParteDePlanificacionPendiente() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
@@ -442,14 +442,14 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el lúpulo porque forma parte de una planificación de producción pendiente");
+                .hasMessage("No se puede dar de baja el lúpulo porque forma parte de una planificación de producción en estado Pendiente");
 
         verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
         verify(lupuloRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BL-06: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo se encuentra en una orden de compra pendiente")
+    @DisplayName("CP-BL-06: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo se encuentra en una orden de compra en estado Pendiente")
     void bajaLupulo_debeRechazarSiSeEncuentraEnOrdenCompraPendiente() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
@@ -459,7 +459,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el lúpulo porque se encuentra en al menos una orden de compra pendiente");
+                .hasMessage("No se puede dar de baja el lúpulo porque se encuentra en al menos una orden de compra en estado Pendiente");
 
         verifyNoInteractions(catalogoProveedorRepository, loteInsumoRepository);
         verify(lupuloRepository, never()).save(any());
@@ -502,7 +502,7 @@ class LupuloServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BL-04: bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados")
+    @DisplayName("CP-BL-04: bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra en estado Pendiente, catálogo de proveedor activo ni stock asociados")
     void bajaLupulo_debeMarcarBajaYRetornarLupuloExistente() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
@@ -532,7 +532,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+                .hasMessage("El valor de los ácidos alfa debe ser un número mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -604,7 +604,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje de ácidos alfa debe ser un número mayor a 0");
+                .hasMessage("El valor de los ácidos alfa debe ser un número mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }

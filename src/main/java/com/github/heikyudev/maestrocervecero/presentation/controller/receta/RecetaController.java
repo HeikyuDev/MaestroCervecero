@@ -204,7 +204,7 @@ public class RecetaController {
     }
 
     /**
-     * Da de baja (lógica) a una receta. Si tiene una planificación de producción pendiente el
+     * Da de baja (lógica) a una receta. Si tiene una planificación de producción en estado Pendiente el
      * service lo rechaza y el {@code ControllerAdvices} muestra el motivo.
      */
     @PostMapping("/{id}/baja")

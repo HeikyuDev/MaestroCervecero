@@ -13,7 +13,7 @@
             <i class="bi bi-arrow-left"></i> Volver a recetas
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
-            th:text="${editando} ? 'Modificar receta' : 'Nueva receta'">Nueva receta</h1>
+            th:text="${editando} ? 'Editar receta' : 'Nueva receta'">Nueva receta</h1>
         <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
             <span th:if="${editando}">Al guardar se registra una nueva versión de la receta.</span></p>
     </div>
@@ -39,7 +39,7 @@
                 </div>
 
                 <div>
-                    <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base (litros) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="volumenBase" name="version.volumenBase" th:value="${recetaForm.version.volumenBase != null ? (recetaForm.version.volumenBase == recetaForm.version.volumenBase.intValue() ? recetaForm.version.volumenBase.intValue() : recetaForm.version.volumenBase) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 20"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('version.volumenBase')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
@@ -133,7 +133,7 @@
         <section class="p-6" data-detalle="malta">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Maltas <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Maltas (cantidad en kg) <span class="text-rose-600" title="Obligatorio">*</span></h2>
                     <p class="mt-1 mb-4 text-xs text-slate-400">Las cantidades se usan como proporciones entre insumos; el sistema calcula las cantidades reales según la OG y el volumen del lote.</p>
                 </div>
                 <button type="button" data-abrir-agregar="malta"
@@ -147,7 +147,7 @@
                         <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <tr>
                             <th class="px-4 py-3">Malta</th>
-                            <th class="px-4 py-3">Cantidad (kg)</th>
+                            <th class="px-4 py-3">Cantidad</th>
                             <th class="px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -158,7 +158,7 @@
                                     ${#fields.hasErrors('version.detallesMalta[' + i.index + '].*')})}"></tr>
                         </th:block>
                         <tr data-fila-vacia th:hidden="${!#lists.isEmpty(recetaForm.version.detallesMalta)}">
-                            <td colspan="3" class="px-4 py-6 text-center text-slate-400">Todavía no se agregaron maltas a la receta</td>
+                            <td colspan="3" class="px-4 py-6 text-center text-slate-400">No hay maltas en la receta</td>
                         </tr>
                         </tbody>
                     </table>
@@ -176,7 +176,7 @@
         <section class="p-6" data-detalle="lupulo">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lúpulos <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lúpulos (cantidad en g, tiempo de hervor en minutos) <span class="text-rose-600" title="Obligatorio">*</span></h2>
                     <p class="mt-1 text-xs text-slate-400">Debe haber al menos un lúpulo con uso Hervor.</p>
                     <p class="mb-4 text-xs text-slate-400">Los lúpulos con uso Hervor se usan como proporción entre sí; Whirlpool y Dry hop se escalan según el volumen base de la receta.</p>
                 </div>
@@ -193,8 +193,8 @@
                             <th class="px-4 py-3">Lúpulo</th>
                             <th class="px-4 py-3">Uso</th>
                             <th class="px-4 py-3">Etapa de uso</th>
-                            <th class="px-4 py-3">Tiempo de hervor (min)</th>
-                            <th class="px-4 py-3">Cantidad (g)</th>
+                            <th class="px-4 py-3">Tiempo de hervor</th>
+                            <th class="px-4 py-3">Cantidad</th>
                             <th class="px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -206,7 +206,7 @@
                                     ${#fields.hasErrors('version.detallesLupulo[' + i.index + '].*')})}"></tr>
                         </th:block>
                         <tr data-fila-vacia th:hidden="${!#lists.isEmpty(recetaForm.version.detallesLupulo)}">
-                            <td colspan="6" class="px-4 py-6 text-center text-slate-400">Todavía no se agregaron lúpulos a la receta</td>
+                            <td colspan="6" class="px-4 py-6 text-center text-slate-400">No hay lúpulos en la receta</td>
                         </tr>
                         </tbody>
                     </table>
@@ -224,7 +224,7 @@
         <section class="p-6" data-detalle="levadura">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Levaduras <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Levaduras (cantidad en g) <span class="text-rose-600" title="Obligatorio">*</span></h2>
                     <p class="mt-1 mb-4 text-xs text-slate-400">Las cantidades se usan como proporciones entre insumos; el sistema calcula las cantidades reales según la OG y el volumen del lote.</p>
                 </div>
                 <button type="button" data-abrir-agregar="levadura"
@@ -238,7 +238,7 @@
                         <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <tr>
                             <th class="px-4 py-3">Levadura</th>
-                            <th class="px-4 py-3">Cantidad (g)</th>
+                            <th class="px-4 py-3">Cantidad</th>
                             <th class="px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -249,7 +249,7 @@
                                     ${#fields.hasErrors('version.detallesLevadura[' + i.index + '].*')})}"></tr>
                         </th:block>
                         <tr data-fila-vacia th:hidden="${!#lists.isEmpty(recetaForm.version.detallesLevadura)}">
-                            <td colspan="3" class="px-4 py-6 text-center text-slate-400">Todavía no se agregaron levaduras a la receta</td>
+                            <td colspan="3" class="px-4 py-6 text-center text-slate-400">No hay levaduras en la receta</td>
                         </tr>
                         </tbody>
                     </table>

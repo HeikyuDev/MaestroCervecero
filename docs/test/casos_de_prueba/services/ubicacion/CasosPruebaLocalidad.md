@@ -13,7 +13,7 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Localidad encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `LocalidadResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|Localidad inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "La localidad no existe".|
+|**CP-BI-02**|Localidad inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la localidad con ID: 99".|
 
 ### 3. `altaLocalidad(LocalidadFormDTO localidadFormDTO)`
 
@@ -25,6 +25,8 @@
 |**CP-AL-04**|Código postal duplicado|`nombre: "Belgrano"` (Único en la provincia 1), `codigoPostal: "1414"` (Existe en otra localidad), `idProvincia: 1L`|`existsByNombreIgnoreCaseAndProvinciaId` $\rightarrow$ **FALSE**, `existsByCodigoPostal` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AL-05**|Precedencia de la validación de provincia|`nombre: "Palermo"` (Duplicado si la provincia existiera), `codigoPostal: "1414"`, `idProvincia: 99L` (No existe)|`provinciaRepository.findById` se evalúa antes que `existsByNombreIgnoreCaseAndProvinciaId`|Lanza `RecursoNoEncontradoException` (no `RecursoDuplicadoException`). No consulta `localidadRepository`.|
 |**CP-AL-06**|Alta exitosa _(Camino feliz)_|`nombre: "Belgrano"` (Único), `codigoPostal: "1428"` (Único), `idProvincia: 1L` (Existe)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `nombre`, `codigoPostal`, `provincia` y `estado = ACTIVO` asignados, y retorna DTO.|
+|**CP-AL-07**|Nombre de más de 100 caracteres _(Límite)_|`nombre`: 101 caracteres, `codigoPostal: "1414"`, `idProvincia: 1L`|Longitud del nombre `> 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD ni ejecuta `save()`.|
+|**CP-AL-08**|Código postal de más de 10 caracteres _(Límite)_|`nombre: "Palermo"`, `codigoPostal`: 11 caracteres, `idProvincia: 1L`|Longitud del código postal `> 10` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El código postal no puede superar 10 caracteres"). No consulta la BD ni ejecuta `save()`.|
 
 ### 4. `modificarLocalidad(Long id, LocalidadFormDTO localidadFormDTO)`
 
@@ -36,6 +38,8 @@
 |**CP-ML-04**|Código postal en uso por otra localidad|`id: 1L` (Existe), `nombre: "Palermo"` (Propio), `codigoPostal: "1428"` (Pertenece a otra localidad), `idProvincia: 1L`|`existsByCodigoPostalAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-ML-05**|Conservar el propio nombre y código postal actuales|`id: 1L`, `nombre: "palermo"` (Mismo, distinto case), `codigoPostal: "1414"` (Propio), `idProvincia: 1L`|`existsByNombreIgnoreCaseAndProvinciaIdAndIdNot` $\rightarrow$ **FALSE**, `existsByCodigoPostalAndIdNot` $\rightarrow$ **FALSE**|Permite actualizar, persiste y retorna DTO.|
 |**CP-ML-06**|Modificación exitosa _(Camino feliz)_|`id: 1L` (Existe), `nombre: "Palermo Chico"` (Libre), `codigoPostal: "1425"` (Libre), `idProvincia: 2L` (Existe, distinta a la actual)|Todas las validaciones $\rightarrow$ **FALSE**|Actualiza `nombre`, `codigoPostal` y `provincia`, ejecuta `save()` y retorna DTO actualizado.|
+|**CP-ML-07**|Nombre de más de 100 caracteres _(Límite)_|`id: 1L`, `nombre`: 101 caracteres, `codigoPostal: "1414"`, `idProvincia: 1L`|Longitud del nombre `> 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD ni ejecuta `save()`.|
+|**CP-ML-08**|Código postal de más de 10 caracteres _(Límite)_|`id: 1L`, `nombre: "Palermo"`, `codigoPostal`: 11 caracteres, `idProvincia: 1L`|Longitud del código postal `> 10` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El código postal no puede superar 10 caracteres"). No consulta la BD ni ejecuta `save()`.|
 
 ### 5. `bajaLocalidad(Long id)`
 

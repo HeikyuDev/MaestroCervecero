@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
@@ -65,7 +67,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     public LocalidadResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperLocalidad.toDTO(localidadRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La localidad no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + id)));
     }
 
     /**
@@ -80,27 +82,32 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
      * @param localidadFormDTO Objeto DTO que contiene los datos de creación de la localidad.
      * @return {@link LocalidadResponseDTO} representativo de la localidad guardada en la base de datos.
      * @throws RecursoNoEncontradoException Si no existe una provincia activa con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o el código postal supera los 10 caracteres.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una localidad activa de la misma provincia, o si el código postal ya pertenece a otra localidad activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LOCALIDAD)
     public LocalidadResponseDTO altaLocalidad(LocalidadFormDTO localidadFormDTO) {
-        // 1. Verificar que la provincia seleccionada exista
-        ProvinciaEntity provinciaEntity = provinciaRepository.findById(localidadFormDTO.getIdProvincia())
-                .orElseThrow(() -> new RecursoNoEncontradoException("La provincia no existe"));
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getCodigoPostal(), LimitesTecnicos.LONGITUD_MAXIMA_CODIGO_POSTAL, "El código postal");
 
-        // 2. Validar si el nombre ya está registrado en otra localidad de la misma provincia (case-insensitive)
+        // 2. Verificar que la provincia seleccionada exista
+        ProvinciaEntity provinciaEntity = provinciaRepository.findById(localidadFormDTO.getIdProvincia())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + localidadFormDTO.getIdProvincia()));
+
+        // 3. Validar si el nombre ya está registrado en otra localidad de la misma provincia (case-insensitive)
         if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaId(localidadFormDTO.getNombre(), localidadFormDTO.getIdProvincia())) {
             throw new RecursoDuplicadoException("Ya existe una localidad con el nombre '" + localidadFormDTO.getNombre() + "' para la provincia seleccionada");
         }
 
-        // 3. Validar si el código postal ya está registrado en otra localidad
+        // 4. Validar si el código postal ya está registrado en otra localidad
         if (localidadRepository.existsByCodigoPostal(localidadFormDTO.getCodigoPostal())) {
             throw new RecursoDuplicadoException("Ya existe una localidad con el código postal '" + localidadFormDTO.getCodigoPostal() + "'");
         }
 
-        // 4. Creo la entidad que se va a almacenar en la base de datos
+        // 5. Creo la entidad que se va a almacenar en la base de datos
         LocalidadEntity localidadEntity = LocalidadEntity.builder()
                 .nombre(localidadFormDTO.getNombre())
                 .codigoPostal(localidadFormDTO.getCodigoPostal())
@@ -108,7 +115,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 6. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperLocalidad.toDTO(localidadRepository.save(localidadEntity));
     }
 
@@ -125,37 +132,42 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
      * @param localidadFormDTO DTO con la información actualizada.
      * @return {@link LocalidadResponseDTO} representativo de la localidad con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza una localidad activa por el ID proporcionado, o si no existe una provincia activa con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o el código postal supera los 10 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra localidad activa de la misma provincia, o si el nuevo código postal ya se encuentra asignado a otra localidad activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOCALIDAD)
     public LocalidadResponseDTO modificarLocalidad(Long id, LocalidadFormDTO localidadFormDTO) {
-        // 1. Localizar la localidad existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getCodigoPostal(), LimitesTecnicos.LONGITUD_MAXIMA_CODIGO_POSTAL, "El código postal");
+
+        // 2. Localizar la localidad existente. Si no existe, se dispara RecursoNoEncontradoException
         LocalidadEntity localidadEntity = localidadRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La localidad no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + id));
 
-        // 2. Verificar que la provincia seleccionada exista
+        // 3. Verificar que la provincia seleccionada exista
         ProvinciaEntity provinciaEntity = provinciaRepository.findById(localidadFormDTO.getIdProvincia())
-                .orElseThrow(() -> new RecursoNoEncontradoException("La provincia no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + localidadFormDTO.getIdProvincia()));
 
-        // 3. Se valida duplicación de nombre excluyendo el propio ID, de modo que conservar
+        // 4. Se valida duplicación de nombre excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot(localidadFormDTO.getNombre(), localidadFormDTO.getIdProvincia(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + localidadFormDTO.getNombre() + "' ya está en uso por otra localidad de la provincia seleccionada");
         }
 
-        // 4. Se valida duplicación de código postal excluyendo el propio ID
+        // 5. Se valida duplicación de código postal excluyendo el propio ID
         if (localidadRepository.existsByCodigoPostalAndIdNot(localidadFormDTO.getCodigoPostal(), id)) {
             throw new RecursoDuplicadoException("El código postal '" + localidadFormDTO.getCodigoPostal() + "' ya está en uso por otra localidad");
         }
 
-        // 5. Aplico los cambios sobre la entidad administrada por persistencia
+        // 6. Aplico los cambios sobre la entidad administrada por persistencia
         localidadEntity.setNombre(localidadFormDTO.getNombre());
         localidadEntity.setCodigoPostal(localidadFormDTO.getCodigoPostal());
         localidadEntity.setProvincia(provinciaEntity);
 
-        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 7. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperLocalidad.toDTO(localidadRepository.save(localidadEntity));
     }
 

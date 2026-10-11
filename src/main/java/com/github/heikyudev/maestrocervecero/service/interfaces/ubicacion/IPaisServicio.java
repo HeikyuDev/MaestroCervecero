@@ -41,6 +41,7 @@ public interface IPaisServicio {
      *
      * @param paisFormDTO Los datos del país a registrar.
      * @return El país registrado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si ya existe un país activo con el mismo nombre (case-insensitive).
      */
     PaisResponseDTO altaPais(PaisFormDTO paisFormDTO);
@@ -52,6 +53,7 @@ public interface IPaisServicio {
      * @param paisFormDTO Los nuevos datos del país.
      * @return El país modificado.
      * @throws RecursoNoEncontradoException Si no existe un país activo con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro país activo (case-insensitive).
      */
     PaisResponseDTO modificarPais(Long id, PaisFormDTO paisFormDTO);

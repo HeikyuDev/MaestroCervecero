@@ -18,11 +18,11 @@
       etiquetaAlta texto de esa opción del menú (ej. 'Crear nueva provincia').
       limpiable    true si se puede quitar la selección (filtros).
       invalido     true para marcar el campo con error.
-      placeholder  texto del campo sin selección (ej. 'Seleccionar país').
+      placeholder  texto del campo sin selección (ej. 'Seleccione país').
 
     Uso: <div th:replace="~{fragments/selector-entidad :: selector('idPais', *{idPais}, ${paisSeleccionado},
                            @{/ubicaciones/paises/buscador}, @{/ubicaciones/paises/nuevo}, 'Crear nuevo país',
-                           false, false, 'Seleccionar país')}"></div>
+                           false, false, 'Seleccione país')}"></div>
 -->
 <div th:fragment="selector(campo, id, texto, buscadorUrl, altaUrl, etiquetaAlta, limpiable, invalido, placeholder)"
      data-selector class="relative" th:data-buscador-url="${buscadorUrl}" th:data-alta-url="${altaUrl}">
@@ -36,8 +36,8 @@
                 listado"). Todo el campo abre la ventana con clic, o con Enter / Espacio con el foco puesto.
             -->
             <input type="text" readonly data-selector-buscar data-selector-texto th:value="${texto}"
-                   th:placeholder="${placeholder != null} ? ${placeholder} : 'Seleccionar'"
-                   th:title="${placeholder != null} ? ${placeholder} : 'Seleccionar'"
+                   th:placeholder="${placeholder != null} ? ${placeholder} : 'Seleccione'"
+                   th:title="${placeholder != null} ? ${placeholder} : 'Seleccione'"
                    class="w-full pl-3 pr-9 py-2 rounded-lg border text-sm text-slate-700 cursor-pointer select-none caret-transparent truncate hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                    th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300 bg-white'">
             <i class="bi bi-list-ul absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>

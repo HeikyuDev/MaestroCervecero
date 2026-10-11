@@ -11,8 +11,23 @@ package com.github.heikyudev.maestrocervecero.util.validacion;
  */
 public final class LimitesTecnicos {
 
-    /** Longitud máxima, en caracteres, del nombre de un insumo, de una receta o del identificador de un equipo. */
+    /**
+     * Longitud máxima, en caracteres, del nombre de un insumo, de una receta, de un país, de una provincia o de una
+     * localidad, del nombre y el apellido de un usuario y del identificador de un equipo.
+     */
     public static final int LONGITUD_MAXIMA_NOMBRE = 100;
+
+    /** Longitud máxima, en caracteres, del nombre de usuario con el que se inicia sesión. */
+    public static final int LONGITUD_MAXIMA_USERNAME = 50;
+
+    /** Longitud máxima, en caracteres, de un correo electrónico (el máximo de la columna de la base de datos). */
+    public static final int LONGITUD_MAXIMA_CORREO = 255;
+
+    /** Longitud máxima, en caracteres, de un número de teléfono. */
+    public static final int LONGITUD_MAXIMA_TELEFONO = 30;
+
+    /** Longitud máxima, en caracteres, de un código postal. */
+    public static final int LONGITUD_MAXIMA_CODIGO_POSTAL = 10;
 
     /** Longitud máxima, en caracteres, de un motivo u observación. */
     public static final int LONGITUD_MAXIMA_MOTIVO = 255;

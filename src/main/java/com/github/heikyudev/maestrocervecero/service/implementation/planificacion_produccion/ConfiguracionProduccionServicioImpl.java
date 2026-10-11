@@ -75,10 +75,10 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
 
         // 3. Validar que el porcentaje mínimo de consumo para avanzar de etapa esté entre 0 y 100
         if (configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() < 0 || configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa() > 100) {
-            throw new ReglaNegocioException("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100 inclusive");
+            throw new ReglaNegocioException("El porcentaje mínimo de consumo debe estar entre 0 y 100");
         }
         ValidacionesNumericas.validarMayorOIgualACero(configuracionProduccionFormDTO.getPorcentajeMinimoConsumoParaAvanzarEtapa(),
-                "El porcentaje mínimo de consumo para avanzar de etapa");
+                "El porcentaje mínimo de consumo");
 
         // 4. Localizar la configuración vigente, aplicar los nuevos valores y persistirla
         ConfiguracionProduccionEntity configuracionProduccionEntity = buscarEntidadSingleton();

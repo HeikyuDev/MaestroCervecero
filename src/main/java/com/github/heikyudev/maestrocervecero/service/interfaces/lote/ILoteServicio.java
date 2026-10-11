@@ -333,7 +333,7 @@ public interface ILoteServicio {
      * </p>
      * <ul>
      *     <li>El período es obligatorio y cerrado: {@code desde} y {@code hasta} son inclusivos, {@code hasta} no puede
-     *     ser anterior a {@code desde} y no puede haber más de 1825 días entre ambos (el tope de 5 años de las
+     *     ser anterior a {@code desde} y no puede haber más de 1.825 días entre ambos (el tope de 5 años de las
      *     planificaciones).</li>
      *     <li>Siempre incluye todos los lotes EN_EJECUCION y PENDIENTE de los fermentadores pedidos, sin mirar el
      *     período: el atraso y el corrimiento dependen de la cola completa de cada fermentador. Qué barras caen dentro del
@@ -357,7 +357,7 @@ public interface ILoteServicio {
      * @param desde El primer día del período (inclusive).
      * @param hasta El último día del período (inclusive).
      * @return Los lotes en formato DTO de cronograma, o una lista vacía si no hay ninguno.
-     * @throws ReglaNegocioException Si {@code desde} o {@code hasta} son nulos, si {@code hasta} es anterior a {@code desde} o si el período supera los 1825 días.
+     * @throws ReglaNegocioException Si {@code desde} o {@code hasta} son nulos, si {@code hasta} es anterior a {@code desde} o si el período supera los 1.825 días.
      * @throws RecursoNoEncontradoException Si se informa un {@code idFermentador} que no existe.
      */
     List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, LocalDate desde, LocalDate hasta);

@@ -472,7 +472,7 @@ class PresentacionComercialServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BPC-04: bajaPresentacionComercial lanza ReglaNegocioException y no persiste cuando está en una orden de compra pendiente")
+    @DisplayName("CP-BPC-04: bajaPresentacionComercial lanza ReglaNegocioException y no persiste cuando está en una orden de compra en estado Pendiente")
     void bajaPresentacionComercial_debeRechazarConOrdenCompraPendiente() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
@@ -480,7 +480,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.bajaPresentacionComercial(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la presentación comercial porque se encuentra en al menos una orden de compra pendiente");
+                .hasMessage("No se puede dar de baja la presentación comercial porque se encuentra en al menos una orden de compra en estado Pendiente");
 
         verify(ordenCompraRepository).existsByPresentacionComercialEnOrdenCompraPendiente(1L);
         verifyNoInteractions(catalogoProveedorRepository);
@@ -488,7 +488,7 @@ class PresentacionComercialServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BPC-03: bajaPresentacionComercial marca el estado como BAJA, persiste y retorna el DTO cuando no tiene órdenes de compra pendientes ni catálogos asociados")
+    @DisplayName("CP-BPC-03: bajaPresentacionComercial marca el estado como BAJA, persiste y retorna el DTO cuando no tiene órdenes de compra en estado Pendiente ni catálogos asociados")
     void bajaPresentacionComercial_debeMarcarBajaYRetornarPresentacionComercialExistente() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));

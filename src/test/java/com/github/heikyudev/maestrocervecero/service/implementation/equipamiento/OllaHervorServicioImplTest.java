@@ -540,7 +540,7 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MO-09: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-MO-09: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote")
     void modificarOllaHervor_debeRechazarAsociacionALotePendiente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
@@ -550,7 +550,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede modificar la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -607,7 +607,7 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote")
     void bajaOllaHervor_debeRechazarAsociacionALotePendiente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
@@ -615,7 +615,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -664,7 +664,7 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BO-07: bajaOllaHervor informa primero la etapa pendiente de un lote cuando el olla de hervor además no está disponible")
+    @DisplayName("CP-BO-07: bajaOllaHervor informa primero la etapa en estado Pendiente de un lote cuando el olla de hervor además no está disponible")
     void bajaOllaHervor_debePriorizarEtapaPendienteSobreNoDisponible() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_USO);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
@@ -672,7 +672,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(ollaHervorRepository, never()).save(any());
     }
@@ -828,7 +828,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -991,7 +991,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

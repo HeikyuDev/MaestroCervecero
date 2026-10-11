@@ -44,6 +44,7 @@ public interface IProvinciaServicio {
      * @param provinciaFormDTO Los datos de la provincia a registrar.
      * @return La provincia registrada.
      * @throws RecursoNoEncontradoException Si no existe un país activo con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si ya existe una provincia activa con el mismo nombre (case-insensitive).
      */
     ProvinciaResponseDTO altaProvincia(ProvinciaFormDTO provinciaFormDTO);
@@ -55,6 +56,7 @@ public interface IProvinciaServicio {
      * @param provinciaFormDTO Los nuevos datos de la provincia.
      * @return La provincia modificada.
      * @throws RecursoNoEncontradoException Si no existe una provincia activa con el ID especificado, o si no existe un país activo con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otra provincia activa (case-insensitive).
      */
     ProvinciaResponseDTO modificarProvincia(Long id, ProvinciaFormDTO provinciaFormDTO);

@@ -438,12 +438,12 @@ class MaceradorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MCC-22: si el service rechaza la baja (etapa pendiente o en uso) vuelve al origen con la alerta de advertencia")
     void caso_cp_mcc_22() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote")).when(maceradorServicio).bajaMacerador(4L);
+        doThrow(new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa en estado Pendiente de un lote")).when(maceradorServicio).bajaMacerador(4L);
 
         mockMvc.perform(post("/equipamiento/maceradores/4/baja").with(csrf()).header("Referer", "/equipamiento/maceradores"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/equipamiento/maceradores"))
-                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote"))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el macerador porque tiene comprometida una etapa en estado Pendiente de un lote"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 

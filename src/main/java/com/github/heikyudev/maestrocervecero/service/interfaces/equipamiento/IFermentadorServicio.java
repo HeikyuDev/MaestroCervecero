@@ -71,7 +71,7 @@ public interface IFermentadorServicio {
      * @param id ID del fermentador a dar de baja.
      * @return Objeto FermentadorResponseDTO del fermentador dado de baja.
      * @throws RecursoNoEncontradoException Si no existe un fermentador activo con el ID especificado.
-     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     FermentadorResponseDTO bajaFermentador(Long id);
 }

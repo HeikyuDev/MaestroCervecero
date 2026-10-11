@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
@@ -79,8 +80,9 @@ public class CronogramaController {
     private static final Pattern FECHA_ISO = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
 
     private static final String AVISO_PERIODO_INVALIDO = "El período indicado no es válido, se muestra el período por defecto";
-    private static final String AVISO_PERIODO_INVERTIDO = "La fecha 'hasta' no puede ser anterior a la fecha 'desde', se muestra el período por defecto";
-    private static final String AVISO_PERIODO_EXCEDIDO = "El período no puede superar los " + LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS
+    private static final String AVISO_PERIODO_INVERTIDO = "La fecha de fin del período no puede ser anterior a la fecha de inicio, se muestra el período por defecto";
+    private static final String AVISO_PERIODO_EXCEDIDO = "El período no puede superar los "
+            + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS)
             + " días (5 años), se muestra el período por defecto";
     private static final String AVISO_PAGINA_INVALIDA = "La página indicada no es válida, se muestra la primera";
     private static final String AVISO_PAGINA_INEXISTENTE = "La página indicada no existe, se muestra la última";
@@ -301,7 +303,7 @@ public class CronogramaController {
 
     /**
      * Resuelve el período a mostrar. Sin extremos, el período por defecto; con uno solo, el otro se completa a 75 días
-     * de distancia. Un extremo que no es una fecha ISO existente, un período invertido o de más de 1825 días se
+     * de distancia. Un extremo que no es una fecha ISO existente, un período invertido o de más de 1.825 días se
      * rechazan con un aviso y se muestra el período por defecto completo.
      */
     private static Periodo resolverPeriodo(String desdeTexto, String hastaTexto, LocalDate hoy, List<String> avisos) {
@@ -364,9 +366,9 @@ public class CronogramaController {
      */
     private String volverConMovimiento(LoteCronogramaResponseDTO movido, String idFermentador, String idPlanificacion,
                                        String desde, String hasta, String pagina, RedirectAttributes redirectAttributes) {
-        agregarMensaje(redirectAttributes, "Lote " + movido.getIdentificadorInterno() + " movido en la cola: ahora del "
-                + movido.getFechaInicioEstimada().format(FORMATO_FECHA) + " al "
-                + movido.getFechaFinalizacionEstimada().format(FORMATO_FECHA), TipoAlerta.SUCCESS);
+        agregarMensaje(redirectAttributes, "Lote " + movido.getIdentificadorInterno() + " movido correctamente (inicio "
+                + movido.getFechaInicioEstimada().format(FORMATO_FECHA) + ", fin "
+                + movido.getFechaFinalizacionEstimada().format(FORMATO_FECHA) + ")", TipoAlerta.SUCCESS);
 
         Long fermentador = aId(idFermentador);
         if (fermentador != null) {

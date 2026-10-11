@@ -76,7 +76,8 @@ class LevaduraControllerTest {
                 .andExpect(content().string(containsString("Gestión de Insumos")))
                 .andExpect(content().string(containsString("US-05")))
                 .andExpect(content().string(containsString("ALE")))
-                .andExpect(content().string(containsString("6.000.000.000")))
+                .andExpect(content().string(containsString("Células viables (millones/g)")))
+                .andExpect(content().string(containsString(">6.000<")))
                 .andExpect(content().string(containsString(">g<")))
                 .andExpect(content().string(containsString("href=\"/insumos/maltas\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/lupulos\"")))
@@ -258,7 +259,7 @@ class LevaduraControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-LEC-12: una cantidad de células fuera de rango rechazada por el service se muestra junto a ese campo")
     void alta_debeMostrarElErrorDeCelulasFueraDeRango() throws Exception {
-        String mensaje = "La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000";
+        String mensaje = "La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones";
         when(levaduraServicio.altaLevadura(any())).thenThrow(new ReglaNegocioException(mensaje));
 
         mockMvc.perform(post("/insumos/levaduras").with(csrf())

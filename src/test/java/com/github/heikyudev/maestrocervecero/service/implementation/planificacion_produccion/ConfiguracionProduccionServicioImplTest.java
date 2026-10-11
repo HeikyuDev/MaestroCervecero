@@ -100,7 +100,7 @@ class ConfiguracionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100 inclusive");
+                .hasMessage("El porcentaje mínimo de consumo debe estar entre 0 y 100");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }
@@ -198,7 +198,7 @@ class ConfiguracionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje mínimo de consumo para avanzar de etapa debe ser un número mayor o igual a 0");
+                .hasMessage("El porcentaje mínimo de consumo debe ser un número mayor o igual a 0");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }

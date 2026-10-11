@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.usuario;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
@@ -73,18 +75,25 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @param usuarioFormDTO Objeto DTO que contiene los datos de creación del usuario.
      * @return {@link UsuarioResponseDTO} representativo del usuario guardado en la base de datos.
      * @throws RecursoDuplicadoException Si el username provisto ya pertenece a un usuario existente.
-     * @throws ReglaNegocioException Si la contraseña no fue informada, o si no cumple las reglas de {@link MetodosPassword} (entre 8 y 72 caracteres, sin espacios en blanco).
+     * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido, el correo electrónico o el teléfono superan su longitud máxima, si la contraseña no fue informada, o si no cumple las reglas de {@link MetodosPassword} (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR,conceptoAuditoria = ConceptoAuditoria.USUARIO)
     public UsuarioResponseDTO altaUsuario(UsuarioFormDTO usuarioFormDTO) {
-        // 1. Validar si el username ya esta registrado
+        // 1. Validar la longitud máxima de los datos de texto
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getUsername(), LimitesTecnicos.LONGITUD_MAXIMA_USERNAME, "El nombre de usuario");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getApellido(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El apellido");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getCorreo(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getTelefono(), LimitesTecnicos.LONGITUD_MAXIMA_TELEFONO, "El teléfono");
+
+        // 2. Validar si el username ya esta registrado
         if(usuarioRepository.existsByUsername(usuarioFormDTO.getUsername())){
-            throw new RecursoDuplicadoException("El Username ya esta registrado");
+            throw new RecursoDuplicadoException("El nombre de usuario '" + usuarioFormDTO.getUsername() + "' ya está en uso");
         }
 
-        // 2. Validar que se haya informado una contraseña y que cumpla las reglas (el encoder no
+        // 3. Validar que se haya informado una contraseña y que cumpla las reglas (el encoder no
         //    acepta null ni más de 72 bytes: lanzaría una excepción sin controlar en lugar de una
         //    regla de negocio clara)
         if (usuarioFormDTO.getPassword() == null || usuarioFormDTO.getPassword().isEmpty()) {
@@ -92,7 +101,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         }
         MetodosPassword.validarPassword(usuarioFormDTO.getPassword());
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos
+        // 4. Creo la entidad que se va a almacenar en la base de datos
         UsuarioEntity usuarioEntity = UsuarioEntity.builder()
                 .username(usuarioFormDTO.getUsername())
                 .password(passwordEncoder.encode(usuarioFormDTO.getPassword()))
@@ -104,7 +113,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(usuarioRepository.save(usuarioEntity));
     }
 
@@ -121,24 +130,31 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @return {@link UsuarioResponseDTO} representativo del usuario con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza el usuario por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo username ya se encuentra asignado a otra cuenta.
-     * @throws ReglaNegocioException Si se envía una contraseña que no cumple las reglas (entre 8 y 72 caracteres, sin espacios en blanco).
+     * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido, el correo electrónico o el teléfono superan su longitud máxima, o si se envía una contraseña que no cumple las reglas (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR,conceptoAuditoria = ConceptoAuditoria.USUARIO)
     public UsuarioResponseDTO modificarUsuario(Long id, UsuarioFormDTO usuarioFormDTO) {
+        // 1. Validar la longitud máxima de los datos de texto
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getUsername(), LimitesTecnicos.LONGITUD_MAXIMA_USERNAME, "El nombre de usuario");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getApellido(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El apellido");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getCorreo(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico");
+        ValidacionesNumericas.validarLongitudMaxima(usuarioFormDTO.getTelefono(), LimitesTecnicos.LONGITUD_MAXIMA_TELEFONO, "El teléfono");
+
 
         UsuarioEntity usuarioEntity = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario con ID: " + id));
 
-        // 1. Se valida duplicación ÚNICAMENTE si el username cambió respecto al actual
+        // 2. Se valida duplicación ÚNICAMENTE si el username cambió respecto al actual
         if (!usuarioEntity.getUsername().equalsIgnoreCase(usuarioFormDTO.getUsername())) {
             if (usuarioRepository.existsByUsername(usuarioFormDTO.getUsername())) {
                 throw new RecursoDuplicadoException("El nombre de usuario '" + usuarioFormDTO.getUsername() + "' ya está en uso");
             }
         }
 
-        // 2. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
+        // 3. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
         //    envía algo, tiene que ser válida: un texto en blanco NO cuenta como "no enviada", se
         //    rechaza (antes se ignoraba en silencio). Se valida antes de tocar la entidad.
         String password = usuarioFormDTO.getPassword();
@@ -154,7 +170,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         usuarioEntity.setTelefono(usuarioFormDTO.getTelefono());
         usuarioEntity.setRol(usuarioFormDTO.getRol());
 
-        // 3. La contraseña solo se actualiza si fue enviada, y se encripta
+        // 4. La contraseña solo se actualiza si fue enviada, y se encripta
         if (cambiaPassword) {
             usuarioEntity.setPassword(passwordEncoder.encode(password));
         }

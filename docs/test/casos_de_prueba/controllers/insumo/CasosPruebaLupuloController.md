@@ -9,7 +9,7 @@
 - _"Vuelve al formulario"_ significa respuesta 200 con la vista `insumo/lupulo-form`, sin redirigir, para conservar lo tipeado.
 - _"Alta contextual"_ es el alta abierta desde el selector de otro formulario: llegan los parámetros `retorno` (ruta interna del formulario de origen) y `campo` (campo que recibe el id creado). Al guardar redirige a `retorno` agregando `campo=<id>` y `desdeAlta=1`.
 - La unidad de medida (gramos) la fija el sistema: el formulario no la pide, lo aclara una sola vez en la cabecera de la sección "Datos del lúpulo" (no junto a ningún campo) y las listas la muestran.
-- Todos los campos de texto y numéricos tienen un placeholder con un ejemplo (ej. "Ej: Cascade", "Ej: 5.5").
+- Todos los campos de texto y numéricos tienen un placeholder con un ejemplo (ej. "Ej: Cascade", "Ej: 5,5").
 
 ---
 
@@ -17,7 +17,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-LUC-01** | Listado para el gerente de producción | Rol `GERENTE_DE_PRODUCCION`. El service devuelve 1 lúpulo (`id: 6`, "Cascade", `PELLET`, AA 5.5, `GRAMO`) | El rol está autorizado | Responde 200 con la vista `insumo/lupulo-lista`. Muestra "Gestión de Insumos", nombre, formato, "5,50 %" y la unidad "g"; las pestañas hacia `/insumos/maltas` y `/insumos/levaduras`; el link de alta `/insumos/lupulos/nuevo`, el de edición `/insumos/lupulos/6/editar` y el botón de baja con `data-baja-url="/insumos/lupulos/6/baja"`. El diálogo de confirmación de baja incluye el token CSRF. |
+| **CP-LUC-01** | Listado para el gerente de producción | Rol `GERENTE_DE_PRODUCCION`. El service devuelve 1 lúpulo (`id: 6`, "Cascade", `PELLET`, AA 5.5, `GRAMO`) | El rol está autorizado | Responde 200 con la vista `insumo/lupulo-lista`. Muestra "Gestión de Insumos", nombre, formato, la columna "Ácidos alfa (%)" con "5,50" y la unidad "g"; las pestañas hacia `/insumos/maltas` y `/insumos/levaduras`; el link de alta `/insumos/lupulos/nuevo`, el de edición `/insumos/lupulos/6/editar` y el botón de baja con `data-baja-url="/insumos/lupulos/6/baja"`. El diálogo de confirmación de baja incluye el token CSRF. |
 | **CP-LUC-02** | Paginación y orden alfabético por defecto | Rol `GERENTE_DE_PRODUCCION`, sin parámetros | Sin criterios. Lúpulo es un módulo maestro | Llama al service con `nombre: null`, `formato: null` y un `Pageable` de 20 elementos, página 0, ordenado de forma ascendente por `nombre` (sin distinguir mayúsculas) y por `id` como desempate. |
 | **CP-LUC-03** | Criterios de búsqueda hacia el service | `nombre: " cas "`, `formato: FLOR`, `pagina: 1`; y por separado `nombre: "   "`, `formato: ""` (opción "Todos") | Un texto en blanco o un select vacío equivale a no filtrar | Llama al service con `nombre: "cas"` y `formato: FLOR` en la página 1; con los valores vacíos lo llama con `nombre: null` y `formato: null`. |
 | **CP-LUC-04** | Listado sin resultados | El service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron lúpulos con los criterios indicados" en lugar de una tabla vacía. |
@@ -29,7 +29,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-LUC-06** | Formulario de alta | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `insumo/lupulo-form`. Muestra "Nuevo lúpulo", el asterisco rojo de obligatorio, `action="/insumos/lupulos"`, las opciones de formato (ej. `PELLET`), la aclaración de que la unidad la define el sistema (en la cabecera de la sección), los placeholders "Ej: Cascade" y "Ej: 5.5", la ayuda "Un número mayor a 0 y hasta 25.", el botón "Crear lúpulo" y el link "Volver a lúpulos". No incluye el campo `retorno` ni el panel de errores. |
+| **CP-LUC-06** | Formulario de alta | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `insumo/lupulo-form`. Muestra "Nuevo lúpulo", el asterisco rojo de obligatorio, `action="/insumos/lupulos"`, las opciones de formato (ej. `PELLET`), la aclaración de que la unidad la define el sistema (en la cabecera de la sección), los placeholders "Ej: Cascade" y "Ej: 5,5", la ayuda "Un número mayor a 0 y hasta 25.", el botón "Crear lúpulo" y el link "Volver a lúpulos". No incluye el campo `retorno` ni el panel de errores. |
 | **CP-LUC-07** | Alta contextual: se conservan retorno y campo | `retorno: "/recetas/nueva"`, `campo: "idLupulo"` | El alta se abre desde el selector de otro formulario | Incluye los campos ocultos `retorno` y `campo`. El link de volver dice "Volver al formulario anterior" y apunta a `/recetas/nueva?desdeAlta=1`. |
 | **CP-LUC-08** | Rol no autorizado | Rol `ADMINISTRADOR` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 

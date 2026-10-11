@@ -829,7 +829,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         if (!insumosInsuficientes.isEmpty()) {
             throw new ReglaNegocioException("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el "
-                    + porcentajeMinimo + "% mínimo de consumo requerido: " + String.join(", ", insumosInsuficientes));
+                    + ValidacionesNumericas.formatearNumero(porcentajeMinimo) + "% mínimo de consumo requerido: " + String.join(", ", insumosInsuficientes));
         }
     }
 
@@ -1206,7 +1206,7 @@ public class LoteServicioImpl implements ILoteServicio {
     private void validarDisponible(EquipamientoEntity equipamiento, String etiqueta) {
         if (equipamiento.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
             throw new ReglaNegocioException(etiqueta + " '" + equipamiento.getIdentificadorInterno()
-                    + "' no se encuentra disponible (estado actual: " + equipamiento.getEstadoOperativo() + ")");
+                    + "' no se encuentra disponible (estado actual: " + equipamiento.getEstadoOperativo().getEtiqueta() + ")");
         }
     }
 
@@ -1391,7 +1391,8 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException("La fecha de fin del período no puede ser anterior a la fecha de inicio");
         }
         if (ChronoUnit.DAYS.between(desde, hasta) > LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS) {
-            throw new ReglaNegocioException("El período del cronograma no puede superar los " + LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS + " días (5 años)");
+            throw new ReglaNegocioException("El período del cronograma no puede superar los "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS) + " días (5 años)");
         }
 
         // 2. Si se pidió un fermentador puntual, validar que exista; un fermentador dado de baja es válido porque sus lotes

@@ -108,7 +108,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(view().name("planificacion_produccion/planificacion-lista"))
                 .andExpect(content().string(containsString("Planificación de Producción")))
                 .andExpect(content().string(containsString("Receta</th>")))
-                .andExpect(content().string(containsString("Litros a producir (L)")))
+                .andExpect(content().string(containsString("Cantidad a producir (L)")))
                 .andExpect(content().string(containsString("Inicio estimado")))
                 .andExpect(content().string(containsString("Fin estimado")))
                 .andExpect(content().string(containsString("Estado</th>")))
@@ -235,7 +235,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-buscador-url=\"/planificaciones-produccion/buscador/recetas\"")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccionar receta\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione receta\"")))
                 .andExpect(content().string(containsString("bi bi-list-ul")))
                 .andExpect(content().string(containsString("data-selector-limpiar")))
                 .andExpect(content().string(not(containsString("data-selector-alta"))))
@@ -287,6 +287,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("Finalizar planificación")))
                 .andExpect(content().string(containsString("Anular planificación")))
                 .andExpect(content().string(containsString("name=\"motivo\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: Se completó la producción prevista con menos lotes\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Se canceló el pedido del cliente\"")))
                 .andExpect(content().string(containsString("<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>")))
                 .andExpect(content().string(containsString("data-cerrar-dialogo")))
@@ -372,10 +373,10 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("action=\"/planificaciones-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString("Datos de la planificación")))
-                .andExpect(content().string(containsString("Cantidad a producir (litros)")))
+                .andExpect(content().string(containsString("Cantidad a producir (L)")))
                 .andExpect(content().string(containsString("Fecha de inicio estimada")))
-                .andExpect(content().string(containsString("Fecha de fin estimada")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccionar receta\"")))
+                .andExpect(content().string(containsString("Fecha de finalización estimada")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione receta\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 600\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 01/07/2027\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 25/07/2027\"")))
@@ -404,7 +405,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-17: junto a la fecha de fin hay un botón \"Sugerir fecha\" y un área para la ayuda; el botón no corre solo (sin disparadores automáticos) y el script es un archivo propio")
+    @DisplayName("CP-PPC-17: junto a la fecha de finalización hay un botón \"Sugerir fecha\" y un área para la ayuda; el botón no corre solo (sin disparadores automáticos) y el script es un archivo propio")
     void formularioAlta_elBotonSugerirFechaNoCorreSolo() throws Exception {
         mockMvc.perform(get("/planificaciones-produccion/nueva"))
                 .andExpect(status().isOk())
@@ -499,7 +500,8 @@ class PlanificacionProduccionControllerTest {
                         .param("fechaInicioEstimada", "no-es-fecha").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
-                .andExpect(content().string(containsString("Ingrese un número válido")));
+                .andExpect(content().string(containsString("Ingrese un número válido")))
+                .andExpect(content().string(containsString("El valor ingresado no es una fecha válida")));
 
         verifyNoInteractions(planificacionServicio);
     }
@@ -587,12 +589,12 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(view().name("planificacion_produccion/planificacion-detalle"))
                 .andExpect(content().string(containsString("Estado actual de la planificación")))
                 .andExpect(content().string(containsString("Pale Ale")))
-                .andExpect(content().string(containsString("Litros a producir (L)")))
+                .andExpect(content().string(containsString("Cantidad a producir (L)")))
                 .andExpect(content().string(containsString("01/07/2027")))
                 .andExpect(content().string(containsString("25/07/2027")))
                 // Contadores
                 .andExpect(content().string(containsString("Lotes totales")))
-                .andExpect(content().string(containsString("Planificados (Pendiente)")))
+                .andExpect(content().string(containsString("Pendientes")))
                 .andExpect(content().string(matchesPattern("(?s).*data-contador=\"totales\"[^>]*>4<.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-contador=\"pendientes\"[^>]*>1<.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-contador=\"en-ejecucion\"[^>]*>1<.*")))
@@ -615,14 +617,14 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("Fin real")))
                 .andExpect(content().string(containsString("PALE_ALE-R7-1")))
                 .andExpect(content().string(containsString(">PALE_ALE-R7-4<")))
-                .andExpect(content().string(not(containsString("Todavía no hay lotes registrados para esta planificación"))))
+                .andExpect(content().string(not(containsString("No hay lotes registrados para esta planificación"))))
                 .andExpect(content().string(not(containsString(">EN_EJECUCION<"))))
                 .andExpect(content().string(containsString(">En ejecución<")));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-28: sin lotes el cronograma y la tabla muestran el mensaje \"Todavía no hay lotes registrados para esta planificación\" y los contadores quedan en cero")
+    @DisplayName("CP-PPC-28: sin lotes el cronograma y la tabla muestran el mensaje \"No hay lotes registrados para esta planificación\" y los contadores quedan en cero")
     void detalle_sinLotesMuestraElMensajeVacio() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
@@ -638,14 +640,14 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-29: una planificación Pendiente muestra Finalizar y Anular en la cabecera, con sus diálogos, y \"Volver al listado\"")
+    @DisplayName("CP-PPC-29: una planificación Pendiente muestra Finalizar y Anular en la cabecera, con sus diálogos, y \"Volver a planificaciones\"")
     void detalle_pendienteMuestraLosBotonesDeCierre() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
 
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Volver al listado")))
+                .andExpect(content().string(containsString("Volver a planificaciones")))
                 .andExpect(content().string(containsString("href=\"/planificaciones-produccion\"")))
                 .andExpect(content().string(containsString("data-motivo-url=\"/planificaciones-produccion/7/finalizar\"")))
                 .andExpect(content().string(containsString("data-motivo-url=\"/planificaciones-produccion/7/anular\"")))
@@ -702,7 +704,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("Estado actual de la planificación")))
                 .andExpect(content().string(containsString("data-gantt")))
                 .andExpect(content().string(containsString("PALE_ALE-R7-1")))
-                .andExpect(content().string(containsString("Volver al listado")))
+                .andExpect(content().string(containsString("Volver a planificaciones")))
                 .andExpect(content().string(not(containsString("data-motivo-url"))))
                 .andExpect(content().string(not(containsString("dialogo-finalizar"))))
                 .andExpect(content().string(not(containsString("dialogo-anular"))));
@@ -973,7 +975,7 @@ class PlanificacionProduccionControllerTest {
                         .param("idReceta", "").param("cantidadAProducir", "600").param("fechaInicioEstimada", "2027-07-01"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-sugerencia-error")))
-                .andExpect(content().string(containsString("Elija una receta para sugerir la fecha de finalización")))
+                .andExpect(content().string(containsString("Seleccione una receta para sugerir la fecha de finalización")))
                 .andExpect(content().string(not(containsString("data-fecha-sugerida"))));
 
         verifyNoInteractions(planificacionServicio);
@@ -1111,8 +1113,8 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
-                // La columna va justo después de "Litros (L)" (título completo: "Litros a producir (L)")
-                .andExpect(content().string(matchesPattern("(?s).*>Litros \\(L\\)</th>\\s*<th[^>]*>Producido \\(L\\)</th>.*")))
+                // La columna va justo después de "Cantidad (L)" (título completo: "Cantidad a producir (L)")
+                .andExpect(content().string(matchesPattern("(?s).*>Cantidad \\(L\\)</th>\\s*<th[^>]*>Producido \\(L\\)</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>2\\.350<.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>250,5<.*")))
                 .andExpect(content().string(matchesPattern("(?s).*data-litros-producidos[^>]*>0<.*")))
@@ -1171,7 +1173,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-62: la leyenda explica los tres colores y las marcas (Planificado, En ejecución, Finalizado, Limpieza, Hoy e Inicio y fin estimados de la planificación)")
+    @DisplayName("CP-PPC-62: la leyenda explica los tres colores y las marcas (Pendiente, En ejecución, Finalizado, Limpieza, Hoy e Inicio y fin estimados de la planificación)")
     void detalle_laLeyendaExplicaLosTresColoresYLasMarcas() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
@@ -1182,7 +1184,7 @@ class PlanificacionProduccionControllerTest {
         Matcher m = Pattern.compile("(?s)aria-label=\"Leyenda del diagrama\">(.*?)</ul>").matcher(html);
         assertThat(m.find()).isTrue();
         String leyenda = m.group(1);
-        List<String> ordenadas = List.of("Planificado", "En ejecuci", "Finalizado", "Limpieza", "Hoy", "Inicio y fin estimados de la planificaci");
+        List<String> ordenadas = List.of("Pendiente", "En ejecuci", "Finalizado", "Limpieza", "Hoy", "Inicio y fin estimados de la planificaci");
         for (int i = 1; i < ordenadas.size(); i++) {
             assertThat(leyenda.indexOf(ordenadas.get(i - 1))).isGreaterThanOrEqualTo(0).isLessThan(leyenda.indexOf(ordenadas.get(i)));
         }
@@ -1365,7 +1367,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-71: el estado actual de una planificación pendiente incluye el link \"Ver receta\" junto a \"Volver al listado\"")
+    @DisplayName("CP-PPC-71: el estado actual de una planificación pendiente incluye el link \"Ver receta\" junto a \"Volver a planificaciones\"")
     void detalle_debeMostrarElBotonVerReceta() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
@@ -1374,7 +1376,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/planificaciones-produccion/7/receta\"")))
                 .andExpect(content().string(containsString("Ver receta")))
-                .andExpect(content().string(matchesPattern("(?s).*Volver al listado.*?<a [^>]*href=\"/planificaciones-produccion/7/receta\"[^>]*whitespace-nowrap[^>]*>\\s*<i class=\"bi bi-journal-text\"></i> Ver receta.*")));
+                .andExpect(content().string(matchesPattern("(?s).*Volver a planificaciones.*?<a [^>]*href=\"/planificaciones-produccion/7/receta\"[^>]*whitespace-nowrap[^>]*>\\s*<i class=\"bi bi-journal-text\"></i> Ver receta.*")));
     }
 
     @Test
@@ -1529,7 +1531,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
-                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
+                .andExpect(content().string(containsString("Tiempo de hervor")))
                 .andExpect(content().string(matchesPattern(
                         "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*"
                                 + "Citra.*?>\\s*Flor\\s*<.*?>\\s*12\\s*<.*?>\\s*Dry hop\\s*<.*?>\\s*Fermentación\\s*<.*?>\\s*-\\s*<.*?>\\s*40\\s*<.*"
@@ -1573,7 +1575,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-82: la pantalla es de solo lectura: sin Modificar, sin links a la receta, sin baja y sin formularios en su contenido")
+    @DisplayName("CP-PPC-82: la pantalla es de solo lectura: sin Editar, sin links a la receta, sin baja y sin formularios en su contenido")
     void recetaDePlanificacion_esDeSoloLectura() throws Exception {
         when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
 
@@ -1584,7 +1586,7 @@ class PlanificacionProduccionControllerTest {
         Matcher contenido = Pattern.compile("(?s)<main.*?</main>").matcher(html);
         assertThat(contenido.find()).isTrue();
         assertThat(contenido.group())
-                .doesNotContain("Modificar")
+                .doesNotContain("Editar")
                 .doesNotContain("/recetas/3/editar")
                 .doesNotContain("/recetas/3")
                 .doesNotContain("data-baja-url")
@@ -1604,7 +1606,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*<a [^>]*href=\"/planificaciones-produccion/7\"[^>]*>\\s*<i class=\"bi bi-arrow-left\"></i> Volver a la planificación.*")))
-                .andExpect(content().string(not(containsString("Volver al listado"))));
+                .andExpect(content().string(not(containsString("Volver a planificaciones"))));
     }
 
     @Test
@@ -1691,7 +1693,7 @@ class PlanificacionProduccionControllerTest {
     private static org.springframework.test.web.servlet.ResultMatcher matchesMensajeVacioDosVeces() {
         return result -> {
             String html = result.getResponse().getContentAsString();
-            String mensaje = "Todavía no hay lotes registrados para esta planificación";
+            String mensaje = "No hay lotes registrados para esta planificación";
             assertThat(html.split(mensaje, -1).length - 1).isEqualTo(2);
         };
     }

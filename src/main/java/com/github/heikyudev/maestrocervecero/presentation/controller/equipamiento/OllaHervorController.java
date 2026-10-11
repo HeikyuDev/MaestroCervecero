@@ -157,7 +157,7 @@ public class OllaHervorController {
     }
 
     /**
-     * Da de baja (lógica) a la olla de hervor. Si tiene una etapa pendiente de un lote o está en uso, el service
+     * Da de baja (lógica) a la olla de hervor. Si tiene una etapa en estado Pendiente de un lote o está en uso, el service
      * lo rechaza y el {@code ControllerAdvices} muestra el motivo.
      */
     @PostMapping("/{id}/baja")

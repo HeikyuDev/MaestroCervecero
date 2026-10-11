@@ -61,7 +61,7 @@ public interface IMolinoServicio {
      * @param id ID del molino a dar de baja.
      * @return MolinoResponseDTO del molino dado de baja.
      * @throws RecursoNoEncontradoException Si no existe un molino activo con el ID especificado.
-     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     MolinoResponseDTO bajaMolino(Long id);
 }

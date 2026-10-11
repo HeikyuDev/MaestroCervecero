@@ -62,7 +62,7 @@ public interface IMaceradorServicio {
      * @param id ID del macerador a dar de baja.
      * @return MaceradorResponseDTO del macerador dado de baja.
      * @throws RecursoNoEncontradoException Si no existe un macerador activo con el ID especificado.
-     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     MaceradorResponseDTO bajaMacerador(Long id);
 }

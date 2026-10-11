@@ -139,7 +139,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La levadura no existe");
+                .hasMessage("No se encontró la levadura con ID: 99");
         verify(levaduraRepository).findById(99L);
     }
 
@@ -165,7 +165,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -177,7 +177,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -189,7 +189,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -201,7 +201,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -327,7 +327,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, levaduraFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(levaduraRepository);
@@ -341,7 +341,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(99L, levaduraFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La levadura no existe");
+                .hasMessage("No se encontró la levadura con ID: 99");
 
         verify(levaduraRepository).findById(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de nombre
@@ -445,7 +445,7 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BL-05: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura forma parte de una planificación de producción pendiente")
+    @DisplayName("CP-BL-05: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura forma parte de una planificación de producción en estado Pendiente")
     void bajaLevadura_debeRechazarSiFormaParteDePlanificacionPendiente() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
@@ -454,14 +454,14 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la levadura porque forma parte de una planificación de producción pendiente");
+                .hasMessage("No se puede dar de baja la levadura porque forma parte de una planificación de producción en estado Pendiente");
 
         verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
         verify(levaduraRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BL-06: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura se encuentra en una orden de compra pendiente")
+    @DisplayName("CP-BL-06: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura se encuentra en una orden de compra en estado Pendiente")
     void bajaLevadura_debeRechazarSiSeEncuentraEnOrdenCompraPendiente() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
@@ -471,7 +471,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la levadura porque se encuentra en al menos una orden de compra pendiente");
+                .hasMessage("No se puede dar de baja la levadura porque se encuentra en al menos una orden de compra en estado Pendiente");
 
         verifyNoInteractions(catalogoProveedorRepository, loteInsumoRepository);
         verify(levaduraRepository, never()).save(any());
@@ -514,7 +514,7 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BL-04: bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados")
+    @DisplayName("CP-BL-04: bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra en estado Pendiente, catálogo de proveedor activo ni stock asociados")
     void bajaLevadura_debeMarcarBajaYRetornarLevaduraExistente() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
@@ -556,7 +556,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -568,7 +568,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000");
+                .hasMessage("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
 
         verifyNoInteractions(levaduraRepository);
     }

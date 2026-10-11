@@ -219,7 +219,7 @@ class RecetaControllerTest {
         mockMvc.perform(get("/recetas"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Dar de baja receta")))
-                .andExpect(content().string(containsString("Si tiene una planificación de producción pendiente, el sistema no lo permitirá.")))
+                .andExpect(content().string(containsString("Si tiene una planificación de producción en estado Pendiente, el sistema no lo permitirá.")))
                 .andExpect(content().string(matchesPattern("(?s).*<dialog id=\"dialogo-baja\".*name=\"_csrf\".*</dialog>.*")));
     }
 
@@ -288,7 +288,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Levaduras (cantidad en g)")))
                 .andExpect(content().string(matchesPattern("(?s).*US-05.*?>\\s*Ale\\s*<.*?>\\s*11,5\\s*<.*")))
                 // Botones
-                .andExpect(content().string(containsString("Volver al listado")))
+                .andExpect(content().string(containsString("Volver a recetas")))
                 .andExpect(content().string(containsString("href=\"/recetas\"")))
                 .andExpect(content().string(containsString("href=\"/recetas/7/editar\"")))
                 .andExpect(content().string(not(containsString("NaN"))));
@@ -303,7 +303,7 @@ class RecetaControllerTest {
         mockMvc.perform(get("/recetas/7"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
-                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
+                .andExpect(content().string(containsString("Tiempo de hervor")))
                 .andExpect(content().string(matchesPattern(
                         "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*")))
                 .andExpect(content().string(matchesPattern(
@@ -337,8 +337,8 @@ class RecetaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-detalle"))
                 .andExpect(content().string(containsString(">R7<")))
-                .andExpect(content().string(containsString("Volver al listado")))
-                .andExpect(content().string(containsString("Modificar")))
+                .andExpect(content().string(containsString("Volver a recetas")))
+                .andExpect(content().string(containsString("Editar")))
                 .andExpect(content().string(containsString("href=\"/recetas/7/editar\"")))
                 .andExpect(content().string(not(containsString("Versión vigente"))))
                 .andExpect(content().string(not(containsString("Versión histórica"))))
@@ -463,7 +463,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: 10\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 7\"")))
                 // Las unidades van en la etiqueta de cada campo y en la cabecera de cada columna
-                .andExpect(content().string(containsString("Volumen base (litros)")))
+                .andExpect(content().string(containsString("Volumen base (L)")))
                 .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
                 .andExpect(content().string(containsString("IBU objetivo (IBU)")))
                 .andExpect(content().string(containsString("Maceración (minutos)")))
@@ -472,7 +472,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Maduración (días)")))
                 .andExpect(content().string(containsString("Cantidad (kg)")))
                 .andExpect(content().string(containsString("Cantidad (g)")))
-                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
+                .andExpect(content().string(containsString("Tiempo de hervor (minutos)")))
                 // Botones de agregar y tablas vacias con su texto
                 .andExpect(content().string(containsString("Agregar malta")))
                 .andExpect(content().string(containsString("Agregar lúpulo")))
@@ -480,9 +480,9 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("data-abrir-agregar=\"malta\"")))
                 .andExpect(content().string(containsString("data-abrir-agregar=\"lupulo\"")))
                 .andExpect(content().string(containsString("data-abrir-agregar=\"levadura\"")))
-                .andExpect(content().string(containsString("Todavía no se agregaron maltas a la receta")))
-                .andExpect(content().string(containsString("Todavía no se agregaron lúpulos a la receta")))
-                .andExpect(content().string(containsString("Todavía no se agregaron levaduras a la receta")))
+                .andExpect(content().string(containsString("No hay maltas en la receta")))
+                .andExpect(content().string(containsString("No hay lúpulos en la receta")))
+                .andExpect(content().string(containsString("No hay levaduras en la receta")))
                 // Sin alta contextual de insumos, etapas ni parametros
                 .andExpect(content().string(not(containsString("data-selector-alta"))))
                 .andExpect(content().string(not(containsString("data-selector-menu"))))
@@ -508,9 +508,9 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("data-buscador-url=\"/recetas/buscador/maltas\"")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/recetas/buscador/lupulos\"")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/recetas/buscador/levaduras\"")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccionar malta\"")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccionar lúpulo\"")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccionar levadura\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione malta\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione lúpulo\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione levadura\"")))
                 .andExpect(content().string(containsString("bi bi-list-ul")))
                 // Unidades en la etiqueta de cada campo y placeholders de ejemplo de la cantidad
                 .andExpect(content().string(containsString("Cantidad (kg) <span")))
@@ -569,7 +569,7 @@ class RecetaControllerTest {
         mockMvc.perform(get("/recetas/7/editar"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-form"))
-                .andExpect(content().string(containsString("Modificar receta")))
+                .andExpect(content().string(containsString("Editar receta")))
                 .andExpect(content().string(containsString("action=\"/recetas/7\"")))
                 .andExpect(content().string(containsString("Guardar cambios")))
                 .andExpect(content().string(containsString("Al guardar se registra una nueva versi")))
@@ -719,7 +719,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("La receta debe tener al menos una levadura")))
                 .andExpect(content().string(containsString("border-rose-400")))
                 // El mensaje de la tabla aparece debajo de ella, ademas de en el resumen
-                .andExpect(content().string(matchesPattern("(?s).*Todav.a no se agregaron maltas.*text-rose-600\">La receta debe tener al menos una malta<.*")));
+                .andExpect(content().string(matchesPattern("(?s).*No hay maltas en la receta.*text-rose-600\">La receta debe tener al menos una malta<.*")));
 
         verify(recetaServicio, never()).altaReceta(any());
     }
@@ -859,7 +859,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("No se pudo modificar la receta")))
                 .andExpect(content().string(containsString("El nombre de la receta es obligatorio")))
                 .andExpect(content().string(containsString("action=\"/recetas/7\"")))
-                .andExpect(content().string(containsString("Modificar receta")))
+                .andExpect(content().string(containsString("Editar receta")))
                 .andExpect(matchesPatternLocal("data-celda=\"nombre\">Pilsen<"));
         verify(recetaServicio, never()).modificarReceta(any(), any());
 
@@ -1169,9 +1169,9 @@ class RecetaControllerTest {
                 aviso("insumo", "Seleccione un insumo"),
                 aviso("duplicado", "Ese lúpulo ya está en la receta con el mismo uso y tiempo de hervor"),
                 aviso("cantidad", "Ingrese una cantidad mayor a 0"),
-                aviso("uso", "Elija el uso del lúpulo"),
+                aviso("uso", "Seleccione el uso del lúpulo"),
                 aviso("tiempoDeHervor", "Ingrese el tiempo de hervor en minutos (mayor a 0)"),
-                aviso("etapaDeUso", "Elija la etapa de uso"));
+                aviso("etapaDeUso", "Seleccione la etapa de uso"));
     }
 
     /** Fragmento de la ventana emergente "agregar" del tipo indicado (malta, lupulo o levadura). */

@@ -3634,7 +3634,7 @@ class LoteServicioImplTest {
         verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
         assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(null, LocalDate.of(2018, 1, 1), LocalDate.of(2023, 1, 1)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El período del cronograma no puede superar los 1825 días (5 años)");
+                .hasMessage("El período del cronograma no puede superar los 1.825 días (5 años)");
         verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
     }
 

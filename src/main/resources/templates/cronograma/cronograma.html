@@ -34,7 +34,7 @@
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Planificación a destacar</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacion', ${filtroIdPlanificacion}, ${filtroPlanificacionTexto},
-                    @{/cronograma-produccion/buscador/planificaciones}, null, null, true, false, 'Seleccionar planificación')}"></div>
+                    @{/cronograma-produccion/buscador/planificaciones}, null, null, true, false, 'Seleccione planificación')}"></div>
         </div>
         <div>
             <label for="desde" class="block text-xs font-medium text-slate-500 mb-1">Desde</label>
@@ -51,7 +51,7 @@
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
             <button type="submit"
                     class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                <i class="bi bi-funnel"></i> Aplicar
+                <i class="bi bi-funnel"></i> Buscar
             </button>
         </div>
     </form>
@@ -161,8 +161,8 @@
                     <th class="px-2 py-3 whitespace-nowrap">#</th>
                     <th class="px-2 py-3 whitespace-nowrap">Lote</th>
                     <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Receta</th>
-                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Plan</th>
-                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Vol. (L)</th>
+                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Planificación</th>
+                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Volumen (L)</th>
                     <th class="px-2 py-3 whitespace-nowrap">Inicio</th>
                     <th class="px-2 py-3 whitespace-nowrap">Fin</th>
                     <th class="px-2 py-3 text-right whitespace-nowrap">Mover</th>

@@ -13,28 +13,30 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Provincia encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `ProvinciaResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|Provincia inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "La provincia no existe".|
+|**CP-BI-02**|Provincia inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la provincia con ID: 99".|
 
 ### 3. `altaProvincia(ProvinciaFormDTO provinciaFormDTO)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-APR-01**|País asociado inexistente|`idPais: 99L` (No existe en BD), `nombre: "Misiones"`|`paisRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "El país no existe". No valida duplicación ni ejecuta `save()`.|
+|**CP-APR-01**|País asociado inexistente|`idPais: 99L` (No existe en BD), `nombre: "Misiones"`|`paisRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el país con ID: 99". No valida duplicación ni ejecuta `save()`.|
 |**CP-APR-02**|Nombre duplicado en el mismo país|`idPais: 1L` (Existe), `nombre: "Misiones"` (Ya registrada en ese país)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-APR-03**|Nombre duplicado Case-Insensitive|`idPais: 1L`, `nombre: "misiones"` (Existe `"Misiones"` en ese país)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-APR-04**|Mismo nombre en distinto país _(Válido)_|`idPais: 2L` (Existe), `nombre: "Misiones"` (Registrada solo en el `idPais: 1L`)|`existsByNombreIgnoreCaseAndPaisId` $\rightarrow$ **FALSE**|Persiste la entidad asociada al país 2, con `estado = ACTIVO`, y retorna DTO.|
 |**CP-APR-05**|Alta exitosa _(Camino feliz)_|`idPais: 1L` (Existe), `nombre: "Corrientes"` (Único en ese país)|Todas las validaciones $\rightarrow$ **FALSE**|Persiste la entidad con `nombre`, `pais` y `estado = ACTIVO` asignados, y retorna DTO.|
+|**CP-APR-06**|Nombre de más de 100 caracteres _(Límite)_|`nombre`: 101 caracteres, `idPais: 1L`|Longitud del nombre `> 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD ni ejecuta `save()`.|
 
 ### 4. `modificarProvincia(Long id, ProvinciaFormDTO provinciaFormDTO)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-MPR-01**|Provincia no encontrada por ID|`id: 99L` (No existe en BD), DTO válido|`provinciaRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "La provincia no existe". No consulta `paisRepository` ni persiste.|
-|**CP-MPR-02**|País asociado inexistente|`id: 1L` (Existe), `idPais: 99L` (No existe en BD)|`paisRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "El país no existe". No valida duplicación ni ejecuta `save()`.|
+|**CP-MPR-01**|Provincia no encontrada por ID|`id: 99L` (No existe en BD), DTO válido|`provinciaRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la provincia con ID: 99". No consulta `paisRepository` ni persiste.|
+|**CP-MPR-02**|País asociado inexistente|`id: 1L` (Existe), `idPais: 99L` (No existe en BD)|`paisRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el país con ID: 99". No valida duplicación ni ejecuta `save()`.|
 |**CP-MPR-03**|Nombre en uso por otra provincia del mismo país|`id: 1L`, `idPais: 1L`, `nombre: "Corrientes"` (Pertenece a la `id: 2L` del mismo país)|`existsByNombreIgnoreCaseAndPaisIdAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-MPR-04**|Conservar el nombre propio actual|`id: 1L`, `idPais: 1L`, `nombre: "misiones"` (Misma provincia)|`existsByNombreIgnoreCaseAndPaisIdAndIdNot` $\rightarrow$ **FALSE**|Permite actualizar, persiste y retorna DTO.|
 |**CP-MPR-05**|Reasignación de país|`id: 1L` (Actualmente del `idPais: 1L`), `idPais: 2L` (Existe), `nombre` libre en el país destino|Validaciones OK contra el nuevo `idPais`|Actualiza `nombre` y `pais`, ejecuta `save()` y retorna DTO con el país 2.|
 |**CP-MPR-06**|Modificación exitosa _(Camino Feliz)_|`id: 1L` (Existe), `idPais: 1L` (Existe), `nombre: "Misiones Actualizada"` (Libre)|Provincia y país encontrados, nombre libre|Actualiza los campos `nombre` y `pais`, ejecuta `save()` y retorna DTO actualizado.|
+|**CP-MPR-07**|Nombre de más de 100 caracteres _(Límite)_|`id: 1L`, `nombre`: 101 caracteres, `idPais: 1L`|Longitud del nombre `> 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD ni ejecuta `save()`.|
 
 ### 5. `bajaProvincia(Long id)`
 

@@ -68,7 +68,7 @@ public interface IPresentacionComercialServicio {
      * @param id El ID de la presentación comercial a eliminar.
      * @return La presentación comercial eliminada.
      * @throws RecursoNoEncontradoException Si no existe una presentación comercial activa con el ID especificado.
-     * @throws ReglaNegocioException Si la presentación comercial se encuentra en al menos una orden de compra pendiente, o asociada al catálogo de al menos un proveedor activo.
+     * @throws ReglaNegocioException Si la presentación comercial se encuentra en al menos una orden de compra en estado Pendiente, o asociada al catálogo de al menos un proveedor activo.
      */
     PresentacionComercialResponseDTO bajaPresentacionComercial(Long id);
 }

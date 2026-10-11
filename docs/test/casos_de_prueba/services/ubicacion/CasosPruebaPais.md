@@ -13,7 +13,7 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|País encontrado|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `PaisResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|País inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "El país no existe".|
+|**CP-BI-02**|País inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el país con ID: 99".|
 
 ### 3. `altaPais(PaisFormDTO paisFormDTO)`
 
@@ -22,6 +22,7 @@
 |**CP-AP-01**|Nombre de país duplicado|`nombre: "Argentina"` (Existe en BD)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AP-02**|Nombre duplicado Case-Insensitive|`nombre: "argentina"` (Existe `"Argentina"`)|`existsByNombreIgnoreCase` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-AP-03**|Alta exitosa _(Camino feliz)_|`nombre: "Uruguay"` (Único)|`existsByNombreIgnoreCase` $\rightarrow$ **FALSE**|Persiste la entidad con `nombre = "Uruguay"` y `estado = ACTIVO`, y retorna DTO.|
+|**CP-AP-04**|Nombre de más de 100 caracteres _(Límite)_|`nombre`: 101 caracteres|Longitud del nombre `> 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD ni ejecuta `save()`.|
 
 ### 4. `modificarPais(Long id, PaisFormDTO paisFormDTO)`
 
@@ -31,6 +32,7 @@
 |**CP-MP-02**|Nombre en uso por otro país|`id: 1L` (Existe), `nombre: "Brasil"` (Pertenece al `id: 2L`)|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No ejecuta `save()`.|
 |**CP-MP-03**|Conservar el nombre propio actual|`id: 1L`, `nombre: "argentina"` (Mismo país)|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **FALSE**|Permite actualizar, persiste y retorna DTO.|
 |**CP-MP-04**|Modificación exitosa _(Camino Feliz)_|`id: 1L` (Existe), `nombre: "Argentina Actualizado"` (Libre)|País encontrado y nombre libre|Actualiza el campo `nombre`, ejecuta `save()` y retorna DTO actualizado.|
+|**CP-MP-05**|Nombre de más de 100 caracteres _(Límite)_|`id: 1L`, `nombre`: 101 caracteres|Longitud del nombre `> 100` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El nombre no puede superar 100 caracteres"). No consulta la BD ni ejecuta `save()`.|
 
 ### 5. `bajaPais(Long id)`
 

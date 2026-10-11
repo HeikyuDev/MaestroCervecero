@@ -83,7 +83,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     public LevaduraResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperLevadura.toDTO(levaduraRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La levadura no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la levadura con ID: " + id)));
     }
 
     /**
@@ -155,7 +155,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
 
         // 3. Localizar la levadura existente. Si no existe, se dispara RecursoNoEncontradoException
         LevaduraEntity levaduraEntity = levaduraRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La levadura no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la levadura con ID: " + id));
 
         // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
@@ -183,7 +183,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a dar de baja.
      * @return {@link LevaduraResponseDTO} con los datos de la levadura ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la levadura con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -198,16 +198,16 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
             throw new ReglaNegocioException("No se puede dar de baja la levadura porque forma parte de al menos una receta activa");
         }
 
-        // 3. Validar que la levadura no forme parte de la receta de ninguna planificación de producción pendiente
+        // 3. Validar que la levadura no forme parte de la receta de ninguna planificación de producción en estado Pendiente
         //    (cualquier versión de la receta, no solo la última)
         if (planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la levadura porque forma parte de una planificación de producción pendiente");
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque forma parte de una planificación de producción en estado Pendiente");
         }
 
-        // 4. Validar que la levadura no se encuentre en ninguna orden de compra pendiente
+        // 4. Validar que la levadura no se encuentre en ninguna orden de compra en estado Pendiente
         //    (cualquier versión del proveedor)
         if (ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la levadura porque se encuentra en al menos una orden de compra pendiente");
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque se encuentra en al menos una orden de compra en estado Pendiente");
         }
 
         // 5. Validar que la levadura no esté asociada al catálogo (versión vigente) de ningún proveedor activo
@@ -242,8 +242,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         }
         if (cantidadCelulasPorGramo < CELULAS_VIABLES_MINIMO
                 || cantidadCelulasPorGramo > CELULAS_VIABLES_MAXIMO) {
-            throw new ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a "
-                    + "6.000.000.000 y menor o igual a 20.000.000.000");
+            throw new ReglaNegocioException("La cantidad de células viables por gramo debe estar entre 6.000 y 20.000 millones");
         }
         ValidacionesNumericas.validarMayorACero(cantidadCelulasPorGramo, "La cantidad de células viables por gramo");
     }

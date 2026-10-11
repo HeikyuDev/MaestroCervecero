@@ -44,7 +44,7 @@
     <nav class="p-4 space-y-1">
 
         <!-- DASHBOARD (Todos los usuarios autenticados) -->
-        <a th:replace="~{fragments/sidebar ::enlace('/home', ${opcionActiva}, 'dashboard', 'bi-speedometer2', 'Dashboard')}"></a>
+        <a th:replace="~{fragments/sidebar ::enlace('/home', ${opcionActiva}, 'dashboard', 'bi-speedometer2', 'Panel de control')}"></a>
 
         <!--
             OPERACIÓN: el trabajo diario. Cada botón lo ve solo el rol que lo usa, y el título de la
@@ -112,13 +112,13 @@
         <!-- SISTEMA: control del propio sistema (Administrador) -->
         <th:block sec:authorize="hasRole('ADMINISTRADOR')">
             <p th:replace="~{fragments/sidebar ::seccion('Sistema')}"></p>
-            <a th:replace="~{fragments/sidebar ::enlace('/auditoria', ${opcionActiva}, 'auditoria', 'bi-shield-check', 'Bitácora Auditoría')}"></a>
+            <a th:replace="~{fragments/sidebar ::enlace('/auditoria', ${opcionActiva}, 'auditoria', 'bi-shield-check', 'Bitácora de Auditoría')}"></a>
         </th:block>
     </nav>
 
     <!-- Footer del Sidebar -->
     <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-        System v1.0 &copy; 2026
+        Versión 1.0 &copy; 2026
     </div>
 </aside>
 

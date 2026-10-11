@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
@@ -61,7 +63,7 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
     public ProvinciaResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperProvincia.toDTO(provinciaRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La provincia no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + id)));
     }
 
     /**
@@ -75,29 +77,33 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
      * @param provinciaFormDTO Objeto DTO que contiene los datos de creación de la provincia.
      * @return {@link ProvinciaResponseDTO} representativo de la provincia guardada en la base de datos.
      * @throws RecursoNoEncontradoException Si no existe un país activo con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una provincia activa del mismo país.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PROVINCIA)
     public ProvinciaResponseDTO altaProvincia(ProvinciaFormDTO provinciaFormDTO) {
-        // 1. Verificar que el país seleccionado exista
-        PaisEntity paisEntity = paisRepository.findById(provinciaFormDTO.getIdPais())
-                .orElseThrow(() -> new RecursoNoEncontradoException("El país no existe"));
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(provinciaFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
 
-        // 2. Validar si el nombre ya está registrado en otra provincia del mismo país (case-insensitive)
+        // 2. Verificar que el país seleccionado exista
+        PaisEntity paisEntity = paisRepository.findById(provinciaFormDTO.getIdPais())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + provinciaFormDTO.getIdPais()));
+
+        // 3. Validar si el nombre ya está registrado en otra provincia del mismo país (case-insensitive)
         if (provinciaRepository.existsByNombreIgnoreCaseAndPaisId(provinciaFormDTO.getNombre(), provinciaFormDTO.getIdPais())) {
             throw new RecursoDuplicadoException("Ya existe una provincia con el nombre '" + provinciaFormDTO.getNombre() + "' para el país seleccionado");
         }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos
+        // 4. Creo la entidad que se va a almacenar en la base de datos
         ProvinciaEntity provinciaEntity = ProvinciaEntity.builder()
                 .nombre(provinciaFormDTO.getNombre())
                 .pais(paisEntity)
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperProvincia.toDTO(provinciaRepository.save(provinciaEntity));
     }
 
@@ -113,31 +119,35 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
      * @param provinciaFormDTO DTO con la información actualizada.
      * @return {@link ProvinciaResponseDTO} representativo de la provincia con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza una provincia activa por el ID proporcionado, o si no existe un país activo con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra provincia activa del mismo país.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PROVINCIA)
     public ProvinciaResponseDTO modificarProvincia(Long id, ProvinciaFormDTO provinciaFormDTO) {
-        // 1. Localizar la provincia existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(provinciaFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Localizar la provincia existente. Si no existe, se dispara RecursoNoEncontradoException
         ProvinciaEntity provinciaEntity = provinciaRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La provincia no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + id));
 
-        // 2. Verificar que el país seleccionado exista
+        // 3. Verificar que el país seleccionado exista
         PaisEntity paisEntity = paisRepository.findById(provinciaFormDTO.getIdPais())
-                .orElseThrow(() -> new RecursoNoEncontradoException("El país no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + provinciaFormDTO.getIdPais()));
 
-        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot(provinciaFormDTO.getNombre(), provinciaFormDTO.getIdPais(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + provinciaFormDTO.getNombre() + "' ya está en uso por otra provincia del país seleccionado");
         }
 
-        // 4. Aplico los cambios sobre la entidad administrada por persistencia
+        // 5. Aplico los cambios sobre la entidad administrada por persistencia
         provinciaEntity.setNombre(provinciaFormDTO.getNombre());
         provinciaEntity.setPais(paisEntity);
 
-        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperProvincia.toDTO(provinciaRepository.save(provinciaEntity));
     }
 

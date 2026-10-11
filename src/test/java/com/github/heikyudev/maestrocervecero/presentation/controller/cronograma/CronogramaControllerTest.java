@@ -103,7 +103,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString(">Todos</option>")))
                 .andExpect(content().string(containsString(">Desde</label>")))
                 .andExpect(content().string(containsString(">Hasta</label>")))
-                .andExpect(content().string(containsString("Aplicar")))
+                .andExpect(content().string(containsString("Buscar")))
                 .andExpect(content().string(containsString("Limpiar")))
                 // Período
                 .andExpect(content().string(containsString("data-cronograma-periodo")))
@@ -329,7 +329,7 @@ class CronogramaControllerTest {
         // Act + Assert
         mockMvc.perform(get(URL).param("desde", "2027-06-25").param("hasta", "2027-07-31"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Vol. (L)")))
+                .andExpect(content().string(containsString("Volumen (L)")))
                 .andExpect(content().string(containsString("Inicio")))
                 .andExpect(content().string(containsString("Fin")))
                 .andExpect(content().string(containsString(">PALE_ALE-R7-1<")))
@@ -355,7 +355,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("bi-list-ul")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")))
                 .andExpect(content().string(containsString("name=\"idPlanificacion\"")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccionar planificaci")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione planificaci")))
                 .andExpect(content().string(containsString("data-selector-limpiar")))
                 .andExpect(content().string(not(containsString("data-selector-menu"))));
     }
@@ -484,7 +484,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-38: la leyenda explica los tres colores y las marcas (Planificado, En ejecución, Finalizado, Limpieza y Hoy) y suma el atenuado solo al destacar una planificación")
+    @DisplayName("CP-CGC-38: la leyenda explica los tres colores y las marcas (Pendiente, En ejecución, Finalizado, Limpieza y Hoy) y suma el atenuado solo al destacar una planificación")
     void cronograma_laLeyendaExplicaLosTresColoresYLasMarcas() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
@@ -498,13 +498,13 @@ class CronogramaControllerTest {
                 .andReturn().getResponse().getContentAsString());
 
         // Assert
-        assertThat(sinDestacar.indexOf("Planificado")).isGreaterThanOrEqualTo(0);
-        assertThat(sinDestacar.indexOf("Planificado")).isLessThan(sinDestacar.indexOf("En ejecuci"));
+        assertThat(sinDestacar.indexOf("Pendiente")).isGreaterThanOrEqualTo(0);
+        assertThat(sinDestacar.indexOf("Pendiente")).isLessThan(sinDestacar.indexOf("En ejecuci"));
         assertThat(sinDestacar.indexOf("En ejecuci")).isLessThan(sinDestacar.indexOf("Finalizado"));
         assertThat(sinDestacar.indexOf("Finalizado")).isLessThan(sinDestacar.indexOf("Limpieza"));
         assertThat(sinDestacar.indexOf("Limpieza")).isLessThan(sinDestacar.indexOf("Hoy"));
         assertThat(sinDestacar).doesNotContain("Cancelado").doesNotContain("Atraso").doesNotContain("Desplazado")
-                .doesNotContain("transcurrido").doesNotContain("Pendiente").doesNotContain("Inicio y fin estimados")
+                .doesNotContain("transcurrido").doesNotContain("Inicio y fin estimados")
                 .doesNotContain("Lote de otra planificaci");
         assertThat(destacando).contains("Lote de otra planificaci");
     }
@@ -811,9 +811,9 @@ class CronogramaControllerTest {
         when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act + Assert
-        mockMvc.perform(get(URL).flashAttr("mensaje", "Lote DEMO-3 movido en la cola").flashAttr("tipo", "success"))
+        mockMvc.perform(get(URL).flashAttr("mensaje", "Lote DEMO-3 movido correctamente").flashAttr("tipo", "success"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lote DEMO-3 movido en la cola")))
+                .andExpect(content().string(containsString("Lote DEMO-3 movido correctamente")))
                 .andExpect(content().string(containsString("bg-teal-50")));
     }
 
@@ -912,14 +912,14 @@ class CronogramaControllerTest {
         // Act + Assert
         mockMvc.perform(get(URL).param("desde", "2019-01-07").param("hasta", "2018-04-21"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("La fecha &#39;hasta&#39; no puede ser anterior a la fecha &#39;desde&#39;, se muestra el período por defecto")));
+                .andExpect(content().string(containsString("La fecha de fin del período no puede ser anterior a la fecha de inicio, se muestra el período por defecto")));
 
         verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-51: el tope del periodo es de 1825 dias (5 anios): 1825 se acepta y 1826 se rechaza con una alerta")
+    @DisplayName("CP-CGC-51: el tope del periodo es de 1.825 dias (5 anios): 1825 se acepta y 1826 se rechaza con una alerta")
     void periodo_topeMaximo() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
@@ -934,7 +934,7 @@ class CronogramaControllerTest {
         verify(loteServicio).listarLotesParaCronograma(null, d(2018, 1, 1), d(2022, 12, 31));
         verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
         assertThat(aceptado).contains("(1826 días)").doesNotContain(ALERTA_ADVERTENCIA);
-        assertThat(rechazado).contains("El período no puede superar los 1825 días (5 años), se muestra el período por defecto");
+        assertThat(rechazado).contains("El período no puede superar los 1.825 días (5 años), se muestra el período por defecto");
     }
 
     @Test
@@ -1477,7 +1477,7 @@ class CronogramaControllerTest {
         mockMvc.perform(post(URL + "/lotes/3/subir").with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/cronograma-produccion"))
-                .andExpect(flash().attribute("mensaje", "Lote DEMO-3 movido en la cola: ahora del 12/11/2026 al 30/11/2026"))
+                .andExpect(flash().attribute("mensaje", "Lote DEMO-3 movido correctamente (inicio 12/11/2026, fin 30/11/2026)"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         verify(loteServicio).subirLoteEnCola(3L);
@@ -1565,7 +1565,7 @@ class CronogramaControllerTest {
         mockMvc.perform(post(URL + "/lotes/4/bajar").with(csrf()).param("idFermentador", "2"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/cronograma-produccion?idFermentador=2"))
-                .andExpect(flash().attribute("mensaje", "Lote DEMO-4 movido en la cola: ahora del 01/12/2026 al 15/12/2026"))
+                .andExpect(flash().attribute("mensaje", "Lote DEMO-4 movido correctamente (inicio 01/12/2026, fin 15/12/2026)"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         verify(loteServicio).bajarLoteEnCola(4L);
@@ -1635,7 +1635,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("data-id=\"7\"")))
                 .andExpect(content().string(containsString("data-texto=\"Plan #7 - Pale Ale\"")))
                 .andExpect(content().string(containsString("data-id=\"8\"")))
-                .andExpect(content().string(containsString("Litros (L)")))
+                .andExpect(content().string(containsString("Cantidad (L)")))
                 .andExpect(content().string(containsString(">600<")))
                 .andExpect(content().string(containsString("01/07/2027")))
                 .andExpect(content().string(containsString(">Pendiente<")))

@@ -139,7 +139,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si el espacio muerto no es un número mayor o igual a 0, supera 100.000 litros o no es menor a la capacidad útil.
      * @throws ReglaNegocioException Si la eficiencia de maceracion no es un número entre 40 y 100 inclusive.
-     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el macerador tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el macerador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a un macerador activo.
      */
     @Override
@@ -170,9 +170,9 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + maceradorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 8. Validar que el macerador no tenga comprometida una etapa pendiente de un lote.
+        // 8. Validar que el macerador no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede modificar el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 9. Validar que el macerador no se encuentre actualmente en uso.
@@ -202,7 +202,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @param id Identificador clave primaria del macerador a dar de baja.
      * @return {@link MaceradorResponseDTO} con los datos del macerador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el macerador con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -213,9 +213,9 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
 
-        // 2. Validar que el macerador no tenga comprometida una etapa pendiente de un lote.
+        // 2. Validar que el macerador no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 3. Validar que el macerador se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
@@ -261,7 +261,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
             throw new ReglaNegocioException("La eficiencia de maceración es obligatoria");
         }
         if (eficienciaMaceracion < 40 || eficienciaMaceracion > 100) {
-            throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100 inclusive");
+            throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100");
         }
         ValidacionesNumericas.validarMayorACero(eficienciaMaceracion, "La eficiencia de maceración");
     }

@@ -77,9 +77,9 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString("Tiempos y capacidades")))
                 .andExpect(content().string(containsString("Criterios de selección de equipos para planes de producción")))
-                .andExpect(content().string(containsString("Capacidad de lote (L)")))
+                .andExpect(content().string(containsString("Capacidad de lote estándar (L)")))
                 .andExpect(content().string(containsString("Velocidad de envasado (L/h)")))
-                .andExpect(content().string(containsString("Consumo mínimo (%)")))
+                .andExpect(content().string(containsString("Porcentaje mínimo de consumo (%)")))
                 .andExpect(content().string(containsString("name=\"capacidadLoteEstandar\" value=\"300\"")))
                 .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"100.5\"")))
                 .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"90\"")))
@@ -102,10 +102,10 @@ class ConfiguracionProduccionControllerTest {
         // === EJECUCION Y VERIFICACION ===
         mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Volumen por lote que usa la simulación al sugerir la fecha de fin de una planificación.")))
+                .andExpect(content().string(containsString("Volumen por lote que usa la simulación al sugerir la fecha de finalización de una planificación.")))
                 .andExpect(content().string(containsString("Se usa para estimar la duración del envasado al calcular las fechas de cada lote.")))
                 .andExpect(content().string(containsString("Porcentaje de la cantidad requerida que debe estar consumido en cada insumo de la etapa")))
-                .andExpect(content().string(containsString("Entre 0 y 100.")))
+                .andExpect(content().string(containsString("Un número entre 0 y 100.")))
                 .andExpect(content().string(containsString("Criterio con el que se elegirán los equipos al generar planes de producción automáticos.")));
     }
 
@@ -205,7 +205,7 @@ class ConfiguracionProduccionControllerTest {
     void caso_cp_cpc_09() throws Exception {
         // === PREPARACION DE DATOS ===
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
-        doThrow(new ReglaNegocioException("El porcentaje mínimo de consumo para avanzar de etapa debe estar entre 0 y 100 inclusive"))
+        doThrow(new ReglaNegocioException("El porcentaje mínimo de consumo debe estar entre 0 y 100"))
                 .when(configuracionServicio).actualizarConfiguracion(any());
 
         // === EJECUCION Y VERIFICACION ===
@@ -218,7 +218,7 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("configuracion/configuracion-produccion"))
                 .andExpect(content().string(containsString("No se pudo guardar la configuración")))
-                .andExpect(content().string(containsString("debe estar entre 0 y 100 inclusive")))
+                .andExpect(content().string(containsString("debe estar entre 0 y 100")))
                 .andExpect(content().string(containsString("name=\"capacidadLoteEstandar\" value=\"250\"")))
                 .andExpect(content().string(containsString("name=\"velocidadEstandarEnvasado\" value=\"80\"")))
                 .andExpect(content().string(containsString("name=\"porcentajeMinimoConsumoParaAvanzarEtapa\" value=\"150\"")))

@@ -138,7 +138,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @throws ReglaNegocioException      Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException      Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException      Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
      * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
      */
@@ -170,9 +170,9 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 8. Validar que la olla de hervor no tenga comprometida una etapa pendiente de un lote.
+        // 8. Validar que la olla de hervor no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 9. Validar que la olla de hervor no se encuentre actualmente en uso.
@@ -203,7 +203,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @param id Identificador clave primaria de la olla de hervor a dar de baja.
      * @return {@link OllaHervorResponseDTO} con los datos de la olla de hervor ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la olla de hervor con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -213,9 +213,9 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
 
-        // 2. Validar que la olla de hervor no tenga comprometida una etapa pendiente de un lote.
+        // 2. Validar que la olla de hervor no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 3. Validar que la olla de hervor se encuentre disponible (no en uso, en limpieza ni en mantenimiento).

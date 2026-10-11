@@ -121,7 +121,7 @@ class PaisServicioImplTest {
 
         assertThatThrownBy(() -> paisServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El país no existe");
+                .hasMessage("No se encontró el país con ID: 99");
         verify(paisRepository).findById(99L);
     }
 
@@ -183,6 +183,18 @@ class PaisServicioImplTest {
         verify(paisRepository).existsByNombreIgnoreCase("Uruguay");
     }
 
+    @Test
+    @DisplayName("CP-AP-04: altaPais lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void altaPais_debeRechazarNombreDemasiadoLargo() {
+        PaisFormDTO paisFormDTO = paisFormDTO("a".repeat(101));
+
+        assertThatThrownBy(() -> paisServicio.altaPais(paisFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(paisRepository);
+    }
+
     // ==================== modificarPais ====================
 
     @Test
@@ -193,7 +205,7 @@ class PaisServicioImplTest {
 
         assertThatThrownBy(() -> paisServicio.modificarPais(99L, paisFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El país no existe");
+                .hasMessage("No se encontró el país con ID: 99");
 
         verify(paisRepository).findById(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de nombre
@@ -256,6 +268,18 @@ class PaisServicioImplTest {
         assertThat(resultado.getNombre()).isEqualTo("Argentina Actualizado");
         verify(paisRepository).findById(1L);
         verify(paisRepository).existsByNombreIgnoreCaseAndIdNot("Argentina Actualizado", 1L);
+    }
+
+    @Test
+    @DisplayName("CP-MP-05: modificarPais lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void modificarPais_debeRechazarNombreDemasiadoLargo() {
+        PaisFormDTO paisFormDTO = paisFormDTO("a".repeat(101));
+
+        assertThatThrownBy(() -> paisServicio.modificarPais(1L, paisFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(paisRepository);
     }
 
     // ==================== bajaPais ====================

@@ -68,10 +68,12 @@ class AuditLogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("auditoria/auditoria-lista"))
                 .andExpect(content().string(containsString("Bitácora de Auditoría")))
+                .andExpect(content().string(containsString("<title>Bitácora de Auditoría - Maestro Cervecero</title>")))
                 .andExpect(content().string(containsString("15/09/2026 10:30:05")))
                 .andExpect(content().string(containsString("admin")))
-                .andExpect(content().string(containsString("ORDEN COMPRA")))
-                .andExpect(content().string(containsString("CREAR")))
+                .andExpect(content().string(containsString("Orden de compra")))
+                .andExpect(content().string(containsString("Alta")))
+                .andExpect(content().string(not(containsString("ORDEN COMPRA"))))
                 .andExpect(content().string(containsString("127.0.0.1")))
                 .andExpect(content().string(not(containsString("data-baja-url"))))
                 .andExpect(content().string(not(containsString("Nuevo"))));
@@ -151,13 +153,13 @@ class AuditLogControllerTest {
     @DisplayName("CP-AC-06: un rango de fechas invertido muestra el aviso del service y una lista vacía, conservando los filtros elegidos")
     void listado_debeMostrarElAvisoDeRangoInvertido() throws Exception {
         when(auditLogService.filtrarAuditLogs(any(), any(), any(), any(), any(), any()))
-                .thenThrow(new ReglaNegocioException("La fecha desde no puede ser posterior a la fecha hasta"));
+                .thenThrow(new ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde"));
 
         mockMvc.perform(get("/auditoria").param("fechaDesde", "2026-09-30").param("fechaHasta", "2026-09-01")
                         .param("username", "admin"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("auditoria/auditoria-lista"))
-                .andExpect(content().string(containsString("La fecha desde no puede ser posterior a la fecha hasta")))
+                .andExpect(content().string(containsString("La fecha hasta no puede ser anterior a la fecha desde")))
                 .andExpect(content().string(containsString("No se encontraron registros con los criterios indicados")))
                 .andExpect(content().string(containsString("value=\"2026-09-30\"")))
                 .andExpect(content().string(containsString("value=\"2026-09-01\"")))
@@ -209,6 +211,8 @@ class AuditLogControllerTest {
                 .andExpect(content().string(containsString("bg-rose-50 text-rose-700")))
                 .andExpect(content().string(containsString("bg-amber-50 text-amber-700")))
                 .andExpect(content().string(containsString("bg-slate-100 text-slate-600")))
+                .andExpect(content().string(containsString(">Baja<")))
+                .andExpect(content().string(containsString(">Cierre de sesión<")))
                 .andExpect(content().string(containsString("—")));
     }
 
@@ -224,6 +228,8 @@ class AuditLogControllerTest {
                 .andExpect(content().string(containsString("value=\"LOGIN_EXITOSO\" selected")))
                 .andExpect(content().string(containsString("value=\"ORDEN_COMPRA\" selected")))
                 .andExpect(content().string(containsString("value=\"ANULAR\"")))
+                .andExpect(content().string(containsString(">Anulación<")))
+                .andExpect(content().string(containsString(">Planificación de producción<")))
                 .andExpect(content().string(containsString("value=\"SESION\"")))
                 .andExpect(content().string(containsString("value=\"USUARIO\"")));
     }

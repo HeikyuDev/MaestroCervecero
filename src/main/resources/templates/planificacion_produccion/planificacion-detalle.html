@@ -31,7 +31,7 @@
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-3">
             <a th:href="@{/planificaciones-produccion}"
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
-                <i class="bi bi-arrow-left"></i> Volver al listado
+                <i class="bi bi-arrow-left"></i> Volver a planificaciones
             </a>
             <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"
                th:href="@{/planificaciones-produccion/{id}/receta(id=${planificacion.id})}"
@@ -64,7 +64,7 @@
                 <dd class="mt-1 font-medium text-slate-900" th:text="${planificacion.versionReceta.nombre}">Pale Ale</dd>
             </div>
             <div>
-                <dt class="text-xs font-medium text-slate-500">Litros a producir (L)</dt>
+                <dt class="text-xs font-medium text-slate-500">Cantidad a producir (L)</dt>
                 <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planificacion.cantidadAProducir})}"></th:block></dd>
             </div>
             <div>
@@ -101,7 +101,7 @@
             <p class="mt-1 text-2xl font-bold text-slate-900" data-contador="totales" th:text="${totalLotes}">0</p>
         </div>
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
-            <p class="text-xs font-medium text-slate-500">Planificados (Pendiente)</p>
+            <p class="text-xs font-medium text-slate-500">Pendientes</p>
             <p class="mt-1 text-2xl font-bold text-blue-700" data-contador="pendientes" th:text="${lotesPendientes}">0</p>
         </div>
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
@@ -124,7 +124,7 @@
         <div class="p-5">
             <div th:if="${gantt.vacio and #lists.isEmpty(lotes)}" class="py-8 text-center text-slate-400">
                 <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
-                Todavía no hay lotes registrados para esta planificación
+                No hay lotes registrados para esta planificación
             </div>
             <div th:if="${gantt.vacio and not #lists.isEmpty(lotes)}" data-diagrama-sin-barras class="py-8 text-center text-slate-400">
                 <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
@@ -175,7 +175,7 @@
                 <tr th:if="${#lists.isEmpty(lotes)}">
                     <td colspan="7" class="px-4 py-10 text-center text-slate-400">
                         <i class="bi bi-droplet-half block text-3xl mb-2"></i>
-                        Todavía no hay lotes registrados para esta planificación
+                        No hay lotes registrados para esta planificación
                     </td>
                 </tr>
                 </tbody>
@@ -186,10 +186,12 @@
     <th:block th:if="${planificacion.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar planificación',
                 'Se cierra de forma forzada y queda registrado el motivo. Solo procede si ya tiene un lote finalizado y ninguno pendiente ni en ejecución.',
-                'Finalizar', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle')}"></div>
+                'Finalizar', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
+                'Se completó la producción prevista con menos lotes')}"></div>
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular planificación',
                 'Se anula y queda registrado el motivo. Solo procede si no tiene lotes pendientes, en ejecución ni finalizados.',
-                'Anular', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle')}"></div>
+                'Anular', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                'Se canceló el pedido del cliente')}"></div>
     </th:block>
 </div>
 

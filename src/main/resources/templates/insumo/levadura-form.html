@@ -64,7 +64,7 @@
                            th:classappend="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('celulasEnMillones')}" th:errors="*{celulasEnMillones}" class="mt-1 text-xs text-rose-600"></p>
                     <p th:if="${#fields.hasErrors('cantidadCelulasPorGramo')}" th:errors="*{cantidadCelulasPorGramo}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')}" class="mt-1 text-xs text-slate-400">Ingrese el valor en millones: 20000 equivale a 20.000.000.000 células por gramo. Entre 6000 y 20000.</p>
+                    <p th:unless="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')}" class="mt-1 text-xs text-slate-400">Ingrese el valor en millones: 20000 equivale a 20.000.000.000 células por gramo. Un número entre 6000 y 20000.</p>
                 </div>
             </div>
         </section>

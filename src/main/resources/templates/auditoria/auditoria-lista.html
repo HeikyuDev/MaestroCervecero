@@ -40,7 +40,7 @@
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
                 <option value="">Todas</option>
                 <option th:each="a : ${acciones}" th:value="${a}" th:selected="${a == filtroAccion}"
-                        th:text="${#strings.replace(a, '_', ' ')}">ACCION</option>
+                        th:text="${a.etiqueta}">Alta</option>
             </select>
         </div>
 
@@ -50,7 +50,7 @@
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
                 <option value="">Todos</option>
                 <option th:each="c : ${conceptos}" th:value="${c}" th:selected="${c == filtroConcepto}"
-                        th:text="${#strings.replace(c, '_', ' ')}">MODULO</option>
+                        th:text="${c.etiqueta}">Malta</option>
             </select>
         </div>
 
@@ -81,7 +81,7 @@
             <tr th:each="l : ${logs.content}" class="hover:bg-slate-50">
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${#temporals.format(l.fechaHora, 'dd/MM/yyyy HH:mm:ss')}">15/09/2026 10:30:00</td>
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.username}">admin</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#strings.replace(l.conceptoAuditoria, '_', ' ')}">MALTA</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${l.conceptoAuditoria.etiqueta}">Malta</td>
                 <td class="px-4 py-3">
                     <!-- Color por tipo de acción: verde crear/ingresar, azul modificar, ámbar finalizar, rojo eliminar/anular, gris cierre de sesión -->
                     <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold"
@@ -90,7 +90,7 @@
                                         : (${l.accion.name() == 'FINALIZAR'} ? 'bg-amber-50 text-amber-700'
                                         : (${l.accion.name() == 'ELIMINAR' or l.accion.name() == 'ANULAR'} ? 'bg-rose-50 text-rose-700'
                                         : 'bg-slate-100 text-slate-600')))"
-                          th:text="${#strings.replace(l.accion, '_', ' ')}">CREAR</span>
+                          th:text="${l.accion.etiqueta}">Alta</span>
                 </td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.entidadId != null} ? ${l.entidadId} : '—'">12</td>
                 <td class="px-4 py-3 text-slate-500" th:text="${l.ipAddress != null} ? ${l.ipAddress} : '—'">127.0.0.1</td>

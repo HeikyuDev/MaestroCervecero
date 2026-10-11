@@ -234,7 +234,7 @@ public class PlanificacionProduccionController {
                                            Model model) {
         try {
             if (idReceta == null) {
-                throw new ReglaNegocioException("Elija una receta para sugerir la fecha de finalización");
+                throw new ReglaNegocioException("Seleccione una receta para sugerir la fecha de finalización");
             }
             SugerenciaFechaFinalizacionResponseDTO sugerencia = planificacionServicio.sugerirFechaFinalizacion(
                     idReceta, aNumero(cantidadAProducir), aFecha(fechaInicioEstimada));

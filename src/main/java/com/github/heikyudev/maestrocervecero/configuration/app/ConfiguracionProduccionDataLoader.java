@@ -24,7 +24,7 @@ public class ConfiguracionProduccionDataLoader implements CommandLineRunner {
         // Sin este chequeo, cada restart de la app (ej. con Spring DevTools) insertaría
         // una fila nueva.
         if (configuracionProduccionRepository.existsById(ConfiguracionProduccionEntity.SINGLETON_ID)) {
-            log.info(">>> Configuracion de produccion ya existe, no se recrea.");
+            log.info(">>> Configuración de producción ya existe, no se recrea.");
             return;
         }
 
@@ -40,6 +40,6 @@ public class ConfiguracionProduccionDataLoader implements CommandLineRunner {
                 .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
                 .build());
 
-        log.info(">>> Configuracion de produccion creada exitosamente por defecto.");
+        log.info(">>> Configuración de producción creada exitosamente por defecto.");
     }
 }

@@ -408,7 +408,7 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MF-07: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-MF-07: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa en estado Pendiente de un lote")
     void modificarFermentador_debeRechazarAsociacionALotePendiente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
@@ -418,7 +418,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el fermentador porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede modificar el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository, never()).save(any());
@@ -475,7 +475,7 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa en estado Pendiente de un lote")
     void bajaFermentador_debeRechazarAsociacionALotePendiente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
@@ -483,7 +483,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository, never()).save(any());
@@ -532,7 +532,7 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BF-07: bajaFermentador informa primero la etapa pendiente de un lote cuando el fermentador además no está disponible")
+    @DisplayName("CP-BF-07: bajaFermentador informa primero la etapa en estado Pendiente de un lote cuando el fermentador además no está disponible")
     void bajaFermentador_debePriorizarEtapaPendienteSobreNoDisponible() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_USO);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
@@ -540,7 +540,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(fermentadorRepository, never()).save(any());
     }
@@ -696,7 +696,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -792,7 +792,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

@@ -86,7 +86,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     /**
      * Registra una nueva orden de compra en el sistema.
      * <p>
-     * La compra está siempre impulsada por una planificación de producción pendiente: solo se pueden
+     * La compra está siempre impulsada por una planificación de producción en estado Pendiente: solo se pueden
      * solicitar ítems del catálogo del proveedor seleccionado cuyo insumo forme parte de la
      * versión de receta asociada a esa planificación de producción. El costo unitario de cada ítem se
      * define recién en esta transacción; el catálogo del proveedor no fija precio.

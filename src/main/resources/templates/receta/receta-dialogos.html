@@ -32,7 +32,7 @@
             <div>
                 <span class="block text-sm font-medium text-slate-700 mb-1">Malta <span class="text-rose-600" title="Obligatorio">*</span></span>
                 <div th:replace="~{fragments/selector-entidad :: selector('idMalta', null, null,
-                        @{/recetas/buscador/maltas}, null, null, false, false, 'Seleccionar malta')}"></div>
+                        @{/recetas/buscador/maltas}, null, null, false, false, 'Seleccione malta')}"></div>
                 <p data-error="insumo" hidden class="mt-1 text-xs text-rose-600">Seleccione un insumo</p>
                 <p data-error="duplicado" hidden class="mt-1 text-xs text-rose-600">Esa malta ya está en la receta</p>
             </div>
@@ -68,7 +68,7 @@
             <div class="sm:col-span-2">
                 <span class="block text-sm font-medium text-slate-700 mb-1">Lúpulo <span class="text-rose-600" title="Obligatorio">*</span></span>
                 <div th:replace="~{fragments/selector-entidad :: selector('idLupulo', null, null,
-                        @{/recetas/buscador/lupulos}, null, null, false, false, 'Seleccionar lúpulo')}"></div>
+                        @{/recetas/buscador/lupulos}, null, null, false, false, 'Seleccione lúpulo')}"></div>
                 <p data-error="insumo" hidden class="mt-1 text-xs text-rose-600">Seleccione un insumo</p>
                 <p data-error="duplicado" hidden class="mt-1 text-xs text-rose-600">Ese lúpulo ya está en la receta con el mismo uso y tiempo de hervor</p>
             </div>
@@ -87,7 +87,7 @@
                     <option value="WHIRLPOOL">Whirlpool</option>
                     <option value="DRY_HOP">Dry hop</option>
                 </select>
-                <p data-error="uso" hidden class="mt-1 text-xs text-rose-600">Elija el uso del lúpulo</p>
+                <p data-error="uso" hidden class="mt-1 text-xs text-rose-600">Seleccione el uso del lúpulo</p>
             </div>
             <!-- Solo en el uso Hervor. Whirlpool no pide nada más: su etapa de uso (Hervido) la define el sistema -->
             <div data-grupo="tiempoDeHervor" hidden class="sm:col-span-2">
@@ -105,7 +105,7 @@
                     <option value="FERMENTACION">Fermentación</option>
                     <option value="MADURACION">Maduración</option>
                 </select>
-                <p data-error="etapaDeUso" hidden class="mt-1 text-xs text-rose-600">Elija la etapa de uso</p>
+                <p data-error="etapaDeUso" hidden class="mt-1 text-xs text-rose-600">Seleccione la etapa de uso</p>
             </div>
         </div>
 
@@ -133,7 +133,7 @@
             <div>
                 <span class="block text-sm font-medium text-slate-700 mb-1">Levadura <span class="text-rose-600" title="Obligatorio">*</span></span>
                 <div th:replace="~{fragments/selector-entidad :: selector('idLevadura', null, null,
-                        @{/recetas/buscador/levaduras}, null, null, false, false, 'Seleccionar levadura')}"></div>
+                        @{/recetas/buscador/levaduras}, null, null, false, false, 'Seleccione levadura')}"></div>
                 <p data-error="insumo" hidden class="mt-1 text-xs text-rose-600">Seleccione un insumo</p>
                 <p data-error="duplicado" hidden class="mt-1 text-xs text-rose-600">Esa levadura ya está en la receta</p>
             </div>

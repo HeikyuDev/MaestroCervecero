@@ -77,7 +77,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
     public LupuloResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperLupulo.toDTO(lupuloRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El lúpulo no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lúpulo con ID: " + id)));
     }
 
     /**
@@ -149,7 +149,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
 
         // 3. Localizar el lúpulo existente. Si no existe, se dispara RecursoNoEncontradoException
         LupuloEntity lupuloEntity = lupuloRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El lúpulo no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lúpulo con ID: " + id));
 
         // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
@@ -177,7 +177,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * @param id Identificador clave primaria del lúpulo a dar de baja.
      * @return {@link LupuloResponseDTO} con los datos del lúpulo ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el lúpulo con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -192,16 +192,16 @@ public class LupuloServicioImpl implements ILupuloServicio {
             throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque forma parte de al menos una receta activa");
         }
 
-        // 3. Validar que el lúpulo no forme parte de la receta de ninguna planificación de producción pendiente
+        // 3. Validar que el lúpulo no forme parte de la receta de ninguna planificación de producción en estado Pendiente
         //    (cualquier versión de la receta, no solo la última)
         if (planificacionProduccionRepository.existsByDetalleLupuloEnPlanificacionPendiente(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque forma parte de una planificación de producción pendiente");
+            throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque forma parte de una planificación de producción en estado Pendiente");
         }
 
-        // 4. Validar que el lúpulo no se encuentre en ninguna orden de compra pendiente
+        // 4. Validar que el lúpulo no se encuentre en ninguna orden de compra en estado Pendiente
         //    (cualquier versión del proveedor)
         if (ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque se encuentra en al menos una orden de compra pendiente");
+            throw new ReglaNegocioException("No se puede dar de baja el lúpulo porque se encuentra en al menos una orden de compra en estado Pendiente");
         }
 
         // 5. Validar que el lúpulo no esté asociado al catálogo (versión vigente) de ningún proveedor activo
@@ -239,6 +239,6 @@ public class LupuloServicioImpl implements ILupuloServicio {
         if (aa > ALFA_ACIDOS_MAXIMO) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
         }
-        ValidacionesNumericas.validarMayorACero(aa, "El porcentaje de ácidos alfa");
+        ValidacionesNumericas.validarMayorACero(aa, "El valor de los ácidos alfa");
     }
 }

@@ -68,7 +68,7 @@ public interface ILupuloServicio {
      * @param id El ID del lúpulo a eliminar.
      * @return El lúpulo eliminado.
      * @throws RecursoNoEncontradoException Si no existe un lúpulo activo con el ID especificado.
-     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock.
+     * @throws ReglaNegocioException Si el lúpulo forma parte de al menos una receta activa, de una planificación de producción en estado Pendiente, o de una orden de compra en estado Pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock.
      */
     LupuloResponseDTO bajaLupulo(Long id);
 }

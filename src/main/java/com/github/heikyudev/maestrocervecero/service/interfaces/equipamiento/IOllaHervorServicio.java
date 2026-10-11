@@ -61,7 +61,7 @@ public interface IOllaHervorServicio {
      * @param id ID de la olla de hervor a dar de baja.
      * @return OllaHervorResponseDTO de la olla de hervor dada de baja.
      * @throws RecursoNoEncontradoException Si no existe una olla de hervor activa con el ID especificado.
-     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     OllaHervorResponseDTO bajaOllaHervor(Long id);
 }

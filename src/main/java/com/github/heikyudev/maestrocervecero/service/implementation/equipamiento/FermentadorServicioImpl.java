@@ -132,7 +132,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id                 Identificador único del fermentador a modificar.
      * @param fermentadorFormDTO DTO que contiene los nuevos datos del fermentador.
      * @return Objeto {@link FermentadorResponseDTO} con la información actualizada del fermentador.
-     * @throws ReglaNegocioException        Si el identificador interno supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el fermentador tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException        Si el identificador interno supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoNoEncontradoException Si no existe ningún fermentador activo con el ID especificado.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno que se intenta asignar.
      */
@@ -158,9 +158,9 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
             throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + fermentadorFormDTO.getIdentificadorInterno() + "'");
         }
 
-        // 6. Validar que el fermentador no tenga comprometida una etapa pendiente de un lote.
+        // 6. Validar que el fermentador no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el fermentador porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede modificar el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 7. Validar que el fermentador no se encuentre actualmente en uso.
@@ -188,7 +188,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id Identificador clave primaria del fermentador a dar de baja.
      * @return {@link FermentadorResponseDTO} con los datos del fermentador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el fermentador con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -199,9 +199,9 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
-        // 2. Validar que el fermentador no tenga comprometida una etapa pendiente de un lote.
+        // 2. Validar que el fermentador no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote");
+            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
         // 3. Validar que el fermentador se encuentre disponible (no en uso, en limpieza ni en mantenimiento).

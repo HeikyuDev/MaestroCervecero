@@ -449,7 +449,7 @@ class PlanificacionProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RPP-15: registrarPlanificacionProduccion acepta un rango de exactamente 1.825 días entre el inicio y el fin estimados (límite)")
+    @DisplayName("CP-RPP-15: registrarPlanificacionProduccion acepta un rango de exactamente 1.825 días entre las fechas de inicio y de finalización estimadas (límite)")
     void registrar_debeAceptarRangoDe1825Dias() {
         LocalDate inicio = LocalDate.of(2099, 3, 1);
         PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
@@ -466,7 +466,7 @@ class PlanificacionProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RPP-16: registrarPlanificacionProduccion lanza ReglaNegocioException cuando el rango entre el inicio y el fin estimados es de 1.826 días")
+    @DisplayName("CP-RPP-16: registrarPlanificacionProduccion lanza ReglaNegocioException cuando el rango entre las fechas de inicio y de finalización estimadas es de 1.826 días")
     void registrar_debeRechazarRangoDe1826Dias() {
         LocalDate inicio = LocalDate.of(2099, 3, 1);
         PlanificacionProduccionFormDTO formDTO = planificacionFormDTOValidoBuilder(1L)
@@ -476,7 +476,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La planificación no puede durar más de 5 años (1.825 días) entre el inicio y el fin estimados");
+                .hasMessage("La planificación no puede durar más de 5 años (1.825 días) entre las fechas de inicio y de finalización estimadas");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }

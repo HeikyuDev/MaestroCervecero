@@ -130,7 +130,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La provincia no existe");
+                .hasMessage("No se encontró la provincia con ID: 99");
         verify(provinciaRepository).findById(99L);
     }
 
@@ -144,7 +144,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.altaProvincia(provinciaFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El país no existe");
+                .hasMessage("No se encontró el país con ID: 99");
 
         verify(paisRepository).findById(99L);
         verify(provinciaRepository, never()).existsByNombreIgnoreCaseAndPaisId(any(), any());
@@ -241,6 +241,18 @@ class ProvinciaServicioImplTest {
         assertThat(resultado.getPais().getId()).isEqualTo(1L);
     }
 
+    @Test
+    @DisplayName("CP-APR-06: altaProvincia lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void altaProvincia_debeRechazarNombreDemasiadoLargo() {
+        ProvinciaFormDTO provinciaFormDTO = provinciaFormDTO("a".repeat(101), 1L);
+
+        assertThatThrownBy(() -> provinciaServicio.altaProvincia(provinciaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(provinciaRepository, paisRepository);
+    }
+
     // ==================== modificarProvincia ====================
 
     @Test
@@ -251,7 +263,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.modificarProvincia(99L, provinciaFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La provincia no existe");
+                .hasMessage("No se encontró la provincia con ID: 99");
 
         verify(provinciaRepository).findById(99L);
         verifyNoInteractions(paisRepository);
@@ -269,7 +281,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, provinciaFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("El país no existe");
+                .hasMessage("No se encontró el país con ID: 99");
 
         verify(paisRepository).findById(99L);
         verify(provinciaRepository, never()).existsByNombreIgnoreCaseAndPaisIdAndIdNot(any(), any(), any());
@@ -361,6 +373,18 @@ class ProvinciaServicioImplTest {
         verify(provinciaRepository).findById(1L);
         verify(paisRepository).findById(1L);
         verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisIdAndIdNot("Misiones Actualizada", 1L, 1L);
+    }
+
+    @Test
+    @DisplayName("CP-MPR-07: modificarProvincia lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void modificarProvincia_debeRechazarNombreDemasiadoLargo() {
+        ProvinciaFormDTO provinciaFormDTO = provinciaFormDTO("a".repeat(101), 1L);
+
+        assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, provinciaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(provinciaRepository, paisRepository);
     }
 
     // ==================== bajaProvincia ====================

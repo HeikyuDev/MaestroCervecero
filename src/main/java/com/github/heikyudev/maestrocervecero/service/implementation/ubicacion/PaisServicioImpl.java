@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
@@ -57,7 +59,7 @@ public class PaisServicioImpl implements IPaisServicio {
     public PaisResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperPais.toDTO(paisRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El país no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + id)));
     }
 
     /**
@@ -69,24 +71,28 @@ public class PaisServicioImpl implements IPaisServicio {
      *
      * @param paisFormDTO Objeto DTO que contiene los datos de creación del país.
      * @return {@link PaisResponseDTO} representativo del país guardado en la base de datos.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a un país activo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PAIS)
     public PaisResponseDTO altaPais(PaisFormDTO paisFormDTO) {
-        // 1. Validar si el nombre ya está registrado en otro país (case-insensitive)
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(paisFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+
+        // 2. Validar si el nombre ya está registrado en otro país (case-insensitive)
         if (paisRepository.existsByNombreIgnoreCase(paisFormDTO.getNombre())) {
             throw new RecursoDuplicadoException("Ya existe un país con el nombre '" + paisFormDTO.getNombre() + "'");
         }
 
-        // 2. Creo la entidad que se va a almacenar en la base de datos
+        // 3. Creo la entidad que se va a almacenar en la base de datos
         PaisEntity paisEntity = PaisEntity.builder()
                 .nombre(paisFormDTO.getNombre())
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 3. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
+        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
         return MapperPais.toDTO(paisRepository.save(paisEntity));
     }
 
@@ -101,26 +107,30 @@ public class PaisServicioImpl implements IPaisServicio {
      * @param paisFormDTO DTO con la información actualizada.
      * @return {@link PaisResponseDTO} representativo del país con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza un país activo por el ID proporcionado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otro país activo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PAIS)
     public PaisResponseDTO modificarPais(Long id, PaisFormDTO paisFormDTO) {
-        // 1. Localizar el país existente. Si no existe, se dispara RecursoNoEncontradoException
-        PaisEntity paisEntity = paisRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El país no existe"));
+        // 1. Validar la longitud máxima del nombre
+        ValidacionesNumericas.validarLongitudMaxima(paisFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
 
-        // 2. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 2. Localizar el país existente. Si no existe, se dispara RecursoNoEncontradoException
+        PaisEntity paisEntity = paisRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + id));
+
+        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (paisRepository.existsByNombreIgnoreCaseAndIdNot(paisFormDTO.getNombre(), id)) {
             throw new RecursoDuplicadoException("El nombre '" + paisFormDTO.getNombre() + "' ya está en uso por otro país");
         }
 
-        // 3. Aplico los cambios sobre la entidad administrada por persistencia
+        // 4. Aplico los cambios sobre la entidad administrada por persistencia
         paisEntity.setNombre(paisFormDTO.getNombre());
 
-        // 4. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperPais.toDTO(paisRepository.save(paisEntity));
     }
 

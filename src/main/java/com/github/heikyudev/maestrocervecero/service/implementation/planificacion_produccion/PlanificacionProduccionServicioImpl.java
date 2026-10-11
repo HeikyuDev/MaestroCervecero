@@ -51,7 +51,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     // Constantes de la estimación de la fecha de finalización (ver sugerirFechaFinalizacion)
     private static final int MINUTOS_POR_DIA = 1440;
     private static final int DIAS_MARGEN_LIMPIEZA_FERMENTADOR = 2;
-    private static final String MENSAJE_RANGO_PLANIFICACION_EXCEDIDO = "La planificación no puede durar más de 5 años (1.825 días) entre el inicio y el fin estimados";
+    private static final String MENSAJE_RANGO_PLANIFICACION_EXCEDIDO = "La planificación no puede durar más de 5 años (1.825 días) entre las fechas de inicio y de finalización estimadas";
     private static final String MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY = "La fecha de inicio estimada no puede ser anterior a la fecha actual";
 
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
@@ -197,7 +197,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
             throw new ReglaNegocioException("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada");
         }
 
-        // 4 bis. Validar que el rango entre el inicio y el fin estimados no supere el máximo permitido
+        // 4 bis. Validar que el rango entre las fechas de inicio y de finalización estimadas no supere el máximo permitido
         if (ChronoUnit.DAYS.between(fechaInicioEstimada, fechaFinalizacionEstimada) > LimitesTecnicos.RANGO_MAXIMO_PLANIFICACION_DIAS) {
             throw new ReglaNegocioException(MENSAJE_RANGO_PLANIFICACION_EXCEDIDO);
         }

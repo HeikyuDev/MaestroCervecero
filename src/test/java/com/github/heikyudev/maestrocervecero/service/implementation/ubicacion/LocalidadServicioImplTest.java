@@ -133,7 +133,7 @@ class LocalidadServicioImplTest {
 
         assertThatThrownBy(() -> localidadServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La localidad no existe");
+                .hasMessage("No se encontró la localidad con ID: 99");
         verify(localidadRepository).findById(99L);
     }
 
@@ -147,7 +147,7 @@ class LocalidadServicioImplTest {
 
         assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La provincia no existe");
+                .hasMessage("No se encontró la provincia con ID: 99");
 
         verifyNoInteractions(localidadRepository);
     }
@@ -207,7 +207,7 @@ class LocalidadServicioImplTest {
 
         assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La provincia no existe");
+                .hasMessage("No se encontró la provincia con ID: 99");
 
         verifyNoInteractions(localidadRepository);
     }
@@ -244,6 +244,30 @@ class LocalidadServicioImplTest {
         assertThat(resultado.getNombre()).isEqualTo("Belgrano");
     }
 
+    @Test
+    @DisplayName("CP-AL-07: altaLocalidad lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void altaLocalidad_debeRechazarNombreDemasiadoLargo() {
+        LocalidadFormDTO formDTO = localidadFormDTO("a".repeat(101), "1414", 1L);
+
+        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(localidadRepository, provinciaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-08: altaLocalidad lanza ReglaNegocioException y no consulta la BD cuando el código postal supera los 10 caracteres")
+    void altaLocalidad_debeRechazarCodigoPostalDemasiadoLargo() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Palermo", "1".repeat(11), 1L);
+
+        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El código postal no puede superar 10 caracteres");
+
+        verifyNoInteractions(localidadRepository, provinciaRepository);
+    }
+
     // ==================== modificarLocalidad ====================
 
     @Test
@@ -254,7 +278,7 @@ class LocalidadServicioImplTest {
 
         assertThatThrownBy(() -> localidadServicio.modificarLocalidad(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La localidad no existe");
+                .hasMessage("No se encontró la localidad con ID: 99");
 
         verify(localidadRepository).findById(99L);
         verifyNoInteractions(provinciaRepository);
@@ -271,7 +295,7 @@ class LocalidadServicioImplTest {
 
         assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La provincia no existe");
+                .hasMessage("No se encontró la provincia con ID: 99");
 
         verify(localidadRepository, never()).existsByNombreIgnoreCaseAndProvinciaIdAndIdNot(any(), any(), any());
         verify(localidadRepository, never()).save(any());
@@ -357,6 +381,30 @@ class LocalidadServicioImplTest {
 
         assertThat(resultado.getNombre()).isEqualTo("Palermo Chico");
         verify(localidadRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("CP-ML-07: modificarLocalidad lanza ReglaNegocioException y no consulta la BD cuando el nombre supera los 100 caracteres")
+    void modificarLocalidad_debeRechazarNombreDemasiadoLargo() {
+        LocalidadFormDTO formDTO = localidadFormDTO("a".repeat(101), "1414", 1L);
+
+        assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(localidadRepository, provinciaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-08: modificarLocalidad lanza ReglaNegocioException y no consulta la BD cuando el código postal supera los 10 caracteres")
+    void modificarLocalidad_debeRechazarCodigoPostalDemasiadoLargo() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Palermo", "1".repeat(11), 1L);
+
+        assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El código postal no puede superar 10 caracteres");
+
+        verifyNoInteractions(localidadRepository, provinciaRepository);
     }
 
     // ==================== bajaLocalidad ====================

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - Maestro Cervecero</title>
+    <title>Iniciar sesión - Maestro Cervecero</title>
     <link rel="icon" type="image/x-icon" th:href="@{/img/logo-32x32.ico}" />
 
     <!-- Tailwind CSS CDN -->
@@ -60,12 +60,12 @@
             <span>Usuario o contraseña incorrectos</span>
         </div>
 
-        <!-- Alerta: Cierre de Sesión Exitoso -->
+        <!-- Alerta: cierre de sesión exitoso -->
         <div th:if="${logout}"
              class="bg-teal-500/10 border border-teal-500/30 text-teal-400 p-3.5 rounded-xl text-sm flex items-center gap-3 mb-6"
              role="alert">
             <i class="bi bi-check-circle-fill text-lg flex-shrink-0"></i>
-            <span>Has cerrado sesión correctamente</span>
+            <span>Sesión cerrada correctamente</span>
         </div>
 
         <!-- Alerta: Mensaje Dinámico Personalizado -->
@@ -95,7 +95,7 @@
 
             <div>
                 <label for="username" class="block text-sm font-medium text-slate-300 mb-2">
-                    <i class="bi bi-person mr-1.5 text-slate-500"></i>Nombre de Usuario
+                    <i class="bi bi-person mr-1.5 text-slate-500"></i>Nombre de usuario
                 </label>
                 <input type="text"
                        id="username"
@@ -123,7 +123,7 @@
             <button type="submit"
                     class="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-[0.98] text-white font-semibold rounded-xl transition-all shadow-lg shadow-amber-600/25 text-sm mt-2 flex items-center justify-center gap-2">
                 <i class="bi bi-box-arrow-in-right"></i>
-                Iniciar Sesión
+                Iniciar sesión
             </button>
         </form>
 

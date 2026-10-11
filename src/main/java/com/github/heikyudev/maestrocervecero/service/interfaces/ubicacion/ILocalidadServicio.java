@@ -50,6 +50,7 @@ public interface ILocalidadServicio {
      * @param localidadFormDTO Los datos de la localidad a registrar.
      * @return La localidad registrada.
      * @throws RecursoNoEncontradoException Si no existe una provincia activa con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o el código postal supera los 10 caracteres.
      * @throws RecursoDuplicadoException Si ya existe una localidad activa con el mismo nombre (case-insensitive) para la misma provincia.
      */
     LocalidadResponseDTO altaLocalidad(LocalidadFormDTO localidadFormDTO);
@@ -61,6 +62,7 @@ public interface ILocalidadServicio {
      * @param localidadFormDTO Los nuevos datos de la localidad.
      * @return La localidad modificada.
      * @throws RecursoNoEncontradoException Si no existe una localidad activa con el ID especificado, o si no existe una provincia activa con el ID especificado.
+     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o el código postal supera los 10 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otra localidad activa (case-insensitive) de la misma provincia.
      */
     LocalidadResponseDTO modificarLocalidad(Long id, LocalidadFormDTO localidadFormDTO);

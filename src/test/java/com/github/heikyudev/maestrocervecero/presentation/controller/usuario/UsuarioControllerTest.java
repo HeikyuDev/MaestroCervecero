@@ -239,13 +239,13 @@ class UsuarioControllerTest {
     @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-UC-11: username duplicado vuelve al formulario con el error asociado al campo, conservando lo tipeado")
     void alta_debeMostrarErrorEnElCampoCuandoElUsernameEstaDuplicado() throws Exception {
-        doThrow(new RecursoDuplicadoException("El Username ya esta registrado")).when(usuarioServicio).altaUsuario(any());
+        doThrow(new RecursoDuplicadoException("El nombre de usuario 'carlos' ya está en uso")).when(usuarioServicio).altaUsuario(any());
 
         mockMvc.perform(post("/usuarios").with(csrf()).params(paramsValidos("carlos")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("usuario/usuario-form"))
                 .andExpect(model().attributeHasFieldErrors("usuarioForm", "username"))
-                .andExpect(content().string(containsString("El Username ya esta registrado")))
+                .andExpect(content().string(containsString("El nombre de usuario &#39;carlos&#39; ya está en uso")))
                 .andExpect(content().string(containsString("Gomez")));
     }
 
@@ -300,7 +300,7 @@ class UsuarioControllerTest {
                 .andExpect(content().string(containsString("Guardar cambios")))
                 .andExpect(content().string(containsString("value=\"carlos\"")))
                 .andExpect(content().string(containsString("value=\"Gomez\"")))
-                .andExpect(content().string(containsString("Dejala vacía para conservar la actual")))
+                .andExpect(content().string(containsString("Deje vacía para conservar la actual")))
                 .andExpect(content().string(containsString("action=\"/usuarios/7\"")))
                 .andExpect(content().string(containsString("<select id=\"rol\"")));
     }

@@ -74,7 +74,7 @@ public class AuditLogServiceImpl implements IAuditLogService {
                                                       AccionAuditoria accion, ConceptoAuditoria conceptoAuditoria,
                                                       String username, Pageable pageable) {
         if (fechaDesde != null && fechaHasta != null && fechaDesde.isAfter(fechaHasta)) {
-            throw new ReglaNegocioException("La fecha desde no puede ser posterior a la fecha hasta");
+            throw new ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde");
         }
 
         String usernameNormalizado = (username == null || username.isBlank()) ? null : username.trim();

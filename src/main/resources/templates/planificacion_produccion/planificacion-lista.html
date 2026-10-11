@@ -24,7 +24,7 @@
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
-                    @{/planificaciones-produccion/buscador/recetas}, null, null, true, false, 'Seleccionar receta')}"></div>
+                    @{/planificaciones-produccion/buscador/recetas}, null, null, true, false, 'Seleccione receta')}"></div>
         </div>
         <div>
             <label for="estado" class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
@@ -56,7 +56,7 @@
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
                 <th class="px-2 py-3 whitespace-nowrap">Receta</th>
-                <th class="px-2 py-3 whitespace-nowrap" title="Litros a producir (L)">Litros (L)</th>
+                <th class="px-2 py-3 whitespace-nowrap" title="Cantidad a producir (L)">Cantidad (L)</th>
                 <th class="px-2 py-3 whitespace-nowrap" title="Litros producidos (L)">Producido (L)</th>
                 <th class="px-2 py-3 whitespace-nowrap xl:hidden" title="Inicio estimado y fin estimado">Inicio / Fin</th>
                 <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Inicio estimado</th>
@@ -121,10 +121,12 @@
     <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar planificación',
                 'Se cierra de forma forzada y queda registrado el motivo. Solo procede si ya tiene un lote finalizado y ninguno pendiente ni en ejecución.',
-                'Finalizar', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle')}"></div>
+                'Finalizar', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
+                'Se completó la producción prevista con menos lotes')}"></div>
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular planificación',
                 'Se anula y queda registrado el motivo. Solo procede si no tiene lotes pendientes, en ejecución ni finalizados.',
-                'Anular', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle')}"></div>
+                'Anular', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                'Se canceló el pedido del cliente')}"></div>
     </th:block>
 </div>
 

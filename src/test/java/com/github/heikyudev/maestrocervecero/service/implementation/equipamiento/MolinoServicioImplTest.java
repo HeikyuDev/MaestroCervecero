@@ -356,7 +356,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-05: modificarMolino lanza ReglaNegocioException y no persiste cuando el molino tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-MM-05: modificarMolino lanza ReglaNegocioException y no persiste cuando el molino tiene comprometida una etapa en estado Pendiente de un lote")
     void modificarMolino_debeRechazarAsociacionALotePendiente() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 100.0);
@@ -366,7 +366,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede modificar el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository, never()).save(any());
@@ -452,7 +452,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino tiene comprometida una etapa pendiente de un lote")
+    @DisplayName("CP-BM-02: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino tiene comprometida una etapa en estado Pendiente de un lote")
     void bajaMolino_debeRechazarAsociacionALotePendiente() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
@@ -460,7 +460,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository, never()).save(any());
@@ -509,7 +509,7 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-07: bajaMolino informa primero la etapa pendiente de un lote cuando el molino además no está disponible")
+    @DisplayName("CP-BM-07: bajaMolino informa primero la etapa en estado Pendiente de un lote cuando el molino además no está disponible")
     void bajaMolino_debePriorizarEtapaPendienteSobreNoDisponible() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_USO);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
@@ -517,7 +517,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote");
+                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
 
         verify(molinoRepository, never()).save(any());
     }
@@ -627,7 +627,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -708,7 +708,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de usos máximos antes de mantenimiento no puede superar 100.000 usos");
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(molinoRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

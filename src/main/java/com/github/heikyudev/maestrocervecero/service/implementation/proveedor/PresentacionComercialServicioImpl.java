@@ -157,7 +157,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
      * @param id Identificador clave primaria de la presentación comercial a dar de baja.
      * @return {@link PresentacionComercialResponseDTO} con los datos de la presentación comercial ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la presentación comercial con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la presentación comercial se encuentra en al menos una orden de compra pendiente, o asociada al catálogo de al menos un proveedor activo.
+     * @throws ReglaNegocioException Si la presentación comercial se encuentra en al menos una orden de compra en estado Pendiente, o asociada al catálogo de al menos un proveedor activo.
      */
     @Override
     @Transactional
@@ -167,10 +167,10 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
         PresentacionComercialEntity presentacionComercialEntity = presentacionComercialRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la presentación comercial con ID: " + id));
 
-        // 2. Validar que la presentación comercial no se encuentre en ninguna orden de compra pendiente
+        // 2. Validar que la presentación comercial no se encuentre en ninguna orden de compra en estado Pendiente
         //    (cualquier versión del proveedor)
         if (ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la presentación comercial porque se encuentra en al menos una orden de compra pendiente");
+            throw new ReglaNegocioException("No se puede dar de baja la presentación comercial porque se encuentra en al menos una orden de compra en estado Pendiente");
         }
 
         // 3. Validar que la presentación comercial no esté asociada a ningún catálogo de proveedor activo
