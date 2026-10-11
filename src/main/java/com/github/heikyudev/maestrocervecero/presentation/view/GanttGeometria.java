@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -142,14 +141,13 @@ final class GanttGeometria {
     // ==================== Eje ====================
 
     /**
-     * Arma el eje: del menor inicio al mayor fin entre los tramos y las fechas extra, con un día de margen a
-     * cada lado. Sin ninguna fecha, el eje se arma alrededor de hoy.
+     * Arma el eje de una planificación: del menor inicio al mayor fin entre los tramos y las fechas extra, con un
+     * día de margen a cada lado. Sin ninguna fecha, el eje se arma alrededor de hoy.
      *
      * @param extraDesde fecha extra que el eje debe abarcar (ej. inicio de la planificación), o {@code null}
      * @param extraHasta fecha extra que el eje debe abarcar (ej. fin de la planificación), o {@code null}
-     * @param incluirHoy {@code true} si el eje debe abarcar también el día de hoy
      */
-    static Eje armarEje(List<Tramo> tramos, LocalDate extraDesde, LocalDate extraHasta, LocalDate hoy, boolean incluirHoy) {
+    static Eje armarEje(List<Tramo> tramos, LocalDate extraDesde, LocalDate extraHasta, LocalDate hoy) {
         LocalDate minimo = null;
         LocalDate maximo = null;
         for (Tramo t : tramos) {
@@ -158,10 +156,6 @@ final class GanttGeometria {
         }
         minimo = menor(minimo, extraDesde);
         maximo = mayor(maximo, extraHasta);
-        if (incluirHoy) {
-            minimo = menor(minimo, hoy);
-            maximo = mayor(maximo, hoy);
-        }
         minimo = menor(minimo, maximo);
         maximo = mayor(maximo, minimo);
         if (minimo == null) {
@@ -169,9 +163,18 @@ final class GanttGeometria {
             minimo = base;
             maximo = base;
         }
+        return construirEje(minimo.minusDays(1), maximo.plusDays(1), hoy);
+    }
 
-        LocalDate rangoDesde = minimo.minusDays(1);
-        LocalDate rangoHasta = maximo.plusDays(1);
+    /**
+     * Arma el eje de un período elegido: del {@code desde} al {@code hasta}, ambos inclusive, sin márgenes. No se
+     * ensancha por las barras ni por hoy: lo que sale del período se recorta.
+     */
+    static Eje armarEjeDelPeriodo(LocalDate desde, LocalDate hasta, LocalDate hoy) {
+        return construirEje(desde, hasta, hoy);
+    }
+
+    private static Eje construirEje(LocalDate rangoDesde, LocalDate rangoHasta, LocalDate hoy) {
         int totalDias = (int) ChronoUnit.DAYS.between(rangoDesde, rangoHasta) + 1;
         Double hoyPct = posicionDeHoy(hoy, rangoDesde, rangoHasta, totalDias);
 
@@ -266,30 +269,17 @@ final class GanttGeometria {
 
     /**
      * Agrupa los tramos en un carril por fermentador, ordenados por identificador sin distinguir mayúsculas; los
-     * lotes sin fermentador van al final, en el carril "Sin fermentador". Los identificadores de
-     * {@code carrilesExtra} tienen su carril aunque no tengan ningún lote (carril vacío).
+     * lotes sin fermentador van al final, en el carril "Sin fermentador".
      *
      * @param aBarra cómo se dibuja cada tramo (etiqueta, tooltip y atenuado los define cada diagrama)
      * @param limpiezaAtenuada si una limpieza se dibuja atenuada, según los tramos vivos que terminan el día anterior
      */
-    static List<Carril> armarCarriles(List<Tramo> tramos, Collection<String> carrilesExtra, Eje eje, LocalDate hoy,
+    static List<Carril> armarCarriles(List<Tramo> tramos, Eje eje, LocalDate hoy,
                                       Function<Tramo, Barra> aBarra, Predicate<List<Tramo>> limpiezaAtenuada) {
-        Map<String, List<Tramo>> porFermentador = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        if (carrilesExtra != null) {
-            carrilesExtra.forEach(identificador -> porFermentador.computeIfAbsent(identificador, k -> new ArrayList<>()));
-        }
-        List<Tramo> sinFermentador = new ArrayList<>();
-        for (Tramo t : tramos) {
-            String identificador = t.lote().getIdentificadorInternoFermentador();
-            if (identificador == null || identificador.isBlank()) {
-                sinFermentador.add(t);
-            } else {
-                porFermentador.computeIfAbsent(identificador, k -> new ArrayList<>()).add(t);
-            }
-        }
+        List<Tramo> sinFermentador = tramos.stream().filter(t -> !tieneFermentador(t)).toList();
 
         List<Carril> carriles = new ArrayList<>();
-        porFermentador.forEach((identificador, lista) ->
+        agruparPorFermentador(tramos).forEach((identificador, lista) ->
                 carriles.add(armarCarril(identificador, lista, eje, hoy, aBarra, limpiezaAtenuada, true)));
         if (!sinFermentador.isEmpty()) {
             carriles.add(armarCarril(CARRIL_SIN_FERMENTADOR, sinFermentador, eje, hoy, aBarra, limpiezaAtenuada, false));
@@ -297,15 +287,52 @@ final class GanttGeometria {
         return carriles;
     }
 
-    private static Carril armarCarril(String etiqueta, List<Tramo> tramos, Eje eje, LocalDate hoy,
-                                      Function<Tramo, Barra> aBarra, Predicate<List<Tramo>> limpiezaAtenuada,
-                                      boolean conFermentador) {
+    /** Los tramos de los lotes que tienen fermentador, agrupados por su identificador y ordenados sin distinguir mayúsculas. */
+    static Map<String, List<Tramo>> agruparPorFermentador(List<Tramo> tramos) {
+        Map<String, List<Tramo>> porFermentador = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (Tramo t : tramos) {
+            if (tieneFermentador(t)) {
+                porFermentador.computeIfAbsent(t.lote().getIdentificadorInternoFermentador(), k -> new ArrayList<>()).add(t);
+            }
+        }
+        return porFermentador;
+    }
+
+    private static boolean tieneFermentador(Tramo tramo) {
+        String identificador = tramo.lote().getIdentificadorInternoFermentador();
+        return identificador != null && !identificador.isBlank();
+    }
+
+    /** {@code true} si algún día del tramo cae dentro del eje (ambos extremos inclusivos). */
+    static boolean seSolapaConElEje(Tramo tramo, Eje eje) {
+        return !tramo.desde().isAfter(eje.hasta()) && !tramo.hasta().isBefore(eje.desde());
+    }
+
+    /** {@code true} si el lote empieza antes del primer día del eje: su barra se recorta a la izquierda. */
+    static boolean continuaAntes(Tramo tramo, Eje eje) {
+        return tramo.desde().isBefore(eje.desde());
+    }
+
+    /** {@code true} si el lote termina después del último día del eje: su barra se recorta a la derecha. */
+    static boolean continuaDespues(Tramo tramo, Eje eje) {
+        return tramo.hasta().isAfter(eje.hasta());
+    }
+
+    /**
+     * Arma el carril de un fermentador. Las barras son las de los tramos que caen dentro del eje; las limpiezas se
+     * calculan con todos los tramos, también los que quedan fuera.
+     */
+    static Carril armarCarril(String etiqueta, List<Tramo> tramos, Eje eje, LocalDate hoy,
+                              Function<Tramo, Barra> aBarra, Predicate<List<Tramo>> limpiezaAtenuada,
+                              boolean conFermentador) {
         List<Tramo> ordenados = new ArrayList<>(tramos);
         ordenados.sort(Comparator.<Tramo, LocalDate>comparing(Tramo::desde)
                 .thenComparing(t -> t.lote().getId(), Comparator.nullsLast(Comparator.naturalOrder())));
         List<Barra> barras = new ArrayList<>();
         for (Tramo t : ordenados) {
-            barras.add(aBarra.apply(t));
+            if (seSolapaConElEje(t, eje)) {
+                barras.add(aBarra.apply(t));
+            }
         }
         List<Limpieza> limpiezas = conFermentador ? armarLimpiezas(ordenados, eje, hoy, limpiezaAtenuada) : List.of();
         return Carril.builder().etiqueta(etiqueta).barras(barras).limpiezas(limpiezas).build();
@@ -315,7 +342,8 @@ final class GanttGeometria {
      * Las limpiezas de un carril: para cada lote vivo ({@code PENDIENTE} o {@code EN_EJECUCION}) el día siguiente a su
      * último día, si ese día es hoy o posterior, ninguna barra del carril lo cubre y algún lote vivo del carril
      * empieza después. Los lotes finalizados no originan limpieza, y sin la fecha de hoy no se dibuja ninguna.
-     * Dos lotes que terminan el mismo día producen un único bloque. Van ordenadas por fecha.
+     * Dos lotes que terminan el mismo día producen un único bloque. Van ordenadas por fecha. La regla se evalúa con
+     * todos los tramos recibidos, estén o no dentro del eje, pero el bloque se dibuja solo si su día cae dentro del eje.
      */
     private static List<Limpieza> armarLimpiezas(List<Tramo> tramos, Eje eje, LocalDate hoy, Predicate<List<Tramo>> limpiezaAtenuada) {
         if (hoy == null) {
@@ -325,7 +353,7 @@ final class GanttGeometria {
         Map<LocalDate, List<Tramo>> terminanAntes = new TreeMap<>();
         for (Tramo vivo : vivos) {
             LocalDate dia = vivo.hasta().plusDays(1);
-            if (dia.isBefore(hoy)
+            if (dia.isBefore(hoy) || dia.isBefore(eje.desde()) || dia.isAfter(eje.hasta())
                     || tramos.stream().anyMatch(t -> !t.desde().isAfter(dia) && !t.hasta().isBefore(dia))
                     || vivos.stream().noneMatch(t -> t.desde().isAfter(dia))) {
                 continue;
@@ -354,17 +382,21 @@ final class GanttGeometria {
     }
 
     /**
-     * Arma la barra de un tramo sobre el eje: su posición, y su ancho.
+     * Arma la barra de un tramo sobre el eje: su posición y su ancho. Si el tramo sale del eje se recorta en el borde
+     * (solo ocurre en el cronograma global, cuyo eje es un período) y se indica con {@code continuaAntes} y
+     * {@code continuaDespues}; {@code desde} y {@code hasta} conservan las fechas reales del lote.
      */
     static Barra armarBarra(Tramo tramo, Eje eje, String etiqueta, String tooltip, boolean atenuada) {
         LoteCronogramaResponseDTO lote = tramo.lote();
         EstadoLote estado = estadoDe(lote);
-        long diasBarra = ChronoUnit.DAYS.between(tramo.desde(), tramo.hasta()) + 1;
+        LocalDate visibleDesde = mayor(tramo.desde(), eje.desde());
+        LocalDate visibleHasta = menor(tramo.hasta(), eje.hasta());
+        long diasBarra = ChronoUnit.DAYS.between(visibleDesde, visibleHasta) + 1;
         boolean enAtraso = estado == EstadoLote.EN_EJECUCION && lote.getDiasDeAtraso() > 0;
 
         double ancho = Math.max(ANCHO_MINIMO_BARRA_PCT, porcentaje(diasBarra, eje.totalDias()));
         double izquierda = redondear(Math.min(
-                porcentaje(ChronoUnit.DAYS.between(eje.desde(), tramo.desde()), eje.totalDias()), 100.0 - ancho));
+                porcentaje(ChronoUnit.DAYS.between(eje.desde(), visibleDesde), eje.totalDias()), 100.0 - ancho));
 
         return Barra.builder()
                 .idLote(lote.getId())
@@ -379,6 +411,8 @@ final class GanttGeometria {
                 .diasDeAtraso(enAtraso ? lote.getDiasDeAtraso() : 0)
                 .etiquetaAtraso(enAtraso ? "Atrasado " + dias(lote.getDiasDeAtraso()) : null)
                 .atenuada(atenuada)
+                .continuaAntes(continuaAntes(tramo, eje))
+                .continuaDespues(continuaDespues(tramo, eje))
                 .build();
     }
 
@@ -388,6 +422,14 @@ final class GanttGeometria {
      * atrasado o el pendiente está corrido por ese atraso, lo dice debajo de las líneas extra.
      */
     static String armarTooltip(LoteCronogramaResponseDTO lote, List<String> lineasExtra) {
+        return armarTooltip(lote, lineasExtra, false, false);
+    }
+
+    /**
+     * Igual que {@link #armarTooltip(LoteCronogramaResponseDTO, List)}, y si la barra se recortó en el período suma
+     * "Continúa antes del período" y "Continúa después del período" debajo de las leyendas de atraso y corrimiento.
+     */
+    static String armarTooltip(LoteCronogramaResponseDTO lote, List<String> lineasExtra, boolean continuaAntes, boolean continuaDespues) {
         EstadoLote estado = estadoDe(lote);
         StringBuilder texto = new StringBuilder();
         texto.append(nombreDe(lote)).append(" - ").append(estado.getEtiqueta()).append('\n');
@@ -401,6 +443,12 @@ final class GanttGeometria {
         if (estado == EstadoLote.PENDIENTE && lote.getDiasDeDesplazamiento() > 0 && lote.getFechaInicioEstimada() != null) {
             texto.append("Planificado para el ").append(lote.getFechaInicioEstimada().format(FORMATO_DIA_MES))
                     .append(", corrido ").append(dias(lote.getDiasDeDesplazamiento())).append(" por atraso\n");
+        }
+        if (continuaAntes) {
+            texto.append("Continúa antes del período\n");
+        }
+        if (continuaDespues) {
+            texto.append("Continúa después del período\n");
         }
         texto.append("Inicio estimado: ").append(fecha(lote.getFechaInicioEstimada())).append('\n');
         texto.append("Fin estimado: ").append(fecha(lote.getFechaFinalizacionEstimada())).append('\n');

@@ -108,6 +108,41 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).filtrarFermentadores("Inexistente", null, pageable);
     }
 
+    // ==================== listarDadosDeBajaConLotes ====================
+
+    @Test
+    @DisplayName("CP-LB-01: listarDadosDeBajaConLotes mapea a DTO los fermentadores dados de baja con lotes que devuelve el repositorio, en su orden")
+    void listarDadosDeBajaConLotes_debeMapearLosFermentadoresDelRepositorio() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity primero = crearFermentadorEntity(2L, "F-02", 100.0, 80.0);
+        primero.setEstado(Estado.BAJA);
+        FermentadorEntity segundo = crearFermentadorEntity(5L, "F-05", 120.0, 90.0);
+        segundo.setEstado(Estado.BAJA);
+        when(fermentadorRepository.buscarDadosDeBajaConLotes()).thenReturn(List.of(primero, segundo));
+
+        // === EJECUCION ===
+        List<FermentadorResponseDTO> resultado = fermentadorServicio.listarDadosDeBajaConLotes();
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(2);
+        assertFermentadorDTO(primero, resultado.get(0));
+        assertFermentadorDTO(segundo, resultado.get(1));
+        assertThat(resultado).extracting(FermentadorResponseDTO::getEstado).containsOnly(Estado.BAJA);
+    }
+
+    @Test
+    @DisplayName("CP-LB-02: listarDadosDeBajaConLotes retorna una lista vacía cuando no hay fermentadores dados de baja con lotes")
+    void listarDadosDeBajaConLotes_debeRetornarListaVaciaSinFermentadores() {
+        // === PREPARACION DE DATOS ===
+        when(fermentadorRepository.buscarDadosDeBajaConLotes()).thenReturn(List.of());
+
+        // === EJECUCION ===
+        List<FermentadorResponseDTO> resultado = fermentadorServicio.listarDadosDeBajaConLotes();
+
+        // === ASSERTS ===
+        assertThat(resultado).isNotNull().isEmpty();
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

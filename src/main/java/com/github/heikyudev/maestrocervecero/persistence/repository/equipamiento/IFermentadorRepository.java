@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -40,6 +41,22 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
                     + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)")
     Page<FermentadorEntity> filtrarFermentadores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
+
+    /**
+     * Obtiene los fermentadores dados de baja que tienen al menos un lote que no fue cancelado (el fermentador de un
+     * lote es el equipamiento de su etapa de Fermentación), ordenados por identificador interno.
+     * <p>
+     * Sirve para que el cronograma de producción pueda filtrar por un fermentador que ya no está activo y cuyos lotes
+     * siguen en el historial.
+     * </p>
+     *
+     * @return Los fermentadores dados de baja con lotes, o una lista vacía si no hay ninguno.
+     */
+    @Query("SELECT f FROM FermentadorEntity f WHERE f.estado = 'BAJA' AND EXISTS (" +
+            "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION' " +
+            "AND e.lote.estado <> 'CANCELADO') " +
+            "ORDER BY f.identificadorInterno ASC")
+    List<FermentadorEntity> buscarDadosDeBajaConLotes();
 
     /**
      * Busca, bloqueándolo para escritura, un fermentador por su ID.

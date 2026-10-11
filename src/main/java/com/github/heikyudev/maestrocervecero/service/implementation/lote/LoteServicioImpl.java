@@ -96,9 +96,6 @@ public class LoteServicioImpl implements ILoteServicio {
     // Nombre que usa el código del lote cuando el nombre de la versión de receta no deja ningún carácter utilizable
     private static final String NOMBRE_POR_DEFECTO_DEL_CODIGO = "LOTE";
 
-    // Antigüedad máxima, en días respecto de hoy, para que un lote finalizado aparezca en el cronograma global
-    private static final int DIAS_HISTORIAL_RECIENTE = 14;
-
     // Separación entre dos lotes consecutivos de un fermentador: el día fin + 1 es el de limpieza y el siguiente lote
     // arranca como mínimo el día fin + 2
     private static final int DIAS_MARGEN_LIMPIEZA = 2;
@@ -1377,24 +1374,36 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Lista los lotes de todas las planificaciones para el cronograma global, por fermentador.
-     * Ver {@link ILoteServicio#listarLotesParaCronograma(Long, boolean)}.
+     * Lista los lotes de todas las planificaciones para el cronograma global de un período, por fermentador.
+     * Ver {@link ILoteServicio#listarLotesParaCronograma(Long, LocalDate, LocalDate)}.
      */
     @Override
     @Transactional(readOnly = true)
-    public List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, boolean incluirHistorial) {
-        // 1. Si se pidió un fermentador puntual, validar que exista y esté activo (findById ya filtra por estado ACTIVO)
-        if (idFermentador != null) {
-            fermentadorRepository.findById(idFermentador)
-                    .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador));
+    public List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, LocalDate desde, LocalDate hasta) {
+        // 1. Validar el período: ambos extremos son obligatorios, no puede estar invertido ni superar el tope
+        if (desde == null) {
+            throw new ReglaNegocioException("La fecha de inicio del período es obligatoria");
+        }
+        if (hasta == null) {
+            throw new ReglaNegocioException("La fecha de fin del período es obligatoria");
+        }
+        if (hasta.isBefore(desde)) {
+            throw new ReglaNegocioException("La fecha de fin del período no puede ser anterior a la fecha de inicio");
+        }
+        if (ChronoUnit.DAYS.between(desde, hasta) > LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS) {
+            throw new ReglaNegocioException("El período del cronograma no puede superar los " + LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS + " días (5 años)");
         }
 
-        // 2. Recuperar los lotes con sus relaciones; el historial reciente se mide desde el inicio del día de hoy menos 14 días
-        LocalDateTime desde = LocalDate.now().minusDays(DIAS_HISTORIAL_RECIENTE).atStartOfDay();
+        // 2. Si se pidió un fermentador puntual, validar que exista; un fermentador dado de baja es válido porque sus lotes
+        //    siguen en el historial (existsById no filtra por estado, a diferencia de findById)
+        if (idFermentador != null && !fermentadorRepository.existsById(idFermentador)) {
+            throw new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador);
+        }
 
-        List<LoteEntity> lotes = loteRepository.buscarLotesParaCronograma(idFermentador, incluirHistorial, desde);
+        // 3. Recuperar los lotes con sus relaciones; hasta es inclusivo, así que la consulta usa el inicio del día siguiente
+        List<LoteEntity> lotes = loteRepository.buscarLotesParaCronograma(idFermentador, desde.atStartOfDay(), hasta.plusDays(1).atStartOfDay());
 
-        // 3. Los lotes vivos ya vienen completos (la consulta siempre trae todos los PENDIENTE y EN_EJECUCION de cada
+        // 4. Los lotes vivos ya vienen completos (la consulta siempre trae todos los PENDIENTE y EN_EJECUCION de cada
         //    fermentador): con ellos se calcula el atraso y el corrimiento de las colas, sin otra consulta
         return mapearConAtraso(lotes, lotes.stream().filter(LoteServicioImpl::estaVivo).toList());
     }

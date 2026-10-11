@@ -23,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class FermentadorServicioImpl implements IFermentadorServicio {
@@ -50,6 +52,22 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     @Transactional(readOnly = true)
     public Page<FermentadorResponseDTO> filtrarFermentadores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
         return fermentadorRepository.filtrarFermentadores(identificadorInterno, estadoOperativo, pageable).map(MapperFermentador::toDTO);
+    }
+
+    /**
+     * Recupera los fermentadores dados de baja que tienen lotes (sin contar los cancelados), en orden alfabético por
+     * identificador interno. Los fermentadores dados de baja sin lotes no se incluyen.
+     * <p>
+     * Se usa para filtrar el cronograma de producción por un fermentador que ya no está activo y cuyos lotes
+     * siguen en el historial.
+     * </p>
+     *
+     * @return Lista de {@link FermentadorResponseDTO} dados de baja con lotes, o una lista vacía si no hay ninguno.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<FermentadorResponseDTO> listarDadosDeBajaConLotes() {
+        return fermentadorRepository.buscarDadosDeBajaConLotes().stream().map(MapperFermentador::toDTO).toList();
     }
 
     /**

@@ -11,8 +11,8 @@ import java.util.List;
  * <p>
  * Contiene toda la geometría ya calculada (posiciones y anchos en porcentaje del eje de tiempo) para
  * que la plantilla solo la dibuje, sin hacer cuentas. Lo arman {@link GanttPlanificacionBuilder} (una
- * planificación) y {@link CronogramaProduccionBuilder} (el cronograma global, que no tiene marcas de
- * planificación y puede tener carriles sin barras).
+ * planificación) y {@link CronogramaProduccionBuilder} (el cronograma global, que dibuja un período elegido,
+ * recorta las barras en sus bordes, no tiene marcas de planificación y puede tener carriles sin barras).
  * </p>
  */
 @Value
@@ -149,6 +149,12 @@ public class GanttPlanificacionVista {
 
         /** {@code true} si la barra se dibuja atenuada porque su lote no es de la planificación destacada. */
         boolean atenuada;
+
+        /** {@code true} si el lote empieza antes del primer día del eje y la barra se recortó en el borde izquierdo (solo el cronograma global). */
+        boolean continuaAntes;
+
+        /** {@code true} si el lote termina después del último día del eje y la barra se recortó en el borde derecho (solo el cronograma global). */
+        boolean continuaDespues;
     }
 
     /**

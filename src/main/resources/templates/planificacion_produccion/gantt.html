@@ -22,7 +22,8 @@
 
     Lo usan el estado actual de una planificación y el cronograma global (cronograma/cronograma). El global
     puede traer carriles sin barras (se muestran con un aviso), barras atenuadas (lotes de otra planificación
-    que la destacada) y no tiene marcas de inicio y fin de planificación.
+    que la destacada), barras recortadas en el borde del período (extremo plano con un chevrón) y no tiene marcas
+    de inicio y fin de planificación.
 
     Uso: <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>
 -->
@@ -35,6 +36,10 @@
         .gantt-color--limpieza { background: #cbd5e1; box-shadow: inset 0 0 0 1px #94a3b8; }
         .gantt-barra { position: absolute; top: 0.5rem; bottom: 0.5rem; display: flex; align-items: center; overflow: hidden; border-radius: 0.375rem; }
         .gantt-barra--atenuada { opacity: 0.3; }
+        /* Barra recortada en el borde del período: extremo plano con un chevrón que indica que el lote continúa */
+        .gantt-barra--continua-antes { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+        .gantt-barra--continua-despues { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+        .gantt-continua { position: relative; flex-shrink: 0; font-size: 12px; line-height: 1; }
         .gantt-limpieza { position: absolute; top: 0.5rem; bottom: 0.5rem; border-radius: 0.375rem; }
         .gantt-limpieza--atenuada { opacity: 0.3; }
         .gantt-etiqueta-atraso { position: relative; flex-shrink: 0; margin-left: auto; margin-right: 0.25rem; padding: 0 0.375rem; border-radius: 0.25rem; background: #ffffff; color: #c2410c; font-size: 10px; font-weight: 600; line-height: 16px; white-space: nowrap; }
@@ -118,13 +123,16 @@
                          th:classappend="${l.atenuada} ? 'gantt-limpieza--atenuada'"
                          class="gantt-limpieza gantt-color--limpieza"></div>
                     <div th:each="b : ${c.barras}" role="img" tabindex="0"
-                         th:title="${b.tooltip}" th:attr="aria-label=${b.tooltip}"
+                         th:title="${b.tooltip}"
+                         th:attr="aria-label=${b.tooltip}, data-gantt-continua-antes=${b.continuaAntes ? 'true' : null}, data-gantt-continua-despues=${b.continuaDespues ? 'true' : null}"
                          th:style="|left: ${b.izquierdaPct}%; width: ${b.anchoPct}%|"
-                         th:classappend="|gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}|"
+                         th:classappend="|gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}${b.continuaAntes ? ' gantt-barra--continua-antes' : ''}${b.continuaDespues ? ' gantt-barra--continua-despues' : ''}|"
                          class="gantt-barra focus:outline-none focus:ring-2 focus:ring-slate-800">
+                        <i th:if="${b.continuaAntes}" class="bi bi-chevron-left gantt-continua" aria-hidden="true"></i>
                         <span th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
                         <span th:if="${b.etiquetaAtraso != null}" th:text="${b.etiquetaAtraso}"
                               data-gantt-atraso-etiqueta class="gantt-etiqueta-atraso">Atrasado 3 días</span>
+                        <i th:if="${b.continuaDespues}" class="bi bi-chevron-right gantt-continua ml-auto" aria-hidden="true"></i>
                     </div>
                 </div>
             </div>

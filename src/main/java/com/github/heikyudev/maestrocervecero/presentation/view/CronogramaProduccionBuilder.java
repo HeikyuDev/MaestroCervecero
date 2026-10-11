@@ -13,32 +13,39 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Arma el modelo de vista del cronograma de producción global: el diagrama de Gantt con un carril por
- * fermentador (los lotes de todas las planificaciones intercalados) y la cola de lotes pendientes de cada uno.
+ * Arma el modelo de vista del cronograma de producción global: el diagrama de Gantt de un período, con un carril por
+ * fermentador (los lotes de todas las planificaciones intercalados), y la cola de lotes pendientes de cada uno.
  * <p>
  * Es una clase sin estado ni dependencias de Spring. La geometría (reglas de cada barra según el estado del
  * lote, eje, marcas, hoy y carriles) la comparte con {@link GanttPlanificacionBuilder} en {@link GanttGeometria}.
  * Lo propio del cronograma global:
  * </p>
  * <ul>
- *     <li>Todos los fermentadores recibidos tienen su carril, aunque no tengan lotes (carril vacío).</li>
+ *     <li>El eje es el período pedido, del {@code desde} al {@code hasta} inclusive; no se ensancha por las barras ni
+ *     por hoy. Una barra que sale del período se recorta en el borde y lo indica ({@code continuaAntes} y
+ *     {@code continuaDespues}).</li>
+ *     <li>Tienen carril los fermentadores con al menos una barra en el período y los recibidos como carriles fijos
+ *     (aunque no tengan barras); los carriles se ordenan por identificador y se reparten en páginas. Solo se arman los
+ *     carriles y las colas de la página pedida. Los lotes sin fermentador no se dibujan.</li>
  *     <li>La etiqueta de cada barra dice la receta, la planificación y el lote, porque en un carril conviven
  *     lotes de planificaciones distintas.</li>
  *     <li>Si se destaca una planificación, las barras (y filas de cola) de las demás se marcan como atenuadas.</li>
  *     <li>El lote en ejecución atrasado extiende su barra hasta hoy (con su etiqueta de atraso) y los pendientes que su atraso
- *     corre se dibujan en su posición corrida; ambos datos llegan calculados en el lote y el eje abarca las barras extendidas y corridas.</li>
+ *     corre se dibujan en su posición corrida; ambos datos llegan calculados en el lote.</li>
  *     <li>Los lotes cancelados no se dibujan y no entran en la cola.</li>
- *     <li>Cada carril con fermentador muestra las limpiezas del fermentador; la de un lote de otra planificación que la
- *     destacada se atenúa.</li>
- *     <li>El eje abarca todas las barras y también el día de hoy; no hay marcas de inicio ni fin de planificación.</li>
- *     <li>La cola de un fermentador lista sus lotes PENDIENTE por fecha de inicio estimada (y, ante igual fecha, por
- *     id), con su posición; el primero no se puede subir y el último no se puede bajar. El lote EN_EJECUCION
- *     se informa aparte, porque no se mueve.</li>
+ *     <li>Cada carril muestra las limpiezas del fermentador, calculadas con todos los lotes vivos del fermentador (estén o
+ *     no en el período) y dibujadas solo si su día cae en el período; la de un lote de otra planificación que la destacada se
+ *     atenúa.</li>
+ *     <li>La cola de un fermentador lista todos sus lotes PENDIENTE por fecha de inicio estimada (y, ante igual fecha, por
+ *     id), con su posición, sin importar el período; el primero no se puede subir y el último no se puede bajar. El lote
+ *     EN_EJECUCION se informa aparte, porque no se mueve.</li>
  * </ul>
  */
 public final class CronogramaProduccionBuilder {
@@ -49,36 +56,78 @@ public final class CronogramaProduccionBuilder {
     }
 
     /**
-     * Arma el cronograma.
+     * Arma el cronograma de un período.
      *
-     * @param lotes los lotes a mostrar (puede ser {@code null} o vacía)
-     * @param identificadoresFermentadores los fermentadores que tienen carril aunque no tengan lotes
+     * @param lotes los lotes recibidos (puede ser {@code null} o vacía): los vivos completos y los finalizados que se solapan con el período; el builder decide cuáles se dibujan
+     * @param identificadoresFermentadores los fermentadores que tienen carril aunque no tengan barras en el período
      * @param idPlanificacionDestacada la planificación a destacar (las demás se atenúan), o {@code null} para no destacar ninguna
      * @param hoy el día actual, para la marca de "hoy" y las limpiezas
+     * @param desde primer día del período (inclusive)
+     * @param hasta último día del período (inclusive)
+     * @param pagina la página de carriles pedida, desde 1 (se ajusta al rango de páginas que hay)
+     * @param tamanioPagina la cantidad de fermentadores por página
      * @return el modelo de vista con la geometría y las colas calculadas
      */
     public static CronogramaProduccionVista construir(List<LoteCronogramaResponseDTO> lotes,
                                                       List<String> identificadoresFermentadores,
                                                       Long idPlanificacionDestacada,
-                                                      LocalDate hoy) {
+                                                      LocalDate hoy,
+                                                      LocalDate desde,
+                                                      LocalDate hasta,
+                                                      int pagina,
+                                                      int tamanioPagina) {
         List<LoteCronogramaResponseDTO> lotesValidos = lotes == null ? List.of()
-                : lotes.stream().filter(Objects::nonNull).toList();
+                : lotes.stream().filter(Objects::nonNull).filter(CronogramaProduccionBuilder::tieneFermentador).toList();
         List<Tramo> tramos = GanttGeometria.tramosDe(lotesValidos);
-        Eje eje = GanttGeometria.armarEje(tramos, null, null, hoy, true);
+        Eje eje = GanttGeometria.armarEjeDelPeriodo(desde, hasta, hoy);
 
-        List<Carril> carriles = GanttGeometria.armarCarriles(tramos, identificadoresFermentadores, eje, hoy,
-                tramo -> barraDe(tramo, eje, idPlanificacionDestacada),
-                terminanElDiaAnterior -> idPlanificacionDestacada != null && terminanElDiaAnterior.stream()
-                        .noneMatch(t -> idPlanificacionDestacada.equals(t.lote().getIdPlanificacionProduccion())));
+        // Carriles: los fermentadores con alguna barra en el período y los fijos, ordenados por identificador
+        Map<String, List<Tramo>> porFermentador = GanttGeometria.agruparPorFermentador(tramos);
+        Map<String, List<Tramo>> conCarril = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        porFermentador.forEach((identificador, tramosDelFermentador) -> {
+            if (tramosDelFermentador.stream().anyMatch(t -> GanttGeometria.seSolapaConElEje(t, eje))) {
+                conCarril.put(identificador, tramosDelFermentador);
+            }
+        });
+        if (identificadoresFermentadores != null) {
+            identificadoresFermentadores.stream().filter(i -> i != null && !i.isBlank())
+                    .forEach(i -> conCarril.putIfAbsent(i, porFermentador.getOrDefault(i, List.of())));
+        }
 
-        GanttPlanificacionVista gantt = GanttGeometria.vistaBase(eje, tramos.isEmpty(), carriles)
+        // Paginación: solo se arman los carriles y las colas de la página pedida
+        List<String> identificadores = new ArrayList<>(conCarril.keySet());
+        int tamanio = Math.max(1, tamanioPagina);
+        int totalPaginas = Math.max(1, (identificadores.size() + tamanio - 1) / tamanio);
+        int paginaEfectiva = Math.min(Math.max(pagina, 1), totalPaginas);
+        List<String> deLaPagina = identificadores.subList(
+                Math.min(identificadores.size(), (paginaEfectiva - 1) * tamanio),
+                Math.min(identificadores.size(), paginaEfectiva * tamanio));
+
+        List<Carril> carriles = new ArrayList<>();
+        for (String identificador : deLaPagina) {
+            carriles.add(GanttGeometria.armarCarril(identificador, conCarril.get(identificador), eje, hoy,
+                    tramo -> barraDe(tramo, eje, idPlanificacionDestacada),
+                    terminanElDiaAnterior -> idPlanificacionDestacada != null && terminanElDiaAnterior.stream()
+                            .noneMatch(t -> idPlanificacionDestacada.equals(t.lote().getIdPlanificacionProduccion())),
+                    true));
+        }
+
+        GanttPlanificacionVista gantt = GanttGeometria.vistaBase(eje,
+                        tramos.stream().noneMatch(t -> GanttGeometria.seSolapaConElEje(t, eje)), carriles)
                 .planificacionResaltada(idPlanificacionDestacada != null)
                 .build();
 
         return CronogramaProduccionVista.builder()
                 .gantt(gantt)
                 .colas(armarColas(carriles, lotesValidos, idPlanificacionDestacada))
+                .pagina(paginaEfectiva)
+                .totalPaginas(totalPaginas)
+                .totalFermentadores(identificadores.size())
                 .build();
+    }
+
+    private static boolean tieneFermentador(LoteCronogramaResponseDTO lote) {
+        return lote.getIdentificadorInternoFermentador() != null && !lote.getIdentificadorInternoFermentador().isBlank();
     }
 
     // ==================== Barras ====================
@@ -90,7 +139,8 @@ public final class CronogramaProduccionBuilder {
         lineasExtra.add("Planificación: " + (lote.getIdPlanificacionProduccion() == null ? SIN_DATO : "#" + lote.getIdPlanificacionProduccion()));
         return GanttGeometria.armarBarra(tramo, eje,
                 etiquetaDe(lote),
-                GanttGeometria.armarTooltip(lote, lineasExtra),
+                GanttGeometria.armarTooltip(lote, lineasExtra,
+                        GanttGeometria.continuaAntes(tramo, eje), GanttGeometria.continuaDespues(tramo, eje)),
                 esAtenuado(lote, idPlanificacionDestacada));
     }
 
@@ -111,13 +161,12 @@ public final class CronogramaProduccionBuilder {
     // ==================== Colas ====================
 
     private static List<ColaFermentador> armarColas(List<Carril> carriles, List<LoteCronogramaResponseDTO> lotes, Long idPlanificacionDestacada) {
+        Map<String, List<LoteCronogramaResponseDTO>> porFermentador = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        lotes.forEach(l -> porFermentador.computeIfAbsent(l.getIdentificadorInternoFermentador(), k -> new ArrayList<>()).add(l));
+
         List<ColaFermentador> colas = new ArrayList<>();
         for (Carril carril : carriles) {
-            if (GanttGeometria.CARRIL_SIN_FERMENTADOR.equals(carril.getEtiqueta())) {
-                continue;
-            }
-            List<LoteCronogramaResponseDTO> delFermentador = lotes.stream()
-                    .filter(l -> carril.getEtiqueta().equalsIgnoreCase(l.getIdentificadorInternoFermentador()))
+            List<LoteCronogramaResponseDTO> delFermentador = porFermentador.getOrDefault(carril.getEtiqueta(), List.of()).stream()
                     .sorted(Comparator
                             .comparing(LoteCronogramaResponseDTO::getFechaInicioEstimada, Comparator.nullsLast(Comparator.naturalOrder()))
                             .thenComparing(LoteCronogramaResponseDTO::getId, Comparator.nullsLast(Comparator.naturalOrder())))

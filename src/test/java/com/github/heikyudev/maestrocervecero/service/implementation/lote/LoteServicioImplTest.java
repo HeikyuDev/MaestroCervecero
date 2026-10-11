@@ -3215,16 +3215,19 @@ class LoteServicioImplTest {
     @DisplayName("CP-LC-01: listarLotesParaCronograma sin fermentador no valida y mapea todos los lotes en el orden recibido")
     void listarLotesParaCronograma_debeMapearEnElOrdenRecibidoSinValidarFermentador() {
         // === PREPARACION DE DATOS ===
-        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of(
+        LocalDate hoy = LocalDate.now();
+        LocalDate desde = hoy.minusDays(15);
+        LocalDate hasta = hoy.plusDays(60);
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of(
                 crearLoteParaCronograma(12L, EstadoLote.PENDIENTE),
                 crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
                 crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION)));
 
         // === EJECUCION ===
-        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, false);
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, desde, hasta);
 
         // === ASSERTS ===
-        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class));
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(null, desde.atStartOfDay(), hasta.plusDays(1).atStartOfDay());
         assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(12L, 10L, 11L);
         verifyNoInteractions(fermentadorRepository);
     }
@@ -3233,97 +3236,102 @@ class LoteServicioImplTest {
     @DisplayName("CP-LC-02: listarLotesParaCronograma con fermentador existente propaga el filtro a la consulta")
     void listarLotesParaCronograma_debePropagarElFiltroDeFermentadorExistente() {
         // === PREPARACION DE DATOS ===
-        when(fermentadorRepository.findById(5L)).thenReturn(Optional.of(crearFermentador(5L, 20.0)));
-        when(loteRepository.buscarLotesParaCronograma(eq(5L), eq(false), any(LocalDateTime.class))).thenReturn(List.of(
+        LocalDate hoy = LocalDate.now();
+        LocalDate desde = hoy.minusDays(15);
+        LocalDate hasta = hoy.plusDays(60);
+        when(fermentadorRepository.existsById(5L)).thenReturn(true);
+        when(loteRepository.buscarLotesParaCronograma(eq(5L), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of(
                 crearLoteParaCronograma(10L, EstadoLote.PENDIENTE),
                 crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION)));
 
         // === EJECUCION ===
-        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(5L, false);
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(5L, desde, hasta);
 
         // === ASSERTS ===
-        verify(loteRepository, times(1)).buscarLotesParaCronograma(eq(5L), eq(false), any(LocalDateTime.class));
-        assertThat(resultado).hasSize(2);
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(5L, desde.atStartOfDay(), hasta.plusDays(1).atStartOfDay());
         assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(10L, 11L);
     }
 
     @Test
-    @DisplayName("CP-LC-03: listarLotesParaCronograma lanza RecursoNoEncontradoException cuando el fermentador no existe o está inactivo")
+    @DisplayName("CP-LC-03: listarLotesParaCronograma lanza RecursoNoEncontradoException cuando el fermentador no existe")
     void listarLotesParaCronograma_debeLanzarExcepcionSiFermentadorNoExiste() {
         // === PREPARACION DE DATOS ===
-        when(fermentadorRepository.findById(99L)).thenReturn(Optional.empty());
+        LocalDate hoy = LocalDate.now();
+        when(fermentadorRepository.existsById(99L)).thenReturn(false);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(99L, false))
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(99L, hoy.minusDays(15), hoy.plusDays(60)))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el fermentador con ID: 99");
-        verify(loteRepository, never()).buscarLotesParaCronograma(any(), anyBoolean(), any());
+        verify(loteRepository, never()).buscarLotesParaCronograma(any(), any(), any());
     }
 
     @Test
-    @DisplayName("CP-LC-04: listarLotesParaCronograma sin historial consulta desde el inicio del día de hoy menos 14 días")
-    void listarLotesParaCronograma_debeConsultarConVentanaDe14DiasSinHistorial() {
+    @DisplayName("CP-LC-04: listarLotesParaCronograma traduce el período a los límites de la consulta (hasta es inclusivo: se consulta hasta el inicio del día siguiente)")
+    void listarLotesParaCronograma_debeTraducirElPeriodoALosLimitesDeLaConsulta() {
         // === PREPARACION DE DATOS ===
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of());
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of());
         ArgumentCaptor<LocalDateTime> desdeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<LocalDateTime> hastaCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
 
         // === EJECUCION ===
-        loteServicio.listarLotesParaCronograma(null, false);
+        loteServicio.listarLotesParaCronograma(null, LocalDate.of(2018, 4, 21), LocalDate.of(2019, 1, 7));
 
         // === ASSERTS ===
-        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(false), desdeCaptor.capture());
-        assertThat(desdeCaptor.getValue()).isEqualTo(hoy.minusDays(14).atStartOfDay());
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), desdeCaptor.capture(), hastaCaptor.capture());
+        assertThat(desdeCaptor.getValue()).isEqualTo(LocalDateTime.of(2018, 4, 21, 0, 0));
+        assertThat(hastaCaptor.getValue()).isEqualTo(LocalDateTime.of(2019, 1, 8, 0, 0));
     }
 
     @Test
-    @DisplayName("CP-LC-05: listarLotesParaCronograma con historial completo propaga el indicador y no filtra en el service")
-    void listarLotesParaCronograma_debePropagarElIndicadorDeHistorialCompleto() {
+    @DisplayName("CP-LC-05: listarLotesParaCronograma con un extremo del período nulo lanza ReglaNegocioException y no consulta nada")
+    void listarLotesParaCronograma_debeExigirAmbosExtremosDelPeriodo() {
         // === PREPARACION DE DATOS ===
-        LocalDate hoy = LocalDate.now();
-        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(true), any(LocalDateTime.class))).thenReturn(List.of(
-                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
-                crearLoteParaCronograma(11L, EstadoLote.CANCELADO)));
-        ArgumentCaptor<LocalDateTime> desdeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        LocalDate fecha = LocalDate.of(2018, 4, 21);
 
-        // === EJECUCION ===
-        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, true);
-
-        // === ASSERTS ===
-        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(true), desdeCaptor.capture());
-        assertThat(desdeCaptor.getValue()).isEqualTo(hoy.minusDays(14).atStartOfDay());
-        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(10L, 11L);
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(5L, null, fecha))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("La fecha de inicio del período es obligatoria");
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(5L, fecha, null))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("La fecha de fin del período es obligatoria");
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(5L, null, null))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("La fecha de inicio del período es obligatoria");
+        verifyNoInteractions(fermentadorRepository);
+        verify(loteRepository, never()).buscarLotesParaCronograma(any(), any(), any());
     }
 
     @Test
     @DisplayName("CP-LC-06: listarLotesParaCronograma retorna una lista vacía cuando no hay lotes")
     void listarLotesParaCronograma_debeRetornarListaVaciaSinLotes() {
         // === PREPARACION DE DATOS ===
-        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of());
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of());
 
         // === EJECUCION ===
-        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, false);
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, LocalDate.now().minusDays(15), LocalDate.now().plusDays(60));
 
         // === ASSERTS ===
         assertThat(resultado).isNotNull().isEmpty();
     }
 
     @Test
-    @DisplayName("CP-LC-07: listarLotesParaCronograma mapea los lotes en todos los estados sin filtrar")
-    void listarLotesParaCronograma_debeMapearLotesEnTodosLosEstados() {
+    @DisplayName("CP-LC-07: listarLotesParaCronograma mapea los lotes que devuelve la consulta sin filtrar por estado ni recortar por fechas, incluido uno fuera del período")
+    void listarLotesParaCronograma_debeMapearLosLotesSinFiltrarNiRecortar() {
         // === PREPARACION DE DATOS ===
-        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of(
+        LocalDate hoy = LocalDate.now();
+        LoteEntity fueraDelPeriodo = crearLoteEnFermentador(13L, EstadoLote.PENDIENTE, 1L, 5L, hoy.plusDays(200), hoy.plusDays(205), hoy.minusDays(10));
+        LoteEntity dentro = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 1L, 5L, hoy.plusDays(30), hoy.plusDays(35), hoy.minusDays(10));
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of(
                 crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
                 crearLoteParaCronograma(11L, EstadoLote.EN_EJECUCION),
-                crearLoteParaCronograma(12L, EstadoLote.PENDIENTE),
-                crearLoteParaCronograma(13L, EstadoLote.CANCELADO)));
+                dentro, fueraDelPeriodo));
 
         // === EJECUCION ===
-        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, false);
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(null, hoy.minusDays(15), hoy.plusDays(60));
 
         // === ASSERTS ===
         assertThat(resultado).extracting(LoteCronogramaResponseDTO::getEstado)
-                .containsExactly(EstadoLote.FINALIZADO, EstadoLote.EN_EJECUCION, EstadoLote.PENDIENTE, EstadoLote.CANCELADO);
+                .containsExactly(EstadoLote.FINALIZADO, EstadoLote.EN_EJECUCION, EstadoLote.PENDIENTE, EstadoLote.PENDIENTE);
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).contains(13L);
         verify(loteRepository, never()).save(any());
         verify(loteRepository, never()).saveAll(anyList());
     }
@@ -3594,13 +3602,91 @@ class LoteServicioImplTest {
         listarCronogramaCon(loteA, loteB, loteC);
 
         // === ASSERTS ===
-        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class));
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
         verify(loteRepository, never()).buscarVivosDeFermentadores(any());
         verify(loteRepository, never()).save(any());
         verify(loteRepository, never()).saveAll(anyList());
         assertThat(loteA.getFechaFinalizacionEstimada()).isEqualTo(hoy.minusDays(3));
         assertFechas(loteB, hoy.minusDays(2), hoy.plusDays(6));
         assertFechas(loteC, hoy.plusDays(7), hoy.plusDays(12));
+    }
+
+    @Test
+    @DisplayName("CP-LC-23: listarLotesParaCronograma con hasta anterior a desde lanza ReglaNegocioException y no consulta nada")
+    void listarLotesParaCronograma_debeRechazarUnPeriodoInvertido() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(5L, LocalDate.of(2019, 1, 7), LocalDate.of(2018, 4, 21)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin del período no puede ser anterior a la fecha de inicio");
+        verifyNoInteractions(fermentadorRepository);
+        verify(loteRepository, never()).buscarLotesParaCronograma(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-LC-24: listarLotesParaCronograma acepta 1825 días entre desde y hasta y rechaza 1826 (tope de 5 años)")
+    void listarLotesParaCronograma_debeAplicarElTopeDelPeriodo() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatCode(() -> loteServicio.listarLotesParaCronograma(null, LocalDate.of(2018, 1, 1), LocalDate.of(2022, 12, 31)))
+                .doesNotThrowAnyException();
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
+        assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(null, LocalDate.of(2018, 1, 1), LocalDate.of(2023, 1, 1)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El período del cronograma no puede superar los 1825 días (5 años)");
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("CP-LC-25: listarLotesParaCronograma acepta un período de un solo día")
+    void listarLotesParaCronograma_debeAceptarUnPeriodoDeUnDia() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of());
+        LocalDate dia = LocalDate.of(2018, 3, 15);
+
+        // === EJECUCION ===
+        loteServicio.listarLotesParaCronograma(null, dia, dia);
+
+        // === ASSERTS ===
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(null, LocalDateTime.of(2018, 3, 15, 0, 0), LocalDateTime.of(2018, 3, 16, 0, 0));
+    }
+
+    @Test
+    @DisplayName("CP-LC-26: listarLotesParaCronograma — el atraso y el corrimiento no dependen del período: se calculan con la cola entera aunque el período sea muy anterior")
+    void listarLotesParaCronograma_elAtrasoNoDependeDelPeriodo() {
+        // === PREPARACION DE DATOS ===
+        LocalDate hoy = LocalDate.now();
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(hoy.minusDays(400), hoy.minusDays(300),
+                crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy));
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(3);
+        assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 5);
+    }
+
+    @Test
+    @DisplayName("CP-LC-32: listarLotesParaCronograma — un fermentador dado de baja es un filtro válido: su historial se puede consultar")
+    void listarLotesParaCronograma_debeAceptarUnFermentadorDadoDeBaja() {
+        // === PREPARACION DE DATOS ===
+        LocalDate desde = LocalDate.of(2012, 1, 1);
+        LocalDate hasta = LocalDate.of(2012, 12, 31);
+        when(fermentadorRepository.existsById(6L)).thenReturn(true);
+        when(loteRepository.buscarLotesParaCronograma(eq(6L), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of(
+                crearLoteParaCronograma(10L, EstadoLote.FINALIZADO),
+                crearLoteParaCronograma(11L, EstadoLote.FINALIZADO)));
+
+        // === EJECUCION ===
+        List<LoteCronogramaResponseDTO> resultado = loteServicio.listarLotesParaCronograma(6L, desde, hasta);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(10L, 11L);
+        verify(loteRepository, times(1)).buscarLotesParaCronograma(6L, LocalDateTime.of(2012, 1, 1, 0, 0), LocalDateTime.of(2013, 1, 1, 0, 0));
+        verify(fermentadorRepository, never()).findById(any());
     }
 
     // ==================== subirLoteEnCola ====================
@@ -4444,10 +4530,15 @@ class LoteServicioImplTest {
         return crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(7), hoy.plusDays(12), hoy.minusDays(10));
     }
 
-    /** Stubbea la consulta del cronograma global (sin fermentador ni historial) con los lotes dados y la invoca. */
+    /** Stubbea la consulta del cronograma global (sin fermentador, período del hoy - 15 al hoy + 60) con los lotes dados y la invoca. */
     private List<LoteCronogramaResponseDTO> listarCronogramaCon(LoteEntity... lotes) {
-        when(loteRepository.buscarLotesParaCronograma(isNull(), eq(false), any(LocalDateTime.class))).thenReturn(List.of(lotes));
-        return loteServicio.listarLotesParaCronograma(null, false);
+        return listarCronogramaCon(LocalDate.now().minusDays(15), LocalDate.now().plusDays(60), lotes);
+    }
+
+    /** Igual que {@link #listarCronogramaCon(LoteEntity...)}, con el período indicado. */
+    private List<LoteCronogramaResponseDTO> listarCronogramaCon(LocalDate desde, LocalDate hasta, LoteEntity... lotes) {
+        when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of(lotes));
+        return loteServicio.listarLotesParaCronograma(null, desde, hasta);
     }
 
     @SuppressWarnings("unchecked")

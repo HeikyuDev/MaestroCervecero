@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -324,18 +325,23 @@ public interface ILoteServicio {
     List<LoteCronogramaResponseDTO> listarLotesDePlanificacion(Long idPlanificacionProduccion);
 
     /**
-     * Lista los lotes de todas las planificaciones de producción para el cronograma global, que se
+     * Lista los lotes de todas las planificaciones de producción para el cronograma global de un período, que se
      * organiza por fermentador: en el carril de cada uno conviven,
      * intercalados, los lotes de todas las planificaciones que lo usan.
      * <p>
      * Reglas:
      * </p>
      * <ul>
-     *     <li>Siempre incluye los lotes EN_EJECUCION y PENDIENTE.</li>
-     *     <li>Los lotes FINALIZADO se incluyen solo si finalizaron dentro de los últimos 14 días
-     *     respecto de hoy (historial reciente), salvo que {@code incluirHistorial} sea {@code true}:
-     *     en ese caso se incluyen todos.</li>
+     *     <li>El período es obligatorio y cerrado: {@code desde} y {@code hasta} son inclusivos, {@code hasta} no puede
+     *     ser anterior a {@code desde} y no puede haber más de 1825 días entre ambos (el tope de 5 años de las
+     *     planificaciones).</li>
+     *     <li>Siempre incluye todos los lotes EN_EJECUCION y PENDIENTE de los fermentadores pedidos, sin mirar el
+     *     período: el atraso y el corrimiento dependen de la cola completa de cada fermentador. Qué barras caen dentro del
+     *     período lo resuelve el diagrama.</li>
+     *     <li>Los lotes FINALIZADO se incluyen solo si su vida real (del inicio a la finalización) se solapa con el período.</li>
      *     <li>Los lotes CANCELADO nunca se incluyen: el cronograma no los dibuja.</li>
+     *     <li>El fermentador de un lote se toma sin mirar su estado: los lotes de un fermentador dado de baja se
+     *     incluyen igual, para que un período histórico muestre los fermentadores que ya no están activos.</li>
      *     <li>El orden es por identificador interno del fermentador, luego por fecha de inicio
      *     estimada y, ante igual fecha, por ID. El orden de la cola de un fermentador es, entonces,
      *     el de la fecha de inicio estimada de sus lotes (no existe un campo de orden aparte). Como
@@ -344,14 +350,17 @@ public interface ILoteServicio {
      *     <li>No incluye operaciones de equipamiento (limpieza, mantenimiento, falla).</li>
      *     <li>Los carriles de fermentadores sin lotes no se devuelven: completarlos es tarea del
      *     Controller.</li>
+     *     <li>Se resuelve con una sola consulta de lotes, sin consultas por fermentador ni por lote.</li>
      * </ul>
      *
-     * @param idFermentador El ID del fermentador cuyo carril se quiere listar, o {@code null} para listar todos.
-     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados sin límite de antigüedad.
+     * @param idFermentador El ID del fermentador cuyo carril se quiere listar (activo o dado de baja), o {@code null} para listar todos.
+     * @param desde El primer día del período (inclusive).
+     * @param hasta El último día del período (inclusive).
      * @return Los lotes en formato DTO de cronograma, o una lista vacía si no hay ninguno.
-     * @throws RecursoNoEncontradoException Si se informa un {@code idFermentador} que no existe o no es un fermentador activo.
+     * @throws ReglaNegocioException Si {@code desde} o {@code hasta} son nulos, si {@code hasta} es anterior a {@code desde} o si el período supera los 1825 días.
+     * @throws RecursoNoEncontradoException Si se informa un {@code idFermentador} que no existe.
      */
-    List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, boolean incluirHistorial);
+    List<LoteCronogramaResponseDTO> listarLotesParaCronograma(Long idFermentador, LocalDate desde, LocalDate hasta);
 
     /**
      * Sube un lote una posición en la cola de lotes PENDIENTE de su fermentador (lo adelanta), y

@@ -41,10 +41,10 @@ public final class GanttPlanificacionBuilder {
                                                     LocalDate finPlanificacion,
                                                     LocalDate hoy) {
         List<Tramo> tramos = GanttGeometria.tramosDe(lotes);
-        Eje eje = GanttGeometria.armarEje(tramos, inicioPlanificacion, finPlanificacion, hoy, false);
+        Eje eje = GanttGeometria.armarEje(tramos, inicioPlanificacion, finPlanificacion, hoy);
 
         return GanttGeometria.vistaBase(eje, tramos.isEmpty(),
-                        GanttGeometria.armarCarriles(tramos, List.of(), eje, hoy, tramo -> barraDe(tramo, eje), vivosDelDia -> false))
+                        GanttGeometria.armarCarriles(tramos, eje, hoy, tramo -> barraDe(tramo, eje), vivosDelDia -> false))
                 .inicioPlanificacionPct(inicioPlanificacion == null ? null
                         : GanttGeometria.porcentaje(ChronoUnit.DAYS.between(eje.desde(), inicioPlanificacion), eje.totalDias()))
                 .finPlanificacionPct(finPlanificacion == null ? null

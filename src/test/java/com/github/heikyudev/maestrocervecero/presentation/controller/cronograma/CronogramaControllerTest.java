@@ -28,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.util.HtmlUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -39,12 +40,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -81,17 +83,17 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-01: el GERENTE_DE_PRODUCCION ve el cronograma con los filtros, el diagrama (un carril por fermentador, barras con receta, plan y lote) y las colas")
+    @DisplayName("CP-CGC-01: el GERENTE_DE_PRODUCCION ve el cronograma con los filtros, el período, el diagrama (un carril por fermentador, barras con receta, plan y lote) y las colas")
     void cronograma_debeMostrarFiltrosDiagramaYColas() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
                 lote(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
 
         // Act + Assert
-        mockMvc.perform(get(URL))
+        String html = mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
                 .andExpect(view().name("cronograma/cronograma"))
                 .andExpect(content().string(containsString("Cronograma de Producci")))
@@ -99,9 +101,15 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("action=\"/cronograma-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString(">Todos</option>")))
-                .andExpect(content().string(containsString("Mostrar finalizados anteriores")))
+                .andExpect(content().string(containsString(">Desde</label>")))
+                .andExpect(content().string(containsString(">Hasta</label>")))
                 .andExpect(content().string(containsString("Aplicar")))
                 .andExpect(content().string(containsString("Limpiar")))
+                // Período
+                .andExpect(content().string(containsString("data-cronograma-periodo")))
+                .andExpect(content().string(containsString("data-periodo-anterior")))
+                .andExpect(content().string(containsString("data-periodo-siguiente")))
+                .andExpect(content().string(containsString("data-periodo-hoy")))
                 // Diagrama
                 .andExpect(content().string(containsString("data-gantt")))
                 .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-1")))
@@ -109,64 +117,63 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("Stout - Plan #8 - STOUT-R8-1")))
                 .andExpect(content().string(containsString("gantt-color--en-ejecucion")))
                 .andExpect(content().string(containsString("gantt-color--pendiente")))
-                .andExpect(content().string(containsString("data-gantt-hoy")))
                 .andExpect(content().string(containsString("data-gantt-hoy-bandera")))
                 .andExpect(content().string(containsString("overflow-x-auto")))
                 .andExpect(content().string(containsString("sticky left-0")))
                 // Colas
                 .andExpect(content().string(containsString("data-cola-fermentador=\"F-01\"")))
-                .andExpect(content().string(containsString("data-cola-fermentador=\"F-02\"")));
+                .andExpect(content().string(containsString("data-cola-fermentador=\"F-02\"")))
+                .andReturn().getResponse().getContentAsString();
 
-        verify(loteServicio).listarLotesParaCronograma(null, false);
+        assertThat(html).doesNotContain("Mostrar finalizados anteriores").doesNotContain("incluirHistorial");
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-02: sin lotes cada fermentador activo igual tiene su carril, con el aviso \"Sin lotes en este periodo\", y las colas muestran el mensaje de vacio")
-    void cronograma_sinLotesMuestraLosCarrilesVacios() throws Exception {
+    @DisplayName("CP-CGC-02: sin lotes en el período no hay carriles: se muestra el mensaje con el período, sin diagrama, colas, paginador ni botones, y el filtro y la navegación siguen visibles")
+    void cronograma_sinLotesEnElPeriodo() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act
-        String html = mockMvc.perform(get(URL))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-gantt")))
-                .andExpect(content().string(containsString("No hay lotes para mostrar con los criterios indicados")))
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(cuenta(html, "data-gantt-carril-vacio")).isEqualTo(2);
-        assertThat(cuenta(html, "Sin lotes en este per")).isEqualTo(2);
-        assertThat(cuenta(html, "data-cola-vacia")).isEqualTo(2);
-        assertThat(cuenta(html, "No hay lotes pendientes en este fermentador")).isEqualTo(2);
-        assertThat(html).doesNotContain("data-mover=");
+        assertThat(html).contains("data-cronograma-sin-lotes").contains("No hay lotes para mostrar entre " + fmt(desdeDefecto()) + " y " + fmt(hastaDefecto()));
+        assertThat(html).doesNotContain("data-gantt>").doesNotContain("data-cola-fermentador").doesNotContain("data-paginacion")
+                .doesNotContain("data-mover=");
+        assertThat(html).containsPattern("<option value=\"1\"[^>]*>F-01</option>").containsPattern("<option value=\"2\"[^>]*>F-02</option>");
+        assertThat(html).contains("data-periodo-anterior").contains("data-periodo-siguiente").contains("data-periodo-hoy");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-03: sin fermentadores activos ni lotes no se dibuja el diagrama ni hay colas, y se explica por que")
+    @DisplayName("CP-CGC-03: sin fermentadores activos ni lotes se muestra el mismo mensaje, el desplegable solo tiene \"Todos\" y no hay diagrama ni colas")
     void cronograma_sinFermentadoresNiLotes() throws Exception {
         // Arrange
         when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
-        // Act + Assert
-        mockMvc.perform(get(URL))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-cronograma-sin-fermentadores")))
-                .andExpect(content().string(containsString("No hay fermentadores activos ni lotes para mostrar")))
-                .andExpect(content().string(not(containsString("data-gantt>"))))
-                .andExpect(content().string(not(containsString("data-cola-fermentador"))));
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("No hay lotes para mostrar entre ");
+        assertThat(cuenta(html, "<option value=\"")).isEqualTo(1);
+        assertThat(html).doesNotContain("data-gantt>").doesNotContain("data-cola-fermentador");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-04: los fermentadores activos se piden todos, ordenados por identificador, y llenan el filtro y los carriles")
+    @DisplayName("CP-CGC-04: los fermentadores activos se piden todos, ordenados por identificador, y llenan el filtro; también se piden, una vez, los dados de baja con lotes")
     void cronograma_pideTodosLosFermentadoresActivosOrdenados() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -181,45 +188,49 @@ class CronogramaControllerTest {
         assertThat(html).containsPattern("<option value=\"1\"[^>]*>F-01</option>");
         assertThat(html).containsPattern("<option value=\"2\"[^>]*>F-02</option>");
         assertThat(html.indexOf(">F-01</option>")).isLessThan(html.indexOf(">F-02</option>"));
+        verify(fermentadorServicio, times(1)).listarDadosDeBajaConLotes();
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-05: el fermentador y el historial llegan al service; el filtro queda elegido, la casilla tildada y solo el carril de ese fermentador")
+    @DisplayName("CP-CGC-05: el fermentador y el período llegan al service; el filtro y los campos quedan con lo elegido, un solo carril y solo la cola de ese fermentador")
     void cronograma_pasaLosFiltrosAlService() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                finalizadoEn(1L, "A-1", "F-02", d(2018, 5, 2), d(2018, 5, 10))));
 
         // Act
-        String html = mockMvc.perform(get(URL).param("idFermentador", "2").param("incluirHistorial", "true"))
+        String html = mockMvc.perform(get(URL).param("idFermentador", "2").param("desde", "2018-04-21").param("hasta", "2019-01-07"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        verify(loteServicio).listarLotesParaCronograma(2L, true);
+        verify(loteServicio).listarLotesParaCronograma(2L, d(2018, 4, 21), d(2019, 1, 7));
         assertThat(html).containsPattern("<option value=\"2\"[^>]*selected=\"selected\"[^>]*>F-02</option>");
-        assertThat(html).containsPattern("<input type=\"checkbox\"[^>]*name=\"incluirHistorial\"[^>]*checked=\"checked\"");
-        assertThat(cuenta(html, "data-gantt-carril-vacio")).isEqualTo(1);
+        assertThat(campo(html, "desde")).isEqualTo("2018-04-21");
+        assertThat(campo(html, "hasta")).isEqualTo("2019-01-07");
+        assertThat(cuenta(html, "data-cola-fermentador=")).isEqualTo(1);
         assertThat(html).contains("data-cola-fermentador=\"F-02\"").doesNotContain("data-cola-fermentador=\"F-01\"");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-06: la casilla de historial acepta \"on\" (valor de un checkbox sin value) y cualquier otro valor equivale a no tildada")
-    void cronograma_interpretaLaCasillaDeHistorial() throws Exception {
+    @DisplayName("CP-CGC-06: no hay casilla de historial: el formulario no la tiene y el parámetro incluirHistorial se ignora sin aviso")
+    void cronograma_noHayCasillaDeHistorial() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act
-        mockMvc.perform(get(URL).param("incluirHistorial", "on")).andExpect(status().isOk());
-        mockMvc.perform(get(URL).param("incluirHistorial", "no")).andExpect(status().isOk());
-        mockMvc.perform(get(URL).param("incluirHistorial", "")).andExpect(status().isOk());
+        String sinParametro = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String conParametro = mockMvc.perform(get(URL).param("incluirHistorial", "true")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
 
         // Assert
-        verify(loteServicio).listarLotesParaCronograma(null, true);
-        verify(loteServicio, org.mockito.Mockito.times(2)).listarLotesParaCronograma(null, false);
+        assertThat(sinParametro).doesNotContain("Mostrar finalizados anteriores").doesNotContain("incluirHistorial");
+        assertThat(conParametro).doesNotContain("bg-amber-50 border-amber-200 text-amber-800");
+        verify(loteServicio, times(2)).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
     }
 
     @Test
@@ -228,7 +239,7 @@ class CronogramaControllerTest {
     void cronograma_colasConBotonesSubirYBajar() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
                 lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
@@ -261,7 +272,7 @@ class CronogramaControllerTest {
     void cronograma_losBotonesSonFormulariosPostConCsrf() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)));
 
@@ -287,7 +298,7 @@ class CronogramaControllerTest {
     void cronograma_elLoteEnEjecucionVaArribaDeLaColaSinBotones() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "PALE_ALE-R7-2", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 2),
                 lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
@@ -312,11 +323,11 @@ class CronogramaControllerTest {
     void cronograma_laFilaDeLaColaMuestraSusDatos() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote2027(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act + Assert
-        mockMvc.perform(get(URL))
+        mockMvc.perform(get(URL).param("desde", "2027-06-25").param("hasta", "2027-07-31"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Vol. (L)")))
                 .andExpect(content().string(containsString("Inicio")))
@@ -335,7 +346,7 @@ class CronogramaControllerTest {
     void cronograma_elFiltroDePlanificacionEsUnSelectorConBuscador() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act + Assert
         mockMvc.perform(get(URL))
@@ -356,7 +367,7 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2)));
 
@@ -373,7 +384,7 @@ class CronogramaControllerTest {
         assertThat(fila(html, 1L)).doesNotContain("opacity-50");
         assertThat(html).containsPattern("name=\"idPlanificacion\"[^>]*value=\"7\"|value=\"7\"[^>]*name=\"idPlanificacion\"");
         assertThat(html).contains("Plan #7 - Pale Ale");
-        verify(loteServicio).listarLotesParaCronograma(null, false);
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
     }
 
     @Test
@@ -382,7 +393,7 @@ class CronogramaControllerTest {
     void cronograma_sinDestacarNoAtenuaNada() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2)));
 
@@ -398,31 +409,32 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-14: los botones de mover llevan los filtros activos como campos ocultos para volver al cronograma con la misma vista")
+    @DisplayName("CP-CGC-14: los botones de mover llevan filtros, período y página como campos ocultos para volver al cronograma con la misma vista")
     void cronograma_losBotonesConservanLosFiltros() throws Exception {
         // Arrange
         fermentadores(3L, "F-03");
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-03", 7L, "Pale Ale", 1)));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote2027(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-03", 7L, "Pale Ale", 1)));
 
         // Act
-        String html = mockMvc.perform(get(URL).param("idFermentador", "3").param("idPlanificacion", "7").param("incluirHistorial", "true"))
+        String html = mockMvc.perform(get(URL).param("idFermentador", "3").param("idPlanificacion", "7")
+                        .param("desde", "2018-04-21").param("hasta", "2019-01-07").param("pagina", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        // Assert: un par de formularios (subir y bajar) con los tres campos ocultos cada uno
+        // Assert: un par de formularios (subir y bajar) con los cinco campos ocultos cada uno
         Matcher formularios = Pattern.compile("(?s)<form[^>]*lotes/1/(subir|bajar)\"[^>]*>(.*?)</form>").matcher(html);
         int encontrados = 0;
         while (formularios.find()) {
             encontrados++;
             String cuerpo = formularios.group(2);
-            assertThat(cuerpo).containsPattern("name=\"idFermentador\"[^>]*value=\"3\"|value=\"3\"[^>]*name=\"idFermentador\"");
-            assertThat(cuerpo).containsPattern("name=\"idPlanificacion\"[^>]*value=\"7\"|value=\"7\"[^>]*name=\"idPlanificacion\"");
-            assertThat(cuerpo).containsPattern("name=\"incluirHistorial\"[^>]*value=\"true\"|value=\"true\"[^>]*name=\"incluirHistorial\"");
+            for (String[] campo : new String[][]{{"idFermentador", "3"}, {"idPlanificacion", "7"}, {"desde", "2018-04-21"}, {"hasta", "2019-01-07"}, {"pagina", "1"}}) {
+                assertThat(cuerpo).containsPattern("name=\"" + campo[0] + "\"[^>]*value=\"" + campo[1] + "\"|value=\"" + campo[1] + "\"[^>]*name=\"" + campo[0] + "\"");
+            }
         }
         assertThat(encontrados).isEqualTo(2);
-        verify(loteServicio).listarLotesParaCronograma(3L, true);
+        verify(loteServicio).listarLotesParaCronograma(3L, d(2018, 4, 21), d(2019, 1, 7));
     }
 
     @Test
@@ -431,7 +443,7 @@ class CronogramaControllerTest {
     void cronograma_sinFiltrosLosBotonesNoLlevanCamposOcultos() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act
@@ -442,7 +454,7 @@ class CronogramaControllerTest {
         Matcher formulario = Pattern.compile("(?s)<form[^>]*lotes/1/subir\"[^>]*>(.*?)</form>").matcher(html);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group(1)).doesNotContain("name=\"idFermentador\"").doesNotContain("name=\"idPlanificacion\"")
-                .doesNotContain("name=\"incluirHistorial\"");
+                .doesNotContain("name=\"desde\"").doesNotContain("name=\"hasta\"").doesNotContain("name=\"pagina\"");
     }
 
     @Test
@@ -451,16 +463,16 @@ class CronogramaControllerTest {
     void cronograma_colaMarcaAtrasoYDesplazamiento() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        LoteCronogramaResponseDTO enEjecucion = lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
+        LoteCronogramaResponseDTO enEjecucion = lote2027(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
                 .toBuilder().diasDeAtraso(2).build();
-        LoteCronogramaResponseDTO corrido = lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
+        LoteCronogramaResponseDTO corrido = lote2027(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
                 .toBuilder().diasDeDesplazamiento(2).build();
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 enEjecucion, corrido,
-                lote(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+                lote2027(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
 
         // Act
-        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+        String html = mockMvc.perform(get(URL).param("desde", "2027-06-25").param("hasta", "2027-07-31")).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
@@ -477,7 +489,7 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act
@@ -503,7 +515,7 @@ class CronogramaControllerTest {
     void cronograma_losLotesCanceladosNoSeDibujan() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
                 lote(2L, "PALE_ALE-R7-2", EstadoLote.CANCELADO, "F-01", 7L, "Pale Ale", 2)));
 
@@ -526,7 +538,7 @@ class CronogramaControllerTest {
         fermentadores(1L, "F-01", 2L, "F-02");
         LoteCronogramaResponseDTO atrasado = lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
                 .toBuilder().diasDeAtraso(2).build();
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 atrasado,
                 lote(2L, "STOUT-R8-1", EstadoLote.EN_EJECUCION, "F-02", 8L, "Stout", 1)));
 
@@ -547,12 +559,12 @@ class CronogramaControllerTest {
     void cronograma_elPendienteCorridoNoLlevaMarcaEnLaBarra() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        LoteCronogramaResponseDTO corrido = lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
+        LoteCronogramaResponseDTO corrido = lote2027(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
                 .toBuilder().diasDeDesplazamiento(2).build();
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(corrido));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(corrido));
 
         // Act
-        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+        String html = mockMvc.perform(get(URL).param("desde", "2027-06-25").param("hasta", "2027-07-31")).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
@@ -569,7 +581,7 @@ class CronogramaControllerTest {
         // Arrange
         LocalDate hoy = LocalDate.now();
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(3), hoy.plusDays(7)),
                 loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(9), hoy.plusDays(12)),
                 loteEn(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", hoy.plusDays(3), hoy.plusDays(7)),
@@ -591,7 +603,7 @@ class CronogramaControllerTest {
     void cronograma_elFiltroSeRotulaFermentador() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -609,7 +621,8 @@ class CronogramaControllerTest {
     void cronograma_rotulaLosCarrilesYLasColasConElFermentador() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -627,7 +640,7 @@ class CronogramaControllerTest {
     void cronograma_muestraElCodigoCompletoDelLote() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PILSEN_CLASICA-R4-3", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pilsen", 1),
                 lote(2L, "PILSEN_CLASICA-R4-4", EstadoLote.PENDIENTE, "F-01", 7L, "Pilsen", 2)));
 
@@ -650,7 +663,7 @@ class CronogramaControllerTest {
         fermentadores(1L, "F-01", 2L, "F-02");
         LoteCronogramaResponseDTO finalizado = loteEn(3L, "STOUT-R8-1", EstadoLote.FINALIZADO, "F-02", 8L, "Stout", hoy.minusDays(10), hoy.minusDays(6))
                 .toBuilder().fechaInicio(hoy.minusDays(10).atTime(8, 0)).fechaFinalizacion(hoy.minusDays(6).atTime(18, 0)).build();
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.minusDays(10), hoy.minusDays(6)),
                 loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.minusDays(4), hoy.minusDays(1)),
                 finalizado,
@@ -671,17 +684,17 @@ class CronogramaControllerTest {
     void cronograma_parametrosInvalidosSeIgnoran() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act + Assert
-        mockMvc.perform(get(URL).param("idFermentador", "abc").param("idPlanificacion", "-5").param("incluirHistorial", "xyz"))
+        mockMvc.perform(get(URL).param("idFermentador", "abc").param("idPlanificacion", "-5"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("cronograma/cronograma"))
                 .andExpect(content().string(containsString("El fermentador indicado no es v")))
                 .andExpect(content().string(containsString("La planificaci")))
                 .andExpect(content().string(containsString("bg-amber-50 border-amber-200 text-amber-800")));
 
-        verify(loteServicio).listarLotesParaCronograma(null, false);
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
         verify(planificacionServicio, never()).buscarPorId(any());
     }
 
@@ -691,7 +704,8 @@ class CronogramaControllerTest {
     void cronograma_fermentadorInexistenteSeIgnora() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act + Assert
         mockMvc.perform(get(URL).param("idFermentador", "99"))
@@ -699,7 +713,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("El fermentador indicado no existe o no est")))
                 .andExpect(content().string(containsString("data-cola-fermentador=\"F-01\"")));
 
-        verify(loteServicio).listarLotesParaCronograma(null, false);
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
     }
 
     @Test
@@ -709,7 +723,7 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(planificacionServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: 99"));
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act
@@ -730,7 +744,7 @@ class CronogramaControllerTest {
     void cronograma_muestraLaAlertaFlash() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act + Assert
         mockMvc.perform(get(URL).flashAttr("mensaje", "Lote DEMO-3 movido en la cola").flashAttr("tipo", "success"))
@@ -745,7 +759,7 @@ class CronogramaControllerTest {
     void cronograma_laSidebarMuestraLaOpcionActiva() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
-        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -756,6 +770,634 @@ class CronogramaControllerTest {
         assertThat(html).containsPattern("(?s)<a href=\"/cronograma-produccion\"[^>]*bg-amber-500/10 text-amber-500");
         assertThat(html.indexOf("Operaci")).isLessThan(html.indexOf("href=\"/cronograma-produccion\""));
         assertThat(html.indexOf("href=\"/cronograma-produccion\"")).isLessThan(html.indexOf("Administraci"));
+    }
+
+    // ==================== Período ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-47: sin parametros el periodo es del hoy - 15 al hoy + 60 (76 dias): llega al service, llena los campos y el texto, sin alerta y con la linea de hoy")
+    void periodo_porDefecto() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+        assertThat(campo(html, "desde")).isEqualTo(desdeDefecto().toString());
+        assertThat(campo(html, "hasta")).isEqualTo(hastaDefecto().toString());
+        assertThat(html).contains("Período: " + fmt(desdeDefecto()) + " al " + fmt(hastaDefecto()) + " (76 días)");
+        assertThat(html).doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(html).containsPattern("data-gantt-hoy(?!-)").contains("data-gantt-hoy-bandera");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-48: un periodo explicito se respeta: llega al service, el texto dice 262 dias, se dibuja la barra verde y no hay linea ni bandera de hoy")
+    void periodo_explicito() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                finalizadoEn(1L, "A-1", "F-01", d(2018, 5, 2), d(2018, 5, 10))));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("desde", "2018-04-21").param("hasta", "2019-01-07"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(null, d(2018, 4, 21), d(2019, 1, 7));
+        assertThat(html).contains("Período: 21/04/2018 al 07/01/2019 (262 días)");
+        assertThat(campo(html, "desde")).isEqualTo("2018-04-21");
+        assertThat(campo(html, "hasta")).isEqualTo("2019-01-07");
+        assertThat(html).contains("gantt-color--finalizado").doesNotContain("data-gantt-hoy-bandera").doesNotContainPattern("data-gantt-hoy(?!-)");
+        assertThat(html).doesNotContain(ALERTA_ADVERTENCIA);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-49: una fecha con formato invalido (o inexistente) invalida el periodo: alerta de advertencia y periodo por defecto completo, tambien cuando el otro extremo era valido")
+    void periodo_fechaInvalida() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        String[][] casos = {{"21/04/2018", "2019-01-07"}, {"abc", "xyz"}, {"2018-02-30", "2019-01-07"}, {"2018-04-21", "07-01-2019"}};
+
+        for (String[] caso : casos) {
+            // Act
+            String html = mockMvc.perform(get(URL).param("desde", caso[0]).param("hasta", caso[1]))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+            // Assert
+            assertThat(html).contains("El período indicado no es válido, se muestra el período por defecto").contains(ALERTA_ADVERTENCIA);
+            assertThat(campo(html, "desde")).isEqualTo(desdeDefecto().toString());
+            assertThat(campo(html, "hasta")).isEqualTo(hastaDefecto().toString());
+        }
+        verify(loteServicio, times(4)).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-50: un hasta anterior al desde se rechaza con una alerta y se usa el periodo por defecto")
+    void periodo_invertido() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act + Assert
+        mockMvc.perform(get(URL).param("desde", "2019-01-07").param("hasta", "2018-04-21"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("La fecha &#39;hasta&#39; no puede ser anterior a la fecha &#39;desde&#39;, se muestra el período por defecto")));
+
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-51: el tope del periodo es de 1825 dias (5 anios): 1825 se acepta y 1826 se rechaza con una alerta")
+    void periodo_topeMaximo() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act
+        String aceptado = mockMvc.perform(get(URL).param("desde", "2018-01-01").param("hasta", "2022-12-31"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String rechazado = mockMvc.perform(get(URL).param("desde", "2018-01-01").param("hasta", "2023-01-01"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(null, d(2018, 1, 1), d(2022, 12, 31));
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+        assertThat(aceptado).contains("(1826 días)").doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(rechazado).contains("El período no puede superar los 1825 días (5 años), se muestra el período por defecto");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-52: con un solo extremo el otro se completa a 75 dias de distancia; en blanco equivale a no informado; sin alerta")
+    void periodo_unSoloExtremo() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act
+        String soloDesde = mockMvc.perform(get(URL).param("desde", "2018-04-21")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String soloHasta = mockMvc.perform(get(URL).param("hasta", "2019-01-07")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String enBlanco = mockMvc.perform(get(URL).param("desde", " ").param("hasta", "")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(null, d(2018, 4, 21), d(2018, 7, 5));
+        verify(loteServicio).listarLotesParaCronograma(null, d(2018, 10, 24), d(2019, 1, 7));
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+        assertThat(campo(soloDesde, "hasta")).isEqualTo("2018-07-05");
+        assertThat(campo(soloHasta, "desde")).isEqualTo("2018-10-24");
+        assertThat(campo(enBlanco, "desde")).isEqualTo(desdeDefecto().toString());
+        assertThat(List.of(soloDesde, soloHasta, enBlanco)).allSatisfy(html -> assertThat(html).doesNotContain(ALERTA_ADVERTENCIA));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-53: un periodo de un solo dia es valido: el texto dice \"(1 día)\"")
+    void periodo_unSoloDia() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("desde", "2018-04-21").param("hasta", "2018-04-21"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(null, d(2018, 4, 21), d(2018, 4, 21));
+        assertThat(html).contains("Período: 21/04/2018 al 21/04/2018 (1 día)").doesNotContain(ALERTA_ADVERTENCIA);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-54: el formulario envia por GET hacia el cronograma, novalidate, con los campos Desde y Hasta de tipo fecha con el periodo y sin campo pagina; Limpiar no lleva parametros")
+    void periodo_formulario() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("desde", "2018-04-21").param("hasta", "2019-01-07"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        Matcher formulario = Pattern.compile("(?s)<form[^>]*data-cronograma-filtros[^>]*>(.*?)</form>").matcher(html);
+        assertThat(formulario.find()).isTrue();
+        assertThat(formulario.group()).contains("method=\"get\"").contains("action=\"/cronograma-produccion\"").contains("novalidate");
+        assertThat(formulario.group(1)).containsPattern("<input type=\"date\"[^>]*name=\"desde\"").containsPattern("<input type=\"date\"[^>]*name=\"hasta\"")
+                .contains(">Desde</label>").contains(">Hasta</label>").doesNotContain("name=\"pagina\"");
+        assertThat(campo(html, "desde")).isEqualTo("2018-04-21");
+        assertThat(formulario.group(1)).containsPattern("<a href=\"/cronograma-produccion\"[^>]*>Limpiar</a>");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-55: Anterior y Siguiente desplazan el periodo su misma longitud, sin solaparse ni dejar dias en medio, y no llevan pagina")
+    void periodo_anteriorYSiguiente() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act
+        String explicito = mockMvc.perform(get(URL).param("desde", "2018-04-21").param("hasta", "2019-01-07").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String porDefecto = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        LocalDate hoy = LocalDate.now();
+        assertThat(href(explicito, "data-periodo-anterior")).isEqualTo("/cronograma-produccion?desde=2017-08-02&hasta=2018-04-20");
+        assertThat(href(explicito, "data-periodo-siguiente")).isEqualTo("/cronograma-produccion?desde=2019-01-08&hasta=2019-09-26");
+        assertThat(href(porDefecto, "data-periodo-anterior")).isEqualTo("/cronograma-produccion?desde=" + hoy.minusDays(91) + "&hasta=" + hoy.minusDays(16));
+        assertThat(href(porDefecto, "data-periodo-siguiente")).isEqualTo("/cronograma-produccion?desde=" + hoy.plusDays(61) + "&hasta=" + hoy.plusDays(136));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-56: Hoy restaura el periodo por defecto: apunta al cronograma sin desde, hasta ni pagina, con o sin periodo explicito")
+    void periodo_hoy() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+
+        // Act
+        String explicito = mockMvc.perform(get(URL).param("desde", "2018-04-21").param("hasta", "2019-01-07").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String porDefecto = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(href(explicito, "data-periodo-hoy")).isEqualTo("/cronograma-produccion");
+        assertThat(href(porDefecto, "data-periodo-hoy")).isEqualTo("/cronograma-produccion");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-57: la navegacion conserva los filtros y vuelve a la primera pagina: nunca lleva pagina")
+    void periodo_laNavegacionConservaLosFiltrosYNoLaPagina() throws Exception {
+        // Arrange
+        fermentadoresActivos(15);
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(15, d(2018, 5, 2)));
+
+        // Act
+        String a = mockMvc.perform(get(URL).param("idPlanificacion", "7").param("desde", "2018-04-21").param("hasta", "2019-01-07").param("pagina", "2"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String b = mockMvc.perform(get(URL).param("idFermentador", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String c = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        for (String atributo : List.of("data-periodo-anterior", "data-periodo-siguiente", "data-periodo-hoy")) {
+            assertThat(href(a, atributo)).contains("idPlanificacion=7").doesNotContain("pagina=");
+            assertThat(href(b, atributo)).contains("idFermentador=2").doesNotContain("pagina=");
+            assertThat(href(c, atributo)).doesNotContain("idFermentador").doesNotContain("idPlanificacion").doesNotContain("pagina=");
+        }
+        assertThat(href(a, "data-periodo-anterior")).contains("desde=").contains("hasta=");
+        assertThat(href(a, "data-periodo-hoy")).doesNotContain("desde=").doesNotContain("hasta=");
+    }
+
+    // ==================== Paginación, filtro de fermentador y vacío ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-58: hasta 10 fermentadores caben en una pagina: 3 carriles y 3 colas, \"Pagina 1 de 1\", \"3 fermentadores\" y ambos botones de pagina desactivados")
+    void paginacion_unaSolaPagina() throws Exception {
+        // Arrange
+        fermentadoresActivos(3);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(3, LocalDate.now().plusDays(1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(carriles(html)).isEqualTo(3);
+        assertThat(cuenta(html, "data-cola-fermentador=")).isEqualTo(3);
+        assertThat(html).contains("Página 1 de 1").contains("3 fermentadores");
+        assertThat(html).doesNotContainPattern("<a[^>]*data-pagina-anterior").doesNotContainPattern("<a[^>]*data-pagina-siguiente");
+        assertThat(html).containsPattern("<span[^>]*data-pagina-anterior").containsPattern("<span[^>]*data-pagina-siguiente");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-59: los carriles se reparten de a 10: la pagina 1 muestra F-01 a F-10 y la 3 muestra F-21 a F-25, con los enlaces de pagina que corresponden")
+    void paginacion_variasPaginas() throws Exception {
+        // Arrange
+        fermentadoresActivos(25);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(25, LocalDate.now().plusDays(1)));
+
+        // Act
+        String pagina1 = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String pagina3 = mockMvc.perform(get(URL).param("pagina", "3")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
+        assertThat(pagina1).contains("Página 1 de 3").contains("25 fermentadores");
+        assertThat(pagina1).containsPattern("<span[^>]*data-pagina-anterior");
+        assertThat(href(pagina1, "data-pagina-siguiente")).isEqualTo("/cronograma-produccion?pagina=2");
+        assertThat(colas(pagina3)).containsExactlyElementsOf(fermentadoresDe(21, 25));
+        assertThat(pagina3).contains("Página 3 de 3");
+        assertThat(href(pagina3, "data-pagina-anterior")).isEqualTo("/cronograma-produccion?pagina=2");
+        assertThat(pagina3).containsPattern("<span[^>]*data-pagina-siguiente");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-60: orden estable y paginas contiguas: aunque el service entregue los lotes en orden inverso, la pagina 1 es F-01 a F-10 y la 2 F-11 y F-12, sin repetir ni omitir, y pedir la misma pagina dos veces da lo mismo")
+    void paginacion_ordenEstable() throws Exception {
+        // Arrange
+        fermentadoresActivos(12);
+        List<LoteCronogramaResponseDTO> lotes = new ArrayList<>(lotesDeFermentadores(12, LocalDate.now().plusDays(1)));
+        java.util.Collections.reverse(lotes);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotes);
+
+        // Act
+        String pagina1 = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String pagina1Otra = mockMvc.perform(get(URL).param("pagina", "1")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String pagina2 = mockMvc.perform(get(URL).param("pagina", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
+        assertThat(colas(pagina2)).containsExactly("F-11", "F-12");
+        assertThat(colas(pagina1Otra)).isEqualTo(colas(pagina1));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-61: una pagina invalida o fuera de rango se corrige y se avisa, salvo que no haya paginas")
+    void paginacion_paginaInvalidaOFueraDeRango() throws Exception {
+        // Arrange
+        fermentadoresActivos(25);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(25, LocalDate.now().plusDays(1)));
+
+        // Act
+        String fueraDeRango = mockMvc.perform(get(URL).param("pagina", "9")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String enBlanco = mockMvc.perform(get(URL).param("pagina", " ")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(fueraDeRango).contains("Página 3 de 3").contains("La página indicada no existe, se muestra la última");
+        for (String invalida : List.of("0", "-2", "abc")) {
+            String html = mockMvc.perform(get(URL).param("pagina", invalida)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            assertThat(html).contains("Página 1 de 3").contains("La página indicada no es válida, se muestra la primera");
+        }
+        assertThat(enBlanco).contains("Página 1 de 3").doesNotContain(ALERTA_ADVERTENCIA);
+
+        // Sin lotes en el período no hay páginas y no se avisa
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
+        String vacio = mockMvc.perform(get(URL).param("pagina", "5")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(vacio).contains("No hay lotes para mostrar entre ").doesNotContain(ALERTA_ADVERTENCIA);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-62: con 50 fermentadores el diagrama sigue acotado: la pagina 1 tiene 10 carriles y 10 colas (\"Pagina 1 de 5\", \"50 fermentadores\") y la 5 muestra F-41 a F-50; el filtro ofrece los 50")
+    void paginacion_cincuentaFermentadores() throws Exception {
+        // Arrange
+        fermentadoresActivos(50);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(50, LocalDate.now().plusDays(1)));
+
+        // Act
+        String pagina1 = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String pagina5 = mockMvc.perform(get(URL).param("pagina", "5")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(carriles(pagina1)).isEqualTo(10);
+        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
+        assertThat(pagina1).contains("Página 1 de 5").contains("50 fermentadores").doesNotContain("data-cola-fermentador=\"F-11\"").doesNotContain("data-cola-fermentador=\"F-50\"");
+        assertThat(cuenta(pagina1, "<option value=\"")).isEqualTo(51);
+        assertThat(colas(pagina5)).containsExactlyElementsOf(fermentadoresDe(41, 50));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-63: los fermentadores sin lotes en el periodo no ocupan carril: solo F-03, F-17 y F-42 (F-08 con un pendiente posterior al periodo no), y el filtro ofrece los 50")
+    void paginacion_losFermentadoresSinLotesNoOcupanCarril() throws Exception {
+        // Arrange
+        fermentadoresActivos(50);
+        LocalDate hoy = LocalDate.now();
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                loteEn(1L, "A-3", EstadoLote.PENDIENTE, "F-03", 7L, "Pale Ale", hoy.plusDays(1), hoy.plusDays(5)),
+                loteEn(2L, "A-17", EstadoLote.PENDIENTE, "F-17", 7L, "Pale Ale", hoy.plusDays(1), hoy.plusDays(5)),
+                loteEn(3L, "A-42", EstadoLote.PENDIENTE, "F-42", 7L, "Pale Ale", hoy.plusDays(1), hoy.plusDays(5)),
+                loteEn(4L, "A-8", EstadoLote.PENDIENTE, "F-08", 7L, "Pale Ale", hoy.plusDays(120), hoy.plusDays(125))));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("Página 1 de 1").contains("3 fermentadores");
+        assertThat(colas(html)).containsExactly("F-03", "F-17", "F-42");
+        assertThat(carriles(html)).isEqualTo(3);
+        assertThat(cuenta(html, "<option value=\"")).isEqualTo(51);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-64: el enlace de pagina conserva la planificacion y el periodo pedidos, no lleva el fermentador que no se pidio y suma la pagina")
+    void paginacion_losEnlacesConservanElResto() throws Exception {
+        // Arrange
+        fermentadoresActivos(25);
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(25, d(2018, 5, 2)));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idPlanificacion", "7").param("desde", "2018-04-21").param("hasta", "2019-01-07"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(href(html, "data-pagina-siguiente")).isEqualTo("/cronograma-produccion?idPlanificacion=7&desde=2018-04-21&hasta=2019-01-07&pagina=2");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-65: con el filtro de fermentador solo se ve ese fermentador: llega al service, un carril, su cola, \"Pagina 1 de 1\" y \"1 fermentador\"")
+    void filtro_unFermentador() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idFermentador", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(2L, desdeDefecto(), hastaDefecto());
+        assertThat(carriles(html)).isEqualTo(1);
+        assertThat(colas(html)).containsExactly("F-02");
+        assertThat(html).contains("Página 1 de 1").contains("1 fermentador").doesNotContain("1 fermentadores");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-66: el fermentador elegido conserva su carril aunque no tenga lotes en el periodo: carril vacio, mensaje de vacio y su cola sin pendientes")
+    void filtro_fermentadorSinLotesEnElPeriodo() throws Exception {
+        // Arrange: el service filtra por el fermentador, asi que no devuelve nada
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idFermentador", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("data-gantt-carril-vacio").contains("Sin lotes en este per");
+        assertThat(html).contains("No hay lotes para mostrar entre " + fmt(desdeDefecto()) + " y " + fmt(hastaDefecto())).contains("data-cronograma-sin-lotes");
+        assertThat(colas(html)).containsExactly("F-02");
+        assertThat(html).contains("No hay lotes pendientes en este fermentador");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-67: fermentador, planificacion y periodo se combinan sin quitarse entre si: un carril con las dos barras (la del otro plan atenuada) y los enlaces conservan ambos filtros")
+    void filtro_combinado() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote2027(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-02", 7L, "Pale Ale", 1),
+                lote2027(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 2)));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idFermentador", "2").param("idPlanificacion", "7")
+                        .param("desde", "2027-06-25").param("hasta", "2027-07-31"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(2L, d(2027, 6, 25), d(2027, 7, 31));
+        assertThat(carriles(html)).isEqualTo(1);
+        assertThat(cuenta(html, "gantt-barra focus:outline-none")).isEqualTo(2);
+        assertThat(cuenta(html, "gantt-barra--atenuada\"")).isEqualTo(1);
+        assertThat(fila(html, 2L)).contains("opacity-50");
+        assertThat(html).contains("Plan #7 - Pale Ale").containsPattern("<option value=\"2\"[^>]*selected=\"selected\"");
+        assertThat(campo(html, "desde")).isEqualTo("2027-06-25");
+        for (String atributo : List.of("data-periodo-anterior", "data-periodo-siguiente", "data-periodo-hoy")) {
+            assertThat(href(html, atributo)).contains("idFermentador=2").contains("idPlanificacion=7");
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-68: los lotes solo fuera del periodo no generan carril ni cola: mensaje de vacio, sin diagrama, paginador ni botones")
+    void periodo_lotesSoloFueraDelPeriodo() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        LocalDate hoy = LocalDate.now();
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                loteEn(1L, "A-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(120), hoy.plusDays(125)),
+                loteEn(2L, "A-2", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", hoy.plusDays(130), hoy.plusDays(135))
+                        .toBuilder().fechaInicio(hoy.plusDays(130).atTime(8, 0)).build()));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("No hay lotes para mostrar entre " + fmt(desdeDefecto()) + " y " + fmt(hastaDefecto()));
+        assertThat(html).doesNotContain("data-gantt>").doesNotContain("data-cola-fermentador").doesNotContain("data-paginacion").doesNotContain("data-mover=");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-69: la cola no depende del periodo: el carril dibuja solo las barras del periodo y la cola lista los tres pendientes, con posiciones 1 a 3 y sus botones")
+    void periodo_laColaListaTodosLosPendientes() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        LocalDate hoy = LocalDate.now();
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                finalizadoEn(1L, "A-1", "F-01", hoy.minusDays(10), hoy.minusDays(6)),
+                loteEn(2L, "A-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(2), hoy.plusDays(6)),
+                loteEn(3L, "A-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(120), hoy.plusDays(125)),
+                loteEn(4L, "A-4", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(127), hoy.plusDays(132))));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(cuenta(html, "gantt-barra focus:outline-none")).isEqualTo(2);
+        assertThat(cuenta(html, "data-cola-fila")).isEqualTo(3);
+        assertThat(html).contains("lotes/2/subir").contains("lotes/3/bajar").contains("lotes/4/subir");
+        assertThat(boton(html, "subir", 2L)).contains("disabled=\"disabled\"");
+        assertThat(boton(html, "bajar", 4L)).contains("disabled=\"disabled\"");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-70: la marca de hoy solo existe si hoy cae dentro del periodo: con el periodo por defecto si, con un periodo pasado o futuro no")
+    void periodo_hoyDentroOFuera() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        LocalDate hoy = LocalDate.now();
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+
+        // Act
+        String a = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String b = mockMvc.perform(get(URL).param("desde", "2018-04-21").param("hasta", "2019-01-07")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String c = mockMvc.perform(get(URL).param("desde", hoy.plusDays(30).toString()).param("hasta", hoy.plusDays(60).toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(a).containsPattern("data-gantt-hoy(?!-)").contains("data-gantt-hoy-bandera");
+        assertThat(b).doesNotContainPattern("data-gantt-hoy").doesNotContain("data-gantt-hoy-bandera");
+        assertThat(c).doesNotContainPattern("data-gantt-hoy").doesNotContain("data-gantt-hoy-bandera");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-71: las barras recortadas lo indican: chevron y atributo del lado que se recorta y la linea correspondiente en el tooltip; la barra que cabe entera no tiene ninguno")
+    void periodo_barrasRecortadas() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                loteEn(1L, "A-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", d(2027, 6, 25), d(2027, 7, 5)),
+                loteEn(2L, "A-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", d(2027, 7, 15), d(2027, 7, 25)),
+                loteEn(3L, "A-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", d(2027, 7, 8), d(2027, 7, 10))));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("desde", "2027-07-01").param("hasta", "2027-07-20"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        String primera = barra(html, "A-1 - Pendiente");
+        String segunda = barra(html, "A-2 - Pendiente");
+        String tercera = barra(html, "A-3 - Pendiente");
+        assertThat(primera).contains("data-gantt-continua-antes").doesNotContain("data-gantt-continua-despues").contains("Continúa antes del período")
+                .contains("Inicio estimado: 25/06/2027");
+        assertThat(segunda).contains("data-gantt-continua-despues").doesNotContain("data-gantt-continua-antes").contains("Continúa después del período")
+                .contains("Fin estimado: 25/07/2027");
+        assertThat(tercera).doesNotContain("data-gantt-continua").doesNotContain("Continúa");
+        assertThat(cuenta(html, "bi-chevron-left")).isEqualTo(1);
+        assertThat(cuenta(html, "bi-chevron-right")).isEqualTo(1);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-72: armar la pagina no dispara consultas repetidas: una consulta de lotes, una de fermentadores y a lo sumo una de planificacion, sin otra interaccion con el service de lotes")
+    void consultas_unaSolaDeLotes() throws Exception {
+        // Arrange
+        fermentadoresActivos(50);
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(50, LocalDate.now().plusDays(1)));
+
+        // Act + Assert: con planificacion destacada, pagina 1
+        mockMvc.perform(get(URL).param("idPlanificacion", "7")).andExpect(status().isOk());
+        verify(loteServicio, times(1)).listarLotesParaCronograma(any(), any(), any());
+        verify(fermentadorServicio, times(1)).filtrarFermentadores(any(), any(), any());
+        verify(planificacionServicio, times(1)).buscarPorId(7L);
+        verifyNoMoreInteractions(loteServicio);
+
+        // Sin planificacion, pagina 3
+        org.mockito.Mockito.clearInvocations(loteServicio, fermentadorServicio, planificacionServicio);
+        mockMvc.perform(get(URL).param("pagina", "3")).andExpect(status().isOk());
+        verify(loteServicio, times(1)).listarLotesParaCronograma(any(), any(), any());
+        verify(fermentadorServicio, times(1)).filtrarFermentadores(any(), any(), any());
+        verify(planificacionServicio, never()).buscarPorId(any());
+        verifyNoMoreInteractions(loteServicio);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-73: un periodo de cinco anios no rompe el diagrama: ancho de 3744 px, etiquetas del eje con anio y no mas de 150 marcas")
+    void periodo_deCincoAnios() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                finalizadoEn(1L, "A-1", "F-01", d(2018, 3, 1), d(2018, 3, 10)),
+                finalizadoEn(2L, "A-2", "F-01", d(2019, 5, 1), d(2019, 5, 10)),
+                finalizadoEn(3L, "A-3", "F-01", d(2020, 7, 1), d(2020, 7, 10))));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("desde", "2018-01-01").param("hasta", "2022-12-31"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("min-width: 3744px").contains(">01/01/18<");
+        assertThat(cuenta(html, "class=\"gantt-marca absolute")).isLessThanOrEqualTo(150);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-74: los fermentadores dados de baja con lotes tienen carril y figuran en el filtro, marcados \"(dado de baja)\", en orden alfabetico con los activos")
+    void fermentadoresDadosDeBaja_tienenCarrilYFiguranEnElFiltro() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 3L, "F-03");
+        when(fermentadorServicio.listarDadosDeBajaConLotes()).thenReturn(List.of(
+                FermentadorResponseDTO.builder().id(2L).identificadorInterno("F-02").build()));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                finalizadoEn(1L, "A-1", "F-01", d(2012, 3, 1), d(2012, 3, 10)),
+                finalizadoEn(2L, "A-2", "F-02", d(2012, 5, 1), d(2012, 5, 10))));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("desde", "2012-01-01").param("hasta", "2012-12-31"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(colas(html)).containsExactly("F-01", "F-02");
+        assertThat(carriles(html)).isEqualTo(2);
+        assertThat(cuenta(html, "No hay lotes pendientes en este fermentador")).isEqualTo(2);
+        assertThat(html).contains("Página 1 de 1").contains("2 fermentadores").doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(html).containsPattern("<option value=\"2\"[^>]*>F-02 \\(dado de baja\\)</option>");
+        assertThat(html.indexOf(">F-01</option>")).isLessThan(html.indexOf(">F-02 (dado de baja)</option>"));
+        assertThat(html.indexOf(">F-02 (dado de baja)</option>")).isLessThan(html.indexOf(">F-03</option>"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-75: un fermentador dado de baja con lotes es un filtro valido; uno dado de baja sin lotes (que no figura en la lista) se ignora con aviso")
+    void fermentadoresDadosDeBaja_sonUnFiltroValido() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(fermentadorServicio.listarDadosDeBajaConLotes()).thenReturn(List.of(
+                FermentadorResponseDTO.builder().id(2L).identificadorInterno("F-02").build()));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                finalizadoEn(1L, "A-1", "F-02", d(2012, 5, 1), d(2012, 5, 10))));
+
+        // Act
+        String valido = mockMvc.perform(get(URL).param("idFermentador", "2").param("desde", "2012-01-01").param("hasta", "2012-12-31"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String sinLotes = mockMvc.perform(get(URL).param("idFermentador", "9")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(2L, d(2012, 1, 1), d(2012, 12, 31));
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+        assertThat(valido).doesNotContain(ALERTA_ADVERTENCIA).containsPattern("<option value=\"2\"[^>]*selected=\"selected\"[^>]*>F-02 \\(dado de baja\\)</option>");
+        assertThat(colas(valido)).containsExactly("F-02");
+        assertThat(sinLotes).contains("El fermentador indicado no existe o no está activo, se muestran todos");
     }
 
     // ==================== POST /cronograma-produccion/lotes/{id}/subir ====================
@@ -780,32 +1422,40 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-22: subir conserva los filtros (fermentador, planificacion e historial) en la URL de redireccion")
+    @DisplayName("CP-CGC-22: subir conserva los filtros, el período y la página en la URL de redireccion")
     void subir_debeConservarLosFiltros() throws Exception {
         // Arrange
         when(loteServicio.subirLoteEnCola(3L)).thenReturn(movido("DEMO-3", LocalDate.of(2026, 11, 12), LocalDate.of(2026, 11, 30)));
 
         // Act + Assert
         mockMvc.perform(post(URL + "/lotes/3/subir").with(csrf())
-                        .param("idFermentador", "2").param("idPlanificacion", "7").param("incluirHistorial", "true"))
+                        .param("idFermentador", "2").param("idPlanificacion", "7").param("desde", "2018-04-21")
+                        .param("hasta", "2019-01-07").param("pagina", "2"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/cronograma-produccion?idFermentador=2&idPlanificacion=7&incluirHistorial=true"))
+                .andExpect(redirectedUrl("/cronograma-produccion?idFermentador=2&idPlanificacion=7&desde=2018-04-21&hasta=2019-01-07&pagina=2"))
                 .andExpect(flash().attribute("tipo", "success"));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-23: los filtros invalidos o vacios del POST no viajan en la redireccion y no rompen el movimiento")
+    @DisplayName("CP-CGC-23: solo viajan los parametros validos: un periodo invalido, invertido o que supera el tope no viaja en ninguno de sus extremos; con un solo extremo viaja solo ese")
     void subir_ignoraFiltrosInvalidos() throws Exception {
         // Arrange
         when(loteServicio.subirLoteEnCola(3L)).thenReturn(movido("DEMO-3", LocalDate.of(2026, 11, 12), LocalDate.of(2026, 11, 30)));
 
         // Act + Assert
         mockMvc.perform(post(URL + "/lotes/3/subir").with(csrf())
-                        .param("idFermentador", "abc").param("idPlanificacion", "").param("incluirHistorial", "no"))
+                        .param("idFermentador", "abc").param("idPlanificacion", "").param("desde", "21/04/2018")
+                        .param("hasta", "2019-01-07").param("pagina", "0"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/cronograma-produccion"))
                 .andExpect(flash().attribute("tipo", "success"));
+        mockMvc.perform(post(URL + "/lotes/3/subir").with(csrf()).param("desde", "2019-01-07").param("hasta", "2018-04-21"))
+                .andExpect(redirectedUrl("/cronograma-produccion"));
+        mockMvc.perform(post(URL + "/lotes/3/subir").with(csrf()).param("desde", "2018-01-01").param("hasta", "2023-01-01"))
+                .andExpect(redirectedUrl("/cronograma-produccion"));
+        mockMvc.perform(post(URL + "/lotes/3/subir").with(csrf()).param("desde", "2018-04-21").param("pagina", "abc"))
+                .andExpect(redirectedUrl("/cronograma-produccion?desde=2018-04-21"));
     }
 
     @Test
@@ -1047,6 +1697,115 @@ class CronogramaControllerTest {
 
     // ==================== Datos de prueba ====================
 
+    private static final String ALERTA_ADVERTENCIA = "bg-amber-50 border-amber-200 text-amber-800";
+
+    private static LocalDate desdeDefecto() {
+        return LocalDate.now().minusDays(15);
+    }
+
+    private static LocalDate hastaDefecto() {
+        return LocalDate.now().plusDays(60);
+    }
+
+    private static LocalDate d(int anio, int mes, int dia) {
+        return LocalDate.of(anio, mes, dia);
+    }
+
+    private static String fmt(LocalDate fecha) {
+        return fecha.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
+
+    /**
+     * Simula {@code cantidad} fermentadores activos "F-01" a "F-nn" con ids 1 a nn.
+     */
+    private void fermentadoresActivos(int cantidad) {
+        Object[] idEIdentificador = new Object[cantidad * 2];
+        for (int i = 1; i <= cantidad; i++) {
+            idEIdentificador[(i - 1) * 2] = (long) i;
+            idEIdentificador[(i - 1) * 2 + 1] = String.format("F-%02d", i);
+        }
+        fermentadores(idEIdentificador);
+    }
+
+    /**
+     * Un pendiente de 5 dias que empieza en {@code inicio} por cada fermentador "F-01" a "F-nn".
+     */
+    private static List<LoteCronogramaResponseDTO> lotesDeFermentadores(int cantidad, LocalDate inicio) {
+        List<LoteCronogramaResponseDTO> lotes = new ArrayList<>();
+        for (int i = 1; i <= cantidad; i++) {
+            lotes.add(loteEn((long) i, "L-" + i, EstadoLote.PENDIENTE, String.format("F-%02d", i), 7L, "Pale Ale", inicio, inicio.plusDays(4)));
+        }
+        return lotes;
+    }
+
+    private static List<String> fermentadoresDe(int primero, int ultimo) {
+        List<String> identificadores = new ArrayList<>();
+        for (int i = primero; i <= ultimo; i++) {
+            identificadores.add(String.format("F-%02d", i));
+        }
+        return identificadores;
+    }
+
+    private static LoteCronogramaResponseDTO finalizadoEn(Long id, String identificador, String fermentador, LocalDate inicioReal, LocalDate finReal) {
+        return loteEn(id, identificador, EstadoLote.FINALIZADO, fermentador, 7L, "Pale Ale", inicioReal, finReal).toBuilder()
+                .fechaInicio(inicioReal.atTime(8, 0)).fechaFinalizacion(finReal.atTime(17, 0)).build();
+    }
+
+    /**
+     * El valor del campo del formulario de filtros con ese nombre.
+     */
+    private static String campo(String html, String nombre) {
+        Matcher m = Pattern.compile("<input[^>]*name=\"" + nombre + "\"[^>]*>").matcher(html);
+        assertThat(m.find()).as("campo %s", nombre).isTrue();
+        Matcher valor = Pattern.compile("value=\"([^\"]*)\"").matcher(m.group());
+        assertThat(valor.find()).isTrue();
+        return valor.group(1);
+    }
+
+    /**
+     * El destino (sin escapar) del enlace marcado con el atributo indicado.
+     */
+    private static String href(String html, String atributo) {
+        Matcher m = Pattern.compile("<a[^>]*" + atributo + "[^>]*>").matcher(html);
+        assertThat(m.find()).as("enlace %s", atributo).isTrue();
+        Matcher destino = Pattern.compile("href=\"([^\"]*)\"").matcher(m.group());
+        assertThat(destino.find()).isTrue();
+        return HtmlUtils.htmlUnescape(destino.group(1));
+    }
+
+    /**
+     * La apertura de la barra del diagrama cuyo tooltip contiene el texto.
+     */
+    private static String barra(String html, String texto) {
+        Matcher m = Pattern.compile("(?s)<div[^>]*role=\"img\"[^>]*>").matcher(html);
+        while (m.find()) {
+            if (m.group().contains(texto)) {
+                return m.group();
+            }
+        }
+        throw new AssertionError("No hay barra con " + texto);
+    }
+
+    /**
+     * Cantidad de carriles dibujados (rotulos de la columna fija del diagrama).
+     */
+    private static int carriles(String html) {
+        return cuenta(html, "truncate text-sm font-medium text-slate-800");
+    }
+
+    /**
+     * Los fermentadores de las colas mostradas, en el orden de la pagina.
+     */
+    private static List<String> colas(String html) {
+        List<String> colas = new ArrayList<>();
+        Matcher m = Pattern.compile("data-cola-fermentador=\"([^\"]*)\"").matcher(html);
+        while (m.find()) {
+            colas.add(m.group(1));
+        }
+        return colas;
+    }
+
+
     /**
      * Simula los fermentadores activos: se pasan de a pares (id, identificador).
      */
@@ -1133,11 +1892,24 @@ class CronogramaControllerTest {
     }
 
     /**
-     * Lote de 300 L cuyo inicio estimado es el 01/07/2027 mas 4 dias por cada orden y dura 4 dias (orden 1: del 01/07 al 05/07).
+     * Lote de 300 L que dura 4 dias; el inicio es manana (hoy + 1) mas 6 dias por cada orden posterior al primero (orden 1: de hoy + 1 a hoy + 5).
      */
     private static LoteCronogramaResponseDTO lote(Long id, String identificador, EstadoLote estado, String fermentador,
                                                   Long idPlanificacion, String receta, int orden) {
-        LocalDate inicio = LocalDate.of(2027, 7, 1).plusDays((orden - 1) * 6L);
+        return loteDesde(LocalDate.now().plusDays(1), id, identificador, estado, fermentador, idPlanificacion, receta, orden);
+    }
+
+    /**
+     * Igual que {@code lote}, con las fechas fijas de julio de 2027 (orden 1: del 01/07 al 05/07), para los casos que las nombran.
+     */
+    private static LoteCronogramaResponseDTO lote2027(Long id, String identificador, EstadoLote estado, String fermentador,
+                                                      Long idPlanificacion, String receta, int orden) {
+        return loteDesde(LocalDate.of(2027, 7, 1), id, identificador, estado, fermentador, idPlanificacion, receta, orden);
+    }
+
+    private static LoteCronogramaResponseDTO loteDesde(LocalDate primerInicio, Long id, String identificador, EstadoLote estado, String fermentador,
+                                                       Long idPlanificacion, String receta, int orden) {
+        LocalDate inicio = primerInicio.plusDays((orden - 1) * 6L);
         return LoteCronogramaResponseDTO.builder()
                 .id(id)
                 .identificadorInterno(identificador)

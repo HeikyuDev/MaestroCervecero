@@ -7,8 +7,9 @@ import lombok.Value;
 import java.util.List;
 
 /**
- * Modelo de vista del cronograma de producción global: el diagrama de Gantt con un carril por fermentador y, por
- * cada fermentador, su cola de lotes pendientes. Lo arma {@link CronogramaProduccionBuilder}.
+ * Modelo de vista del cronograma de producción global: el diagrama de Gantt del período elegido con un carril por
+ * fermentador (de a una página de carriles) y, por cada fermentador de la página, su cola de lotes pendientes.
+ * Lo arma {@link CronogramaProduccionBuilder}.
  */
 @Value
 @Builder
@@ -20,9 +21,24 @@ public class CronogramaProduccionVista {
     GanttPlanificacionVista gantt;
 
     /**
-     * Una cola por fermentador, en el mismo orden que los carriles del diagrama.
+     * Una cola por fermentador de la página mostrada, en el mismo orden que los carriles del diagrama.
      */
     List<ColaFermentador> colas;
+
+    /**
+     * Página mostrada (desde 1): la pedida, ajustada al rango de páginas que hay.
+     */
+    int pagina;
+
+    /**
+     * Cantidad de páginas de carriles (al menos 1).
+     */
+    int totalPaginas;
+
+    /**
+     * Cantidad de fermentadores con carril, sumando todas las páginas.
+     */
+    int totalFermentadores;
 
     /**
      * Cola de lotes de un fermentador.

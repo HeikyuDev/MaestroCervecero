@@ -50,6 +50,9 @@ public final class LimitesTecnicos {
     /** Rango máximo, en días, entre el inicio y el fin de una planificación (5 años). */
     public static final int RANGO_MAXIMO_PLANIFICACION_DIAS = 1_825;
 
+    /** Rango máximo, en días, entre el primer y el último día del período del cronograma de producción (5 años). */
+    public static final int RANGO_MAXIMO_CRONOGRAMA_DIAS = 1_825;
+
     /** Capacidad máxima del lote estándar de la configuración de producción, en litros. */
     public static final double CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS = 100_000.0;
 

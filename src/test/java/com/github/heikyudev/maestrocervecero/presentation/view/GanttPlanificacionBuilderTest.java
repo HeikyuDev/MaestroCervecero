@@ -1273,6 +1273,25 @@ class GanttPlanificacionBuilderTest {
         assertThat(vista.getHoyPct()).isNull();
     }
 
+    @Test
+    @DisplayName("CP-GPB-66: el eje de una planificación abarca todas sus barras, así que ninguna se recorta ni dice que continúa fuera del período")
+    void elDiagramaDeUnaPlanificacion_noRecortaBarras() {
+        // Arrange
+        LoteCronogramaResponseDTO pendiente = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", fecha(1), fecha(5));
+        LoteCronogramaResponseDTO enEjecucion = loteB(2L, "PALE_ALE-R7-2", EstadoLote.EN_EJECUCION, "F-01", fecha(2), fecha(7))
+                .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(pendiente, enEjecucion), fecha(1), fecha(10), fecha(10));
+
+        // Assert
+        assertThat(vista.getCarriles().get(0).getBarras()).hasSize(2).allSatisfy(barra -> {
+            assertThat(barra.isContinuaAntes()).isFalse();
+            assertThat(barra.isContinuaDespues()).isFalse();
+            assertThat(barra.getTooltip()).doesNotContain("Continúa antes del período").doesNotContain("Continúa después del período");
+        });
+    }
+
     // ==================== Datos de prueba ====================
 
     /** Dos lotes pendientes de "F-01" con un día libre entre ellos: del 01/07 al 05/07 y del 07/07 al 10/07. */

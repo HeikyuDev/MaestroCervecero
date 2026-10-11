@@ -6,6 +6,8 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.F
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 /**
  * Interfaz que define los métodos del servicio de fermentadores.
  */
@@ -22,6 +24,14 @@ public interface IFermentadorServicio {
      * @return Página de objetos FermentadorResponseDTO que cumplen los criterios indicados.
      */
     Page<FermentadorResponseDTO> filtrarFermentadores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable);
+
+    /**
+     * Lista los fermentadores dados de baja que tienen lotes (sin contar los cancelados), ordenados por identificador
+     * interno. Los fermentadores dados de baja sin lotes no se incluyen.
+     *
+     * @return Lista de objetos FermentadorResponseDTO dados de baja con lotes, o una lista vacía si no hay ninguno.
+     */
+    List<FermentadorResponseDTO> listarDadosDeBajaConLotes();
 
     /**
      * Busca un fermentador por su ID.
