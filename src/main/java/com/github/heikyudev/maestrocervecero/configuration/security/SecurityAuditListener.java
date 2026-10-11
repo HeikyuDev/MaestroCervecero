@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * Escucha los eventos de autenticación que publica Spring Security para dejar
  * constancia de logins y logouts exitosos en la bitácora global.
  * <p>
- * {@code @AuditableAction} no sirve acá porque el login/logout lo maneja un filtro
+ * {@code @AuditableAction} no sirve aquí porque el login/logout lo maneja un filtro
  * interno de Spring Security, no un método de un @Service nuestro que podamos anotar.
  * Los eventos de dominio ({@link AuthenticationSuccessEvent}, {@link LogoutSuccessEvent})
  * son el punto de extensión correcto para engancharse a ese flujo sin tocar los filtros.
@@ -43,7 +43,7 @@ public class SecurityAuditListener {
     }
 
     // Ambos eventos se publican de forma síncrona, en el mismo hilo de la request HTTP
-    // que hizo el login/logout, así que RequestUtils todavía puede leer la IP acá.
+    // que hizo el login/logout, así que RequestUtils todavía puede leer la IP aquí.
     private void registrar(String username, AccionAuditoria accion) {
         AuditLogEntity auditLogEntity = AuditLogEntity.builder()
                 .username(username)

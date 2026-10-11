@@ -2,7 +2,7 @@
 
 `idEtapaLote` es **obligatorio**: no lo tipea el usuario, lo determina el contexto de la pantalla de gestión de consumos (igual que en `filtrarInsumosRequeridos`) — no tiene sentido mostrar consumos de otros lotes o de otras etapas mezclados.
 
-`tipoConsumo` e `idInsumo` son opcionales, nulo = no filtra. `idInsumo` sirve para acotar a un insumo requerido puntual cuando la etapa requiere más de uno (por ejemplo, dos lúpulos distintos en Hervido); la lista de insumos para armar ese combo se obtiene de `filtrarInsumosRequeridos`, no acá.
+`tipoConsumo` e `idInsumo` son opcionales, nulo = no filtra. `idInsumo` sirve para acotar a un insumo requerido puntual cuando la etapa requiere más de uno (por ejemplo, dos lúpulos distintos en Hervido); la lista de insumos para armar ese combo se obtiene de `filtrarInsumosRequeridos`, no aquí.
 
 `estado` no asume `REGISTRADO` por defecto: `null` muestra consumos en cualquier estado, igual que el resto de los `filtrarX` que exponen este criterio.
 

@@ -697,7 +697,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         // El acotado por etapa (calcularRequerimientosEtapa) y por estado REGISTRADO
         // (findByEtapaLoteIdAndEstado) es responsabilidad de los colaboradores, no de este método:
-        // acá solo se verifica que el resultado de ambos se mapee y sume correctamente.
+        // aquí solo se verifica que el resultado de ambos se mapee y sume correctamente.
         MaltaEntity malta = maltaEntity(1L);
         LevaduraEntity levadura = levaduraEntity(2L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);

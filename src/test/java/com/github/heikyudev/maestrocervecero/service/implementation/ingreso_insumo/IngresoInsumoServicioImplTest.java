@@ -435,7 +435,7 @@ class IngresoInsumoServicioImplTest {
                 .catalogoProveedor(catalogoProveedor)
                 .build();
         // Bajo el bug original (sin multiplicar por la presentación), 50.0 kg se hubiera rechazado
-        // por superar "3" (comparando kg contra bultos); acá está dentro de los 75.0 kg reales pedidos
+        // por superar "3" (comparando kg contra bultos); aquí está dentro de los 75.0 kg reales pedidos
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(50.0).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());

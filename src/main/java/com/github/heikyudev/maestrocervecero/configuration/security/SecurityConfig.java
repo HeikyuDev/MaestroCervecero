@@ -33,7 +33,7 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
  */
 @Configuration          // Le dice a Spring "esta clase define Beans, cargala al arrancar"
 @EnableWebSecurity      // Activa toda la infraestructura de Spring Security (filtros, etc)
-@EnableMethodSecurity   // Te permite usar @PreAuthorize("hasRole('ADMIN')") en tus @Service o @Controller
+@EnableMethodSecurity   // Permite usar @PreAuthorize("hasRole('ADMIN')") en los @Service o @Controller
 public class SecurityConfig {
 
     @Bean
@@ -46,7 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/css/**", "/js/**", "/img/**", "/favicon.ico").permitAll()
 
                         // La página de login y la de error deben ser públicas,
-                        // si no generás un loop infinito (te pide login para ver el login)
+                        // si no se genera un loop infinito (pide login para ver el login)
                         .requestMatchers("/login", "/error").permitAll()
 
                         // Todo lo demás exige estar autenticado
@@ -55,7 +55,7 @@ public class SecurityConfig {
 
                 // === CSRF: se deja HABILITADO a propósito (es el default de Spring Security) ===
                 // En una API REST sin estado se suele deshabilitar porque no hay cookies de sesión
-                // que un sitio malicioso pueda "montar" en un request falso. Acá SÍ hay sesión
+                // que un sitio malicioso pueda "montar" en un request falso. Aquí SÍ hay sesión
                 // basada en cookie, así que CSRF es indispensable. No hace falta agregar el
                 // input hidden a mano en login.html: Spring Security registra automáticamente
                 // un RequestDataValueProcessor (CsrfRequestDataValueProcessor) que Thymeleaf usa
@@ -63,14 +63,14 @@ public class SecurityConfig {
 
                 // === LOGIN: formulario clásico (no API REST con tokens) ===
                 .formLogin(form -> form
-                        .loginPage("/login")              // Tu vista Thymeleaf de login
+                        .loginPage("/login")              // Vista Thymeleaf de login
                         .defaultSuccessUrl("/home", true)  // El "true" fuerza SIEMPRE ir a /home,
                         // aunque el usuario haya intentado entrar
                         // antes a otra URL protegida
-                        .failureUrl("/login?error=true")   // Redirige acá si falla user/pass.
+                        .failureUrl("/login?error=true")   // Redirige aquí si falla user/pass.
                         // Nota: DaoAuthenticationProvider oculta por defecto (hideUserNotFoundExceptions=true)
                         // si el problema fue "usuario inexistente" o "contraseña incorrecta": siempre
-                        // llega acá el mismo error genérico, evitando que alguien pueda enumerar usuarios.
+                        // llega aquí el mismo error genérico, evitando que alguien pueda enumerar usuarios.
                         .permitAll()                       // El login en sí debe ser accesible sin login (obvio pero hay que declararlo)
                 )
 
@@ -91,7 +91,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                         .invalidSessionUrl("/login?timeout")  // Si la cookie de sesión ya no es válida
                         // La DURACIÓN del timeout (cuánto tiempo de inactividad tolera una sesión antes
-                        // de morir) NO se configura acá: es una propiedad del contenedor de servlets,
+                        // de morir) NO se configura aquí: es una propiedad del contenedor de servlets,
                         // ver server.servlet.session.timeout en application.properties.
                         .maximumSessions(1)                   // Un usuario, una sesión activa a la vez
                         .expiredUrl("/login?expired")         // A dónde va si su sesión fue "expulsada" por una nueva
@@ -116,7 +116,7 @@ public class SecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    // Acá le decís a Spring: "para autenticar, usá MI UserDetailsService + este PasswordEncoder"
+    // Aquí se le indica a Spring: "para autenticar, use MI UserDetailsService + este PasswordEncoder"
     @Bean
     public AuthenticationProvider authenticationProvider(UserDetailServiceImpl userDetailsService, PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider(userDetailsService);

@@ -130,7 +130,7 @@ class LoteServicioImplTest {
     @Mock
     private ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
     // Spy con la implementación real: el escalado de insumos ya se prueba de forma independiente
-    // en EscaladoInsumoServicioImplTest, así que acá no tiene sentido mockearlo — se necesita el
+    // en EscaladoInsumoServicioImplTest, así que aquí no tiene sentido mockearlo — se necesita el
     // cálculo real para que estos tests sigan verificando el mismo comportamiento de extremo a
     // extremo que verificaban antes de extraer esta lógica a su propio servicio.
     @Spy

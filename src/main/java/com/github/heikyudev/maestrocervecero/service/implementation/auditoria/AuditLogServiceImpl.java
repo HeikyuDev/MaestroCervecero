@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
  * el usuario no tiene que esperar a que se guarde el log para recibir su respuesta.
  * <p>
  * Importante: todo lo que dependa del hilo original de la request (username, IP, id de
- * la entidad) tiene que quedar resuelto en la entidad ANTES de llegar acá, porque una vez
+ * la entidad) tiene que quedar resuelto en la entidad ANTES de llegar aquí, porque una vez
  * que @Async cambia de hilo se pierde el contexto de esa request (RequestContextHolder,
  * SecurityContextHolder, etc. dejan de tener datos válidos).
  */
@@ -42,7 +42,7 @@ public class AuditLogServiceImpl implements IAuditLogService {
         if (auditLogEntity.getFechaHora() == null) {
             auditLogEntity.setFechaHora(LocalDateTime.now());
         }
-        // Atrapamos cualquier falla acá adentro: un problema al auditar NO debe
+        // Atrapamos cualquier falla aquí adentro: un problema al auditar NO debe
         // hacer fallar (ni siquiera enterarse) al método de negocio que la disparó.
         try {
             auditLogRepository.save(auditLogEntity);

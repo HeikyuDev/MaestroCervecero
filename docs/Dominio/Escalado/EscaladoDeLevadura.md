@@ -2,7 +2,7 @@
 
 ### **Introducción**
 
-Esta sección describe cómo el sistema calcula la cantidad de levadura necesaria para un lote, en función del volumen a producir, la densidad inicial objetivo (OG) y el tipo de fermentación. A diferencia de la malta y el lúpulo, acá lo que se calcula primero no es un peso, sino una **cantidad de células viables**, que recién al final se traduce a gramos según la concentración celular propia de cada levadura.
+Esta sección describe cómo el sistema calcula la cantidad de levadura necesaria para un lote, en función del volumen a producir, la densidad inicial objetivo (OG) y el tipo de fermentación. A diferencia de la malta y el lúpulo, aquí lo que se calcula primero no es un peso, sino una **cantidad de células viables**, que recién al final se traduce a gramos según la concentración celular propia de cada levadura.
 
 Cuando la receta define más de una levadura, el sistema aplica el mismo criterio ya usado en malta y lúpulo: preserva la proporción entre las levaduras definida en la receta, calcula un valor combinado ponderado de la mezcla, y reparte el total resultante manteniendo esa proporción.
 

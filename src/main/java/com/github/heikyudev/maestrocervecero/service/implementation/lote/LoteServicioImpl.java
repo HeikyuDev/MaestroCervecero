@@ -78,7 +78,7 @@ import java.util.stream.Collectors;
  * Implementación de {@link ILoteServicio}.
  * <p>
  * El cálculo de los volúmenes de escalado de agua (Paso 2 y Paso 3 del documento
- * de dominio "Escalado del Agua") se resuelve acá mismo, ya que hoy solo se
+ * de dominio "Escalado del Agua") se resuelve aquí mismo, ya que hoy solo se
  * utiliza para validar la capacidad de los equipos al registrar el lote. Si en el
  * futuro otra operación (por ejemplo, "Iniciar Lote", que necesita también el
  * agua de lavado y el agua total a preparar) requiere este mismo cálculo, vale la
@@ -607,7 +607,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * Igual que {@link #finalizarFermentacion(Long)}, no cambia el estado operativo de ningún
      * equipamiento: el fermentador es compartido por Fermentación, Maduración y Envasado, así que
      * sigue {@code EN_USO} sin interrupción hasta que termine el Envasado. La validación del
-     * porcentaje mínimo de consumo también aplica acá: es infrecuente que Maduración requiera
+     * porcentaje mínimo de consumo también aplica aquí: es infrecuente que Maduración requiera
      * insumos, pero puede haberlos (por ejemplo, un lúpulo de Dry Hop).
      * </p>
      *
@@ -816,7 +816,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * <p>
      * Reutiliza {@link IConsumoInsumoServicio#filtrarInsumosRequeridos(Long)} para obtener, por
      * insumo, cuánto requiere la etapa y cuánto ya se consumió — la misma fuente que usa la
-     * pantalla de gestión de consumos, evitando recalcular o duplicar esa lógica acá.
+     * pantalla de gestión de consumos, evitando recalcular o duplicar esa lógica aquí.
      * </p>
      *
      * @throws ReglaNegocioException Si algún insumo requerido no alcanza el porcentaje mínimo.

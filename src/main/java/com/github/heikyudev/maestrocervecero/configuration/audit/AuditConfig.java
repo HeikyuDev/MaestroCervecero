@@ -17,10 +17,10 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @EnableJpaAuditing(auditorAwareRef = "auditorAware")
 public class AuditConfig {
 
-    // Registramos el AuditorAware acá (y no con @Component en la propia clase)
+    // Registramos el AuditorAware aquí (y no con @Component en la propia clase)
     // para que quede explícito, en un solo lugar, de dónde sale el auditor de JPA.
 
-    // Aca basicamente creamos el Bean correspondiente al AuditorAware, el cual tiene la responsabilidad
+    // Aquí básicamente creamos el Bean correspondiente al AuditorAware, el cual tiene la responsabilidad
     // de devolver el nombre del usuario que está haciendo la request.
 
     // Cada ves que se registre una operacion SELECT o UPDATE, el sistema como declaro un listener

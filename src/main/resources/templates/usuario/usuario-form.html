@@ -14,7 +14,7 @@
         </a>
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
             th:text="${editando} ? 'Editar usuario' : 'Nuevo usuario'">Nuevo usuario</h1>
-        <p class="text-sm text-slate-500">Completá los datos de la persona y su acceso al sistema.
+        <p class="text-sm text-slate-500">Complete los datos de la persona y su acceso al sistema.
             Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
     </div>
 
@@ -106,7 +106,7 @@
                     <select id="rol" th:field="*{rol}"
                             class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                             th:classappend="${#fields.hasErrors('rol')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option value="">Seleccioná un rol</option>
+                        <option value="">Seleccione un rol</option>
                         <option th:each="r : ${roles}" th:value="${r}"
                                 th:text="${r.etiqueta}">Rol</option>
                     </select>

@@ -1,6 +1,6 @@
 ## Casos de prueba de `GanttPlanificacionBuilder`
 
-**Tipo de prueba:** unitaria (clase `GanttPlanificacionBuilderTest`), sin Spring ni mocks. Verifica que `GanttPlanificacionBuilder.construir(lotes, inicioPlanificacion, finPlanificacion, hoy)` convierta los `LoteCronogramaResponseDTO` de una planificación en el `GanttPlanificacionVista` que dibuja la plantilla `planificacion_produccion/gantt.html`. La plantilla no hace cuentas: toda la geometría se calcula acá. Recibe la fecha de hoy como parámetro, por eso los resultados son deterministas.
+**Tipo de prueba:** unitaria (clase `GanttPlanificacionBuilderTest`), sin Spring ni mocks. Verifica que `GanttPlanificacionBuilder.construir(lotes, inicioPlanificacion, finPlanificacion, hoy)` convierta los `LoteCronogramaResponseDTO` de una planificación en el `GanttPlanificacionVista` que dibuja la plantilla `planificacion_produccion/gantt.html`. La plantilla no hace cuentas: toda la geometría se calcula aquí. Recibe la fecha de hoy como parámetro, por eso los resultados son deterministas.
 
 **Geometría compartida:** las reglas de cada barra, el eje, las marcas, la marca de hoy y el agrupado en carriles viven en `GanttGeometria`, que también usa `CronogramaProduccionBuilder` (cronograma global, ver `services/lote/CasosPruebaGanttCronogramaBuilder.md`). Estos casos la verifican a través de `GanttPlanificacionBuilder.construir(...)`.
 

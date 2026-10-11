@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
  * {@code levadura}, unida a la tabla raíz {@code insumo} por FK ({@code insumo_id}),
  * producto de la estrategia {@code InheritanceType.JOINED} definida en el padre.
  * <p>
- * La unidad de medida (siempre {@code GRAMO} para este insumo) no se fija acá:
+ * La unidad de medida (siempre {@code GRAMO} para este insumo) no se fija aquí:
  * es responsabilidad del service cargarla correctamente al construir la entidad
  * mediante {@code builder()}, consistente con el resto de las entidades del proyecto
  * (ver {@code UsuarioEntity}), donde la validación/reglas de negocio viven en esa capa

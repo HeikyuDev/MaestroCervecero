@@ -60,7 +60,7 @@ public class UsuarioEntity extends AuditableEntity<String>{
 
     // === Autorización ===
     // Cada usuario tiene un único Rol, y cada Rol trae consigo su propio conjunto fijo de
-    // Permisos granulares (ver Rol.java). No hay una relación many-to-many de permisos acá:
+    // Permisos granulares (ver Rol.java). No hay una relación many-to-many de permisos aquí:
     // se administra a nivel de código, no de tabla intermedia.
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

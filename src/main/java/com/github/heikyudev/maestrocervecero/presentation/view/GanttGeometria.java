@@ -27,7 +27,7 @@ import java.util.function.Predicate;
  * detalle del tooltip.
  * <p>
  * Es una clase sin estado ni dependencias de Spring. Cada builder decide qué lotes dibuja, qué dice la
- * etiqueta de cada barra y qué marcas propias agrega; todo lo demás se calcula acá, una sola vez.
+ * etiqueta de cada barra y qué marcas propias agrega; todo lo demás se calcula aquí, una sola vez.
  * </p>
  * <p>
  * Reglas de cada barra, según el estado del lote (las fechas son días completos, el último inclusive):

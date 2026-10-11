@@ -1,6 +1,6 @@
 ### 1. `calcularRequerimientosMalta(VersionRecetaEntity versionReceta, double volumenObjetivo, MaceradorEntity macerador)`
 
-Lógica extraída de `LoteServicioImpl` sin cambios (ver docs/Dominio/Escalado/EscaladoDeMalta.md). Esta cobertura es intencionalmente moderada: el cálculo ya se valida de punta a punta a través de `LoteServicioImplTest` (`iniciarLote`/`registrarLote`); acá solo se confirma que, aislado en su propio servicio, sigue produciendo los mismos resultados.
+Lógica extraída de `LoteServicioImpl` sin cambios (ver docs/Dominio/Escalado/EscaladoDeMalta.md). Esta cobertura es intencionalmente moderada: el cálculo ya se valida de punta a punta a través de `LoteServicioImplTest` (`iniciarLote`/`registrarLote`); aquí solo se confirma que, aislado en su propio servicio, sigue produciendo los mismos resultados.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

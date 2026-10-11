@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * Renderiza la vista de login. Es pública (ver {@code SecurityConfig#securityFilterChain}),
  * y su único trabajo es traducir los parámetros de query que agrega Spring Security al
- * redirigir acá (error/logout/timeout/expired) en atributos que {@code login.html} entiende.
+ * redirigir aquí (error/logout/timeout/expired) en atributos que {@code login.html} entiende.
  */
 @Controller
 public class LoginController {

@@ -24,7 +24,7 @@
  * El insumo se elige con el selector de entidad de /js/modales.js (data-selector).
  *
  * Validación: es una excepción acordada a la regla de "validar solo en el servidor". Estas ventanas arman
- * filas de tablas que todavía no se enviaron, así que acá se frena la fila ANTES de que entre a la tabla
+ * filas de tablas que todavía no se enviaron, así que aquí se frena la fila ANTES de que entre a la tabla
  * (insumo elegido, cantidad mayor a 0, sin repetidos, y uso / tiempo de hervor / etapa del lúpulo). Los
  * avisos se muestran dentro de la ventana, que queda abierta. Nada de esto reemplaza al servidor: al
  * enviar el formulario valida todo de nuevo (Bean Validation y reglas del service).

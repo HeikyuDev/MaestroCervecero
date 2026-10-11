@@ -34,7 +34,7 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
      * comprometido con una etapa futura que aún no llegó.
      * </p>
      * <p>
-     * No hace falta contemplar la etapa {@code EN_CURSO} acá: mientras una etapa está en curso,
+     * No hace falta contemplar la etapa {@code EN_CURSO} aquí: mientras una etapa está en curso,
      * el equipamiento que usa queda en estado operativo {@code EN_USO}, y eso ya lo bloquea cada
      * service por separado (ver {@link com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo}).
      * Tampoco etapas {@code FINALIZADA} o {@code CANCELADA}: ya no representan un compromiso

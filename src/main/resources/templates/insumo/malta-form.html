@@ -16,7 +16,7 @@
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
             th:text="${editando} ? 'Editar malta' : 'Nueva malta'">Nueva malta</h1>
         <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
-            <span th:if="${retorno != null}">Al guardar volvés al formulario que estabas completando.</span></p>
+            <span th:if="${retorno != null}">Al guardar vuelve al formulario que estaba completando.</span></p>
     </div>
 
     <form th:action="${editando} ? @{/insumos/maltas/{id}(id=${maltaId})} : @{/insumos/maltas}"
@@ -47,7 +47,7 @@
                     <select id="tipo" th:field="*{tipo}"
                             class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                             th:classappend="${#fields.hasErrors('tipo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option value="">Seleccioná un tipo</option>
+                        <option value="">Seleccione un tipo</option>
                         <option th:each="t : ${tipos}" th:value="${t}"><th:block th:replace="~{receta/formato :: tipoMalta(${t})}">Base</th:block></option>
                     </select>
                     <p th:if="${#fields.hasErrors('tipo')}" th:errors="*{tipo}" class="mt-1 text-xs text-rose-600"></p>

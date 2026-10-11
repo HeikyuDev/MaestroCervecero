@@ -38,7 +38,7 @@ Después de validar los equipos y sus capacidades, y antes de generar el identif
 |**CP-RL-07**|Volumen objetivo nulo|`volumenObjetivo: null`|`volumenObjetivo == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
 |**CP-RL-08**|Volumen objetivo en cero _(Límite)_|`volumenObjetivo: 0.0`|`volumenObjetivo <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
 |**CP-RL-09**|Volumen objetivo supera la capacidad del fermentador|`volumenObjetivo: 25.0` (capacidad útil: 20.0)|`volumenObjetivo > capacidadUtil` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
-|**CP-RL-10**|Volumen objetivo igual a la capacidad del fermentador _(Límite válido)_|`volumenObjetivo: 20.0` (capacidad útil: 20.0)|`volumenObjetivo > capacidadUtil` $\rightarrow$ **FALSE**|No lanza por esta regla; el proceso continúa (no se verifica persistencia acá, ver CP-RL-14).|
+|**CP-RL-10**|Volumen objetivo igual a la capacidad del fermentador _(Límite válido)_|`volumenObjetivo: 20.0` (capacidad útil: 20.0)|`volumenObjetivo > capacidadUtil` $\rightarrow$ **FALSE**|No lanza por esta regla; el proceso continúa (no se verifica persistencia aquí, ver CP-RL-14).|
 |**CP-RL-11**|Volumen pre-hervor supera la capacidad de la olla de hervor|Olla con `capacidadUtil: 24.0` (pre-hervor calculado: 25.0)|`volumenPreHervor > capacidadUtil` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
 |**CP-RL-12**|Volumen de mezcla supera la capacidad del macerador|Macerador con `capacidadUtil: 20.0` (mezcla calculada: ≈21.26)|`volumenMezclaMacerador > capacidadUtil` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`.|
 |**CP-RL-13**|Configuración de planificación de producción no encontrada|`configuracionPlanificacionProduccionRepository.findById(1L)` $\rightarrow$ vacío|Se necesita para `fechaFinalizacionEstimada`|Lanza `RecursoNoEncontradoException`. (El contador de la receta ya se incrementó en memoria en este punto; `@Transactional` revierte el cambio real en la base de datos.)|
@@ -154,7 +154,7 @@ No solicita ningún dato al usuario. Escenario base salvo indicación contraria:
 
 No solicita ningún dato al usuario. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, etapa actual Maceración `EN_CURSO`.
 
-Valida, además de lo habitual, que el consumo de CADA insumo requerido de la etapa alcance el porcentaje mínimo configurado en `ConfiguracionProduccionEntity.porcentajeMinimoConsumoParaAvanzarEtapa` (Sección 2 de esa configuración): reutiliza `ConsumoInsumoServicio.filtrarInsumosRequeridos(idEtapaMaceracion)` (mismos datos que ve el operario en la pantalla de gestión de consumos) en vez de recalcular esa lógica acá. La comparación es `cantidadConsumida >= cantidadRequerida * (porcentajeMinimo / 100)`, insumo por insumo — no en total agregado, para que un consumo de más de un insumo no tape el olvido de otro.
+Valida, además de lo habitual, que el consumo de CADA insumo requerido de la etapa alcance el porcentaje mínimo configurado en `ConfiguracionProduccionEntity.porcentajeMinimoConsumoParaAvanzarEtapa` (Sección 2 de esa configuración): reutiliza `ConsumoInsumoServicio.filtrarInsumosRequeridos(idEtapaMaceracion)` (mismos datos que ve el operario en la pantalla de gestión de consumos) en vez de recalcular esa lógica aquí. La comparación es `cantidadConsumida >= cantidadRequerida * (porcentajeMinimo / 100)`, insumo por insumo — no en total agregado, para que un consumo de más de un insumo no tape el olvido de otro.
 
 Al finalizar, además de avanzar la etapa y pasar el macerador a `EN_LIMPIEZA`, libera las reservas de insumo que hayan quedado sin consumir de la etapa de Maceración puntual (`IReservaInsumoRepository.findByEtapaLoteId`, no las de todo el lote).
 
@@ -195,7 +195,7 @@ No solicita ningún dato al usuario. Escenario base salvo indicación contraria:
 
 ### 10. `finalizarMaduracion(Long id)`
 
-No solicita ningún dato al usuario. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, etapa actual Maduración `EN_CURSO`. Idéntica a `finalizarFermentacion` (sección 9), aplicada a la transición Maduración → Envasado: tampoco cambia el estado operativo de ningún equipamiento (el fermentador sigue `EN_USO` hasta terminar el Envasado). La validación del porcentaje mínimo de consumo también aplica acá — es infrecuente que Maduración requiera insumos, pero puede haberlos (por ejemplo, un lúpulo de Dry Hop que se tira en esta etapa).
+No solicita ningún dato al usuario. Escenario base salvo indicación contraria: lote en `EN_EJECUCION` con sus 6 etapas y equipamiento asignado, etapa actual Maduración `EN_CURSO`. Idéntica a `finalizarFermentacion` (sección 9), aplicada a la transición Maduración → Envasado: tampoco cambia el estado operativo de ningún equipamiento (el fermentador sigue `EN_USO` hasta terminar el Envasado). La validación del porcentaje mínimo de consumo también aplica aquí — es infrecuente que Maduración requiera insumos, pero puede haberlos (por ejemplo, un lúpulo de Dry Hop que se tira en esta etapa).
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

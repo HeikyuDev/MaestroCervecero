@@ -16,7 +16,7 @@
         <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight"
             th:text="${editando} ? 'Editar molino' : 'Nuevo molino'">Nuevo molino</h1>
         <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.
-            <span th:if="${retorno != null}">Al guardar volvés al formulario que estabas completando.</span></p>
+            <span th:if="${retorno != null}">Al guardar vuelve al formulario que estaba completando.</span></p>
     </div>
 
     <form th:action="${editando} ? @{/equipamiento/molinos/{id}(id=${molinoId})} : @{/equipamiento/molinos}"

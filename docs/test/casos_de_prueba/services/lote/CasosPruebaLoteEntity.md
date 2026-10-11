@@ -2,7 +2,7 @@ Casos de prueba de los métodos de dominio de `LoteEntity` (no de un service —
 
 ### 1. `obtenerEtapaPorTipo(TipoEtapa tipo)`
 
-Antes vivía (por error de ubicación) en `EscaladoInsumoServicioImpl`: no es responsabilidad del escalado de insumos resolver una etapa del lote por tipo, es una consulta propia del lote sobre sus propias etapas. Se movió acá como método de dominio de `LoteEntity`; `EscaladoInsumoServicioImpl` y `LoteServicioImpl` ahora llaman a `lote.obtenerEtapaPorTipo(tipo)` directamente.
+Antes vivía (por error de ubicación) en `EscaladoInsumoServicioImpl`: no es responsabilidad del escalado de insumos resolver una etapa del lote por tipo, es una consulta propia del lote sobre sus propias etapas. Se movió aquí como método de dominio de `LoteEntity`; `EscaladoInsumoServicioImpl` y `LoteServicioImpl` ahora llaman a `lote.obtenerEtapaPorTipo(tipo)` directamente.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

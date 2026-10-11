@@ -35,7 +35,7 @@ public class MetodosCicloVida {
      * retroactiva (o ambigua, a la misma fecha y hora) a algo que ya pasó sobre ese barril/
      * equipamiento — dos operaciones distintas no pueden haber ocurrido en el mismo instante.
      * <p>
-     * A diferencia de {@link #validarEsOperacionMasReciente}, acá sí se puede exigir "posterior o
+     * A diferencia de {@link #validarEsOperacionMasReciente}, aquí sí se puede exigir "posterior o
      * igual" sin riesgo de autorrechazo: la operación que se está registrando todavía no existe en
      * ninguna de las tablas consultadas, así que nunca se compara contra sí misma.
      * </p>

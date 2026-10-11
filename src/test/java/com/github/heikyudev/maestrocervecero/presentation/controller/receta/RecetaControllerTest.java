@@ -454,9 +454,9 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("data-abrir-agregar=\"malta\"")))
                 .andExpect(content().string(containsString("data-abrir-agregar=\"lupulo\"")))
                 .andExpect(content().string(containsString("data-abrir-agregar=\"levadura\"")))
-                .andExpect(content().string(containsString("Todavía no agregaste maltas a la receta.")))
-                .andExpect(content().string(containsString("Todavía no agregaste lúpulos a la receta.")))
-                .andExpect(content().string(containsString("Todavía no agregaste levaduras a la receta.")))
+                .andExpect(content().string(containsString("Todavía no se agregaron maltas a la receta")))
+                .andExpect(content().string(containsString("Todavía no se agregaron lúpulos a la receta")))
+                .andExpect(content().string(containsString("Todavía no se agregaron levaduras a la receta")))
                 // Sin alta contextual de insumos, etapas ni parametros
                 .andExpect(content().string(not(containsString("data-selector-alta"))))
                 .andExpect(content().string(not(containsString("data-selector-menu"))))
@@ -693,7 +693,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("La receta debe tener al menos una levadura")))
                 .andExpect(content().string(containsString("border-rose-400")))
                 // El mensaje de la tabla aparece debajo de ella, ademas de en el resumen
-                .andExpect(content().string(matchesPattern("(?s).*Todav.a no agregaste maltas.*text-rose-600\">La receta debe tener al menos una malta<.*")));
+                .andExpect(content().string(matchesPattern("(?s).*Todav.a no se agregaron maltas.*text-rose-600\">La receta debe tener al menos una malta<.*")));
 
         verify(recetaServicio, never()).altaReceta(any());
     }

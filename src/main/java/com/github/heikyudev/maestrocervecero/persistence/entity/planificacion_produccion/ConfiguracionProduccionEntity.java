@@ -29,7 +29,7 @@ public class ConfiguracionProduccionEntity extends AuditableEntity<String> {
 
     /**
      * ID fijo de la única fila válida de esta tabla. Nunca cambia y nunca se
-     * genera otro. Usalo siempre que necesites recuperar la configuración
+     * genera otro. Úselo siempre que necesites recuperar la configuración
      * actual (ej. {@code repository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)}).
      */
     public static final Long SINGLETON_ID = 1L;
