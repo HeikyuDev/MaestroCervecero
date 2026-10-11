@@ -21,7 +21,7 @@
 | **CP-LEC-01** | Listado para el gerente de producción | Rol `GERENTE_DE_PRODUCCION`. El service devuelve 1 levadura (`id: 3`, "US-05", `ALE`, 6.000.000.000 células por gramo, `GRAMO`) | El rol está autorizado | Responde 200 con la vista `insumo/levadura-lista`. Muestra "Gestión de Insumos", nombre, tipo, "6.000.000.000" y la unidad "g"; las pestañas hacia `/insumos/maltas` y `/insumos/lupulos`; el link de alta `/insumos/levaduras/nuevo`, el de edición `/insumos/levaduras/3/editar` y el botón de baja con `data-baja-url="/insumos/levaduras/3/baja"`. El diálogo de confirmación de baja incluye el token CSRF. |
 | **CP-LEC-02** | Paginación y orden alfabético por defecto | Rol `GERENTE_DE_PRODUCCION`, sin parámetros | Sin criterios. Levadura es un módulo maestro | Llama al service con `nombre: null`, `tipo: null` y un `Pageable` de 20 elementos, página 0, ordenado de forma ascendente por `nombre` (sin distinguir mayúsculas) y por `id` como desempate. |
 | **CP-LEC-03** | Criterios de búsqueda hacia el service | `nombre: " us "`, `tipo: LAGER`, `pagina: 1`; y por separado `nombre: "   "`, `tipo: ""` (opción "Todos") | Un texto en blanco o un select vacío equivale a no filtrar | Llama al service con `nombre: "us"` y `tipo: LAGER` en la página 1; con los valores vacíos lo llama con `nombre: null` y `tipo: null`. |
-| **CP-LEC-04** | Listado sin resultados | El service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron levaduras con los criterios indicados." en lugar de una tabla vacía. |
+| **CP-LEC-04** | Listado sin resultados | El service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron levaduras con los criterios indicados" en lugar de una tabla vacía. |
 | **CP-LEC-05** | Rol no autorizado | Rol `ENCARGADO_DE_DEPOSITO` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
@@ -46,7 +46,7 @@
 | **CP-LEC-12** | Células por gramo fuera de rango | `celulasEnMillones: 5000`. El service lanza `ReglaNegocioException("La cantidad de células viables por gramo debe ser mayor o igual a 6.000.000.000 y menor o igual a 20.000.000.000")` | El service rechaza el valor | Vuelve al formulario, muestra el mensaje junto al campo de células y conserva el valor tipeado (`5000`). |
 | **CP-LEC-13** | Alta contextual correcta | Datos válidos, `retorno: "/recetas/nueva"`, `campo: "idLevadura"`. El service devuelve la levadura (`id: 9`) | El alta se abrió desde otro formulario | Redirige a `/recetas/nueva?desdeAlta=1&idLevadura=9` con la alerta "Levadura creada correctamente". |
 | **CP-LEC-14** | Rol no autorizado | Rol `ADMINISTRADOR` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
-| **CP-LEC-22** | Valor no numérico en las células | `celulasEnMillones: "abc"` | El valor no se puede convertir a número | Vuelve al formulario con "Ingresá un número entero válido" (mensaje en español). No invoca al service. |
+| **CP-LEC-22** | Valor no numérico en las células | `celulasEnMillones: "abc"` | El valor no se puede convertir a número | Vuelve al formulario con "Ingrese un número entero válido" (mensaje en español). No invoca al service. |
 
 ---
 

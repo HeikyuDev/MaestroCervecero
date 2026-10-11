@@ -32,7 +32,7 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-PRC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "cor"`. El service devuelve "Córdoba" de "Argentina" (`id: 5`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-provincia :: buscador`. Cada provincia tiene un botón `data-elegir data-id="5" data-texto="Córdoba (Argentina)"`; no hay acciones de baja. Llama al service con `nombre: "cor"` y páginas de 8 elementos. |
-| **CP-PRC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron provincias con los criterios indicados.". |
+| **CP-PRC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron provincias con los criterios indicados". |
 | **CP-PRC-08** | Rol sin relación con clientes ni proveedores | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

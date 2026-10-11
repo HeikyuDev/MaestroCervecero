@@ -135,7 +135,7 @@ class UsuarioControllerTest {
 
         mockMvc.perform(get("/usuarios"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron usuarios con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron usuarios con los criterios indicados")));
     }
 
     @Test
@@ -188,7 +188,7 @@ class UsuarioControllerTest {
     void formularioAlta_debeRechazarRolNoAdministrador() throws Exception {
         mockMvc.perform(get("/usuarios/nuevo"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("mensaje", "No tenés permisos para realizar esta acción."))
+                .andExpect(flash().attribute("mensaje", "No tiene permisos para realizar esta acción"))
                 .andExpect(flash().attribute("tipo", "danger"));
     }
 
@@ -314,7 +314,7 @@ class UsuarioControllerTest {
         mockMvc.perform(get("/usuarios/1/editar"))
                 .andExpect(status().isOk())
                 .andExpect(model().attribute("esCuentaPropia", true))
-                .andExpect(content().string(containsString("No podés cambiar tu propio rol.")))
+                .andExpect(content().string(containsString("No se puede cambiar el propio rol")))
                 .andExpect(content().string(not(containsString("<select id=\"rol\""))));
     }
 
@@ -399,7 +399,7 @@ class UsuarioControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("usuario/usuario-form"))
                 .andExpect(model().attributeHasFieldErrors("usuarioForm", "rol"))
-                .andExpect(content().string(containsString("No podés cambiar tu propio rol.")));
+                .andExpect(content().string(containsString("No se puede cambiar el propio rol")));
 
         verify(usuarioServicio, never()).modificarUsuario(any(), any());
     }
@@ -419,7 +419,7 @@ class UsuarioControllerTest {
                         .param("rol", "ADMINISTRADOR"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login"))
-                .andExpect(flash().attribute("mensaje", "Cambiaste tu nombre de usuario: iniciá sesión nuevamente."))
+                .andExpect(flash().attribute("mensaje", "Cambió su nombre de usuario: inicie sesión nuevamente"))
                 .andExpect(flash().attribute("tipo", "info"));
 
         verify(usuarioServicio).modificarUsuario(eq(1L), any());

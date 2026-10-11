@@ -227,7 +227,7 @@ class ConfiguracionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CPC-10: un número mal escrito muestra \"Ingresá un número válido\" en el campo y no llega al service")
+    @DisplayName("CP-CPC-10: un número mal escrito muestra \"Ingrese un número válido\" en el campo y no llega al service")
     void caso_cp_cpc_10() throws Exception {
         // === PREPARACION DE DATOS ===
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());

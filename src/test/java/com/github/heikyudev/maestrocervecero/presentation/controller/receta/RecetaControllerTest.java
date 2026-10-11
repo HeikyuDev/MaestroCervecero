@@ -206,7 +206,7 @@ class RecetaControllerTest {
 
         mockMvc.perform(get("/recetas"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados")));
     }
 
     @Test
@@ -990,14 +990,14 @@ class RecetaControllerTest {
 
         mockMvc.perform(get("/recetas/buscador/maltas").param("nombre", "   ").param("tipo", ""))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron maltas con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron maltas con los criterios indicados")));
         verify(maltaServicio).filtrarMaltas(isNull(), isNull(), any());
 
         mockMvc.perform(get("/recetas/buscador/lupulos"))
                 .andExpect(content().string(containsString("No se encontraron l")))
-                .andExpect(content().string(containsString("con los criterios indicados.")));
+                .andExpect(content().string(containsString("con los criterios indicados")));
         mockMvc.perform(get("/recetas/buscador/levaduras"))
-                .andExpect(content().string(containsString("No se encontraron levaduras con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron levaduras con los criterios indicados")));
     }
 
     @Test
@@ -1121,14 +1121,14 @@ class RecetaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         String malta = ventana(html, "malta");
-        assertThat(malta).contains(aviso("insumo", "Seleccioná un insumo"),
+        assertThat(malta).contains(aviso("insumo", "Seleccione un insumo"),
                 aviso("duplicado", "Esa malta ya está en la receta"),
-                aviso("cantidad", "Ingresá una cantidad mayor a 0"));
+                aviso("cantidad", "Ingrese una cantidad mayor a 0"));
 
         String levadura = ventana(html, "levadura");
-        assertThat(levadura).contains(aviso("insumo", "Seleccioná un insumo"),
+        assertThat(levadura).contains(aviso("insumo", "Seleccione un insumo"),
                 aviso("duplicado", "Esa levadura ya está en la receta"),
-                aviso("cantidad", "Ingresá una cantidad mayor a 0"));
+                aviso("cantidad", "Ingrese una cantidad mayor a 0"));
     }
 
     @Test
@@ -1140,12 +1140,12 @@ class RecetaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(ventana(html, "lupulo")).contains(
-                aviso("insumo", "Seleccioná un insumo"),
+                aviso("insumo", "Seleccione un insumo"),
                 aviso("duplicado", "Ese lúpulo ya está en la receta con el mismo uso y tiempo de hervor"),
-                aviso("cantidad", "Ingresá una cantidad mayor a 0"),
-                aviso("uso", "Elegí el uso del lúpulo"),
-                aviso("tiempoDeHervor", "Ingresá el tiempo de hervor en minutos (mayor a 0)"),
-                aviso("etapaDeUso", "Elegí la etapa de uso"));
+                aviso("cantidad", "Ingrese una cantidad mayor a 0"),
+                aviso("uso", "Elija el uso del lúpulo"),
+                aviso("tiempoDeHervor", "Ingrese el tiempo de hervor en minutos (mayor a 0)"),
+                aviso("etapaDeUso", "Elija la etapa de uso"));
     }
 
     /** Fragmento de la ventana emergente "agregar" del tipo indicado (malta, lupulo o levadura). */

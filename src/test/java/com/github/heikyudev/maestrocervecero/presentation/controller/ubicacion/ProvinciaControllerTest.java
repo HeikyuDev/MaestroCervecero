@@ -173,7 +173,7 @@ class ProvinciaControllerTest {
 
         mockMvc.perform(get("/ubicaciones/provincias/buscador"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron provincias con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron provincias con los criterios indicados")));
     }
 
     @Test

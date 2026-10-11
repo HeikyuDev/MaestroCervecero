@@ -167,7 +167,7 @@ public class UsuarioController {
         boolean cuentaPropia = esCuentaPropia(actual, authentication);
 
         if (cuentaPropia && usuarioForm.getRol() != null && usuarioForm.getRol() != actual.getRol()) {
-            bindingResult.rejectValue("rol", "cuentaPropia", "No podés cambiar tu propio rol.");
+            bindingResult.rejectValue("rol", "cuentaPropia", "No se puede cambiar el propio rol");
         }
 
         if (!bindingResult.hasErrors()) {
@@ -176,7 +176,7 @@ public class UsuarioController {
 
                 if (cuentaPropia && !actual.getUsername().equalsIgnoreCase(usuarioForm.getUsername())) {
                     new SecurityContextLogoutHandler().logout(request, response, authentication);
-                    agregarMensaje(redirectAttributes, "Cambiaste tu nombre de usuario: iniciá sesión nuevamente.", TipoAlerta.INFO);
+                    agregarMensaje(redirectAttributes, "Cambió su nombre de usuario: inicie sesión nuevamente", TipoAlerta.INFO);
                     return "redirect:/login";
                 }
 

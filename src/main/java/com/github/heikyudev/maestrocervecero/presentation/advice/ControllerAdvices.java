@@ -26,7 +26,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @ControllerAdvice(annotations = Controller.class)
 public class ControllerAdvices {
 
-    private static final String MENSAJE_ERROR_INESPERADO = "Ocurrió un error inesperado. Intentá nuevamente.";
+    private static final String MENSAJE_ERROR_INESPERADO = "Ocurrió un error inesperado. Intente nuevamente";
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public String handleRecursoNoEncontrado(RecursoNoEncontradoException ex,
@@ -73,7 +73,7 @@ public class ControllerAdvices {
                                      HttpServletRequest request,
                                      RedirectAttributes redirectAttributes) {
         log.warn("Acceso denegado a {}", request.getRequestURI());
-        return redirigirConMensaje(request, redirectAttributes, "No tenés permisos para realizar esta acción.", TipoAlerta.DANGER);
+        return redirigirConMensaje(request, redirectAttributes, "No tiene permisos para realizar esta acción", TipoAlerta.DANGER);
     }
 
     @ExceptionHandler(Exception.class)

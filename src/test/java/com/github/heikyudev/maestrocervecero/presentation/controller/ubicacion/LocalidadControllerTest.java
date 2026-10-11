@@ -189,7 +189,7 @@ class LocalidadControllerTest {
 
         mockMvc.perform(get("/ubicaciones/localidades/buscador"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron localidades con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron localidades con los criterios indicados")));
     }
 
     @Test

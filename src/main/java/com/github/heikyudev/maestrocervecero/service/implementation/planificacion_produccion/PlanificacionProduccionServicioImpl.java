@@ -370,7 +370,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         long diasTotales = cantidadLotes * duracionLoteDias + (long) (cantidadLotes - 1) * DIAS_MARGEN_LIMPIEZA_FERMENTADOR;
         if (diasTotales > LimitesTecnicos.RANGO_MAXIMO_PLANIFICACION_DIAS) {
             throw new ReglaNegocioException("La simulación supera los 5 años (" + cantidadLotes + " lotes de " + duracionLoteDias
-                    + " días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
+                    + " días). Reduzca la cantidad a producir o aumente la capacidad de lote estándar en la configuración");
         }
         LocalDate fechaFinalizacionSugerida = fechaInicioEstimada.plusDays(diasTotales);
 

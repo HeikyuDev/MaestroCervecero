@@ -143,7 +143,7 @@ class AuditLogControllerTest {
 
         mockMvc.perform(get("/auditoria"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron registros con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron registros con los criterios indicados")));
     }
 
     @Test
@@ -158,7 +158,7 @@ class AuditLogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("auditoria/auditoria-lista"))
                 .andExpect(content().string(containsString("La fecha desde no puede ser posterior a la fecha hasta")))
-                .andExpect(content().string(containsString("No se encontraron registros con los criterios indicados.")))
+                .andExpect(content().string(containsString("No se encontraron registros con los criterios indicados")))
                 .andExpect(content().string(containsString("value=\"2026-09-30\"")))
                 .andExpect(content().string(containsString("value=\"2026-09-01\"")))
                 .andExpect(content().string(containsString("value=\"admin\"")));

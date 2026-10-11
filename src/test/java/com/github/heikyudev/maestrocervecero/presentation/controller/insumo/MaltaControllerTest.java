@@ -139,7 +139,7 @@ class MaltaControllerTest {
 
         mockMvc.perform(get("/insumos/maltas"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron maltas con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron maltas con los criterios indicados")));
     }
 
     @Test
@@ -246,7 +246,7 @@ class MaltaControllerTest {
         mockMvc.perform(post("/insumos/maltas").with(csrf())
                         .param("nombre", "Pilsen").param("tipo", "BASE").param("potencialExtracto", "abc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá un número entero válido")));
+                .andExpect(content().string(containsString("Ingrese un número entero válido")));
 
         verify(maltaServicio, never()).altaMalta(any());
     }

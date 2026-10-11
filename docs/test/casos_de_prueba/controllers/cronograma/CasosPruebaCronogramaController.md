@@ -131,7 +131,7 @@
 | **CP-CGC-31** | Orden de las planificaciones | Sin parámetros | La última registrada va arriba | Pide al service todas las planificaciones sin filtrar por receta, estado ni fecha y con ordenamiento por `id` descendente. |
 | **CP-CGC-32** | Criterio de receta | Planificaciones "Stout" (9), "Pale Ale" (8) e "Imperial Stout" (7); `receta: " STOUT "` | Coincidencia parcial, sin distinguir mayúsculas ni espacios sobrantes | Muestra la 9 y la 7 y no la 8; el campo conserva el criterio. |
 | **CP-CGC-33** | Paginación de a 8 | 10 planificaciones de "Pale Ale"; `receta: pale`, páginas 0 y 1 | Páginas de 8, última registrada arriba | La primera página tiene 8 filas (de la 10 a la 3), "Página 1 de 2" y los links de paginación marcados `data-modal-get="true"` con `pagina=1` y `receta=pale`. La segunda trae las 2 restantes (2 y 1) y el link `pagina=0`. |
-| **CP-CGC-34** | Sin resultados y página negativa | `receta: zzz`; y `pagina: -3` | Mensaje claro; una página negativa equivale a la primera | Muestra "No se encontraron planificaciones con los criterios indicados."; con la página negativa responde 200 con la primera página. |
+| **CP-CGC-34** | Sin resultados y página negativa | `receta: zzz`; y `pagina: -3` | Mensaje claro; una página negativa equivale a la primera | Muestra "No se encontraron planificaciones con los criterios indicados"; con la página negativa responde 200 con la primera página. |
 
 ---
 

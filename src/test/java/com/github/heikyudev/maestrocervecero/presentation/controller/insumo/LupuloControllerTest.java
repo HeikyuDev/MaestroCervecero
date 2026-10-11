@@ -131,7 +131,7 @@ class LupuloControllerTest {
 
         mockMvc.perform(get("/insumos/lupulos"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron lúpulos con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron lúpulos con los criterios indicados")));
     }
 
     @Test

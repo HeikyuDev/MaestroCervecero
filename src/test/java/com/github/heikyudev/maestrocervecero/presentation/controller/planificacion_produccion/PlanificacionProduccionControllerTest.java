@@ -254,7 +254,7 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron planificaciones de producción con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron planificaciones de producción con los criterios indicados")));
     }
 
     @Test
@@ -483,7 +483,7 @@ class PlanificacionProduccionControllerTest {
                         .param("fechaInicioEstimada", "no-es-fecha").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
-                .andExpect(content().string(containsString("Ingresá un número válido")));
+                .andExpect(content().string(containsString("Ingrese un número válido")));
 
         verifyNoInteractions(planificacionServicio);
     }
@@ -957,7 +957,7 @@ class PlanificacionProduccionControllerTest {
                         .param("idReceta", "").param("cantidadAProducir", "600").param("fechaInicioEstimada", "2027-07-01"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-sugerencia-error")))
-                .andExpect(content().string(containsString("Elegí una receta para sugerir la fecha de finalización")))
+                .andExpect(content().string(containsString("Elija una receta para sugerir la fecha de finalización")))
                 .andExpect(content().string(not(containsString("data-fecha-sugerida"))));
 
         verifyNoInteractions(planificacionServicio);
@@ -984,11 +984,11 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
                         .param("idReceta", "3").param("cantidadAProducir", "abc").param("fechaInicioEstimada", "2027-07-01"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá una cantidad a producir válida")));
+                .andExpect(content().string(containsString("Ingrese una cantidad a producir válida")));
         mockMvc.perform(get("/planificaciones-produccion/sugerencia-fecha")
                         .param("idReceta", "3").param("cantidadAProducir", "600").param("fechaInicioEstimada", "31/12/2027"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá una fecha de inicio estimada válida")));
+                .andExpect(content().string(containsString("Ingrese una fecha de inicio estimada válida")));
 
         verifyNoInteractions(planificacionServicio);
     }
@@ -1067,7 +1067,7 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion/buscador/recetas").param("nombre", "zzz"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados")));
     }
 
     @Test

@@ -218,7 +218,7 @@ public class PlanificacionProduccionController {
                                            Model model) {
         try {
             if (idReceta == null) {
-                throw new ReglaNegocioException("Elegí una receta para sugerir la fecha de finalización");
+                throw new ReglaNegocioException("Elija una receta para sugerir la fecha de finalización");
             }
             SugerenciaFechaFinalizacionResponseDTO sugerencia = planificacionServicio.sugerirFechaFinalizacion(
                     idReceta, aNumero(cantidadAProducir), aFecha(fechaInicioEstimada));
@@ -306,7 +306,7 @@ public class PlanificacionProduccionController {
         try {
             return Double.valueOf(limpio.replace(',', '.'));
         } catch (NumberFormatException e) {
-            throw new ReglaNegocioException("Ingresá una cantidad a producir válida");
+            throw new ReglaNegocioException("Ingrese una cantidad a producir válida");
         }
     }
 
@@ -318,7 +318,7 @@ public class PlanificacionProduccionController {
         try {
             return LocalDate.parse(limpio);
         } catch (DateTimeParseException e) {
-            throw new ReglaNegocioException("Ingresá una fecha de inicio estimada válida");
+            throw new ReglaNegocioException("Ingrese una fecha de inicio estimada válida");
         }
     }
 }

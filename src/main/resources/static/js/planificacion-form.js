@@ -13,7 +13,7 @@
 (function () {
     'use strict';
 
-    var MENSAJE_FALLO = 'No se pudo obtener la sugerencia. Intentá nuevamente.';
+    var MENSAJE_FALLO = 'No se pudo obtener la sugerencia. Intente nuevamente';
 
     function valorDe(selector) {
         var campo = document.querySelector(selector);

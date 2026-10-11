@@ -1721,7 +1721,7 @@ class CronogramaControllerTest {
         // Act + Assert
         mockMvc.perform(get(URL + "/buscador/planificaciones").param("receta", "zzz"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron planificaciones con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron planificaciones con los criterios indicados")));
         mockMvc.perform(get(URL + "/buscador/planificaciones").param("pagina", "-3"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-id=\"7\"")));

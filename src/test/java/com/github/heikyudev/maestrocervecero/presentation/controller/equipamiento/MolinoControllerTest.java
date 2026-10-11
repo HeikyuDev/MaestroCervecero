@@ -131,7 +131,7 @@ class MolinoControllerTest {
 
         mockMvc.perform(get("/equipamiento/molinos"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron molinos con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron molinos con los criterios indicados")));
     }
 
     @Test
@@ -235,7 +235,7 @@ class MolinoControllerTest {
                         .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "abc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá un número válido")));
+                .andExpect(content().string(containsString("Ingrese un número válido")));
 
         verify(molinoServicio, never()).altaMolino(any());
     }

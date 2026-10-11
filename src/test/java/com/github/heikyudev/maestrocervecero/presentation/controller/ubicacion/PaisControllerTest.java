@@ -127,7 +127,7 @@ class PaisControllerTest {
 
         mockMvc.perform(get("/ubicaciones/paises"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron países con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron países con los criterios indicados")));
     }
 
     @Test
@@ -170,7 +170,7 @@ class PaisControllerTest {
 
         mockMvc.perform(get("/ubicaciones/paises/buscador"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron países con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron países con los criterios indicados")));
     }
 
     @Test

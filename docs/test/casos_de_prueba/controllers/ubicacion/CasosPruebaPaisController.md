@@ -22,7 +22,7 @@
 | **CP-PAC-01** | Listado para el administrador con acciones por fila | Rol `ADMINISTRADOR`. El service devuelve 1 país (`id: 3`, "Argentina") | El rol está autorizado | Responde 200 con la vista `ubicacion/pais-lista`. Muestra "Argentina", las pestañas hacia `/ubicaciones/provincias` y `/ubicaciones/localidades`, el link de alta `/ubicaciones/paises/nuevo`, el de edición `/ubicaciones/paises/3/editar` y el botón de baja con `data-baja-url="/ubicaciones/paises/3/baja"`. El diálogo de confirmación de baja incluye el token CSRF. |
 | **CP-PAC-02** | Paginación y orden alfabético por defecto | Rol `ADMINISTRADOR`, `GET /ubicaciones/paises` sin parámetros | Sin criterios. País es un módulo maestro | Llama al service con `nombre: null` y un `Pageable` de 20 elementos, página 0, ordenado de forma ascendente por `nombre` (sin distinguir mayúsculas) y por `id` como desempate. |
 | **CP-PAC-03** | Criterio de nombre hacia el service | Rol `ADMINISTRADOR`, `nombre: " arg "` con `pagina: 1`, y luego `nombre: "   "` | Un texto en blanco equivale a no filtrar | Llama al service con `nombre: "arg"` (sin espacios) y página 1; con el texto en blanco lo llama con `nombre: null`. |
-| **CP-PAC-04** | Listado sin resultados | Rol `ADMINISTRADOR`, el service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron países con los criterios indicados." en lugar de una tabla vacía. |
+| **CP-PAC-04** | Listado sin resultados | Rol `ADMINISTRADOR`, el service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron países con los criterios indicados" en lugar de una tabla vacía. |
 | **CP-PAC-05** | Rol sin acceso al módulo | Rol `GERENTE_COMERCIAL` | `@PreAuthorize("hasRole('ADMINISTRADOR')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
@@ -32,7 +32,7 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-PAC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "arg"`. El service devuelve 1 país (`id: 3`, "Argentina") | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-pais :: buscador`. Cada país tiene un botón `data-elegir data-id="3" data-texto="Argentina"`; no hay acciones de baja. Llama al service con `nombre: "arg"` y páginas de 8 elementos. |
-| **CP-PAC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron países con los criterios indicados.". |
+| **CP-PAC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron países con los criterios indicados". |
 | **CP-PAC-08** | Rol sin relación con clientes ni proveedores | Rol `GERENTE_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

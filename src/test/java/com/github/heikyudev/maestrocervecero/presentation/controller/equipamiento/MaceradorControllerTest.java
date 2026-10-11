@@ -134,7 +134,7 @@ class MaceradorControllerTest {
 
         mockMvc.perform(get("/equipamiento/maceradores"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron maceradores con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron maceradores con los criterios indicados")));
     }
 
     @Test
@@ -250,7 +250,7 @@ class MaceradorControllerTest {
                         .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "abc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá un número válido")));
+                .andExpect(content().string(containsString("Ingrese un número válido")));
 
         verify(maceradorServicio, never()).altaMacerador(any());
     }

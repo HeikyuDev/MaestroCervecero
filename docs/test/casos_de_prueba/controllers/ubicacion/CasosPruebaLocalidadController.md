@@ -32,7 +32,7 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-LOC-06** | Buscador para el gerente comercial | Rol `GERENTE_COMERCIAL`, `nombre: "rio"`. El service devuelve "Río Cuarto" de "Córdoba" (`id: 8`) | El rol está autorizado para el buscador | Responde 200 con el fragmento `ubicacion/buscador-localidad :: buscador`. Cada localidad tiene un botón `data-elegir data-id="8" data-texto="Río Cuarto (Córdoba)"`. Los filtros de provincia y país usan los buscadores `/ubicaciones/provincias/buscador` y `/ubicaciones/paises/buscador`, sin menú de creación ni acciones de baja. Llama al service con `nombre: "rio"` y páginas de 8 elementos. |
-| **CP-LOC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron localidades con los criterios indicados.". |
+| **CP-LOC-07** | Buscador para el gerente de compras | Rol `GERENTE_DE_COMPRAS`, el service devuelve una página vacía | El rol está autorizado para el buscador | Responde 200 y muestra "No se encontraron localidades con los criterios indicados". |
 | **CP-LOC-08** | Rol sin relación con clientes ni proveedores | Rol `ENCARGADO_DE_DEPOSITO` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

@@ -134,7 +134,7 @@ class OllaHervorControllerTest {
 
         mockMvc.perform(get("/equipamiento/ollas-hervor"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron ollas de hervor con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron ollas de hervor con los criterios indicados")));
     }
 
     @Test
@@ -250,7 +250,7 @@ class OllaHervorControllerTest {
                         .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "abc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá un número válido")));
+                .andExpect(content().string(containsString("Ingrese un número válido")));
 
         verify(ollaHervorServicio, never()).altaOllaHervor(any());
     }

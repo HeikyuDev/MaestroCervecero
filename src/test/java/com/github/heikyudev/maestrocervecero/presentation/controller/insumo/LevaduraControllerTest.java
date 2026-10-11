@@ -131,7 +131,7 @@ class LevaduraControllerTest {
 
         mockMvc.perform(get("/insumos/levaduras"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron levaduras con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron levaduras con los criterios indicados")));
     }
 
     @Test
@@ -235,7 +235,7 @@ class LevaduraControllerTest {
         mockMvc.perform(post("/insumos/levaduras").with(csrf())
                         .param("nombre", "US-05").param("tipo", "ALE").param("celulasEnMillones", "abc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá un número entero válido")));
+                .andExpect(content().string(containsString("Ingrese un número entero válido")));
 
         verify(levaduraServicio, never()).altaLevadura(any());
     }

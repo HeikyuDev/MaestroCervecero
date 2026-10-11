@@ -132,7 +132,7 @@ class FermentadorControllerTest {
 
         mockMvc.perform(get("/equipamiento/fermentadores"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron fermentadores con los criterios indicados.")));
+                .andExpect(content().string(containsString("No se encontraron fermentadores con los criterios indicados")));
     }
 
     @Test
@@ -240,7 +240,7 @@ class FermentadorControllerTest {
                         .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "abc"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Ingresá un número válido")));
+                .andExpect(content().string(containsString("Ingrese un número válido")));
 
         verify(fermentadorServicio, never()).altaFermentador(any());
     }

@@ -1139,7 +1139,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 30_000.0, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La simulación supera los 5 años (100 lotes de 18 días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
+                .hasMessage("La simulación supera los 5 años (100 lotes de 18 días). Reduzca la cantidad a producir o aumente la capacidad de lote estándar en la configuración");
         verify(planificacionProduccionRepository, never()).save(any());
     }
 
@@ -1164,7 +1164,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 137_100.0, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La simulación supera los 5 años (457 lotes de 2 días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
+                .hasMessage("La simulación supera los 5 años (457 lotes de 2 días). Reduzca la cantidad a producir o aumente la capacidad de lote estándar en la configuración");
     }
 
     // ==================== helpers ====================
