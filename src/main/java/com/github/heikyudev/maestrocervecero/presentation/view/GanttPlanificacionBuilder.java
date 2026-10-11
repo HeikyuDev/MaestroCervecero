@@ -33,7 +33,7 @@ public final class GanttPlanificacionBuilder {
      * @param lotes los lotes de la planificación (puede ser {@code null} o vacía)
      * @param inicioPlanificacion fecha de inicio estimada de la planificación, o {@code null}
      * @param finPlanificacion fecha de finalización estimada de la planificación, o {@code null}
-     * @param hoy el día actual, para la marca de "hoy" y el progreso de los lotes en ejecución
+     * @param hoy el día actual, para la marca de "hoy" y las limpiezas
      * @return el modelo de vista con la geometría calculada
      */
     public static GanttPlanificacionVista construir(List<LoteCronogramaResponseDTO> lotes,
@@ -44,7 +44,7 @@ public final class GanttPlanificacionBuilder {
         Eje eje = GanttGeometria.armarEje(tramos, inicioPlanificacion, finPlanificacion, hoy, false);
 
         return GanttGeometria.vistaBase(eje, tramos.isEmpty(),
-                        GanttGeometria.armarCarriles(tramos, List.of(), eje, hoy, tramo -> barraDe(tramo, eje, hoy), vivosDelDia -> false))
+                        GanttGeometria.armarCarriles(tramos, List.of(), eje, hoy, tramo -> barraDe(tramo, eje), vivosDelDia -> false))
                 .inicioPlanificacionPct(inicioPlanificacion == null ? null
                         : GanttGeometria.porcentaje(ChronoUnit.DAYS.between(eje.desde(), inicioPlanificacion), eje.totalDias()))
                 .finPlanificacionPct(finPlanificacion == null ? null
@@ -52,9 +52,9 @@ public final class GanttPlanificacionBuilder {
                 .build();
     }
 
-    private static GanttPlanificacionVista.Barra barraDe(Tramo tramo, Eje eje, LocalDate hoy) {
+    private static GanttPlanificacionVista.Barra barraDe(Tramo tramo, Eje eje) {
         LoteCronogramaResponseDTO lote = tramo.lote();
-        return GanttGeometria.armarBarra(tramo, eje, hoy,
+        return GanttGeometria.armarBarra(tramo, eje,
                 GanttGeometria.nombreDe(lote) + " - " + GanttGeometria.estadoDe(lote).getEtiqueta(),
                 GanttGeometria.armarTooltip(lote, List.of()), false);
     }

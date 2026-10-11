@@ -139,7 +139,7 @@ class CronogramaControllerTest {
         assertThat(cuenta(html, "data-gantt-carril-vacio")).isEqualTo(2);
         assertThat(cuenta(html, "Sin lotes en este per")).isEqualTo(2);
         assertThat(cuenta(html, "data-cola-vacia")).isEqualTo(2);
-        assertThat(cuenta(html, "No hay lotes pendientes en este fermentador")).isEqualTo(2);
+        assertThat(cuenta(html, "No hay lotes pendientes en esta línea de producción")).isEqualTo(2);
         assertThat(html).doesNotContain("data-mover=");
     }
 
@@ -155,7 +155,7 @@ class CronogramaControllerTest {
         mockMvc.perform(get(URL))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-cronograma-sin-fermentadores")))
-                .andExpect(content().string(containsString("No hay fermentadores activos ni lotes para mostrar")))
+                .andExpect(content().string(containsString("No hay líneas de producción activas ni lotes para mostrar")))
                 .andExpect(content().string(not(containsString("data-gantt>"))))
                 .andExpect(content().string(not(containsString("data-cola-fermentador"))));
     }
@@ -240,7 +240,7 @@ class CronogramaControllerTest {
 
         // Assert: orden de las secciones
         assertThat(html.indexOf("data-cola-fermentador=\"F-01\"")).isLessThan(html.indexOf("data-cola-fermentador=\"F-02\""));
-        assertThat(html).contains("Cola pendiente de");
+        assertThat(html).contains("Cola pendiente de la línea");
         // Filas en orden de cola
         assertThat(html.indexOf("data-lote=\"1\"")).isLessThan(html.indexOf("data-lote=\"2\""));
         // Subir: desactivado solo en el primero de cada cola
@@ -581,8 +581,44 @@ class CronogramaControllerTest {
 
         // Assert
         assertThat(cuenta(html, "data-gantt-limpieza")).isEqualTo(1);
-        assertThat(html).contains("Limpieza del fermentador");
+        assertThat(html).contains("Limpieza de la línea de producción (fermentador y demás equipamiento)");
         assertThat(html.indexOf("data-gantt-limpieza")).isLessThan(html.indexOf("Stout - Plan #8 - STOUT-R8-1"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-45: el filtro se rotula \"Línea de producción\" y sigue enviando el parámetro idFermentador con el identificador del fermentador como opción")
+    void cronograma_elFiltroSeRotulaComoLineaDeProduccion() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).containsPattern("for=\"idFermentador\"[^>]*>Línea de producción</label>");
+        assertThat(html).contains("<select id=\"idFermentador\" name=\"idFermentador\"");
+        assertThat(html).containsPattern("value=\"1\"[^>]*>F-01</option>");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-46: el carril se rotula \"Línea F-01\", la columna del diagrama \"Línea de producción\" y la cola \"Cola pendiente de la línea F-01\"")
+    void cronograma_rotulaLosCarrilesYLasColasComoLineaDeProduccion() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of());
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains(">Línea F-01<");
+        assertThat(html).containsPattern("uppercase tracking-wider\">Línea de producción</div>");
+        assertThat(html).containsPattern("Cola pendiente de la línea\\s*<span[^>]*>F-01</span>");
     }
 
     @Test
@@ -641,7 +677,7 @@ class CronogramaControllerTest {
         mockMvc.perform(get(URL).param("idFermentador", "abc").param("idPlanificacion", "-5").param("incluirHistorial", "xyz"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("cronograma/cronograma"))
-                .andExpect(content().string(containsString("El fermentador indicado no es v")))
+                .andExpect(content().string(containsString("La línea de producción indicada no es v")))
                 .andExpect(content().string(containsString("La planificaci")))
                 .andExpect(content().string(containsString("bg-amber-50 border-amber-200 text-amber-800")));
 
@@ -660,7 +696,7 @@ class CronogramaControllerTest {
         // Act + Assert
         mockMvc.perform(get(URL).param("idFermentador", "99"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("no existe o no est")))
+                .andExpect(content().string(containsString("La línea de producción indicada no existe o no est")))
                 .andExpect(content().string(containsString("data-cola-fermentador=\"F-01\"")));
 
         verify(loteServicio).listarLotesParaCronograma(null, false);

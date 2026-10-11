@@ -80,20 +80,24 @@ public class GanttPlanificacionVista {
     boolean planificacionResaltada;
 
     /**
-     * Carril del diagrama: un fermentador con sus lotes en orden cronológico. Puede no tener barras.
+     * Carril del diagrama: una línea de producción (identificada por su fermentador) con sus lotes en orden cronológico. Puede no tener barras.
      */
     @Value
     @Builder
     public static class Carril {
+        /** Identificador del fermentador de la línea de producción (o "Sin fermentador"); es la clave del carril. */
         String etiqueta;
+
+        /** Texto visible del carril: "Línea F-01", o "Sin línea de producción" si los lotes no tienen fermentador. */
+        String rotulo;
         List<Barra> barras;
 
-        /** Bloques de limpieza del fermentador, ordenados por fecha. Vacía en el carril "Sin fermentador". */
+        /** Bloques de limpieza de la línea de producción, ordenados por fecha. Vacía en el carril "Sin fermentador". */
         List<Limpieza> limpiezas;
     }
 
     /**
-     * Bloque de un día que representa la limpieza del fermentador entre dos lotes vivos consecutivos.
+     * Bloque de un día que representa la limpieza de la línea de producción entre dos lotes vivos consecutivos.
      */
     @Value
     @Builder
@@ -140,9 +144,6 @@ public class GanttPlanificacionVista {
 
         /** Ancho de la barra, en % del eje (con un mínimo visible). */
         double anchoPct;
-
-        /** Porción ya transcurrida de la barra, en % de su ancho. Solo es mayor a cero en un lote en ejecución (100 si está atrasado). */
-        double progresoPct;
 
         /** Días de atraso del lote en ejecución respecto de su fecha de finalización estimada; {@code 0} si no está atrasado. */
         int diasDeAtraso;

@@ -85,9 +85,9 @@ public class CronogramaController {
 
         Long idFermentadorFiltro = aId(idFermentador);
         if (vacioANulo(idFermentador) != null && idFermentadorFiltro == null) {
-            avisos.add("El fermentador indicado no es válido, se muestran todos");
+            avisos.add("La línea de producción indicada no es válida, se muestran todas");
         } else if (idFermentadorFiltro != null && !existe(fermentadores, idFermentadorFiltro)) {
-            avisos.add("El fermentador indicado no existe o no está activo, se muestran todos");
+            avisos.add("La línea de producción indicada no existe o no está activa, se muestran todas");
             idFermentadorFiltro = null;
         }
 

@@ -54,7 +54,7 @@ public final class CronogramaProduccionBuilder {
      * @param lotes los lotes a mostrar (puede ser {@code null} o vacía)
      * @param identificadoresFermentadores los fermentadores que tienen carril aunque no tengan lotes
      * @param idPlanificacionDestacada la planificación a destacar (las demás se atenúan), o {@code null} para no destacar ninguna
-     * @param hoy el día actual, para la marca de "hoy" y el progreso de los lotes en ejecución
+     * @param hoy el día actual, para la marca de "hoy" y las limpiezas
      * @return el modelo de vista con la geometría y las colas calculadas
      */
     public static CronogramaProduccionVista construir(List<LoteCronogramaResponseDTO> lotes,
@@ -67,7 +67,7 @@ public final class CronogramaProduccionBuilder {
         Eje eje = GanttGeometria.armarEje(tramos, null, null, hoy, true);
 
         List<Carril> carriles = GanttGeometria.armarCarriles(tramos, identificadoresFermentadores, eje, hoy,
-                tramo -> barraDe(tramo, eje, hoy, idPlanificacionDestacada),
+                tramo -> barraDe(tramo, eje, idPlanificacionDestacada),
                 terminanElDiaAnterior -> idPlanificacionDestacada != null && terminanElDiaAnterior.stream()
                         .noneMatch(t -> idPlanificacionDestacada.equals(t.lote().getIdPlanificacionProduccion())));
 
@@ -83,12 +83,12 @@ public final class CronogramaProduccionBuilder {
 
     // ==================== Barras ====================
 
-    private static Barra barraDe(Tramo tramo, Eje eje, LocalDate hoy, Long idPlanificacionDestacada) {
+    private static Barra barraDe(Tramo tramo, Eje eje, Long idPlanificacionDestacada) {
         LoteCronogramaResponseDTO lote = tramo.lote();
         List<String> lineasExtra = new ArrayList<>();
         lineasExtra.add("Receta: " + textoODash(lote.getNombreReceta()));
         lineasExtra.add("Planificación: " + (lote.getIdPlanificacionProduccion() == null ? SIN_DATO : "#" + lote.getIdPlanificacionProduccion()));
-        return GanttGeometria.armarBarra(tramo, eje, hoy,
+        return GanttGeometria.armarBarra(tramo, eje,
                 etiquetaDe(lote),
                 GanttGeometria.armarTooltip(lote, lineasExtra),
                 esAtenuado(lote, idPlanificacionDestacada));

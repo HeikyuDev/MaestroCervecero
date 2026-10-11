@@ -100,7 +100,7 @@ class CronogramaProduccionBuilderTest {
         assertThat(barra.getEtiqueta()).isEqualTo("Pale Ale - Plan #7 - PALE_ALE-R7-1");
         assertThat(barra.getEstadoClave()).isEqualTo("pendiente");
         assertThat(barra.getTooltip()).startsWith("PALE_ALE-R7-1 - Pendiente\nReceta: Pale Ale\nPlanificación: #7\nInicio estimado: 01/07/2027\n");
-        assertThat(barra.getTooltip()).contains("Fin estimado: 05/07/2027", "Volumen: 300 L", "Molino: M-01", "Macerador: MA-01", "Olla de hervor: O-01");
+        assertThat(barra.getTooltip()).contains("Fin estimado: 05/07/2027", "Volumen: 300 L", "Molino: M-01", "Macerador: MA-01", "Olla de hervor: O-01", "Fermentador: F-01");
     }
 
     @Test
@@ -200,7 +200,7 @@ class CronogramaProduccionBuilderTest {
     }
 
     @Test
-    @DisplayName("CP-GCB-10: un lote en ejecución conserva su progreso (inicio real 02/07, fin estimado 11/07, hoy 06/07: 50 %) y los finalizados siguen sus reglas")
+    @DisplayName("CP-GCB-10: un lote en ejecución va del inicio real (02/07) al fin estimado (11/07) y los finalizados siguen sus reglas")
     void conservaLasReglasDeCadaEstado() {
         // Arrange
         LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(1), fecha(11))
@@ -217,7 +217,6 @@ class CronogramaProduccionBuilderTest {
         assertThat(barraEnEjecucion.getEstadoClave()).isEqualTo("en-ejecucion");
         assertThat(barraEnEjecucion.getDesde()).isEqualTo(fecha(2));
         assertThat(barraEnEjecucion.getHasta()).isEqualTo(fecha(11));
-        assertThat(barraEnEjecucion.getProgresoPct()).isEqualTo(50.0);
         Barra barraFinalizada = gantt.getCarriles().get(1).getBarras().get(0);
         assertThat(barraFinalizada.getEstadoClave()).isEqualTo("finalizado");
         assertThat(barraFinalizada.getDesde()).isEqualTo(fecha(2));
@@ -348,7 +347,6 @@ class CronogramaProduccionBuilderTest {
         assertThat(barraEnEjecucion.getHasta()).isEqualTo(fecha(10));
         assertThat(barraEnEjecucion.getIzquierdaPct()).isEqualTo(6.25);
         assertThat(barraEnEjecucion.getAnchoPct()).isEqualTo(56.25);
-        assertThat(barraEnEjecucion.getProgresoPct()).isEqualTo(100.0);
         assertThat(barraEnEjecucion.getDiasDeAtraso()).isEqualTo(3);
         assertThat(barraEnEjecucion.getEtiquetaAtraso()).isEqualTo("Atrasado 3 días");
         Barra barraPendiente = barras.get(1);
@@ -473,7 +471,7 @@ class CronogramaProduccionBuilderTest {
         assertThat(limpiezas.get(0).getFecha()).isEqualTo(fecha(6));
         assertThat(limpiezas.get(0).getIzquierdaPct()).isEqualTo(50.0);
         assertThat(limpiezas.get(0).getAnchoPct()).isEqualTo(8.33);
-        assertThat(limpiezas.get(0).getTooltip()).isEqualTo("Limpieza del fermentador");
+        assertThat(limpiezas.get(0).getTooltip()).isEqualTo("Limpieza de la línea de producción (fermentador y demás equipamiento)");
         assertThat(limpiezas.get(0).isAtenuada()).isFalse();
     }
 
@@ -562,6 +560,36 @@ class CronogramaProduccionBuilderTest {
         assertThat(limpiezas.get(0).getIzquierdaPct()).isEqualTo(64.29);
         assertThat(limpiezas.get(0).getAnchoPct()).isEqualTo(7.14);
         assertThat(limpiezas.get(0).isAtenuada()).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-GCB-27: el tooltip de la barra lista los equipos del lote (molino, macerador, olla de hervor y fermentador) con sus identificadores")
+    void elTooltipListaLosEquiposDelLote() {
+        // Arrange
+        LoteCronogramaResponseDTO pale = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
+
+        // Act
+        Barra barra = CronogramaProduccionBuilder.construir(List.of(pale), List.of("F-01"), null, HOY)
+                .getGantt().getCarriles().get(0).getBarras().get(0);
+
+        // Assert
+        assertThat(barra.getTooltip()).endsWith("Molino: M-01\nMacerador: MA-01\nOlla de hervor: O-01\nFermentador: F-01");
+    }
+
+    @Test
+    @DisplayName("CP-GCB-28: cada carril se rotula \"Línea\" más el identificador del fermentador y el de los lotes sin fermentador \"Sin línea de producción\"; las colas siguen identificadas por el fermentador")
+    void cadaCarrilSeRotulaComoLineaDeProduccion() {
+        // Arrange
+        List<LoteCronogramaResponseDTO> lotes = List.of(
+                lote(1L, "A-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
+                lote(2L, "A-2", EstadoLote.PENDIENTE, null, 7L, "Pale Ale", fecha(1), fecha(5)));
+
+        // Act
+        CronogramaProduccionVista vista = CronogramaProduccionBuilder.construir(lotes, List.of("F-01"), null, HOY);
+
+        // Assert
+        assertThat(vista.getGantt().getCarriles()).extracting(Carril::getRotulo).containsExactly("Línea F-01", "Sin línea de producción");
+        assertThat(vista.getColas()).extracting(ColaFermentador::getFermentador).containsExactly("F-01");
     }
 
     // ==================== Datos de prueba ====================

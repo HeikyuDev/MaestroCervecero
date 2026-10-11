@@ -15,14 +15,14 @@
     <!-- Encabezado de la página -->
     <div>
         <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Cronograma de Producción</h1>
-        <p class="text-sm text-slate-500">Lotes de todas las planificaciones por fermentador y el orden de la cola de lotes pendientes.</p>
+        <p class="text-sm text-slate-500">Lotes de todas las planificaciones por línea de producción y el orden de la cola de lotes pendientes.</p>
     </div>
 
     <!-- Filtros -->
     <form th:action="@{/cronograma-produccion}" method="get" novalidate data-cronograma-filtros
           class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
         <div>
-            <label for="idFermentador" class="block text-xs font-medium text-slate-500 mb-1">Fermentador</label>
+            <label for="idFermentador" class="block text-xs font-medium text-slate-500 mb-1">Línea de producción</label>
             <select id="idFermentador" name="idFermentador"
                     class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
                 <option value="">Todos</option>
@@ -52,7 +52,7 @@
         </div>
     </form>
 
-    <!-- Diagrama de Gantt: un carril por fermentador, con los lotes de todas las planificaciones -->
+    <!-- Diagrama de Gantt: un carril por línea de producción (fermentador), con los lotes de todas las planificaciones -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Cronograma de lotes</h2>
         <div class="p-5">
@@ -61,7 +61,7 @@
             </p>
             <div th:if="${#lists.isEmpty(gantt.carriles)}" data-cronograma-sin-fermentadores class="py-8 text-center text-slate-400">
                 <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
-                No hay fermentadores activos ni lotes para mostrar
+                No hay líneas de producción activas ni lotes para mostrar
             </div>
             <th:block th:unless="${#lists.isEmpty(gantt.carriles)}">
                 <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>
@@ -72,11 +72,11 @@
         </div>
     </section>
 
-    <!-- Cola pendiente de cada fermentador -->
+    <!-- Cola pendiente de cada línea de producción -->
     <section th:each="cola : ${colas}" data-cola th:attr="data-cola-fermentador=${cola.fermentador}"
              class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">
-            Cola pendiente de <span th:text="${cola.fermentador}">F-01</span>
+            Cola pendiente de la línea <span th:text="${cola.fermentador}">F-01</span>
         </h2>
 
         <!-- El lote en ejecución ocupa el fermentador y no se mueve: va arriba de la cola solo como contexto -->
@@ -99,7 +99,7 @@
 
         <div th:if="${#lists.isEmpty(cola.pendientes)}" data-cola-vacia class="px-5 py-8 text-center text-slate-400">
             <i class="bi bi-hourglass block text-3xl mb-2"></i>
-            No hay lotes pendientes en este fermentador
+            No hay lotes pendientes en esta línea de producción
         </div>
 
         <div th:unless="${#lists.isEmpty(cola.pendientes)}" class="overflow-x-auto">

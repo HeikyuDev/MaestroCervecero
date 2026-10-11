@@ -87,7 +87,6 @@ class GanttPlanificacionBuilderTest {
         assertThat(barra.getHasta()).isEqualTo(fecha(8));
         assertThat(barra.getIzquierdaPct()).isEqualTo(16.67);
         assertThat(barra.getAnchoPct()).isEqualTo(66.67);
-        assertThat(barra.getProgresoPct()).isEqualTo(0.0);
         assertThat(barra.getTooltip()).isEqualTo(String.join("\n",
                 "PALE_ALE-R7-1 - Pendiente",
                 "Inicio estimado: 05/07/2027",
@@ -97,7 +96,8 @@ class GanttPlanificacionBuilderTest {
                 "Volumen: 300 L",
                 "Molino: M-01",
                 "Macerador: MA-01",
-                "Olla de hervor: O-01"));
+                "Olla de hervor: O-01",
+                "Fermentador: F-01"));
     }
 
     @Test
@@ -146,8 +146,8 @@ class GanttPlanificacionBuilderTest {
     // ==================== Reglas por estado ====================
 
     @Test
-    @DisplayName("CP-GPB-06: un lote en ejecución va del inicio real al fin estimado, con 5 de sus 10 días ya transcurridos (progreso 50 %)")
-    void enEjecucion_vaDelInicioRealAlFinEstimadoConProgreso() {
+    @DisplayName("CP-GPB-06: un lote en ejecución va del inicio real al fin estimado, en un solo tramo (izquierda 14,29 %, ancho 71,43 %)")
+    void enEjecucion_vaDelInicioRealAlFinEstimado() {
         // Arrange
         LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(11))
                 .fechaInicio(fecha(2).atTime(8, 0)).build();
@@ -164,13 +164,12 @@ class GanttPlanificacionBuilderTest {
         assertThat(barra.getHasta()).isEqualTo(fecha(11));
         assertThat(barra.getIzquierdaPct()).isEqualTo(14.29);
         assertThat(barra.getAnchoPct()).isEqualTo(71.43);
-        assertThat(barra.getProgresoPct()).isEqualTo(50.0);
         assertThat(barra.getTooltip()).contains("Inicio real: 02/07/2027 08:00");
     }
 
     @Test
-    @DisplayName("CP-GPB-07: el progreso de un lote en ejecución es 0 % antes de su inicio y 100 % después de su fin estimado")
-    void enEjecucion_elProgresoQuedaAcotado() {
+    @DisplayName("CP-GPB-07: la barra de un lote en ejecución no cambia con la fecha de hoy: antes de su inicio, después de su fin estimado y en su último día es la misma")
+    void enEjecucion_laBarraNoDependeDeHoy() {
         // Arrange
         LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(11))
                 .fechaInicio(fecha(2).atTime(8, 0)).build();
@@ -184,13 +183,13 @@ class GanttPlanificacionBuilderTest {
                 .getCarriles().get(0).getBarras().get(0);
 
         // Assert
-        assertThat(antes.getProgresoPct()).isEqualTo(0.0);
-        assertThat(despues.getProgresoPct()).isEqualTo(100.0);
-        assertThat(elUltimoDia.getProgresoPct()).isEqualTo(100.0);
+        assertThat(antes).isEqualTo(despues).isEqualTo(elUltimoDia);
+        assertThat(antes.getDesde()).isEqualTo(fecha(2));
+        assertThat(antes.getHasta()).isEqualTo(fecha(11));
     }
 
     @Test
-    @DisplayName("CP-GPB-08: un lote finalizado va del inicio real al fin real (7 días de un eje de 10) y sin progreso")
+    @DisplayName("CP-GPB-08: un lote finalizado va del inicio real al fin real (7 días de un eje de 10)")
     void finalizado_vaDelInicioRealAlFinReal() {
         // Arrange
         LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01", fecha(1), fecha(5))
@@ -208,7 +207,6 @@ class GanttPlanificacionBuilderTest {
         assertThat(barra.getHasta()).isEqualTo(fecha(8));
         assertThat(barra.getIzquierdaPct()).isEqualTo(20.0);
         assertThat(barra.getAnchoPct()).isEqualTo(70.0);
-        assertThat(barra.getProgresoPct()).isEqualTo(0.0);
         assertThat(barra.getTooltip()).contains("Fin real: 08/07/2027 17:00");
     }
 
@@ -578,7 +576,7 @@ class GanttPlanificacionBuilderTest {
     // ==================== Atraso y corrimiento ====================
 
     @Test
-    @DisplayName("CP-GPB-31: un lote en ejecución atrasado extiende su barra hasta hoy (02/07 al 10/07, 9 días de un eje de 12), toda transcurrida, con la etiqueta \"Atrasado 3 días\"")
+    @DisplayName("CP-GPB-31: un lote en ejecución atrasado extiende su barra hasta hoy (02/07 al 10/07, 9 días de un eje de 12), con la etiqueta \"Atrasado 3 días\"")
     void enEjecucionAtrasado_extiendeLaBarraHastaHoyYLlevaLaEtiquetaDeAtraso() {
         // Arrange
         LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(7))
@@ -597,13 +595,12 @@ class GanttPlanificacionBuilderTest {
         assertThat(barra.getHasta()).isEqualTo(fecha(10));
         assertThat(barra.getIzquierdaPct()).isEqualTo(16.67);
         assertThat(barra.getAnchoPct()).isEqualTo(75.0);
-        assertThat(barra.getProgresoPct()).isEqualTo(100.0);
         assertThat(barra.getDiasDeAtraso()).isEqualTo(3);
         assertThat(barra.getEtiquetaAtraso()).isEqualTo("Atrasado 3 días");
     }
 
     @Test
-    @DisplayName("CP-GPB-32: con un atraso mayor que la duración estimada la barra va del 02/07 al 10/07 (9 días), toda transcurrida, con la etiqueta \"Atrasado 7 días\"")
+    @DisplayName("CP-GPB-32: con un atraso mayor que la duración estimada la barra va del 02/07 al 10/07 (9 días), con la etiqueta \"Atrasado 7 días\"")
     void enEjecucionConAtrasoMayorQueLaDuracion_llegaHastaHoy() {
         // Arrange
         LoteCronogramaResponseDTO lote = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", fecha(1), fecha(3))
@@ -616,7 +613,6 @@ class GanttPlanificacionBuilderTest {
         // Assert
         assertThat(barra.getDesde()).isEqualTo(fecha(2));
         assertThat(barra.getHasta()).isEqualTo(fecha(10));
-        assertThat(barra.getProgresoPct()).isEqualTo(100.0);
         assertThat(barra.getDiasDeAtraso()).isEqualTo(7);
         assertThat(barra.getEtiquetaAtraso()).isEqualTo("Atrasado 7 días");
     }
@@ -637,7 +633,6 @@ class GanttPlanificacionBuilderTest {
         assertThat(barra.getHasta()).isEqualTo(fecha(11));
         assertThat(barra.getIzquierdaPct()).isEqualTo(14.29);
         assertThat(barra.getAnchoPct()).isEqualTo(71.43);
-        assertThat(barra.getProgresoPct()).isEqualTo(50.0);
         assertThat(barra.getDiasDeAtraso()).isEqualTo(0);
         assertThat(barra.getEtiquetaAtraso()).isNull();
         assertThat(barra.getTooltip()).doesNotContain("Atrasado");
@@ -796,7 +791,6 @@ class GanttPlanificacionBuilderTest {
         // Assert
         assertThat(barra.getDesde()).isEqualTo(fecha(2));
         assertThat(barra.getHasta()).isEqualTo(fecha(8));
-        assertThat(barra.getProgresoPct()).isEqualTo(0.0);
         assertThat(barra.getDiasDeAtraso()).isEqualTo(0);
         assertThat(barra.getEtiquetaAtraso()).isNull();
         assertThat(barra.getTooltip()).doesNotContain("Atrasado").doesNotContain("corrido");
@@ -872,7 +866,42 @@ class GanttPlanificacionBuilderTest {
         assertThat(barraDeLote(vista, 5L).getEtiquetaAtraso()).isNull();
     }
 
-    // ==================== Limpieza del fermentador ====================
+    // ==================== Línea de producción ====================
+
+    @Test
+    @DisplayName("CP-GPB-64: el tooltip del lote lista los equipos que usa (molino, macerador, olla de hervor y fermentador) y muestra \"-\" en los que no tiene")
+    void elTooltipListaLosEquiposDelLote() {
+        // Arrange
+        LoteCronogramaResponseDTO completo = loteB(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", fecha(1), fecha(3))
+                .identificadorInternoMolino("M-01").identificadorInternoMacerador("MA-01").identificadorInternoOllaHervor("O-01").build();
+        LoteCronogramaResponseDTO sinEquipos = loteB(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, null, fecha(5), fecha(7)).build();
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(completo, sinEquipos), fecha(1), fecha(7), HOY_LEJANO);
+
+        // Assert
+        assertThat(vista.getCarriles().get(0).getBarras().get(0).getTooltip())
+                .endsWith("Molino: M-01\nMacerador: MA-01\nOlla de hervor: O-01\nFermentador: F-01");
+        assertThat(vista.getCarriles().get(1).getBarras().get(0).getTooltip())
+                .endsWith("Molino: -\nMacerador: -\nOlla de hervor: -\nFermentador: -");
+    }
+
+    @Test
+    @DisplayName("CP-GPB-65: cada carril se rotula \"Línea\" más el identificador del fermentador y el de los lotes sin fermentador \"Sin línea de producción\"; la etiqueta conserva el identificador")
+    void cadaCarrilSeRotulaComoLineaDeProduccion() {
+        // Arrange
+        LoteCronogramaResponseDTO enF01 = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", fecha(1), fecha(3));
+        LoteCronogramaResponseDTO sinFermentador = lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, null, fecha(5), fecha(7));
+
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(List.of(enF01, sinFermentador), fecha(1), fecha(7), HOY_LEJANO);
+
+        // Assert
+        assertThat(vista.getCarriles()).extracting(Carril::getEtiqueta).containsExactly("F-01", "Sin fermentador");
+        assertThat(vista.getCarriles()).extracting(Carril::getRotulo).containsExactly("Línea F-01", "Sin línea de producción");
+    }
+
+    // ==================== Limpieza de la línea de producción ====================
 
     @Test
     @DisplayName("CP-GPB-44: entre dos lotes vivos con un día libre en el futuro se dibuja una limpieza de un día (el 06/07, eje de 12 días)")
@@ -892,7 +921,7 @@ class GanttPlanificacionBuilderTest {
         assertThat(limpieza.getFecha()).isEqualTo(fecha(6));
         assertThat(limpieza.getIzquierdaPct()).isEqualTo(50.0);
         assertThat(limpieza.getAnchoPct()).isEqualTo(8.33);
-        assertThat(limpieza.getTooltip()).isEqualTo("Limpieza del fermentador");
+        assertThat(limpieza.getTooltip()).isEqualTo("Limpieza de la línea de producción (fermentador y demás equipamiento)");
         assertThat(limpieza.isAtenuada()).isFalse();
     }
 

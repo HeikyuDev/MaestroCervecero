@@ -36,9 +36,9 @@ import java.util.function.Predicate;
  * <ul>
  *     <li>{@code PENDIENTE}: de la fecha de inicio estimada a la de finalización estimada, corridas los días de
  *     desplazamiento del lote si lo atrasa el lote en ejecución de su fermentador.</li>
- *     <li>{@code EN_EJECUCION}: del inicio real (la fecha) a la finalización estimada; lo ya transcurrido (hasta hoy) se
- *     marca como progreso. Si está atrasado, la barra se extiende los días de atraso (hasta hoy), todo su tramo
- *     cuenta como transcurrido y lleva la etiqueta de atraso.</li>
+ *     <li>{@code EN_EJECUCION}: del inicio real (la fecha) a la finalización estimada, toda en un solo color; el avance
+ *     lo indica la marca de hoy. Si está atrasado, la barra se extiende los días de atraso (hasta hoy) y lleva la
+ *     etiqueta de atraso.</li>
  *     <li>{@code FINALIZADO}: del inicio real a la finalización real (las fechas, no las horas).</li>
  *     <li>{@code CANCELADO}: no se dibuja.</li>
  * </ul>
@@ -63,7 +63,9 @@ final class GanttGeometria {
     /** Días del eje a partir de los cuales la etiqueta de cada marca incluye el año. */
     private static final int DIAS_EJE_CON_ANIO = 365;
     static final String CARRIL_SIN_FERMENTADOR = "Sin fermentador";
-    static final String TOOLTIP_LIMPIEZA = "Limpieza del fermentador";
+    static final String ROTULO_SIN_LINEA = "Sin línea de producción";
+    static final String PREFIJO_LINEA = "Línea ";
+    static final String TOOLTIP_LIMPIEZA = "Limpieza de la línea de producción (fermentador y demás equipamiento)";
 
     private static final DateTimeFormatter FORMATO_MARCA = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter FORMATO_MARCA_CON_ANIO = DateTimeFormatter.ofPattern("dd/MM/yy");
@@ -308,7 +310,8 @@ final class GanttGeometria {
             barras.add(aBarra.apply(t));
         }
         List<Limpieza> limpiezas = conFermentador ? armarLimpiezas(ordenados, eje, hoy, limpiezaAtenuada) : List.of();
-        return Carril.builder().etiqueta(etiqueta).barras(barras).limpiezas(limpiezas).build();
+        return Carril.builder().etiqueta(etiqueta)
+                .rotulo(conFermentador ? PREFIJO_LINEA + etiqueta : ROTULO_SIN_LINEA).barras(barras).limpiezas(limpiezas).build();
     }
 
     /**
@@ -354,9 +357,9 @@ final class GanttGeometria {
     }
 
     /**
-     * Arma la barra de un tramo sobre el eje: su posición, su ancho y, si el lote está en ejecución, el progreso.
+     * Arma la barra de un tramo sobre el eje: su posición, y su ancho.
      */
-    static Barra armarBarra(Tramo tramo, Eje eje, LocalDate hoy, String etiqueta, String tooltip, boolean atenuada) {
+    static Barra armarBarra(Tramo tramo, Eje eje, String etiqueta, String tooltip, boolean atenuada) {
         LoteCronogramaResponseDTO lote = tramo.lote();
         EstadoLote estado = estadoDe(lote);
         long diasBarra = ChronoUnit.DAYS.between(tramo.desde(), tramo.hasta()) + 1;
@@ -365,12 +368,6 @@ final class GanttGeometria {
         double ancho = Math.max(ANCHO_MINIMO_BARRA_PCT, porcentaje(diasBarra, eje.totalDias()));
         double izquierda = redondear(Math.min(
                 porcentaje(ChronoUnit.DAYS.between(eje.desde(), tramo.desde()), eje.totalDias()), 100.0 - ancho));
-
-        double progreso = 0;
-        if (estado == EstadoLote.EN_EJECUCION && hoy != null) {
-            long transcurridos = Math.max(0, Math.min(diasBarra, ChronoUnit.DAYS.between(tramo.desde(), hoy) + 1));
-            progreso = redondear(transcurridos * 100.0 / diasBarra);
-        }
 
         return Barra.builder()
                 .idLote(lote.getId())
@@ -382,7 +379,6 @@ final class GanttGeometria {
                 .hasta(tramo.hasta())
                 .izquierdaPct(izquierda)
                 .anchoPct(redondear(ancho))
-                .progresoPct(progreso)
                 .diasDeAtraso(enAtraso ? lote.getDiasDeAtraso() : 0)
                 .etiquetaAtraso(enAtraso ? "Atrasado " + dias(lote.getDiasDeAtraso()) : null)
                 .atenuada(atenuada)
@@ -416,7 +412,8 @@ final class GanttGeometria {
         texto.append("Volumen: ").append(lote.getVolumenObjetivo() == null ? SIN_DATO : numero(lote.getVolumenObjetivo()) + " L").append('\n');
         texto.append("Molino: ").append(textoODash(lote.getIdentificadorInternoMolino())).append('\n');
         texto.append("Macerador: ").append(textoODash(lote.getIdentificadorInternoMacerador())).append('\n');
-        texto.append("Olla de hervor: ").append(textoODash(lote.getIdentificadorInternoOllaHervor()));
+        texto.append("Olla de hervor: ").append(textoODash(lote.getIdentificadorInternoOllaHervor())).append('\n');
+        texto.append("Fermentador: ").append(textoODash(lote.getIdentificadorInternoFermentador()));
         return texto.toString();
     }
 
