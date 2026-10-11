@@ -5,7 +5,7 @@
     Diagrama de Gantt de una planificación: HTML y CSS propios, sin librerías. No hace ninguna cuenta: dibuja
     la geometría que ya calculó GanttPlanificacionBuilder (posiciones y anchos en % del eje de tiempo).
 
-    Un carril por línea de producción (identificada por su fermentador), con su rótulo en una columna fija a la izquierda; el área de tiempo
+    Un carril por fermentador, con su identificador en una columna fija a la izquierda; el área de tiempo
     se desplaza horizontalmente cuando es más ancha que la pantalla. Las barras llevan el texto truncado y
     el detalle del lote en el tooltip (title).
 
@@ -59,7 +59,7 @@
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente"></span> Planificado</li>
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--en-ejecucion"></span> En ejecución</li>
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--finalizado"></span> Finalizado</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--limpieza"></span> Limpieza de la línea de producción (fermentador y demás equipamiento)</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--limpieza"></span> Limpieza del fermentador y demás equipamiento</li>
         <li class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-rose-500"></span> Hoy</li>
         <li th:if="${vista.inicioPlanificacionPct != null or vista.finPlanificacionPct != null}" class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-dashed border-slate-500"></span> Inicio y fin estimados de la planificación</li>
         <li th:if="${vista.planificacionResaltada}" class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente opacity-30"></span> Lote de otra planificación (atenuado)</li>
@@ -70,8 +70,8 @@
 
             <!-- Columna fija de fermentadores -->
             <div class="sticky left-0 z-20 w-36 shrink-0 border-r border-slate-200 bg-white">
-                <div class="h-10 border-b border-slate-200 bg-slate-50 px-3 flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Línea de producción</div>
-                <div th:each="c : ${vista.carriles}" th:text="${c.rotulo}" th:title="${c.rotulo}"
+                <div class="h-10 border-b border-slate-200 bg-slate-50 px-3 flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Fermentador</div>
+                <div th:each="c : ${vista.carriles}" th:text="${c.etiqueta}" th:title="${c.etiqueta}"
                      class="h-12 border-b border-slate-100 px-3 flex items-center truncate text-sm font-medium text-slate-800">F-01</div>
             </div>
 
@@ -111,7 +111,7 @@
                 <div th:each="c : ${vista.carriles}" class="relative h-12 border-b border-slate-100">
                     <span th:if="${#lists.isEmpty(c.barras)}" data-gantt-carril-vacio
                           class="absolute inset-0 flex items-center px-3 text-xs italic text-slate-400">Sin lotes en este período</span>
-                    <!-- Limpieza de la línea de producción: un día libre entre dos lotes vivos, solo hoy o más adelante -->
+                    <!-- Limpieza del fermentador: un día libre entre dos lotes vivos, solo hoy o más adelante -->
                     <div th:each="l : ${c.limpiezas}" data-gantt-limpieza
                          th:title="${l.tooltip}" th:attr="aria-label=${l.tooltip}" role="img"
                          th:style="|left: ${l.izquierdaPct}%; width: ${l.anchoPct}%|"

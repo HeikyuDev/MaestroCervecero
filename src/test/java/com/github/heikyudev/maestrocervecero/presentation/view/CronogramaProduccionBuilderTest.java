@@ -471,7 +471,7 @@ class CronogramaProduccionBuilderTest {
         assertThat(limpiezas.get(0).getFecha()).isEqualTo(fecha(6));
         assertThat(limpiezas.get(0).getIzquierdaPct()).isEqualTo(50.0);
         assertThat(limpiezas.get(0).getAnchoPct()).isEqualTo(8.33);
-        assertThat(limpiezas.get(0).getTooltip()).isEqualTo("Limpieza de la línea de producción (fermentador y demás equipamiento)");
+        assertThat(limpiezas.get(0).getTooltip()).isEqualTo("Limpieza del fermentador y demás equipamiento");
         assertThat(limpiezas.get(0).isAtenuada()).isFalse();
     }
 
@@ -577,8 +577,8 @@ class CronogramaProduccionBuilderTest {
     }
 
     @Test
-    @DisplayName("CP-GCB-28: cada carril se rotula \"Línea\" más el identificador del fermentador y el de los lotes sin fermentador \"Sin línea de producción\"; las colas siguen identificadas por el fermentador")
-    void cadaCarrilSeRotulaComoLineaDeProduccion() {
+    @DisplayName("CP-GCB-28: cada carril se identifica con el identificador de su fermentador y el de los lotes sin fermentador es \"Sin fermentador\"; solo el fermentador tiene cola")
+    void cadaCarrilSeIdentificaConSuFermentador() {
         // Arrange
         List<LoteCronogramaResponseDTO> lotes = List.of(
                 lote(1L, "A-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
@@ -588,7 +588,7 @@ class CronogramaProduccionBuilderTest {
         CronogramaProduccionVista vista = CronogramaProduccionBuilder.construir(lotes, List.of("F-01"), null, HOY);
 
         // Assert
-        assertThat(vista.getGantt().getCarriles()).extracting(Carril::getRotulo).containsExactly("Línea F-01", "Sin línea de producción");
+        assertThat(vista.getGantt().getCarriles()).extracting(Carril::getEtiqueta).containsExactly("F-01", "Sin fermentador");
         assertThat(vista.getColas()).extracting(ColaFermentador::getFermentador).containsExactly("F-01");
     }
 

@@ -325,7 +325,7 @@ public interface ILoteServicio {
 
     /**
      * Lista los lotes de todas las planificaciones de producción para el cronograma global, que se
-     * organiza por línea de producción: cada línea es un fermentador, y en su carril conviven,
+     * organiza por fermentador: en el carril de cada uno conviven,
      * intercalados, los lotes de todas las planificaciones que lo usan.
      * <p>
      * Reglas:

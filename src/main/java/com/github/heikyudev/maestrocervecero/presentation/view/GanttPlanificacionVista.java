@@ -80,24 +80,20 @@ public class GanttPlanificacionVista {
     boolean planificacionResaltada;
 
     /**
-     * Carril del diagrama: una línea de producción (identificada por su fermentador) con sus lotes en orden cronológico. Puede no tener barras.
+     * Carril del diagrama: un fermentador con sus lotes en orden cronológico. Puede no tener barras.
      */
     @Value
     @Builder
     public static class Carril {
-        /** Identificador del fermentador de la línea de producción (o "Sin fermentador"); es la clave del carril. */
         String etiqueta;
-
-        /** Texto visible del carril: "Línea F-01", o "Sin línea de producción" si los lotes no tienen fermentador. */
-        String rotulo;
         List<Barra> barras;
 
-        /** Bloques de limpieza de la línea de producción, ordenados por fecha. Vacía en el carril "Sin fermentador". */
+        /** Bloques de limpieza del fermentador y demás equipamiento, ordenados por fecha. Vacía en el carril "Sin fermentador". */
         List<Limpieza> limpiezas;
     }
 
     /**
-     * Bloque de un día que representa la limpieza de la línea de producción entre dos lotes vivos consecutivos.
+     * Bloque de un día que representa la limpieza del fermentador y demás equipamiento entre dos lotes vivos consecutivos.
      */
     @Value
     @Builder

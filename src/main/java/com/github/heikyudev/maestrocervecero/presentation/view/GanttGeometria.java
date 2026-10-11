@@ -63,9 +63,7 @@ final class GanttGeometria {
     /** Días del eje a partir de los cuales la etiqueta de cada marca incluye el año. */
     private static final int DIAS_EJE_CON_ANIO = 365;
     static final String CARRIL_SIN_FERMENTADOR = "Sin fermentador";
-    static final String ROTULO_SIN_LINEA = "Sin línea de producción";
-    static final String PREFIJO_LINEA = "Línea ";
-    static final String TOOLTIP_LIMPIEZA = "Limpieza de la línea de producción (fermentador y demás equipamiento)";
+    static final String TOOLTIP_LIMPIEZA = "Limpieza del fermentador y demás equipamiento";
 
     private static final DateTimeFormatter FORMATO_MARCA = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter FORMATO_MARCA_CON_ANIO = DateTimeFormatter.ofPattern("dd/MM/yy");
@@ -310,8 +308,7 @@ final class GanttGeometria {
             barras.add(aBarra.apply(t));
         }
         List<Limpieza> limpiezas = conFermentador ? armarLimpiezas(ordenados, eje, hoy, limpiezaAtenuada) : List.of();
-        return Carril.builder().etiqueta(etiqueta)
-                .rotulo(conFermentador ? PREFIJO_LINEA + etiqueta : ROTULO_SIN_LINEA).barras(barras).limpiezas(limpiezas).build();
+        return Carril.builder().etiqueta(etiqueta).barras(barras).limpiezas(limpiezas).build();
     }
 
     /**

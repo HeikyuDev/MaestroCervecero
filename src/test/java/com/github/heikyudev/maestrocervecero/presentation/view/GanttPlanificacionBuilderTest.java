@@ -866,7 +866,7 @@ class GanttPlanificacionBuilderTest {
         assertThat(barraDeLote(vista, 5L).getEtiquetaAtraso()).isNull();
     }
 
-    // ==================== Línea de producción ====================
+    // ==================== Equipos del lote y carriles ====================
 
     @Test
     @DisplayName("CP-GPB-64: el tooltip del lote lista los equipos que usa (molino, macerador, olla de hervor y fermentador) y muestra \"-\" en los que no tiene")
@@ -887,8 +887,8 @@ class GanttPlanificacionBuilderTest {
     }
 
     @Test
-    @DisplayName("CP-GPB-65: cada carril se rotula \"Línea\" más el identificador del fermentador y el de los lotes sin fermentador \"Sin línea de producción\"; la etiqueta conserva el identificador")
-    void cadaCarrilSeRotulaComoLineaDeProduccion() {
+    @DisplayName("CP-GPB-65: cada carril se identifica con el identificador de su fermentador y el de los lotes sin fermentador es \"Sin fermentador\"")
+    void cadaCarrilSeIdentificaConSuFermentador() {
         // Arrange
         LoteCronogramaResponseDTO enF01 = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", fecha(1), fecha(3));
         LoteCronogramaResponseDTO sinFermentador = lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, null, fecha(5), fecha(7));
@@ -898,10 +898,9 @@ class GanttPlanificacionBuilderTest {
 
         // Assert
         assertThat(vista.getCarriles()).extracting(Carril::getEtiqueta).containsExactly("F-01", "Sin fermentador");
-        assertThat(vista.getCarriles()).extracting(Carril::getRotulo).containsExactly("Línea F-01", "Sin línea de producción");
     }
 
-    // ==================== Limpieza de la línea de producción ====================
+    // ==================== Limpieza del fermentador y demás equipamiento ====================
 
     @Test
     @DisplayName("CP-GPB-44: entre dos lotes vivos con un día libre en el futuro se dibuja una limpieza de un día (el 06/07, eje de 12 días)")
@@ -921,7 +920,7 @@ class GanttPlanificacionBuilderTest {
         assertThat(limpieza.getFecha()).isEqualTo(fecha(6));
         assertThat(limpieza.getIzquierdaPct()).isEqualTo(50.0);
         assertThat(limpieza.getAnchoPct()).isEqualTo(8.33);
-        assertThat(limpieza.getTooltip()).isEqualTo("Limpieza de la línea de producción (fermentador y demás equipamiento)");
+        assertThat(limpieza.getTooltip()).isEqualTo("Limpieza del fermentador y demás equipamiento");
         assertThat(limpieza.isAtenuada()).isFalse();
     }
 

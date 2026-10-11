@@ -585,8 +585,8 @@ class PlanificacionProduccionControllerTest {
                 // Gantt: dos carriles (fermentadores) y una barra por lote con los colores del estado
                 .andExpect(content().string(containsString("data-gantt")))
                 .andExpect(content().string(containsString("Cronograma de lotes")))
-                .andExpect(content().string(containsString("Línea de producción")))
-                .andExpect(content().string(containsString("Línea F-02")))
+                .andExpect(content().string(containsString("Fermentador")))
+                .andExpect(content().string(containsString("title=\"F-02\"")))
                 .andExpect(content().string(containsString("gantt-color--finalizado")))
                 .andExpect(content().string(containsString("gantt-color--en-ejecucion")))
                 .andExpect(content().string(containsString("gantt-color--pendiente")))
@@ -1185,7 +1185,7 @@ class PlanificacionProduccionControllerTest {
                 lote(2L, "PALE_ALE-R7-2", EstadoLote.CANCELADO, "F-02")));
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("title=\"Línea F-01\"")))
+                .andExpect(content().string(containsString("title=\"F-01\"")))
                 .andExpect(content().string(not(containsString("title=\"F-02\""))))
                 .andExpect(content().string(not(containsString("gantt-color--cancelado"))))
                 .andExpect(content().string(containsString(">PALE_ALE-R7-1<")))
@@ -1240,7 +1240,7 @@ class PlanificacionProduccionControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(conLimpieza.split("data-gantt-limpieza", -1).length - 1).isEqualTo(1);
-        assertThat(conLimpieza).contains("Limpieza de la línea de producción (fermentador y demás equipamiento)");
+        assertThat(conLimpieza).contains("Limpieza del fermentador y demás equipamiento");
         assertThat(sinLimpieza).doesNotContain("data-gantt-limpieza");
     }
 
