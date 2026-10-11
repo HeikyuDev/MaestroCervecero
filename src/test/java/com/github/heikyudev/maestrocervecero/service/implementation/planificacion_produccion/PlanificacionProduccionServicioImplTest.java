@@ -744,7 +744,7 @@ class PlanificacionProduccionServicioImplTest {
         SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 4000.0, FECHA_INICIO_SUGERENCIA);
 
         // === ASSERTS ===
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2100, 7, 25));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2100, 8, 7));
         assertThat(resultado.getCantidadLotes()).isEqualTo(14);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
         verify(planificacionProduccionRepository, never()).save(any());
@@ -783,7 +783,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(2);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 9));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 10));
     }
 
     @Test
@@ -803,7 +803,7 @@ class PlanificacionProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SF-05: sugerirFechaFinalizacion con cantidad menor a la capacidad da 1 lote sin días de margen")
+    @DisplayName("CP-SF-05: sugerirFechaFinalizacion con cantidad menor a la capacidad da 1 lote sin días de separación")
     void sugerirFechaFinalizacion_debeCalcularUnLoteConCantidadMenorALaCapacidad() {
         // === PREPARACION DE DATOS ===
         when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
@@ -831,7 +831,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(2);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 9));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 10));
     }
 
     @Test
@@ -847,7 +847,7 @@ class PlanificacionProduccionServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCantidadLotes()).isEqualTo(3);
         assertThat(resultado.getDuracionLoteDias()).isEqualTo(18L);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 28));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(LocalDate.of(2099, 12, 30));
     }
 
     @Test
@@ -1114,9 +1114,9 @@ class PlanificacionProduccionServicioImplTest {
 
         SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 10_000_000.0, FECHA_INICIO_SUGERENCIA);
 
-        // 100 lotes de 1 día + 99 días de margen
+        // 100 lotes de 1 día + 99 separaciones de 2 días
         assertThat(resultado.getCantidadLotes()).isEqualTo(100);
-        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(FECHA_INICIO_SUGERENCIA.plusDays(199));
+        assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(FECHA_INICIO_SUGERENCIA.plusDays(298));
     }
 
     @Test
@@ -1132,7 +1132,7 @@ class PlanificacionProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SF-30: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la simulación supera los 5 años (100 lotes de 18 días = 1.899 días)")
+    @DisplayName("CP-SF-30: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la simulación supera los 5 años (100 lotes de 18 días = 1.998 días)")
     void sugerirFechaFinalizacion_debeRechazarSimulacionDeMasDeCincoAnios() {
         when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaBaseSugerencia()));
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
@@ -1144,27 +1144,27 @@ class PlanificacionProduccionServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SF-31: sugerirFechaFinalizacion acepta una simulación de exactamente 1.825 días (166 lotes de 10 días) (límite)")
+    @DisplayName("CP-SF-31: sugerirFechaFinalizacion acepta una simulación de exactamente 1.825 días (87 lotes de 19 días) (límite)")
     void sugerirFechaFinalizacion_debeAceptarSimulacionDe1825Dias() {
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 90, 5, 4)));
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(600, 841, 10, 7)));
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
 
-        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 49_800.0, FECHA_INICIO_SUGERENCIA);
+        SugerenciaFechaFinalizacionResponseDTO resultado = planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 26_100.0, FECHA_INICIO_SUGERENCIA);
 
-        assertThat(resultado.getCantidadLotes()).isEqualTo(166);
-        assertThat(resultado.getDuracionLoteDias()).isEqualTo(10L);
+        assertThat(resultado.getCantidadLotes()).isEqualTo(87);
+        assertThat(resultado.getDuracionLoteDias()).isEqualTo(19L);
         assertThat(resultado.getFechaFinalizacionSugerida()).isEqualTo(FECHA_INICIO_SUGERENCIA.plusDays(1825));
     }
 
     @Test
-    @DisplayName("CP-SF-32: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la simulación es de 1.826 días (63 lotes de 28 días)")
+    @DisplayName("CP-SF-32: sugerirFechaFinalizacion lanza ReglaNegocioException cuando la simulación es de 1.826 días (457 lotes de 2 días)")
     void sugerirFechaFinalizacion_debeRechazarSimulacionDe1826Dias() {
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 90, 20, 7)));
+        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaConDuraciones(60, 60, 1, 0)));
         when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(crearConfiguracion(300.0)));
 
-        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 18_900.0, FECHA_INICIO_SUGERENCIA))
+        assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, 137_100.0, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La simulación supera los 5 años (63 lotes de 28 días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
+                .hasMessage("La simulación supera los 5 años (457 lotes de 2 días). Reducí la cantidad a producir o aumentá la capacidad de lote estándar en la configuración");
     }
 
     // ==================== helpers ====================

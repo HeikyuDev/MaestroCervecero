@@ -136,17 +136,17 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      * identificador interno del fermentador, fecha de inicio estimada y ID ascendentes.
      * <p>
      * El fermentador de un lote es el equipamiento de su etapa de Fermentación. Siempre devuelve los
-     * lotes PENDIENTE y EN_EJECUCION; los FINALIZADO (por fecha de finalización) y los CANCELADO
-     * (por fecha de cancelación) solo si ocurrieron desde {@code desde} (inclusive), o todos si
-     * {@code incluirHistorial} es {@code true}. Carga en una sola consulta la planificación con su
+     * lotes PENDIENTE y EN_EJECUCION; los FINALIZADO (por fecha de finalización) solo si ocurrieron
+     * desde {@code desde} (inclusive), o todos si {@code incluirHistorial} es {@code true}. Nunca devuelve
+     * los CANCELADO: el cronograma no los dibuja. Carga en una sola consulta la planificación con su
      * versión de receta, las etapas y el equipamiento de cada etapa (sin {@code DISTINCT}: Hibernate
      * ya deduplica la raíz, y PostgreSQL no admite ordenar por una columna ajena al {@code SELECT
      * DISTINCT}).
      * </p>
      *
      * @param idFermentador El ID del fermentador a listar, o {@code null} para listar todos.
-     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados y cancelados.
-     * @param desde Inicio del historial reciente (inclusive) para los lotes finalizados y cancelados.
+     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados.
+     * @param desde Inicio del historial reciente (inclusive) para los lotes finalizados.
      * @return Los lotes con sus relaciones cargadas, o una lista vacía si no hay ninguno.
      */
     @Query("SELECT l FROM LoteEntity l " +
@@ -158,10 +158,10 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
             "JOIN ef.equipamiento f " +
             "WHERE ef.etapa = 'FERMENTACION' " +
             "AND (:idFermentador IS NULL OR f.id = :idFermentador) " +
+            "AND l.estado <> 'CANCELADO' " +
             "AND (l.estado IN ('PENDIENTE', 'EN_EJECUCION') " +
             "OR :incluirHistorial = true " +
-            "OR (l.estado = 'FINALIZADO' AND l.fechaFinalizacion >= :desde) " +
-            "OR (l.estado = 'CANCELADO' AND l.fechaCancelacion >= :desde)) " +
+            "OR (l.estado = 'FINALIZADO' AND l.fechaFinalizacion >= :desde)) " +
             "ORDER BY f.identificadorInterno ASC, l.fechaInicioEstimada ASC, l.id ASC")
     List<LoteEntity> buscarLotesParaCronograma(@Param("idFermentador") Long idFermentador,
                                                @Param("incluirHistorial") boolean incluirHistorial,

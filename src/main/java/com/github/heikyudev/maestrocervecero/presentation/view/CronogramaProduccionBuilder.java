@@ -30,8 +30,11 @@ import java.util.stream.Stream;
  *     <li>La etiqueta de cada barra dice la receta, la planificación y el lote, porque en un carril conviven
  *     lotes de planificaciones distintas.</li>
  *     <li>Si se destaca una planificación, las barras (y filas de cola) de las demás se marcan como atenuadas.</li>
- *     <li>El lote en ejecución atrasado extiende su barra hasta hoy (tramo de atraso) y los pendientes que su atraso
- *     corre se dibujan desplazados; ambos datos llegan calculados en el lote y el eje abarca las barras extendidas y corridas.</li>
+ *     <li>El lote en ejecución atrasado extiende su barra hasta hoy (con su etiqueta de atraso) y los pendientes que su atraso
+ *     corre se dibujan en su posición corrida; ambos datos llegan calculados en el lote y el eje abarca las barras extendidas y corridas.</li>
+ *     <li>Los lotes cancelados no se dibujan y no entran en la cola.</li>
+ *     <li>Cada carril con fermentador muestra las limpiezas del fermentador; la de un lote de otra planificación que la
+ *     destacada se atenúa.</li>
  *     <li>El eje abarca todas las barras y también el día de hoy; no hay marcas de inicio ni fin de planificación.</li>
  *     <li>La cola de un fermentador lista sus lotes PENDIENTE por fecha de inicio estimada (y, ante igual fecha, por
  *     id), con su posición; el primero no se puede subir y el último no se puede bajar. El lote EN_EJECUCION
@@ -63,8 +66,10 @@ public final class CronogramaProduccionBuilder {
         List<Tramo> tramos = GanttGeometria.tramosDe(lotesValidos);
         Eje eje = GanttGeometria.armarEje(tramos, null, null, hoy, true);
 
-        List<Carril> carriles = GanttGeometria.armarCarriles(tramos, identificadoresFermentadores,
-                tramo -> barraDe(tramo, eje, hoy, idPlanificacionDestacada));
+        List<Carril> carriles = GanttGeometria.armarCarriles(tramos, identificadoresFermentadores, eje, hoy,
+                tramo -> barraDe(tramo, eje, hoy, idPlanificacionDestacada),
+                terminanElDiaAnterior -> idPlanificacionDestacada != null && terminanElDiaAnterior.stream()
+                        .noneMatch(t -> idPlanificacionDestacada.equals(t.lote().getIdPlanificacionProduccion())));
 
         GanttPlanificacionVista gantt = GanttGeometria.vistaBase(eje, tramos.isEmpty(), carriles)
                 .planificacionResaltada(idPlanificacionDestacada != null)

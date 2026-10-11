@@ -87,6 +87,31 @@ public class GanttPlanificacionVista {
     public static class Carril {
         String etiqueta;
         List<Barra> barras;
+
+        /** Bloques de limpieza del fermentador, ordenados por fecha. Vacía en el carril "Sin fermentador". */
+        List<Limpieza> limpiezas;
+    }
+
+    /**
+     * Bloque de un día que representa la limpieza del fermentador entre dos lotes vivos consecutivos.
+     */
+    @Value
+    @Builder
+    public static class Limpieza {
+        /** Día de la limpieza (el que sigue al último día del lote anterior). */
+        LocalDate fecha;
+
+        /** Posición del borde izquierdo, en % del eje. */
+        double izquierdaPct;
+
+        /** Ancho del bloque, en % del eje (con un mínimo visible). */
+        double anchoPct;
+
+        /** Texto del tooltip. */
+        String tooltip;
+
+        /** {@code true} si el bloque se dibuja atenuado porque el lote que lo origina no es de la planificación destacada. */
+        boolean atenuada;
     }
 
     /**
@@ -103,7 +128,7 @@ public class GanttPlanificacionVista {
         /** Detalle (fechas, volumen y equipos) para el tooltip. */
         String tooltip;
 
-        /** Clave del estado para el color: pendiente, en-ejecucion, finalizado o cancelado. */
+        /** Clave del estado para el color: pendiente, en-ejecucion o finalizado (los cancelados no se dibujan). */
         String estadoClave;
 
         String estadoEtiqueta;
@@ -116,17 +141,14 @@ public class GanttPlanificacionVista {
         /** Ancho de la barra, en % del eje (con un mínimo visible). */
         double anchoPct;
 
-        /** Porción ya transcurrida de la barra, en % de su ancho. Solo es mayor a cero en un lote en ejecución. */
+        /** Porción ya transcurrida de la barra, en % de su ancho. Solo es mayor a cero en un lote en ejecución (100 si está atrasado). */
         double progresoPct;
-
-        /** Porción final de la barra que corresponde al atraso, en % de su ancho. Solo es mayor a cero en un lote en ejecución atrasado. */
-        double atrasoPct;
 
         /** Días de atraso del lote en ejecución respecto de su fecha de finalización estimada; {@code 0} si no está atrasado. */
         int diasDeAtraso;
 
-        /** Días que se corrió la barra de un lote pendiente por el atraso del lote en ejecución; {@code 0} si no está corrida. */
-        int diasDeDesplazamiento;
+        /** Leyenda de la barra de un lote en ejecución atrasado ("Atrasado N día(s)"); {@code null} en las demás. */
+        String etiquetaAtraso;
 
         /** {@code true} si la barra se dibuja atenuada porque su lote no es de la planificación destacada. */
         boolean atenuada;

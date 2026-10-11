@@ -35,6 +35,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -555,14 +557,14 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-27: el estado actual muestra la cabecera, los contadores por estado, el cronograma (carriles y barras) y la tabla de lotes")
+    @DisplayName("CP-PPC-27: el estado actual muestra la cabecera, los contadores por estado, el cronograma (carriles y barras, sin el lote cancelado) y la tabla de lotes (con él)")
     void detalle_debeMostrarCabeceraContadoresGanttYLotes() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.FINALIZADO, "F-01"),
-                lote(2L, "PALE_ALE-2", EstadoLote.EN_EJECUCION, "F-01"),
-                lote(3L, "PALE_ALE-3", EstadoLote.PENDIENTE, "F-02"),
-                lote(4L, "PALE_ALE-4", EstadoLote.CANCELADO, "F-02")));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01"),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.EN_EJECUCION, "F-01"),
+                lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-02"),
+                lote(4L, "PALE_ALE-R7-4", EstadoLote.CANCELADO, "F-02")));
 
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
@@ -587,14 +589,15 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("gantt-color--finalizado")))
                 .andExpect(content().string(containsString("gantt-color--en-ejecucion")))
                 .andExpect(content().string(containsString("gantt-color--pendiente")))
-                .andExpect(content().string(containsString("gantt-color--cancelado")))
-                .andExpect(content().string(containsString("PALE_ALE-3 - Pendiente")))
+                .andExpect(content().string(not(containsString("gantt-color--cancelado"))))
+                .andExpect(content().string(containsString("PALE_ALE-R7-3 - Pendiente")))
                 .andExpect(content().string(containsString("gantt-progreso")))
                 .andExpect(content().string(containsString("overflow-x-auto")))
                 // Tabla de lotes
                 .andExpect(content().string(containsString("Inicio real")))
                 .andExpect(content().string(containsString("Fin real")))
-                .andExpect(content().string(containsString("PALE_ALE-1")))
+                .andExpect(content().string(containsString("PALE_ALE-R7-1")))
+                .andExpect(content().string(containsString(">PALE_ALE-R7-4<")))
                 .andExpect(content().string(not(containsString("Todavía no hay lotes registrados para esta planificación"))))
                 .andExpect(content().string(not(containsString(">EN_EJECUCION<"))))
                 .andExpect(content().string(containsString(">En ejecución<")));
@@ -675,13 +678,13 @@ class PlanificacionProduccionControllerTest {
     @DisplayName("CP-PPC-32: el GERENTE_DE_COMPRAS ve el estado actual completo (cronograma y lotes) sin ningún botón de acción")
     void detalle_elGerenteDeComprasSoloConsulta() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
-        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01")));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
 
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Estado actual de la planificación")))
                 .andExpect(content().string(containsString("data-gantt")))
-                .andExpect(content().string(containsString("PALE_ALE-1")))
+                .andExpect(content().string(containsString("PALE_ALE-R7-1")))
                 .andExpect(content().string(containsString("Volver al listado")))
                 .andExpect(content().string(not(containsString("data-motivo-url"))))
                 .andExpect(content().string(not(containsString("dialogo-finalizar"))))
@@ -1149,6 +1152,140 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*data-barra-progreso[^>]*style=\"width: 100%\".*")));
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-62: la leyenda explica los tres colores y las marcas (Planificado, En ejecución, Finalizado, Limpieza, Hoy e Inicio y fin estimados de la planificación)")
+    void detalle_laLeyendaExplicaLosTresColoresYLasMarcas() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Matcher m = Pattern.compile("(?s)aria-label=\"Leyenda del diagrama\">(.*?)</ul>").matcher(html);
+        assertThat(m.find()).isTrue();
+        String leyenda = m.group(1);
+        List<String> ordenadas = List.of("Planificado", "En ejecuci", "Finalizado", "Limpieza", "Hoy", "Inicio y fin estimados de la planificaci");
+        for (int i = 1; i < ordenadas.size(); i++) {
+            assertThat(leyenda.indexOf(ordenadas.get(i - 1))).isGreaterThanOrEqualTo(0).isLessThan(leyenda.indexOf(ordenadas.get(i)));
+        }
+        assertThat(leyenda).doesNotContain("Cancelado").doesNotContain("Atraso").doesNotContain("Desplazado").doesNotContain("transcurrido");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-63: los lotes cancelados figuran en la tabla pero no en el diagrama; si todos son cancelados el diagrama lo dice")
+    void detalle_losCanceladosFiguranEnLaTablaPeroNoEnElDiagrama() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+
+        // (a) un pendiente y un cancelado
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01"),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.CANCELADO, "F-02")));
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("title=\"F-01\"")))
+                .andExpect(content().string(not(containsString("title=\"F-02\""))))
+                .andExpect(content().string(not(containsString("gantt-color--cancelado"))))
+                .andExpect(content().string(containsString(">PALE_ALE-R7-1<")))
+                .andExpect(content().string(containsString(">PALE_ALE-R7-2<")))
+                .andExpect(content().string(containsString(">Cancelado<")))
+                .andExpect(content().string(matchesPattern("(?s).*data-contador=\"cancelados\"[^>]*>1<.*")));
+
+        // (b) un único lote cancelado
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(2L, "PALE_ALE-R7-2", EstadoLote.CANCELADO, "F-02")));
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-gantt"))))
+                .andExpect(content().string(not(containsString("gantt-barra--"))))
+                .andExpect(content().string(containsString("No hay lotes para mostrar en el diagrama (los lotes cancelados no se dibujan)")))
+                .andExpect(content().string(not(containsString("Todavía no hay lotes registrados"))))
+                .andExpect(content().string(containsString(">PALE_ALE-R7-2<")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-64: el código completo del lote se muestra en la barra, su tooltip y la tabla de lotes")
+    void detalle_muestraElCodigoCompletoDelLote() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PILSEN_CLASICA-R4-3", EstadoLote.PENDIENTE, "F-01")));
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(">PILSEN_CLASICA-R4-3 - Pendiente<")))
+                .andExpect(content().string(containsString("title=\"PILSEN_CLASICA-R4-3 - Pendiente")))
+                .andExpect(content().string(containsString(">PILSEN_CLASICA-R4-3<")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-65: la limpieza se dibuja en el diagrama solo donde queda un día libre futuro entre lotes vivos")
+    void detalle_dibujaLaLimpiezaSoloDondeQuedaUnDiaLibre() throws Exception {
+        LocalDate hoy = LocalDate.now();
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+
+        // (a) con un día libre entre los lotes
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", hoy.plusDays(3), hoy.plusDays(7)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", hoy.plusDays(9), hoy.plusDays(12))));
+        String conLimpieza = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // (b) con lotes consecutivos
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", hoy.plusDays(3), hoy.plusDays(7)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", hoy.plusDays(8), hoy.plusDays(12))));
+        String sinLimpieza = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(conLimpieza.split("data-gantt-limpieza", -1).length - 1).isEqualTo(1);
+        assertThat(conLimpieza).contains("Limpieza del fermentador");
+        assertThat(sinLimpieza).doesNotContain("data-gantt-limpieza");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-66: el atraso del lote en ejecución se informa en su barra con la etiqueta \"Atrasado 3 días\", sin color ni tramo aparte")
+    void detalle_elAtrasoSeInformaEnLaBarra() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01").toBuilder().diasDeAtraso(3).build()));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).contains("gantt-color--en-ejecucion").contains("data-gantt-atraso-etiqueta").contains("Atrasado 3 d");
+        assertThat(Pattern.compile("data-gantt-atraso(?!-etiqueta)").matcher(html).find()).isFalse();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-67: no se dibuja la limpieza anterior a hoy ni la que sigue a un lote finalizado; las barras se dibujan igual")
+    void detalle_noDibujaLimpiezasEnElPasadoNiTrasFinalizados() throws Exception {
+        LocalDate hoy = LocalDate.now();
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+
+        // (a) un día libre anterior a hoy entre dos pendientes
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", hoy.minusDays(10), hoy.minusDays(6)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", hoy.minusDays(4), hoy.minusDays(1))));
+        String pasado = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // (b) un finalizado seguido de un pendiente
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                loteEn(3L, "PALE_ALE-R7-3", EstadoLote.FINALIZADO, "F-02", hoy.minusDays(10), hoy.minusDays(6)).toBuilder()
+                        .fechaInicio(hoy.minusDays(10).atTime(8, 0)).fechaFinalizacion(hoy.minusDays(6).atTime(18, 0)).build(),
+                loteEn(4L, "PALE_ALE-R7-4", EstadoLote.PENDIENTE, "F-02", hoy.plusDays(3), hoy.plusDays(6))));
+        String trasFinalizado = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(pasado).doesNotContain("data-gantt-limpieza");
+        assertThat(pasado.split("role=\"img\"", -1).length - 1).isEqualTo(2);
+        assertThat(trasFinalizado).doesNotContain("data-gantt-limpieza");
+        assertThat(trasFinalizado.split("role=\"img\"", -1).length - 1).isEqualTo(2);
+    }
+
     // ==================== Datos de prueba ====================
 
     private static org.springframework.test.web.servlet.ResultMatcher matchesMensajeVacioDosVeces() {
@@ -1177,6 +1314,14 @@ class PlanificacionProduccionControllerTest {
     private static RecetaResponseDTO receta(Long id, String nombre) {
         return RecetaResponseDTO.builder().id(id)
                 .version(VersionRecetaResponseDTO.builder().id(70L).nombre(nombre).volumenBase(20.0).build())
+                .build();
+    }
+
+    private static LoteCronogramaResponseDTO loteEn(Long id, String identificador, EstadoLote estado, String fermentador,
+                                                    LocalDate inicioEstimado, LocalDate finEstimado) {
+        return lote(id, identificador, estado, fermentador).toBuilder()
+                .fechaInicioEstimada(inicioEstimado)
+                .fechaFinalizacionEstimada(finEstimado)
                 .build();
     }
 

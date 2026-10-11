@@ -86,9 +86,9 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1),
-                lote(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
-                lote(3L, "STOUT-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
+                lote(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
 
         // Act + Assert
         mockMvc.perform(get(URL))
@@ -99,14 +99,14 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("action=\"/cronograma-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString(">Todos</option>")))
-                .andExpect(content().string(containsString("Mostrar finalizados y cancelados anteriores")))
+                .andExpect(content().string(containsString("Mostrar finalizados anteriores")))
                 .andExpect(content().string(containsString("Aplicar")))
                 .andExpect(content().string(containsString("Limpiar")))
                 // Diagrama
                 .andExpect(content().string(containsString("data-gantt")))
-                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-1")))
-                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-2")))
-                .andExpect(content().string(containsString("Stout - Plan #8 - STOUT-1")))
+                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-1")))
+                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-2")))
+                .andExpect(content().string(containsString("Stout - Plan #8 - STOUT-R8-1")))
                 .andExpect(content().string(containsString("gantt-color--en-ejecucion")))
                 .andExpect(content().string(containsString("gantt-color--pendiente")))
                 .andExpect(content().string(containsString("data-gantt-hoy")))
@@ -229,10 +229,10 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
-                lote(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
-                lote(3L, "PALE_ALE-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
-                lote(4L, "STOUT-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
+                lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
+                lote(4L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -262,8 +262,8 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
-                lote(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)));
 
         // Act + Assert
         mockMvc.perform(get(URL))
@@ -288,10 +288,10 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", 1),
-                lote(2L, "PALE_ALE-2", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 2),
-                lote(3L, "PALE_ALE-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
-                lote(4L, "PALE_ALE-4", EstadoLote.CANCELADO, "F-01", 7L, "Pale Ale", 4)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 2),
+                lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
+                lote(4L, "PALE_ALE-R7-4", EstadoLote.CANCELADO, "F-01", 7L, "Pale Ale", 4)));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -303,6 +303,7 @@ class CronogramaControllerTest {
         assertThat(cuenta(html, "data-cola-fila")).isEqualTo(1);
         assertThat(html).contains("lotes/3/subir").doesNotContain("lotes/1/subir").doesNotContain("lotes/2/subir")
                 .doesNotContain("lotes/4/subir");
+        assertThat(html).doesNotContain("PALE_ALE-R7-4");
     }
 
     @Test
@@ -312,7 +313,7 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act + Assert
         mockMvc.perform(get(URL))
@@ -320,7 +321,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("Vol. (L)")))
                 .andExpect(content().string(containsString("Inicio")))
                 .andExpect(content().string(containsString("Fin")))
-                .andExpect(content().string(containsString(">PALE_ALE-1<")))
+                .andExpect(content().string(containsString(">PALE_ALE-R7-1<")))
                 .andExpect(content().string(containsString(">#7<")))
                 .andExpect(content().string(containsString(">300<")))
                 .andExpect(content().string(not(containsString("300.0"))))
@@ -356,8 +357,8 @@ class CronogramaControllerTest {
         fermentadores(1L, "F-01");
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
-                lote(2L, "STOUT-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2)));
 
         // Act
         String html = mockMvc.perform(get(URL).param("idPlanificacion", "7"))
@@ -365,7 +366,7 @@ class CronogramaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(html).contains("Pale Ale - Plan #7 - PALE_ALE-1").contains("Stout - Plan #8 - STOUT-1");
+        assertThat(html).contains("Pale Ale - Plan #7 - PALE_ALE-R7-1").contains("Stout - Plan #8 - STOUT-R8-1");
         assertThat(cuenta(html, "gantt-barra--atenuada\"")).isEqualTo(1);
         assertThat(html).contains("Lote de otra planificaci");
         assertThat(fila(html, 2L)).contains("opacity-50");
@@ -382,8 +383,8 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
-                lote(2L, "STOUT-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", 2)));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -403,7 +404,7 @@ class CronogramaControllerTest {
         fermentadores(3L, "F-03");
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-03", 7L, "Pale Ale", 1)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-03", 7L, "Pale Ale", 1)));
 
         // Act
         String html = mockMvc.perform(get(URL).param("idFermentador", "3").param("idPlanificacion", "7").param("incluirHistorial", "true"))
@@ -431,7 +432,7 @@ class CronogramaControllerTest {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -450,13 +451,13 @@ class CronogramaControllerTest {
     void cronograma_colaMarcaAtrasoYDesplazamiento() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
-        LoteCronogramaResponseDTO enEjecucion = lote(1L, "PALE_ALE-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
+        LoteCronogramaResponseDTO enEjecucion = lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
                 .toBuilder().diasDeAtraso(2).build();
-        LoteCronogramaResponseDTO corrido = lote(2L, "PALE_ALE-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
+        LoteCronogramaResponseDTO corrido = lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
                 .toBuilder().diasDeDesplazamiento(2).build();
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
                 enEjecucion, corrido,
-                lote(3L, "STOUT-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+                lote(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
 
         // Act
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
@@ -467,6 +468,165 @@ class CronogramaControllerTest {
         assertThat(html).contains("Planificado para el 07/07, corrido 2 d");
         assertThat(html.split("data-cola-atraso", -1)).hasSize(2);
         assertThat(html.split("data-cola-desplazado", -1)).hasSize(2);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-38: la leyenda explica los tres colores y las marcas (Planificado, En ejecución, Finalizado, Limpieza y Hoy) y suma el atenuado solo al destacar una planificación")
+    void cronograma_laLeyendaExplicaLosTresColoresYLasMarcas() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+
+        // Act
+        String sinDestacar = leyenda(mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String destacando = leyenda(mockMvc.perform(get(URL).param("idPlanificacion", "7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+
+        // Assert
+        assertThat(sinDestacar.indexOf("Planificado")).isGreaterThanOrEqualTo(0);
+        assertThat(sinDestacar.indexOf("Planificado")).isLessThan(sinDestacar.indexOf("En ejecuci"));
+        assertThat(sinDestacar.indexOf("En ejecuci")).isLessThan(sinDestacar.indexOf("Finalizado"));
+        assertThat(sinDestacar.indexOf("Finalizado")).isLessThan(sinDestacar.indexOf("Limpieza"));
+        assertThat(sinDestacar.indexOf("Limpieza")).isLessThan(sinDestacar.indexOf("Hoy"));
+        assertThat(sinDestacar).doesNotContain("Cancelado").doesNotContain("Atraso").doesNotContain("Desplazado")
+                .doesNotContain("transcurrido").doesNotContain("Pendiente").doesNotContain("Inicio y fin estimados")
+                .doesNotContain("Lote de otra planificaci");
+        assertThat(destacando).contains("Lote de otra planificaci");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-39: los lotes cancelados no se dibujan en el diagrama ni entran en la cola")
+    void cronograma_losLotesCanceladosNoSeDibujan() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.CANCELADO, "F-01", 7L, "Pale Ale", 2)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("Pale Ale - Plan #7 - PALE_ALE-R7-1");
+        assertThat(html).doesNotContain("Pale Ale - Plan #7 - PALE_ALE-R7-2").doesNotContain("gantt-color--cancelado");
+        assertThat(cuenta(html, "role=\"img\"")).isEqualTo(1);
+        assertThat(cuenta(html, "data-cola-fila")).isEqualTo(1);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-40: el atraso del lote en ejecución se informa en su barra con la etiqueta \"Atrasado 2 días\", sin color ni tramo aparte")
+    void cronograma_elAtrasoSeInformaEnLaBarra() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        LoteCronogramaResponseDTO atrasado = lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1)
+                .toBuilder().diasDeAtraso(2).build();
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                atrasado,
+                lote(2L, "STOUT-R8-1", EstadoLote.EN_EJECUCION, "F-02", 8L, "Stout", 1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("gantt-color--en-ejecucion");
+        assertThat(cuenta(html, "data-gantt-atraso-etiqueta")).isEqualTo(1);
+        assertThat(html).contains("Atrasado 2 d");
+        assertThat(Pattern.compile("data-gantt-atraso(?!-etiqueta)").matcher(html).find()).isFalse();
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-41: un pendiente corrido por atraso se dibuja azul en su posición corrida, sin marca propia: lo dice el tooltip y la fila de la cola")
+    void cronograma_elPendienteCorridoNoLlevaMarcaEnLaBarra() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        LoteCronogramaResponseDTO corrido = lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2)
+                .toBuilder().diasDeDesplazamiento(2).build();
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(corrido));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("gantt-color--pendiente");
+        assertThat(html).doesNotContain("gantt-color--desplazado").doesNotContain("data-gantt-desplazado").doesNotContain("Desplazado");
+        assertThat(html).contains("Planificado para el 07/07, corrido 2 d");
+        assertThat(html).contains("Corrido 2 d");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-42: la limpieza se dibuja solo donde queda un día libre futuro entre lotes vivos (un único bloque, en el carril de F-01)")
+    void cronograma_dibujaLaLimpiezaSoloDondeQuedaUnDiaLibre() throws Exception {
+        // Arrange
+        LocalDate hoy = LocalDate.now();
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(3), hoy.plusDays(7)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(9), hoy.plusDays(12)),
+                loteEn(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", hoy.plusDays(3), hoy.plusDays(7)),
+                loteEn(4L, "STOUT-R8-2", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", hoy.plusDays(8), hoy.plusDays(12))));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(cuenta(html, "data-gantt-limpieza")).isEqualTo(1);
+        assertThat(html).contains("Limpieza del fermentador");
+        assertThat(html.indexOf("data-gantt-limpieza")).isLessThan(html.indexOf("Stout - Plan #8 - STOUT-R8-1"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-43: el código completo del lote se muestra en la barra, su tooltip, el bloque \"En ejecución\" y la fila de la cola")
+    void cronograma_muestraElCodigoCompletoDelLote() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                lote(1L, "PILSEN_CLASICA-R4-3", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pilsen", 1),
+                lote(2L, "PILSEN_CLASICA-R4-4", EstadoLote.PENDIENTE, "F-01", 7L, "Pilsen", 2)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("Pilsen - Plan #7 - PILSEN_CLASICA-R4-3").contains("PILSEN_CLASICA-R4-3 - En ejecuci");
+        assertThat(html).containsPattern("(?s)data-cola-en-ejecucion.*?>PILSEN_CLASICA-R4-3<");
+        assertThat(html).containsPattern("(?s)data-cola-fila.*?>PILSEN_CLASICA-R4-4<");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-44: no se dibuja la limpieza anterior a hoy ni la que sigue a un lote finalizado; las barras se dibujan igual")
+    void cronograma_noDibujaLimpiezasEnElPasadoNiTrasFinalizados() throws Exception {
+        // Arrange
+        LocalDate hoy = LocalDate.now();
+        fermentadores(1L, "F-01", 2L, "F-02");
+        LoteCronogramaResponseDTO finalizado = loteEn(3L, "STOUT-R8-1", EstadoLote.FINALIZADO, "F-02", 8L, "Stout", hoy.minusDays(10), hoy.minusDays(6))
+                .toBuilder().fechaInicio(hoy.minusDays(10).atTime(8, 0)).fechaFinalizacion(hoy.minusDays(6).atTime(18, 0)).build();
+        when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.minusDays(10), hoy.minusDays(6)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.minusDays(4), hoy.minusDays(1)),
+                finalizado,
+                loteEn(4L, "STOUT-R8-2", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", hoy.plusDays(3), hoy.plusDays(6))));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(cuenta(html, "data-gantt-limpieza")).isZero();
+        assertThat(cuenta(html, "role=\"img\"")).isEqualTo(4);
     }
 
     @Test
@@ -514,7 +674,7 @@ class CronogramaControllerTest {
         fermentadores(1L, "F-01");
         when(planificacionServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: 99"));
         when(loteServicio.listarLotesParaCronograma(any(), anyBoolean())).thenReturn(List.of(
-                lote(1L, "PALE_ALE-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
         // Act
         String html = mockMvc.perform(get(URL).param("idPlanificacion", "99"))
@@ -889,6 +1049,26 @@ class CronogramaControllerTest {
             }
         }
         throw new AssertionError("No hay fila de cola del lote " + idLote);
+    }
+
+    /**
+     * Lote con las fechas estimadas indicadas.
+     */
+    private static LoteCronogramaResponseDTO loteEn(Long id, String identificador, EstadoLote estado, String fermentador,
+                                                    Long idPlanificacion, String receta, LocalDate inicio, LocalDate fin) {
+        return lote(id, identificador, estado, fermentador, idPlanificacion, receta, 1).toBuilder()
+                .fechaInicioEstimada(inicio)
+                .fechaFinalizacionEstimada(fin)
+                .build();
+    }
+
+    /**
+     * El contenido de la leyenda del diagrama.
+     */
+    private static String leyenda(String html) {
+        Matcher m = Pattern.compile("(?s)aria-label=\"Leyenda del diagrama\">(.*?)</ul>").matcher(html);
+        assertThat(m.find()).isTrue();
+        return m.group(1);
     }
 
     private static int cuenta(String html, String texto) {

@@ -117,9 +117,13 @@
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Cronograma de lotes</h2>
         <div class="p-5">
-            <div th:if="${gantt.vacio}" class="py-8 text-center text-slate-400">
+            <div th:if="${gantt.vacio and #lists.isEmpty(lotes)}" class="py-8 text-center text-slate-400">
                 <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
                 Todavía no hay lotes registrados para esta planificación
+            </div>
+            <div th:if="${gantt.vacio and not #lists.isEmpty(lotes)}" data-diagrama-sin-barras class="py-8 text-center text-slate-400">
+                <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
+                No hay lotes para mostrar en el diagrama (los lotes cancelados no se dibujan)
             </div>
             <th:block th:unless="${gantt.vacio}">
                 <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>

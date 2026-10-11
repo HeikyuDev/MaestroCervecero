@@ -44,7 +44,7 @@ public final class GanttPlanificacionBuilder {
         Eje eje = GanttGeometria.armarEje(tramos, inicioPlanificacion, finPlanificacion, hoy, false);
 
         return GanttGeometria.vistaBase(eje, tramos.isEmpty(),
-                        GanttGeometria.armarCarriles(tramos, List.of(), tramo -> barraDe(tramo, eje, hoy)))
+                        GanttGeometria.armarCarriles(tramos, List.of(), eje, hoy, tramo -> barraDe(tramo, eje, hoy), vivosDelDia -> false))
                 .inicioPlanificacionPct(inicioPlanificacion == null ? null
                         : GanttGeometria.porcentaje(ChronoUnit.DAYS.between(eje.desde(), inicioPlanificacion), eje.totalDias()))
                 .finPlanificacionPct(finPlanificacion == null ? null

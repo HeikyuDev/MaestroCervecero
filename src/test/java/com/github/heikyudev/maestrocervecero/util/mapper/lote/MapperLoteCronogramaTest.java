@@ -48,7 +48,7 @@ class MapperLoteCronogramaTest {
 
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(10L);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-R4-3");
         assertThat(resultado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
         assertThat(resultado.getVolumenObjetivo()).isEqualTo(300.0);
         assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 2));
@@ -161,7 +161,7 @@ class MapperLoteCronogramaTest {
         assertThat(resultado.getIdentificadorInternoOllaHervor()).isNull();
         assertThat(resultado.getEtapaActual()).isNull();
         assertThat(resultado.getId()).isEqualTo(10L);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-R4-3");
         assertThat(resultado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
         assertThat(resultado.getVolumenObjetivo()).isEqualTo(300.0);
         assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 2));
@@ -254,6 +254,21 @@ class MapperLoteCronogramaTest {
         assertThat(resultado.getId()).isEqualTo(10L);
     }
 
+    @Test
+    @DisplayName("CP-MLC-14: toDTO conserva el identificador guardado y no lo recalcula con el nombre actual de la versión de receta")
+    void toDTO_noDebeRecalcularElIdentificadorConElNombreActualDeLaReceta() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLote(10L, EstadoLote.PENDIENTE, seisEtapasConEstado(EstadoEtapaLote.PENDIENTE));
+        lote.getPlanificacionProduccion().getVersionReceta().setNombre("Pilsen Reserva");
+
+        // === EJECUCION ===
+        LoteCronogramaResponseDTO resultado = MapperLoteCronograma.toDTO(lote);
+
+        // === ASSERTS ===
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-R4-3");
+        assertThat(resultado.getNombreReceta()).isEqualTo("Pilsen Reserva");
+    }
+
     // ==================== helpers ====================
 
     private static LoteEntity crearLote(Long id, EstadoLote estado, List<EtapaLoteEntity> etapas) {
@@ -267,7 +282,7 @@ class MapperLoteCronogramaTest {
                 .build();
         LoteEntity lote = LoteEntity.builder()
                 .id(id)
-                .identificadorInterno("PILSEN_CLASICA-3")
+                .identificadorInterno("PILSEN_CLASICA-R4-3")
                 .estado(estado)
                 .volumenObjetivo(300.0)
                 .fechaInicioEstimada(LocalDate.of(2026, 11, 2))

@@ -91,7 +91,7 @@ public interface IPlanificacionProduccionServicio {
      *     minutos, / 1440) redondeado hacia arriba, más la duración de fermentación y la de
      *     maduración de la última versión activa de la receta.</li>
      *     <li>El primer lote comienza en {@code fechaInicioEstimada}; cada lote siguiente comienza
-     *     un día después de que termina el anterior (margen de limpieza del fermentador); cada lote
+     *     dos días después de que termina el anterior (el día intermedio es la limpieza del fermentador); cada lote
      *     termina su duración en días después de su inicio.</li>
      *     <li>La fecha sugerida es la de finalización del último lote.</li>
      * </ul>

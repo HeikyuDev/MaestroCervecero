@@ -48,6 +48,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -60,12 +61,14 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.text.Normalizer;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -90,11 +93,19 @@ public class LoteServicioImpl implements ILoteServicio {
     private static final double DESPLAZAMIENTO_GRANO_L_POR_KG = 0.7;
     private static final int HORAS_POR_DIA = 24;
 
-    // Antigüedad máxima, en días respecto de hoy, para que un lote finalizado o cancelado aparezca en el cronograma global
+    // Nombre que usa el código del lote cuando el nombre de la versión de receta no deja ningún carácter utilizable
+    private static final String NOMBRE_POR_DEFECTO_DEL_CODIGO = "LOTE";
+
+    // Antigüedad máxima, en días respecto de hoy, para que un lote finalizado aparezca en el cronograma global
     private static final int DIAS_HISTORIAL_RECIENTE = 14;
 
-    // Días de margen entre dos lotes consecutivos de un fermentador, destinados a su limpieza
-    private static final int DIAS_MARGEN_LIMPIEZA = 1;
+    // Separación entre dos lotes consecutivos de un fermentador: el día fin + 1 es el de limpieza y el siguiente lote
+    // arranca como mínimo el día fin + 2
+    private static final int DIAS_MARGEN_LIMPIEZA = 2;
+
+    // Días que necesitan los equipos de un lote que estaba en ejecución (finalizado o cancelado) para su limpieza:
+    // los pendientes del fermentador no pueden arrancar antes de hoy + 1
+    private static final int DIAS_LIMPIEZA_TRAS_LOTE_EN_EJECUCION = 1;
 
     private static final String MENSAJE_SOLO_MOVER_PENDIENTES = "Solo se pueden mover lotes en estado Pendiente";
     private static final String MENSAJE_LOTE_YA_ES_PRIMERO_DE_LA_COLA = "El lote ya es el primero de la cola pendiente de su fermentador";
@@ -1209,9 +1220,10 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Genera el identificador interno del lote ("R" + id de la receta + "-" + número de lote de esa
-     * receta), incrementando de forma segura el contador de lotes de la receta mediante un bloqueo
-     * pesimista, para soportar el registro concurrente de múltiples lotes de la misma receta.
+     * Genera el identificador interno del lote (nombre normalizado de la versión de receta de la planificación +
+     * "-R" + id de la receta + "-" + número de lote de esa receta, ej. "PILSEN_CLASICA-R7-3"), incrementando de
+     * forma segura el contador de lotes de la receta mediante un bloqueo pesimista, para soportar el registro
+     * concurrente de múltiples lotes de la misma receta. El código se calcula una sola vez al registrar el lote.
      */
     private String generarIdentificadorInterno(VersionRecetaEntity versionReceta) {
         RecetaEntity receta = recetaRepository.findByIdParaActualizarContador(versionReceta.getReceta().getId())
@@ -1221,7 +1233,37 @@ public class LoteServicioImpl implements ILoteServicio {
         receta.setContadorLotes(numeroDeLote + 1);
         recetaRepository.save(receta);
 
-        return "R" + receta.getId() + "-" + numeroDeLote;
+        return normalizarNombreParaCodigo(versionReceta.getNombre()) + "-R" + receta.getId() + "-" + numeroDeLote;
+    }
+
+    /**
+     * Normaliza el nombre de la versión de receta para armar el código del lote: sin marcas diacríticas, en
+     * mayúsculas (sin depender del idioma del sistema), con toda secuencia de caracteres distintos de A-Z y 0-9
+     * reemplazada por un único "_", sin "_" en los extremos y cortado a
+     * {@link LimitesTecnicos#LONGITUD_MAXIMA_NOMBRE} caracteres. Si no queda ningún carácter, devuelve "LOTE".
+     */
+    private static String normalizarNombreParaCodigo(String nombre) {
+        if (nombre == null) {
+            return NOMBRE_POR_DEFECTO_DEL_CODIGO;
+        }
+        String sinMarcas = Normalizer.normalize(nombre, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
+        String normalizado = recortarGuionesBajos(sinMarcas.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_"));
+        if (normalizado.length() > LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE) {
+            normalizado = recortarGuionesBajos(normalizado.substring(0, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE));
+        }
+        return normalizado.isEmpty() ? NOMBRE_POR_DEFECTO_DEL_CODIGO : normalizado;
+    }
+
+    private static String recortarGuionesBajos(String texto) {
+        int desde = 0;
+        int hasta = texto.length();
+        while (desde < hasta && texto.charAt(desde) == '_') {
+            desde++;
+        }
+        while (hasta > desde && texto.charAt(hasta - 1) == '_') {
+            hasta--;
+        }
+        return texto.substring(desde, hasta);
     }
 
     /**
@@ -1252,12 +1294,13 @@ public class LoteServicioImpl implements ILoteServicio {
     /**
      * Calcula la fecha de inicio estimada del lote encolándolo detrás del último lote que ya
      * tiene reservado un lugar en el cronograma del fermentador seleccionado (lotes en estado
-     * PENDIENTE o EN_EJECUCION): el día siguiente a su fecha de finalización estimada, o hoy si el
-     * fermentador no tiene ningún lote planificado.
+     * PENDIENTE o EN_EJECUCION): dos días después de su fecha de finalización estimada (el día intermedio es
+     * el de limpieza del fermentador), o hoy si el fermentador no tiene ningún lote planificado.
      * <p>
      * Un lote nunca arranca antes de la fecha de inicio estimada de su planificación de producción
-     * ni antes de hoy, así que el resultado es
-     * {@code max(día siguiente al último lote o hoy, fechaInicioEstimada de la planificación, hoy)}.
+     * ni antes de hoy, y un último lote atrasado sigue ocupando el fermentador hoy, así que el resultado es
+     * {@code max(max(fin del último lote, hoy) + 2 días, fechaInicioEstimada de la planificación, hoy)}, o
+     * {@code max(fechaInicioEstimada de la planificación, hoy)} si no hay lotes vivos.
      * Pueden quedar huecos en la cola del fermentador.
      * </p>
      * <p>
@@ -1270,7 +1313,7 @@ public class LoteServicioImpl implements ILoteServicio {
     private LocalDate calcularFechaInicioEstimada(FermentadorEntity fermentador, PlanificacionProduccionEntity planificacionProduccion) {
         LocalDate hoy = LocalDate.now();
         LocalDate fechaPorCola = loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(fermentador, ESTADOS_QUE_OCUPAN_FERMENTADOR)
-                .map(ultimaFechaFinalizacionEstimada -> ultimaFechaFinalizacionEstimada.plusDays(DIAS_MARGEN_LIMPIEZA))
+                .map(ultimaFechaFinalizacionEstimada -> (ultimaFechaFinalizacionEstimada.isBefore(hoy) ? hoy : ultimaFechaFinalizacionEstimada).plusDays(DIAS_MARGEN_LIMPIEZA))
                 .orElse(hoy);
         return maxima(fechaPorCola, planificacionProduccion.getFechaInicioEstimada(), hoy);
     }
@@ -1389,7 +1432,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * <p>
      * Un lote en ejecución está atrasado cuando su fecha de finalización estimada es anterior a {@code hoy};
      * su atraso son los días entre esa fecha y hoy. Solo en ese caso se arma el reencadenado virtual de la cola
-     * con {@link #encadenarInicios}, igual que el real pero con base {@code max(fin estimado, hoy) + 1 día} e inicio
+     * con {@link #encadenarInicios}, igual que el real pero con base {@code max(fin estimado, hoy) + 2 días} e inicio
      * mínimo {@code hoy}; el corrimiento de cada pendiente es la diferencia entre el inicio resultante y el
      * guardado, solo si es positiva (los huecos de la cola absorben parte del atraso). Si algún pendiente de
      * la cola no tiene fechas estimadas válidas, esa cola no se corre.
@@ -1556,17 +1599,16 @@ public class LoteServicioImpl implements ILoteServicio {
      *     {@code DAYS.between(fechaInicioEstimada, fechaFinalizacionEstimada)}. Un lote sin
      *     alguna de las dos fechas, o con duración negativa, aborta la operación.</li>
      *     <li>El inicio mínimo de toda la cadena es {@code hoy}, o el día siguiente a hoy
-     *     ({@code hoy + DIAS_MARGEN_LIMPIEZA}) cuando {@code requiereDiaDeLimpieza} es verdadero: el
+     *     ({@code hoy + DIAS_LIMPIEZA_TRAS_LOTE_EN_EJECUCION}) cuando {@code requiereDiaDeLimpieza} es verdadero: el
      *     lote que acaba de finalizar o de cancelarse estando en ejecución dejó sus equipos sucios y
      *     necesitan su día de limpieza.</li>
-     *     <li>La base inicial es el día siguiente a la fechaFinalizacionEstimada del lote
-     *     EN_EJECUCION del fermentador, o a hoy si ese lote está atrasado (el fermentador sigue ocupado),
-     *     o el inicio
+     *     <li>La base inicial es {@code max(fechaFinalizacionEstimada, hoy) + DIAS_MARGEN_LIMPIEZA} del lote
+     *     EN_EJECUCION del fermentador (si ese lote está atrasado el fermentador sigue ocupado hoy), o el inicio
      *     mínimo si el fermentador no tiene ningún lote en ejecución.</li>
      *     <li>Para cada lote, en el orden recibido:
      *     {@code inicio = max(base, fechaInicioEstimada de su planificación, inicio mínimo)} y
-     *     {@code fin = inicio + duración}; la nueva base es {@code fin + 1 día} (el día de margen es
-     *     la limpieza del fermentador). Así ningún lote arranca antes de su planificación ni antes
+     *     {@code fin = inicio + duración}; la nueva base es {@code fin + 2 días} (el día {@code fin + 1}
+     *     es la limpieza del fermentador). Así ningún lote arranca antes de su planificación ni antes
      *     del inicio mínimo, y pueden quedar huecos en la cola.</li>
      *     <li>Solo se guardan los lotes cuyas fechas efectivamente cambiaron.</li>
      * </ol>
@@ -1586,9 +1628,10 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 2. Inicio mínimo de la cadena: hoy, o un día más si el lote que originó el cambio estaba en ejecución
         //    y dejó sus equipos sucios (necesitan su día de limpieza)
-        LocalDate inicioMinimo = requiereDiaDeLimpieza ? hoy.plusDays(DIAS_MARGEN_LIMPIEZA) : hoy;
+        LocalDate inicioMinimo = requiereDiaDeLimpieza ? hoy.plusDays(DIAS_LIMPIEZA_TRAS_LOTE_EN_EJECUCION) : hoy;
 
-        // 3. Base inicial: el día siguiente a que termine el lote en ejecución de ese fermentador, o el inicio mínimo
+        // 3. Base inicial: dos días después de que termine el lote en ejecución de ese fermentador (el intermedio es el de
+        //    limpieza; si está atrasado, cuenta desde hoy), o el inicio mínimo
         LocalDate base = loteRepository.buscarLoteEnEjecucionDeFermentador(idFermentador)
                 .map(LoteEntity::getFechaFinalizacionEstimada)
                 .map(fin -> (fin.isBefore(hoy) ? hoy : fin).plusDays(DIAS_MARGEN_LIMPIEZA))
@@ -1623,7 +1666,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * para que ambos sigan siempre la misma regla.
      * <p>
      * {@code inicio = max(base, inicio estimado de su planificación, inicio mínimo)} y la base del lote
-     * siguiente es {@code inicio + duración + 1 día} (el día de margen es la limpieza del fermentador).
+     * siguiente es {@code inicio + duración + 2 días} (el día {@code fin + 1} es la limpieza del fermentador).
      * Una planificación sin fecha de inicio no impone piso.
      * </p>
      *

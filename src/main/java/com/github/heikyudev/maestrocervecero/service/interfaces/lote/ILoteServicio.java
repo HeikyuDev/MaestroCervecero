@@ -22,8 +22,9 @@ public interface ILoteServicio {
      * Filtra los lotes registrados, opcionalmente por receta, identificador interno, estado,
      * etapa actualmente en curso y volumen objetivo.
      * <p>
-     * {@code identificadorInterno} es el número autogenerado que el sistema le asigna al lote al
-     * registrarse ("R" + id de la receta + "-" + número de lote de esa receta, ej. "R7-3"), no un dato que el usuario
+     * {@code identificadorInterno} es el código autogenerado que el sistema le asigna al lote al
+     * registrarse (nombre normalizado de la versión de receta + "-R" + id de la receta + "-" + número de lote de esa
+     * receta, ej. "PILSEN_CLASICA-R7-3"), no un dato que el usuario
      * elija — la búsqueda es por coincidencia parcial, sin distinguir mayúsculas/minúsculas.
      * </p>
      *
@@ -51,16 +52,17 @@ public interface ILoteServicio {
      * <p>
      * Registrar un lote no es lo mismo que iniciarlo: en este paso no se valida stock de insumos
      * ni disponibilidad de los equipos seleccionados. Al registrarse, el sistema genera
-     * automáticamente el identificador interno del lote ("R" + id de la receta + "-" + número de lote de
-     * esa receta) y crea sus 6 etapas en estado PENDIENTE, cada una asociada al equipamiento
+     * automáticamente el identificador interno del lote (nombre normalizado de la versión de receta de la
+     * planificación + "-R" + id de la receta + "-" + número de lote de esa receta, ej. "PILSEN_CLASICA-R7-3") y crea sus 6 etapas en estado PENDIENTE, cada una asociada al equipamiento
      * correspondiente (Molino para Molienda, Macerador para Maceración, Olla de Hervor para
      * Hervido, y el mismo Fermentador para Fermentación, Maduración y Envasado).
      * </p>
      * <p>
-     * La fecha de inicio estimada del lote es el día siguiente a la finalización estimada del último
-     * lote pendiente o en ejecución de ese fermentador (u hoy si no tiene ninguno), pero nunca
-     * anterior a la fecha de inicio estimada de la planificación de producción del lote ni a hoy;
-     * por eso pueden quedar huecos en la cola del fermentador.
+     * La fecha de inicio estimada del lote es dos días después de la finalización estimada del último
+     * lote pendiente o en ejecución de ese fermentador (el día intermedio es el de limpieza; si ese lote
+     * está atrasado se cuenta desde hoy), u hoy si no tiene ninguno, pero nunca anterior a la fecha de
+     * inicio estimada de la planificación de producción del lote ni a hoy; por eso pueden quedar huecos
+     * en la cola del fermentador.
      * </p>
      *
      * @param loteFormDTO Los datos del lote a registrar.
@@ -330,9 +332,10 @@ public interface ILoteServicio {
      * </p>
      * <ul>
      *     <li>Siempre incluye los lotes EN_EJECUCION y PENDIENTE.</li>
-     *     <li>Los lotes FINALIZADO y CANCELADO se incluyen solo si finalizaron o se cancelaron dentro
-     *     de los últimos 14 días respecto de hoy (historial reciente), salvo que
-     *     {@code incluirHistorial} sea {@code true}: en ese caso se incluyen todos.</li>
+     *     <li>Los lotes FINALIZADO se incluyen solo si finalizaron dentro de los últimos 14 días
+     *     respecto de hoy (historial reciente), salvo que {@code incluirHistorial} sea {@code true}:
+     *     en ese caso se incluyen todos.</li>
+     *     <li>Los lotes CANCELADO nunca se incluyen: el cronograma no los dibuja.</li>
      *     <li>El orden es por identificador interno del fermentador, luego por fecha de inicio
      *     estimada y, ante igual fecha, por ID. El orden de la cola de un fermentador es, entonces,
      *     el de la fecha de inicio estimada de sus lotes (no existe un campo de orden aparte). Como
@@ -344,7 +347,7 @@ public interface ILoteServicio {
      * </ul>
      *
      * @param idFermentador El ID del fermentador cuyo carril se quiere listar, o {@code null} para listar todos.
-     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados y cancelados sin límite de antigüedad.
+     * @param incluirHistorial {@code true} para incluir todos los lotes finalizados sin límite de antigüedad.
      * @return Los lotes en formato DTO de cronograma, o una lista vacía si no hay ninguno.
      * @throws RecursoNoEncontradoException Si se informa un {@code idFermentador} que no existe o no es un fermentador activo.
      */
@@ -362,11 +365,11 @@ public interface ILoteServicio {
      * <ul>
      *     <li>Cada lote conserva su propia duración (fecha de finalización estimada menos fecha de
      *     inicio estimada, en días, tal como están guardadas).</li>
-     *     <li>El primer lote pendiente arranca a partir del día siguiente a la fecha de finalización
-     *     estimada del lote EN_EJECUCION de ese fermentador, o de hoy si no hay ninguno (misma regla
-     *     que usa {@link #registrarLote(LoteFormDTO)}).</li>
-     *     <li>Cada lote pendiente siguiente arranca a partir de un día después de que termina el
-     *     anterior (el día de margen es la limpieza del fermentador).</li>
+     *     <li>El primer lote pendiente arranca a partir de dos días después de la fecha de finalización
+     *     estimada del lote EN_EJECUCION de ese fermentador (o de hoy, si está atrasado), o de hoy si no hay
+     *     ninguno (misma regla que usa {@link #registrarLote(LoteFormDTO)}).</li>
+     *     <li>Cada lote pendiente siguiente arranca a partir de dos días después de que termina el
+     *     anterior (el día intermedio es la limpieza del fermentador).</li>
      *     <li>Ningún lote arranca antes de la fecha de inicio estimada de su planificación de
      *     producción ni antes de hoy: la fecha de inicio de cada lote es el máximo entre esas tres
      *     fechas. Por eso pueden quedar huecos en la cola.</li>
@@ -400,7 +403,7 @@ public interface ILoteServicio {
      * <p>
      * Es la operación inversa de {@link #subirLoteEnCola(Long)} y comparte con ella las mismas
      * reglas de cola, reencadenado de fechas (duración propia de cada lote, primer pendiente
-     * detrás del lote EN_EJECUCION u hoy, un día de margen entre lotes, y piso en la fecha de
+     * detrás del lote EN_EJECUCION u hoy, dos días de separación entre lotes, y piso en la fecha de
      * inicio estimada de la planificación de cada lote y en hoy), bloqueo y auditoría.
      * </p>
      * <p>

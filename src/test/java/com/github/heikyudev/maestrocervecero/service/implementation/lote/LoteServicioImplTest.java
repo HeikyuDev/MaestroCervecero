@@ -436,7 +436,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         LoteEntity guardado = captor.getValue();
         assertThat(guardado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
-        assertThat(guardado.getIdentificadorInterno()).isEqualTo("R5-3");
+        assertThat(guardado.getIdentificadorInterno()).isEqualTo("IPA_TEST-R5-3");
         assertThat(receta.getContadorLotes()).isEqualTo(4L);
         assertThat(guardado.getEtapas()).hasSize(6);
         assertThat(guardado.getEtapas()).allMatch(e -> e.getEstado() == EstadoEtapaLote.PENDIENTE);
@@ -446,7 +446,7 @@ class LoteServicioImplTest {
         assertThat(findEtapa(guardado, TipoEtapa.FERMENTACION).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
         assertThat(findEtapa(guardado, TipoEtapa.MADURACION).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
         assertThat(findEtapa(guardado, TipoEtapa.ENVASADO).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("R5-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("IPA_TEST-R5-3");
     }
 
     @Test
@@ -471,7 +471,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-16: registrarLote — fechaInicioEstimada se encola al día siguiente del último lote planificado en ese fermentador")
+    @DisplayName("CP-RL-16: registrarLote — fechaInicioEstimada se encola dos días después del último lote planificado en ese fermentador (el día intermedio es la limpieza)")
     void registrarLote_debeEncolarFechaInicioTrasUltimoLoteDelFermentador() {
         // === PREPARACION DE DATOS ===
         mockearEquipamientoBase();
@@ -487,8 +487,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         LoteEntity guardado = captor.getValue();
-        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(6));
-        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(28));
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(7));
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(29));
     }
 
     @Test
@@ -498,7 +498,7 @@ class LoteServicioImplTest {
         LocalDate inicioPlanificacion = LocalDate.now().plusDays(10);
         mockearEquipamientoBase(inicioPlanificacion);
         mockearConfiguracionYReceta();
-        // Resultado habitual: último lote termina dentro de 3 días => arrancaría dentro de 4 días
+        // Resultado habitual: último lote termina dentro de 3 días => arrancaría dentro de 5 días
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(LocalDate.now().plusDays(3)));
         ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
         when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
@@ -514,13 +514,54 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RL-41: registrarLote — el último lote vivo está en ejecución y atrasado: el lote nuevo arranca dentro de dos días")
+    void registrarLote_debeArrancarDentroDeDosDiasSiElUltimoLoteEstaAtrasado() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        // El último lote vence hace 3 días pero sigue ocupando el fermentador hoy
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(LocalDate.now().minusDays(3)));
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        LoteEntity guardado = captor.getValue();
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(2));
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(24));
+    }
+
+    @Test
+    @DisplayName("CP-RL-42: registrarLote — sin lotes vivos en el fermentador y planificación que inició en el pasado: el lote arranca hoy")
+    void registrarLote_debeArrancarHoySinLotesVivosAunqueLaPlanificacionHayaIniciadoEnElPasado() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase(LocalDate.now().minusDays(5));
+        mockearConfiguracionYReceta();
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+        LoteFormDTO formDTO = loteFormDTOBase();
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(formDTO);
+
+        // === ASSERTS ===
+        LoteEntity guardado = captor.getValue();
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now());
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(22));
+    }
+
+    @Test
     @DisplayName("CP-RL-20: registrarLote — planificación que inicia antes del resultado habitual: la fecha de inicio no cambia")
     void registrarLote_noDebeCambiarLaFechaDeInicioSiLaPlanificacionInicioAntesDelResultadoHabitual() {
         // === PREPARACION DE DATOS ===
         LocalDate inicioPlanificacion = LocalDate.now().minusDays(5);
         mockearEquipamientoBase(inicioPlanificacion);
         mockearConfiguracionYReceta();
-        // Resultado habitual: último lote termina dentro de 7 días => arranca dentro de 8 días
+        // Resultado habitual: último lote termina dentro de 7 días => arranca dentro de 9 días
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.of(LocalDate.now().plusDays(7)));
         ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
         when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
@@ -531,8 +572,155 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         LoteEntity guardado = captor.getValue();
-        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(8));
-        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(30));
+        assertThat(guardado.getFechaInicioEstimada()).isEqualTo(LocalDate.now().plusDays(9));
+        assertThat(guardado.getFechaFinalizacionEstimada()).isEqualTo(LocalDate.now().plusDays(31));
+    }
+
+    @Test
+    @DisplayName("CP-RL-30: registrarLote — el identificador reemplaza tildes, diéresis y eñe por su letra base")
+    void registrarLote_debeReemplazarDiacriticosEnElIdentificador() {
+        assertThat(registrarYObtenerIdentificador("Pilsen Clásica Añeja")).isEqualTo("PILSEN_CLASICA_ANEJA-R5-3");
+        assertThat(registrarYObtenerIdentificador("Cerveza Güemes")).isEqualTo("CERVEZA_GUEMES-R5-3");
+        assertThat(registrarYObtenerIdentificador("Ñandú")).isEqualTo("NANDU-R5-3");
+    }
+
+    @Test
+    @DisplayName("CP-RL-31: registrarLote — toda secuencia de caracteres no alfanuméricos pasa a un solo guion bajo, sin guiones bajos en los extremos")
+    void registrarLote_debeColapsarLosCaracteresNoAlfanumericosEnElIdentificador() {
+        assertThat(registrarYObtenerIdentificador("  IPA -- Doble (v2)!  ")).isEqualTo("IPA_DOBLE_V2-R5-3");
+        assertThat(registrarYObtenerIdentificador("Pale/Ale\u2014Rubia")).isEqualTo("PALE_ALE_RUBIA-R5-3");
+        assertThat(registrarYObtenerIdentificador("__Pale___Ale__")).isEqualTo("PALE_ALE-R5-3");
+    }
+
+    @Test
+    @DisplayName("CP-RL-32: registrarLote — las letras en mayúscula y los dígitos se conservan en el identificador")
+    void registrarLote_debeConservarMayusculasYDigitosEnElIdentificador() {
+        assertThat(registrarYObtenerIdentificador("Stout 2027")).isEqualTo("STOUT_2027-R5-3");
+        assertThat(registrarYObtenerIdentificador("IPA")).isEqualTo("IPA-R5-3");
+        assertThat(registrarYObtenerIdentificador("123")).isEqualTo("123-R5-3");
+    }
+
+    @Test
+    @DisplayName("CP-RL-33: registrarLote — un nombre sin caracteres utilizables usa LOTE en el identificador")
+    void registrarLote_debeUsarLoteSiElNombreNoTieneCaracteresUtilizables() {
+        for (String nombre : new String[]{"***", "¿¿??", "\u9EA6\u9152", null}) {
+            assertThat(registrarYObtenerIdentificador(nombre)).as("nombre: %s", nombre).isEqualTo("LOTE-R5-3");
+        }
+    }
+
+    @Test
+    @DisplayName("CP-RL-34: registrarLote — las letras que no se descomponen se tratan como símbolo y la ß pasa a SS en el identificador")
+    void registrarLote_debeTratarLasLetrasSinDescomposicionComoSimboloEnElIdentificador() {
+        assertThat(registrarYObtenerIdentificador("Sm\u00F8rrebr\u00F8d")).isEqualTo("SM_RREBR_D-R5-3");
+        assertThat(registrarYObtenerIdentificador("Wei\u00DFbier")).isEqualTo("WEISSBIER-R5-3");
+    }
+
+    @Test
+    @DisplayName("CP-RL-35: registrarLote — el nombre del identificador se corta a 100 caracteres (límite) y se quita un guion bajo final")
+    void registrarLote_debeCortarElNombreDelIdentificadorACienCaracteres() {
+        assertThat(registrarYObtenerIdentificador("A".repeat(100))).isEqualTo("A".repeat(100) + "-R5-3");
+        assertThat(registrarYObtenerIdentificador("\u00DF".repeat(100))).isEqualTo("S".repeat(100) + "-R5-3");
+        assertThat(registrarYObtenerIdentificador("A".repeat(99) + " B")).isEqualTo("A".repeat(99) + "-R5-3");
+    }
+
+    @Test
+    @DisplayName("CP-RL-36: registrarLote — el identificador usa el nombre de la versión de la planificación, no el de la versión vigente")
+    void registrarLote_debeUsarElNombreDeLaVersionDeLaPlanificacion() {
+        // La receta ya tiene otra versión vigente "Pilsen v2", pero la planificación es de "Pilsen v1"
+        assertThat(registrarYObtenerIdentificador("Pilsen v1")).isEqualTo("PILSEN_V1-R5-3");
+    }
+
+    @Test
+    @DisplayName("CP-RL-37: registrarLote — dos lotes seguidos de la misma receta usan contadores consecutivos")
+    void registrarLote_debeUsarContadoresConsecutivosEnDosLotesDeLaMismaReceta() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        RecetaEntity receta = planificacion.getVersionReceta().getReceta();
+        receta.setContadorLotes(3L);
+        mockearConfiguracionYReceta();
+        when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        String primero = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
+        String segundo = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
+
+        // === ASSERTS ===
+        assertThat(primero).isEqualTo("IPA_TEST-R5-3");
+        assertThat(segundo).isEqualTo("IPA_TEST-R5-4");
+        assertThat(receta.getContadorLotes()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("CP-RL-38: registrarLote — recetas distintas con versiones del mismo nombre no colisionan")
+    void registrarLote_noDebeColisionarEntreRecetasConVersionesDelMismoNombre() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        RecetaEntity receta5 = crearReceta(5L, 1L);
+        RecetaEntity receta6 = crearReceta(6L, 1L);
+        VersionRecetaEntity version5 = versionRecetaMaltaBase(receta5);
+        version5.setNombre("IPA");
+        VersionRecetaEntity version6 = versionRecetaMaltaBase(receta6);
+        version6.setNombre("IPA");
+        PlanificacionProduccionEntity planificacion5 = crearPlanificacion(1L, EstadoSolicitud.PENDIENTE, version5);
+        PlanificacionProduccionEntity planificacion6 = crearPlanificacion(2L, EstadoSolicitud.PENDIENTE, version6);
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion5));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(2L)).thenReturn(Optional.of(planificacion6));
+        when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta5));
+        when(recetaRepository.findByIdParaActualizarContador(6L)).thenReturn(Optional.of(receta6));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        String codigo5 = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
+        String codigo6 = loteServicio.registrarLote(loteFormDTOBuilderBase().idPlanificacionProduccion(2L).build()).getIdentificadorInterno();
+
+        // === ASSERTS ===
+        assertThat(codigo5).isEqualTo("IPA-R5-1");
+        assertThat(codigo6).isEqualTo("IPA-R6-1");
+        assertThat(receta5.getContadorLotes()).isEqualTo(2L);
+        assertThat(receta6.getContadorLotes()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("CP-RL-39: registrarLote — renombrar la versión mantiene el contador de la receta")
+    void registrarLote_debeMantenerElContadorDeLaRecetaAlRenombrarLaVersion() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        VersionRecetaEntity version = planificacion.getVersionReceta();
+        RecetaEntity receta = version.getReceta();
+        receta.setContadorLotes(3L);
+        mockearConfiguracionYReceta();
+        when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(receta));
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        version.setNombre("Pilsen v1");
+        String primero = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
+        version.setNombre("Pilsen Reserva");
+        String segundo = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
+
+        // === ASSERTS ===
+        assertThat(primero).isEqualTo("PILSEN_V1-R5-3");
+        assertThat(segundo).isEqualTo("PILSEN_RESERVA-R5-4");
+    }
+
+    @Test
+    @DisplayName("CP-RL-40: registrarLote lanza RecursoNoEncontradoException si la receta no existe al generar el código del lote")
+    void registrarLote_debeLanzarExcepcionSiLaRecetaNoExisteAlGenerarElCodigo() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBase()))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la receta con ID: 5");
+        verify(loteRepository, never()).save(any());
     }
 
     @Test
@@ -1232,8 +1420,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertFechas(loteX, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
-        assertFechas(loteC, hoy.plusDays(40), hoy.plusDays(55));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
+        assertFechas(loteC, hoy.plusDays(42), hoy.plusDays(57));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
     }
 
@@ -1272,7 +1460,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertFechas(loteX, hoy, hoy.plusDays(20));
         assertFechas(loteB, hoy.plusDays(30), hoy.plusDays(48));
-        assertFechas(loteC, hoy.plusDays(49), hoy.plusDays(64));
+        assertFechas(loteC, hoy.plusDays(50), hoy.plusDays(65));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
     }
 
@@ -1664,8 +1852,8 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity lote = prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
-        LoteEntity loteB = crearLoteBDeLaCola(hoy);
-        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteB = crearLoteBParaReencadenar(hoy);
+        LoteEntity loteC = crearLoteCParaReencadenar(hoy);
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
 
         // === EJECUCION ===
@@ -1677,7 +1865,7 @@ class LoteServicioImplTest {
         assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento().getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertFechas(loteB, hoy.plusDays(1), hoy.plusDays(19));
-        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
+        assertFechas(loteC, hoy.plusDays(21), hoy.plusDays(41));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC)
                 .allSatisfy(pendiente -> assertThat(pendiente.getFechaInicioEstimada()).isAfterOrEqualTo(hoy.plusDays(1)));
     }
@@ -1690,8 +1878,8 @@ class LoteServicioImplTest {
         LoteEntity lote = prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.PENDIENTE, null);
         lote.setFechaInicioEstimada(hoy);
         lote.setFechaFinalizacionEstimada(hoy.plusDays(10));
-        LoteEntity loteB = crearLoteBDeLaCola(hoy);
-        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteB = crearLoteBParaReencadenar(hoy);
+        LoteEntity loteC = crearLoteCParaReencadenar(hoy);
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
 
         // === EJECUCION ===
@@ -1700,7 +1888,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
         assertFechas(loteB, hoy, hoy.plusDays(18));
-        assertFechas(loteC, hoy.plusDays(19), hoy.plusDays(39));
+        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
@@ -1712,8 +1900,8 @@ class LoteServicioImplTest {
         LocalDate hoy = LocalDate.now();
         prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.PENDIENTE, null);
         LoteEntity loteA = crearLoteEnEjecucionParaCola(20L, hoy.plusDays(5));
-        LoteEntity loteB = crearLoteBDeLaCola(hoy);
-        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteB = crearLoteBParaReencadenar(hoy);
+        LoteEntity loteC = crearLoteCParaReencadenar(hoy);
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
         when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(loteA));
 
@@ -1721,8 +1909,8 @@ class LoteServicioImplTest {
         loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
 
         // === ASSERTS ===
-        assertFechas(loteB, hoy.plusDays(6), hoy.plusDays(24));
-        assertFechas(loteC, hoy.plusDays(25), hoy.plusDays(45));
+        assertFechas(loteB, hoy.plusDays(7), hoy.plusDays(25));
+        assertFechas(loteC, hoy.plusDays(27), hoy.plusDays(47));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
@@ -1734,7 +1922,7 @@ class LoteServicioImplTest {
         LocalDate hoy = LocalDate.now();
         prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.plusDays(11), hoy.plusDays(29), hoy.plusDays(10));
-        LoteEntity loteC = crearLoteCDeLaCola(hoy);
+        LoteEntity loteC = crearLoteCParaReencadenar(hoy);
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
 
         // === EJECUCION ===
@@ -1742,7 +1930,7 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertFechas(loteB, hoy.plusDays(10), hoy.plusDays(28));
-        assertFechas(loteC, hoy.plusDays(29), hoy.plusDays(49));
+        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(50));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
     }
 
@@ -1768,7 +1956,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         prepararLoteParaCancelarEnFermentadorDeLaCola(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
-        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteBDeLaCola(hoy), crearLoteCDeLaCola(hoy)));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteBParaReencadenar(hoy), crearLoteCParaReencadenar(hoy)));
 
         // === EJECUCION ===
         loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
@@ -2671,7 +2859,7 @@ class LoteServicioImplTest {
         LocalDate hoy = LocalDate.now();
         LoteEntity lote = prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy.minusDays(5));
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(20), hoy.plusDays(40), hoy);
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
 
         // === EJECUCION ===
@@ -2680,7 +2868,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
         assertFechas(loteB, hoy.plusDays(1), hoy.plusDays(19));
-        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
+        assertFechas(loteC, hoy.plusDays(21), hoy.plusDays(41));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
     }
 
@@ -2691,7 +2879,7 @@ class LoteServicioImplTest {
         LocalDate hoy = LocalDate.now();
         prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy.plusDays(10), hoy.plusDays(28), hoy.plusDays(10));
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(29), hoy.plusDays(49), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(50), hoy);
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
 
         // === EJECUCION ===
@@ -2699,7 +2887,7 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertFechas(loteB, hoy.plusDays(10), hoy.plusDays(28));
-        assertFechas(loteC, hoy.plusDays(29), hoy.plusDays(49));
+        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(50));
         verify(loteRepository, never()).saveAll(anyList());
     }
 
@@ -2719,7 +2907,7 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertFechas(loteB, hoy.plusDays(1), hoy.plusDays(19));
-        assertFechas(loteC, hoy.plusDays(20), hoy.plusDays(40));
+        assertFechas(loteC, hoy.plusDays(21), hoy.plusDays(41));
         assertThat(capturarLotesGuardados()).containsExactly(loteB, loteC);
     }
 
@@ -2744,7 +2932,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         prepararLoteParaFinalizarEnvasadoEnFermentadorDeLaCola();
-        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteBDeLaCola(hoy), crearLoteCDeLaCola(hoy)));
+        when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(crearLoteBParaReencadenar(hoy), crearLoteCParaReencadenar(hoy)));
 
         // === EJECUCION ===
         loteServicio.finalizarEnvasado(1L);
@@ -2838,7 +3026,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-LP-06: listarLotesDePlanificacion — el lote en ejecución atrasado de otra planificación corre al pendiente de esta (desplazamiento de 3 días) sin tocar sus fechas")
+    @DisplayName("CP-LP-06: listarLotesDePlanificacion — el lote en ejecución atrasado de otra planificación corre al pendiente de esta (desplazamiento de 4 días) sin tocar sus fechas")
     void listarLotesDePlanificacion_debeCorrerAlPendienteConElAtrasoDeOtraPlanificacion() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -2856,7 +3044,7 @@ class LoteServicioImplTest {
         assertThat(resultado).hasSize(1);
         LoteCronogramaResponseDTO dtoB = resultado.get(0);
         assertThat(dtoB.getId()).isEqualTo(11L);
-        assertThat(dtoB.getDiasDeDesplazamiento()).isEqualTo(3);
+        assertThat(dtoB.getDiasDeDesplazamiento()).isEqualTo(4);
         assertThat(dtoB.getDiasDeAtraso()).isEqualTo(0);
         assertFechas(dtoB, hoy.minusDays(2), hoy.plusDays(6));
     }
@@ -2904,7 +3092,7 @@ class LoteServicioImplTest {
         ArgumentCaptor<Collection<Long>> captor = capturadorDeFermentadores();
         verify(loteRepository, times(1)).buscarVivosDeFermentadores(captor.capture());
         assertThat(captor.getValue()).containsExactlyInAnyOrder(5L, 6L);
-        assertThat(dtoDeLote(resultado, 11L).getDiasDeDesplazamiento()).isEqualTo(3);
+        assertThat(dtoDeLote(resultado, 11L).getDiasDeDesplazamiento()).isEqualTo(4);
         assertThat(dtoDeLote(resultado, 14L).getDiasDeDesplazamiento()).isEqualTo(0);
     }
 
@@ -2975,7 +3163,7 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
     }
 
     @Test
@@ -3162,7 +3350,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-LC-09: listarLotesParaCronograma — el lote en ejecución atrasado 3 días corre 3 días a toda la cola sin cambiar las fechas guardadas")
+    @DisplayName("CP-LC-09: listarLotesParaCronograma — el lote en ejecución atrasado 3 días corre la cola (4 y 5 días, por el día de limpieza) sin cambiar las fechas guardadas")
     void listarLotesParaCronograma_debeCorrerATodaLaColaConElAtrasoDelLoteEnEjecucion() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -3173,13 +3361,13 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
-        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 5);
         assertFechas(dtoDeLote(resultado, 11L), hoy.minusDays(2), hoy.plusDays(6));
     }
 
     @Test
-    @DisplayName("CP-LC-10: listarLotesParaCronograma — un atraso de un solo día corre 1 día a los pendientes")
+    @DisplayName("CP-LC-10: listarLotesParaCronograma — un atraso de un solo día corre 2 y 3 días a los pendientes (cuenta desde hoy más el día de limpieza)")
     void listarLotesParaCronograma_debeInformarUnAtrasoDeUnDia() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -3193,8 +3381,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertAtraso(dtoDeLote(resultado, 10L), 1, 0);
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 1);
-        assertAtraso(dtoDeLote(resultado, 12L), 0, 1);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 2);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
     }
 
     @Test
@@ -3202,13 +3390,13 @@ class LoteServicioImplTest {
     void listarLotesParaCronograma_debeAbsorberParteDelAtrasoConUnHueco() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
-        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(9), hoy.plusDays(14), hoy.minusDays(10));
+        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(11), hoy.plusDays(16), hoy.minusDays(10));
 
         // === EJECUCION ===
         List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), loteC);
 
         // === ASSERTS ===
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
         assertAtraso(dtoDeLote(resultado, 12L), 0, 1);
     }
 
@@ -3216,7 +3404,7 @@ class LoteServicioImplTest {
     @DisplayName("CP-LC-12: listarLotesParaCronograma — un hueco igual o mayor al atraso no corre al lote (un corrimiento no positivo no se informa)")
     void listarLotesParaCronograma_noDebeCorrerAUnLoteConHuecoIgualOMayorAlAtraso() {
         LocalDate hoy = LocalDate.now();
-        for (int inicioC : List.of(10, 12)) {
+        for (int inicioC : List.of(12, 14)) {
             // === PREPARACION DE DATOS ===
             LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(inicioC), hoy.plusDays(inicioC + 5), hoy.minusDays(10));
 
@@ -3225,7 +3413,7 @@ class LoteServicioImplTest {
 
             // === ASSERTS ===
             assertAtraso(dtoDeLote(resultado, 12L), 0, 0);
-            assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
+            assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
             assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
         }
     }
@@ -3236,7 +3424,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLoteEnFermentador(11L, EstadoLote.PENDIENTE, 1L, 5L, hoy.plusDays(30), hoy.plusDays(38), hoy.plusDays(30));
-        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(39), hoy.plusDays(44), hoy.minusDays(10));
+        LoteEntity loteC = crearLoteEnFermentador(12L, EstadoLote.PENDIENTE, 2L, 5L, hoy.plusDays(40), hoy.plusDays(45), hoy.minusDays(10));
 
         // === EJECUCION ===
         List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(crearLoteAtrasadoA(hoy), loteB, loteC);
@@ -3333,31 +3521,29 @@ class LoteServicioImplTest {
 
             // === ASSERTS ===
             assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
-            assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
-            assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+            assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
+            assertAtraso(dtoDeLote(resultado, 12L), 0, 5);
             boolean eVencido = finDeE.isBefore(hoy);
             assertAtraso(dtoDeLote(resultado, 20L), eVencido ? 5 : 0, 0);
-            assertAtraso(dtoDeLote(resultado, 21L), 0, eVencido ? 5 : 0);
+            assertAtraso(dtoDeLote(resultado, 21L), 0, eVencido ? 6 : 0);
         }
     }
 
     @Test
-    @DisplayName("CP-LC-19: listarLotesParaCronograma — los lotes finalizados y cancelados no participan de la cola y se devuelven con atraso y desplazamiento en 0")
+    @DisplayName("CP-LC-19: listarLotesParaCronograma — los lotes finalizados no participan de la cola y se devuelven con atraso y desplazamiento en 0")
     void listarLotesParaCronograma_noDebeIncluirFinalizadosNiCanceladosEnLaCola() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity finalizado = crearLoteEnFermentador(30L, EstadoLote.FINALIZADO, 1L, 5L, hoy.minusDays(20), hoy.minusDays(10), hoy.minusDays(30));
-        LoteEntity cancelado = crearLoteEnFermentador(31L, EstadoLote.CANCELADO, 1L, 5L, hoy.minusDays(9), hoy.minusDays(5), hoy.minusDays(30));
 
         // === EJECUCION ===
         List<LoteCronogramaResponseDTO> resultado = listarCronogramaCon(
-                crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy), finalizado, cancelado);
+                crearLoteAtrasadoA(hoy), crearLoteAtrasadoB(hoy), crearLoteAtrasadoC(hoy), finalizado);
 
         // === ASSERTS ===
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
-        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 5);
         assertAtraso(dtoDeLote(resultado, 30L), 0, 0);
-        assertAtraso(dtoDeLote(resultado, 31L), 0, 0);
     }
 
     @Test
@@ -3373,8 +3559,8 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado).extracting(LoteCronogramaResponseDTO::getId).containsExactly(12L, 10L, 11L);
         assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
-        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 5);
     }
 
     @Test
@@ -3391,8 +3577,8 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertAtraso(dtoDeLote(resultado, 40L), 0, 0);
         assertAtraso(dtoDeLote(resultado, 10L), 3, 0);
-        assertAtraso(dtoDeLote(resultado, 11L), 0, 3);
-        assertAtraso(dtoDeLote(resultado, 12L), 0, 3);
+        assertAtraso(dtoDeLote(resultado, 11L), 0, 4);
+        assertAtraso(dtoDeLote(resultado, 12L), 0, 5);
     }
 
     @Test
@@ -3518,9 +3704,9 @@ class LoteServicioImplTest {
                 .hasMessage("El lote ya es el primero de la cola pendiente de su fermentador");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
-        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(50));
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
+        assertFechas(loteC, hoy.plusDays(32), hoy.plusDays(52));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
     }
 
     @Test
@@ -3556,11 +3742,11 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteD, loteC);
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
-        assertFechas(loteD, hoy.plusDays(30), hoy.plusDays(45));
-        assertFechas(loteC, hoy.plusDays(46), hoy.plusDays(66));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
+        assertFechas(loteD, hoy.plusDays(32), hoy.plusDays(47));
+        assertFechas(loteC, hoy.plusDays(49), hoy.plusDays(69));
         assertThat(resultado.getId()).isEqualTo(13L);
-        assertFechas(resultado, hoy.plusDays(30), hoy.plusDays(45));
+        assertFechas(resultado, hoy.plusDays(32), hoy.plusDays(47));
     }
 
     @Test
@@ -3569,7 +3755,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(20), hoy.plusDays(40), hoy);
         when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
         when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.empty());
@@ -3580,7 +3766,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
         assertFechas(loteC, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
         assertFechas(resultado, hoy, hoy.plusDays(20));
     }
 
@@ -3590,7 +3776,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(20), hoy.plusDays(40), hoy);
         when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
         when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, null)));
@@ -3601,12 +3787,12 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
         assertFechas(loteC, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
         assertFechas(resultado, hoy, hoy.plusDays(20));
     }
 
     @Test
-    @DisplayName("CP-SQ-12: subirLoteEnCola con el lote en ejecución atrasado arranca desde mañana aunque la base y la planificación sean anteriores")
+    @DisplayName("CP-SQ-12: subirLoteEnCola con el lote en ejecución atrasado arranca como mínimo en hoy + 2 aunque la base y la planificación sean anteriores")
     void subirLoteEnCola_debeArrancarDesdeMananaConElLoteEnEjecucionAtrasado() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -3621,8 +3807,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
-        assertFechas(loteC, hoy.plusDays(1), hoy.plusDays(21));
-        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
+        assertFechas(loteC, hoy.plusDays(2), hoy.plusDays(22));
+        assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(42));
     }
 
     @Test
@@ -3632,7 +3818,7 @@ class LoteServicioImplTest {
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLoteBDeLaCola(hoy);
         LoteEntity loteC = crearLoteCDeLaCola(hoy);
-        LoteEntity loteD = crearLotePendienteEnCola(13L, hoy.plusDays(51), hoy.plusDays(66), hoy.plusDays(60));
+        LoteEntity loteD = crearLotePendienteEnCola(13L, hoy.plusDays(54), hoy.plusDays(69), hoy.plusDays(60));
         when(loteRepository.findById(13L)).thenReturn(Optional.of(loteD));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
         when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, hoy.plusDays(10))));
@@ -3642,9 +3828,9 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteD, loteC);
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
         assertFechas(loteD, hoy.plusDays(60), hoy.plusDays(75));
-        assertFechas(loteC, hoy.plusDays(76), hoy.plusDays(96));
+        assertFechas(loteC, hoy.plusDays(77), hoy.plusDays(97));
         assertFechas(resultado, hoy.plusDays(60), hoy.plusDays(75));
     }
 
@@ -3666,10 +3852,10 @@ class LoteServicioImplTest {
                 .hasMessage("El lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
-        assertThat(loteC.getFechaInicioEstimada()).isEqualTo(hoy.plusDays(30));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
+        assertThat(loteC.getFechaInicioEstimada()).isEqualTo(hoy.plusDays(32));
         assertThat(loteC.getFechaFinalizacionEstimada()).isNull();
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
     }
 
     @Test
@@ -3689,9 +3875,9 @@ class LoteServicioImplTest {
                 .hasMessage("El lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
         assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(25));
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
     }
 
     @Test
@@ -3719,13 +3905,13 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-SQ-18: subirLoteEnCola — con el lote en ejecución atrasado (o que termina hoy) el primer pendiente arranca mañana como mínimo, no hoy")
+    @DisplayName("CP-SQ-18: subirLoteEnCola — con el lote en ejecución atrasado (o que termina hoy) el primer pendiente arranca como mínimo en hoy + 2, no hoy")
     void subirLoteEnCola_debeArrancarMananaComoMinimoConElLoteEnEjecucionAtrasado() {
         LocalDate hoy = LocalDate.now();
         for (LocalDate finDelLoteEnEjecucion : List.of(hoy.minusDays(3), hoy.minusDays(1), hoy)) {
             // === PREPARACION DE DATOS ===
             LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
-            LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+            LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(20), hoy.plusDays(40), hoy);
             when(loteRepository.findById(12L)).thenReturn(Optional.of(loteC));
             when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
             when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, finDelLoteEnEjecucion)));
@@ -3734,9 +3920,9 @@ class LoteServicioImplTest {
             LoteCronogramaResponseDTO resultado = loteServicio.subirLoteEnCola(12L);
 
             // === ASSERTS ===
-            assertFechas(loteC, hoy.plusDays(1), hoy.plusDays(21));
-            assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
-            assertFechas(resultado, hoy.plusDays(1), hoy.plusDays(21));
+            assertFechas(loteC, hoy.plusDays(2), hoy.plusDays(22));
+            assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(42));
+            assertFechas(resultado, hoy.plusDays(2), hoy.plusDays(22));
         }
     }
 
@@ -3841,9 +4027,9 @@ class LoteServicioImplTest {
                 .hasMessage("El lote ya es el último de la cola pendiente de su fermentador");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
-        assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(50));
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
+        assertFechas(loteC, hoy.plusDays(32), hoy.plusDays(52));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
     }
 
     @Test
@@ -3879,11 +4065,11 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
-        assertFechas(loteC, hoy.plusDays(11), hoy.plusDays(31));
-        assertFechas(loteB, hoy.plusDays(32), hoy.plusDays(50));
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteC, hoy.plusDays(12), hoy.plusDays(32));
+        assertFechas(loteB, hoy.plusDays(34), hoy.plusDays(52));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
         assertThat(resultado.getId()).isEqualTo(11L);
-        assertFechas(resultado, hoy.plusDays(32), hoy.plusDays(50));
+        assertFechas(resultado, hoy.plusDays(34), hoy.plusDays(52));
     }
 
     @Test
@@ -3892,7 +4078,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(20), hoy.plusDays(40), hoy);
         when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
         when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.empty());
@@ -3903,8 +4089,8 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
         assertFechas(loteC, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
-        assertFechas(resultado, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
+        assertFechas(resultado, hoy.plusDays(22), hoy.plusDays(40));
     }
 
     @Test
@@ -3913,7 +4099,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLotePendienteEnCola(11L, hoy, hoy.plusDays(18), hoy);
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(19), hoy.plusDays(39), hoy);
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(20), hoy.plusDays(40), hoy);
         when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC));
         when(loteRepository.buscarLoteEnEjecucionDeFermentador(5L)).thenReturn(Optional.of(crearLoteEnEjecucionParaCola(10L, null)));
@@ -3924,12 +4110,12 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
         assertFechas(loteC, hoy, hoy.plusDays(20));
-        assertFechas(loteB, hoy.plusDays(21), hoy.plusDays(39));
-        assertFechas(resultado, hoy.plusDays(21), hoy.plusDays(39));
+        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
+        assertFechas(resultado, hoy.plusDays(22), hoy.plusDays(40));
     }
 
     @Test
-    @DisplayName("CP-BQ-12: bajarLoteEnCola con el lote en ejecución atrasado arranca desde mañana aunque la base y la planificación sean anteriores")
+    @DisplayName("CP-BQ-12: bajarLoteEnCola con el lote en ejecución atrasado arranca como mínimo en hoy + 2 aunque la base y la planificación sean anteriores")
     void bajarLoteEnCola_debeArrancarDesdeMananaConElLoteEnEjecucionAtrasado() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -3944,8 +4130,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB);
-        assertFechas(loteC, hoy.plusDays(1), hoy.plusDays(21));
-        assertFechas(loteB, hoy.plusDays(22), hoy.plusDays(40));
+        assertFechas(loteC, hoy.plusDays(2), hoy.plusDays(22));
+        assertFechas(loteB, hoy.plusDays(24), hoy.plusDays(42));
     }
 
     @Test
@@ -3954,7 +4140,7 @@ class LoteServicioImplTest {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
         LoteEntity loteB = crearLoteBDeLaCola(hoy);
-        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(50), hoy.plusDays(60));
+        LoteEntity loteC = crearLotePendienteEnCola(12L, hoy.plusDays(32), hoy.plusDays(52), hoy.plusDays(60));
         LoteEntity loteD = crearLoteDDeLaCola(hoy);
         when(loteRepository.findById(11L)).thenReturn(Optional.of(loteB));
         when(loteRepository.buscarPendientesDeFermentadorParaReordenar(5L)).thenReturn(List.of(loteB, loteC, loteD));
@@ -3966,9 +4152,9 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(capturarLotesGuardados()).containsExactly(loteC, loteB, loteD);
         assertFechas(loteC, hoy.plusDays(60), hoy.plusDays(80));
-        assertFechas(loteB, hoy.plusDays(81), hoy.plusDays(99));
-        assertFechas(loteD, hoy.plusDays(100), hoy.plusDays(115));
-        assertFechas(resultado, hoy.plusDays(81), hoy.plusDays(99));
+        assertFechas(loteB, hoy.plusDays(82), hoy.plusDays(100));
+        assertFechas(loteD, hoy.plusDays(102), hoy.plusDays(117));
+        assertFechas(resultado, hoy.plusDays(82), hoy.plusDays(100));
     }
 
     @Test
@@ -3989,10 +4175,10 @@ class LoteServicioImplTest {
                 .hasMessage("El lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
-        assertThat(loteC.getFechaInicioEstimada()).isEqualTo(hoy.plusDays(30));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
+        assertThat(loteC.getFechaInicioEstimada()).isEqualTo(hoy.plusDays(32));
         assertThat(loteC.getFechaFinalizacionEstimada()).isNull();
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
     }
 
     @Test
@@ -4012,9 +4198,9 @@ class LoteServicioImplTest {
                 .hasMessage("El lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
-        assertFechas(loteB, hoy.plusDays(11), hoy.plusDays(29));
+        assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
         assertFechas(loteC, hoy.plusDays(30), hoy.plusDays(25));
-        assertFechas(loteD, hoy.plusDays(51), hoy.plusDays(66));
+        assertFechas(loteD, hoy.plusDays(54), hoy.plusDays(69));
     }
 
     @Test
@@ -4071,7 +4257,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-EI-03: encadenarInicios — una cadena sin huecos deja un día de margen entre un lote y el siguiente")
+    @DisplayName("CP-EI-03: encadenarInicios — una cadena sin huecos deja un día de limpieza entre un lote y el siguiente")
     void encadenarInicios_cadenaSinHuecosDebeDejarUnDiaDeMargen() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -4082,7 +4268,7 @@ class LoteServicioImplTest {
                 List.of(8L, 5L, 10L), List.of(planificacion, planificacion, planificacion), hoy.plusDays(1), hoy);
 
         // === ASSERTS ===
-        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(10), hoy.plusDays(16));
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(11), hoy.plusDays(18));
     }
 
     @Test
@@ -4096,7 +4282,7 @@ class LoteServicioImplTest {
                 List.of(8L, 5L, 10L), List.of(hoy.minusDays(10), hoy.plusDays(20), hoy.minusDays(10)), hoy.plusDays(1), hoy);
 
         // === ASSERTS ===
-        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(20), hoy.plusDays(26));
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(20), hoy.plusDays(27));
     }
 
     @Test
@@ -4110,7 +4296,7 @@ class LoteServicioImplTest {
                 List.of(8L, 5L), Arrays.asList(null, null), hoy.plusDays(1), hoy);
 
         // === ASSERTS ===
-        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(10));
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(11));
     }
 
     @Test
@@ -4124,7 +4310,7 @@ class LoteServicioImplTest {
                 List.of(4L, 5L), List.of(hoy.minusDays(10), hoy.minusDays(10)), hoy.minusDays(3), hoy);
 
         // === ASSERTS ===
-        assertThat(resultado).containsExactly(hoy, hoy.plusDays(5));
+        assertThat(resultado).containsExactly(hoy, hoy.plusDays(6));
     }
 
     @Test
@@ -4156,7 +4342,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-EI-09: encadenarInicios — un lote de duración cero deja igualmente el día de margen para el siguiente")
+    @DisplayName("CP-EI-09: encadenarInicios — un lote de duración cero deja igualmente el día de limpieza para el siguiente")
     void encadenarInicios_unLoteDeDuracionCeroDebeDejarElDiaDeMargen() {
         // === PREPARACION DE DATOS ===
         LocalDate hoy = LocalDate.now();
@@ -4166,7 +4352,7 @@ class LoteServicioImplTest {
                 List.of(0L, 3L), List.of(hoy.minusDays(10), hoy.minusDays(10)), hoy.plusDays(1), hoy);
 
         // === ASSERTS ===
-        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(2));
+        assertThat(resultado).containsExactly(hoy.plusDays(1), hoy.plusDays(3));
     }
 
     // ==================== helpers ====================
@@ -4190,19 +4376,29 @@ class LoteServicioImplTest {
         return lote;
     }
 
-    /** Lote B de la cola base: id 11, 18 días, de {@code hoy + 11} a {@code hoy + 29}. */
+    /** Lote B de la cola base de los reordenamientos: id 11, 18 días, de {@code hoy + 12} a {@code hoy + 30}. */
     private static LoteEntity crearLoteBDeLaCola(LocalDate hoy) {
+        return crearLotePendienteEnCola(11L, hoy.plusDays(12), hoy.plusDays(30), hoy);
+    }
+
+    /** Lote C de la cola base de los reordenamientos: id 12, 20 días, de {@code hoy + 32} a {@code hoy + 52}. */
+    private static LoteEntity crearLoteCDeLaCola(LocalDate hoy) {
+        return crearLotePendienteEnCola(12L, hoy.plusDays(32), hoy.plusDays(52), hoy);
+    }
+
+    /** Lote D de la cola base de los reordenamientos: id 13, 15 días, de {@code hoy + 54} a {@code hoy + 69}. */
+    private static LoteEntity crearLoteDDeLaCola(LocalDate hoy) {
+        return crearLotePendienteEnCola(13L, hoy.plusDays(54), hoy.plusDays(69), hoy);
+    }
+
+    /** Lote B pendiente al cancelar o finalizar un lote: id 11, 18 días, de {@code hoy + 11} a {@code hoy + 29}. */
+    private static LoteEntity crearLoteBParaReencadenar(LocalDate hoy) {
         return crearLotePendienteEnCola(11L, hoy.plusDays(11), hoy.plusDays(29), hoy);
     }
 
-    /** Lote C de la cola base: id 12, 20 días, de {@code hoy + 30} a {@code hoy + 50}. */
-    private static LoteEntity crearLoteCDeLaCola(LocalDate hoy) {
-        return crearLotePendienteEnCola(12L, hoy.plusDays(30), hoy.plusDays(50), hoy);
-    }
-
-    /** Lote D de la cola base: id 13, 15 días, de {@code hoy + 51} a {@code hoy + 66}. */
-    private static LoteEntity crearLoteDDeLaCola(LocalDate hoy) {
-        return crearLotePendienteEnCola(13L, hoy.plusDays(51), hoy.plusDays(66), hoy);
+    /** Lote C pendiente al cancelar o finalizar un lote: id 12, 20 días, de {@code hoy + 31} a {@code hoy + 51}. */
+    private static LoteEntity crearLoteCParaReencadenar(LocalDate hoy) {
+        return crearLotePendienteEnCola(12L, hoy.plusDays(31), hoy.plusDays(51), hoy);
     }
 
     private static LoteEntity crearLoteEnEjecucionParaCola(Long id, LocalDate fechaFinalizacionEstimada) {
@@ -4434,6 +4630,19 @@ class LoteServicioImplTest {
         lenient().when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(macerador.getId())).thenReturn(Optional.of(macerador));
         lenient().when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(ollaHervor.getId())).thenReturn(Optional.of(ollaHervor));
         lenient().when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(fermentador.getId())).thenReturn(Optional.of(fermentador));
+    }
+
+    /**
+     * Registra un lote de la planificación base (receta 5, contador previo 3) cuya versión de receta se llama
+     * {@code nombreVersion} y devuelve el identificador interno con el que se guarda.
+     */
+    private String registrarYObtenerIdentificador(String nombreVersion) {
+        PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
+        planificacion.getVersionReceta().setNombre(nombreVersion);
+        mockearConfiguracionYReceta();
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        return loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
     }
 
     private static LoteFormDTO.LoteFormDTOBuilder loteFormDTOBuilderBase() {

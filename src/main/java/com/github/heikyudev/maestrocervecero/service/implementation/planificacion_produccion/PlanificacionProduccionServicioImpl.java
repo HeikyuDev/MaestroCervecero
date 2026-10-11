@@ -48,7 +48,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
     // Constantes de la estimación de la fecha de finalización (ver sugerirFechaFinalizacion)
     private static final int MINUTOS_POR_DIA = 1440;
-    private static final int DIAS_MARGEN_LIMPIEZA_FERMENTADOR = 1;
+    private static final int DIAS_MARGEN_LIMPIEZA_FERMENTADOR = 2;
     private static final String MENSAJE_RANGO_PLANIFICACION_EXCEDIDO = "La planificación no puede durar más de 5 años (1.825 días) entre el inicio y el fin estimados";
     private static final String MENSAJE_FECHA_INICIO_ANTERIOR_A_HOY = "La fecha de inicio estimada no puede ser anterior a la fecha actual";
 
@@ -288,8 +288,8 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
      * Es solo una estimación: no persiste nada. La cantidad de lotes es la cantidad a producir
      * dividida por la capacidad de lote estándar (redondeada hacia arriba); cada lote dura el día de
      * brewing (maceración + hervido, redondeado hacia arriba a días completos) más la fermentación y
-     * la maduración de la última versión activa de la receta; y cada lote comienza un día después
-     * de que termina el anterior (margen de limpieza del fermentador).
+     * la maduración de la última versión activa de la receta; y cada lote comienza dos días después
+     * de que termina el anterior (el día intermedio es la limpieza del fermentador).
      * </p>
      *
      * @param idReceta ID de la receta contenedora cuya última versión activa se usa para la simulación.
@@ -363,8 +363,8 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
                 + Objects.requireNonNullElse(versionRecetaEntity.getDuracionMaduracion(), 0);
 
         // 9. Fecha de finalización: lotes secuenciales en un único fermentador. El lote k termina
-        //    duracionLoteDias después de su inicio y el siguiente empieza un día después (margen de
-        //    limpieza), por lo que el último termina en: inicio + N * duración + (N - 1) * margen.
+        //    duracionLoteDias después de su inicio y el siguiente empieza dos días después (el día
+        //    intermedio es la limpieza), por lo que el último termina en: inicio + N * duración + (N - 1) * margen.
         //    Los días se calculan con aritmética long y se comparan contra el rango máximo antes de
         //    construir la fecha, para que una simulación absurda no desborde el LocalDate
         long diasTotales = cantidadLotes * duracionLoteDias + (long) (cantidadLotes - 1) * DIAS_MARGEN_LIMPIEZA_FERMENTADOR;

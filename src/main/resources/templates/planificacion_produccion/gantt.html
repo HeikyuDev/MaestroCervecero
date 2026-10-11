@@ -13,10 +13,12 @@
     de las barras, para no cruzar su texto; "hoy" también lleva una bandera sobre el eje. Las etiquetas de
     fecha de los bordes se alinean hacia adentro (alineación calculada por el builder).
 
-    Colores por estado del lote (la misma paleta en las barras y en la leyenda): pendiente azul, en ejecución
-    ámbar (lo transcurrido sólido y lo que falta rayado), finalizado verde, cancelado gris rayado y tachado.
-    El atraso de un lote en ejecución (días desde su fin estimado hasta hoy) es un tramo rojo al final de su barra,
-    y un lote pendiente corrido por ese atraso lleva rayado azul oscuro, borde naranja y la insignia "Desplazado".
+    Tres colores (la misma paleta en las barras y en la leyenda): azul para lo planificado (los pendientes y lo
+    que falta de un lote en ejecución), naranja sólido para lo ya transcurrido de un lote en ejecución y verde para
+    los finalizados. Los lotes cancelados no se dibujan. El lote en ejecución atrasado extiende su barra hasta hoy,
+    toda en naranja, con la etiqueta "Atrasado N días"; los pendientes que su atraso corre se dibujan en azul en su
+    posición corrida, sin marca propia. Entre dos lotes vivos de un fermentador se dibuja un bloque gris de un día
+    para su limpieza.
 
     Lo usan el estado actual de una planificación y el cronograma global (cronograma/cronograma). El global
     puede traer carriles sin barras (se muestran con un aviso), barras atenuadas (lotes de otra planificación
@@ -28,16 +30,15 @@
 
     <style>
         .gantt-color--pendiente { background: #2563eb; color: #ffffff; }
-        .gantt-color--en-ejecucion { background: repeating-linear-gradient(45deg, #fde68a, #fde68a 6px, #fcd34d 6px, #fcd34d 12px); color: #1e293b; }
+        .gantt-color--en-ejecucion { background: #2563eb; color: #ffffff; }
         .gantt-color--finalizado { background: #047857; color: #ffffff; }
-        .gantt-color--cancelado { background: repeating-linear-gradient(45deg, #e2e8f0, #e2e8f0 6px, #cbd5e1 6px, #cbd5e1 12px); color: #475569; box-shadow: inset 0 0 0 1px #94a3b8; }
-        .gantt-color--desplazado { background: repeating-linear-gradient(45deg, #2563eb, #2563eb 6px, #1e40af 6px, #1e40af 12px); box-shadow: inset 0 0 0 2px #f97316; }
+        .gantt-color--limpieza { background: #cbd5e1; box-shadow: inset 0 0 0 1px #94a3b8; }
         .gantt-barra { position: absolute; top: 0.5rem; bottom: 0.5rem; display: flex; align-items: center; overflow: hidden; border-radius: 0.375rem; }
         .gantt-barra--atenuada { opacity: 0.3; }
-        .gantt-barra--cancelado span { text-decoration: line-through; }
-        .gantt-progreso { position: absolute; top: 0; bottom: 0; left: 0; background: #f59e0b; }
-        .gantt-atraso { position: absolute; top: 0; bottom: 0; right: 0; background: #dc2626; }
-        .gantt-insignia-desplazado { position: relative; flex-shrink: 0; margin-right: 0.25rem; padding: 0 0.375rem; border-radius: 0.25rem; background: #f97316; color: #ffffff; font-size: 10px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+        .gantt-limpieza { position: absolute; top: 0.5rem; bottom: 0.5rem; border-radius: 0.375rem; }
+        .gantt-limpieza--atenuada { opacity: 0.3; }
+        .gantt-progreso { position: absolute; top: 0; bottom: 0; left: 0; background: #f97316; }
+        .gantt-etiqueta-atraso { position: relative; flex-shrink: 0; margin-left: auto; margin-right: 0.25rem; padding: 0 0.375rem; border-radius: 0.25rem; background: #ffffff; color: #c2410c; font-size: 10px; font-weight: 600; line-height: 16px; white-space: nowrap; }
         /* Etiquetas del eje: ancladas a su marca; las de los bordes quedan hacia adentro para no recortarse */
         .gantt-marca { top: 70%; }
         .gantt-marca--izquierda { transform: translate(0.25rem, -50%); }
@@ -56,12 +57,10 @@
 
     <!-- Leyenda -->
     <ul class="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Leyenda del diagrama">
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente"></span> Pendiente</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--en-ejecucion"></span> En ejecución (lo ya transcurrido, sólido)</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente"></span> Planificado</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra" style="background: linear-gradient(90deg, #f97316 50%, #2563eb 50%)"></span> En ejecución</li>
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--finalizado"></span> Finalizado</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--cancelado"></span> Cancelado</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra" style="background: #dc2626"></span> Atraso (días sobre la fecha estimada de fin)</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--desplazado"></span> Desplazado por atraso</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--limpieza"></span> Limpieza</li>
         <li class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-rose-500"></span> Hoy</li>
         <li th:if="${vista.inicioPlanificacionPct != null or vista.finPlanificacionPct != null}" class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-dashed border-slate-500"></span> Inicio y fin estimados de la planificación</li>
         <li th:if="${vista.planificacionResaltada}" class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente opacity-30"></span> Lote de otra planificación (atenuado)</li>
@@ -113,17 +112,21 @@
                 <div th:each="c : ${vista.carriles}" class="relative h-12 border-b border-slate-100">
                     <span th:if="${#lists.isEmpty(c.barras)}" data-gantt-carril-vacio
                           class="absolute inset-0 flex items-center px-3 text-xs italic text-slate-400">Sin lotes en este período</span>
+                    <!-- Limpieza del fermentador: un día libre entre dos lotes vivos, solo hoy o más adelante -->
+                    <div th:each="l : ${c.limpiezas}" data-gantt-limpieza
+                         th:title="${l.tooltip}" th:attr="aria-label=${l.tooltip}" role="img"
+                         th:style="|left: ${l.izquierdaPct}%; width: ${l.anchoPct}%|"
+                         th:classappend="${l.atenuada} ? 'gantt-limpieza--atenuada'"
+                         class="gantt-limpieza gantt-color--limpieza"></div>
                     <div th:each="b : ${c.barras}" role="img" tabindex="0"
                          th:title="${b.tooltip}" th:attr="aria-label=${b.tooltip}"
                          th:style="|left: ${b.izquierdaPct}%; width: ${b.anchoPct}%|"
-                         th:classappend="|${b.diasDeDesplazamiento > 0 ? 'gantt-color--desplazado' : 'gantt-color--' + b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}|"
+                         th:classappend="|gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}|"
                          class="gantt-barra focus:outline-none focus:ring-2 focus:ring-slate-800">
                         <div th:if="${b.progresoPct > 0}" th:style="|width: ${b.progresoPct}%|" class="gantt-progreso"></div>
-                        <div th:if="${b.atrasoPct > 0}" th:style="|width: ${b.atrasoPct}%|" data-gantt-atraso class="gantt-atraso"></div>
                         <span th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
-                        <span th:if="${b.diasDeDesplazamiento > 0}"
-                              th:text="|Desplazado ${b.diasDeDesplazamiento} ${b.diasDeDesplazamiento == 1 ? 'día' : 'días'}|"
-                              data-gantt-desplazado class="gantt-insignia-desplazado ml-auto">Desplazado 3 días</span>
+                        <span th:if="${b.etiquetaAtraso != null}" th:text="${b.etiquetaAtraso}"
+                              data-gantt-atraso-etiqueta class="gantt-etiqueta-atraso">Atrasado 3 días</span>
                     </div>
                 </div>
             </div>
