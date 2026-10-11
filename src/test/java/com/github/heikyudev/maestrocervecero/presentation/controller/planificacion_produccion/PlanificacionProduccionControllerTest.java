@@ -1239,8 +1239,8 @@ class PlanificacionProduccionControllerTest {
         String sinLimpieza = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(conLimpieza.split("data-gantt-limpieza", -1).length - 1).isEqualTo(1);
-        assertThat(conLimpieza).contains("Limpieza del fermentador y demás equipamiento");
+        assertThat(conLimpieza.split("data-gantt-limpieza", -1).length - conLimpieza.split("data-gantt-limpieza-icono", -1).length).isEqualTo(1);
+        assertThat(conLimpieza).contains("Limpieza de equipamientos");
         assertThat(sinLimpieza).doesNotContain("data-gantt-limpieza");
     }
 
@@ -1285,6 +1285,64 @@ class PlanificacionProduccionControllerTest {
         assertThat(pasado.split("role=\"img\"", -1).length - 1).isEqualTo(2);
         assertThat(trasFinalizado).doesNotContain("data-gantt-limpieza");
         assertThat(trasFinalizado.split("role=\"img\"", -1).length - 1).isEqualTo(2);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-68: el bloque de limpieza es celeste (gantt-color--limpieza), distinto del azul de lo planificado, y se reduce a solo color si es muy angosto")
+    void detalle_elBloqueDeLimpiezaEsCelesteYSeReduceASoloColor() throws Exception {
+        String html = detalleConUnaLimpieza();
+
+        String bloque = bloqueDeLimpieza(html);
+
+        assertThat(bloque).contains("gantt-color--limpieza").doesNotContain("gantt-color--pendiente");
+        assertThat(html).contains(".gantt-color--limpieza {").contains("container-type: inline-size")
+                .contains("@container (max-width: 15px)");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-69: el bloque de limpieza lleva un icono de gota decorativo (data-gantt-limpieza-icono, bi-droplet-fill, aria-hidden)")
+    void detalle_elBloqueDeLimpiezaLlevaUnIconoDeGota() throws Exception {
+        String html = detalleConUnaLimpieza();
+
+        String bloque = bloqueDeLimpieza(html);
+
+        assertThat(bloque.split("data-gantt-limpieza-icono", -1).length - 1).isEqualTo(1);
+        assertThat(bloque).containsPattern("<i[^>]*class=\"[^\"]*bi bi-droplet-fill[^\"]*\"[^>]*data-gantt-limpieza-icono[^>]*aria-hidden=\"true\"")
+                .contains("role=\"img\"").contains("Limpieza de equipamientos");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-70: la leyenda muestra la limpieza con la misma muestra celeste y el icono de gota, aunque no haya limpiezas dibujadas")
+    void detalle_laLeyendaMuestraLaLimpiezaConElIconoDeGota() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Matcher m = Pattern.compile("(?s)aria-label=\"Leyenda del diagrama\">(.*?)</ul>").matcher(html);
+        assertThat(m.find()).isTrue();
+        assertThat(m.group(1)).containsPattern("gantt-color--limpieza\"><i[^>]*bi bi-droplet-fill[^>]*data-gantt-leyenda-limpieza-icono[^>]*aria-hidden=\"true\"")
+                .contains("Limpieza de equipamientos");
+    }
+
+    private String detalleConUnaLimpieza() throws Exception {
+        LocalDate hoy = LocalDate.now();
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", hoy.plusDays(3), hoy.plusDays(7)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", hoy.plusDays(9), hoy.plusDays(12))));
+        return mockMvc.perform(get("/planificaciones-produccion/7")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+    }
+
+    private static String bloqueDeLimpieza(String html) {
+        Matcher m = Pattern.compile("(?s)<div[^>]*data-gantt-limpieza(?![-\\w]).*?</div>").matcher(html);
+        assertThat(m.find()).isTrue();
+        return m.group();
     }
 
     // ==================== Datos de prueba ====================

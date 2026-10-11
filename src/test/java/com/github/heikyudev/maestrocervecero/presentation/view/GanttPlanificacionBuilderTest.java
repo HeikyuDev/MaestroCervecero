@@ -920,7 +920,7 @@ class GanttPlanificacionBuilderTest {
         assertThat(limpieza.getFecha()).isEqualTo(fecha(6));
         assertThat(limpieza.getIzquierdaPct()).isEqualTo(50.0);
         assertThat(limpieza.getAnchoPct()).isEqualTo(8.33);
-        assertThat(limpieza.getTooltip()).isEqualTo("Limpieza del fermentador y demás equipamiento");
+        assertThat(limpieza.getTooltip()).isEqualTo("Limpieza de equipamientos");
         assertThat(limpieza.isAtenuada()).isFalse();
     }
 

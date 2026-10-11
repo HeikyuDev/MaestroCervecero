@@ -482,7 +482,7 @@ class CronogramaProduccionBuilderTest {
         assertThat(limpiezas.get(0).getFecha()).isEqualTo(fecha(6));
         assertThat(limpiezas.get(0).getIzquierdaPct()).isEqualTo(50.0);
         assertThat(limpiezas.get(0).getAnchoPct()).isEqualTo(8.33);
-        assertThat(limpiezas.get(0).getTooltip()).isEqualTo("Limpieza del fermentador y demás equipamiento");
+        assertThat(limpiezas.get(0).getTooltip()).isEqualTo("Limpieza de equipamientos");
         assertThat(limpiezas.get(0).isAtenuada()).isFalse();
     }
 

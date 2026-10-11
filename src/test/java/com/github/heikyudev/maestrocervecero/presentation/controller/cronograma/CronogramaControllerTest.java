@@ -592,9 +592,73 @@ class CronogramaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(cuenta(html, "data-gantt-limpieza")).isEqualTo(1);
-        assertThat(html).contains("Limpieza del fermentador y demás equipamiento");
+        assertThat(cuenta(html, "data-gantt-limpieza") - cuenta(html, "data-gantt-limpieza-icono")).isEqualTo(1);
+        assertThat(html).contains("Limpieza de equipamientos");
         assertThat(html.indexOf("data-gantt-limpieza")).isLessThan(html.indexOf("Stout - Plan #8 - STOUT-R8-1"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-76: el bloque de limpieza es celeste (gantt-color--limpieza), distinto del azul de lo planificado, y se reduce a solo color si es muy angosto")
+    void cronograma_elBloqueDeLimpiezaEsCelesteYSeReduceASoloColor() throws Exception {
+        // Arrange
+        String html = cronogramaConUnaLimpieza();
+
+        // Act
+        String bloque = bloqueDeLimpieza(html);
+
+        // Assert
+        assertThat(bloque).contains("gantt-color--limpieza").doesNotContain("gantt-color--pendiente");
+        assertThat(html).contains(".gantt-color--limpieza {").contains("container-type: inline-size")
+                .contains("@container (max-width: 15px)");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-77: el bloque de limpieza lleva un icono de gota decorativo (data-gantt-limpieza-icono, bi-droplet-fill, aria-hidden)")
+    void cronograma_elBloqueDeLimpiezaLlevaUnIconoDeGota() throws Exception {
+        // Arrange
+        String html = cronogramaConUnaLimpieza();
+
+        // Act
+        String bloque = bloqueDeLimpieza(html);
+
+        // Assert
+        assertThat(cuenta(bloque, "data-gantt-limpieza-icono")).isEqualTo(1);
+        assertThat(bloque).containsPattern("<i[^>]*class=\"[^\"]*bi bi-droplet-fill[^\"]*\"[^>]*data-gantt-limpieza-icono[^>]*aria-hidden=\"true\"")
+                .contains("role=\"img\"").contains("Limpieza de equipamientos");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-78: la leyenda muestra la limpieza con la misma muestra celeste y el icono de gota, aunque no haya limpiezas dibujadas")
+    void cronograma_laLeyendaMuestraLaLimpiezaConElIconoDeGota() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
+
+        // Act
+        String leyenda = leyenda(mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        // Assert
+        assertThat(leyenda).containsPattern("gantt-color--limpieza\"><i[^>]*bi bi-droplet-fill[^>]*data-gantt-leyenda-limpieza-icono[^>]*aria-hidden=\"true\"")
+                .contains("Limpieza de equipamientos");
+    }
+
+    private String cronogramaConUnaLimpieza() throws Exception {
+        LocalDate hoy = LocalDate.now();
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                loteEn(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(3), hoy.plusDays(7)),
+                loteEn(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", hoy.plusDays(9), hoy.plusDays(12))));
+        return mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+    }
+
+    private static String bloqueDeLimpieza(String html) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?s)<div[^>]*data-gantt-limpieza(?![-\\w]).*?</div>").matcher(html);
+        assertThat(m.find()).isTrue();
+        return m.group();
     }
 
     @Test

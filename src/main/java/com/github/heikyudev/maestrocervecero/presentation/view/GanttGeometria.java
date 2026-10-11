@@ -62,7 +62,7 @@ final class GanttGeometria {
     /** Días del eje a partir de los cuales la etiqueta de cada marca incluye el año. */
     private static final int DIAS_EJE_CON_ANIO = 365;
     static final String CARRIL_SIN_FERMENTADOR = "Sin fermentador";
-    static final String TOOLTIP_LIMPIEZA = "Limpieza del fermentador y demás equipamiento";
+    static final String TOOLTIP_LIMPIEZA = "Limpieza de equipamientos";
 
     private static final DateTimeFormatter FORMATO_MARCA = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter FORMATO_MARCA_CON_ANIO = DateTimeFormatter.ofPattern("dd/MM/yy");
