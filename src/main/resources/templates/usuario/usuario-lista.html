@@ -99,7 +99,7 @@
 
                         <!-- Baja: abre el modal de confirmación. Deshabilitada sobre la cuenta propia -->
                         <span th:if="${#strings.equalsIgnoreCase(u.username, usernameActual)}"
-                              title="No podés dar de baja tu propia cuenta"
+                              title="No se puede dar de baja el usuario porque es la cuenta con la sesión iniciada"
                               class="p-2 rounded-lg text-slate-300 cursor-not-allowed">
                             <i class="bi bi-trash text-lg"></i>
                         </span>

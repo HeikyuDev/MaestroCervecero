@@ -147,7 +147,7 @@ class UsuarioControllerTest {
 
         mockMvc.perform(get("/usuarios"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No podés dar de baja tu propia cuenta")))
+                .andExpect(content().string(containsString("No se puede dar de baja el usuario porque es la cuenta con la sesión iniciada")))
                 .andExpect(content().string(not(containsString("data-baja-url=\"/usuarios/1/baja\""))));
     }
 
@@ -374,13 +374,13 @@ class UsuarioControllerTest {
     @DisplayName("CP-UC-20: modificar con un username ya usado por otra cuenta vuelve al formulario con el error en el campo")
     void modificar_debeMostrarErrorCuandoElUsernameEstaEnUso() throws Exception {
         when(usuarioServicio.buscarPorId(7L)).thenReturn(usuario(7L, "carlos", Rol.GERENTE_DE_COMPRAS));
-        doThrow(new RecursoDuplicadoException("El nombre de usuario 'pedro' ya está en uso.")).when(usuarioServicio).modificarUsuario(eq(7L), any());
+        doThrow(new RecursoDuplicadoException("El nombre de usuario 'pedro' ya está en uso")).when(usuarioServicio).modificarUsuario(eq(7L), any());
 
         mockMvc.perform(post("/usuarios/7").with(csrf()).params(paramsValidos("pedro")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("usuario/usuario-form"))
                 .andExpect(model().attributeHasFieldErrors("usuarioForm", "username"))
-                .andExpect(content().string(containsString("El nombre de usuario &#39;pedro&#39; ya está en uso.")));
+                .andExpect(content().string(containsString("El nombre de usuario &#39;pedro&#39; ya está en uso")));
     }
 
     @Test
@@ -461,7 +461,7 @@ class UsuarioControllerTest {
 
         mockMvc.perform(post("/usuarios/1/baja").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("mensaje", "No podés dar de baja tu propia cuenta."))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el usuario porque es la cuenta con la sesión iniciada"))
                 .andExpect(flash().attribute("tipo", "warning"));
 
         verify(usuarioServicio, never()).bajaUsuario(any());
@@ -579,6 +579,20 @@ class UsuarioControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*text-amber-500 font-medium\">\\s*Administrador\\s*</p>.*")))
                 .andExpect(content().string(not(containsString("[ROL]"))));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-34: si el service rechaza la baja porque es el único administrador activo, se informa el motivo y se vuelve a la pantalla de origen")
+    void baja_debeInformarElMotivoCuandoElServiceRechazaLaBajaDelUnicoAdministrador() throws Exception {
+        when(usuarioServicio.buscarPorId(7L)).thenReturn(usuario(7L, "carlos", Rol.ADMINISTRADOR));
+        doThrow(new ReglaNegocioException("No se puede dar de baja el usuario porque es el único administrador activo")).when(usuarioServicio).bajaUsuario(7L);
+
+        mockMvc.perform(post("/usuarios/7/baja").with(csrf()).header("Referer", "/usuarios"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/usuarios"))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el usuario porque es el único administrador activo"))
+                .andExpect(flash().attribute("tipo", "warning"));
     }
 
     // ==================== helpers ====================

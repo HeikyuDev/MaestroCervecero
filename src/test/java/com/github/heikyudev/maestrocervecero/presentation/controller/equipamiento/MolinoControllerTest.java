@@ -354,7 +354,7 @@ class MolinoControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MOC-19: si el service rechaza la modificación porque el molino está en uso, el motivo se muestra en el formulario")
     void caso_cp_moc_19() throws Exception {
-        when(molinoServicio.modificarMolino(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso."));
+        when(molinoServicio.modificarMolino(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso"));
 
         mockMvc.perform(post("/equipamiento/molinos/4").with(csrf())
                         .param("identificadorInterno", "MOL-01")
@@ -362,7 +362,7 @@ class MolinoControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el molino")))
-                .andExpect(content().string(containsString("No se puede modificar el molino porque se encuentra en uso.")));
+                .andExpect(content().string(containsString("No se puede modificar el molino porque se encuentra en uso")));
     }
 
     @Test
@@ -396,12 +396,12 @@ class MolinoControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MOC-22: si el service rechaza la baja (etapa pendiente o en uso) vuelve al origen con la alerta de advertencia")
     void caso_cp_moc_22() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote.")).when(molinoServicio).bajaMolino(4L);
+        doThrow(new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote")).when(molinoServicio).bajaMolino(4L);
 
         mockMvc.perform(post("/equipamiento/molinos/4/baja").with(csrf()).header("Referer", "/equipamiento/molinos"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/equipamiento/molinos"))
-                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote."))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 

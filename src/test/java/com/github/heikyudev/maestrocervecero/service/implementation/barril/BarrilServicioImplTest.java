@@ -164,7 +164,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad es obligatoria.");
+                .hasMessage("La capacidad es obligatoria");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -177,7 +177,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad debe ser mayor a 0.");
+                .hasMessage("La capacidad debe ser mayor a 0");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -190,7 +190,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad debe ser mayor a 0.");
+                .hasMessage("La capacidad debe ser mayor a 0");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -295,7 +295,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -309,7 +309,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+                .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verifyNoInteractions(barrilRepository);
@@ -341,7 +341,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad es obligatoria.");
+                .hasMessage("La capacidad es obligatoria");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verify(barrilRepository, never()).save(any());
@@ -356,7 +356,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad debe ser mayor a 0.");
+                .hasMessage("La capacidad debe ser mayor a 0");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -465,7 +465,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios.");
+                .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verify(barrilRepository, never()).save(any());
@@ -494,7 +494,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado.");
+                .hasMessage("No se puede dar de baja el barril porque no se encuentra disponible");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -507,13 +507,39 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado.");
+                .hasMessage("No se puede dar de baja el barril porque no se encuentra disponible");
 
         verify(barrilRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BB-04: bajaBarril marca el estado como BAJA, persiste y retorna el DTO cuando el estado operativo lo permite")
+    @DisplayName("CP-BB-05: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo EN_LIMPIEZA")
+    void bajaBarril_debeRechazarEstadoOperativoEnLimpieza() {
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.EN_LIMPIEZA, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+
+        assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el barril porque no se encuentra disponible");
+
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BB-06: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo EN_MANTENIMIENTO")
+    void bajaBarril_debeRechazarEstadoOperativoEnMantenimiento() {
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.EN_MANTENIMIENTO, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+
+        assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el barril porque no se encuentra disponible");
+
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BB-04: bajaBarril marca el estado como BAJA, persiste y retorna el DTO cuando el barril está en estado operativo DISPONIBLE")
     void bajaBarril_debeMarcarBajaYRetornarBarrilExistente() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
         when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));

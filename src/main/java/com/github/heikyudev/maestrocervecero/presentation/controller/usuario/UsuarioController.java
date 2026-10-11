@@ -201,7 +201,7 @@ public class UsuarioController {
     public String bajaUsuario(@PathVariable Long id, Authentication authentication, RedirectAttributes redirectAttributes) {
         UsuarioResponseDTO usuario = usuarioServicio.buscarPorId(id);
         if (esCuentaPropia(usuario, authentication)) {
-            throw new ReglaNegocioException("No podés dar de baja tu propia cuenta.");
+            throw new ReglaNegocioException("No se puede dar de baja el usuario porque es la cuenta con la sesión iniciada");
         }
 
         usuarioServicio.bajaUsuario(id);

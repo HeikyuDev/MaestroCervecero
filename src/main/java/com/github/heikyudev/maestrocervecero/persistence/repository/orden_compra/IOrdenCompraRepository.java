@@ -64,4 +64,36 @@ public interface IOrdenCompraRepository extends JpaRepository<OrdenCompraEntity,
      * @return {@code true} si existe al menos una orden de compra en ese estado asociada a alguna versión del proveedor, {@code false} en caso contrario.
      */
     boolean existsByVersionProveedor_Proveedor_IdAndEstado(Long idProveedor, EstadoSolicitud estado);
+
+    /**
+     * Verifica si el insumo indicado forma parte de algún ítem de una orden de compra pendiente.
+     * <p>
+     * Se recorren las órdenes de compra de cualquier versión del proveedor (histórica o activa):
+     * una orden pendiente registrada contra una versión anterior sigue vigente aunque el
+     * proveedor ya haya sido modificado desde entonces.
+     * </p>
+     *
+     * @param idInsumo El ID del insumo a verificar.
+     * @return {@code true} si el insumo está en al menos una orden de compra pendiente, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM OrdenCompraEntity o "
+            + "JOIN o.detallesCompra d "
+            + "WHERE d.catalogoProveedor.insumo.id = :idInsumo AND o.estado = 'PENDIENTE'")
+    boolean existsByInsumoEnOrdenCompraPendiente(@Param("idInsumo") Long idInsumo);
+
+    /**
+     * Verifica si la presentación comercial indicada forma parte de algún ítem de una orden de
+     * compra pendiente.
+     * <p>
+     * Se recorren las órdenes de compra de cualquier versión del proveedor (histórica o activa),
+     * por el mismo motivo que en {@link #existsByInsumoEnOrdenCompraPendiente(Long)}.
+     * </p>
+     *
+     * @param idPresentacionComercial El ID de la presentación comercial a verificar.
+     * @return {@code true} si la presentación comercial está en al menos una orden de compra pendiente, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END FROM OrdenCompraEntity o "
+            + "JOIN o.detallesCompra d "
+            + "WHERE d.catalogoProveedor.presentacionComercial.id = :idPresentacionComercial AND o.estado = 'PENDIENTE'")
+    boolean existsByPresentacionComercialEnOrdenCompraPendiente(@Param("idPresentacionComercial") Long idPresentacionComercial);
 }

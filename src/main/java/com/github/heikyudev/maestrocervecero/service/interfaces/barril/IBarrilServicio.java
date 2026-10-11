@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.barril;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.BarrilFormDTO;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -53,9 +55,14 @@ public interface IBarrilServicio {
 
     /**
      * Da de baja un barril existente.
+     * <p>
+     * La baja solo procede si el barril se encuentra en estado operativo {@code DISPONIBLE}.
+     * </p>
      *
      * @param id ID del barril a dar de baja.
      * @return BarrilResponseDTO del barril dado de baja.
+     * @throws RecursoNoEncontradoException Si no existe un barril activo con el ID especificado.
+     * @throws ReglaNegocioException Si el barril no se encuentra en estado operativo {@code DISPONIBLE}.
      */
     BarrilResponseDTO bajaBarril(Long id);
 }

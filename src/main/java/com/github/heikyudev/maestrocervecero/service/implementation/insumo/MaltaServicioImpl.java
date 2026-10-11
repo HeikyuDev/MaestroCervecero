@@ -8,6 +8,9 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -38,6 +41,9 @@ public class MaltaServicioImpl implements IMaltaServicio {
     private final IMaltaRepository maltaRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
+    private final IPlanificacionProduccionRepository planificacionProduccionRepository;
+    private final IOrdenCompraRepository ordenCompraRepository;
+    private final ICatalogoProveedorRepository catalogoProveedorRepository;
 
     /**
      * Recupera una página de maltas activas registradas en el sistema, filtradas opcionalmente
@@ -172,7 +178,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * @param id Identificador clave primaria de la malta a dar de baja.
      * @return {@link MaltaResponseDTO} con los datos de la malta ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la malta con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la malta forma parte de al menos una receta activa, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si la malta forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -187,16 +193,33 @@ public class MaltaServicioImpl implements IMaltaServicio {
             throw new ReglaNegocioException("No se puede dar de baja la malta porque forma parte de al menos una receta activa");
         }
 
-        // 3. Validar que la malta no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        // 3. Validar que la malta no forme parte de la receta de ninguna planificación de producción pendiente
+        //    (cualquier versión de la receta, no solo la última)
+        if (planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la malta porque forma parte de una planificación de producción pendiente");
+        }
+
+        // 4. Validar que la malta no se encuentre en ninguna orden de compra pendiente
+        //    (cualquier versión del proveedor)
+        if (ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la malta porque se encuentra en al menos una orden de compra pendiente");
+        }
+
+        // 5. Validar que la malta no esté asociada al catálogo (versión vigente) de ningún proveedor activo
+        if (catalogoProveedorRepository.existsByInsumoId(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la malta porque se encuentra asociada al catálogo de al menos un proveedor activo");
+        }
+
+        // 6. Validar que la malta no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
         if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
             throw new ReglaNegocioException("No se puede dar de baja la malta porque tiene stock");
         }
 
-        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 7. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         maltaEntity.setEstado(Estado.BAJA);
         maltaRepository.save(maltaEntity);
 
-        // 5. Retornamos el DTO de la malta dada de baja en lugar de null
+        // 8. Retornamos el DTO de la malta dada de baja en lugar de null
         return MapperMalta.toDTO(maltaEntity);
     }
 

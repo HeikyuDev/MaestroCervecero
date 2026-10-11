@@ -418,7 +418,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el fermentador porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede modificar el fermentador porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository, never()).save(any());
@@ -435,7 +435,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el fermentador porque se encuentra en uso.");
+                .hasMessage("No se puede modificar el fermentador porque se encuentra en uso");
 
         verify(fermentadorRepository, never()).save(any());
     }
@@ -483,7 +483,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(fermentadorRepository, never()).save(any());
@@ -498,7 +498,49 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque se encuentra en uso.");
+                .hasMessage("No se puede dar de baja el fermentador porque no se encuentra disponible");
+
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-05: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador se encuentra en limpieza")
+    void bajaFermentador_debeRechazarSiEstaEnLimpieza() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_LIMPIEZA);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque no se encuentra disponible");
+
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-06: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador se encuentra en mantenimiento")
+    void bajaFermentador_debeRechazarSiEstaEnMantenimiento() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_MANTENIMIENTO);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque no se encuentra disponible");
+
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-07: bajaFermentador informa primero la etapa pendiente de un lote cuando el fermentador además no está disponible")
+    void bajaFermentador_debePriorizarEtapaPendienteSobreNoDisponible() {
+        FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_USO);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote");
 
         verify(fermentadorRepository, never()).save(any());
     }

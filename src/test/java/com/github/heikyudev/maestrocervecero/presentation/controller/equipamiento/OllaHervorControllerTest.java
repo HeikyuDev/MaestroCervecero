@@ -390,7 +390,7 @@ class OllaHervorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-OHC-19: si el service rechaza la modificación porque la olla de hervor está en uso, el motivo se muestra en el formulario")
     void caso_cp_ohc_19() throws Exception {
-        when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso."));
+        when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso"));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
                         .param("identificadorInterno", "OLLA-01")
@@ -401,7 +401,7 @@ class OllaHervorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la olla de hervor")))
-                .andExpect(content().string(containsString("No se puede modificar la olla de hervor porque se encuentra en uso.")));
+                .andExpect(content().string(containsString("No se puede modificar la olla de hervor porque se encuentra en uso")));
     }
 
     @Test
@@ -438,12 +438,12 @@ class OllaHervorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-OHC-22: si el service rechaza la baja (etapa pendiente o en uso) vuelve al origen con la alerta de advertencia")
     void caso_cp_ohc_22() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote.")).when(ollaHervorServicio).bajaOllaHervor(4L);
+        doThrow(new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote")).when(ollaHervorServicio).bajaOllaHervor(4L);
 
         mockMvc.perform(post("/equipamiento/ollas-hervor/4/baja").with(csrf()).header("Referer", "/equipamiento/ollas-hervor"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/equipamiento/ollas-hervor"))
-                .andExpect(flash().attribute("mensaje", "No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote."))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 

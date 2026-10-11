@@ -390,7 +390,7 @@ class MaceradorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MCC-19: si el service rechaza la modificación porque el macerador está en uso, el motivo se muestra en el formulario")
     void caso_cp_mcc_19() throws Exception {
-        when(maceradorServicio.modificarMacerador(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso."));
+        when(maceradorServicio.modificarMacerador(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso"));
 
         mockMvc.perform(post("/equipamiento/maceradores/4").with(csrf())
                         .param("identificadorInterno", "MAC-01")
@@ -401,7 +401,7 @@ class MaceradorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el macerador")))
-                .andExpect(content().string(containsString("No se puede modificar el macerador porque se encuentra en uso.")));
+                .andExpect(content().string(containsString("No se puede modificar el macerador porque se encuentra en uso")));
     }
 
     @Test
@@ -438,12 +438,12 @@ class MaceradorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MCC-22: si el service rechaza la baja (etapa pendiente o en uso) vuelve al origen con la alerta de advertencia")
     void caso_cp_mcc_22() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote.")).when(maceradorServicio).bajaMacerador(4L);
+        doThrow(new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote")).when(maceradorServicio).bajaMacerador(4L);
 
         mockMvc.perform(post("/equipamiento/maceradores/4/baja").with(csrf()).header("Referer", "/equipamiento/maceradores"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/equipamiento/maceradores"))
-                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote."))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 

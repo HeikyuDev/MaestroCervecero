@@ -8,6 +8,9 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -43,6 +46,9 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     private final ILevaduraRepository levaduraRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
+    private final IPlanificacionProduccionRepository planificacionProduccionRepository;
+    private final IOrdenCompraRepository ordenCompraRepository;
+    private final ICatalogoProveedorRepository catalogoProveedorRepository;
 
     /**
      * Recupera una página de levaduras activas registradas en el sistema, filtradas
@@ -177,7 +183,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a dar de baja.
      * @return {@link LevaduraResponseDTO} con los datos de la levadura ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la levadura con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
+     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock (al menos un lote de insumo con cantidad actual mayor a cero).
      */
     @Override
     @Transactional
@@ -192,16 +198,33 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
             throw new ReglaNegocioException("No se puede dar de baja la levadura porque forma parte de al menos una receta activa");
         }
 
-        // 3. Validar que la levadura no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
+        // 3. Validar que la levadura no forme parte de la receta de ninguna planificación de producción pendiente
+        //    (cualquier versión de la receta, no solo la última)
+        if (planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque forma parte de una planificación de producción pendiente");
+        }
+
+        // 4. Validar que la levadura no se encuentre en ninguna orden de compra pendiente
+        //    (cualquier versión del proveedor)
+        if (ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque se encuentra en al menos una orden de compra pendiente");
+        }
+
+        // 5. Validar que la levadura no esté asociada al catálogo (versión vigente) de ningún proveedor activo
+        if (catalogoProveedorRepository.existsByInsumoId(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja la levadura porque se encuentra asociada al catálogo de al menos un proveedor activo");
+        }
+
+        // 6. Validar que la levadura no tenga stock (al menos un lote de insumo con cantidad actual mayor a cero)
         if (loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(id, 0.0)) {
             throw new ReglaNegocioException("No se puede dar de baja la levadura porque tiene stock");
         }
 
-        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 7. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         levaduraEntity.setEstado(Estado.BAJA);
         levaduraRepository.save(levaduraEntity);
 
-        // 5. Retornamos el DTO de la levadura dada de baja en lugar de null
+        // 8. Retornamos el DTO de la levadura dada de baja en lugar de null
         return MapperLevadura.toDTO(levaduraEntity);
     }
 

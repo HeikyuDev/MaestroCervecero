@@ -366,7 +366,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository, never()).save(any());
@@ -383,7 +383,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el molino porque se encuentra en uso.");
+                .hasMessage("No se puede modificar el molino porque se encuentra en uso");
 
         verify(molinoRepository, never()).save(any());
     }
@@ -460,7 +460,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(molinoRepository, never()).save(any());
@@ -475,7 +475,49 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el molino porque se encuentra en uso.");
+                .hasMessage("No se puede dar de baja el molino porque no se encuentra disponible");
+
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-05: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino se encuentra en limpieza")
+    void bajaMolino_debeRechazarSiEstaEnLimpieza() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_LIMPIEZA);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el molino porque no se encuentra disponible");
+
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-06: bajaMolino lanza ReglaNegocioException y no persiste cuando el molino se encuentra en mantenimiento")
+    void bajaMolino_debeRechazarSiEstaEnMantenimiento() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_MANTENIMIENTO);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el molino porque no se encuentra disponible");
+
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-07: bajaMolino informa primero la etapa pendiente de un lote cuando el molino además no está disponible")
+    void bajaMolino_debePriorizarEtapaPendienteSobreNoDisponible() {
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 100.0, EstadoOperativo.EN_USO);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> molinoServicio.bajaMolino(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote");
 
         verify(molinoRepository, never()).save(any());
     }

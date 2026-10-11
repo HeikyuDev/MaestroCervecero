@@ -151,13 +151,13 @@ class AuditLogControllerTest {
     @DisplayName("CP-AC-06: un rango de fechas invertido muestra el aviso del service y una lista vacía, conservando los filtros elegidos")
     void listado_debeMostrarElAvisoDeRangoInvertido() throws Exception {
         when(auditLogService.filtrarAuditLogs(any(), any(), any(), any(), any(), any()))
-                .thenThrow(new ReglaNegocioException("La fecha desde no puede ser posterior a la fecha hasta."));
+                .thenThrow(new ReglaNegocioException("La fecha desde no puede ser posterior a la fecha hasta"));
 
         mockMvc.perform(get("/auditoria").param("fechaDesde", "2026-09-30").param("fechaHasta", "2026-09-01")
                         .param("username", "admin"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("auditoria/auditoria-lista"))
-                .andExpect(content().string(containsString("La fecha desde no puede ser posterior a la fecha hasta.")))
+                .andExpect(content().string(containsString("La fecha desde no puede ser posterior a la fecha hasta")))
                 .andExpect(content().string(containsString("No se encontraron registros con los criterios indicados.")))
                 .andExpect(content().string(containsString("value=\"2026-09-30\"")))
                 .andExpect(content().string(containsString("value=\"2026-09-01\"")))

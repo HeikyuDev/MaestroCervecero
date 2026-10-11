@@ -68,6 +68,7 @@ public interface ILevaduraServicio {
      * @param id El ID de la levadura a eliminar.
      * @return La levadura eliminada.
      * @throws RecursoNoEncontradoException Si no existe una levadura activa con el ID especificado.
+     * @throws ReglaNegocioException Si la levadura forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock.
      */
     LevaduraResponseDTO bajaLevadura(Long id);
 }

@@ -74,17 +74,21 @@ public interface IDespachoBarrilRepository extends JpaRepository<DespachoBarrilE
     Optional<LocalDateTime> buscarFechaUltimoDespachoRegistrado(@Param("idBarril") Long idBarril);
 
     /**
-     * Verifica si existe algún despacho de barril en el estado transaccional indicado asociado al
-     * cliente dado.
+     * Verifica si el cliente dado tiene actualmente un barril en su poder.
      * <p>
-     * Se utiliza para impedir la baja de un cliente que todavía tiene al menos un despacho
-     * {@code REGISTRADO} a su nombre (un barril actualmente en su poder, en estado operativo
-     * {@code DESPACHADO}).
+     * Un barril está en poder del cliente cuando su estado operativo es {@code DESPACHADO} y el
+     * despacho {@code REGISTRADO} que lo dejó así es el más reciente de ese barril: un despacho
+     * histórico cuyo barril ya fue devuelto, o devuelto y despachado luego a otro cliente, no
+     * cuenta. Se utiliza para impedir la baja de un cliente.
      * </p>
      *
      * @param idCliente El ID del cliente a verificar.
-     * @param estado El estado transaccional a verificar.
-     * @return {@code true} si existe al menos un despacho de barril en ese estado asociado a ese cliente, {@code false} en caso contrario.
+     * @return {@code true} si el cliente tiene al menos un barril en su poder, {@code false} en caso contrario.
      */
-    boolean existsByClienteIdAndEstado(Long idCliente, EstadoTransaccion estado);
+    @Query("SELECT CASE WHEN COUNT(d) > 0 THEN true ELSE false END FROM DespachoBarrilEntity d "
+            + "WHERE d.cliente.id = :idCliente AND d.estado = 'REGISTRADO' "
+            + "AND d.barril.estadoOperativo = 'DESPACHADO' "
+            + "AND NOT EXISTS (SELECT o.id FROM DespachoBarrilEntity o "
+            + "WHERE o.barril.id = d.barril.id AND o.estado = 'REGISTRADO' AND o.fecha > d.fecha)")
+    boolean clienteTieneBarrilEnSuPoder(@Param("idCliente") Long idCliente);
 }

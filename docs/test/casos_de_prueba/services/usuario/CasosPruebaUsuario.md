@@ -56,4 +56,18 @@
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
 | **CP-BU-01** | Baja de usuario inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el usuario con ID: 99". No llama a `save()`. |
-| **CP-BU-02** | Baja exitosa *(Baja lógica vía Estado)* | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del usuario dado de baja. |
+| **CP-BU-02** | Baja exitosa *(Baja lógica vía Estado)* | `id: 1L` (Existe en BD, rol distinto de `ADMINISTRADOR`) | `findById(1L)` $\rightarrow$ **Presente** | Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del usuario dado de baja. |
+| **CP-BU-03** | El usuario es el único administrador activo | `id: 1L` (Existe en BD, rol `ADMINISTRADOR`), `existsAdministradorActivoDistintoDe(1L)` $\rightarrow$ **FALSE** | Es administrador y no existe otro administrador activo | Lanza `ReglaNegocioException` ("No se puede dar de baja el usuario porque es el único administrador activo"). No modifica el estado ni llama a `save()`. |
+| **CP-BU-04** | Administrador con otro administrador activo | `id: 1L` (Existe en BD, rol `ADMINISTRADOR`), `existsAdministradorActivoDistintoDe(1L)` $\rightarrow$ **TRUE** | Es administrador y existe otro administrador activo | Setea `estado = BAJA`, invoca `save(entity)` y retorna DTO del usuario dado de baja. |
+| **CP-BU-05** | Usuario que no es administrador | `id: 1L` (Existe en BD, rol `GERENTE_DE_COMPRAS`) | El rol no es `ADMINISTRADOR` | Setea `estado = BAJA` e invoca `save(entity)`. No consulta `existsAdministradorActivoDistintoDe`. |
+
+#### Casos manuales contra la base de datos: `IUsuarioRepository.existsAdministradorActivoDistintoDe`
+
+Los tests de servicio usan mocks, por lo que la consulta JPQL se verifica manualmente contra PostgreSQL.
+
+| ID | Escenario en BD | Resultado Esperado |
+| --- | --- | --- |
+| **CP-BU-M01** | Un único usuario `ADMINISTRADOR` activo (`id: 1`); consulta con `id: 1` | `FALSE` |
+| **CP-BU-M02** | Dos usuarios `ADMINISTRADOR` activos (`id: 1` y `id: 2`); consulta con `id: 1` | `TRUE` |
+| **CP-BU-M03** | Un `ADMINISTRADOR` activo (`id: 1`) y otro con `estado = BAJA` (`id: 2`); consulta con `id: 1` | `FALSE` |
+| **CP-BU-M04** | Un `ADMINISTRADOR` activo (`id: 1`) y un `GERENTE_DE_COMPRAS` activo (`id: 2`); consulta con `id: 1` | `FALSE` |

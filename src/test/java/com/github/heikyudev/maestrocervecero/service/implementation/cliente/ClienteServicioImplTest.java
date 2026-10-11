@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.service.implementation.cliente;
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cliente.IClienteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
@@ -381,11 +380,11 @@ class ClienteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BC-02: bajaCliente lanza ReglaNegocioException y no persiste cuando el cliente tiene un despacho de barril registrado")
-    void bajaCliente_debeRechazarSiTieneDespachoRegistrado() {
+    @DisplayName("CP-BC-02: bajaCliente lanza ReglaNegocioException y no persiste cuando el cliente tiene un barril en su poder")
+    void bajaCliente_debeRechazarSiTieneBarrilEnSuPoder() {
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
-        when(despachoBarrilRepository.existsByClienteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
+        when(despachoBarrilRepository.clienteTieneBarrilEnSuPoder(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> clienteServicio.bajaCliente(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -399,7 +398,7 @@ class ClienteServicioImplTest {
     void bajaCliente_debeMarcarBajaYRetornarClienteExistente() {
         ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
-        when(despachoBarrilRepository.existsByClienteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
+        when(despachoBarrilRepository.clienteTieneBarrilEnSuPoder(1L)).thenReturn(false);
         when(clienteRepository.save(clienteEntity)).thenReturn(clienteEntity);
 
         ClienteResponseDTO resultado = clienteServicio.bajaCliente(1L);
@@ -410,6 +409,35 @@ class ClienteServicioImplTest {
         verify(clienteRepository).findById(1L);
         verify(clienteRepository).save(clienteEntity);
         verify(clienteRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("CP-BC-04: bajaCliente permite la baja de un cliente con despachos históricos cuyos barriles ya no están en su poder")
+    void bajaCliente_debePermitirBajaConDespachoHistoricoSinBarrilEnPoder() {
+        ClienteEntity clienteEntity = crearClienteEntity(1L, "Juan Pérez", "1122334455", "juan@mail.com", "Calle Falsa 123", localidadEntity(1L));
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteEntity));
+        // El cliente tuvo despachos, pero el barril fue devuelto (o despachado luego a otro cliente): la consulta no los cuenta
+        when(despachoBarrilRepository.clienteTieneBarrilEnSuPoder(1L)).thenReturn(false);
+        when(clienteRepository.save(clienteEntity)).thenReturn(clienteEntity);
+
+        ClienteResponseDTO resultado = clienteServicio.bajaCliente(1L);
+
+        assertThat(clienteEntity.getEstado()).isEqualTo(Estado.BAJA);
+        assertClienteDTO(clienteEntity, resultado);
+        verify(despachoBarrilRepository).clienteTieneBarrilEnSuPoder(1L);
+        verify(clienteRepository).save(clienteEntity);
+    }
+
+    @Test
+    @DisplayName("CP-BC-05: bajaCliente no consulta los barriles en poder del cliente cuando el cliente no existe")
+    void bajaCliente_noDebeConsultarBarrilesSiElClienteNoExiste() {
+        when(clienteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> clienteServicio.bajaCliente(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+
+        verifyNoInteractions(despachoBarrilRepository);
+        verify(clienteRepository, never()).save(any());
     }
 
     // ==================== helpers ====================

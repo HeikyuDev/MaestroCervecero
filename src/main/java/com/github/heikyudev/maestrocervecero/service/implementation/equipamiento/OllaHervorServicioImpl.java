@@ -172,12 +172,12 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 8. Validar que la olla de hervor no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
+            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
         }
 
         // 9. Validar que la olla de hervor no se encuentre actualmente en uso.
         if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso.");
+            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso");
         }
 
         // 10. Actualizar los campos de la entidad con los valores del DTO de formulario
@@ -202,8 +202,8 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param id Identificador clave primaria de la olla de hervor a dar de baja.
      * @return {@link OllaHervorResponseDTO} con los datos de la olla de hervor ya marcada como dada de baja.
-     * @throws RecursoNoEncontradoException Si la olla de hervor con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws RecursoNoEncontradoException Si la olla de hervor con el ID especificado no existe o ya fue dada de baja.
+     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -215,12 +215,12 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 2. Validar que la olla de hervor no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
+            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
         }
 
-        // 3. Validar que la olla de hervor no se encuentre actualmente en uso.
-        if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque se encuentra en uso.");
+        // 3. Validar que la olla de hervor se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
+        if (ollaHervorEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
+            throw new ReglaNegocioException("No se puede dar de baja la olla de hervor porque no se encuentra disponible");
         }
 
         // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio

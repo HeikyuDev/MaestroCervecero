@@ -3,6 +3,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MaceradorResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,9 +53,16 @@ public interface IMaceradorServicio {
 
     /**
      * Da de baja un macerador existente.
+     * <p>
+     * La baja solo procede si el macerador se encuentra disponible: no se puede dar de baja mientras
+     * está en uso, en limpieza o en mantenimiento, ni si tiene comprometida una etapa pendiente
+     * de un lote.
+     * </p>
      *
      * @param id ID del macerador a dar de baja.
      * @return MaceradorResponseDTO del macerador dado de baja.
+     * @throws RecursoNoEncontradoException Si no existe un macerador activo con el ID especificado.
+     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     MaceradorResponseDTO bajaMacerador(Long id);
 }

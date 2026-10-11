@@ -6,6 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LupuloFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -45,6 +48,12 @@ class LupuloServicioImplTest {
     private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
+    @Mock
+    private IPlanificacionProduccionRepository planificacionProduccionRepository;
+    @Mock
+    private IOrdenCompraRepository ordenCompraRepository;
+    @Mock
+    private ICatalogoProveedorRepository catalogoProveedorRepository;
 
     @InjectMocks
     private LupuloServicioImpl lupuloServicio;
@@ -419,6 +428,57 @@ class LupuloServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("No se puede dar de baja el lúpulo porque forma parte de al menos una receta activa");
 
+        verifyNoInteractions(planificacionProduccionRepository, ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-05: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo forma parte de una planificación de producción pendiente")
+    void bajaLupulo_debeRechazarSiFormaParteDePlanificacionPendiente() {
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLupuloEnPlanificacionPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el lúpulo porque forma parte de una planificación de producción pendiente");
+
+        verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-06: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo se encuentra en una orden de compra pendiente")
+    void bajaLupulo_debeRechazarSiSeEncuentraEnOrdenCompraPendiente() {
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLupuloEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el lúpulo porque se encuentra en al menos una orden de compra pendiente");
+
+        verifyNoInteractions(catalogoProveedorRepository, loteInsumoRepository);
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-07: bajaLupulo lanza ReglaNegocioException y no persiste cuando el lúpulo se encuentra en el catálogo de un proveedor activo")
+    void bajaLupulo_debeRechazarSiEstaEnCatalogoDeProveedorActivo() {
+        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
+        when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLupuloEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el lúpulo porque se encuentra asociado al catálogo de al menos un proveedor activo");
+
         verifyNoInteractions(loteInsumoRepository);
         verify(lupuloRepository, never()).save(any());
     }
@@ -429,6 +489,9 @@ class LupuloServicioImplTest {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLupuloEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(false);
         when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(true);
 
         assertThatThrownBy(() -> lupuloServicio.bajaLupulo(1L))
@@ -439,11 +502,14 @@ class LupuloServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BL-04: bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa ni stock asociados")
+    @DisplayName("CP-BL-04: bajaLupulo marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados")
     void bajaLupulo_debeMarcarBajaYRetornarLupuloExistente() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 6.0);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(versionRecetaRepository.existsByDetalleLupuloEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLupuloEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(false);
         when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(false);
         when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
 

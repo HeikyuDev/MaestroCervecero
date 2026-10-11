@@ -180,14 +180,15 @@ public class BarrilServicioImpl implements IBarrilServicio {
      * Procesa la baja lógica de un barril existente en el sistema.
      * <p>
      * En lugar de eliminar el registro, marca al barril con {@link Estado#BAJA} y persiste el
-     * cambio. No tiene sentido dar de baja un barril que todavía contiene cerveza o que está
-     * despachado en lo de un cliente, por eso se valida esa condición antes de aplicar la baja.
+     * cambio. Solo se puede dar de baja un barril disponible: uno con cerveza, despachado, en
+     * limpieza o en mantenimiento todavía forma parte de un ciclo de vida en curso, por eso se
+     * valida esa condición antes de aplicar la baja.
      * </p>
      *
      * @param id Identificador clave primaria del barril a dar de baja.
      * @return {@link BarrilResponseDTO} con los datos del barril ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el barril con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el barril se encuentra en estado operativo CON_CERVEZA o DESPACHADO.
+     * @throws ReglaNegocioException Si el barril no se encuentra en estado operativo DISPONIBLE.
      */
     @Override
     @Transactional
@@ -197,10 +198,9 @@ public class BarrilServicioImpl implements IBarrilServicio {
         BarrilEntity barrilEntity = barrilRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + id));
 
-        // 2. Validar que el barril no se encuentre CON_CERVEZA ni DESPACHADO
-        if (barrilEntity.getEstadoOperativo() == EstadoOperativoBarril.CON_CERVEZA
-                || barrilEntity.getEstadoOperativo() == EstadoOperativoBarril.DESPACHADO) {
-            throw new ReglaNegocioException("No se puede dar de baja el barril porque se encuentra en estado operativo Con cerveza o Despachado.");
+        // 2. Validar que el barril se encuentre DISPONIBLE
+        if (barrilEntity.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
+            throw new ReglaNegocioException("No se puede dar de baja el barril porque no se encuentra disponible");
         }
 
         // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
@@ -218,10 +218,10 @@ public class BarrilServicioImpl implements IBarrilServicio {
      */
     private static void validarCapacidad(Double capacidad) {
         if (capacidad == null) {
-            throw new ReglaNegocioException("La capacidad es obligatoria.");
+            throw new ReglaNegocioException("La capacidad es obligatoria");
         }
         if (capacidad <= 0) {
-            throw new ReglaNegocioException("La capacidad debe ser mayor a 0.");
+            throw new ReglaNegocioException("La capacidad debe ser mayor a 0");
         }
     }
 
@@ -233,10 +233,10 @@ public class BarrilServicioImpl implements IBarrilServicio {
      */
     private static void validarUsosMaximosAntesMantenimiento(Integer usosMaximosAntesMantenimiento) {
         if (usosMaximosAntesMantenimiento == null) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios.");
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios");
         }
         if (usosMaximosAntesMantenimiento <= 0) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0.");
+            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0");
         }
     }
 }

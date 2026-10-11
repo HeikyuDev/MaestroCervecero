@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,9 +52,16 @@ public interface IMolinoServicio {
 
     /**
      * Da de baja un molino existente.
+     * <p>
+     * La baja solo procede si el molino se encuentra disponible: no se puede dar de baja mientras
+     * está en uso, en limpieza o en mantenimiento, ni si tiene comprometida una etapa pendiente
+     * de un lote.
+     * </p>
      *
      * @param id ID del molino a dar de baja.
      * @return MolinoResponseDTO del molino dado de baja.
+     * @throws RecursoNoEncontradoException Si no existe un molino activo con el ID especificado.
+     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     MolinoResponseDTO bajaMolino(Long id);
 }

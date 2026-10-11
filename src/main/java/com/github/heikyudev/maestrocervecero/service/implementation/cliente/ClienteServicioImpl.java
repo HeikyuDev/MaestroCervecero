@@ -5,7 +5,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAu
 import com.github.heikyudev.maestrocervecero.persistence.entity.cliente.ClienteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.barril.IDespachoBarrilRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.cliente.IClienteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion.ILocalidadRepository;
@@ -167,9 +166,9 @@ public class ClienteServicioImpl implements IClienteServicio {
         ClienteEntity clienteEntity = clienteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el cliente con ID: " + id));
 
-        // 2. Validar que el cliente no tenga un despacho de barril REGISTRADO a su nombre (un
-        //    barril actualmente en su poder, en estado operativo DESPACHADO)
-        if (despachoBarrilRepository.existsByClienteIdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
+        // 2. Validar que el cliente no tenga un barril actualmente en su poder (despacho REGISTRADO
+        //    más reciente del barril, que sigue en estado operativo DESPACHADO)
+        if (despachoBarrilRepository.clienteTieneBarrilEnSuPoder(id)) {
             throw new ReglaNegocioException("No se puede dar de baja el cliente porque tiene un despacho de barril registrado a su nombre");
         }
 

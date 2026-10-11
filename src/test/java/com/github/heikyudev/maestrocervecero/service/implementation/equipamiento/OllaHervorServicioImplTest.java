@@ -550,7 +550,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede modificar la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -567,7 +567,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la olla de hervor porque se encuentra en uso.");
+                .hasMessage("No se puede modificar la olla de hervor porque se encuentra en uso");
 
         verify(ollaHervorRepository, never()).save(any());
     }
@@ -615,7 +615,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -630,7 +630,49 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque se encuentra en uso.");
+                .hasMessage("No se puede dar de baja la olla de hervor porque no se encuentra disponible");
+
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-05: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor se encuentra en limpieza")
+    void bajaOllaHervor_debeRechazarSiEstaEnLimpieza() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_LIMPIEZA);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque no se encuentra disponible");
+
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-06: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor se encuentra en mantenimiento")
+    void bajaOllaHervor_debeRechazarSiEstaEnMantenimiento() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_MANTENIMIENTO);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque no se encuentra disponible");
+
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-07: bajaOllaHervor informa primero la etapa pendiente de un lote cuando el olla de hervor además no está disponible")
+    void bajaOllaHervor_debePriorizarEtapaPendienteSobreNoDisponible() {
+        OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_USO);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa pendiente de un lote");
 
         verify(ollaHervorRepository, never()).save(any());
     }

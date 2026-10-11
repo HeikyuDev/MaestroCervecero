@@ -30,4 +30,21 @@ public interface ICatalogoProveedorRepository extends JpaRepository<CatalogoProv
             + "WHERE c.presentacionComercial.id = :presentacionComercialId "
             + "AND c.version.esUltimaVersion = true AND c.version.proveedor.estado = 'ACTIVO'")
     boolean existsByPresentacionComercialId(@Param("presentacionComercialId") Long presentacionComercialId);
+
+    /**
+     * Verifica si existe algún ítem de catálogo, perteneciente a la versión vigente de un
+     * proveedor activo, asociado al insumo indicado.
+     * <p>
+     * Se utiliza para impedir la baja de un insumo que todavía está ofrecido por el catálogo de
+     * algún proveedor. Igual que en {@link #existsByPresentacionComercialId(Long)}, un ítem que
+     * solo existe en una versión anterior (ya reemplazada) del proveedor no cuenta.
+     * </p>
+     *
+     * @param insumoId El ID del insumo a verificar.
+     * @return {@code true} si existe al menos un ítem de catálogo vigente asociado a ese insumo, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM CatalogoProveedorEntity c "
+            + "WHERE c.insumo.id = :insumoId "
+            + "AND c.version.esUltimaVersion = true AND c.version.proveedor.estado = 'ACTIVO'")
+    boolean existsByInsumoId(@Param("insumoId") Long insumoId);
 }

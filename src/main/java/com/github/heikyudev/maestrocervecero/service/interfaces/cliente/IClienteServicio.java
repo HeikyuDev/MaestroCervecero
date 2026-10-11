@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.cliente;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.cliente.ClienteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cliente.ClienteResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -59,10 +60,15 @@ public interface IClienteServicio {
 
     /**
      * Elimina lógicamente un cliente por su ID.
+     * <p>
+     * La baja se bloquea solo mientras el cliente tiene un barril actualmente en su poder: un
+     * despacho histórico cuyo barril ya fue devuelto no impide la baja.
+     * </p>
      *
      * @param id El ID del cliente a eliminar.
      * @return El cliente eliminado.
      * @throws RecursoNoEncontradoException Si no existe un cliente activo con el ID especificado.
+     * @throws ReglaNegocioException Si el cliente tiene un barril actualmente en su poder.
      */
     ClienteResponseDTO bajaCliente(Long id);
 }

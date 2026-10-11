@@ -332,7 +332,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usuarioFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'pedro' ya está en uso.");
+                .hasMessage("El nombre de usuario 'pedro' ya está en uso");
 
         verify(usuarioRepository).findById(1L);
         verify(usuarioRepository).existsByUsername("pedro");
@@ -525,6 +525,50 @@ class UsuarioServicioImplTest {
         verify(usuarioRepository).findById(1L);
         verify(usuarioRepository).save(usuarioEntity);
         verify(usuarioRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("CP-BU-03: bajaUsuario lanza ReglaNegocioException y no persiste cuando el usuario es el único administrador activo")
+    void bajaUsuario_debeRechazarBajaDelUnicoAdministradorActivo() {
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "admin", "hash1", "Admin Root", "admin@mail.com", "1111", Rol.ADMINISTRADOR);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
+        when(usuarioRepository.existsAdministradorActivoDistintoDe(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> usuarioServicio.bajaUsuario(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el usuario porque es el único administrador activo");
+
+        assertThat(usuarioEntity.getEstado()).isEqualTo(Estado.ACTIVO);
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BU-04: bajaUsuario permite la baja de un administrador cuando existe otro administrador activo")
+    void bajaUsuario_debePermitirBajaDeAdministradorConOtroAdministradorActivo() {
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "admin", "hash1", "Admin Root", "admin@mail.com", "1111", Rol.ADMINISTRADOR);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
+        when(usuarioRepository.existsAdministradorActivoDistintoDe(1L)).thenReturn(true);
+        when(usuarioRepository.save(usuarioEntity)).thenReturn(usuarioEntity);
+
+        UsuarioResponseDTO resultado = usuarioServicio.bajaUsuario(1L);
+
+        assertThat(usuarioEntity.getEstado()).isEqualTo(Estado.BAJA);
+        assertUsuarioDTO(usuarioEntity, resultado);
+        verify(usuarioRepository).existsAdministradorActivoDistintoDe(1L);
+        verify(usuarioRepository).save(usuarioEntity);
+    }
+
+    @Test
+    @DisplayName("CP-BU-05: bajaUsuario no consulta si existen otros administradores cuando el usuario no es administrador")
+    void bajaUsuario_noDebeConsultarAdministradoresSiElUsuarioNoEsAdministrador() {
+        UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash1", "Juan Perez", "juan@mail.com", "1111", Rol.GERENTE_DE_COMPRAS);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
+        when(usuarioRepository.save(usuarioEntity)).thenReturn(usuarioEntity);
+
+        usuarioServicio.bajaUsuario(1L);
+
+        assertThat(usuarioEntity.getEstado()).isEqualTo(Estado.BAJA);
+        verify(usuarioRepository, never()).existsAdministradorActivoDistintoDe(any());
     }
 
     // ==================== helpers ====================

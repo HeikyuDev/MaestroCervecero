@@ -110,7 +110,7 @@ class AuditLogServiceImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> auditLogService.filtrarAuditLogs(desde, hasta, null, null, null, pageable))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha desde no puede ser posterior a la fecha hasta.");
+                .hasMessage("La fecha desde no puede ser posterior a la fecha hasta");
         verifyNoInteractions(auditLogRepository);
     }
 

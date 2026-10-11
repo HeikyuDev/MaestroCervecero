@@ -3,6 +3,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario.UsuarioFormDTO;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,10 +52,16 @@ public interface IUsuarioServicio {
     UsuarioResponseDTO modificarUsuario(Long id, UsuarioFormDTO usuarioFormDTO);
 
     /**
-     * Elimina un usuario por su ID.
+     * Elimina lógicamente un usuario por su ID.
+     * <p>
+     * No se puede dar de baja al único administrador activo: sin él, nadie podría volver a
+     * gestionar usuarios.
+     * </p>
      *
      * @param id El ID del usuario a eliminar.
      * @return El usuario eliminado.
+     * @throws RecursoNoEncontradoException Si no existe un usuario activo con el ID especificado.
+     * @throws ReglaNegocioException Si el usuario es el único administrador activo.
      */
     UsuarioResponseDTO bajaUsuario(Long id);
 }

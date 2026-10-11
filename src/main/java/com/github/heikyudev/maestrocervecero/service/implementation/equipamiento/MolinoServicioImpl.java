@@ -142,12 +142,12 @@ public class MolinoServicioImpl implements IMolinoServicio {
         // 6. Validar que el molino no tenga comprometida una etapa pendiente de un lote (ni a
         //    punto de arrancar, ni futura dentro de un lote ya en ejecución).
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote.");
+            throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa pendiente de un lote");
         }
 
         // 7. Validar que el molino no se encuentre actualmente en uso.
         if (molinoEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso.");
+            throw new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso");
         }
 
         // 8. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
@@ -169,7 +169,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param id ID del molino a dar de baja.
      * @return {@link MolinoResponseDTO} con los datos del molino ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
-     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -181,12 +181,12 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 2. Validar que el molino no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote.");
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa pendiente de un lote");
         }
 
-        // 3. Validar que el molino no se encuentre actualmente en uso.
-        if (molinoEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede dar de baja el molino porque se encuentra en uso.");
+        // 3. Validar que el molino se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
+        if (molinoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque no se encuentra disponible");
         }
 
         // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio

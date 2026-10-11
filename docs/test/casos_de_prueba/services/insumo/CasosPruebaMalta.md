@@ -47,9 +47,29 @@ El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Si falta, el me
 
 No se puede dar de baja una malta que forma parte de al menos una receta activa (`versión con esUltimaVersion = true` perteneciente a una receta con `estado = ACTIVO`), ni una que tenga stock (al menos un lote de insumo con `cantidadActual > 0`).
 
+Orden de los chequeos: receta activa, planificación de producción pendiente (cualquier versión de la receta), orden de compra pendiente (cualquier versión del proveedor), catálogo de proveedor activo (última versión de un proveedor activo) y stock.
+
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BM-01**|Baja de malta inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la malta con ID: 99". No llama a `save()`.|
 |**CP-BM-02**|Malta forma parte de una receta activa|`id: 1L` (Existe), `versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)` $\rightarrow$ **true**|Existe al menos una receta activa que la usa|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque forma parte de al menos una receta activa"). No consulta stock (`verifyNoInteractions(loteInsumoRepository)`) ni ejecuta `save()`.|
 |**CP-BM-03**|Malta tiene stock|`id: 1L` (Existe), `versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)` $\rightarrow$ **false**, `loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)` $\rightarrow$ **true**|No está en ninguna receta activa, pero tiene al menos un lote con cantidad actual mayor a cero|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque tiene stock"). No ejecuta `save()`.|
-|**CP-BM-04**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD), sin receta activa ni stock asociados|`findById(1L)` $\rightarrow$ **Presente**, ambas validaciones $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la malta dada de baja.|
+|**CP-BM-04**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD), sin receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados|`findById(1L)` $\rightarrow$ **Presente**, ambas validaciones $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la malta dada de baja.|
+|**CP-BM-05**|La malta forma parte de una planificación de producción pendiente|`id: 1L` (Existe), receta activa $\rightarrow$ **false**, `planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(1L)` $\rightarrow$ **true**|Existe una planificación `PENDIENTE` cuya versión de receta (cualquiera, no solo la última) contiene el insumo|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque forma parte de una planificación de producción pendiente"). No consulta órdenes de compra, catálogos ni stock. No llama a `save()`.|
+|**CP-BM-06**|La malta se encuentra en una orden de compra pendiente|`id: 1L` (Existe), receta activa $\rightarrow$ **false**, planificación pendiente $\rightarrow$ **false**, `ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)` $\rightarrow$ **true**|Existe una orden de compra `PENDIENTE` (de cualquier versión del proveedor) con un ítem de ese insumo|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque se encuentra en al menos una orden de compra pendiente"). No consulta catálogos ni stock. No llama a `save()`.|
+|**CP-BM-07**|La malta se encuentra en el catálogo de un proveedor activo|`id: 1L` (Existe), receta activa $\rightarrow$ **false**, planificación pendiente y orden de compra pendiente $\rightarrow$ **false**, `catalogoProveedorRepository.existsByInsumoId(1L)` $\rightarrow$ **true**|Existe un ítem de catálogo de la última versión de un proveedor activo con ese insumo|Lanza `ReglaNegocioException` ("No se puede dar de baja la malta porque se encuentra asociada al catálogo de al menos un proveedor activo"). No consulta el stock. No llama a `save()`.|
+
+#### Casos manuales contra la base de datos: consultas JPQL nuevas del insumo
+
+Los tests de servicio usan mocks, por lo que las consultas se verifican manualmente contra PostgreSQL.
+
+| ID | Consulta | Escenario en BD | Resultado Esperado |
+| --- | --- | --- | --- |
+| **CP-BM-M01** | `IPlanificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente` | Planificación `PENDIENTE` cuya versión de receta contiene el insumo | `TRUE` |
+| **CP-BM-M02** | `IPlanificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente` | Planificación `PENDIENTE` atada a una versión anterior (`esUltimaVersion = false`) de la receta que contiene el insumo | `TRUE` |
+| **CP-BM-M03** | `IPlanificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente` | La planificación que contiene el insumo está `FINALIZADA` o `ANULADA` | `FALSE` |
+| **CP-BM-M04** | `IOrdenCompraRepository.existsByInsumoEnOrdenCompraPendiente` | Orden `PENDIENTE` con un ítem cuyo catálogo de proveedor referencia el insumo | `TRUE` |
+| **CP-BM-M05** | `IOrdenCompraRepository.existsByInsumoEnOrdenCompraPendiente` | Orden `PENDIENTE` registrada contra una versión anterior del proveedor, con el insumo en el ítem | `TRUE` |
+| **CP-BM-M06** | `IOrdenCompraRepository.existsByInsumoEnOrdenCompraPendiente` | La orden con el insumo está `FINALIZADA` o `ANULADA` | `FALSE` |
+| **CP-BM-M07** | `ICatalogoProveedorRepository.existsByInsumoId` | Ítem de catálogo con el insumo en la última versión de un proveedor `ACTIVO` | `TRUE` |
+| **CP-BM-M08** | `ICatalogoProveedorRepository.existsByInsumoId` | El insumo solo figura en una versión anterior del proveedor, o el proveedor tiene `estado = BAJA` | `FALSE` |

@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.proveedor;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.IPresentacionComercialRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor.PresentacionComercialFormDTO;
@@ -41,6 +42,8 @@ class PresentacionComercialServicioImplTest {
 
     @Mock
     private ICatalogoProveedorRepository catalogoProveedorRepository;
+    @Mock
+    private IOrdenCompraRepository ordenCompraRepository;
 
     @InjectMocks
     private PresentacionComercialServicioImpl presentacionComercialServicio;
@@ -439,7 +442,7 @@ class PresentacionComercialServicioImplTest {
     // ==================== bajaPresentacionComercial ====================
 
     @Test
-    @DisplayName("CP-BPC-01: bajaPresentacionComercial lanza RecursoNoEncontradoException y no consulta catálogos ni persiste cuando el ID no existe")
+    @DisplayName("CP-BPC-01: bajaPresentacionComercial lanza RecursoNoEncontradoException y no consulta órdenes de compra ni catálogos ni persiste cuando el ID no existe")
     void bajaPresentacionComercial_debeLanzarExcepcionYNoPersistirSiNoExiste() {
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -448,7 +451,7 @@ class PresentacionComercialServicioImplTest {
                 .hasMessage("No se encontró la presentación comercial con ID: 99");
 
         verify(presentacionComercialRepository).findById(99L);
-        verifyNoInteractions(catalogoProveedorRepository);
+        verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository);
         verify(presentacionComercialRepository, never()).save(any());
     }
 
@@ -457,6 +460,7 @@ class PresentacionComercialServicioImplTest {
     void bajaPresentacionComercial_debeRechazarConCatalogoDeProveedorAsociado() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
         when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> presentacionComercialServicio.bajaPresentacionComercial(1L))
@@ -468,10 +472,27 @@ class PresentacionComercialServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BPC-03: bajaPresentacionComercial marca el estado como BAJA, persiste y retorna el DTO cuando no tiene catálogos asociados")
+    @DisplayName("CP-BPC-04: bajaPresentacionComercial lanza ReglaNegocioException y no persiste cuando está en una orden de compra pendiente")
+    void bajaPresentacionComercial_debeRechazarConOrdenCompraPendiente() {
+        PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> presentacionComercialServicio.bajaPresentacionComercial(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la presentación comercial porque se encuentra en al menos una orden de compra pendiente");
+
+        verify(ordenCompraRepository).existsByPresentacionComercialEnOrdenCompraPendiente(1L);
+        verifyNoInteractions(catalogoProveedorRepository);
+        verify(presentacionComercialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BPC-03: bajaPresentacionComercial marca el estado como BAJA, persiste y retorna el DTO cuando no tiene órdenes de compra pendientes ni catálogos asociados")
     void bajaPresentacionComercial_debeMarcarBajaYRetornarPresentacionComercialExistente() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
         when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
         when(presentacionComercialRepository.save(presentacionEntity)).thenReturn(presentacionEntity);
 
@@ -481,6 +502,7 @@ class PresentacionComercialServicioImplTest {
         assertThat(presentacionEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertPresentacionComercialDTO(presentacionEntity, resultado);
         verify(presentacionComercialRepository).findById(1L);
+        verify(ordenCompraRepository).existsByPresentacionComercialEnOrdenCompraPendiente(1L);
         verify(catalogoProveedorRepository).existsByPresentacionComercialId(1L);
         verify(presentacionComercialRepository).save(presentacionEntity);
         verify(presentacionComercialRepository, never()).delete(any());

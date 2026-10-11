@@ -78,4 +78,52 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
                                                                           @Param("estado") EstadoSolicitud estado,
                                                                           @Param("fechaInicio") LocalDate fechaInicio,
                                                                           Pageable pageable);
+
+    /**
+     * Verifica si la malta indicada forma parte del detalle de la receta de alguna
+     * planificación de producción pendiente.
+     * <p>
+     * Se considera cualquier versión de la receta (no solo la última): la planificación queda
+     * atada a la versión con la que se creó, aunque la receta se haya modificado después.
+     * </p>
+     *
+     * @param idMalta El ID de la malta a verificar.
+     * @return {@code true} si forma parte de alguna planificación de producción pendiente, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PlanificacionProduccionEntity p "
+            + "JOIN p.versionReceta v JOIN v.detallesMalta d "
+            + "WHERE d.malta.id = :idMalta AND p.estado = 'PENDIENTE'")
+    boolean existsByDetalleMaltaEnPlanificacionPendiente(@Param("idMalta") Long idMalta);
+
+    /**
+     * Verifica si el lúpulo indicado forma parte del detalle de la receta de alguna
+     * planificación de producción pendiente.
+     * <p>
+     * Se considera cualquier versión de la receta (no solo la última): la planificación queda
+     * atada a la versión con la que se creó, aunque la receta se haya modificado después.
+     * </p>
+     *
+     * @param idLupulo El ID del lúpulo a verificar.
+     * @return {@code true} si forma parte de alguna planificación de producción pendiente, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PlanificacionProduccionEntity p "
+            + "JOIN p.versionReceta v JOIN v.detallesLupulo d "
+            + "WHERE d.lupulo.id = :idLupulo AND p.estado = 'PENDIENTE'")
+    boolean existsByDetalleLupuloEnPlanificacionPendiente(@Param("idLupulo") Long idLupulo);
+
+    /**
+     * Verifica si la levadura indicada forma parte del detalle de la receta de alguna
+     * planificación de producción pendiente.
+     * <p>
+     * Se considera cualquier versión de la receta (no solo la última): la planificación queda
+     * atada a la versión con la que se creó, aunque la receta se haya modificado después.
+     * </p>
+     *
+     * @param idLevadura El ID de la levadura a verificar.
+     * @return {@code true} si forma parte de alguna planificación de producción pendiente, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PlanificacionProduccionEntity p "
+            + "JOIN p.versionReceta v JOIN v.detallesLevadura d "
+            + "WHERE d.levadura.id = :idLevadura AND p.estado = 'PENDIENTE'")
+    boolean existsByDetalleLevaduraEnPlanificacionPendiente(@Param("idLevadura") Long idLevadura);
 }

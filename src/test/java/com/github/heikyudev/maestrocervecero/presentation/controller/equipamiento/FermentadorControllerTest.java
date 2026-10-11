@@ -366,7 +366,7 @@ class FermentadorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-FEC-19: si el service rechaza la modificación porque el fermentador está en uso, el motivo se muestra en el formulario")
     void caso_cp_fec_19() throws Exception {
-        when(fermentadorServicio.modificarFermentador(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar el fermentador porque se encuentra en uso."));
+        when(fermentadorServicio.modificarFermentador(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar el fermentador porque se encuentra en uso"));
 
         mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
                         .param("identificadorInterno", "FER-01")
@@ -375,7 +375,7 @@ class FermentadorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el fermentador")))
-                .andExpect(content().string(containsString("No se puede modificar el fermentador porque se encuentra en uso.")));
+                .andExpect(content().string(containsString("No se puede modificar el fermentador porque se encuentra en uso")));
     }
 
     @Test
@@ -410,12 +410,12 @@ class FermentadorControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-FEC-22: si el service rechaza la baja (etapa pendiente o en uso) vuelve al origen con la alerta de advertencia")
     void caso_cp_fec_22() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote.")).when(fermentadorServicio).bajaFermentador(4L);
+        doThrow(new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote")).when(fermentadorServicio).bajaFermentador(4L);
 
         mockMvc.perform(post("/equipamiento/fermentadores/4/baja").with(csrf()).header("Referer", "/equipamiento/fermentadores"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/equipamiento/fermentadores"))
-                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote."))
+                .andExpect(flash().attribute("mensaje", "No se puede dar de baja el fermentador porque tiene comprometida una etapa pendiente de un lote"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 

@@ -172,12 +172,12 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 8. Validar que el macerador no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote.");
+            throw new ReglaNegocioException("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote");
         }
 
         // 9. Validar que el macerador no se encuentre actualmente en uso.
         if (maceradorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso.");
+            throw new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso");
         }
 
         // 10. Aplico los cambios sobre la entidad administrada por persistencia.
@@ -202,7 +202,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @param id Identificador clave primaria del macerador a dar de baja.
      * @return {@link MaceradorResponseDTO} con los datos del macerador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el macerador con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException Si el macerador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -215,12 +215,12 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 2. Validar que el macerador no tenga comprometida una etapa pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote.");
+            throw new ReglaNegocioException("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote");
         }
 
-        // 3. Validar que el macerador no se encuentre actualmente en uso.
-        if (maceradorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede dar de baja el macerador porque se encuentra en uso.");
+        // 3. Validar que el macerador se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
+        if (maceradorEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
+            throw new ReglaNegocioException("No se puede dar de baja el macerador porque no se encuentra disponible");
         }
 
         // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio

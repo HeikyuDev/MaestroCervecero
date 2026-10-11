@@ -459,7 +459,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede modificar el macerador porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository, never()).save(any());
@@ -476,7 +476,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el macerador porque se encuentra en uso.");
+                .hasMessage("No se puede modificar el macerador porque se encuentra en uso");
 
         verify(maceradorRepository, never()).save(any());
     }
@@ -524,7 +524,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote.");
+                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote");
 
         verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository, never()).save(any());
@@ -539,7 +539,49 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el macerador porque se encuentra en uso.");
+                .hasMessage("No se puede dar de baja el macerador porque no se encuentra disponible");
+
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-05: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador se encuentra en limpieza")
+    void bajaMacerador_debeRechazarSiEstaEnLimpieza() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_LIMPIEZA);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el macerador porque no se encuentra disponible");
+
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-06: bajaMacerador lanza ReglaNegocioException y no persiste cuando el macerador se encuentra en mantenimiento")
+    void bajaMacerador_debeRechazarSiEstaEnMantenimiento() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_MANTENIMIENTO);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+
+        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el macerador porque no se encuentra disponible");
+
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-07: bajaMacerador informa primero la etapa pendiente de un lote cuando el macerador además no está disponible")
+    void bajaMacerador_debePriorizarEtapaPendienteSobreNoDisponible() {
+        MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 100.0, 80.0, 5.0, 75.0, EstadoOperativo.EN_USO);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
+        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maceradorServicio.bajaMacerador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el macerador porque tiene comprometida una etapa pendiente de un lote");
 
         verify(maceradorRepository, never()).save(any());
     }

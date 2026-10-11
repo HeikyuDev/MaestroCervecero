@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -60,9 +62,16 @@ public interface IFermentadorServicio {
 
     /**
      * Da de baja un fermentador existente.
+     * <p>
+     * La baja solo procede si el fermentador se encuentra disponible: no se puede dar de baja mientras
+     * está en uso, en limpieza o en mantenimiento, ni si tiene comprometida una etapa pendiente
+     * de un lote.
+     * </p>
      *
      * @param id ID del fermentador a dar de baja.
      * @return Objeto FermentadorResponseDTO del fermentador dado de baja.
+     * @throws RecursoNoEncontradoException Si no existe un fermentador activo con el ID especificado.
+     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     FermentadorResponseDTO bajaFermentador(Long id);
 }

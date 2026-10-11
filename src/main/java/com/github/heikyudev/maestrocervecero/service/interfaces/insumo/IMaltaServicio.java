@@ -68,6 +68,7 @@ public interface IMaltaServicio {
      * @param id El ID de la malta a eliminar.
      * @return La malta eliminada.
      * @throws RecursoNoEncontradoException Si no existe una malta activa con el ID especificado.
+     * @throws ReglaNegocioException Si la malta forma parte de al menos una receta activa, de una planificación de producción pendiente, o de una orden de compra pendiente, si se encuentra en el catálogo de al menos un proveedor activo, o si tiene stock.
      */
     MaltaResponseDTO bajaMalta(Long id);
 }

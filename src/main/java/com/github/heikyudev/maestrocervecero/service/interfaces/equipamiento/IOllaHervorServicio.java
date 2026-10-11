@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OllaHervorResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,9 +52,16 @@ public interface IOllaHervorServicio {
 
     /**
      * Da de baja una olla de hervor existente.
+     * <p>
+     * La baja solo procede si la olla de hervor se encuentra disponible: no se puede dar de baja mientras
+     * está en uso, en limpieza o en mantenimiento, ni si tiene comprometida una etapa pendiente
+     * de un lote.
+     * </p>
      *
      * @param id ID de la olla de hervor a dar de baja.
      * @return OllaHervorResponseDTO de la olla de hervor dada de baja.
+     * @throws RecursoNoEncontradoException Si no existe una olla de hervor activa con el ID especificado.
+     * @throws ReglaNegocioException Si la olla de hervor tiene comprometida una etapa pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     OllaHervorResponseDTO bajaOllaHervor(Long id);
 }

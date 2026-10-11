@@ -102,4 +102,18 @@ public interface IUsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
                                          @Param("username") String username,
                                          @Param("rol") Rol rol,
                                          Pageable pageable);
+
+    /**
+     * Verifica si existe algún administrador activo distinto del usuario indicado.
+     * <p>
+     * Se utiliza para impedir la baja del último administrador activo: sin él, nadie podría volver
+     * a gestionar usuarios.
+     * </p>
+     *
+     * @param id El ID del usuario a excluir de la verificación.
+     * @return {@code true} si existe al menos otro usuario activo con rol {@code ADMINISTRADOR}, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u "
+            + "WHERE u.rol = 'ADMINISTRADOR' AND u.estado = 'ACTIVO' AND u.id <> :id")
+    boolean existsAdministradorActivoDistintoDe(@Param("id") Long id);
 }

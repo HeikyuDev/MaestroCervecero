@@ -6,6 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.MaltaFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -45,6 +48,12 @@ class MaltaServicioImplTest {
     private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
+    @Mock
+    private IPlanificacionProduccionRepository planificacionProduccionRepository;
+    @Mock
+    private IOrdenCompraRepository ordenCompraRepository;
+    @Mock
+    private ICatalogoProveedorRepository catalogoProveedorRepository;
 
     @InjectMocks
     private MaltaServicioImpl maltaServicio;
@@ -422,6 +431,57 @@ class MaltaServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("No se puede dar de baja la malta porque forma parte de al menos una receta activa");
 
+        verifyNoInteractions(planificacionProduccionRepository, ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-05: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta forma parte de una planificación de producción pendiente")
+    void bajaMalta_debeRechazarSiFormaParteDePlanificacionPendiente() {
+        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la malta porque forma parte de una planificación de producción pendiente");
+
+        verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-06: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta se encuentra en una orden de compra pendiente")
+    void bajaMalta_debeRechazarSiSeEncuentraEnOrdenCompraPendiente() {
+        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la malta porque se encuentra en al menos una orden de compra pendiente");
+
+        verifyNoInteractions(catalogoProveedorRepository, loteInsumoRepository);
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BM-07: bajaMalta lanza ReglaNegocioException y no persiste cuando la malta se encuentra en el catálogo de un proveedor activo")
+    void bajaMalta_debeRechazarSiEstaEnCatalogoDeProveedorActivo() {
+        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+        when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la malta porque se encuentra asociada al catálogo de al menos un proveedor activo");
+
         verifyNoInteractions(loteInsumoRepository);
         verify(maltaRepository, never()).save(any());
     }
@@ -432,6 +492,9 @@ class MaltaServicioImplTest {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
         when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(false);
         when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(true);
 
         assertThatThrownBy(() -> maltaServicio.bajaMalta(1L))
@@ -442,11 +505,14 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BM-04: bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa ni stock asociados")
+    @DisplayName("CP-BM-04: bajaMalta marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados")
     void bajaMalta_debeMarcarBajaYRetornarMaltaExistente() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
         when(versionRecetaRepository.existsByDetalleMaltaEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleMaltaEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(false);
         when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(false);
         when(maltaRepository.save(maltaEntity)).thenReturn(maltaEntity);
 

@@ -43,10 +43,25 @@ Misma separación por campo que en el alta, cada una excluyendo el propio ID.
 
 ### 5. `bajaCliente(Long id)`
 
-No tiene sentido dar de baja un cliente que todavía tiene un barril despachado a su nombre.
+La baja se bloquea solo mientras el cliente tiene un barril actualmente en su poder: un despacho `REGISTRADO` cuyo barril sigue en estado operativo `DESPACHADO` y que es el despacho registrado más reciente de ese barril. Un despacho histórico cuyo barril ya fue devuelto, o devuelto y despachado luego a otro cliente, no bloquea la baja.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BC-01**|Baja de cliente inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No llama a `save()`.|
-|**CP-BC-02**|El cliente tiene un despacho de barril registrado|`id: 1L` (Existe), `despachoBarrilRepository.existsByClienteIdAndEstado(1L, REGISTRADO)` $\rightarrow$ **TRUE**|El cliente tiene un barril actualmente en su poder|Lanza `ReglaNegocioException` ("No se puede dar de baja el cliente porque tiene un despacho de barril registrado a su nombre"). No ejecuta `save()`.|
-|**CP-BC-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD), sin despachos registrados|`findById(1L)` $\rightarrow$ **Presente**, `existsByClienteIdAndEstado` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` (nunca `delete()`) y retorna DTO del cliente dado de baja.|
+|**CP-BC-02**|El cliente tiene un barril en su poder|`id: 1L` (Existe), `despachoBarrilRepository.clienteTieneBarrilEnSuPoder(1L)` $\rightarrow$ **TRUE**|El cliente tiene un barril actualmente en su poder|Lanza `ReglaNegocioException` ("No se puede dar de baja el cliente porque tiene un despacho de barril registrado a su nombre"). No ejecuta `save()`.|
+|**CP-BC-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe en BD), sin barriles en su poder|`findById(1L)` $\rightarrow$ **Presente**, `clienteTieneBarrilEnSuPoder(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` (nunca `delete()`) y retorna DTO del cliente dado de baja.|
+|**CP-BC-04**|Cliente con despachos históricos cuyos barriles ya no están en su poder _(Regresión)_|`id: 1L` (Existe), con despachos registrados de barriles ya devueltos|`clienteTieneBarrilEnSuPoder(1L)` $\rightarrow$ **FALSE**|Permite la baja: setea `estado = BAJA`, invoca `save(entity)` y retorna el DTO.|
+|**CP-BC-05**|Orden de chequeos: el cliente inexistente no consulta los barriles en su poder|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No interactúa con `despachoBarrilRepository` ni ejecuta `save()`.|
+
+#### Casos manuales contra la base de datos: `IDespachoBarrilRepository.clienteTieneBarrilEnSuPoder`
+
+Los tests de servicio usan mocks, por lo que la consulta JPQL se verifica manualmente contra PostgreSQL.
+
+|**ID**|**Escenario en BD**|**Resultado Esperado**|
+|---|---|---|
+|**CP-BC-M01**|El cliente A tiene un despacho `REGISTRADO` y el barril está en `DESPACHADO`|`TRUE`|
+|**CP-BC-M02**|El cliente A tuvo un despacho `REGISTRADO` y el barril fue devuelto (barril en `EN_LIMPIEZA`)|`FALSE`|
+|**CP-BC-M03**|El despacho del cliente A fue anulado (despacho `ANULADO`, barril en `CON_CERVEZA`)|`FALSE`|
+|**CP-BC-M04**|El barril fue devuelto por A y despachado luego a B (barril en `DESPACHADO`, ambos despachos `REGISTRADO`)|A: `FALSE`; B: `TRUE`|
+|**CP-BC-M05**|La devolución de A fue anulada (despacho `REGISTRADO`, barril de vuelta en `DESPACHADO`)|`TRUE`|
+|**CP-BC-M06**|El cliente no tiene ningún despacho|`FALSE`|

@@ -134,7 +134,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         // 1. Se valida duplicación ÚNICAMENTE si el username cambió respecto al actual
         if (!usuarioEntity.getUsername().equalsIgnoreCase(usuarioFormDTO.getUsername())) {
             if (usuarioRepository.existsByUsername(usuarioFormDTO.getUsername())) {
-                throw new RecursoDuplicadoException("El nombre de usuario '" + usuarioFormDTO.getUsername() + "' ya está en uso.");
+                throw new RecursoDuplicadoException("El nombre de usuario '" + usuarioFormDTO.getUsername() + "' ya está en uso");
             }
         }
 
@@ -173,6 +173,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @param id Identificador clave primaria del usuario a dar de baja.
      * @return {@link UsuarioResponseDTO} con los datos del usuario ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el usuario con el ID especificado no existe o ya fue dado de baja.
+     * @throws ReglaNegocioException Si el usuario es el único administrador activo.
      */
     @Override
     @Transactional
@@ -182,11 +183,16 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         UsuarioEntity usuarioEntity = usuarioRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el usuario con ID: " + id));
 
-        // 2. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 2. Validar que no sea el único administrador activo: sin él, nadie podría gestionar usuarios
+        if (usuarioEntity.getRol() == Rol.ADMINISTRADOR && !usuarioRepository.existsAdministradorActivoDistintoDe(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el usuario porque es el único administrador activo");
+        }
+
+        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         usuarioEntity.setEstado(Estado.BAJA);
         usuarioRepository.save(usuarioEntity);
 
-        // 3. Retornamos el DTO del usuario dado de baja
+        // 4. Retornamos el DTO del usuario dado de baja
         return MapperUsuario.toDTO(usuarioEntity);
     }
 }

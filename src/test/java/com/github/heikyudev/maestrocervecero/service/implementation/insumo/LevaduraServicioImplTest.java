@@ -6,6 +6,9 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.insumo.LevaduraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -45,6 +48,12 @@ class LevaduraServicioImplTest {
     private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
+    @Mock
+    private IPlanificacionProduccionRepository planificacionProduccionRepository;
+    @Mock
+    private IOrdenCompraRepository ordenCompraRepository;
+    @Mock
+    private ICatalogoProveedorRepository catalogoProveedorRepository;
 
     @InjectMocks
     private LevaduraServicioImpl levaduraServicio;
@@ -431,6 +440,57 @@ class LevaduraServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("No se puede dar de baja la levadura porque forma parte de al menos una receta activa");
 
+        verifyNoInteractions(planificacionProduccionRepository, ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-05: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura forma parte de una planificación de producción pendiente")
+    void bajaLevadura_debeRechazarSiFormaParteDePlanificacionPendiente() {
+        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la levadura porque forma parte de una planificación de producción pendiente");
+
+        verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository, loteInsumoRepository);
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-06: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura se encuentra en una orden de compra pendiente")
+    void bajaLevadura_debeRechazarSiSeEncuentraEnOrdenCompraPendiente() {
+        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la levadura porque se encuentra en al menos una orden de compra pendiente");
+
+        verifyNoInteractions(catalogoProveedorRepository, loteInsumoRepository);
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BL-07: bajaLevadura lanza ReglaNegocioException y no persiste cuando la levadura se encuentra en el catálogo de un proveedor activo")
+    void bajaLevadura_debeRechazarSiEstaEnCatalogoDeProveedorActivo() {
+        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
+        when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la levadura porque se encuentra asociada al catálogo de al menos un proveedor activo");
+
         verifyNoInteractions(loteInsumoRepository);
         verify(levaduraRepository, never()).save(any());
     }
@@ -441,6 +501,9 @@ class LevaduraServicioImplTest {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
         when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(false);
         when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(true);
 
         assertThatThrownBy(() -> levaduraServicio.bajaLevadura(1L))
@@ -451,11 +514,14 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BL-04: bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa ni stock asociados")
+    @DisplayName("CP-BL-04: bajaLevadura marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe y no tiene receta activa, planificación pendiente, orden de compra pendiente, catálogo de proveedor activo ni stock asociados")
     void bajaLevadura_debeMarcarBajaYRetornarLevaduraExistente() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
         when(versionRecetaRepository.existsByDetalleLevaduraEnRecetaActiva(1L)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByDetalleLevaduraEnPlanificacionPendiente(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByInsumoEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByInsumoId(1L)).thenReturn(false);
         when(loteInsumoRepository.existsByInsumo_IdAndCantidadActualGreaterThan(1L, 0.0)).thenReturn(false);
         when(levaduraRepository.save(levaduraEntity)).thenReturn(levaduraEntity);
 
