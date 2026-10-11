@@ -1,8 +1,14 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.planificacion_produccion;
 
 import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConfig;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.FinalizacionForzadaPlanificacionProduccionFormDTO;
@@ -16,6 +22,13 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaSe
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLevaduraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleMaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
@@ -47,10 +60,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -1345,6 +1361,331 @@ class PlanificacionProduccionControllerTest {
         return m.group();
     }
 
+    // ==================== Botón "Ver receta" en el estado actual ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-71: el estado actual de una planificación pendiente incluye el link \"Ver receta\" junto a \"Volver al listado\"")
+    void detalle_debeMostrarElBotonVerReceta() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/planificaciones-produccion/7/receta\"")))
+                .andExpect(content().string(containsString("Ver receta")))
+                .andExpect(content().string(matchesPattern("(?s).*Volver al listado.*?<a [^>]*href=\"/planificaciones-produccion/7/receta\"[^>]*whitespace-nowrap[^>]*>\\s*<i class=\"bi bi-journal-text\"></i> Ver receta.*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-72: el link \"Ver receta\" aparece también en una planificación finalizada y en una anulada, aunque no tengan botones de cierre")
+    void detalle_elBotonVerRecetaAparecaEnCualquierEstado() throws Exception {
+        for (EstadoSolicitud estado : List.of(EstadoSolicitud.FINALIZADA, EstadoSolicitud.ANULADA)) {
+            when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", estado));
+            when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+            mockMvc.perform(get("/planificaciones-produccion/7"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("href=\"/planificaciones-produccion/7/receta\"")))
+                    .andExpect(content().string(containsString("Ver receta")))
+                    .andExpect(content().string(not(containsString("/planificaciones-produccion/7/finalizar"))))
+                    .andExpect(content().string(not(containsString("/planificaciones-produccion/7/anular"))));
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PPC-73: el GERENTE_DE_COMPRAS no ve el link \"Ver receta\" en el estado actual")
+    void detalle_elGerenteDeComprasNoVeElBotonVerReceta() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Ver receta"))))
+                .andExpect(content().string(not(containsString("/planificaciones-produccion/7/receta"))));
+    }
+
+    // ==================== GET /planificaciones-produccion/{id}/receta ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-74: la receta de la planificación muestra el nombre, \"Versión 3 de 3\" y la etiqueta \"Versión vigente\", sin el aviso de versión histórica")
+    void recetaDePlanificacion_debeMostrarLaVersionVigente() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("planificacion_produccion/planificacion-receta"))
+                .andExpect(content().string(containsString("Pale Ale")))
+                .andExpect(content().string(containsString("Versión 3 de 3")))
+                .andExpect(content().string(containsString("Versión vigente")))
+                .andExpect(content().string(not(containsString("Versión histórica"))))
+                .andExpect(content().string(not(containsString("Esta planificación usa una versión anterior"))));
+
+        verify(planificacionServicio).buscarVersionRecetaDePlanificacion(7L);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-75: la receta de la planificación muestra los datos generales y las duraciones con números sin ceros sobrantes")
+    void recetaDePlanificacion_debeMostrarLosDatosGeneralesYLasDuraciones() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString(">R3<")))
+                .andExpect(content().string(containsString("Volumen base (L)")))
+                .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
+                .andExpect(content().string(containsString("OG objetivo")))
+                .andExpect(content().string(containsString("FG objetivo")))
+                .andExpect(content().string(containsString("IBU objetivo")))
+                .andExpect(content().string(containsString(">20<")))
+                .andExpect(content().string(containsString(">3<")))
+                .andExpect(content().string(containsString(">1,050<")))
+                .andExpect(content().string(containsString(">1,010<")))
+                .andExpect(content().string(containsString(">35<")))
+                .andExpect(content().string(not(containsString("20.0"))))
+                .andExpect(content().string(containsString("Duraciones estimadas")))
+                .andExpect(content().string(matchesPattern("(?s).*Maceración \\(minutos\\).*?>\\s*60\\s*<.*Hervido \\(minutos\\).*?>\\s*90\\s*<.*"
+                        + "Fermentación \\(días\\).*?>\\s*10\\s*<.*Maduración \\(días\\).*?>\\s*4\\s*<.*")))
+                .andExpect(content().string(not(containsString("Duración total"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-76: una versión histórica muestra \"Versión 1 de 3\", la etiqueta \"Versión histórica\" y el aviso, con los datos de esa versión")
+    void recetaDePlanificacion_debeAvisarQueLaVersionEsHistorica() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(
+                recetaDePlanificacion(versionDeRecetaBuilder("Pale Ale Clásica", false).build(), 1, 3, Estado.ACTIVO));
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Pale Ale Clásica")))
+                .andExpect(content().string(containsString("Versión 1 de 3")))
+                .andExpect(content().string(containsString("Versión histórica")))
+                .andExpect(content().string(containsString("Esta planificación usa una versión anterior de la receta; los datos mostrados son los de esa versión y no los de la versión vigente")))
+                .andExpect(content().string(not(containsString("Versión vigente"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-77: una receta dada de baja se sigue viendo, con la etiqueta \"Receta dada de baja\" y su aviso")
+    void recetaDePlanificacion_debeMostrarUnaRecetaDadaDeBaja() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(
+                recetaDePlanificacion(versionDeRecetaBuilder("Pale Ale", true).build(), 3, 3, Estado.BAJA));
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Receta dada de baja")))
+                .andExpect(content().string(containsString("La receta fue dada de baja; se muestra la versión que usa la planificación")))
+                .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString("Duraciones estimadas")))
+                .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
+                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
+                .andExpect(content().string(containsString("Levaduras (cantidad en g)")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-78: la receta de la planificación lista todas las maltas con nombre, tipo legible y cantidad, en el orden recibido")
+    void recetaDePlanificacion_debeListarTodasLasMaltas() throws Exception {
+        VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
+                .detallesMalta(List.of(
+                        DetalleMaltaResponseDTO.builder().id(1L).cantidad(4.5)
+                                .malta(MaltaResponseDTO.builder().id(1L).nombre("Pilsen").tipo(TipoMalta.BASE).build()).build(),
+                        DetalleMaltaResponseDTO.builder().id(2L).cantidad(0.5)
+                                .malta(MaltaResponseDTO.builder().id(2L).nombre("Caramelo 60").tipo(TipoMalta.CARAMELO).build()).build()))
+                .build();
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacion(version, 3, 3, Estado.ACTIVO));
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
+                .andExpect(content().string(matchesPattern("(?s).*Pilsen.*?>\\s*Base\\s*<.*?>\\s*4,5\\s*<.*Caramelo 60.*?>\\s*Caramelo\\s*<.*?>\\s*0,5\\s*<.*")))
+                .andExpect(content().string(not(containsString("La receta no tiene maltas"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-79: los lúpulos muestran formato, alfa, uso y etapa legibles; el tiempo de hervor solo aparece en el uso Hervor y el orden es el recibido")
+    void recetaDePlanificacion_debeMostrarElTiempoDeHervorSoloParaHervor() throws Exception {
+        VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
+                .detallesLupulo(List.of(
+                        DetalleLupuloResponseDTO.builder().id(1L).cantidad(25.0).uso(UsoLupulo.HERVOR)
+                                .etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(60.0)
+                                .lupulo(LupuloResponseDTO.builder().id(1L).nombre("Cascade").formato(FormatoLupulo.PELLET).aa(5.5).build()).build(),
+                        DetalleLupuloResponseDTO.builder().id(2L).cantidad(40.0).uso(UsoLupulo.DRY_HOP)
+                                .etapaDeUso(TipoEtapa.FERMENTACION)
+                                .lupulo(LupuloResponseDTO.builder().id(2L).nombre("Citra").formato(FormatoLupulo.FLOR).aa(12.0).build()).build(),
+                        DetalleLupuloResponseDTO.builder().id(3L).cantidad(30.0).uso(UsoLupulo.WHIRLPOOL)
+                                .etapaDeUso(TipoEtapa.HERVIDO)
+                                .lupulo(LupuloResponseDTO.builder().id(3L).nombre("Mosaic").formato(FormatoLupulo.PELLET).aa(11.5).build()).build()))
+                .build();
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacion(version, 3, 3, Estado.ACTIVO));
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
+                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*"
+                                + "Citra.*?>\\s*Flor\\s*<.*?>\\s*12\\s*<.*?>\\s*Dry hop\\s*<.*?>\\s*Fermentación\\s*<.*?>\\s*-\\s*<.*?>\\s*40\\s*<.*"
+                                + "Mosaic.*?>\\s*Pellet\\s*<.*?>\\s*11,5\\s*<.*?>\\s*Whirlpool\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*-\\s*<.*?>\\s*30\\s*<.*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-80: la receta de la planificación lista todas las levaduras con nombre, tipo legible y cantidad, en el orden recibido")
+    void recetaDePlanificacion_debeListarTodasLasLevaduras() throws Exception {
+        VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
+                .detallesLevadura(List.of(
+                        DetalleLevaduraResponseDTO.builder().id(1L).cantidad(11.5)
+                                .levadura(LevaduraResponseDTO.builder().id(1L).nombre("US-05").tipo(TipoLevadura.ALE).build()).build(),
+                        DetalleLevaduraResponseDTO.builder().id(2L).cantidad(12.0)
+                                .levadura(LevaduraResponseDTO.builder().id(2L).nombre("W-34/70").tipo(TipoLevadura.LAGER).build()).build()))
+                .build();
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacion(version, 3, 3, Estado.ACTIVO));
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Levaduras (cantidad en g)")))
+                .andExpect(content().string(matchesPattern("(?s).*US-05.*?>\\s*Ale\\s*<.*?>\\s*11,5\\s*<.*W-34/70.*?>\\s*Lager\\s*<.*?>\\s*12\\s*<.*")))
+                .andExpect(content().string(not(containsString("La receta no tiene levaduras"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-81: las secciones sin detalles informan que la receta no tiene maltas, lúpulos ni levaduras")
+    void recetaDePlanificacion_debeInformarLasSeccionesSinDetalles() throws Exception {
+        VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
+                .detallesMalta(List.of()).detallesLupulo(List.of()).detallesLevadura(List.of()).build();
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacion(version, 3, 3, Estado.ACTIVO));
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("La receta no tiene maltas")))
+                .andExpect(content().string(containsString("La receta no tiene lúpulos")))
+                .andExpect(content().string(containsString("La receta no tiene levaduras")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-82: la pantalla es de solo lectura: sin Modificar, sin links a la receta, sin baja y sin formularios en su contenido")
+    void recetaDePlanificacion_esDeSoloLectura() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7/receta")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // El header del layout tiene su propio formulario de cierre de sesión: se revisa el contenido de la página
+        Matcher contenido = Pattern.compile("(?s)<main.*?</main>").matcher(html);
+        assertThat(contenido.find()).isTrue();
+        assertThat(contenido.group())
+                .doesNotContain("Modificar")
+                .doesNotContain("/recetas/3/editar")
+                .doesNotContain("/recetas/3")
+                .doesNotContain("data-baja-url")
+                .doesNotContain("dialogo-baja")
+                .doesNotContain("<form")
+                .doesNotContain("<input")
+                .doesNotContain("_csrf");
+        assertThat(html).doesNotContain("/recetas/3/editar").doesNotContain("data-baja-url");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-83: \"Volver a la planificación\" lleva al estado actual de la misma planificación y no al listado")
+    void recetaDePlanificacion_debeVolverALaPlanificacion() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<a [^>]*href=\"/planificaciones-produccion/7\"[^>]*>\\s*<i class=\"bi bi-arrow-left\"></i> Volver a la planificación.*")))
+                .andExpect(content().string(not(containsString("Volver al listado"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-84: la receta se ve igual sea cual sea el estado de la planificación: el controller no consulta la planificación")
+    void recetaDePlanificacion_seVeEnCualquierEstadoDeLaPlanificacion() throws Exception {
+        for (long id : List.of(7L, 8L, 9L)) {
+            when(planificacionServicio.buscarVersionRecetaDePlanificacion(id)).thenReturn(recetaDePlanificacion(id));
+
+            mockMvc.perform(get("/planificaciones-produccion/" + id + "/receta"))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("planificacion_produccion/planificacion-receta"))
+                    .andExpect(content().string(containsString("Pale Ale")))
+                    .andExpect(content().string(containsString("Versión 3 de 3")));
+        }
+
+        verify(planificacionServicio, never()).buscarPorId(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-85: una planificación inexistente vuelve al origen con la alerta de error del service y no renderiza la vista")
+    void recetaDePlanificacion_debeMostrarElErrorSiLaPlanificacionNoExiste() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(99L))
+                .thenThrow(new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: 99"));
+
+        mockMvc.perform(get("/planificaciones-produccion/99/receta").header("Referer", "/planificaciones-produccion"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/planificaciones-produccion"))
+                .andExpect(flash().attribute("mensaje", "No se encontró la planificación de producción con ID: 99"))
+                .andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PPC-86: el GERENTE_DE_COMPRAS no puede ver la receta de la planificación y no llega al service")
+    void recetaDePlanificacion_debeRechazarAlGerenteDeCompras() throws Exception {
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(planificacionServicio);
+    }
+
+    @Test
+    @DisplayName("CP-PPC-87: el OPERARIO_DE_PRODUCCION y el ADMINISTRADOR no pueden ver la receta de la planificación y no llegan al service")
+    void recetaDePlanificacion_debeRechazarOtrosRoles() throws Exception {
+        for (String rol : List.of("OPERARIO_DE_PRODUCCION", "ADMINISTRADOR")) {
+            mockMvc.perform(get("/planificaciones-produccion/7/receta").with(user("x").roles(rol)))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("tipo", "danger"));
+        }
+
+        verifyNoInteractions(planificacionServicio);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-88: la pantalla hace un único llamado a buscarVersionRecetaDePlanificacion y no usa ningún otro service")
+    void recetaDePlanificacion_debeHacerUnSoloLlamadoAlService() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta")).andExpect(status().isOk());
+
+        verify(planificacionServicio, times(1)).buscarVersionRecetaDePlanificacion(7L);
+        verifyNoMoreInteractions(planificacionServicio);
+        verifyNoInteractions(recetaServicio, loteServicio);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-89: en la sidebar \"Planificación de Producción\" queda resaltada como opción activa")
+    void recetaDePlanificacion_laSidebarResaltaLaPlanificacion() throws Exception {
+        when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(recetaDePlanificacionBase());
+
+        mockMvc.perform(get("/planificaciones-produccion/7/receta"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<a href=\"/planificaciones-produccion\"[^>]*class=\"[^\"]*bg-amber-500/10 text-amber-500[^\"]*\"[^>]*>\\s*<i class=\"bi text-lg bi-calendar-check\"></i>\\s*<span>Planificación de Producción</span>.*")));
+    }
+
     // ==================== Datos de prueba ====================
 
     private static org.springframework.test.web.servlet.ResultMatcher matchesMensajeVacioDosVeces() {
@@ -1374,6 +1715,57 @@ class PlanificacionProduccionControllerTest {
         return RecetaResponseDTO.builder().id(id)
                 .version(VersionRecetaResponseDTO.builder().id(70L).nombre(nombre).volumenBase(20.0).build())
                 .build();
+    }
+
+    private static VersionRecetaDePlanificacionResponseDTO recetaDePlanificacionBase() {
+        return recetaDePlanificacion(7L);
+    }
+
+    private static VersionRecetaDePlanificacionResponseDTO recetaDePlanificacion(Long idPlanificacion) {
+        return recetaDePlanificacion(idPlanificacion, versionDeRecetaBuilder("Pale Ale", true).build(), 3, 3, Estado.ACTIVO);
+    }
+
+    private static VersionRecetaDePlanificacionResponseDTO recetaDePlanificacion(VersionRecetaResponseDTO version, int numeroVersion,
+                                                                                int cantidadVersiones, Estado estadoReceta) {
+        return recetaDePlanificacion(7L, version, numeroVersion, cantidadVersiones, estadoReceta);
+    }
+
+    private static VersionRecetaDePlanificacionResponseDTO recetaDePlanificacion(Long idPlanificacion, VersionRecetaResponseDTO version,
+                                                                                int numeroVersion, int cantidadVersiones, Estado estadoReceta) {
+        return VersionRecetaDePlanificacionResponseDTO.builder()
+                .idPlanificacion(idPlanificacion)
+                .idReceta(3L)
+                .estadoReceta(estadoReceta)
+                .numeroVersion(numeroVersion)
+                .cantidadVersiones(cantidadVersiones)
+                .version(version)
+                .build();
+    }
+
+    /**
+     * Versión del escenario base de la receta de una planificación: "Pale Ale" con una malta, un lúpulo en Hervor y una levadura.
+     */
+    private static VersionRecetaResponseDTO.VersionRecetaResponseDTOBuilder versionDeRecetaBuilder(String nombre, boolean esUltimaVersion) {
+        return VersionRecetaResponseDTO.builder()
+                .id(70L)
+                .nombre(nombre)
+                .volumenBase(20.0)
+                .relacionDeEmpaste(3.0)
+                .ogObjetivo(1.05)
+                .fgObjetivo(1.01)
+                .ibuObjetivo(35)
+                .duracionMaceracion(60)
+                .duracionHervido(90)
+                .duracionFermentacion(10)
+                .duracionMaduracion(4)
+                .esUltimaVersion(esUltimaVersion)
+                .detallesMalta(List.of(DetalleMaltaResponseDTO.builder().id(1L).cantidad(4.5)
+                        .malta(MaltaResponseDTO.builder().id(1L).nombre("Pilsen").tipo(TipoMalta.BASE).build()).build()))
+                .detallesLupulo(List.of(DetalleLupuloResponseDTO.builder().id(1L).cantidad(25.0).uso(UsoLupulo.HERVOR)
+                        .etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(60.0)
+                        .lupulo(LupuloResponseDTO.builder().id(1L).nombre("Cascade").formato(FormatoLupulo.PELLET).aa(5.5).build()).build()))
+                .detallesLevadura(List.of(DetalleLevaduraResponseDTO.builder().id(1L).cantidad(11.5)
+                        .levadura(LevaduraResponseDTO.builder().id(1L).nombre("US-05").tipo(TipoLevadura.ALE).build()).build()));
     }
 
     private static LoteCronogramaResponseDTO loteEn(Long id, String identificador, EstadoLote estado, String fermentador,

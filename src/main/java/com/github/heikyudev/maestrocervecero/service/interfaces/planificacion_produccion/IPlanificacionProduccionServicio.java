@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -104,4 +105,20 @@ public interface IPlanificacionProduccionServicio {
      * @throws ReglaNegocioException Si la cantidad a producir es nula, no es finita o no es mayor a 0, si la fecha de inicio estimada es nula o anterior a la fecha actual (hoy es válido), si la capacidad de lote estándar configurada no es mayor a 0, si la cantidad a producir supera el máximo técnico, si la cantidad de lotes resultante excede el máximo representable ({@code Integer.MAX_VALUE}), o si la simulación supera los 1.825 días (5 años) entre el inicio y la finalización sugerida.
      */
     SugerenciaFechaFinalizacionResponseDTO sugerirFechaFinalizacion(Long idReceta, Double cantidadAProducir, LocalDate fechaInicioEstimada);
+
+    /**
+     * Obtiene la versión de receta exacta que usa una planificación de producción: la que se asoció al
+     * registrarla, no la versión vigente de la receta (si la receta se modificó después, la planificación
+     * sigue apuntando a la versión anterior).
+     * <p>
+     * Es una consulta de solo lectura. El estado de la planificación no la condiciona, y una receta dada de
+     * baja se sigue viendo: se resuelve a partir de la propia planificación, sin pasar por la búsqueda de
+     * recetas activas.
+     * </p>
+     *
+     * @param idPlanificacion El ID de la planificación de producción.
+     * @return La versión completa con su posición entre las versiones de la receta, la cantidad de versiones y el estado de la receta.
+     * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
+     */
+    VersionRecetaDePlanificacionResponseDTO buscarVersionRecetaDePlanificacion(Long idPlanificacion);
 }

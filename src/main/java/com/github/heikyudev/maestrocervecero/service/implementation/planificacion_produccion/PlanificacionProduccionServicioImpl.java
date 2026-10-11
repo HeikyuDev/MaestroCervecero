@@ -22,7 +22,9 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanificacionProduccion;
+import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -104,6 +106,48 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         PlanificacionProduccionEntity planificacion = planificacionProduccionRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + id));
         return MapperPlanificacionProduccion.toDTO(planificacion, envasadoLoteRepository.sumarLitrosProducidosDePlanificacion(id));
+    }
+
+    /**
+     * Obtiene la versión de receta exacta que usa una planificación de producción (la asociada al registrarla,
+     * no la versión vigente de la receta), junto con su posición entre las versiones de su receta.
+     * <p>
+     * Se resuelve con una única consulta de la planificación que trae la versión y su receta, sin pasar por
+     * {@code IRecetaRepository}: su búsqueda por ID solo encuentra recetas activas y una receta dada de baja
+     * debe seguir viéndose. El estado de la planificación no condiciona la consulta ni se calculan sus litros
+     * producidos, porque la pantalla no los muestra.
+     * </p>
+     * <p>
+     * El número de versión no es una columna: es la posición de la versión entre las de su receta ordenadas
+     * por ID (el orden de registro, 1 es la primera).
+     * </p>
+     *
+     * @param idPlanificacion Identificador de la planificación de producción.
+     * @return {@link VersionRecetaDePlanificacionResponseDTO} con la versión completa, su número, la cantidad de versiones de la receta y el estado de la receta.
+     * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public VersionRecetaDePlanificacionResponseDTO buscarVersionRecetaDePlanificacion(Long idPlanificacion) {
+        PlanificacionProduccionEntity planificacion = planificacionProduccionRepository.buscarConVersionReceta(idPlanificacion)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + idPlanificacion));
+
+        VersionRecetaEntity versionReceta = planificacion.getVersionReceta();
+        RecetaEntity receta = versionReceta.getReceta();
+
+        // Posición de la versión por orden de registro (ID ascendente), sin depender del orden de la lista de la entidad
+        long numeroVersion = receta.getVersiones().stream()
+                .filter(v -> v.getId() < versionReceta.getId())
+                .count() + 1;
+
+        return VersionRecetaDePlanificacionResponseDTO.builder()
+                .idPlanificacion(planificacion.getId())
+                .idReceta(receta.getId())
+                .estadoReceta(receta.getEstado())
+                .numeroVersion((int) numeroVersion)
+                .cantidadVersiones(receta.getVersiones().size())
+                .version(MapperReceta.toDTO(versionReceta))
+                .build();
     }
 
     /**

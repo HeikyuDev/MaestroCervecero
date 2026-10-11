@@ -329,6 +329,32 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-56: el detalle conserva, una sola vez cada una, sus cinco secciones y sus acciones, sin etiquetas de versión ni avisos de baja")
+    void detalle_debeConservarSusSeccionesYAcciones() throws Exception {
+        when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
+
+        String html = mockMvc.perform(get("/recetas/7"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-detalle"))
+                .andExpect(content().string(containsString(">R7<")))
+                .andExpect(content().string(containsString("Volver al listado")))
+                .andExpect(content().string(containsString("Modificar")))
+                .andExpect(content().string(containsString("href=\"/recetas/7/editar\"")))
+                .andExpect(content().string(not(containsString("Versión vigente"))))
+                .andExpect(content().string(not(containsString("Versión histórica"))))
+                .andExpect(content().string(not(containsString("Receta dada de baja"))))
+                .andExpect(content().string(not(containsString("fue dada de baja"))))
+                .andReturn().getResponse().getContentAsString();
+
+        for (String seccion : List.of("Datos generales", "Duraciones estimadas", "Maltas (cantidad en kg)",
+                "Lúpulos (cantidad en g, tiempo de hervor en minutos)", "Levaduras (cantidad en g)")) {
+            assertThat(html.split(java.util.regex.Pattern.quote(">" + seccion + "<"), -1).length - 1)
+                    .as("títulos \"" + seccion + "\"").isEqualTo(1);
+        }
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-RCC-14: una receta inexistente vuelve al origen con la alerta de error del service")
     void detalle_debeMostrarElErrorSiLaRecetaNoExiste() throws Exception {
         when(recetaServicio.buscarPorId(99L))

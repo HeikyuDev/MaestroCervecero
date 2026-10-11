@@ -36,6 +36,26 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
     Optional<PlanificacionProduccionEntity> buscarPorIdParaActualizar(@Param("id") Long id);
 
     /**
+     * Busca una planificación de producción por su ID trayendo en la misma consulta su versión de receta y la
+     * receta de esa versión.
+     * <p>
+     * No filtra por el estado de la planificación ni por el de la receta: una receta dada de baja debe
+     * seguir viéndose desde la planificación que la usa. Las colecciones de la versión (versiones de la receta
+     * y detalles de malta, lúpulo y levadura) no se traen aquí: se cargan por lotes
+     * ({@code hibernate.default_batch_fetch_size}), de modo que la cantidad de sentencias no depende de la cantidad de
+     * detalles y no se produce una {@code MultipleBagFetchException}.
+     * </p>
+     *
+     * @param id El ID de la planificación de producción.
+     * @return La planificación con su versión de receta y la receta de esa versión, o vacío si no existe.
+     */
+    @Query("SELECT p FROM PlanificacionProduccionEntity p "
+            + "JOIN FETCH p.versionReceta v "
+            + "JOIN FETCH v.receta "
+            + "WHERE p.id = :id")
+    Optional<PlanificacionProduccionEntity> buscarConVersionReceta(@Param("id") Long id);
+
+    /**
      * Verifica si existe una planificación de producción, en el estado indicado, asociada a alguna de
      * las versiones (históricas o activa) de la receta indicada.
      * <p>

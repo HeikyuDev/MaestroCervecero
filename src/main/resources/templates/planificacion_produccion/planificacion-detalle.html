@@ -33,6 +33,11 @@
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
                 <i class="bi bi-arrow-left"></i> Volver al listado
             </a>
+            <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"
+               th:href="@{/planificaciones-produccion/{id}/receta(id=${planificacion.id})}"
+               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+                <i class="bi bi-journal-text"></i> Ver receta
+            </a>
             <th:block th:if="${planificacion.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                 <button type="button" data-motivo-dialogo="dialogo-finalizar"
                         th:data-motivo-url="@{/planificaciones-produccion/{id}/finalizar(id=${planificacion.id})}"

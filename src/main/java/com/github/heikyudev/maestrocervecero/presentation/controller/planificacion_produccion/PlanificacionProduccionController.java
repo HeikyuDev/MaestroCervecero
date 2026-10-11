@@ -46,7 +46,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * Una planificación es un registro transaccional: se registra, se consulta y solo admite dos cierres
  * excepcionales (finalización forzada o anulación, ambos con un motivo). Ver el listado y el estado
  * actual (detalle con sus lotes y el diagrama de Gantt) es del GERENTE_DE_PRODUCCION y del
- * GERENTE_DE_COMPRAS; todo lo demás es solo del GERENTE_DE_PRODUCCION.
+ * GERENTE_DE_COMPRAS; todo lo demás, incluida la consulta de la receta de la planificación, es solo del
+ * GERENTE_DE_PRODUCCION.
  * </p>
  * <p>
  * El formulario de alta elige la receta con un buscador (modal) y ofrece una sugerencia de fecha de
@@ -61,6 +62,7 @@ public class PlanificacionProduccionController {
 
     private static final String VISTA_LISTA = "planificacion_produccion/planificacion-lista";
     private static final String VISTA_DETALLE = "planificacion_produccion/planificacion-detalle";
+    private static final String VISTA_RECETA = "planificacion_produccion/planificacion-receta";
     private static final String VISTA_FORMULARIO = "planificacion_produccion/planificacion-form";
     private static final String VISTA_BUSCADOR_RECETA = "planificacion_produccion/buscador-receta :: buscador";
     private static final String VISTA_SUGERENCIA = "planificacion_produccion/sugerencia-fecha :: sugerencia";
@@ -164,6 +166,20 @@ public class PlanificacionProduccionController {
         model.addAttribute("gantt", GanttPlanificacionBuilder.construir(lotes,
                 planificacion.getFechaInicioEstimada(), planificacion.getFechaFinalizacionEstimada(), LocalDate.now()));
         return VISTA_DETALLE;
+    }
+
+    // ==================== Receta de la planificación ====================
+
+    /**
+     * Muestra, en solo lectura, la versión exacta de la receta que se asoció a la planificación al registrarla
+     * (que no es necesariamente la vigente), sea cual sea el estado de la planificación. Si no existe, el
+     * {@code ControllerAdvices} vuelve al origen con el motivo.
+     */
+    @GetMapping("/{id}/receta")
+    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    public String mostrarRecetaDePlanificacion(@PathVariable Long id, Model model) {
+        model.addAttribute("recetaPlanificacion", planificacionServicio.buscarVersionRecetaDePlanificacion(id));
+        return VISTA_RECETA;
     }
 
     // ==================== Cierres excepcionales ====================

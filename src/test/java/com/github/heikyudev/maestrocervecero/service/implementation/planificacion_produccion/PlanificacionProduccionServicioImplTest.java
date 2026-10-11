@@ -1,17 +1,29 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.planificacion_produccion;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLupuloEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IVersionRecetaRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.AnulacionPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.FinalizacionForzadaPlanificacionProduccionFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion_produccion.PlanificacionProduccionFormDTO;
@@ -19,6 +31,10 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.SugerenciaFechaFinalizacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
+import jakarta.persistence.OrderBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +46,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -42,6 +59,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +69,8 @@ class PlanificacionProduccionServicioImplTest {
     private IPlanificacionProduccionRepository planificacionProduccionRepository;
     @Mock
     private IRecetaRepository recetaRepository;
+    @Mock
+    private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteRepository loteRepository;
     @Mock
@@ -1167,7 +1187,372 @@ class PlanificacionProduccionServicioImplTest {
                 .hasMessage("La simulación supera los 5 años (457 lotes de 2 días). Reduzca la cantidad a producir o aumente la capacidad de lote estándar en la configuración");
     }
 
+    // ==================== buscarVersionRecetaDePlanificacion ====================
+
+    @Test
+    @DisplayName("CP-VRP-01: buscarVersionRecetaDePlanificacion retorna la versión vigente con su número, la cantidad de versiones y el estado de la receta")
+    void buscarVersionRecetaDePlanificacion_debeRetornarLaVersionVigente() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 12L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaDePlanificacionResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getIdPlanificacion()).isEqualTo(1L);
+        assertThat(resultado.getIdReceta()).isEqualTo(3L);
+        assertThat(resultado.getEstadoReceta()).isEqualTo(Estado.ACTIVO);
+        assertThat(resultado.getNumeroVersion()).isEqualTo(3);
+        assertThat(resultado.getCantidadVersiones()).isEqualTo(3);
+        assertThat(resultado.getVersion().getId()).isEqualTo(12L);
+        assertThat(resultado.getVersion().isEsUltimaVersion()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-VRP-02: buscarVersionRecetaDePlanificacion retorna la versión histórica asociada y no la vigente")
+    void buscarVersionRecetaDePlanificacion_debeRetornarLaVersionHistoricaAsociada() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaDePlanificacionResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getVersion().getId()).isEqualTo(11L);
+        assertThat(resultado.getVersion().isEsUltimaVersion()).isFalse();
+        assertThat(resultado.getVersion().getNombre()).isEqualTo("Pale Ale").isNotEqualTo("Pale Ale v2");
+        assertThat(resultado.getVersion().getIbuObjetivo()).isEqualTo(35).isNotEqualTo(40);
+        assertThat(resultado.getNumeroVersion()).isEqualTo(2);
+        assertThat(resultado.getCantidadVersiones()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-03: buscarVersionRecetaDePlanificacion lanza RecursoNoEncontradoException cuando la planificación no existe y no consulta otros repositorios")
+    void buscarVersionRecetaDePlanificacion_debeLanzarExcepcionSiLaPlanificacionNoExiste() {
+        when(planificacionProduccionRepository.buscarConVersionReceta(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la planificación de producción con ID: 99");
+
+        verify(planificacionProduccionRepository).buscarConVersionReceta(99L);
+        verifyNoMoreInteractions(planificacionProduccionRepository);
+        verifyNoInteractions(recetaRepository, versionRecetaRepository, loteRepository, envasadoLoteRepository, configuracionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-04: buscarVersionRecetaDePlanificacion sigue mostrando la versión de una receta dada de baja sin consultar IRecetaRepository")
+    void buscarVersionRecetaDePlanificacion_debeMostrarLaVersionDeUnaRecetaDadaDeBaja() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.BAJA);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaDePlanificacionResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstadoReceta()).isEqualTo(Estado.BAJA);
+        assertThat(resultado.getVersion().getId()).isEqualTo(11L);
+        assertThat(resultado.getVersion().getNombre()).isEqualTo("Pale Ale");
+        verifyNoInteractions(recetaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-05: buscarVersionRecetaDePlanificacion retorna la versión asociada de una planificación finalizada")
+    void buscarVersionRecetaDePlanificacion_debeFuncionarConUnaPlanificacionFinalizada() {
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.FINALIZADA)));
+
+        VersionRecetaDePlanificacionResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+
+        assertThat(resultado.getVersion().getId()).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-06: buscarVersionRecetaDePlanificacion retorna la versión asociada de una planificación anulada")
+    void buscarVersionRecetaDePlanificacion_debeFuncionarConUnaPlanificacionAnulada() {
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.ANULADA)));
+
+        VersionRecetaDePlanificacionResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+
+        assertThat(resultado.getVersion().getId()).isEqualTo(11L);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-07: el número de versión se calcula por id ascendente, con una única versión y con versiones recibidas desordenadas")
+    void buscarVersionRecetaDePlanificacion_debeNumerarLasVersionesPorOrdenDeRegistro() {
+        // === PREPARACION DE DATOS: receta con una única versión ===
+        RecetaEntity recetaUnica = RecetaEntity.builder().id(5L).estado(Estado.ACTIVO).build();
+        VersionRecetaEntity unica = versionBase(20L, true, recetaUnica);
+        recetaUnica.getVersiones().add(unica);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(recetaUnica, 20L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION Y ASSERTS ===
+        VersionRecetaDePlanificacionResponseDTO conUnaVersion = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+        assertThat(conUnaVersion.getNumeroVersion()).isEqualTo(1);
+        assertThat(conUnaVersion.getCantidadVersiones()).isEqualTo(1);
+
+        // === PREPARACION DE DATOS: versiones recibidas en el orden 12, 10, 11 ===
+        RecetaEntity recetaDesordenada = RecetaEntity.builder().id(3L).estado(Estado.ACTIVO).build();
+        recetaDesordenada.getVersiones().add(versionBase(12L, true, recetaDesordenada));
+        recetaDesordenada.getVersiones().add(versionBase(10L, false, recetaDesordenada));
+        recetaDesordenada.getVersiones().add(versionBase(11L, false, recetaDesordenada));
+        when(planificacionProduccionRepository.buscarConVersionReceta(2L))
+                .thenReturn(Optional.of(planificacionSobreVersion(recetaDesordenada, 10L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION Y ASSERTS ===
+        VersionRecetaDePlanificacionResponseDTO desordenada = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(2L);
+        assertThat(desordenada.getNumeroVersion()).isEqualTo(1);
+        assertThat(desordenada.getCantidadVersiones()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-08: buscarVersionRecetaDePlanificacion copia todos los datos generales y las duraciones de la versión al DTO")
+    void buscarVersionRecetaDePlanificacion_debeCopiarLosDatosGeneralesDeLaVersion() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaResponseDTO version = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L).getVersion();
+
+        // === ASSERTS ===
+        assertThat(version.getNombre()).isEqualTo("Pale Ale");
+        assertThat(version.getVolumenBase()).isEqualTo(20.0);
+        assertThat(version.getRelacionDeEmpaste()).isEqualTo(3.0);
+        assertThat(version.getOgObjetivo()).isEqualTo(1.050);
+        assertThat(version.getFgObjetivo()).isEqualTo(1.010);
+        assertThat(version.getIbuObjetivo()).isEqualTo(35);
+        assertThat(version.getDuracionMaceracion()).isEqualTo(60);
+        assertThat(version.getDuracionHervido()).isEqualTo(90);
+        assertThat(version.getDuracionFermentacion()).isEqualTo(10);
+        assertThat(version.getDuracionMaduracion()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-09: buscarVersionRecetaDePlanificacion mapea todas las maltas, lúpulos y levaduras con su insumo")
+    void buscarVersionRecetaDePlanificacion_debeMapearLosDetallesCompletos() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        VersionRecetaEntity version = versionDe(receta, 11L);
+        agregarMalta(version, 1L, "Pilsen", TipoMalta.BASE, 4.5);
+        agregarMalta(version, 2L, "Munich", TipoMalta.ESPECIAL, 1.0);
+        agregarLupulo(version, 1L, "Cascade", FormatoLupulo.PELLET, 5.5, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, 25.0);
+        agregarLupulo(version, 2L, "Citra", FormatoLupulo.FLOR, 12.0, UsoLupulo.DRY_HOP, TipoEtapa.FERMENTACION, null, 40.0);
+        agregarLupulo(version, 3L, "Mosaic", FormatoLupulo.PELLET, 11.5, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, null, 30.0);
+        agregarLevadura(version, 1L, "US-05", TipoLevadura.ALE, 11.5);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L).getVersion();
+
+        // === ASSERTS ===
+        assertThat(resultado.getDetallesMalta()).hasSize(2);
+        assertThat(resultado.getDetallesMalta().get(0).getMalta().getNombre()).isEqualTo("Pilsen");
+        assertThat(resultado.getDetallesMalta().get(0).getMalta().getTipo()).isEqualTo(TipoMalta.BASE);
+        assertThat(resultado.getDetallesMalta().get(0).getCantidad()).isEqualTo(4.5);
+        assertThat(resultado.getDetallesMalta().get(1).getCantidad()).isEqualTo(1.0);
+
+        assertThat(resultado.getDetallesLupulo()).hasSize(3);
+        DetalleLupuloResponseDTO cascade = resultado.getDetallesLupulo().get(0);
+        assertThat(cascade.getLupulo().getNombre()).isEqualTo("Cascade");
+        assertThat(cascade.getLupulo().getFormato()).isEqualTo(FormatoLupulo.PELLET);
+        assertThat(cascade.getLupulo().getAa()).isEqualTo(5.5);
+        assertThat(cascade.getUso()).isEqualTo(UsoLupulo.HERVOR);
+        assertThat(cascade.getEtapaDeUso()).isEqualTo(TipoEtapa.HERVIDO);
+        assertThat(cascade.getTiempoDeHervor()).isEqualTo(60.0);
+        assertThat(cascade.getCantidad()).isEqualTo(25.0);
+        assertThat(resultado.getDetallesLupulo().get(1).getUso()).isEqualTo(UsoLupulo.DRY_HOP);
+        assertThat(resultado.getDetallesLupulo().get(1).getEtapaDeUso()).isEqualTo(TipoEtapa.FERMENTACION);
+        assertThat(resultado.getDetallesLupulo().get(2).getUso()).isEqualTo(UsoLupulo.WHIRLPOOL);
+
+        assertThat(resultado.getDetallesLevadura()).hasSize(1);
+        assertThat(resultado.getDetallesLevadura().get(0).getLevadura().getNombre()).isEqualTo("US-05");
+        assertThat(resultado.getDetallesLevadura().get(0).getLevadura().getTipo()).isEqualTo(TipoLevadura.ALE);
+        assertThat(resultado.getDetallesLevadura().get(0).getCantidad()).isEqualTo(11.5);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-10: buscarVersionRecetaDePlanificacion conserva el orden de los detalles de la entidad")
+    void buscarVersionRecetaDePlanificacion_debeConservarElOrdenDeLosDetalles() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        VersionRecetaEntity version = versionDe(receta, 11L);
+        agregarMalta(version, 1L, "Pilsen", TipoMalta.BASE, 4.5);
+        agregarMalta(version, 2L, "Munich", TipoMalta.ESPECIAL, 1.0);
+        agregarMalta(version, 3L, "Caramelo", TipoMalta.CARAMELO, 0.5);
+        agregarLupulo(version, 1L, "Cascade", FormatoLupulo.PELLET, 5.5, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, 25.0);
+        agregarLupulo(version, 2L, "Citra", FormatoLupulo.FLOR, 12.0, UsoLupulo.DRY_HOP, TipoEtapa.FERMENTACION, null, 40.0);
+        agregarLevadura(version, 1L, "US-05", TipoLevadura.ALE, 11.5);
+        agregarLevadura(version, 2L, "W-34/70", TipoLevadura.LAGER, 12.0);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L).getVersion();
+
+        // === ASSERTS ===
+        assertThat(resultado.getDetallesMalta()).extracting(d -> d.getMalta().getNombre())
+                .containsExactly("Pilsen", "Munich", "Caramelo");
+        assertThat(resultado.getDetallesLupulo()).extracting(d -> d.getLupulo().getNombre())
+                .containsExactly("Cascade", "Citra");
+        assertThat(resultado.getDetallesLevadura()).extracting(d -> d.getLevadura().getNombre())
+                .containsExactly("US-05", "W-34/70");
+    }
+
+    @Test
+    @DisplayName("CP-VRP-11: una lista de detalles vacía se mapea como lista vacía y no como null")
+    void buscarVersionRecetaDePlanificacion_debeMapearUnaListaVaciaComoVacia() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        VersionRecetaEntity version = versionDe(receta, 11L);
+        agregarMalta(version, 1L, "Pilsen", TipoMalta.BASE, 4.5);
+        agregarLupulo(version, 1L, "Cascade", FormatoLupulo.PELLET, 5.5, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, 25.0);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        VersionRecetaResponseDTO resultado = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L).getVersion();
+
+        // === ASSERTS ===
+        assertThat(resultado.getDetallesLevadura()).isNotNull().isEmpty();
+        assertThat(resultado.getDetallesMalta()).hasSize(1);
+        assertThat(resultado.getDetallesLupulo()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-12: buscarVersionRecetaDePlanificacion consulta la planificación una sola vez y no usa otros repositorios ni guarda nada")
+    void buscarVersionRecetaDePlanificacion_debeResolverseConUnaUnicaConsulta() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity receta = recetaConTresVersiones(Estado.ACTIVO);
+        when(planificacionProduccionRepository.buscarConVersionReceta(1L))
+                .thenReturn(Optional.of(planificacionSobreVersion(receta, 11L, EstadoSolicitud.PENDIENTE)));
+
+        // === EJECUCION ===
+        planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L);
+
+        // === ASSERTS ===
+        verify(planificacionProduccionRepository, times(1)).buscarConVersionReceta(1L);
+        verify(planificacionProduccionRepository, never()).save(any());
+        verifyNoMoreInteractions(planificacionProduccionRepository);
+        verifyNoInteractions(recetaRepository, versionRecetaRepository, loteRepository, envasadoLoteRepository, configuracionProduccionRepository);
+    }
+
+    @Test
+    @DisplayName("CP-VRP-13: la consulta del repositorio filtra por id y trae con JOIN FETCH la versión de la receta y su receta")
+    void buscarConVersionReceta_laConsultaTraeLaVersionYSuRecetaEnUnSoloPaso() throws NoSuchMethodException {
+        String consulta = IPlanificacionProduccionRepository.class
+                .getMethod("buscarConVersionReceta", Long.class)
+                .getAnnotation(Query.class)
+                .value();
+
+        assertThat(consulta).contains("p.id = :id")
+                .contains("JOIN FETCH p.versionReceta v")
+                .contains("JOIN FETCH v.receta");
+    }
+
+    @Test
+    @DisplayName("CP-VRP-14: las tres colecciones de detalles de la versión llevan @OrderBy(\"id ASC\")")
+    void versionRecetaEntity_losDetallesSeOrdenanPorIdAscendente() throws NoSuchFieldException {
+        for (String coleccion : List.of("detallesMalta", "detallesLupulo", "detallesLevadura")) {
+            OrderBy orden = VersionRecetaEntity.class.getDeclaredField(coleccion).getAnnotation(OrderBy.class);
+
+            assertThat(orden).as("@OrderBy de " + coleccion).isNotNull();
+            assertThat(orden.value()).as("orden de " + coleccion).isEqualTo("id ASC");
+        }
+    }
+
     // ==================== helpers ====================
+
+    /**
+     * Receta {@code 3L} con tres versiones ({@code 10L}, {@code 11L} y {@code 12L}, la 12 vigente). La 11 es la
+     * "Pale Ale" del escenario base; la 12 tiene otros valores ("Pale Ale v2", IBU 40).
+     */
+    private static RecetaEntity recetaConTresVersiones(Estado estadoReceta) {
+        RecetaEntity receta = RecetaEntity.builder().id(3L).contadorLotes(1L).estado(estadoReceta).build();
+        receta.getVersiones().add(versionBase(10L, false, receta));
+        receta.getVersiones().add(versionBase(11L, false, receta));
+        VersionRecetaEntity vigente = versionBase(12L, true, receta);
+        vigente.setNombre("Pale Ale v2");
+        vigente.setIbuObjetivo(40);
+        receta.getVersiones().add(vigente);
+        return receta;
+    }
+
+    private static VersionRecetaEntity versionBase(Long id, boolean esUltimaVersion, RecetaEntity receta) {
+        return VersionRecetaEntity.builder()
+                .id(id)
+                .nombre("Pale Ale")
+                .volumenBase(20.0)
+                .relacionDeEmpaste(3.0)
+                .ogObjetivo(1.050)
+                .fgObjetivo(1.010)
+                .ibuObjetivo(35)
+                .duracionMaceracion(60)
+                .duracionHervido(90)
+                .duracionFermentacion(10)
+                .duracionMaduracion(4)
+                .esUltimaVersion(esUltimaVersion)
+                .receta(receta)
+                .build();
+    }
+
+    private static VersionRecetaEntity versionDe(RecetaEntity receta, Long idVersion) {
+        return receta.getVersiones().stream().filter(v -> v.getId().equals(idVersion)).findFirst().orElseThrow();
+    }
+
+    private static PlanificacionProduccionEntity planificacionSobreVersion(RecetaEntity receta, Long idVersion, EstadoSolicitud estado) {
+        return PlanificacionProduccionEntity.builder()
+                .id(1L)
+                .fechaInicioEstimada(LocalDate.of(2026, 3, 1))
+                .fechaFinalizacionEstimada(LocalDate.of(2026, 3, 22))
+                .cantidadAProducir(100.0)
+                .estado(estado)
+                .versionReceta(versionDe(receta, idVersion))
+                .build();
+    }
+
+    private static void agregarMalta(VersionRecetaEntity version, Long idDetalle, String nombre, TipoMalta tipo, Double cantidad) {
+        version.getDetallesMalta().add(DetalleMaltaEntity.builder()
+                .id(idDetalle)
+                .cantidad(cantidad)
+                .versionReceta(version)
+                .malta(MaltaEntity.builder().id(idDetalle).nombre(nombre).tipo(tipo).build())
+                .build());
+    }
+
+    private static void agregarLupulo(VersionRecetaEntity version, Long idDetalle, String nombre, FormatoLupulo formato, Double aa,
+                                      UsoLupulo uso, TipoEtapa etapaDeUso, Double tiempoDeHervor, Double cantidad) {
+        version.getDetallesLupulo().add(DetalleLupuloEntity.builder()
+                .id(idDetalle)
+                .cantidad(cantidad)
+                .uso(uso)
+                .etapaDeUso(etapaDeUso)
+                .tiempoDeHervor(tiempoDeHervor)
+                .versionReceta(version)
+                .lupulo(LupuloEntity.builder().id(idDetalle).nombre(nombre).formato(formato).aa(aa).build())
+                .build());
+    }
+
+    private static void agregarLevadura(VersionRecetaEntity version, Long idDetalle, String nombre, TipoLevadura tipo, Double cantidad) {
+        version.getDetallesLevadura().add(DetalleLevaduraEntity.builder()
+                .id(idDetalle)
+                .cantidad(cantidad)
+                .versionReceta(version)
+                .levadura(LevaduraEntity.builder().id(idDetalle).nombre(nombre).tipo(tipo).build())
+                .build());
+    }
 
     private static PlanificacionProduccionFormDTO.PlanificacionProduccionFormDTOBuilder planificacionFormDTOValidoBuilder(Long idReceta) {
         return PlanificacionProduccionFormDTO.builder()
