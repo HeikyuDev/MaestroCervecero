@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.PaisResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -352,5 +354,170 @@ class PaisServicioImplTest {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AP-05: altaPais guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaPais_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        PaisFormDTO formDTO = paisFormDTO("  Pilsen   Nacional  ");
+        when(paisRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(paisRepository.save(any(PaisEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        paisServicio.altaPais(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<PaisEntity> captor = ArgumentCaptor.forClass(PaisEntity.class);
+        verify(paisRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(paisRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(paisRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AP-06: altaPais lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaPais_debeRechazarValorVacio() {
+        PaisFormDTO formDTO = paisFormDTO("   ");
+
+        assertThatThrownBy(() -> paisServicio.altaPais(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(paisRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AP-07: altaPais lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaPais_debeDetectarDuplicadoConElValorNormalizado() {
+        PaisFormDTO formDTO = paisFormDTO("  pilsen ");
+        when(paisRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> paisServicio.altaPais(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un país con el nombre 'pilsen'");
+
+        verify(paisRepository).existsByNombreIgnoreCase("pilsen");
+        verify(paisRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AP-08: altaPais traduce la violación del índice único udx_pais_nombre al mensaje de duplicado")
+    void altaPais_debeTraducirLaViolacionDelIndiceUnico() {
+        PaisFormDTO formDTO = paisFormDTO("Pilsen Nacional");
+        when(paisRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(paisRepository.save(any(PaisEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_pais_nombre"));
+
+        assertThatThrownBy(() -> paisServicio.altaPais(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un país con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-AP-09: altaPais permite reutilizar el nombre de un registro dado de baja")
+    void altaPais_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        PaisFormDTO formDTO = paisFormDTO("Pilsen Nacional");
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(paisRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(paisRepository.save(any(PaisEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> paisServicio.altaPais(formDTO)).doesNotThrowAnyException();
+
+        verify(paisRepository).save(any(PaisEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AP-10: altaPais permite un nombre que difiere de otro solo en una tilde")
+    void altaPais_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        PaisFormDTO formDTO = paisFormDTO("Pílsen");
+        when(paisRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(paisRepository.save(any(PaisEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> paisServicio.altaPais(formDTO)).doesNotThrowAnyException();
+
+        verify(paisRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(paisRepository).save(any(PaisEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MP-06: modificarPais guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarPais_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        PaisFormDTO formDTO = paisFormDTO("  Pilsen   Nacional  ");
+        PaisEntity existente = crearPaisEntity(1L, "Original");
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(paisRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        paisServicio.modificarPais(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(paisRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(paisRepository).save(existente);
+        verify(paisRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MP-07: modificarPais lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarPais_debeRechazarValorVacio() {
+        PaisFormDTO formDTO = paisFormDTO("   ");
+
+        assertThatThrownBy(() -> paisServicio.modificarPais(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(paisRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MP-08: modificarPais lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarPais_debeDetectarDuplicadoConElValorNormalizado() {
+        PaisFormDTO formDTO = paisFormDTO("  pilsen ");
+        PaisEntity existente = crearPaisEntity(1L, "Original");
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> paisServicio.modificarPais(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otro país");
+
+        verify(paisRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(paisRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MP-09: modificarPais traduce la violación del índice único udx_pais_nombre al mensaje de duplicado")
+    void modificarPais_debeTraducirLaViolacionDelIndiceUnico() {
+        PaisFormDTO formDTO = paisFormDTO("Pilsen Nacional");
+        PaisEntity existente = crearPaisEntity(1L, "Original");
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(paisRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_pais_nombre"));
+
+        assertThatThrownBy(() -> paisServicio.modificarPais(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro país");
+    }
+
+    @Test
+    @DisplayName("CP-MP-10: modificarPais permite reutilizar el nombre de un registro dado de baja")
+    void modificarPais_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        PaisFormDTO formDTO = paisFormDTO("Pilsen Nacional");
+        PaisEntity existente = crearPaisEntity(1L, "Original");
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(paisRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(paisRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> paisServicio.modificarPais(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(paisRepository).save(existente);
     }
 }

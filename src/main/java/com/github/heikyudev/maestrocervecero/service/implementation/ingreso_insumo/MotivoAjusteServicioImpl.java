@@ -15,15 +15,26 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IMotivoAjusteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.MotivoAjusteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperMotivoAjuste;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos motivos de ajuste activos con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_motivo_ajuste_nombre";
 
     private final IMotivoAjusteRepository motivoAjusteRepository;
     private final IAjusteInsumoRepository ajusteInsumoRepository;
@@ -65,25 +76,35 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      *
      * @param motivoAjusteFormDTO Los datos del motivo de ajuste a registrar.
      * @return El motivo de ajuste registrado.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si ya existe un motivo de ajuste activo con el mismo nombre (case-insensitive).
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MOTIVO_AJUSTE)
     public MotivoAjusteResponseDTO altaMotivoAjuste(MotivoAjusteFormDTO motivoAjusteFormDTO) {
-        // 1. Validar que no exista otro motivo de ajuste con el mismo nombre (case-insensitive)
-        if (motivoAjusteRepository.existsByNombreIgnoreCase(motivoAjusteFormDTO.getNombre())) {
-            throw new RecursoDuplicadoException("Ya existe un motivo de ajuste con el nombre '" + motivoAjusteFormDTO.getNombre() + "'");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(motivoAjusteFormDTO.getNombre());
+
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Validar que no exista otro motivo de ajuste con el mismo nombre (case-insensitive)
+        if (motivoAjusteRepository.existsByNombreIgnoreCase(nombre)) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
-        // 2. Construir y persistir la entidad, y retornar el DTO de respuesta correspondiente
+        // 4. Construir la entidad que se va a almacenar en la base de datos
         MotivoAjusteEntity motivoAjusteEntity = MotivoAjusteEntity.builder()
-                .nombre(motivoAjusteFormDTO.getNombre())
+                .nombre(nombre)
                 .tipoAjuste(motivoAjusteFormDTO.getTipoAjuste())
                 .estado(Estado.ACTIVO)
                 .build();
 
-        return MapperMotivoAjuste.toDTO(motivoAjusteRepository.save(motivoAjusteEntity));
+        // 5. Guardar la entidad (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y retornar el DTO de respuesta correspondiente
+        return MapperMotivoAjuste.toDTO(GuardadoUnico.guardar(motivoAjusteRepository, motivoAjusteEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
@@ -94,34 +115,42 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
      * @return El motivo de ajuste modificado.
      * @throws RecursoNoEncontradoException Si no existe un motivo de ajuste activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro motivo de ajuste activo (case-insensitive).
-     * @throws ReglaNegocioException Si el motivo de ajuste tiene al menos un ajuste de insumo en estado REGISTRADO.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el motivo de ajuste tiene al menos un ajuste de insumo en estado REGISTRADO.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MOTIVO_AJUSTE)
     public MotivoAjusteResponseDTO modificarMotivoAjuste(Long id, MotivoAjusteFormDTO motivoAjusteFormDTO) {
-        // 1. Localizar el motivo de ajuste existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(motivoAjusteFormDTO.getNombre());
+
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Localizar el motivo de ajuste existente. Si no existe, se dispara RecursoNoEncontradoException
         MotivoAjusteEntity motivoAjusteEntity = motivoAjusteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el motivo de ajuste con ID: " + id));
 
-        // 2. Validar que el motivo no tenga ningún ajuste de insumo REGISTRADO: no existe un caso
+        // 4. Validar que el motivo no tenga ningún ajuste de insumo REGISTRADO: no existe un caso
         //    donde un mismo motivo a veces sume y a veces reste, así que una vez usado, su tipo
         //    (INGRESO/EGRESO) queda fijo mientras esos ajustes sigan vigentes.
         if (ajusteInsumoRepository.existsByMotivoAjusteIdAndEstadoRegistrado(id)) {
             throw new ReglaNegocioException("No se puede modificar un motivo de ajuste que tiene ajustes de insumo registrados");
         }
 
-        // 3. Validar que no exista otro motivo de ajuste con el mismo nombre, excluyendo el propio ID
-        if (motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot(motivoAjusteFormDTO.getNombre(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + motivoAjusteFormDTO.getNombre() + "' ya está en uso por otro motivo de ajuste");
+        // 5. Validar que no exista otro motivo de ajuste con el mismo nombre, excluyendo el propio ID
+        if (motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 4. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
-        motivoAjusteEntity.setNombre(motivoAjusteFormDTO.getNombre());
+        // 6. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
+        motivoAjusteEntity.setNombre(nombre);
         motivoAjusteEntity.setTipoAjuste(motivoAjusteFormDTO.getTipoAjuste());
 
-        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
-        return MapperMotivoAjuste.toDTO(motivoAjusteRepository.save(motivoAjusteEntity));
+        // 7. Persistir la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y retornar el DTO de respuesta correspondiente
+        return MapperMotivoAjuste.toDTO(GuardadoUnico.guardar(motivoAjusteRepository, motivoAjusteEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -150,5 +179,26 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
 
         // 3. Retornar el DTO del motivo de ajuste dado de baja
         return MapperMotivoAjuste.toDTO(motivoAjusteEntity);
+    }
+
+    /**
+     * Valida que el nombre normalizado sea obligatorio y no supere la longitud máxima.
+     *
+     * @param nombre Nombre normalizado.
+     * @throws ReglaNegocioException Si el nombre está vacío o supera los 100 caracteres.
+     */
+    private static void validarNombre(String nombre) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe un motivo de ajuste con el nombre '" + nombre + "'");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otro motivo de ajuste");
     }
 }

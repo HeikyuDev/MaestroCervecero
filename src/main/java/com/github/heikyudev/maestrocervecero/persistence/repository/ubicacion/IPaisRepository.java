@@ -63,7 +63,7 @@ public interface IPaisRepository extends JpaRepository<PaisEntity, Long> {
      * @param nombre El nombre del país a buscar.
      * @return {@code true} si ya existe un país activo con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PaisEntity p WHERE UPPER(p.nombre) = UPPER(:nombre) AND p.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PaisEntity p WHERE LOWER(p.nombre) = LOWER(:nombre) AND p.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -78,6 +78,6 @@ public interface IPaisRepository extends JpaRepository<PaisEntity, Long> {
      * @param id El ID del país a excluir de la verificación.
      * @return {@code true} si otro país activo ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PaisEntity p WHERE UPPER(p.nombre) = UPPER(:nombre) AND p.id <> :id AND p.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PaisEntity p WHERE LOWER(p.nombre) = LOWER(:nombre) AND p.id <> :id AND p.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

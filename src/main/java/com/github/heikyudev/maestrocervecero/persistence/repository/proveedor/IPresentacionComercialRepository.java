@@ -75,7 +75,7 @@ public interface IPresentacionComercialRepository extends JpaRepository<Presenta
      * @param nombre El nombre de la presentación comercial a buscar.
      * @return {@code true} si ya existe una presentación comercial activa con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(pc) > 0 THEN true ELSE false END FROM PresentacionComercialEntity pc WHERE UPPER(pc.nombre) = UPPER(:nombre) AND pc.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(pc) > 0 THEN true ELSE false END FROM PresentacionComercialEntity pc WHERE LOWER(pc.nombre) = LOWER(:nombre) AND pc.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -90,6 +90,6 @@ public interface IPresentacionComercialRepository extends JpaRepository<Presenta
      * @param id El ID de la presentación comercial a excluir de la verificación.
      * @return {@code true} si otra presentación comercial activa ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(pc) > 0 THEN true ELSE false END FROM PresentacionComercialEntity pc WHERE UPPER(pc.nombre) = UPPER(:nombre) AND pc.id <> :id AND pc.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(pc) > 0 THEN true ELSE false END FROM PresentacionComercialEntity pc WHERE LOWER(pc.nombre) = LOWER(:nombre) AND pc.id <> :id AND pc.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

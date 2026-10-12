@@ -27,7 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class GuardadoUnicoTest {
+public class GuardadoUnicoTest {
 
     private static final String INDICE_USERNAME = "udx_usuarios_username";
     private static final String MENSAJE_USERNAME = "El nombre de usuario ya está en uso";
@@ -201,7 +201,7 @@ class GuardadoUnicoTest {
      * {@code ConstraintViolationException} (sin nombre de restricción) → {@code PSQLException} (con el nombre en el campo
      * {@code constraint} del mensaje del servidor).
      */
-    private static DataIntegrityViolationException violacionPostgres(String sqlState, String restriccion) {
+    public static DataIntegrityViolationException violacionPostgres(String sqlState, String restriccion) {
         ServerErrorMessage servidor = new ServerErrorMessage(
                 "SERROR\0VERROR\0C" + sqlState + "\0Mmensaje del servidor\0n" + restriccion + "\0");
         PSQLException psql = new PSQLException(servidor);

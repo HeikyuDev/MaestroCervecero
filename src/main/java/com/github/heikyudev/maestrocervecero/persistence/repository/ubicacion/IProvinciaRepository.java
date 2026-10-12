@@ -73,7 +73,7 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      * @param idPais El ID del país al que debe pertenecer la provincia.
      * @return {@code true} si ya existe una provincia activa con ese nombre en ese país, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE UPPER(pr.nombre) = UPPER(:nombre) AND pr.pais.id = :idPais AND pr.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE LOWER(pr.nombre) = LOWER(:nombre) AND pr.pais.id = :idPais AND pr.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndPaisId(@Param("nombre") String nombre, @Param("idPais") Long idPais);
 
     /**
@@ -90,7 +90,7 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      * @param id El ID de la provincia a excluir de la verificación.
      * @return {@code true} si otra provincia activa ya posee ese nombre en ese país, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE UPPER(pr.nombre) = UPPER(:nombre) AND pr.pais.id = :idPais AND pr.id <> :id AND pr.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE LOWER(pr.nombre) = LOWER(:nombre) AND pr.pais.id = :idPais AND pr.id <> :id AND pr.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndPaisIdAndIdNot(@Param("nombre") String nombre, @Param("idPais") Long idPais, @Param("id") Long id);
 
     /**

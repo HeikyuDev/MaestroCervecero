@@ -67,7 +67,7 @@ public interface ICostoDirectoAdicionalRepository extends JpaRepository<CostoDir
      * @param nombre El nombre del costo directo adicional a buscar.
      * @return {@code true} si ya existe un costo directo adicional activo con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(cda) > 0 THEN true ELSE false END FROM CostoDirectoAdicionalEntity cda WHERE UPPER(cda.nombre) = UPPER(:nombre) AND cda.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(cda) > 0 THEN true ELSE false END FROM CostoDirectoAdicionalEntity cda WHERE LOWER(cda.nombre) = LOWER(:nombre) AND cda.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -82,7 +82,7 @@ public interface ICostoDirectoAdicionalRepository extends JpaRepository<CostoDir
      * @param id El ID del costo directo adicional a excluir de la verificación.
      * @return {@code true} si otro costo directo adicional activo ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(cda) > 0 THEN true ELSE false END FROM CostoDirectoAdicionalEntity cda WHERE UPPER(cda.nombre) = UPPER(:nombre) AND cda.id <> :id AND cda.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(cda) > 0 THEN true ELSE false END FROM CostoDirectoAdicionalEntity cda WHERE LOWER(cda.nombre) = LOWER(:nombre) AND cda.id <> :id AND cda.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 
     /**

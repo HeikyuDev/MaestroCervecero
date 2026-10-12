@@ -58,7 +58,7 @@ public interface ILevaduraRepository extends JpaRepository<LevaduraEntity, Long>
      * @param nombre El nombre de la levadura a buscar.
      * @return {@code true} si ya existe una levadura activa con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(lv) > 0 THEN true ELSE false END FROM LevaduraEntity lv WHERE UPPER(lv.nombre) = UPPER(:nombre) AND lv.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(lv) > 0 THEN true ELSE false END FROM LevaduraEntity lv WHERE LOWER(lv.nombre) = LOWER(:nombre) AND lv.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -73,6 +73,6 @@ public interface ILevaduraRepository extends JpaRepository<LevaduraEntity, Long>
      * @param id El ID de la levadura a excluir de la verificación.
      * @return {@code true} si otra levadura activa ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(lv) > 0 THEN true ELSE false END FROM LevaduraEntity lv WHERE UPPER(lv.nombre) = UPPER(:nombre) AND lv.id <> :id AND lv.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(lv) > 0 THEN true ELSE false END FROM LevaduraEntity lv WHERE LOWER(lv.nombre) = LOWER(:nombre) AND lv.id <> :id AND lv.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

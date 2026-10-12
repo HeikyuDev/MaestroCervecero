@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -686,5 +687,170 @@ class LevaduraServicioImplTest {
         assertThat(dto.getTipo()).isEqualTo(entidad.getTipo());
         assertThat(dto.getCantidadCelulasPorGramo()).isEqualTo(entidad.getCantidadCelulasPorGramo());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AL-18: altaLevadura guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaLevadura_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        LevaduraFormDTO formDTO = levaduraFormDTO("  Pilsen   Nacional  ", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        levaduraServicio.altaLevadura(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<LevaduraEntity> captor = ArgumentCaptor.forClass(LevaduraEntity.class);
+        verify(levaduraRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(levaduraRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(levaduraRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AL-19: altaLevadura lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaLevadura_debeRechazarValorVacio() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("   ", TipoLevadura.ALE, 10_000_000_000.0);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-20: altaLevadura lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaLevadura_debeDetectarDuplicadoConElValorNormalizado() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("  pilsen ", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una levadura con el nombre 'pilsen'");
+
+        verify(levaduraRepository).existsByNombreIgnoreCase("pilsen");
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AL-21: altaLevadura traduce la violación del índice único udx_insumo_nombre al mensaje de duplicado")
+    void altaLevadura_debeTraducirLaViolacionDelIndiceUnico() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("Pilsen Nacional", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_insumo_nombre"));
+
+        assertThatThrownBy(() -> levaduraServicio.altaLevadura(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una levadura con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-AL-22: altaLevadura permite reutilizar el nombre de un registro dado de baja")
+    void altaLevadura_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("Pilsen Nacional", TipoLevadura.ALE, 10_000_000_000.0);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(levaduraRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> levaduraServicio.altaLevadura(formDTO)).doesNotThrowAnyException();
+
+        verify(levaduraRepository).save(any(LevaduraEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AL-23: altaLevadura permite un nombre que difiere de otro solo en una tilde")
+    void altaLevadura_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("Pílsen", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(levaduraRepository.save(any(LevaduraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> levaduraServicio.altaLevadura(formDTO)).doesNotThrowAnyException();
+
+        verify(levaduraRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(levaduraRepository).save(any(LevaduraEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ML-09: modificarLevadura guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarLevadura_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        LevaduraFormDTO formDTO = levaduraFormDTO("  Pilsen   Nacional  ", TipoLevadura.ALE, 10_000_000_000.0);
+        LevaduraEntity existente = crearLevaduraEntity(1L, "Original", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(levaduraRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        levaduraServicio.modificarLevadura(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(levaduraRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(levaduraRepository).save(existente);
+        verify(levaduraRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-ML-10: modificarLevadura lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarLevadura_debeRechazarValorVacio() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("   ", TipoLevadura.ALE, 10_000_000_000.0);
+
+        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(levaduraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-11: modificarLevadura lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarLevadura_debeDetectarDuplicadoConElValorNormalizado() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("  pilsen ", TipoLevadura.ALE, 10_000_000_000.0);
+        LevaduraEntity existente = crearLevaduraEntity(1L, "Original", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otra levadura");
+
+        verify(levaduraRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(levaduraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ML-12: modificarLevadura traduce la violación del índice único udx_insumo_nombre al mensaje de duplicado")
+    void modificarLevadura_debeTraducirLaViolacionDelIndiceUnico() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("Pilsen Nacional", TipoLevadura.ALE, 10_000_000_000.0);
+        LevaduraEntity existente = crearLevaduraEntity(1L, "Original", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(levaduraRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_insumo_nombre"));
+
+        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra levadura");
+    }
+
+    @Test
+    @DisplayName("CP-ML-13: modificarLevadura permite reutilizar el nombre de un registro dado de baja")
+    void modificarLevadura_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        LevaduraFormDTO formDTO = levaduraFormDTO("Pilsen Nacional", TipoLevadura.ALE, 10_000_000_000.0);
+        LevaduraEntity existente = crearLevaduraEntity(1L, "Original", TipoLevadura.ALE, 10_000_000_000.0);
+        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(levaduraRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> levaduraServicio.modificarLevadura(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(levaduraRepository).save(existente);
     }
 }

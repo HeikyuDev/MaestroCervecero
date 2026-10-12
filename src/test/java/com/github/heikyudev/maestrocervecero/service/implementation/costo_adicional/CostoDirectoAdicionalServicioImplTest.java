@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.costo_adicional.CostoDirectoAdicionalResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -437,5 +439,170 @@ class CostoDirectoAdicionalServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getCostoPorLitro()).isEqualByComparingTo(entidad.getCostoPorLitro());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-ACD-09: altaCostoDirectoAdicional guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaCostoDirectoAdicional_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("  Pilsen   Nacional  ", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(any(CostoDirectoAdicionalEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<CostoDirectoAdicionalEntity> captor = ArgumentCaptor.forClass(CostoDirectoAdicionalEntity.class);
+        verify(costoDirectoAdicionalRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(costoDirectoAdicionalRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-ACD-10: altaCostoDirectoAdicional lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaCostoDirectoAdicional_debeRechazarValorVacio() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("   ", new BigDecimal("3.20"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(costoDirectoAdicionalRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ACD-11: altaCostoDirectoAdicional lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaCostoDirectoAdicional_debeDetectarDuplicadoConElValorNormalizado() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("  pilsen ", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un costo directo adicional con el nombre 'pilsen'");
+
+        verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCase("pilsen");
+        verify(costoDirectoAdicionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ACD-12: altaCostoDirectoAdicional traduce la violación del índice único udx_costo_directo_adicional_nombre al mensaje de duplicado")
+    void altaCostoDirectoAdicional_debeTraducirLaViolacionDelIndiceUnico() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Pilsen Nacional", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(any(CostoDirectoAdicionalEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_costo_directo_adicional_nombre"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un costo directo adicional con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-ACD-13: altaCostoDirectoAdicional permite reutilizar el nombre de un registro dado de baja")
+    void altaCostoDirectoAdicional_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Pilsen Nacional", new BigDecimal("3.20"));
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(any(CostoDirectoAdicionalEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO)).doesNotThrowAnyException();
+
+        verify(costoDirectoAdicionalRepository).save(any(CostoDirectoAdicionalEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ACD-14: altaCostoDirectoAdicional permite un nombre que difiere de otro solo en una tilde")
+    void altaCostoDirectoAdicional_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Pílsen", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(any(CostoDirectoAdicionalEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO)).doesNotThrowAnyException();
+
+        verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(costoDirectoAdicionalRepository).save(any(CostoDirectoAdicionalEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MCD-08: modificarCostoDirectoAdicional guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarCostoDirectoAdicional_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("  Pilsen   Nacional  ", new BigDecimal("3.20"));
+        CostoDirectoAdicionalEntity existente = crearCostoDirectoAdicionalEntity(1L, "Original", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(costoDirectoAdicionalRepository).save(existente);
+        verify(costoDirectoAdicionalRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MCD-09: modificarCostoDirectoAdicional lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarCostoDirectoAdicional_debeRechazarValorVacio() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("   ", new BigDecimal("3.20"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(costoDirectoAdicionalRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MCD-10: modificarCostoDirectoAdicional lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarCostoDirectoAdicional_debeDetectarDuplicadoConElValorNormalizado() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("  pilsen ", new BigDecimal("3.20"));
+        CostoDirectoAdicionalEntity existente = crearCostoDirectoAdicionalEntity(1L, "Original", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otro costo directo adicional");
+
+        verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(costoDirectoAdicionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MCD-11: modificarCostoDirectoAdicional traduce la violación del índice único udx_costo_directo_adicional_nombre al mensaje de duplicado")
+    void modificarCostoDirectoAdicional_debeTraducirLaViolacionDelIndiceUnico() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Pilsen Nacional", new BigDecimal("3.20"));
+        CostoDirectoAdicionalEntity existente = crearCostoDirectoAdicionalEntity(1L, "Original", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_costo_directo_adicional_nombre"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro costo directo adicional");
+    }
+
+    @Test
+    @DisplayName("CP-MCD-12: modificarCostoDirectoAdicional permite reutilizar el nombre de un registro dado de baja")
+    void modificarCostoDirectoAdicional_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Pilsen Nacional", new BigDecimal("3.20"));
+        CostoDirectoAdicionalEntity existente = crearCostoDirectoAdicionalEntity(1L, "Original", new BigDecimal("3.20"));
+        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(costoDirectoAdicionalRepository).save(existente);
     }
 }

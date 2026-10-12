@@ -16,15 +16,26 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IPresentacionComercialServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.PresentacionComercialResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperPresentacionComercial;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class PresentacionComercialServicioImpl implements IPresentacionComercialServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos presentaciones comerciales activas con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_presentacion_comercial_nombre";
 
     // Inyecto los repositorios gracias a LOMBOK
     private final IPresentacionComercialRepository presentacionComercialRepository;
@@ -70,44 +81,53 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     /**
      * Registra una nueva presentación comercial en el sistema.
      * <p>
-     * Valida que la cantidad sea mayor a cero y que el nombre no esté duplicado
+     * Normaliza el nombre (sin espacios en los extremos ni repetidos), valida que sea obligatorio y no supere los 100 caracteres,
+     * que la cantidad sea mayor a cero y que el nombre no esté duplicado
      * (case-insensitive) entre las presentaciones comerciales activas. Registra el evento en
      * la auditoría.
      * </p>
      *
      * @param presentacionComercialFormDTO Objeto DTO que contiene los datos de creación de la presentación comercial.
      * @return {@link PresentacionComercialResponseDTO} representativo de la presentación comercial guardada en la base de datos.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si la cantidad es nula o menor o igual a cero.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una presentación comercial activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PRESENTACION_COMERCIAL)
     public PresentacionComercialResponseDTO altaPresentacionComercial(PresentacionComercialFormDTO presentacionComercialFormDTO) {
-        // 1. Validar la regla de negocio de la cantidad
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(presentacionComercialFormDTO.getNombre());
+
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Validar la regla de negocio de la cantidad
         validarCantidad(presentacionComercialFormDTO.getCantidad());
 
-        // 2. Validar si el nombre ya está registrado en otra presentación comercial (case-insensitive)
-        if (presentacionComercialRepository.existsByNombreIgnoreCase(presentacionComercialFormDTO.getNombre())) {
-            throw new RecursoDuplicadoException("Ya existe una presentación comercial con el nombre '" + presentacionComercialFormDTO.getNombre() + "'");
+        // 4. Validar si el nombre ya está registrado en otra presentación comercial (case-insensitive)
+        if (presentacionComercialRepository.existsByNombreIgnoreCase(nombre)) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos
+        // 5. Creo la entidad que se va a almacenar en la base de datos
         PresentacionComercialEntity presentacionComercialEntity = PresentacionComercialEntity.builder()
-                .nombre(presentacionComercialFormDTO.getNombre())
+                .nombre(nombre)
                 .cantidad(presentacionComercialFormDTO.getCantidad())
                 .unidadDeMedida(presentacionComercialFormDTO.getUnidadDeMedida())
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
-        return MapperPresentacionComercial.toDTO(presentacionComercialRepository.save(presentacionComercialEntity));
+        // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperPresentacionComercial.toDTO(GuardadoUnico.guardar(presentacionComercialRepository, presentacionComercialEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
      * Actualiza la información de una presentación comercial existente en la base de datos.
      * <p>
-     * Valida la cantidad antes de consultar la base de datos, luego localiza la presentación
+     * Normaliza y valida el nombre (obligatorio y de longitud máxima) y la cantidad antes de consultar la base de datos, luego localiza la presentación
      * comercial por su ID y verifica que el nuevo nombre no colisione con el de otra
      * presentación comercial activa (case-insensitive), permitiendo conservar el propio
      * nombre actual.
@@ -116,7 +136,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
      * @param id Identificador clave primaria de la presentación comercial a modificar.
      * @param presentacionComercialFormDTO DTO con la información actualizada.
      * @return {@link PresentacionComercialResponseDTO} representativo de la presentación comercial con los cambios aplicados.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si la cantidad es nula o menor o igual a cero.
      * @throws RecursoNoEncontradoException Si no se localiza una presentación comercial activa por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra presentación comercial activa.
      */
@@ -124,26 +144,34 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PRESENTACION_COMERCIAL)
     public PresentacionComercialResponseDTO modificarPresentacionComercial(Long id, PresentacionComercialFormDTO presentacionComercialFormDTO) {
-        // 1. Validar la regla de negocio de la cantidad antes de consultar la base de datos
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(presentacionComercialFormDTO.getNombre());
+
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima antes de consultar la base de datos
+        validarNombre(nombre);
+
+        // 3. Validar la regla de negocio de la cantidad antes de consultar la base de datos
         validarCantidad(presentacionComercialFormDTO.getCantidad());
 
-        // 2. Localizar la presentación comercial existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar la presentación comercial existente. Si no existe, se dispara RecursoNoEncontradoException
         PresentacionComercialEntity presentacionComercialEntity = presentacionComercialRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("La presentación comercial no existe"));
 
-        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 5. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
-        if (presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot(presentacionComercialFormDTO.getNombre(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + presentacionComercialFormDTO.getNombre() + "' ya está en uso por otra presentación comercial");
+        if (presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 4. Aplico los cambios sobre la entidad administrada por persistencia
-        presentacionComercialEntity.setNombre(presentacionComercialFormDTO.getNombre());
+        // 6. Aplico los cambios sobre la entidad administrada por persistencia
+        presentacionComercialEntity.setNombre(nombre);
         presentacionComercialEntity.setCantidad(presentacionComercialFormDTO.getCantidad());
         presentacionComercialEntity.setUnidadDeMedida(presentacionComercialFormDTO.getUnidadDeMedida());
 
-        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
-        return MapperPresentacionComercial.toDTO(presentacionComercialRepository.save(presentacionComercialEntity));
+        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperPresentacionComercial.toDTO(GuardadoUnico.guardar(presentacionComercialRepository, presentacionComercialEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -196,5 +224,26 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
         if (cantidad == null || cantidad <= 0) {
             throw new ReglaNegocioException("La cantidad debe ser mayor a cero");
         }
+    }
+
+    /**
+     * Valida que el nombre normalizado sea obligatorio y no supere la longitud máxima.
+     *
+     * @param nombre Nombre normalizado.
+     * @throws ReglaNegocioException Si el nombre está vacío o supera los 100 caracteres.
+     */
+    private static void validarNombre(String nombre) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe una presentación comercial con el nombre '" + nombre + "'");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra presentación comercial");
     }
 }

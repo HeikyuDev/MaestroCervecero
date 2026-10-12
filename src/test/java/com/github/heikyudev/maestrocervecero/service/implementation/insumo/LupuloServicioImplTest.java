@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -662,5 +663,170 @@ class LupuloServicioImplTest {
         assertThat(dto.getFormato()).isEqualTo(entidad.getFormato());
         assertThat(dto.getAa()).isEqualTo(entidad.getAa());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AL-16: altaLupulo guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaLupulo_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        LupuloFormDTO formDTO = lupuloFormDTO("  Pilsen   Nacional  ", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        lupuloServicio.altaLupulo(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<LupuloEntity> captor = ArgumentCaptor.forClass(LupuloEntity.class);
+        verify(lupuloRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(lupuloRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(lupuloRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AL-17: altaLupulo lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaLupulo_debeRechazarValorVacio() {
+        LupuloFormDTO formDTO = lupuloFormDTO("   ", FormatoLupulo.PELLET, 6.0);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-18: altaLupulo lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaLupulo_debeDetectarDuplicadoConElValorNormalizado() {
+        LupuloFormDTO formDTO = lupuloFormDTO("  pilsen ", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un lúpulo con el nombre 'pilsen'");
+
+        verify(lupuloRepository).existsByNombreIgnoreCase("pilsen");
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AL-19: altaLupulo traduce la violación del índice único udx_insumo_nombre al mensaje de duplicado")
+    void altaLupulo_debeTraducirLaViolacionDelIndiceUnico() {
+        LupuloFormDTO formDTO = lupuloFormDTO("Pilsen Nacional", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_insumo_nombre"));
+
+        assertThatThrownBy(() -> lupuloServicio.altaLupulo(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un lúpulo con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-AL-20: altaLupulo permite reutilizar el nombre de un registro dado de baja")
+    void altaLupulo_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        LupuloFormDTO formDTO = lupuloFormDTO("Pilsen Nacional", FormatoLupulo.PELLET, 6.0);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(lupuloRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> lupuloServicio.altaLupulo(formDTO)).doesNotThrowAnyException();
+
+        verify(lupuloRepository).save(any(LupuloEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AL-21: altaLupulo permite un nombre que difiere de otro solo en una tilde")
+    void altaLupulo_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        LupuloFormDTO formDTO = lupuloFormDTO("Pílsen", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(lupuloRepository.save(any(LupuloEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> lupuloServicio.altaLupulo(formDTO)).doesNotThrowAnyException();
+
+        verify(lupuloRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(lupuloRepository).save(any(LupuloEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ML-09: modificarLupulo guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarLupulo_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        LupuloFormDTO formDTO = lupuloFormDTO("  Pilsen   Nacional  ", FormatoLupulo.PELLET, 6.0);
+        LupuloEntity existente = crearLupuloEntity(1L, "Original", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(lupuloRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        lupuloServicio.modificarLupulo(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(lupuloRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(lupuloRepository).save(existente);
+        verify(lupuloRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-ML-10: modificarLupulo lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarLupulo_debeRechazarValorVacio() {
+        LupuloFormDTO formDTO = lupuloFormDTO("   ", FormatoLupulo.PELLET, 6.0);
+
+        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(lupuloRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-11: modificarLupulo lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarLupulo_debeDetectarDuplicadoConElValorNormalizado() {
+        LupuloFormDTO formDTO = lupuloFormDTO("  pilsen ", FormatoLupulo.PELLET, 6.0);
+        LupuloEntity existente = crearLupuloEntity(1L, "Original", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otro lúpulo");
+
+        verify(lupuloRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(lupuloRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ML-12: modificarLupulo traduce la violación del índice único udx_insumo_nombre al mensaje de duplicado")
+    void modificarLupulo_debeTraducirLaViolacionDelIndiceUnico() {
+        LupuloFormDTO formDTO = lupuloFormDTO("Pilsen Nacional", FormatoLupulo.PELLET, 6.0);
+        LupuloEntity existente = crearLupuloEntity(1L, "Original", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(lupuloRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_insumo_nombre"));
+
+        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro lúpulo");
+    }
+
+    @Test
+    @DisplayName("CP-ML-13: modificarLupulo permite reutilizar el nombre de un registro dado de baja")
+    void modificarLupulo_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        LupuloFormDTO formDTO = lupuloFormDTO("Pilsen Nacional", FormatoLupulo.PELLET, 6.0);
+        LupuloEntity existente = crearLupuloEntity(1L, "Original", FormatoLupulo.PELLET, 6.0);
+        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(lupuloRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> lupuloServicio.modificarLupulo(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(lupuloRepository).save(existente);
     }
 }

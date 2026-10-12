@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MaceradorResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -227,12 +228,12 @@ class MaceradorServicioImplTest {
     @DisplayName("altaMacerador lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
     void altaMacerador_debeRechazarIdentificadorDuplicadoCaseInsensitive() {
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("mac-01", 100.0, 80.0, 5.0, 75.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("mac-01")).thenReturn(true);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MAC-01")).thenReturn(true);
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(maceradorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class);
 
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("mac-01");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MAC-01");
         verify(maceradorRepository, never()).save(any());
     }
 
@@ -365,7 +366,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'MAC-EXISTENTE'");
+                .hasMessage("El identificador interno \'MAC-EXISTENTE\' ya está en uso por otro equipamiento");
 
         verify(maceradorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-EXISTENTE", 1L);
@@ -420,14 +421,14 @@ class MaceradorServicioImplTest {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         // Mismo identificador (distinto case): el AndIdNot excluye el propio ID y no debe fallar
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("mac-01", 100.0, 80.0, 5.0, 85.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("mac-01", 1L)).thenReturn(false);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
         when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         MaceradorResponseDTO resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO);
 
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("mac-01");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MAC-01");
         assertThat(resultado.getEficienciaMaceracion()).isEqualTo(85.0);
         verify(maceradorRepository).save(maceradorEntity);
     }
@@ -1102,5 +1103,172 @@ class MaceradorServicioImplTest {
         assertThat(dto.getEficienciaMaceracion()).isEqualTo(entidad.getEficienciaMaceracion());
         assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-42: altaMacerador guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void altaMacerador_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MaceradorFormDTO formDTO = maceradorFormDTO("  fer   01 ", 100.0, 80.0, 5.0, 75.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        maceradorServicio.altaMacerador(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<MaceradorEntity> captor = ArgumentCaptor.forClass(MaceradorEntity.class);
+        verify(maceradorRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(maceradorRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-43: altaMacerador lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno está vacío")
+    void altaMacerador_debeRechazarValorVacio() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("   ", 100.0, 80.0, 5.0, 75.0);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verifyNoInteractions(maceradorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-44: altaMacerador lanza RecursoDuplicadoException cuando el identificador interno normalizado ya existe")
+    void altaMacerador_debeDetectarDuplicadoConElValorNormalizado() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("  fer-01 ", 100.0, 80.0, 5.0, 75.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(true);
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER-01");
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-45: altaMacerador traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void altaMacerador_debeTraducirLaViolacionDelIndiceUnico() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("FER 01", 100.0, 80.0, 5.0, 75.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> maceradorServicio.altaMacerador(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
+    }
+
+    @Test
+    @DisplayName("CP-46: altaMacerador permite reutilizar el identificador interno de un registro dado de baja")
+    void altaMacerador_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("FER 01", 100.0, 80.0, 5.0, 75.0);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(formDTO)).doesNotThrowAnyException();
+
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-47: altaMacerador permite un identificador que difiere de otro solo en la puntuación")
+    void altaMacerador_debeTratarComoDistintosLosIdentificadoresConDistintaPuntuacion() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("fer 01", 100.0, 80.0, 5.0, 75.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(maceradorRepository.save(any(MaceradorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maceradorServicio.altaMacerador(formDTO)).doesNotThrowAnyException();
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(maceradorRepository).save(any(MaceradorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MM-17: modificarMacerador guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void modificarMacerador_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MaceradorFormDTO formDTO = maceradorFormDTO("  fer   01 ", 100.0, 80.0, 5.0, 75.0);
+        MaceradorEntity existente = crearMaceradorEntity(1L, "Original", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(maceradorRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        maceradorServicio.modificarMacerador(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L);
+        verify(maceradorRepository).save(existente);
+        verify(maceradorRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MM-18: modificarMacerador lanza ReglaNegocioException cuando el identificador interno está vacío")
+    void modificarMacerador_debeRechazarValorVacio() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("   ", 100.0, 80.0, 5.0, 75.0);
+        MaceradorEntity existente = crearMaceradorEntity(1L, "Original", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(existente));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-19: modificarMacerador lanza RecursoDuplicadoException cuando el identificador interno normalizado está en uso por otro registro")
+    void modificarMacerador_debeDetectarDuplicadoConElValorNormalizado() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("  fer-01 ", 100.0, 80.0, 5.0, 75.0);
+        MaceradorEntity existente = crearMaceradorEntity(1L, "Original", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
+        verify(maceradorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-20: modificarMacerador traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void modificarMacerador_debeTraducirLaViolacionDelIndiceUnico() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("FER 01", 100.0, 80.0, 5.0, 75.0);
+        MaceradorEntity existente = crearMaceradorEntity(1L, "Original", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(maceradorRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-MM-21: modificarMacerador permite reutilizar el identificador interno de un registro dado de baja")
+    void modificarMacerador_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MaceradorFormDTO formDTO = maceradorFormDTO("FER 01", 100.0, 80.0, 5.0, 75.0);
+        MaceradorEntity existente = crearMaceradorEntity(1L, "Original", 100.0, 80.0, 5.0, 75.0);
+        when(maceradorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(maceradorRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> maceradorServicio.modificarMacerador(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        verify(maceradorRepository).save(existente);
     }
 }

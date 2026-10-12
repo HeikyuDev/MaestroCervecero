@@ -17,6 +17,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOl
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OllaHervorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperOllaHervor;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,9 +26,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class OllaHervorServicioImpl implements IOllaHervorServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos equipamientos activos (de cualquier tipo) con el mismo identificador interno.
+     */
+    private static final String INDICE_IDENTIFICADOR_INTERNO = "udx_equipamiento_identificador_interno";
 
     private final IOllaHervorRepository ollaHervorRepository;
     private final IEquipamientoRepository equipamientoRepository;
@@ -74,7 +83,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      *
      * @param ollaHervorFormDTO Objeto DTO que contiene los datos de creación de la olla de hervor.
      * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor guardada en la base de datos.
-     * @throws ReglaNegocioException Si el identificador interno supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el identificador interno falta o supera los 100 caracteres.
      * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
@@ -85,73 +94,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR,conceptoAuditoria = ConceptoAuditoria.OLLA_DE_HERVOR)
     public OllaHervorResponseDTO altaOllaHervor(OllaHervorFormDTO ollaHervorFormDTO) {
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(ollaHervorFormDTO.getIdentificadorInterno());
 
-        // 1. Validar la longitud máxima del identificador interno
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
-
-        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
-        MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
-
-        // 3. Validar que la evaporación sea un número mayor a 0 y no supere la capacidad útil
-        validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
-
-        // 4. Validar que la pérdida por trub sea un número mayor a 0 y no supere la capacidad útil
-        validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub(), ollaHervorFormDTO.getCapacidadUtil());
-
-        // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
-        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
-
-        // 6. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(ollaHervorFormDTO.getIdentificadorInterno())) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
-        }
-
-        // 7. Crear la entidad OllaHervorEntity a partir del DTO de formulario
-        OllaHervorEntity ollaHervorEntity = OllaHervorEntity.builder()
-                .identificadorInterno(ollaHervorFormDTO.getIdentificadorInterno())
-                // Cuando se da de alta una nueva olla de hervor, su estado operativo inicial es DISPONIBLE.
-                .estadoOperativo(EstadoOperativo.DISPONIBLE)
-                .capacidadTotal(ollaHervorFormDTO.getCapacidadTotal())
-                .capacidadUtil(ollaHervorFormDTO.getCapacidadUtil())
-                .evaporacion(ollaHervorFormDTO.getEvaporacion())
-                .perdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub())
-                .usosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento())
-                .estado(Estado.ACTIVO)
-                .build();
-
-        // 8. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
-        return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
-    }
-
-
-    /**
-     * Modifica los datos de una olla de hervor existente en el sistema.
-     * <p>
-     * Valida que el identificador interno no esté duplicado (case-insensitive) entre los equipamientos activos,
-     * ignorando la olla de hervor que se está modificando.
-     * </p>
-     *
-     * @param id                Identificador clave primaria de la olla de hervor a modificar.
-     * @param ollaHervorFormDTO Objeto DTO que contiene los datos de modificación de la olla de hervor.
-     * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor modificada en la base de datos.
-     * @throws ReglaNegocioException      Si el identificador interno supera los 100 caracteres.
-     * @throws ReglaNegocioException      Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
-     * @throws ReglaNegocioException      Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException      Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
-     * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
-     * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
-     */
-    @Override
-    @Transactional
-    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.OLLA_DE_HERVOR)
-    public OllaHervorResponseDTO modificarOllaHervor(Long id, OllaHervorFormDTO ollaHervorFormDTO) {
-        // 1. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
-        OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
-
-        // 2. Validar la longitud máxima del identificador interno
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
+        // 2. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
 
         // 3. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
         MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
@@ -165,31 +112,100 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         // 6. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 7. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(ollaHervorFormDTO.getIdentificadorInterno(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + ollaHervorFormDTO.getIdentificadorInterno() + "'");
+        // 7. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
+            throw identificadorDuplicadoEnAlta(identificadorInterno);
         }
 
-        // 8. Validar que la olla de hervor no tenga comprometida una etapa en estado Pendiente de un lote.
+        // 8. Crear la entidad OllaHervorEntity a partir del DTO de formulario
+        OllaHervorEntity ollaHervorEntity = OllaHervorEntity.builder()
+                .identificadorInterno(identificadorInterno)
+                // Cuando se da de alta una nueva olla de hervor, su estado operativo inicial es DISPONIBLE.
+                .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .capacidadTotal(ollaHervorFormDTO.getCapacidadTotal())
+                .capacidadUtil(ollaHervorFormDTO.getCapacidadUtil())
+                .evaporacion(ollaHervorFormDTO.getEvaporacion())
+                .perdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub())
+                .usosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento())
+                .estado(Estado.ACTIVO)
+                .build();
+
+        // 9. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
+        return MapperOllaHervor.toDTO(GuardadoUnico.guardar(ollaHervorRepository, ollaHervorEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
+    }
+
+
+    /**
+     * Modifica los datos de una olla de hervor existente en el sistema.
+     * <p>
+     * Valida que el identificador interno no esté duplicado (case-insensitive) entre los equipamientos activos,
+     * ignorando la olla de hervor que se está modificando.
+     * </p>
+     *
+     * @param id                Identificador clave primaria de la olla de hervor a modificar.
+     * @param ollaHervorFormDTO Objeto DTO que contiene los datos de modificación de la olla de hervor.
+     * @return {@link OllaHervorResponseDTO} representativo de la olla de hervor modificada en la base de datos.
+     * @throws ReglaNegocioException      Si el identificador interno falta o supera los 100 caracteres.
+     * @throws ReglaNegocioException      Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
+     * @throws ReglaNegocioException      Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException      Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
+     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
+     * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.OLLA_DE_HERVOR)
+    public OllaHervorResponseDTO modificarOllaHervor(Long id, OllaHervorFormDTO ollaHervorFormDTO) {
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(ollaHervorFormDTO.getIdentificadorInterno());
+
+        // 2. Localizar la olla de hervor existente. Si no existe, se dispara RecursoNoEncontradoException
+        OllaHervorEntity ollaHervorEntity = ollaHervorRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + id));
+
+        // 3. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
+
+        // 4. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
+        MetodosEquipamiento.validarCapacidadUtil(ollaHervorFormDTO.getCapacidadTotal(), ollaHervorFormDTO.getCapacidadUtil());
+
+        // 5. Validar que la evaporación sea un número mayor a 0 y no supere la capacidad útil
+        validarEvaporacion(ollaHervorFormDTO.getEvaporacion(), ollaHervorFormDTO.getCapacidadUtil());
+
+        // 6. Validar que la pérdida por trub sea un número mayor a 0 y no supere la capacidad útil
+        validarPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub(), ollaHervorFormDTO.getCapacidadUtil());
+
+        // 7. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 8. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
+            throw identificadorDuplicadoEnModificacion(identificadorInterno);
+        }
+
+        // 9. Validar que la olla de hervor no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
             throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
-        // 9. Validar que la olla de hervor no se encuentre actualmente en uso.
+        // 10. Validar que la olla de hervor no se encuentre actualmente en uso.
         if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
             throw new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso");
         }
 
-        // 10. Actualizar los campos de la entidad con los valores del DTO de formulario
-        ollaHervorEntity.setIdentificadorInterno(ollaHervorFormDTO.getIdentificadorInterno());
+        // 11. Actualizar los campos de la entidad con los valores del DTO de formulario
+        ollaHervorEntity.setIdentificadorInterno(identificadorInterno);
         ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
         ollaHervorEntity.setEvaporacion(ollaHervorFormDTO.getEvaporacion());
         ollaHervorEntity.setPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
         ollaHervorEntity.setUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 11. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
-        return MapperOllaHervor.toDTO(ollaHervorRepository.save(ollaHervorEntity));
+        // 12. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
+        return MapperOllaHervor.toDTO(GuardadoUnico.guardar(ollaHervorRepository, ollaHervorEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }
 
     /**
@@ -272,4 +288,11 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         ValidacionesNumericas.validarMayorACero(perdidaPorTrub, "La pérdida por trub");
     }
 
+    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+        return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
+    }
+
+    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
+        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
+    }
 }

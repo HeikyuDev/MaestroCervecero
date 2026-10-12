@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -605,5 +606,170 @@ class MaltaServicioImplTest {
         assertThat(dto.getTipo()).isEqualTo(entidad.getTipo());
         assertThat(dto.getPotencialExtracto()).isEqualTo(entidad.getPotencialExtracto());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AM-12: altaMalta guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaMalta_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MaltaFormDTO formDTO = maltaFormDTO("  Pilsen   Nacional  ", TipoMalta.BASE, 80);
+        when(maltaRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        maltaServicio.altaMalta(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<MaltaEntity> captor = ArgumentCaptor.forClass(MaltaEntity.class);
+        verify(maltaRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(maltaRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(maltaRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AM-13: altaMalta lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaMalta_debeRechazarValorVacio() {
+        MaltaFormDTO formDTO = maltaFormDTO("   ", TipoMalta.BASE, 80);
+
+        assertThatThrownBy(() -> maltaServicio.altaMalta(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(maltaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-14: altaMalta lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaMalta_debeDetectarDuplicadoConElValorNormalizado() {
+        MaltaFormDTO formDTO = maltaFormDTO("  pilsen ", TipoMalta.BASE, 80);
+        when(maltaRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.altaMalta(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una malta con el nombre 'pilsen'");
+
+        verify(maltaRepository).existsByNombreIgnoreCase("pilsen");
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AM-15: altaMalta traduce la violación del índice único udx_insumo_nombre al mensaje de duplicado")
+    void altaMalta_debeTraducirLaViolacionDelIndiceUnico() {
+        MaltaFormDTO formDTO = maltaFormDTO("Pilsen Nacional", TipoMalta.BASE, 80);
+        when(maltaRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(maltaRepository.save(any(MaltaEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_insumo_nombre"));
+
+        assertThatThrownBy(() -> maltaServicio.altaMalta(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una malta con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-AM-16: altaMalta permite reutilizar el nombre de un registro dado de baja")
+    void altaMalta_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MaltaFormDTO formDTO = maltaFormDTO("Pilsen Nacional", TipoMalta.BASE, 80);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(maltaRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maltaServicio.altaMalta(formDTO)).doesNotThrowAnyException();
+
+        verify(maltaRepository).save(any(MaltaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AM-17: altaMalta permite un nombre que difiere de otro solo en una tilde")
+    void altaMalta_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        MaltaFormDTO formDTO = maltaFormDTO("Pílsen", TipoMalta.BASE, 80);
+        when(maltaRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(maltaRepository.save(any(MaltaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> maltaServicio.altaMalta(formDTO)).doesNotThrowAnyException();
+
+        verify(maltaRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(maltaRepository).save(any(MaltaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MM-08: modificarMalta guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarMalta_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MaltaFormDTO formDTO = maltaFormDTO("  Pilsen   Nacional  ", TipoMalta.BASE, 80);
+        MaltaEntity existente = crearMaltaEntity(1L, "Original", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(maltaRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        maltaServicio.modificarMalta(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(maltaRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(maltaRepository).save(existente);
+        verify(maltaRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MM-09: modificarMalta lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarMalta_debeRechazarValorVacio() {
+        MaltaFormDTO formDTO = maltaFormDTO("   ", TipoMalta.BASE, 80);
+
+        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(maltaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MM-10: modificarMalta lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarMalta_debeDetectarDuplicadoConElValorNormalizado() {
+        MaltaFormDTO formDTO = maltaFormDTO("  pilsen ", TipoMalta.BASE, 80);
+        MaltaEntity existente = crearMaltaEntity(1L, "Original", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otra malta");
+
+        verify(maltaRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(maltaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-11: modificarMalta traduce la violación del índice único udx_insumo_nombre al mensaje de duplicado")
+    void modificarMalta_debeTraducirLaViolacionDelIndiceUnico() {
+        MaltaFormDTO formDTO = maltaFormDTO("Pilsen Nacional", TipoMalta.BASE, 80);
+        MaltaEntity existente = crearMaltaEntity(1L, "Original", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(maltaRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_insumo_nombre"));
+
+        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra malta");
+    }
+
+    @Test
+    @DisplayName("CP-MM-12: modificarMalta permite reutilizar el nombre de un registro dado de baja")
+    void modificarMalta_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MaltaFormDTO formDTO = maltaFormDTO("Pilsen Nacional", TipoMalta.BASE, 80);
+        MaltaEntity existente = crearMaltaEntity(1L, "Original", TipoMalta.BASE, 80);
+        when(maltaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(maltaRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> maltaServicio.modificarMalta(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(maltaRepository).save(existente);
     }
 }

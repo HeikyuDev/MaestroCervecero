@@ -27,7 +27,7 @@ spring.flyway.baseline-on-migrate=false
 ### Convención de nombres
 
 `V<n>__<descripcion_en_minusculas>.sql`, con dos guiones bajos después del número. Ejemplos:
-`V1__esquema_inicial.sql`, `V2__datos_iniciales.sql`, `V3__indices_unicos_de_negocio.sql`.
+`V1__esquema_inicial.sql`, `V2__datos_iniciales.sql`, `V3__indices_unicos_maestros.sql`.
 
 - El número es entero y creciente, sin repetirse.
 - Una migración aplicada no se edita nunca. Flyway guarda su checksum en `flyway_schema_history` y se niega a
@@ -198,6 +198,25 @@ Los códigos e identificadores se guardan en mayúsculas, por lo que su índice 
 ```sql
 CREATE UNIQUE INDEX udx_barril_identificador ON barril (identificador) WHERE estado = 'ACTIVO';
 ```
+
+### Índices únicos de los maestros simples
+
+`V3__indices_unicos_maestros.sql` crea los índices únicos parciales (`WHERE estado = 'ACTIVO'`) de los maestros simples.
+
+| Índice | Tabla | Expresión | Regla |
+|---|---|---|---|
+| `udx_insumo_nombre` | `insumo` | `(tipo_insumo, lower(btrim(nombre)))` | Nombre único por tipo de insumo: una malta y un lúpulo pueden llamarse igual |
+| `udx_equipamiento_identificador_interno` | `equipamiento` | `(identificador_interno)` | Identificador único entre fermentadores, molinos, maceradores y ollas de hervor |
+| `udx_pais_nombre` | `pais` | `(lower(btrim(nombre)))` | Nombre único |
+| `udx_provincia_nombre` | `provincia` | `(pais_id, lower(btrim(nombre)))` | Nombre único dentro de su país |
+| `udx_localidad_nombre` | `localidad` | `(provincia_id, lower(btrim(nombre)))` | Nombre único dentro de su provincia |
+| `udx_presentacion_comercial_nombre` | `presentacion_comercial` | `(lower(btrim(nombre)))` | Nombre único |
+| `udx_motivo_ajuste_nombre` | `motivo_ajuste` | `(lower(btrim(nombre)))` | Nombre único |
+| `udx_costo_directo_adicional_nombre` | `costo_directo_adicional` | `(lower(btrim(nombre)))` | Nombre único |
+| `udx_barril_identificador` | `barril` | `(fabricante_id, identificador)` | Identificador único dentro de su fabricante |
+
+El código postal de las localidades es un dato informativo y no tiene unicidad. Si las tablas contienen duplicados entre
+registros activos, la creación del índice falla y deben resolverse antes de migrar.
 
 ### Traducción de una violación de unicidad
 

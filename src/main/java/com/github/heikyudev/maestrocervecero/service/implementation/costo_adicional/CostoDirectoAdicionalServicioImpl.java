@@ -13,6 +13,10 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.costo_adicional.ICostoDirectoAdicionalServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.costo_adicional.CostoDirectoAdicionalResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.costo_adicional.MapperCostoDirectoAdicional;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,10 +24,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicionalServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos costos directos adicionales activos con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_costo_directo_adicional_nombre";
 
     private final ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
 
@@ -64,28 +74,37 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
      * @param costoDirectoAdicionalFormDTO Los datos del costo directo adicional a registrar.
      * @return El costo directo adicional registrado.
      * @throws RecursoDuplicadoException Si ya existe un costo directo adicional activo con el mismo nombre (case-insensitive).
-     * @throws ReglaNegocioException Si el costo por litro es nulo o menor o igual a cero.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el costo por litro es nulo o menor o igual a cero.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.COSTO_DIRECTO_ADICIONAL)
     public CostoDirectoAdicionalResponseDTO altaCostoDirectoAdicional(CostoDirectoAdicionalFormDTO costoDirectoAdicionalFormDTO) {
-        // 1. Validar que no exista otro costo directo adicional con el mismo nombre (case-insensitive)
-        if (costoDirectoAdicionalRepository.existsByNombreIgnoreCase(costoDirectoAdicionalFormDTO.getNombre())) {
-            throw new RecursoDuplicadoException("Ya existe un costo directo adicional con el nombre '" + costoDirectoAdicionalFormDTO.getNombre() + "'");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(costoDirectoAdicionalFormDTO.getNombre());
+
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Validar que no exista otro costo directo adicional con el mismo nombre (case-insensitive)
+        if (costoDirectoAdicionalRepository.existsByNombreIgnoreCase(nombre)) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
-        // 2. Validar que el costo por litro sea mayor a cero
+        // 4. Validar que el costo por litro sea mayor a cero
         validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
-        // 3. Construir y persistir la entidad, y retornar el DTO de respuesta correspondiente
+        // 5. Construir la entidad que se va a almacenar en la base de datos
         CostoDirectoAdicionalEntity costoDirectoAdicionalEntity = CostoDirectoAdicionalEntity.builder()
-                .nombre(costoDirectoAdicionalFormDTO.getNombre())
+                .nombre(nombre)
                 .costoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro())
                 .estado(Estado.ACTIVO)
                 .build();
 
-        return MapperCostoDirectoAdicional.toDTO(costoDirectoAdicionalRepository.save(costoDirectoAdicionalEntity));
+        // 6. Guardar la entidad (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y retornar el DTO de respuesta correspondiente
+        return MapperCostoDirectoAdicional.toDTO(GuardadoUnico.guardar(costoDirectoAdicionalRepository, costoDirectoAdicionalEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
@@ -96,30 +115,38 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
      * @return El costo directo adicional modificado.
      * @throws RecursoNoEncontradoException Si no existe un costo directo adicional activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro costo directo adicional activo (case-insensitive).
-     * @throws ReglaNegocioException Si el costo por litro es nulo o menor o igual a cero.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el costo por litro es nulo o menor o igual a cero.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.COSTO_DIRECTO_ADICIONAL)
     public CostoDirectoAdicionalResponseDTO modificarCostoDirectoAdicional(Long id, CostoDirectoAdicionalFormDTO costoDirectoAdicionalFormDTO) {
-        // 1. Localizar el costo directo adicional existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(costoDirectoAdicionalFormDTO.getNombre());
+
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Localizar el costo directo adicional existente. Si no existe, se dispara RecursoNoEncontradoException
         CostoDirectoAdicionalEntity costoDirectoAdicionalEntity = costoDirectoAdicionalRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el costo directo adicional con ID: " + id));
 
-        // 2. Validar que no exista otro costo directo adicional con el mismo nombre, excluyendo el propio ID
-        if (costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot(costoDirectoAdicionalFormDTO.getNombre(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + costoDirectoAdicionalFormDTO.getNombre() + "' ya está en uso por otro costo directo adicional");
+        // 4. Validar que no exista otro costo directo adicional con el mismo nombre, excluyendo el propio ID
+        if (costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 3. Validar que el costo por litro sea mayor a cero
+        // 5. Validar que el costo por litro sea mayor a cero
         validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
-        // 4. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
-        costoDirectoAdicionalEntity.setNombre(costoDirectoAdicionalFormDTO.getNombre());
+        // 6. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
+        costoDirectoAdicionalEntity.setNombre(nombre);
         costoDirectoAdicionalEntity.setCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
-        // 5. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
-        return MapperCostoDirectoAdicional.toDTO(costoDirectoAdicionalRepository.save(costoDirectoAdicionalEntity));
+        // 7. Persistir la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y retornar el DTO de respuesta correspondiente
+        return MapperCostoDirectoAdicional.toDTO(GuardadoUnico.guardar(costoDirectoAdicionalRepository, costoDirectoAdicionalEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -160,5 +187,26 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         if (costoPorLitro == null || costoPorLitro.signum() <= 0) {
             throw new ReglaNegocioException("El costo por litro debe ser mayor a cero");
         }
+    }
+
+    /**
+     * Valida que el nombre normalizado sea obligatorio y no supere la longitud máxima.
+     *
+     * @param nombre Nombre normalizado.
+     * @throws ReglaNegocioException Si el nombre está vacío o supera los 100 caracteres.
+     */
+    private static void validarNombre(String nombre) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe un costo directo adicional con el nombre '" + nombre + "'");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otro costo directo adicional");
     }
 }

@@ -85,7 +85,7 @@ public interface ILocalidadRepository extends JpaRepository<LocalidadEntity, Lon
      * @param idProvincia El ID de la provincia a la que debe pertenecer la localidad.
      * @return {@code true} si ya existe una localidad activa con ese nombre en esa provincia, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE UPPER(l.nombre) = UPPER(:nombre) AND l.provincia.id = :idProvincia AND l.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE LOWER(l.nombre) = LOWER(:nombre) AND l.provincia.id = :idProvincia AND l.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndProvinciaId(@Param("nombre") String nombre, @Param("idProvincia") Long idProvincia);
 
     /**
@@ -102,35 +102,8 @@ public interface ILocalidadRepository extends JpaRepository<LocalidadEntity, Lon
      * @param id El ID de la localidad a excluir de la verificación.
      * @return {@code true} si otra localidad activa ya posee ese nombre en esa provincia, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE UPPER(l.nombre) = UPPER(:nombre) AND l.provincia.id = :idProvincia AND l.id <> :id AND l.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE LOWER(l.nombre) = LOWER(:nombre) AND l.provincia.id = :idProvincia AND l.id <> :id AND l.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndProvinciaIdAndIdNot(@Param("nombre") String nombre, @Param("idProvincia") Long idProvincia, @Param("id") Long id);
-
-    /**
-     * Verifica si existe una localidad activa con el código postal dado.
-     * <p>
-     * La unicidad del código postal es global, sin importar la provincia o el país.
-     * </p>
-     *
-     * @param codigoPostal El código postal a buscar.
-     * @return {@code true} si ya existe una localidad activa con ese código postal, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE l.codigoPostal = :codigoPostal AND l.estado = 'ACTIVO'")
-    boolean existsByCodigoPostal(@Param("codigoPostal") String codigoPostal);
-
-    /**
-     * Verifica si existe una localidad activa con el código postal dado, excluyendo de la
-     * búsqueda a la localidad con el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar el propio código postal actual
-     * sin que la validación de unicidad falle contra el mismo registro.
-     * </p>
-     *
-     * @param codigoPostal El código postal a buscar.
-     * @param id El ID de la localidad a excluir de la verificación.
-     * @return {@code true} si otra localidad activa ya posee ese código postal, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE l.codigoPostal = :codigoPostal AND l.id <> :id AND l.estado = 'ACTIVO'")
-    boolean existsByCodigoPostalAndIdNot(@Param("codigoPostal") String codigoPostal, @Param("id") Long id);
 
     /**
      * Verifica si existe alguna localidad activa asociada a la provincia indicada.

@@ -58,7 +58,7 @@ public interface ILupuloRepository extends JpaRepository<LupuloEntity, Long> {
      * @param nombre El nombre del lúpulo a buscar.
      * @return {@code true} si ya existe un lúpulo activo con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LupuloEntity l WHERE UPPER(l.nombre) = UPPER(:nombre) AND l.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LupuloEntity l WHERE LOWER(l.nombre) = LOWER(:nombre) AND l.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -73,6 +73,6 @@ public interface ILupuloRepository extends JpaRepository<LupuloEntity, Long> {
      * @param id El ID del lúpulo a excluir de la verificación.
      * @return {@code true} si otro lúpulo activo ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LupuloEntity l WHERE UPPER(l.nombre) = UPPER(:nombre) AND l.id <> :id AND l.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LupuloEntity l WHERE LOWER(l.nombre) = LOWER(:nombre) AND l.id <> :id AND l.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

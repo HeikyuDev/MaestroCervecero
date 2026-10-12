@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -219,12 +220,12 @@ class FermentadorServicioImplTest {
     @DisplayName("altaFermentador lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
     void altaFermentador_debeRechazarIdentificadorDuplicadoCaseInsensitive() {
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("ferm-01", 100.0, 80.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("ferm-01")).thenReturn(true);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FERM-01")).thenReturn(true);
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(fermentadorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class);
 
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("ferm-01");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FERM-01");
         verify(fermentadorRepository, never()).save(any());
     }
 
@@ -319,7 +320,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'FERM-EXISTENTE'");
+                .hasMessage("El identificador interno \'FERM-EXISTENTE\' ya está en uso por otro equipamiento");
 
         verify(fermentadorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-EXISTENTE", 1L);
@@ -378,14 +379,14 @@ class FermentadorServicioImplTest {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         // Mismo identificador (distinto case): el AndIdNot excluye el propio ID y no debe fallar
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("ferm-01", 100.0, 80.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("ferm-01", 1L)).thenReturn(false);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
         when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         FermentadorResponseDTO resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO);
 
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("ferm-01");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("FERM-01");
         assertThat(resultado.getCapacidadTotal()).isEqualTo(100.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         verify(fermentadorRepository).save(fermentadorEntity);
@@ -870,5 +871,172 @@ class FermentadorServicioImplTest {
         assertThat(dto.getCapacidadUtil()).isEqualTo(entidad.getCapacidadUtil());
         assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AF-24: altaFermentador guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void altaFermentador_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        FermentadorFormDTO formDTO = fermentadorFormDTO("  fer   01 ", 100.0, 80.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        fermentadorServicio.altaFermentador(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<FermentadorEntity> captor = ArgumentCaptor.forClass(FermentadorEntity.class);
+        verify(fermentadorRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(fermentadorRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AF-25: altaFermentador lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno está vacío")
+    void altaFermentador_debeRechazarValorVacio() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("   ", 100.0, 80.0);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verifyNoInteractions(fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AF-26: altaFermentador lanza RecursoDuplicadoException cuando el identificador interno normalizado ya existe")
+    void altaFermentador_debeDetectarDuplicadoConElValorNormalizado() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("  fer-01 ", 100.0, 80.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(true);
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER-01");
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AF-27: altaFermentador traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void altaFermentador_debeTraducirLaViolacionDelIndiceUnico() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("FER 01", 100.0, 80.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> fermentadorServicio.altaFermentador(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
+    }
+
+    @Test
+    @DisplayName("CP-AF-28: altaFermentador permite reutilizar el identificador interno de un registro dado de baja")
+    void altaFermentador_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("FER 01", 100.0, 80.0);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fermentadorServicio.altaFermentador(formDTO)).doesNotThrowAnyException();
+
+        verify(fermentadorRepository).save(any(FermentadorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AF-29: altaFermentador permite un identificador que difiere de otro solo en la puntuación")
+    void altaFermentador_debeTratarComoDistintosLosIdentificadoresConDistintaPuntuacion() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("fer 01", 100.0, 80.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(fermentadorRepository.save(any(FermentadorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fermentadorServicio.altaFermentador(formDTO)).doesNotThrowAnyException();
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(fermentadorRepository).save(any(FermentadorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MF-15: modificarFermentador guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void modificarFermentador_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        FermentadorFormDTO formDTO = fermentadorFormDTO("  fer   01 ", 100.0, 80.0);
+        FermentadorEntity existente = crearFermentadorEntity(1L, "Original", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(fermentadorRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        fermentadorServicio.modificarFermentador(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L);
+        verify(fermentadorRepository).save(existente);
+        verify(fermentadorRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MF-16: modificarFermentador lanza ReglaNegocioException cuando el identificador interno está vacío")
+    void modificarFermentador_debeRechazarValorVacio() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("   ", 100.0, 80.0);
+        FermentadorEntity existente = crearFermentadorEntity(1L, "Original", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(existente));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-17: modificarFermentador lanza RecursoDuplicadoException cuando el identificador interno normalizado está en uso por otro registro")
+    void modificarFermentador_debeDetectarDuplicadoConElValorNormalizado() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("  fer-01 ", 100.0, 80.0);
+        FermentadorEntity existente = crearFermentadorEntity(1L, "Original", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MF-18: modificarFermentador traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void modificarFermentador_debeTraducirLaViolacionDelIndiceUnico() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("FER 01", 100.0, 80.0);
+        FermentadorEntity existente = crearFermentadorEntity(1L, "Original", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(fermentadorRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-MF-19: modificarFermentador permite reutilizar el identificador interno de un registro dado de baja")
+    void modificarFermentador_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        FermentadorFormDTO formDTO = fermentadorFormDTO("FER 01", 100.0, 80.0);
+        FermentadorEntity existente = crearFermentadorEntity(1L, "Original", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(fermentadorRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> fermentadorServicio.modificarFermentador(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        verify(fermentadorRepository).save(existente);
     }
 }

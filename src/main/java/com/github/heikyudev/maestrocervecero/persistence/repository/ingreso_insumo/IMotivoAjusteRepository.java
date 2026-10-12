@@ -70,7 +70,7 @@ public interface IMotivoAjusteRepository extends JpaRepository<MotivoAjusteEntit
      * @param nombre El nombre del motivo de ajuste a buscar.
      * @return {@code true} si ya existe un motivo de ajuste activo con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(ma) > 0 THEN true ELSE false END FROM MotivoAjusteEntity ma WHERE UPPER(ma.nombre) = UPPER(:nombre) AND ma.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(ma) > 0 THEN true ELSE false END FROM MotivoAjusteEntity ma WHERE LOWER(ma.nombre) = LOWER(:nombre) AND ma.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -85,6 +85,6 @@ public interface IMotivoAjusteRepository extends JpaRepository<MotivoAjusteEntit
      * @param id El ID del motivo de ajuste a excluir de la verificación.
      * @return {@code true} si otro motivo de ajuste activo ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(ma) > 0 THEN true ELSE false END FROM MotivoAjusteEntity ma WHERE UPPER(ma.nombre) = UPPER(:nombre) AND ma.id <> :id AND ma.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(ma) > 0 THEN true ELSE false END FROM MotivoAjusteEntity ma WHERE LOWER(ma.nombre) = LOWER(:nombre) AND ma.id <> :id AND ma.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

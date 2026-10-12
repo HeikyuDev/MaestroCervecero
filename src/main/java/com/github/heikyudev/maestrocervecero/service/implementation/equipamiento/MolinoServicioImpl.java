@@ -17,7 +17,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMo
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperMolino;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,9 +27,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class MolinoServicioImpl implements IMolinoServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos equipamientos activos (de cualquier tipo) con el mismo identificador interno.
+     */
+    private static final String INDICE_IDENTIFICADOR_INTERNO = "udx_equipamiento_identificador_interno";
 
     private final IMolinoRepository molinoRepository;
     private final IEquipamientoRepository equipamientoRepository;
@@ -73,38 +82,42 @@ public class MolinoServicioImpl implements IMolinoServicio {
      *
      * @param molinoFormDTO Datos del molino a crear.
      * @return {@link MolinoResponseDTO} con los datos del molino creado.
-     * @throws RecursoDuplicadoException Si ya existe un equipamiento con el mismo identificador interno.
-     * @throws ReglaNegocioException      Si el identificador interno supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, o si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
+     * @throws RecursoDuplicadoException Si ya existe un equipamiento activo con el mismo identificador interno (sin distinguir mayúsculas).
+     * @throws ReglaNegocioException      Si el identificador interno falta o supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, o si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO altaMolino(MolinoFormDTO molinoFormDTO) {
-        // 1. Validar la longitud máxima del identificador interno.
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(molinoFormDTO.getIdentificadorInterno());
 
-        // 2. Validar que el rendimiento de molienda sea un número mayor a 0 y no supere el máximo.
+        // 2. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
+
+        // 3. Validar que el rendimiento de molienda sea un número mayor a 0 y no supere el máximo.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 3. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
+        // 4. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 4. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(molinoFormDTO.getIdentificadorInterno())) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
+        // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
+            throw identificadorDuplicadoEnAlta(identificadorInterno);
         }
 
-        // 5. Crear la entidad MolinoEntity.
+        // 6. Crear la entidad MolinoEntity.
         MolinoEntity molinoEntity = MolinoEntity.builder().
-                identificadorInterno(molinoFormDTO.getIdentificadorInterno()).
+                identificadorInterno(identificadorInterno).
                 rendimientoMolienda(molinoFormDTO.getRendimientoMolienda()).
                 usosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento()).
                 estadoOperativo(EstadoOperativo.DISPONIBLE).
                 estado(Estado.ACTIVO).
                 build();
 
-        // 6. Guardar la entidad en la base de datos.
-        return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
+        // 7. Guardar la entidad en la base de datos.
+        return MapperMolino.toDTO(GuardadoUnico.guardar(molinoRepository, molinoEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
     }
 
     /**
@@ -115,48 +128,52 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @return {@link MolinoResponseDTO} con los datos del molino modificado.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno.
-     * @throws ReglaNegocioException         Si el identificador interno supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el molino tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException         Si el identificador interno falta o supera los 100 caracteres, si el rendimiento de molienda no es un número mayor a 0 o supera 10.000 kg/h, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el molino tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO modificarMolino(Long id, MolinoFormDTO molinoFormDTO) {
-        // 1. Buscar el molino existente por su ID.
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(molinoFormDTO.getIdentificadorInterno());
+
+        // 2. Buscar el molino existente por su ID.
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // 2. Validar la longitud máxima del identificador interno.
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
+        // 3. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
 
-        // 3. Validar que el rendimiento de molienda sea un número mayor a 0 y no supere el máximo.
+        // 4. Validar que el rendimiento de molienda sea un número mayor a 0 y no supere el máximo.
         validarRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
 
-        // 4. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
+        // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(molinoFormDTO.getIdentificadorInterno(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + molinoFormDTO.getIdentificadorInterno() + "'");
+        // 6. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
+            throw identificadorDuplicadoEnModificacion(identificadorInterno);
         }
 
-        // 6. Validar que el molino no tenga comprometida una etapa en estado Pendiente de un lote (ni a
+        // 7. Validar que el molino no tenga comprometida una etapa en estado Pendiente de un lote (ni a
         //    punto de arrancar, ni futura dentro de un lote ya en ejecución).
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
             throw new ReglaNegocioException("No se puede modificar el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
-        // 7. Validar que el molino no se encuentre actualmente en uso.
+        // 8. Validar que el molino no se encuentre actualmente en uso.
         if (molinoEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
             throw new ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso");
         }
 
-        // 8. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
-        molinoEntity.setIdentificadorInterno(molinoFormDTO.getIdentificadorInterno());
+        // 9. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
+        molinoEntity.setIdentificadorInterno(identificadorInterno);
         molinoEntity.setRendimientoMolienda(molinoFormDTO.getRendimientoMolienda());
         molinoEntity.setUsosMaximosAntesMantenimiento(molinoFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 9. Guardar la entidad actualizada en la base de datos.
-        return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
+        // 10. Guardar la entidad actualizada en la base de datos.
+        return MapperMolino.toDTO(GuardadoUnico.guardar(molinoRepository, molinoEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }
 
     /**
@@ -212,5 +229,13 @@ public class MolinoServicioImpl implements IMolinoServicio {
         }
         ValidacionesNumericas.validarMayorACeroConMaximo(rendimientoMolienda,
                 LimitesTecnicos.RENDIMIENTO_MOLINO_MAXIMO_KG_H, "El rendimiento de molienda", "kg/h");
+    }
+
+    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+        return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
+    }
+
+    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
+        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
     }
 }

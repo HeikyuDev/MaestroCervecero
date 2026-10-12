@@ -20,13 +20,17 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.ILevaduraServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLevadura;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +45,11 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * Cantidad máxima de células viables por gramo que se admite para una levadura.
      */
     private static final double CELULAS_VIABLES_MAXIMO = 20_000_000_000.0;
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos levaduras activas con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_insumo_nombre";
 
     // Inyecto los repositorios gracias a LOMBOK
     private final ILevaduraRepository levaduraRepository;
@@ -89,49 +98,54 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     /**
      * Registra una nueva levadura en el sistema.
      * <p>
-     * Valida que el nombre no supere los 100 caracteres, que la cantidad de células viables por gramo esté entre 6.000.000.000 y 20.000.000.000, que el nombre no esté
+     * Normaliza el nombre (sin espacios en los extremos ni repetidos), valida que sea obligatorio y no supere los 100 caracteres, que la cantidad de células viables por gramo esté entre 6.000.000.000 y 20.000.000.000, que el nombre no esté
      * duplicado (case-insensitive) entre las levaduras activas, y asigna la unidad de medida fija
      * de negocio ({@code GRAMO}) antes de persistir. Registra el evento en la auditoría.
      * </p>
      *
      * @param levaduraFormDTO Objeto DTO que contiene los datos de creación de la levadura.
      * @return {@link LevaduraResponseDTO} representativo de la levadura guardada en la base de datos.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres, si la cantidad de células viables por gramo no es un número o no está entre 6.000.000.000 y 20.000.000.000.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, si la cantidad de células viables por gramo no es un número o no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una levadura activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LEVADURA)
     public LevaduraResponseDTO altaLevadura(LevaduraFormDTO levaduraFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(levaduraFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(levaduraFormDTO.getNombre());
 
-        // 2. Validar la regla de negocio de la cantidad de células por gramo
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Validar la regla de negocio de la cantidad de células por gramo
         validarCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 3. Validar si el nombre ya está registrado en otra levadura (case-insensitive)
-        if (levaduraRepository.existsByNombreIgnoreCase(levaduraFormDTO.getNombre())) {
-            throw new RecursoDuplicadoException("Ya existe una levadura con el nombre '" + levaduraFormDTO.getNombre() + "'");
+        // 4. Validar si el nombre ya está registrado en otra levadura activa (case-insensitive)
+        if (levaduraRepository.existsByNombreIgnoreCase(nombre)) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
-        // 4. Creo la entidad que se va a almacenar en la base de datos.
+        // 5. Creo la entidad que se va a almacenar en la base de datos.
         //    La unidad de medida es fija por regla de negocio y la asigna el service.
         LevaduraEntity levaduraEntity = LevaduraEntity.builder()
-                .nombre(levaduraFormDTO.getNombre())
+                .nombre(nombre)
                 .unidadDeMedida(UnidadDeMedida.GRAMO)
                 .tipo(levaduraFormDTO.getTipo())
                 .cantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo())
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
-        return MapperLevadura.toDTO(levaduraRepository.save(levaduraEntity));
+        // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperLevadura.toDTO(GuardadoUnico.guardar(levaduraRepository, levaduraEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
      * Actualiza la información de una levadura existente en la base de datos.
      * <p>
-     * Valida la longitud del nombre y la cantidad de células por gramo antes de consultar la base de datos, luego localiza
+     * Normaliza y valida el nombre (obligatorio y de longitud máxima), y la cantidad de células por gramo antes de consultar la base de datos, luego localiza
      * la levadura por su ID y verifica que el nuevo nombre no colisione con el de otra levadura
      * activa (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
@@ -139,7 +153,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * @param id Identificador clave primaria de la levadura a modificar.
      * @param levaduraFormDTO DTO con la información actualizada.
      * @return {@link LevaduraResponseDTO} representativo de la levadura con los cambios aplicados.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres, si la cantidad de células viables por gramo no es un número o no está entre 6.000.000.000 y 20.000.000.000.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, si la cantidad de células viables por gramo no es un número o no está entre 6.000.000.000 y 20.000.000.000.
      * @throws RecursoNoEncontradoException Si no se localiza una levadura activa por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra levadura activa.
      */
@@ -147,30 +161,35 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LEVADURA)
     public LevaduraResponseDTO modificarLevadura(Long id, LevaduraFormDTO levaduraFormDTO) {
-        // 1. Validar la longitud máxima del nombre antes de consultar la base de datos
-        ValidacionesNumericas.validarLongitudMaxima(levaduraFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(levaduraFormDTO.getNombre());
 
-        // 2. Validar la regla de negocio de la cantidad de células por gramo antes de consultar la base de datos
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima antes de consultar la base de datos
+        validarNombre(nombre);
+
+        // 3. Validar la regla de negocio de la cantidad de células por gramo antes de consultar la base de datos
         validarCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 3. Localizar la levadura existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 4. Localizar la levadura existente. Si no existe, se dispara RecursoNoEncontradoException
         LevaduraEntity levaduraEntity = levaduraRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la levadura con ID: " + id));
 
-        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 5. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
-        if (levaduraRepository.existsByNombreIgnoreCaseAndIdNot(levaduraFormDTO.getNombre(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + levaduraFormDTO.getNombre() + "' ya está en uso por otra levadura");
+        if (levaduraRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 5. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 6. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (GRAMO).
-        levaduraEntity.setNombre(levaduraFormDTO.getNombre());
+        levaduraEntity.setNombre(nombre);
         levaduraEntity.setTipo(levaduraFormDTO.getTipo());
         levaduraEntity.setCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
-        return MapperLevadura.toDTO(levaduraRepository.save(levaduraEntity));
+        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperLevadura.toDTO(GuardadoUnico.guardar(levaduraRepository, levaduraEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -226,6 +245,27 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
 
         // 8. Retornamos el DTO de la levadura dada de baja en lugar de null
         return MapperLevadura.toDTO(levaduraEntity);
+    }
+
+    /**
+     * Valida que el nombre normalizado sea obligatorio y no supere la longitud máxima.
+     *
+     * @param nombre Nombre normalizado.
+     * @throws ReglaNegocioException Si el nombre está vacío o supera los 100 caracteres.
+     */
+    private static void validarNombre(String nombre) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe una levadura con el nombre '" + nombre + "'");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra levadura");
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
@@ -25,9 +27,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class LocalidadServicioImpl implements ILocalidadServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos localidades activas en una misma provincia con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_localidad_nombre";
 
     // Inyecto los repositorios gracias a LOMBOK
     private final ILocalidadRepository localidadRepository;
@@ -73,102 +82,101 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     /**
      * Registra una nueva localidad en el sistema.
      * <p>
-     * Valida que la provincia seleccionada exista, que el nombre no esté duplicado
-     * (case-insensitive) entre las localidades activas de esa misma provincia, y que el código
-     * postal no esté duplicado entre las localidades activas. Registra el evento en la
-     * auditoría.
+     * Normaliza el nombre (sin espacios en los extremos ni repetidos) y el código postal (en mayúsculas), valida que ambos sean obligatorios
+     * y no superen la longitud máxima, que la provincia seleccionada exista y que el nombre no esté duplicado
+     * (case-insensitive) entre las localidades activas de esa misma provincia. El código postal es un dato informativo y puede repetirse.
+     * Registra el evento en la auditoría.
      * </p>
      *
      * @param localidadFormDTO Objeto DTO que contiene los datos de creación de la localidad.
      * @return {@link LocalidadResponseDTO} representativo de la localidad guardada en la base de datos.
      * @throws RecursoNoEncontradoException Si no existe una provincia activa con el ID especificado.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o el código postal supera los 10 caracteres.
-     * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una localidad activa de la misma provincia, o si el código postal ya pertenece a otra localidad activa.
+     * @throws ReglaNegocioException Si el nombre o el código postal faltan, o superan los 100 y los 10 caracteres respectivamente.
+     * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una localidad activa de la misma provincia.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LOCALIDAD)
     public LocalidadResponseDTO altaLocalidad(LocalidadFormDTO localidadFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
-        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getCodigoPostal(), LimitesTecnicos.LONGITUD_MAXIMA_CODIGO_POSTAL, "El código postal");
+        // 1. Normalizar el nombre y el código postal sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(localidadFormDTO.getNombre());
+        String codigoPostal = NormalizacionTexto.codigo(localidadFormDTO.getCodigoPostal());
 
-        // 2. Verificar que la provincia seleccionada exista
+        // 2. Validar que el nombre y el código postal sean obligatorios y no superen la longitud máxima
+        validarNombreYCodigoPostal(nombre, codigoPostal);
+
+        // 3. Verificar que la provincia seleccionada exista
         ProvinciaEntity provinciaEntity = provinciaRepository.findById(localidadFormDTO.getIdProvincia())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + localidadFormDTO.getIdProvincia()));
 
-        // 3. Validar si el nombre ya está registrado en otra localidad de la misma provincia (case-insensitive)
-        if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaId(localidadFormDTO.getNombre(), localidadFormDTO.getIdProvincia())) {
-            throw new RecursoDuplicadoException("Ya existe una localidad con el nombre '" + localidadFormDTO.getNombre() + "' para la provincia seleccionada");
-        }
-
-        // 4. Validar si el código postal ya está registrado en otra localidad
-        if (localidadRepository.existsByCodigoPostal(localidadFormDTO.getCodigoPostal())) {
-            throw new RecursoDuplicadoException("Ya existe una localidad con el código postal '" + localidadFormDTO.getCodigoPostal() + "'");
+        // 4. Validar si el nombre ya está registrado en otra localidad de la misma provincia (case-insensitive)
+        if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaId(nombre, localidadFormDTO.getIdProvincia())) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
         // 5. Creo la entidad que se va a almacenar en la base de datos
         LocalidadEntity localidadEntity = LocalidadEntity.builder()
-                .nombre(localidadFormDTO.getNombre())
-                .codigoPostal(localidadFormDTO.getCodigoPostal())
+                .nombre(nombre)
+                .codigoPostal(codigoPostal)
                 .provincia(provinciaEntity)
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 6. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
-        return MapperLocalidad.toDTO(localidadRepository.save(localidadEntity));
+        // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperLocalidad.toDTO(GuardadoUnico.guardar(localidadRepository, localidadEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
      * Actualiza la información de una localidad existente en la base de datos.
      * <p>
-     * Localiza la localidad por su ID, verifica que la provincia seleccionada exista, que el
-     * nuevo nombre no colisione con el de otra localidad activa de la misma provincia
-     * (case-insensitive), y que el nuevo código postal no colisione con el de otra localidad
-     * activa, permitiendo conservar los propios valores actuales.
+     * Normaliza y valida el nombre y el código postal (obligatorios y de longitud máxima), localiza la localidad por su ID,
+     * verifica que la provincia seleccionada exista y que el nuevo nombre no colisione con el de otra localidad
+     * activa de la misma provincia (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
      *
      * @param id Identificador clave primaria de la localidad a modificar.
      * @param localidadFormDTO DTO con la información actualizada.
      * @return {@link LocalidadResponseDTO} representativo de la localidad con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza una localidad activa por el ID proporcionado, o si no existe una provincia activa con el ID especificado.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres o el código postal supera los 10 caracteres.
-     * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra localidad activa de la misma provincia, o si el nuevo código postal ya se encuentra asignado a otra localidad activa.
+     * @throws ReglaNegocioException Si el nombre o el código postal faltan, o superan los 100 y los 10 caracteres respectivamente.
+     * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra localidad activa de la misma provincia.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOCALIDAD)
     public LocalidadResponseDTO modificarLocalidad(Long id, LocalidadFormDTO localidadFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
-        ValidacionesNumericas.validarLongitudMaxima(localidadFormDTO.getCodigoPostal(), LimitesTecnicos.LONGITUD_MAXIMA_CODIGO_POSTAL, "El código postal");
+        // 1. Normalizar el nombre y el código postal sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(localidadFormDTO.getNombre());
+        String codigoPostal = NormalizacionTexto.codigo(localidadFormDTO.getCodigoPostal());
 
-        // 2. Localizar la localidad existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 2. Validar que el nombre y el código postal sean obligatorios y no superen la longitud máxima
+        validarNombreYCodigoPostal(nombre, codigoPostal);
+
+        // 3. Localizar la localidad existente. Si no existe, se dispara RecursoNoEncontradoException
         LocalidadEntity localidadEntity = localidadRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + id));
 
-        // 3. Verificar que la provincia seleccionada exista
+        // 4. Verificar que la provincia seleccionada exista
         ProvinciaEntity provinciaEntity = provinciaRepository.findById(localidadFormDTO.getIdProvincia())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + localidadFormDTO.getIdProvincia()));
 
-        // 4. Se valida duplicación de nombre excluyendo el propio ID, de modo que conservar
+        // 5. Se valida duplicación de nombre excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
-        if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot(localidadFormDTO.getNombre(), localidadFormDTO.getIdProvincia(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + localidadFormDTO.getNombre() + "' ya está en uso por otra localidad de la provincia seleccionada");
-        }
-
-        // 5. Se valida duplicación de código postal excluyendo el propio ID
-        if (localidadRepository.existsByCodigoPostalAndIdNot(localidadFormDTO.getCodigoPostal(), id)) {
-            throw new RecursoDuplicadoException("El código postal '" + localidadFormDTO.getCodigoPostal() + "' ya está en uso por otra localidad");
+        if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot(nombre, localidadFormDTO.getIdProvincia(), id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
         // 6. Aplico los cambios sobre la entidad administrada por persistencia
-        localidadEntity.setNombre(localidadFormDTO.getNombre());
-        localidadEntity.setCodigoPostal(localidadFormDTO.getCodigoPostal());
+        localidadEntity.setNombre(nombre);
+        localidadEntity.setCodigoPostal(codigoPostal);
         localidadEntity.setProvincia(provinciaEntity);
 
-        // 7. Persisto la entidad actualizada y devuelvo el DTO correspondiente
-        return MapperLocalidad.toDTO(localidadRepository.save(localidadEntity));
+        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperLocalidad.toDTO(GuardadoUnico.guardar(localidadRepository, localidadEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -208,5 +216,31 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
 
         // 5. Retornamos el DTO de la localidad dada de baja
         return MapperLocalidad.toDTO(localidadEntity);
+    }
+
+    /**
+     * Valida que el nombre y el código postal normalizados sean obligatorios y no superen la longitud máxima.
+     *
+     * @param nombre       Nombre normalizado.
+     * @param codigoPostal Código postal normalizado.
+     * @throws ReglaNegocioException Si alguno está vacío o supera su longitud máxima.
+     */
+    private static void validarNombreYCodigoPostal(String nombre, String codigoPostal) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        if (codigoPostal == null || codigoPostal.isEmpty()) {
+            throw new ReglaNegocioException("El código postal es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(codigoPostal, LimitesTecnicos.LONGITUD_MAXIMA_CODIGO_POSTAL, "El código postal");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe una localidad con el nombre '" + nombre + "' para la provincia seleccionada");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra localidad de la provincia seleccionada");
     }
 }

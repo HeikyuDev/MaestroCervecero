@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -197,12 +198,12 @@ class MolinoServicioImplTest {
     @DisplayName("CP-AM-05: altaMolino lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
     void altaMolino_debeRechazarIdentificadorDuplicadoCaseInsensitive() {
         MolinoFormDTO molinoFormDTO = molinoFormDTO("mol-01", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("mol-01")).thenReturn(true);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(true);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class);
 
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("mol-01");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MOL-01");
         verify(molinoRepository, never()).save(any());
     }
 
@@ -333,7 +334,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'MOL-EXISTENTE'");
+                .hasMessage("El identificador interno \'MOL-EXISTENTE\' ya está en uso por otro equipamiento");
 
         verify(molinoRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L);
@@ -424,14 +425,14 @@ class MolinoServicioImplTest {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
         // Mismo identificador (distinto case): el AndIdNot excluye el propio ID y no debe fallar
         MolinoFormDTO molinoFormDTO = molinoFormDTO("mol-01", 100.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("mol-01", 1L)).thenReturn(false);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 1L)).thenReturn(false);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
         MolinoResponseDTO resultado = molinoServicio.modificarMolino(1L, molinoFormDTO);
 
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("mol-01");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-01");
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(100.0);
         verify(molinoRepository).save(molinoEntity);
     }
@@ -779,5 +780,172 @@ class MolinoServicioImplTest {
         assertThat(dto.getRendimientoMolienda()).isEqualTo(entidad.getRendimientoMolienda());
         assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AM-20: altaMolino guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void altaMolino_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MolinoFormDTO formDTO = molinoFormDTO("  fer   01 ", 50.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        molinoServicio.altaMolino(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<MolinoEntity> captor = ArgumentCaptor.forClass(MolinoEntity.class);
+        verify(molinoRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(molinoRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AM-21: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno está vacío")
+    void altaMolino_debeRechazarValorVacio() {
+        MolinoFormDTO formDTO = molinoFormDTO("   ", 50.0);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verifyNoInteractions(molinoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AM-22: altaMolino lanza RecursoDuplicadoException cuando el identificador interno normalizado ya existe")
+    void altaMolino_debeDetectarDuplicadoConElValorNormalizado() {
+        MolinoFormDTO formDTO = molinoFormDTO("  fer-01 ", 50.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(true);
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER-01");
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AM-23: altaMolino traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void altaMolino_debeTraducirLaViolacionDelIndiceUnico() {
+        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> molinoServicio.altaMolino(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
+    }
+
+    @Test
+    @DisplayName("CP-AM-24: altaMolino permite reutilizar el identificador interno de un registro dado de baja")
+    void altaMolino_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> molinoServicio.altaMolino(formDTO)).doesNotThrowAnyException();
+
+        verify(molinoRepository).save(any(MolinoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AM-25: altaMolino permite un identificador que difiere de otro solo en la puntuación")
+    void altaMolino_debeTratarComoDistintosLosIdentificadoresConDistintaPuntuacion() {
+        MolinoFormDTO formDTO = molinoFormDTO("fer 01", 50.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> molinoServicio.altaMolino(formDTO)).doesNotThrowAnyException();
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(molinoRepository).save(any(MolinoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MM-14: modificarMolino guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void modificarMolino_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MolinoFormDTO formDTO = molinoFormDTO("  fer   01 ", 50.0);
+        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(molinoRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        molinoServicio.modificarMolino(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L);
+        verify(molinoRepository).save(existente);
+        verify(molinoRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MM-15: modificarMolino lanza ReglaNegocioException cuando el identificador interno está vacío")
+    void modificarMolino_debeRechazarValorVacio() {
+        MolinoFormDTO formDTO = molinoFormDTO("   ", 50.0);
+        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-16: modificarMolino lanza RecursoDuplicadoException cuando el identificador interno normalizado está en uso por otro registro")
+    void modificarMolino_debeDetectarDuplicadoConElValorNormalizado() {
+        MolinoFormDTO formDTO = molinoFormDTO("  fer-01 ", 50.0);
+        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
+        verify(molinoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MM-17: modificarMolino traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void modificarMolino_debeTraducirLaViolacionDelIndiceUnico() {
+        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
+        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(molinoRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-MM-18: modificarMolino permite reutilizar el identificador interno de un registro dado de baja")
+    void modificarMolino_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
+        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(molinoRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> molinoServicio.modificarMolino(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        verify(molinoRepository).save(existente);
     }
 }

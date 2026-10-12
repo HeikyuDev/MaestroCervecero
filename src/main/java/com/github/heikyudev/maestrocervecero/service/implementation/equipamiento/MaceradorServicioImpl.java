@@ -17,7 +17,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMa
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MaceradorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperMacerador;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,9 +27,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class MaceradorServicioImpl implements IMaceradorServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos equipamientos activos (de cualquier tipo) con el mismo identificador interno.
+     */
+    private static final String INDICE_IDENTIFICADOR_INTERNO = "udx_equipamiento_identificador_interno";
 
     private final IMaceradorRepository maceradorRepository;
     private final IEquipamientoRepository equipamientoRepository;
@@ -76,7 +85,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      *
      * @param maceradorFormDTO Objeto DTO que contiene los datos de creación del macerador.
      * @return {@link MaceradorResponseDTO} representativo del macerador guardado en la base de datos.
-     * @throws ReglaNegocioException Si el identificador interno supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el identificador interno falta o supera los 100 caracteres.
      * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si el espacio muerto no es un número mayor o igual a 0, supera 100.000 litros o no es menor a la capacidad útil.
      * @throws ReglaNegocioException Si la eficiencia de maceracion no es un número entre 40 y 100 inclusive.
@@ -87,71 +96,11 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MACERADOR)
     public MaceradorResponseDTO altaMacerador(MaceradorFormDTO maceradorFormDTO) {
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(maceradorFormDTO.getIdentificadorInterno());
 
-        // 1. Validar la longitud máxima del identificador interno
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(maceradorFormDTO.getIdentificadorInterno());
-
-        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
-        MetodosEquipamiento.validarCapacidadUtil(maceradorFormDTO.getCapacidadTotal(), maceradorFormDTO.getCapacidadUtil());
-
-        // 3. Validar el espacio muerto
-        validarEspacioMuerto(maceradorFormDTO.getEspacioMuerto(), maceradorFormDTO.getCapacidadUtil());
-
-        // 4. Validar eficiencia de maceracion
-        validarEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
-
-        // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
-        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
-
-        // 6. Validar que el identificador interno no esté duplicado
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(maceradorFormDTO.getIdentificadorInterno())) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + maceradorFormDTO.getIdentificadorInterno() + "'");
-        }
-
-        // 7. Creo la entidad que se va a almacenar en la base de datos.
-        MaceradorEntity maceradorEntity = MaceradorEntity.builder()
-                .identificadorInterno(maceradorFormDTO.getIdentificadorInterno())
-                // Cuando se da de alta un nuevo macerador, su estado operativo inicial es DISPONIBLE.
-                .estadoOperativo(EstadoOperativo.DISPONIBLE)
-                .capacidadTotal(maceradorFormDTO.getCapacidadTotal())
-                .capacidadUtil(maceradorFormDTO.getCapacidadUtil())
-                .espacioMuerto(maceradorFormDTO.getEspacioMuerto())
-                .eficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion())
-                .usosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento())
-                .estado(Estado.ACTIVO)
-                .build();
-
-        return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
-    }
-
-    /**
-     * Actualiza la información de un macerador existente en la base de datos.
-     * <p>
-     * Valida el porcentaje que la capacidad útil sea menor a la capacidad total, que la eficiencia de maceración se encuentre entre 40 y 100 inclusive,
-     * luego localiza el macerador por su ID y verifica que el nuevo identificador no colisione con el de otro macerador activo (case-insensitive),
-     * permitiendo conservar el propio nombre actual.
-     * </p>
-     *
-     * @param id Identificador clave primaria del macerador a modificar.
-     * @param maceradorFormDTO DTO con la información actualizada.
-     * @return {@link MaceradorResponseDTO} representativo del macerador con los cambios aplicados.
-     * @throws ReglaNegocioException Si el identificador interno supera los 100 caracteres.
-     * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
-     * @throws ReglaNegocioException Si el espacio muerto no es un número mayor o igual a 0, supera 100.000 litros o no es menor a la capacidad útil.
-     * @throws ReglaNegocioException Si la eficiencia de maceracion no es un número entre 40 y 100 inclusive.
-     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el macerador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
-     * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a un macerador activo.
-     */
-    @Override
-    @Transactional
-    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MACERADOR)
-    public MaceradorResponseDTO modificarMacerador(Long id,MaceradorFormDTO maceradorFormDTO) {
-        // 1. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
-        MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
-
-        // 2. Validar la longitud máxima del identificador interno
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(maceradorFormDTO.getIdentificadorInterno());
+        // 2. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
 
         // 3. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
         MetodosEquipamiento.validarCapacidadUtil(maceradorFormDTO.getCapacidadTotal(), maceradorFormDTO.getCapacidadUtil());
@@ -166,30 +115,97 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
 
         // 7. Validar que el identificador interno no esté duplicado
-        if(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(maceradorFormDTO.getIdentificadorInterno(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + maceradorFormDTO.getIdentificadorInterno() + "'");
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
+            throw identificadorDuplicadoEnAlta(identificadorInterno);
         }
 
-        // 8. Validar que el macerador no tenga comprometida una etapa en estado Pendiente de un lote.
+        // 8. Creo la entidad que se va a almacenar en la base de datos.
+        MaceradorEntity maceradorEntity = MaceradorEntity.builder()
+                .identificadorInterno(identificadorInterno)
+                // Cuando se da de alta un nuevo macerador, su estado operativo inicial es DISPONIBLE.
+                .estadoOperativo(EstadoOperativo.DISPONIBLE)
+                .capacidadTotal(maceradorFormDTO.getCapacidadTotal())
+                .capacidadUtil(maceradorFormDTO.getCapacidadUtil())
+                .espacioMuerto(maceradorFormDTO.getEspacioMuerto())
+                .eficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion())
+                .usosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento())
+                .estado(Estado.ACTIVO)
+                .build();
+
+        return MapperMacerador.toDTO(GuardadoUnico.guardar(maceradorRepository, maceradorEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
+    }
+
+    /**
+     * Actualiza la información de un macerador existente en la base de datos.
+     * <p>
+     * Valida el porcentaje que la capacidad útil sea menor a la capacidad total, que la eficiencia de maceración se encuentre entre 40 y 100 inclusive,
+     * luego localiza el macerador por su ID y verifica que el nuevo identificador no colisione con el de otro macerador activo (case-insensitive),
+     * permitiendo conservar el propio nombre actual.
+     * </p>
+     *
+     * @param id Identificador clave primaria del macerador a modificar.
+     * @param maceradorFormDTO DTO con la información actualizada.
+     * @return {@link MaceradorResponseDTO} representativo del macerador con los cambios aplicados.
+     * @throws ReglaNegocioException Si el identificador interno falta o supera los 100 caracteres.
+     * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
+     * @throws ReglaNegocioException Si el espacio muerto no es un número mayor o igual a 0, supera 100.000 litros o no es menor a la capacidad útil.
+     * @throws ReglaNegocioException Si la eficiencia de maceracion no es un número entre 40 y 100 inclusive.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el macerador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a un macerador activo.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.MACERADOR)
+    public MaceradorResponseDTO modificarMacerador(Long id,MaceradorFormDTO maceradorFormDTO) {
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(maceradorFormDTO.getIdentificadorInterno());
+
+        // 2. Localizar el macerador existente. Si no existe, se dispara RecursoNoEncontradoException
+        MaceradorEntity maceradorEntity = maceradorRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + id));
+
+        // 3. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
+
+        // 4. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total
+        MetodosEquipamiento.validarCapacidadUtil(maceradorFormDTO.getCapacidadTotal(), maceradorFormDTO.getCapacidadUtil());
+
+        // 5. Validar el espacio muerto
+        validarEspacioMuerto(maceradorFormDTO.getEspacioMuerto(), maceradorFormDTO.getCapacidadUtil());
+
+        // 6. Validar eficiencia de maceracion
+        validarEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
+
+        // 7. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
+
+        // 8. Validar que el identificador interno no esté duplicado
+        if(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
+            throw identificadorDuplicadoEnModificacion(identificadorInterno);
+        }
+
+        // 9. Validar que el macerador no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
             throw new ReglaNegocioException("No se puede modificar el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
-        // 9. Validar que el macerador no se encuentre actualmente en uso.
+        // 10. Validar que el macerador no se encuentre actualmente en uso.
         if (maceradorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
             throw new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso");
         }
 
-        // 10. Aplico los cambios sobre la entidad administrada por persistencia.
-        maceradorEntity.setIdentificadorInterno(maceradorFormDTO.getIdentificadorInterno());
+        // 11. Aplico los cambios sobre la entidad administrada por persistencia.
+        maceradorEntity.setIdentificadorInterno(identificadorInterno);
         maceradorEntity.setCapacidadTotal(maceradorFormDTO.getCapacidadTotal());
         maceradorEntity.setCapacidadUtil(maceradorFormDTO.getCapacidadUtil());
         maceradorEntity.setEspacioMuerto(maceradorFormDTO.getEspacioMuerto());
         maceradorEntity.setEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
         maceradorEntity.setUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 11. Persisto la entidad actualizada y devuelvo el DTO correspondiente
-        return MapperMacerador.toDTO(maceradorRepository.save(maceradorEntity));
+        // 12. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        return MapperMacerador.toDTO(GuardadoUnico.guardar(maceradorRepository, maceradorEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }
 
     /**
@@ -266,4 +282,11 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         ValidacionesNumericas.validarMayorACero(eficienciaMaceracion, "La eficiencia de maceración");
     }
 
+    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+        return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
+    }
+
+    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
+        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
+    }
 }

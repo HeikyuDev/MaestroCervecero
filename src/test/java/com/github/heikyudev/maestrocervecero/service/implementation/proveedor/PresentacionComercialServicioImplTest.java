@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.PresentacionComercialResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -534,5 +536,170 @@ class PresentacionComercialServicioImplTest {
         assertThat(dto.getCantidad()).isEqualTo(entidad.getCantidad());
         assertThat(dto.getUnidadDeMedida()).isEqualTo(entidad.getUnidadDeMedida());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-APC-11: altaPresentacionComercial guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaPresentacionComercial_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("  Pilsen   Nacional  ", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(presentacionComercialRepository.save(any(PresentacionComercialEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        presentacionComercialServicio.altaPresentacionComercial(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<PresentacionComercialEntity> captor = ArgumentCaptor.forClass(PresentacionComercialEntity.class);
+        verify(presentacionComercialRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(presentacionComercialRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(presentacionComercialRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-APC-12: altaPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaPresentacionComercial_debeRechazarValorVacio() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("   ", 25.0, UnidadDeMedida.KILOGRAMO);
+
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-13: altaPresentacionComercial lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaPresentacionComercial_debeDetectarDuplicadoConElValorNormalizado() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("  pilsen ", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una presentación comercial con el nombre 'pilsen'");
+
+        verify(presentacionComercialRepository).existsByNombreIgnoreCase("pilsen");
+        verify(presentacionComercialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-APC-14: altaPresentacionComercial traduce la violación del índice único udx_presentacion_comercial_nombre al mensaje de duplicado")
+    void altaPresentacionComercial_debeTraducirLaViolacionDelIndiceUnico() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pilsen Nacional", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(presentacionComercialRepository.save(any(PresentacionComercialEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_presentacion_comercial_nombre"));
+
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una presentación comercial con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-APC-15: altaPresentacionComercial permite reutilizar el nombre de un registro dado de baja")
+    void altaPresentacionComercial_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pilsen Nacional", 25.0, UnidadDeMedida.KILOGRAMO);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(presentacionComercialRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(presentacionComercialRepository.save(any(PresentacionComercialEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO)).doesNotThrowAnyException();
+
+        verify(presentacionComercialRepository).save(any(PresentacionComercialEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-APC-16: altaPresentacionComercial permite un nombre que difiere de otro solo en una tilde")
+    void altaPresentacionComercial_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pílsen", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(presentacionComercialRepository.save(any(PresentacionComercialEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO)).doesNotThrowAnyException();
+
+        verify(presentacionComercialRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(presentacionComercialRepository).save(any(PresentacionComercialEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MPC-09: modificarPresentacionComercial guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarPresentacionComercial_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("  Pilsen   Nacional  ", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(presentacionComercialRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(presentacionComercialRepository).save(existente);
+        verify(presentacionComercialRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MPC-10: modificarPresentacionComercial lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarPresentacionComercial_debeRechazarValorVacio() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("   ", 25.0, UnidadDeMedida.KILOGRAMO);
+
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-11: modificarPresentacionComercial lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarPresentacionComercial_debeDetectarDuplicadoConElValorNormalizado() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("  pilsen ", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otra presentación comercial");
+
+        verify(presentacionComercialRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(presentacionComercialRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MPC-12: modificarPresentacionComercial traduce la violación del índice único udx_presentacion_comercial_nombre al mensaje de duplicado")
+    void modificarPresentacionComercial_debeTraducirLaViolacionDelIndiceUnico() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pilsen Nacional", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_presentacion_comercial_nombre"));
+
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra presentación comercial");
+    }
+
+    @Test
+    @DisplayName("CP-MPC-13: modificarPresentacionComercial permite reutilizar el nombre de un registro dado de baja")
+    void modificarPresentacionComercial_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pilsen Nacional", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(presentacionComercialRepository).save(existente);
     }
 }

@@ -12,6 +12,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -165,7 +167,6 @@ class LocalidadServicioImplTest {
                 .hasMessage("Ya existe una localidad con el nombre 'Palermo' para la provincia seleccionada");
 
         verify(localidadRepository, never()).save(any());
-        verify(localidadRepository, never()).existsByCodigoPostal(any());
     }
 
     @Test
@@ -184,19 +185,18 @@ class LocalidadServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AL-04: altaLocalidad lanza RecursoDuplicadoException y no persiste cuando el código postal ya existe")
-    void altaLocalidad_debeRechazarCodigoPostalDuplicado() {
+    @DisplayName("CP-AL-04: altaLocalidad permite un código postal que ya usa otra localidad (el código postal no tiene unicidad)")
+    void altaLocalidad_debePermitirCodigoPostalRepetido() {
         LocalidadFormDTO formDTO = localidadFormDTO("Belgrano", "1414", 1L);
         ProvinciaEntity provinciaEntity = provinciaEntity(1L);
         when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity));
         when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Belgrano", 1L)).thenReturn(false);
-        when(localidadRepository.existsByCodigoPostal("1414")).thenReturn(true);
+        when(localidadRepository.save(any(LocalidadEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe una localidad con el código postal '1414'");
+        LocalidadResponseDTO resultado = localidadServicio.altaLocalidad(formDTO);
 
-        verify(localidadRepository, never()).save(any());
+        assertThat(resultado.getCodigoPostal()).isEqualTo("1414");
+        verify(localidadRepository).save(any(LocalidadEntity.class));
     }
 
     @Test
@@ -220,7 +220,6 @@ class LocalidadServicioImplTest {
         ProvinciaEntity provinciaEntity = provinciaEntity(1L);
         when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity));
         when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Belgrano", 1L)).thenReturn(false);
-        when(localidadRepository.existsByCodigoPostal("1428")).thenReturn(false);
         when(localidadRepository.save(any(LocalidadEntity.class))).thenAnswer(invocation -> {
             LocalidadEntity entidadGuardada = invocation.getArgument(0);
             entidadGuardada.setId(1L);
@@ -319,21 +318,19 @@ class LocalidadServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ML-04: modificarLocalidad lanza RecursoDuplicadoException y no persiste cuando el código postal está en uso por otra localidad")
-    void modificarLocalidad_debeRechazarCodigoPostalEnUsoPorOtraLocalidad() {
+    @DisplayName("CP-ML-04: modificarLocalidad permite un código postal que ya usa otra localidad (el código postal no tiene unicidad)")
+    void modificarLocalidad_debePermitirCodigoPostalRepetido() {
         LocalidadEntity localidadEntity = crearLocalidadEntity(1L, "Palermo", "1414", provinciaEntity(1L));
         LocalidadFormDTO formDTO = localidadFormDTO("Palermo", "1428", 1L);
-        ProvinciaEntity provinciaEntity = provinciaEntity(1L);
         when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity));
-        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
         when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Palermo", 1L, 1L)).thenReturn(false);
-        when(localidadRepository.existsByCodigoPostalAndIdNot("1428", 1L)).thenReturn(true);
+        when(localidadRepository.save(localidadEntity)).thenReturn(localidadEntity);
 
-        assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El código postal '1428' ya está en uso por otra localidad");
+        LocalidadResponseDTO resultado = localidadServicio.modificarLocalidad(1L, formDTO);
 
-        verify(localidadRepository, never()).save(any());
+        assertThat(resultado.getCodigoPostal()).isEqualTo("1428");
+        verify(localidadRepository).save(localidadEntity);
     }
 
     @Test
@@ -346,7 +343,6 @@ class LocalidadServicioImplTest {
         when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity));
         when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity));
         when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("palermo", 1L, 1L)).thenReturn(false);
-        when(localidadRepository.existsByCodigoPostalAndIdNot("1414", 1L)).thenReturn(false);
         when(localidadRepository.save(localidadEntity)).thenReturn(localidadEntity);
 
         LocalidadResponseDTO resultado = localidadServicio.modificarLocalidad(1L, formDTO);
@@ -365,7 +361,6 @@ class LocalidadServicioImplTest {
         when(localidadRepository.findById(1L)).thenReturn(Optional.of(localidadEntity));
         when(provinciaRepository.findById(2L)).thenReturn(Optional.of(nuevaProvinciaEntity));
         when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Palermo Chico", 2L, 1L)).thenReturn(false);
-        when(localidadRepository.existsByCodigoPostalAndIdNot("1425", 1L)).thenReturn(false);
         when(localidadRepository.save(localidadEntity)).thenReturn(localidadEntity);
 
         // === EJECUCION ===
@@ -510,5 +505,225 @@ class LocalidadServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getCodigoPostal()).isEqualTo(entidad.getCodigoPostal());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AL-09: altaLocalidad guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaLocalidad_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        LocalidadFormDTO formDTO = localidadFormDTO("  Pilsen   Nacional  ", "1414", 1L);
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Pilsen Nacional", 1L)).thenReturn(false);
+        when(localidadRepository.save(any(LocalidadEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        localidadServicio.altaLocalidad(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<LocalidadEntity> captor = ArgumentCaptor.forClass(LocalidadEntity.class);
+        verify(localidadRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(localidadRepository).existsByNombreIgnoreCaseAndProvinciaId("Pilsen Nacional", 1L);
+        verify(localidadRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AL-10: altaLocalidad lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaLocalidad_debeRechazarValorVacio() {
+        LocalidadFormDTO formDTO = localidadFormDTO("   ", "1414", 1L);
+
+        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(localidadRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AL-11: altaLocalidad lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaLocalidad_debeDetectarDuplicadoConElValorNormalizado() {
+        LocalidadFormDTO formDTO = localidadFormDTO("  pilsen ", "1414", 1L);
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una localidad con el nombre 'pilsen' para la provincia seleccionada");
+
+        verify(localidadRepository).existsByNombreIgnoreCaseAndProvinciaId("pilsen", 1L);
+        verify(localidadRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AL-12: altaLocalidad traduce la violación del índice único udx_localidad_nombre al mensaje de duplicado")
+    void altaLocalidad_debeTraducirLaViolacionDelIndiceUnico() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Pilsen Nacional", "1414", 1L);
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Pilsen Nacional", 1L)).thenReturn(false);
+        when(localidadRepository.save(any(LocalidadEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_localidad_nombre"));
+
+        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una localidad con el nombre 'Pilsen Nacional' para la provincia seleccionada");
+    }
+
+    @Test
+    @DisplayName("CP-AL-13: altaLocalidad permite reutilizar el nombre de un registro dado de baja")
+    void altaLocalidad_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Pilsen Nacional", "1414", 1L);
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Pilsen Nacional", 1L)).thenReturn(false);
+        when(localidadRepository.save(any(LocalidadEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> localidadServicio.altaLocalidad(formDTO)).doesNotThrowAnyException();
+
+        verify(localidadRepository).save(any(LocalidadEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AL-14: altaLocalidad permite un nombre que difiere de otro solo en una tilde")
+    void altaLocalidad_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Pílsen", "1414", 1L);
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Pílsen", 1L)).thenReturn(false);
+        when(localidadRepository.save(any(LocalidadEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> localidadServicio.altaLocalidad(formDTO)).doesNotThrowAnyException();
+
+        verify(localidadRepository).existsByNombreIgnoreCaseAndProvinciaId("Pílsen", 1L);
+        verify(localidadRepository).save(any(LocalidadEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ML-09: modificarLocalidad guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarLocalidad_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        LocalidadFormDTO formDTO = localidadFormDTO("  Pilsen   Nacional  ", "1414", 1L);
+        LocalidadEntity existente = crearLocalidadEntity(1L, "Original", "1414", provinciaEntity(1L));
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Pilsen Nacional", 1L, 1L)).thenReturn(false);
+        when(localidadRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        localidadServicio.modificarLocalidad(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(localidadRepository).existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Pilsen Nacional", 1L, 1L);
+        verify(localidadRepository).save(existente);
+        verify(localidadRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-ML-10: modificarLocalidad lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarLocalidad_debeRechazarValorVacio() {
+        LocalidadFormDTO formDTO = localidadFormDTO("   ", "1414", 1L);
+
+        assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(localidadRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-11: modificarLocalidad lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarLocalidad_debeDetectarDuplicadoConElValorNormalizado() {
+        LocalidadFormDTO formDTO = localidadFormDTO("  pilsen ", "1414", 1L);
+        LocalidadEntity existente = crearLocalidadEntity(1L, "Original", "1414", provinciaEntity(1L));
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("pilsen", 1L, 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otra localidad de la provincia seleccionada");
+
+        verify(localidadRepository).existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("pilsen", 1L, 1L);
+        verify(localidadRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ML-12: modificarLocalidad traduce la violación del índice único udx_localidad_nombre al mensaje de duplicado")
+    void modificarLocalidad_debeTraducirLaViolacionDelIndiceUnico() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Pilsen Nacional", "1414", 1L);
+        LocalidadEntity existente = crearLocalidadEntity(1L, "Original", "1414", provinciaEntity(1L));
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Pilsen Nacional", 1L, 1L)).thenReturn(false);
+        when(localidadRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_localidad_nombre"));
+
+        assertThatThrownBy(() -> localidadServicio.modificarLocalidad(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra localidad de la provincia seleccionada");
+    }
+
+    @Test
+    @DisplayName("CP-ML-13: modificarLocalidad permite reutilizar el nombre de un registro dado de baja")
+    void modificarLocalidad_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Pilsen Nacional", "1414", 1L);
+        LocalidadEntity existente = crearLocalidadEntity(1L, "Original", "1414", provinciaEntity(1L));
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Pilsen Nacional", 1L, 1L)).thenReturn(false);
+        when(localidadRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> localidadServicio.modificarLocalidad(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(localidadRepository).save(existente);
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AL-15: altaLocalidad guarda el código postal en mayúsculas y sin espacios en los extremos")
+    void altaLocalidad_debeGuardarElCodigoPostalEnMayusculas() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Belgrano", "  c1428  ", 1L);
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaId("Belgrano", 1L)).thenReturn(false);
+        when(localidadRepository.save(any(LocalidadEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        localidadServicio.altaLocalidad(formDTO);
+
+        ArgumentCaptor<LocalidadEntity> captor = ArgumentCaptor.forClass(LocalidadEntity.class);
+        verify(localidadRepository).save(captor.capture());
+        assertThat(captor.getValue().getCodigoPostal()).isEqualTo("C1428");
+        assertThat(formDTO.getCodigoPostal()).isEqualTo("  c1428  ");
+    }
+
+    @Test
+    @DisplayName("CP-AL-16: altaLocalidad lanza ReglaNegocioException y no consulta el repositorio cuando el código postal está vacío")
+    void altaLocalidad_debeRechazarCodigoPostalVacio() {
+        LocalidadFormDTO formDTO = localidadFormDTO("Belgrano", "   ", 1L);
+
+        assertThatThrownBy(() -> localidadServicio.altaLocalidad(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El código postal es obligatorio");
+
+        verifyNoInteractions(localidadRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ML-14: modificarLocalidad guarda el código postal en mayúsculas y sin espacios en los extremos")
+    void modificarLocalidad_debeGuardarElCodigoPostalEnMayusculas() {
+        LocalidadEntity existente = crearLocalidadEntity(1L, "Palermo", "1414", provinciaEntity(1L));
+        LocalidadFormDTO formDTO = localidadFormDTO("Palermo", "  c1428  ", 1L);
+        when(localidadRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(provinciaEntity(1L)));
+        when(localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot("Palermo", 1L, 1L)).thenReturn(false);
+        when(localidadRepository.save(existente)).thenReturn(existente);
+
+        localidadServicio.modificarLocalidad(1L, formDTO);
+
+        assertThat(existente.getCodigoPostal()).isEqualTo("C1428");
+        assertThat(formDTO.getCodigoPostal()).isEqualTo("  c1428  ");
     }
 }

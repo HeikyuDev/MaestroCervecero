@@ -58,7 +58,7 @@ public interface IMaltaRepository extends JpaRepository<MaltaEntity, Long> {
      * @param nombre El nombre de la malta a buscar.
      * @return {@code true} si ya existe una malta activa con ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM MaltaEntity m WHERE UPPER(m.nombre) = UPPER(:nombre) AND m.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM MaltaEntity m WHERE LOWER(m.nombre) = LOWER(:nombre) AND m.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
@@ -73,6 +73,6 @@ public interface IMaltaRepository extends JpaRepository<MaltaEntity, Long> {
      * @param id El ID de la malta a excluir de la verificación.
      * @return {@code true} si otra malta activa ya posee ese nombre, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM MaltaEntity m WHERE UPPER(m.nombre) = UPPER(:nombre) AND m.id <> :id AND m.estado = 'ACTIVO'")
+    @Query("SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END FROM MaltaEntity m WHERE LOWER(m.nombre) = LOWER(:nombre) AND m.id <> :id AND m.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

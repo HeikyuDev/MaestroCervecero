@@ -17,6 +17,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFe
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperFermentador;
 import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,10 +26,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class FermentadorServicioImpl implements IFermentadorServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos equipamientos activos (de cualquier tipo) con el mismo identificador interno.
+     */
+    private static final String INDICE_IDENTIFICADOR_INTERNO = "udx_equipamiento_identificador_interno";
 
     private final IFermentadorRepository fermentadorRepository;
     private final IEquipamientoRepository equipamientoRepository;
@@ -90,31 +98,33 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      *
      * @param fermentadorFormDTO DTO que contiene los datos del fermentador a crear.
      * @return Objeto {@link FermentadorResponseDTO} con la información del fermentador creado.
-     * @throws ReglaNegocioException Si el identificador interno supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, o si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
-     * @throws RecursoDuplicadoException Si ya existe un equipamiento con el mismo identificador interno.
+     * @throws ReglaNegocioException Si el identificador interno falta o supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, o si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
+     * @throws RecursoDuplicadoException Si ya existe un equipamiento activo con el mismo identificador interno (sin distinguir mayúsculas).
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.FERMENTADOR)
     public FermentadorResponseDTO altaFermentador(FermentadorFormDTO fermentadorFormDTO) {
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(fermentadorFormDTO.getIdentificadorInterno());
 
-        // 1. Validar la longitud máxima del identificador interno.
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(fermentadorFormDTO.getIdentificadorInterno());
+        // 2. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
 
-        // 2. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total.
+        // 3. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total.
         MetodosEquipamiento.validarCapacidadUtil(fermentadorFormDTO.getCapacidadTotal(), fermentadorFormDTO.getCapacidadUtil());
 
-        // 3. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
+        // 4. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 4. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(fermentadorFormDTO.getIdentificadorInterno())) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + fermentadorFormDTO.getIdentificadorInterno() + "'");
+        // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
+            throw identificadorDuplicadoEnAlta(identificadorInterno);
         }
 
-        // 5. Crear la entidad del fermentador a partir del DTO de formulario y establecer su estado operativo como DISPONIBLE.
+        // 6. Crear la entidad del fermentador a partir del DTO de formulario y establecer su estado operativo como DISPONIBLE.
         FermentadorEntity fermentadorEntity = FermentadorEntity.builder()
-                .identificadorInterno(fermentadorFormDTO.getIdentificadorInterno())
+                .identificadorInterno(identificadorInterno)
                 .capacidadTotal(fermentadorFormDTO.getCapacidadTotal())
                 .capacidadUtil(fermentadorFormDTO.getCapacidadUtil())
                 .usosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento())
@@ -122,8 +132,9 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 6. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente.
-        return MapperFermentador.toDTO(fermentadorRepository.save(fermentadorEntity));
+        // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente.
+        return MapperFermentador.toDTO(GuardadoUnico.guardar(fermentadorRepository, fermentadorEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
     }
 
     /**
@@ -132,7 +143,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id                 Identificador único del fermentador a modificar.
      * @param fermentadorFormDTO DTO que contiene los nuevos datos del fermentador.
      * @return Objeto {@link FermentadorResponseDTO} con la información actualizada del fermentador.
-     * @throws ReglaNegocioException        Si el identificador interno supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException        Si el identificador interno falta o supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
      * @throws RecursoNoEncontradoException Si no existe ningún fermentador activo con el ID especificado.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno que se intenta asignar.
      */
@@ -140,42 +151,46 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.FERMENTADOR)
     public FermentadorResponseDTO modificarFermentador(Long id, FermentadorFormDTO fermentadorFormDTO) {
-        // 1. Buscar el fermentador existente por su ID.
+        // 1. Normalizar el identificador interno sin modificar el DTO.
+        String identificadorInterno = NormalizacionTexto.codigo(fermentadorFormDTO.getIdentificadorInterno());
+
+        // 2. Buscar el fermentador existente por su ID.
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
-        // 2. Validar la longitud máxima del identificador interno.
-        MetodosEquipamiento.validarLongitudIdentificadorInterno(fermentadorFormDTO.getIdentificadorInterno());
+        // 3. Validar que el identificador interno sea obligatorio y no supere la longitud máxima.
+        MetodosEquipamiento.validarIdentificadorInterno(identificadorInterno);
 
-        // 3. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total.
+        // 4. Validar las capacidades (números mayores a 0 y dentro del máximo) y que la capacidad útil sea menor a la total.
         MetodosEquipamiento.validarCapacidadUtil(fermentadorFormDTO.getCapacidadTotal(), fermentadorFormDTO.getCapacidadUtil());
 
-        // 4. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
+        // 5. Validar que los usos máximos antes de mantenimiento sean un entero mayor a 0 y no superen el máximo.
         MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
-        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(fermentadorFormDTO.getIdentificadorInterno(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + fermentadorFormDTO.getIdentificadorInterno() + "'");
+        // 6. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
+        if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
+            throw identificadorDuplicadoEnModificacion(identificadorInterno);
         }
 
-        // 6. Validar que el fermentador no tenga comprometida una etapa en estado Pendiente de un lote.
+        // 7. Validar que el fermentador no tenga comprometida una etapa en estado Pendiente de un lote.
         if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
             throw new ReglaNegocioException("No se puede modificar el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
         }
 
-        // 7. Validar que el fermentador no se encuentre actualmente en uso.
+        // 8. Validar que el fermentador no se encuentre actualmente en uso.
         if (fermentadorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
             throw new ReglaNegocioException("No se puede modificar el fermentador porque se encuentra en uso");
         }
 
-        // 8. Actualizar los campos del fermentador con los datos del DTO de formulario.
-        fermentadorEntity.setIdentificadorInterno(fermentadorFormDTO.getIdentificadorInterno());
+        // 9. Actualizar los campos del fermentador con los datos del DTO de formulario.
+        fermentadorEntity.setIdentificadorInterno(identificadorInterno);
         fermentadorEntity.setCapacidadTotal(fermentadorFormDTO.getCapacidadTotal());
         fermentadorEntity.setCapacidadUtil(fermentadorFormDTO.getCapacidadUtil());
         fermentadorEntity.setUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 9. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente.
-        return MapperFermentador.toDTO(fermentadorRepository.save(fermentadorEntity));
+        // 10. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente.
+        return MapperFermentador.toDTO(GuardadoUnico.guardar(fermentadorRepository, fermentadorEntity,
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }
 
     /**
@@ -216,4 +231,11 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
         return MapperFermentador.toDTO(fermentadorRepository.save(fermentadorEntity));
     }
 
+    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+        return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
+    }
+
+    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
+        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
+    }
 }

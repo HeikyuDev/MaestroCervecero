@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -211,7 +213,7 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AB-05: altaBarril lanza RecursoDuplicadoException y no persiste cuando el identificador ya está registrado para el mismo fabricante activo")
+    @DisplayName("CP-AB-05: altaBarril lanza RecursoDuplicadoException y no persiste cuando el identificador ya está registrado para el mismo fabricante")
     void altaBarril_debeRechazarIdentificadorDuplicadoParaElMismoFabricante() {
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 50.0, 1L);
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
@@ -220,7 +222,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un barril activo con el identificador 'BAR-01' para el fabricante seleccionado");
+                .hasMessage("Ya existe un barril con el identificador 'BAR-01' para el fabricante seleccionado");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -377,7 +379,7 @@ class BarrilServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MB-05: modificarBarril lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro barril activo del mismo fabricante")
+    @DisplayName("CP-MB-05: modificarBarril lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro barril del mismo fabricante")
     void modificarBarril_debeRechazarIdentificadorEnUsoPorOtroBarrilDelMismoFabricante() {
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
@@ -388,7 +390,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe otro barril activo con el identificador 'BAR-02' para el fabricante seleccionado");
+                .hasMessage("El identificador 'BAR-02' ya está en uso por otro barril del fabricante seleccionado");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -600,5 +602,181 @@ class BarrilServicioImplTest {
         assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
         assertThat(dto.getFabricante().getId()).isEqualTo(entidad.getFabricante().getId());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AB-10: altaBarril guarda el identificador normalizado y consulta la unicidad con ese valor")
+    void altaBarril_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        BarrilFormDTO formDTO = barrilFormDTO("  bar   01 ", 50.0, 1L);
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId("BAR 01", 1L)).thenReturn(false);
+        when(barrilRepository.save(any(BarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        barrilServicio.altaBarril(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<BarrilEntity> captor = ArgumentCaptor.forClass(BarrilEntity.class);
+        verify(barrilRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdentificador()).isEqualTo("BAR 01");
+        assertThat(formDTO.getIdentificador()).isEqualTo("  bar   01 ");
+        verify(barrilRepository).existsByIdentificadorIgnoreCaseAndFabricanteId("BAR 01", 1L);
+        verify(barrilRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AB-11: altaBarril lanza ReglaNegocioException y no consulta el repositorio cuando el identificador está vacío")
+    void altaBarril_debeRechazarValorVacio() {
+        BarrilFormDTO formDTO = barrilFormDTO("   ", 50.0, 1L);
+
+        assertThatThrownBy(() -> barrilServicio.altaBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador es obligatorio");
+
+        verifyNoInteractions(barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AB-12: altaBarril lanza RecursoDuplicadoException cuando el identificador normalizado ya existe")
+    void altaBarril_debeDetectarDuplicadoConElValorNormalizado() {
+        BarrilFormDTO formDTO = barrilFormDTO("  bar-01 ", 50.0, 1L);
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId("BAR-01", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> barrilServicio.altaBarril(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un barril con el identificador 'BAR-01' para el fabricante seleccionado");
+
+        verify(barrilRepository).existsByIdentificadorIgnoreCaseAndFabricanteId("BAR-01", 1L);
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AB-13: altaBarril traduce la violación del índice único udx_barril_identificador al mensaje de duplicado")
+    void altaBarril_debeTraducirLaViolacionDelIndiceUnico() {
+        BarrilFormDTO formDTO = barrilFormDTO("BAR 01", 50.0, 1L);
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId("BAR 01", 1L)).thenReturn(false);
+        when(barrilRepository.save(any(BarrilEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_barril_identificador"));
+
+        assertThatThrownBy(() -> barrilServicio.altaBarril(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un barril con el identificador 'BAR 01' para el fabricante seleccionado");
+    }
+
+    @Test
+    @DisplayName("CP-AB-14: altaBarril permite reutilizar el identificador de un registro dado de baja")
+    void altaBarril_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        BarrilFormDTO formDTO = barrilFormDTO("BAR 01", 50.0, 1L);
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId("BAR 01", 1L)).thenReturn(false);
+        when(barrilRepository.save(any(BarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> barrilServicio.altaBarril(formDTO)).doesNotThrowAnyException();
+
+        verify(barrilRepository).save(any(BarrilEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AB-15: altaBarril permite un identificador que difiere de otro solo en la puntuación")
+    void altaBarril_debeTratarComoDistintosLosIdentificadoresConDistintaPuntuacion() {
+        BarrilFormDTO formDTO = barrilFormDTO("bar 01", 50.0, 1L);
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId("BAR 01", 1L)).thenReturn(false);
+        when(barrilRepository.save(any(BarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> barrilServicio.altaBarril(formDTO)).doesNotThrowAnyException();
+
+        verify(barrilRepository).existsByIdentificadorIgnoreCaseAndFabricanteId("BAR 01", 1L);
+        verify(barrilRepository).save(any(BarrilEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MB-10: modificarBarril guarda el identificador normalizado y consulta la unicidad con ese valor")
+    void modificarBarril_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        BarrilFormDTO formDTO = barrilFormDTO("  bar   01 ", 50.0, 1L);
+        BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        barrilServicio.modificarBarril(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getIdentificador()).isEqualTo("BAR 01");
+        assertThat(formDTO.getIdentificador()).isEqualTo("  bar   01 ");
+        verify(barrilRepository).existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L);
+        verify(barrilRepository).save(existente);
+        verify(barrilRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MB-11: modificarBarril lanza ReglaNegocioException cuando el identificador está vacío")
+    void modificarBarril_debeRechazarValorVacio() {
+        BarrilFormDTO formDTO = barrilFormDTO("   ", 50.0, 1L);
+        BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador es obligatorio");
+
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MB-12: modificarBarril lanza RecursoDuplicadoException cuando el identificador normalizado está en uso por otro registro")
+    void modificarBarril_debeDetectarDuplicadoConElValorNormalizado() {
+        BarrilFormDTO formDTO = barrilFormDTO("  bar-01 ", 50.0, 1L);
+        BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador 'BAR-01' ya está en uso por otro barril del fabricante seleccionado");
+
+        verify(barrilRepository).existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L);
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MB-13: modificarBarril traduce la violación del índice único udx_barril_identificador al mensaje de duplicado")
+    void modificarBarril_debeTraducirLaViolacionDelIndiceUnico() {
+        BarrilFormDTO formDTO = barrilFormDTO("BAR 01", 50.0, 1L);
+        BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_barril_identificador"));
+
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador 'BAR 01' ya está en uso por otro barril del fabricante seleccionado");
+    }
+
+    @Test
+    @DisplayName("CP-MB-14: modificarBarril permite reutilizar el identificador de un registro dado de baja")
+    void modificarBarril_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        BarrilFormDTO formDTO = barrilFormDTO("BAR 01", 50.0, 1L);
+        BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> barrilServicio.modificarBarril(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getIdentificador()).isEqualTo("BAR 01");
+        verify(barrilRepository).save(existente);
     }
 }

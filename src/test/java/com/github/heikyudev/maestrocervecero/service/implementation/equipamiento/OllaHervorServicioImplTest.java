@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OllaHervorResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -288,12 +289,12 @@ class OllaHervorServicioImplTest {
     @DisplayName("altaOllaHervor lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
     void altaOllaHervor_debeRechazarIdentificadorDuplicadoCaseInsensitive() {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("olla-01", 100.0, 80.0, 10.0, 3.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("olla-01")).thenReturn(true);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("OLLA-01")).thenReturn(true);
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(ollaHervorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class);
 
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("olla-01");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("OLLA-01");
         verify(ollaHervorRepository, never()).save(any());
     }
 
@@ -456,7 +457,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'OLLA-EXISTENTE'");
+                .hasMessage("El identificador interno \'OLLA-EXISTENTE\' ya está en uso por otro equipamiento");
 
         verify(ollaHervorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-EXISTENTE", 1L);
@@ -511,14 +512,14 @@ class OllaHervorServicioImplTest {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         // Mismo identificador (distinto case): el AndIdNot excluye el propio ID y no debe fallar
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("olla-01", 100.0, 80.0, 10.0, 3.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("olla-01", 1L)).thenReturn(false);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
         when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO);
 
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("olla-01");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("OLLA-01");
         assertThat(resultado.getPerdidaPorTrub()).isEqualTo(3.0);
         verify(ollaHervorRepository).save(ollaHervorEntity);
     }
@@ -1076,5 +1077,172 @@ class OllaHervorServicioImplTest {
         assertThat(dto.getPerdidaPorTrub()).isEqualTo(entidad.getPerdidaPorTrub());
         assertThat(dto.getUsosMaximosAntesMantenimiento()).isEqualTo(entidad.getUsosMaximosAntesMantenimiento());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AO-39: altaOllaHervor guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void altaOllaHervor_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("  fer   01 ", 100.0, 80.0, 5.0, 3.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ollaHervorServicio.altaOllaHervor(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<OllaHervorEntity> captor = ArgumentCaptor.forClass(OllaHervorEntity.class);
+        verify(ollaHervorRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(ollaHervorRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AO-40: altaOllaHervor lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno está vacío")
+    void altaOllaHervor_debeRechazarValorVacio() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("   ", 100.0, 80.0, 5.0, 3.0);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verifyNoInteractions(ollaHervorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AO-41: altaOllaHervor lanza RecursoDuplicadoException cuando el identificador interno normalizado ya existe")
+    void altaOllaHervor_debeDetectarDuplicadoConElValorNormalizado() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("  fer-01 ", 100.0, 80.0, 5.0, 3.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(true);
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER-01");
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AO-42: altaOllaHervor traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void altaOllaHervor_debeTraducirLaViolacionDelIndiceUnico() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("FER 01", 100.0, 80.0, 5.0, 3.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
+    }
+
+    @Test
+    @DisplayName("CP-AO-43: altaOllaHervor permite reutilizar el identificador interno de un registro dado de baja")
+    void altaOllaHervor_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("FER 01", 100.0, 80.0, 5.0, 3.0);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> ollaHervorServicio.altaOllaHervor(formDTO)).doesNotThrowAnyException();
+
+        verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AO-44: altaOllaHervor permite un identificador que difiere de otro solo en la puntuación")
+    void altaOllaHervor_debeTratarComoDistintosLosIdentificadoresConDistintaPuntuacion() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("fer 01", 100.0, 80.0, 5.0, 3.0);
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(ollaHervorRepository.save(any(OllaHervorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> ollaHervorServicio.altaOllaHervor(formDTO)).doesNotThrowAnyException();
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
+        verify(ollaHervorRepository).save(any(OllaHervorEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MO-18: modificarOllaHervor guarda el identificador interno normalizado y consulta la unicidad con ese valor")
+    void modificarOllaHervor_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("  fer   01 ", 100.0, 80.0, 5.0, 3.0);
+        OllaHervorEntity existente = crearOllaHervorEntity(1L, "Original", 100.0, 80.0, 5.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(ollaHervorRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        ollaHervorServicio.modificarOllaHervor(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L);
+        verify(ollaHervorRepository).save(existente);
+        verify(ollaHervorRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MO-19: modificarOllaHervor lanza ReglaNegocioException cuando el identificador interno está vacío")
+    void modificarOllaHervor_debeRechazarValorVacio() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("   ", 100.0, 80.0, 5.0, 3.0);
+        OllaHervorEntity existente = crearOllaHervorEntity(1L, "Original", 100.0, 80.0, 5.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(existente));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El identificador interno es obligatorio");
+
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-20: modificarOllaHervor lanza RecursoDuplicadoException cuando el identificador interno normalizado está en uso por otro registro")
+    void modificarOllaHervor_debeDetectarDuplicadoConElValorNormalizado() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("  fer-01 ", 100.0, 80.0, 5.0, 3.0);
+        OllaHervorEntity existente = crearOllaHervorEntity(1L, "Original", 100.0, 80.0, 5.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+
+        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MO-21: modificarOllaHervor traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
+    void modificarOllaHervor_debeTraducirLaViolacionDelIndiceUnico() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("FER 01", 100.0, 80.0, 5.0, 3.0);
+        OllaHervorEntity existente = crearOllaHervorEntity(1L, "Original", 100.0, 80.0, 5.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(ollaHervorRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
+
+        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-MO-22: modificarOllaHervor permite reutilizar el identificador interno de un registro dado de baja")
+    void modificarOllaHervor_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        OllaHervorFormDTO formDTO = ollaHervorFormDTO("FER 01", 100.0, 80.0, 5.0, 3.0);
+        OllaHervorEntity existente = crearOllaHervorEntity(1L, "Original", 100.0, 80.0, 5.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
+        when(ollaHervorRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> ollaHervorServicio.modificarOllaHervor(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
+        verify(ollaHervorRepository).save(existente);
     }
 }

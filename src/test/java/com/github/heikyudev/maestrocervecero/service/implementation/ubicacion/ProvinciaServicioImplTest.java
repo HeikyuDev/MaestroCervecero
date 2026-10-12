@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.ProvinciaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -471,5 +473,179 @@ class ProvinciaServicioImplTest {
         assertThat(dto.getPais().getId()).isEqualTo(entidad.getPais().getId());
         assertThat(dto.getPais().getNombre()).isEqualTo(entidad.getPais().getNombre());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-APR-07: altaProvincia guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaProvincia_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        ProvinciaFormDTO formDTO = provinciaFormDTO("  Pilsen   Nacional  ", 1L);
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisId("Pilsen Nacional", 1L)).thenReturn(false);
+        when(provinciaRepository.save(any(ProvinciaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        provinciaServicio.altaProvincia(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<ProvinciaEntity> captor = ArgumentCaptor.forClass(ProvinciaEntity.class);
+        verify(provinciaRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisId("Pilsen Nacional", 1L);
+        verify(provinciaRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-APR-08: altaProvincia lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaProvincia_debeRechazarValorVacio() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("   ", 1L);
+
+        assertThatThrownBy(() -> provinciaServicio.altaProvincia(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(provinciaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APR-09: altaProvincia lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaProvincia_debeDetectarDuplicadoConElValorNormalizado() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("  pilsen ", 1L);
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisId("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> provinciaServicio.altaProvincia(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una provincia con el nombre 'pilsen' para el país seleccionado");
+
+        verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisId("pilsen", 1L);
+        verify(provinciaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-APR-10: altaProvincia traduce la violación del índice único udx_provincia_nombre al mensaje de duplicado")
+    void altaProvincia_debeTraducirLaViolacionDelIndiceUnico() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("Pilsen Nacional", 1L);
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisId("Pilsen Nacional", 1L)).thenReturn(false);
+        when(provinciaRepository.save(any(ProvinciaEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_provincia_nombre"));
+
+        assertThatThrownBy(() -> provinciaServicio.altaProvincia(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una provincia con el nombre 'Pilsen Nacional' para el país seleccionado");
+    }
+
+    @Test
+    @DisplayName("CP-APR-11: altaProvincia permite reutilizar el nombre de un registro dado de baja")
+    void altaProvincia_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("Pilsen Nacional", 1L);
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisId("Pilsen Nacional", 1L)).thenReturn(false);
+        when(provinciaRepository.save(any(ProvinciaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> provinciaServicio.altaProvincia(formDTO)).doesNotThrowAnyException();
+
+        verify(provinciaRepository).save(any(ProvinciaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-APR-12: altaProvincia permite un nombre que difiere de otro solo en una tilde")
+    void altaProvincia_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("Pílsen", 1L);
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisId("Pílsen", 1L)).thenReturn(false);
+        when(provinciaRepository.save(any(ProvinciaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> provinciaServicio.altaProvincia(formDTO)).doesNotThrowAnyException();
+
+        verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisId("Pílsen", 1L);
+        verify(provinciaRepository).save(any(ProvinciaEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MPR-08: modificarProvincia guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarProvincia_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        ProvinciaFormDTO formDTO = provinciaFormDTO("  Pilsen   Nacional  ", 1L);
+        ProvinciaEntity existente = crearProvinciaEntity(1L, "Original", crearPaisEntity(1L, "Argentina"));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot("Pilsen Nacional", 1L, 1L)).thenReturn(false);
+        when(provinciaRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        provinciaServicio.modificarProvincia(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisIdAndIdNot("Pilsen Nacional", 1L, 1L);
+        verify(provinciaRepository).save(existente);
+        verify(provinciaRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MPR-09: modificarProvincia lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarProvincia_debeRechazarValorVacio() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("   ", 1L);
+
+        assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(provinciaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPR-10: modificarProvincia lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarProvincia_debeDetectarDuplicadoConElValorNormalizado() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("  pilsen ", 1L);
+        ProvinciaEntity existente = crearProvinciaEntity(1L, "Original", crearPaisEntity(1L, "Argentina"));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot("pilsen", 1L, 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otra provincia del país seleccionado");
+
+        verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisIdAndIdNot("pilsen", 1L, 1L);
+        verify(provinciaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MPR-11: modificarProvincia traduce la violación del índice único udx_provincia_nombre al mensaje de duplicado")
+    void modificarProvincia_debeTraducirLaViolacionDelIndiceUnico() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("Pilsen Nacional", 1L);
+        ProvinciaEntity existente = crearProvinciaEntity(1L, "Original", crearPaisEntity(1L, "Argentina"));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot("Pilsen Nacional", 1L, 1L)).thenReturn(false);
+        when(provinciaRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_provincia_nombre"));
+
+        assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra provincia del país seleccionado");
+    }
+
+    @Test
+    @DisplayName("CP-MPR-12: modificarProvincia permite reutilizar el nombre de un registro dado de baja")
+    void modificarProvincia_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        ProvinciaFormDTO formDTO = provinciaFormDTO("Pilsen Nacional", 1L);
+        ProvinciaEntity existente = crearProvinciaEntity(1L, "Original", crearPaisEntity(1L, "Argentina"));
+        when(provinciaRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(paisRepository.findById(1L)).thenReturn(Optional.of(crearPaisEntity(1L, "Argentina")));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot("Pilsen Nacional", 1L, 1L)).thenReturn(false);
+        when(provinciaRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> provinciaServicio.modificarProvincia(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(provinciaRepository).save(existente);
     }
 }

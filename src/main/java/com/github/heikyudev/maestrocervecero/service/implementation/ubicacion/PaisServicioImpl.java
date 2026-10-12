@@ -1,7 +1,5 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
-import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
-import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
@@ -16,15 +14,26 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IPaisServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.PaisResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ubicacion.MapperPais;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class PaisServicioImpl implements IPaisServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos países activos con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_pais_nombre";
 
     // Inyecto los repositorios gracias a LOMBOK
     private final IPaisRepository paisRepository;
@@ -65,41 +74,46 @@ public class PaisServicioImpl implements IPaisServicio {
     /**
      * Registra un nuevo país en el sistema.
      * <p>
-     * Valida que el nombre no esté duplicado (case-insensitive) entre los países activos.
-     * Registra el evento en la auditoría.
+     * Normaliza el nombre (sin espacios en los extremos ni repetidos), valida que sea obligatorio y no supere los 100 caracteres, y que no esté
+     * duplicado (case-insensitive) entre los países activos. Registra el evento en la auditoría.
      * </p>
      *
      * @param paisFormDTO Objeto DTO que contiene los datos de creación del país.
      * @return {@link PaisResponseDTO} representativo del país guardado en la base de datos.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a un país activo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PAIS)
     public PaisResponseDTO altaPais(PaisFormDTO paisFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(paisFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(paisFormDTO.getNombre());
 
-        // 2. Validar si el nombre ya está registrado en otro país (case-insensitive)
-        if (paisRepository.existsByNombreIgnoreCase(paisFormDTO.getNombre())) {
-            throw new RecursoDuplicadoException("Ya existe un país con el nombre '" + paisFormDTO.getNombre() + "'");
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Validar si el nombre ya está registrado en otro país (case-insensitive)
+        if (paisRepository.existsByNombreIgnoreCase(nombre)) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
-        // 3. Creo la entidad que se va a almacenar en la base de datos
+        // 4. Creo la entidad que se va a almacenar en la base de datos
         PaisEntity paisEntity = PaisEntity.builder()
-                .nombre(paisFormDTO.getNombre())
+                .nombre(nombre)
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 4. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
-        return MapperPais.toDTO(paisRepository.save(paisEntity));
+        // 5. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperPais.toDTO(GuardadoUnico.guardar(paisRepository, paisEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
      * Actualiza la información de un país existente en la base de datos.
      * <p>
-     * Localiza el país por su ID y verifica que el nuevo nombre no colisione con el de otro
+     * Normaliza y valida el nombre (obligatorio y de longitud máxima), localiza el país por su ID y verifica que el nuevo nombre no colisione con el de otro
      * país activo (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
      *
@@ -107,31 +121,36 @@ public class PaisServicioImpl implements IPaisServicio {
      * @param paisFormDTO DTO con la información actualizada.
      * @return {@link PaisResponseDTO} representativo del país con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza un país activo por el ID proporcionado.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otro país activo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PAIS)
     public PaisResponseDTO modificarPais(Long id, PaisFormDTO paisFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(paisFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(paisFormDTO.getNombre());
 
-        // 2. Localizar el país existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Localizar el país existente. Si no existe, se dispara RecursoNoEncontradoException
         PaisEntity paisEntity = paisRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + id));
 
-        // 3. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
-        if (paisRepository.existsByNombreIgnoreCaseAndIdNot(paisFormDTO.getNombre(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + paisFormDTO.getNombre() + "' ya está en uso por otro país");
+        if (paisRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 4. Aplico los cambios sobre la entidad administrada por persistencia
-        paisEntity.setNombre(paisFormDTO.getNombre());
+        // 5. Aplico los cambios sobre la entidad administrada por persistencia
+        paisEntity.setNombre(nombre);
 
-        // 5. Persisto la entidad actualizada y devuelvo el DTO correspondiente
-        return MapperPais.toDTO(paisRepository.save(paisEntity));
+        // 6. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperPais.toDTO(GuardadoUnico.guardar(paisRepository, paisEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -165,5 +184,26 @@ public class PaisServicioImpl implements IPaisServicio {
 
         // 4. Retornamos el DTO del país dado de baja
         return MapperPais.toDTO(paisEntity);
+    }
+
+    /**
+     * Valida que el nombre normalizado sea obligatorio y no supere la longitud máxima.
+     *
+     * @param nombre Nombre normalizado.
+     * @throws ReglaNegocioException Si el nombre está vacío o supera los 100 caracteres.
+     */
+    private static void validarNombre(String nombre) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe un país con el nombre '" + nombre + "'");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otro país");
     }
 }

@@ -10,6 +10,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.MotivoAjusteResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -357,5 +359,170 @@ class MotivoAjusteServicioImplTest {
         assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getTipoAjuste()).isEqualTo(entidad.getTipoAjuste());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
+    }
+
+    // ==================== normalización y unicidad ====================
+
+    @Test
+    @DisplayName("CP-AMA-05: altaMotivoAjuste guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaMotivoAjuste_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("  Pilsen   Nacional  ", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(motivoAjusteRepository.save(any(MotivoAjusteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        motivoAjusteServicio.altaMotivoAjuste(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<MotivoAjusteEntity> captor = ArgumentCaptor.forClass(MotivoAjusteEntity.class);
+        verify(motivoAjusteRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(motivoAjusteRepository).existsByNombreIgnoreCase("Pilsen Nacional");
+        verify(motivoAjusteRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AMA-06: altaMotivoAjuste lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaMotivoAjuste_debeRechazarValorVacio() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("   ", TipoAjuste.EGRESO);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.altaMotivoAjuste(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(motivoAjusteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AMA-07: altaMotivoAjuste lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaMotivoAjuste_debeDetectarDuplicadoConElValorNormalizado() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("  pilsen ", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.existsByNombreIgnoreCase("pilsen")).thenReturn(true);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.altaMotivoAjuste(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un motivo de ajuste con el nombre 'pilsen'");
+
+        verify(motivoAjusteRepository).existsByNombreIgnoreCase("pilsen");
+        verify(motivoAjusteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AMA-08: altaMotivoAjuste traduce la violación del índice único udx_motivo_ajuste_nombre al mensaje de duplicado")
+    void altaMotivoAjuste_debeTraducirLaViolacionDelIndiceUnico() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Pilsen Nacional", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(motivoAjusteRepository.save(any(MotivoAjusteEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_motivo_ajuste_nombre"));
+
+        assertThatThrownBy(() -> motivoAjusteServicio.altaMotivoAjuste(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un motivo de ajuste con el nombre 'Pilsen Nacional'");
+    }
+
+    @Test
+    @DisplayName("CP-AMA-09: altaMotivoAjuste permite reutilizar el nombre de un registro dado de baja")
+    void altaMotivoAjuste_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Pilsen Nacional", TipoAjuste.EGRESO);
+        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(motivoAjusteRepository.existsByNombreIgnoreCase("Pilsen Nacional")).thenReturn(false);
+        when(motivoAjusteRepository.save(any(MotivoAjusteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> motivoAjusteServicio.altaMotivoAjuste(formDTO)).doesNotThrowAnyException();
+
+        verify(motivoAjusteRepository).save(any(MotivoAjusteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AMA-10: altaMotivoAjuste permite un nombre que difiere de otro solo en una tilde")
+    void altaMotivoAjuste_debeTratarComoDistintosLosNombresConDistintaTilde() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Pílsen", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.existsByNombreIgnoreCase("Pílsen")).thenReturn(false);
+        when(motivoAjusteRepository.save(any(MotivoAjusteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> motivoAjusteServicio.altaMotivoAjuste(formDTO)).doesNotThrowAnyException();
+
+        verify(motivoAjusteRepository).existsByNombreIgnoreCase("Pílsen");
+        verify(motivoAjusteRepository).save(any(MotivoAjusteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MMA-06: modificarMotivoAjuste guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarMotivoAjuste_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("  Pilsen   Nacional  ", TipoAjuste.EGRESO);
+        MotivoAjusteEntity existente = crearMotivoAjusteEntity(1L, "Original", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(motivoAjusteRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        assertThat(formDTO.getNombre()).isEqualTo("  Pilsen   Nacional  ");
+        verify(motivoAjusteRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L);
+        verify(motivoAjusteRepository).save(existente);
+        verify(motivoAjusteRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MMA-07: modificarMotivoAjuste lanza ReglaNegocioException cuando el nombre está vacío")
+    void modificarMotivoAjuste_debeRechazarValorVacio() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("   ", TipoAjuste.EGRESO);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(motivoAjusteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MMA-08: modificarMotivoAjuste lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro registro")
+    void modificarMotivoAjuste_debeDetectarDuplicadoConElValorNormalizado() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("  pilsen ", TipoAjuste.EGRESO);
+        MotivoAjusteEntity existente = crearMotivoAjusteEntity(1L, "Original", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'pilsen' ya está en uso por otro motivo de ajuste");
+
+        verify(motivoAjusteRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
+        verify(motivoAjusteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MMA-09: modificarMotivoAjuste traduce la violación del índice único udx_motivo_ajuste_nombre al mensaje de duplicado")
+    void modificarMotivoAjuste_debeTraducirLaViolacionDelIndiceUnico() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Pilsen Nacional", TipoAjuste.EGRESO);
+        MotivoAjusteEntity existente = crearMotivoAjusteEntity(1L, "Original", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(motivoAjusteRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_motivo_ajuste_nombre"));
+
+        assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro motivo de ajuste");
+    }
+
+    @Test
+    @DisplayName("CP-MMA-10: modificarMotivoAjuste permite reutilizar el nombre de un registro dado de baja")
+    void modificarMotivoAjuste_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
+        MotivoAjusteFormDTO formDTO = motivoAjusteFormDTO("Pilsen Nacional", TipoAjuste.EGRESO);
+        MotivoAjusteEntity existente = crearMotivoAjusteEntity(1L, "Original", TipoAjuste.EGRESO);
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
+        when(motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
+        when(motivoAjusteRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
+        verify(motivoAjusteRepository).save(existente);
     }
 }

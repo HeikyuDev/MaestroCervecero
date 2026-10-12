@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
@@ -24,9 +26,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class ProvinciaServicioImpl implements IProvinciaServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos provincias activas en un mismo país con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_provincia_nombre";
 
     // Inyecto los repositorios gracias a LOMBOK
     private final IProvinciaRepository provinciaRepository;
@@ -69,7 +78,8 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
     /**
      * Registra una nueva provincia en el sistema.
      * <p>
-     * Valida que el país seleccionado exista y que el nombre no esté duplicado
+     * Normaliza el nombre (sin espacios en los extremos ni repetidos), valida que sea obligatorio y no supere los 100 caracteres,
+     * que el país seleccionado exista y que el nombre no esté duplicado
      * (case-insensitive) entre las provincias activas de ese mismo país. Registra el evento
      * en la auditoría.
      * </p>
@@ -77,40 +87,45 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
      * @param provinciaFormDTO Objeto DTO que contiene los datos de creación de la provincia.
      * @return {@link ProvinciaResponseDTO} representativo de la provincia guardada en la base de datos.
      * @throws RecursoNoEncontradoException Si no existe un país activo con el ID especificado.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una provincia activa del mismo país.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.PROVINCIA)
     public ProvinciaResponseDTO altaProvincia(ProvinciaFormDTO provinciaFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(provinciaFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(provinciaFormDTO.getNombre());
 
-        // 2. Verificar que el país seleccionado exista
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Verificar que el país seleccionado exista
         PaisEntity paisEntity = paisRepository.findById(provinciaFormDTO.getIdPais())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + provinciaFormDTO.getIdPais()));
 
-        // 3. Validar si el nombre ya está registrado en otra provincia del mismo país (case-insensitive)
-        if (provinciaRepository.existsByNombreIgnoreCaseAndPaisId(provinciaFormDTO.getNombre(), provinciaFormDTO.getIdPais())) {
-            throw new RecursoDuplicadoException("Ya existe una provincia con el nombre '" + provinciaFormDTO.getNombre() + "' para el país seleccionado");
+        // 4. Validar si el nombre ya está registrado en otra provincia del mismo país (case-insensitive)
+        if (provinciaRepository.existsByNombreIgnoreCaseAndPaisId(nombre, provinciaFormDTO.getIdPais())) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
-        // 4. Creo la entidad que se va a almacenar en la base de datos
+        // 5. Creo la entidad que se va a almacenar en la base de datos
         ProvinciaEntity provinciaEntity = ProvinciaEntity.builder()
-                .nombre(provinciaFormDTO.getNombre())
+                .nombre(nombre)
                 .pais(paisEntity)
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 5. Guardo la entidad en la base de datos y devuelvo el DTO correspondiente
-        return MapperProvincia.toDTO(provinciaRepository.save(provinciaEntity));
+        // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperProvincia.toDTO(GuardadoUnico.guardar(provinciaRepository, provinciaEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
      * Actualiza la información de una provincia existente en la base de datos.
      * <p>
-     * Localiza la provincia por su ID, verifica que el país seleccionado exista y que el nuevo
+     * Normaliza y valida el nombre (obligatorio y de longitud máxima), localiza la provincia por su ID, verifica que el país seleccionado exista y que el nuevo
      * nombre no colisione con el de otra provincia activa del mismo país (case-insensitive),
      * permitiendo conservar el propio nombre actual.
      * </p>
@@ -119,36 +134,41 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
      * @param provinciaFormDTO DTO con la información actualizada.
      * @return {@link ProvinciaResponseDTO} representativo de la provincia con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza una provincia activa por el ID proporcionado, o si no existe un país activo con el ID especificado.
-     * @throws ReglaNegocioException Si el nombre supera los 100 caracteres.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra provincia activa del mismo país.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.PROVINCIA)
     public ProvinciaResponseDTO modificarProvincia(Long id, ProvinciaFormDTO provinciaFormDTO) {
-        // 1. Validar la longitud máxima del nombre
-        ValidacionesNumericas.validarLongitudMaxima(provinciaFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        // 1. Normalizar el nombre sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(provinciaFormDTO.getNombre());
 
-        // 2. Localizar la provincia existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
+        validarNombre(nombre);
+
+        // 3. Localizar la provincia existente. Si no existe, se dispara RecursoNoEncontradoException
         ProvinciaEntity provinciaEntity = provinciaRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la provincia con ID: " + id));
 
-        // 3. Verificar que el país seleccionado exista
+        // 4. Verificar que el país seleccionado exista
         PaisEntity paisEntity = paisRepository.findById(provinciaFormDTO.getIdPais())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el país con ID: " + provinciaFormDTO.getIdPais()));
 
-        // 4. Se valida duplicación excluyendo el propio ID, de modo que conservar
+        // 5. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
-        if (provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot(provinciaFormDTO.getNombre(), provinciaFormDTO.getIdPais(), id)) {
-            throw new RecursoDuplicadoException("El nombre '" + provinciaFormDTO.getNombre() + "' ya está en uso por otra provincia del país seleccionado");
+        if (provinciaRepository.existsByNombreIgnoreCaseAndPaisIdAndIdNot(nombre, provinciaFormDTO.getIdPais(), id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 5. Aplico los cambios sobre la entidad administrada por persistencia
-        provinciaEntity.setNombre(provinciaFormDTO.getNombre());
+        // 6. Aplico los cambios sobre la entidad administrada por persistencia
+        provinciaEntity.setNombre(nombre);
         provinciaEntity.setPais(paisEntity);
 
-        // 6. Persisto la entidad actualizada y devuelvo el DTO correspondiente
-        return MapperProvincia.toDTO(provinciaRepository.save(provinciaEntity));
+        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y devuelvo el DTO correspondiente
+        return MapperProvincia.toDTO(GuardadoUnico.guardar(provinciaRepository, provinciaEntity,
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
     }
 
     /**
@@ -183,5 +203,26 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
 
         // 4. Retornamos el DTO de la provincia dada de baja
         return MapperProvincia.toDTO(provinciaEntity);
+    }
+
+    /**
+     * Valida que el nombre normalizado sea obligatorio y no supere la longitud máxima.
+     *
+     * @param nombre Nombre normalizado.
+     * @throws ReglaNegocioException Si el nombre está vacío o supera los 100 caracteres.
+     */
+    private static void validarNombre(String nombre) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe una provincia con el nombre '" + nombre + "' para el país seleccionado");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra provincia del país seleccionado");
     }
 }
