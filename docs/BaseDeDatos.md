@@ -165,7 +165,7 @@ unicidad y el índice de la base trabajan sobre el mismo valor.
 
 | Dato | Normalización | Se guarda |
 |---|---|---|
-| Nombres propios, razón social, nombres de insumos y demás textos libres (`nombrePropio`) | Recorte de los extremos, colapso de cualquier espacio en blanco (incluidos los no separables) en uno solo, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC | Con las mayúsculas y las tildes escritas |
+| Nombres propios, razón social, nombres de insumos y de recetas y demás textos libres (`nombrePropio`) | Recorte de los extremos, colapso de cualquier espacio en blanco (incluidos los no separables) en uno solo, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC | Con las mayúsculas y las tildes escritas |
 | Códigos e identificadores (`codigo`): identificador interno de equipos, identificador de barril, identificación de lote del proveedor | Igual que `nombrePropio` y pasaje a mayúsculas con `Locale.ROOT` | En mayúsculas; la puntuación cuenta |
 | CUIT (`cuit`) | Eliminación de espacios, guiones, puntos y barras | Solo los 11 dígitos, sin guiones |
 | Correo (`correo`) | Recorte y minúsculas | En minúsculas |
@@ -240,6 +240,43 @@ que coincidan con lo que guarda el Service y con el nombre de usuario que se nor
 El teléfono de usuarios y clientes no tiene unicidad, y el nombre de un cliente tampoco. Si las tablas contienen nombres
 de usuario o correos repetidos entre registros activos (ignorando mayúsculas y espacios en los extremos), la creación del
 índice falla y deben resolverse antes de migrar.
+
+`V6__indices_unicos_proveedor_receta.sql` crea los índices únicos de los módulos versionados (proveedor y receta), agrega
+la columna `padre_activo` a `version_proveedor` y `version_receta`, y deja el teléfono del proveedor como dato opcional (la
+columna `telefono` de `version_proveedor` admite nulos). También normaliza los datos existentes (espacios colapsados en la
+razón social, el nombre comercial, la dirección y el nombre de la receta; CUIT sin separadores; correo en minúsculas).
+
+Los datos de un proveedor y de una receta viven en su tabla de versiones, y cada modificación inserta una versión nueva
+con `es_ultima_version = true` y deja la anterior en `false`. La unicidad rige solo sobre la versión vigente de los
+registros activos. El estado (`ACTIVO` o `BAJA`) vive en la tabla padre (`proveedor`, `receta`), y un índice parcial de la
+tabla de versiones no puede consultarlo, por eso cada versión guarda `padre_activo`:
+
+- `padre_activo` es `true` mientras el padre está activo (valor por defecto al crear una versión).
+- Al dar de baja el padre, el Service pone `padre_activo = false` en todas sus versiones, y su razón social, CUIT, correo
+  electrónico o nombre quedan libres para un registro nuevo.
+- Los índices únicos de negocio llevan `WHERE es_ultima_version = true AND padre_activo = true`.
+
+| Índice | Tabla | Expresión | Regla |
+|---|---|---|---|
+| `udx_version_proveedor_ultima_version` | `version_proveedor` | `(proveedor_id) WHERE es_ultima_version = true` | Una sola versión vigente por proveedor |
+| `udx_version_proveedor_razon_social` | `version_proveedor` | `(lower(btrim(razon_social)))` | Razón social única entre proveedores activos (la puntuación cuenta: `ACME S.A.` y `ACME SA` son distintas) |
+| `udx_version_proveedor_cuit` | `version_proveedor` | `(cuit)` | CUIT único entre proveedores activos (se guarda con sus 11 dígitos) |
+| `udx_version_proveedor_email` | `version_proveedor` | `(lower(btrim(email))) WHERE email IS NOT NULL` | Correo electrónico único entre proveedores activos |
+| `udx_version_receta_ultima_version` | `version_receta` | `(receta_id) WHERE es_ultima_version = true` | Una sola versión vigente por receta |
+| `udx_version_receta_nombre` | `version_receta` | `(lower(btrim(nombre)))` | Nombre único entre recetas activas; los nombres de versiones históricas no cuentan |
+
+Los índices de negocio (los cuatro con nombre de dato) son parciales por `es_ultima_version = true AND padre_activo = true`;
+los de versión vigente solo por `es_ultima_version = true`. El teléfono del proveedor no tiene unicidad, y el código
+`R<id>` de la receta tampoco. Si las tablas contienen datos repetidos entre proveedores o recetas activos (sobre su versión
+vigente), o un padre con más de una versión vigente, la creación del índice falla y deben resolverse antes de migrar.
+
+**Una sola versión vigente.** Dos protecciones se combinan al modificar un proveedor o una receta:
+
+1. El Service bloquea la fila del padre (`PESSIMISTIC_WRITE`) antes de validar y de guardar, de modo que las
+   modificaciones simultáneas del mismo padre se ejecutan una a una. La baja bloquea la misma fila.
+2. Hibernate ejecuta los `INSERT` antes que los `UPDATE` al confirmar los cambios, y el índice de versión vigente se
+   evalúa en cada sentencia. Por eso el Service guarda y confirma (`save` y `flush`) la versión anterior ya desactivada
+   antes de insertar la nueva.
 
 ### Traducción de una violación de unicidad
 

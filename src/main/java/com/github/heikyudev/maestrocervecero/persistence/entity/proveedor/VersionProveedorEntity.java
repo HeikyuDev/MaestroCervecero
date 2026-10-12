@@ -41,7 +41,7 @@ public class VersionProveedorEntity implements VersionadoEntity {
     @Column(nullable = false)
     private String cuit;
 
-    @Column(nullable = false)
+    @Column
     private String telefono;
 
     @Column(nullable = false)
@@ -52,6 +52,15 @@ public class VersionProveedorEntity implements VersionadoEntity {
 
     @Column(name = "es_ultima_version", nullable = false)
     private boolean esUltimaVersion;
+
+    /**
+     * {@code true} mientras el proveedor dueño está activo; pasa a {@code false} en todas sus versiones al darlo de baja.
+     * Permite que los índices únicos de la tabla (que no ven el estado del proveedor) liberen la razón social, el CUIT
+     * y el correo electrónico.
+     */
+    @Builder.Default
+    @Column(name = "padre_activo", nullable = false)
+    private boolean padreActivo = true;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false) // (Una versión de proveedor debe pertenecer a un proveedor)
     @JoinColumn(name = "proveedor_id", nullable = false)

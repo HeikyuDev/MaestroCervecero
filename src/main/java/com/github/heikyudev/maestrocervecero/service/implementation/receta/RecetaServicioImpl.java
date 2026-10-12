@@ -33,7 +33,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaSe
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -45,11 +47,22 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class RecetaServicioImpl implements IRecetaServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos recetas activas con el mismo nombre.
+     */
+    private static final String INDICE_NOMBRE = "udx_version_receta_nombre";
+
+    /**
+     * Índice único de la base de datos que garantiza que una receta tenga una sola versión vigente.
+     */
+    private static final String INDICE_ULTIMA_VERSION = "udx_version_receta_ultima_version";
 
     private static final BigDecimal OG_MINIMA = new BigDecimal("1.020");
     private static final BigDecimal OG_MAXIMA = new BigDecimal("1.120");
@@ -80,7 +93,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<RecetaResponseDTO> filtrarRecetas(String nombre, Pageable pageable) {
-        return recetaRepository.filtrarRecetas(nombre, pageable).map(MapperReceta::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        return recetaRepository.filtrarRecetas(vacioANulo(NormalizacionTexto.nombrePropio(nombre)), pageable).map(MapperReceta::toDTO);
     }
 
     /**
@@ -109,8 +123,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
      *
      * @param recetaFormDTO Objeto DTO que contiene los datos de creación de la receta y su versión inicial.
      * @return {@link RecetaResponseDTO} representativo de la receta guardada en la base de datos.
-     * @throws ReglaNegocioException Si alguno de los datos de la versión, sus detalles incumple las reglas de negocio.
-     * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una receta activa.
+     * @throws ReglaNegocioException Si el nombre falta o supera su longitud máxima, o si alguno de los demás datos de la versión o sus detalles incumple las reglas de negocio.
+     * @throws RecursoDuplicadoException Si el nombre provisto ya pertenece a una receta activa (sin distinguir mayúsculas).
      * @throws RecursoNoEncontradoException Si alguna malta, lúpulo o levadura referenciada no existe.
      */
     @Override
@@ -119,24 +133,27 @@ public class RecetaServicioImpl implements IRecetaServicio {
     public RecetaResponseDTO altaReceta(RecetaFormDTO recetaFormDTO) {
         VersionRecetaFormDTO versionFormDTO = recetaFormDTO.getVersion();
 
-        // 1. Validar las reglas de negocio de los datos de la versión y sus detalles
-        validarDatosGenerales(versionFormDTO);
+        // 1. Normalizar el nombre sin modificar el DTO y validar las reglas de negocio de los datos de la versión y sus detalles
+        String nombre = NormalizacionTexto.nombrePropio(versionFormDTO.getNombre());
+        validarDatosGenerales(nombre, versionFormDTO);
         validarDetallesMalta(versionFormDTO.getDetallesMalta());
         validarDetallesLupulo(versionFormDTO.getDetallesLupulo(), versionFormDTO.getDuracionHervido());
         validarDetallesLevadura(versionFormDTO.getDetallesLevadura());
 
-        // 2. Validar si el nombre ya está registrado en otra receta activa (case-insensitive)
-        if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue(versionFormDTO.getNombre())) {
-            throw new RecursoDuplicadoException("Ya existe una receta con el nombre '" + versionFormDTO.getNombre() + "'");
+        // 2. Validar si el nombre ya está registrado en otra receta activa (sin distinguir mayúsculas)
+        if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue(nombre)) {
+            throw nombreDuplicadoEnAlta(nombre);
         }
 
         // 3. Crear el contenedor de la receta y su versión inicial (cascada hacia todos los detalles)
         RecetaEntity recetaEntity = RecetaEntity.builder().estado(Estado.ACTIVO).build();
-        VersionRecetaEntity versionRecetaEntity = construirVersion(versionFormDTO, recetaEntity);
+        VersionRecetaEntity versionRecetaEntity = construirVersion(nombre, versionFormDTO, recetaEntity);
         recetaEntity.getVersiones().add(versionRecetaEntity);
 
-        // 4. Guardar la receta en la base de datos y retornar el DTO de respuesta correspondiente
-        return MapperReceta.toDTO(recetaRepository.save(recetaEntity));
+        // 4. Guardar la receta en la base de datos (un pedido simultáneo que viole el índice único se traduce al mensaje
+        //    del nombre) y retornar el DTO de respuesta correspondiente
+        return MapperReceta.toDTO(GuardadoUnico.guardar(recetaRepository, recetaEntity, Map.of(
+                INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
     }
 
     /**
@@ -147,11 +164,17 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * desactiva la anterior, para no afectar retroactivamente lotes de producción que ya
      * arrancaron con la versión previa.
      * </p>
+     * <p>
+     * Para que una receta tenga siempre una sola versión vigente, la fila de la receta se bloquea
+     * ({@code PESSIMISTIC_WRITE}) antes de validar la unicidad, y la versión anterior ya desactivada se guarda y se
+     * confirma en la base de datos antes de insertar la nueva (Hibernate ejecuta los {@code INSERT} antes que los
+     * {@code UPDATE}, y el índice único de versión vigente lo rechazaría).
+     * </p>
      *
      * @param id Identificador clave primaria de la receta a modificar.
      * @param recetaFormDTO DTO que contiene los nuevos datos de la versión de la receta.
      * @return {@link RecetaResponseDTO} representativo de la receta con la nueva versión aplicada.
-     * @throws ReglaNegocioException Si alguno de los datos de la versión, sus detalles incumple las reglas de negocio.
+     * @throws ReglaNegocioException Si el nombre falta o supera su longitud máxima, si alguno de los demás datos de la versión o sus detalles incumple las reglas de negocio, o si otra persona modificó la receta al mismo tiempo.
      * @throws RecursoNoEncontradoException Si no se localiza una receta activa por el ID proporcionado, o si alguna malta, lúpulo o levadura referenciada no existe.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya se encuentra asignado a otra receta activa.
      */
@@ -161,33 +184,40 @@ public class RecetaServicioImpl implements IRecetaServicio {
     public RecetaResponseDTO modificarReceta(Long id, RecetaFormDTO recetaFormDTO) {
         VersionRecetaFormDTO versionFormDTO = recetaFormDTO.getVersion();
 
-        // 1. Validar las reglas de negocio de los datos de la versión y sus detalles
-        validarDatosGenerales(versionFormDTO);
+        // 1. Normalizar el nombre sin modificar el DTO y validar las reglas de negocio de los datos de la versión y sus detalles
+        String nombre = NormalizacionTexto.nombrePropio(versionFormDTO.getNombre());
+        validarDatosGenerales(nombre, versionFormDTO);
         validarDetallesMalta(versionFormDTO.getDetallesMalta());
         validarDetallesLupulo(versionFormDTO.getDetallesLupulo(), versionFormDTO.getDuracionHervido());
         validarDetallesLevadura(versionFormDTO.getDetallesLevadura());
 
-        // 2. Validar duplicación excluyendo la propia receta, de modo que conservar el nombre
-        //    actual no falle contra el mismo registro
-        if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(versionFormDTO.getNombre(), id)) {
-            throw new RecursoDuplicadoException("Ya existe una receta con el nombre '" + versionFormDTO.getNombre() + "'");
-        }
-
-        // 3. Localizar la receta existente. Si no existe, se dispara RecursoNoEncontradoException
-        RecetaEntity recetaEntity = recetaRepository.findById(id)
+        // 2. Localizar la receta existente bloqueando su fila: las modificaciones simultáneas de la misma receta se
+        //    ejecutan una a una. Si no existe, se dispara RecursoNoEncontradoException
+        RecetaEntity recetaEntity = recetaRepository.findByIdParaActualizarVersiones(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id));
+
+        // 3. Validar duplicación excluyendo la propia receta, de modo que conservar el nombre
+        //    actual no falle contra el mismo registro
+        if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(nombre, id)) {
+            throw nombreDuplicadoEnModificacion(nombre);
+        }
 
         // 4. Construir la nueva versión primero: si alguna malta, lúpulo o levadura
         //    no existe, esto lanza antes de tocar la versión anterior
-        VersionRecetaEntity nuevaVersionRecetaEntity = construirVersion(versionFormDTO, recetaEntity);
+        VersionRecetaEntity nuevaVersionRecetaEntity = construirVersion(nombre, versionFormDTO, recetaEntity);
 
-        // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa (si
-        //    existe) y registrar la nueva
+        // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa (si existe) y confirmar el
+        //    cambio en la base de datos antes de insertar la nueva
         MetodosVersionado.desactivarVersionAnterior(recetaEntity.getVersiones());
-        recetaEntity.getVersiones().add(nuevaVersionRecetaEntity);
+        recetaRepository.save(recetaEntity);
+        recetaRepository.flush();
 
-        // 6. Persistir la receta con la nueva versión y retornar el DTO de respuesta correspondiente
-        return MapperReceta.toDTO(recetaRepository.save(recetaEntity));
+        // 6. Registrar la nueva versión, persistir la receta (un pedido simultáneo que viole un índice único se traduce
+        //    al mensaje correspondiente) y retornar el DTO de respuesta correspondiente
+        recetaEntity.getVersiones().add(nuevaVersionRecetaEntity);
+        return MapperReceta.toDTO(GuardadoUnico.guardar(recetaRepository, recetaEntity, Map.of(
+                INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre),
+                INDICE_ULTIMA_VERSION, RecetaServicioImpl::recetaModificadaEnSimultaneo)));
     }
 
     /**
@@ -195,6 +225,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * <p>
      * En lugar de eliminar el registro, marca a la receta con {@link Estado#BAJA} y persiste el
      * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarla.
+     * Todas sus versiones pasan a {@code padreActivo = false}, de modo que su nombre queda libre para una receta nueva.
      * </p>
      *
      * @param id Identificador clave primaria de la receta a dar de baja.
@@ -206,8 +237,9 @@ public class RecetaServicioImpl implements IRecetaServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.RECETA)
     public RecetaResponseDTO bajaReceta(Long id) {
-        // 1. Buscar la receta. Si no existe, se dispara RecursoNoEncontradoException
-        RecetaEntity recetaEntity = recetaRepository.findById(id)
+        // 1. Buscar la receta bloqueando su fila, para que una modificación simultánea no cree una versión sobre una
+        //    receta que se está dando de baja. Si no existe, se dispara RecursoNoEncontradoException
+        RecetaEntity recetaEntity = recetaRepository.findByIdParaActualizarVersiones(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id));
 
         // 2. Validar que ninguna versión de la receta (histórica o activa) tenga una planificación de
@@ -216,8 +248,9 @@ public class RecetaServicioImpl implements IRecetaServicio {
             throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una planificación de producción en estado Pendiente asociada");
         }
 
-        // 3. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 3. Ejecutamos la baja lógica: cambiamos el estado, liberamos el nombre de todas sus versiones y persistimos el cambio
         recetaEntity.setEstado(Estado.BAJA);
+        MetodosVersionado.marcarPadreInactivo(recetaEntity.getVersiones());
         recetaRepository.save(recetaEntity);
 
         // 4. Retornar el DTO de la receta dada de baja
@@ -247,14 +280,18 @@ public class RecetaServicioImpl implements IRecetaServicio {
     }
 
     /**
-     * Valida los datos generales de la versión de receta: volumen base, relación de empaste,
+     * Valida los datos generales de la versión de receta: nombre, volumen base, relación de empaste,
      * densidades objetivo (OG/FG), IBU objetivo y duraciones estimadas de cada etapa.
      *
+     * @param nombre Nombre de la receta, ya normalizado.
      * @param versionFormDTO Datos de la versión de receta a validar.
      * @throws ReglaNegocioException Si alguno de los datos generales incumple su regla de negocio.
      */
-    private static void validarDatosGenerales(VersionRecetaFormDTO versionFormDTO) {
-        ValidacionesNumericas.validarLongitudMaxima(versionFormDTO.getNombre(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+    private static void validarDatosGenerales(String nombre, VersionRecetaFormDTO versionFormDTO) {
+        if (nombre == null || nombre.isEmpty()) {
+            throw new ReglaNegocioException("El nombre es obligatorio");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
         if (versionFormDTO.getVolumenBase() == null) {
             throw new ReglaNegocioException("El volumen base es obligatorio");
         }
@@ -450,19 +487,39 @@ public class RecetaServicioImpl implements IRecetaServicio {
         return claves.stream().anyMatch(clave -> !vistas.add(clave));
     }
 
+    /**
+     * Un texto de búsqueda formado solo por espacios equivale a no filtrar por ese criterio.
+     */
+    private static String vacioANulo(String valor) {
+        return (valor == null || valor.isEmpty()) ? null : valor;
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+        return new RecursoDuplicadoException("Ya existe una receta con el nombre '" + nombre + "'");
+    }
+
+    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
+        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra receta");
+    }
+
+    private static ReglaNegocioException recetaModificadaEnSimultaneo() {
+        return new ReglaNegocioException("La receta fue modificada por otra persona al mismo tiempo, intente nuevamente");
+    }
+
     // === CONSTRUCCIÓN DEL ÁRBOL DE ENTIDADES DE LA VERSIÓN ===
 
     /**
      * Construye la {@link VersionRecetaEntity} completa a partir del DTO de formulario, incluyendo
      * sus detalles de malta, lúpulo y levadura.
      *
+     * @param nombre Nombre de la receta, ya normalizado.
      * @param versionFormDTO Datos de la versión de receta a construir.
      * @param recetaEntity Receta contenedora a la que pertenece esta versión.
      * @return Entidad de versión de receta, marcada como última versión activa, con todo su árbol de detalles vinculado.
      */
-    private VersionRecetaEntity construirVersion(VersionRecetaFormDTO versionFormDTO, RecetaEntity recetaEntity) {
+    private VersionRecetaEntity construirVersion(String nombre, VersionRecetaFormDTO versionFormDTO, RecetaEntity recetaEntity) {
         VersionRecetaEntity versionRecetaEntity = VersionRecetaEntity.builder()
-                .nombre(versionFormDTO.getNombre())
+                .nombre(nombre)
                 .volumenBase(versionFormDTO.getVolumenBase())
                 .relacionDeEmpaste(versionFormDTO.getRelacionDeEmpaste())
                 .ogObjetivo(versionFormDTO.getOgObjetivo())
@@ -473,6 +530,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
                 .duracionFermentacion(versionFormDTO.getDuracionFermentacion())
                 .duracionMaduracion(versionFormDTO.getDuracionMaduracion())
                 .esUltimaVersion(true)
+                .padreActivo(true)
                 .receta(recetaEntity)
                 .build();
 

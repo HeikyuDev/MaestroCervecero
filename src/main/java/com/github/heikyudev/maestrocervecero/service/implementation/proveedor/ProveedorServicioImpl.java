@@ -27,15 +27,49 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProve
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.proveedor.MapperProveedor;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class ProveedorServicioImpl implements IProveedorServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos proveedores activos con la misma razón social.
+     */
+    private static final String INDICE_RAZON_SOCIAL = "udx_version_proveedor_razon_social";
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos proveedores activos con el mismo CUIT.
+     */
+    private static final String INDICE_CUIT = "udx_version_proveedor_cuit";
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos proveedores activos con el mismo correo electrónico.
+     */
+    private static final String INDICE_EMAIL = "udx_version_proveedor_email";
+
+    /**
+     * Índice único de la base de datos que garantiza que un proveedor tenga una sola versión vigente.
+     */
+    private static final String INDICE_ULTIMA_VERSION = "udx_version_proveedor_ultima_version";
+
+    /**
+     * Datos de texto de la versión ya normalizados, listos para validar, consultar la unicidad y guardar.
+     */
+    private record DatosVersion(String razonSocial, String nombreComercial, String cuit, String telefono,
+                                String email, String direccion) {
+    }
 
     private final IProveedorRepository proveedorRepository;
     private final IVersionProveedorRepository versionProveedorRepository;
@@ -54,7 +88,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      *
      * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
      * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
-     * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param cuit El CUIT exacto a filtrar (con o sin guiones), o {@code null} para no filtrar por él.
      * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ProveedorResponseDTO} correspondientes.
@@ -62,7 +96,12 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<ProveedorResponseDTO> filtrarProveedores(String razonSocial, String nombreComercial, String cuit, Long idLocalidad, Pageable pageable) {
-        return proveedorRepository.filtrarProveedores(razonSocial, nombreComercial, cuit, idLocalidad, pageable)
+        // Los textos buscados se normalizan igual que los guardados: sin espacios de más, y el CUIT sin separadores
+        return proveedorRepository.filtrarProveedores(
+                        vacioANulo(NormalizacionTexto.nombrePropio(razonSocial)),
+                        vacioANulo(NormalizacionTexto.nombrePropio(nombreComercial)),
+                        vacioANulo(NormalizacionTexto.cuit(cuit)),
+                        idLocalidad, pageable)
                 .map(MapperProveedor::toDTO);
     }
 
@@ -89,10 +128,16 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * {@code CascadeType.ALL} declarado en las relaciones, persistir el proveedor persiste en
      * cascada toda la versión y su catálogo.
      * </p>
+     * <p>
+     * Normaliza los datos de texto (el CUIT se guarda solo con sus dígitos y el correo electrónico en minúsculas),
+     * valida que sean correctos y que la razón social, el CUIT y el correo electrónico no estén registrados en otro
+     * proveedor activo (sin distinguir mayúsculas). El teléfono es opcional y no tiene unicidad.
+     * </p>
      *
      * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor y su versión inicial.
      * @return {@link ProveedorResponseDTO} representativo del proveedor guardado en la base de datos.
-     * @throws RecursoDuplicadoException Si la razón social ya pertenece a otro proveedor activo, o si el CUIT ya pertenece a otro proveedor activo.
+     * @throws RecursoDuplicadoException Si la razón social, el CUIT o el correo electrónico ya pertenecen a otro proveedor activo.
+     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, o si el teléfono informado no tiene solo dígitos o supera los 15.
      * @throws RecursoNoEncontradoException Si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -101,23 +146,35 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     public ProveedorResponseDTO altaProveedor(ProveedorFormDTO proveedorFormDTO) {
         VersionProveedorFormDTO versionFormDTO = proveedorFormDTO.getVersion();
 
-        // 1. Validar que la razón social no esté registrada en otro proveedor activo
-        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(versionFormDTO.getRazonSocial())) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial() + "'");
+        // 1. Normalizar los datos de texto sin modificar el DTO y validar que sean obligatorios, correctos y no superen la longitud máxima
+        DatosVersion datos = normalizarYValidar(versionFormDTO);
+
+        // 2. Validar que la razón social no esté registrada en otro proveedor activo
+        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(datos.razonSocial())) {
+            throw razonSocialDuplicadaEnAlta(datos.razonSocial());
         }
 
-        // 2. Validar que el CUIT no esté registrado en otro proveedor activo
-        if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(versionFormDTO.getCuit())) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor activo con el CUIT '" + versionFormDTO.getCuit() + "'");
+        // 3. Validar que el CUIT no esté registrado en otro proveedor activo
+        if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(datos.cuit())) {
+            throw cuitDuplicadoEnAlta(datos.cuit());
         }
 
-        // 3. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
+        // 4. Validar que el correo electrónico no esté registrado en otro proveedor activo
+        if (versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue(datos.email())) {
+            throw emailDuplicadoEnAlta(datos.email());
+        }
+
+        // 5. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
         ProveedorEntity proveedorEntity = ProveedorEntity.builder().estado(Estado.ACTIVO).build();
-        VersionProveedorEntity versionProveedorEntity = construirVersion(versionFormDTO, proveedorEntity);
+        VersionProveedorEntity versionProveedorEntity = construirVersion(versionFormDTO, datos, proveedorEntity);
         proveedorEntity.getVersiones().add(versionProveedorEntity);
 
-        // 4. Guardar el proveedor en la base de datos y retornar el DTO de respuesta correspondiente
-        return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
+        // 6. Guardar el proveedor en la base de datos (un pedido simultáneo que viole un índice único se traduce al
+        //    mensaje del campo) y retornar el DTO de respuesta correspondiente
+        return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
+                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicadaEnAlta(datos.razonSocial()),
+                INDICE_CUIT, () -> cuitDuplicadoEnAlta(datos.cuit()),
+                INDICE_EMAIL, () -> emailDuplicadoEnAlta(datos.email()))));
     }
 
     /**
@@ -128,11 +185,18 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * y desactiva la anterior, para no afectar retroactivamente las órdenes de compra que ya
      * referencian un ítem del catálogo de la versión previa.
      * </p>
+     * <p>
+     * Para que un proveedor tenga siempre una sola versión vigente, la fila del proveedor se bloquea
+     * ({@code PESSIMISTIC_WRITE}) antes de validar la unicidad, y la versión anterior ya desactivada se guarda y se
+     * confirma en la base de datos antes de insertar la nueva (Hibernate ejecuta los {@code INSERT} antes que los
+     * {@code UPDATE}, y el índice único de versión vigente lo rechazaría).
+     * </p>
      *
      * @param id Identificador clave primaria del proveedor a modificar.
      * @param proveedorFormDTO DTO que contiene los nuevos datos de la versión del proveedor.
      * @return {@link ProveedorResponseDTO} representativo del proveedor con la nueva versión aplicada.
-     * @throws RecursoDuplicadoException Si la nueva razón social ya pertenece a otro proveedor activo, o si el nuevo CUIT ya pertenece a otro proveedor activo.
+     * @throws RecursoDuplicadoException Si la nueva razón social, el nuevo CUIT o el nuevo correo electrónico ya pertenecen a otro proveedor activo.
+     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, si el teléfono informado no tiene solo dígitos o supera los 15, o si otra persona modificó el proveedor al mismo tiempo.
      * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -141,33 +205,49 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     public ProveedorResponseDTO modificarProveedor(Long id, ProveedorFormDTO proveedorFormDTO) {
         VersionProveedorFormDTO versionFormDTO = proveedorFormDTO.getVersion();
 
-        // 1. Validar la razón social excluyendo al propio proveedor, de modo que conservar la
-        //    razón social actual no falle contra el mismo registro
-        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getRazonSocial(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor activo con la razón social '" + versionFormDTO.getRazonSocial() + "'");
-        }
+        // 1. Normalizar los datos de texto sin modificar el DTO y validar que sean obligatorios, correctos y no superen la longitud máxima
+        DatosVersion datos = normalizarYValidar(versionFormDTO);
 
-        // 2. Validar el CUIT excluyendo al propio proveedor, de modo que conservar el CUIT actual
-        //    no falle contra el mismo registro
-        if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getCuit(), id)) {
-            throw new RecursoDuplicadoException("Ya existe un proveedor activo con el CUIT '" + versionFormDTO.getCuit() + "'");
-        }
-
-        // 3. Localizar el proveedor existente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
-        ProveedorEntity proveedorEntity = proveedorRepository.findById(id)
+        // 2. Localizar el proveedor existente bloqueando su fila: las modificaciones simultáneas del mismo proveedor se
+        //    ejecutan una a una. Si no existe o no está activo, se dispara RecursoNoEncontradoException
+        ProveedorEntity proveedorEntity = proveedorRepository.findByIdParaActualizarVersiones(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
-        // 4. Construir la nueva versión primero: si la localidad, algún insumo o alguna
+        // 3. Validar la razón social excluyendo al propio proveedor, de modo que conservar la
+        //    razón social actual no falle contra el mismo registro
+        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(datos.razonSocial(), id)) {
+            throw razonSocialDuplicadaEnModificacion(datos.razonSocial());
+        }
+
+        // 4. Validar el CUIT excluyendo al propio proveedor, de modo que conservar el CUIT actual
+        //    no falle contra el mismo registro
+        if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(datos.cuit(), id)) {
+            throw cuitDuplicadoEnModificacion(datos.cuit());
+        }
+
+        // 5. Validar el correo electrónico excluyendo al propio proveedor
+        if (versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(datos.email(), id)) {
+            throw emailDuplicadoEnModificacion(datos.email());
+        }
+
+        // 6. Construir la nueva versión primero: si la localidad, algún insumo o alguna
         //    presentación comercial no existen, esto lanza antes de tocar la versión anterior
-        VersionProveedorEntity nuevaVersionProveedorEntity = construirVersion(versionFormDTO, proveedorEntity);
+        VersionProveedorEntity nuevaVersionProveedorEntity = construirVersion(versionFormDTO, datos, proveedorEntity);
 
-        // 5. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y
-        //    registrar la nueva
+        // 7. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y confirmar el cambio en la
+        //    base de datos antes de insertar la nueva
         MetodosVersionado.desactivarVersionAnterior(proveedorEntity.getVersiones());
-        proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
+        proveedorRepository.save(proveedorEntity);
+        proveedorRepository.flush();
 
-        // 6. Persistir el proveedor con la nueva versión y retornar el DTO de respuesta correspondiente
-        return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
+        // 8. Registrar la nueva versión, persistir el proveedor (un pedido simultáneo que viole un índice único se
+        //    traduce al mensaje del campo) y retornar el DTO de respuesta correspondiente
+        proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
+        return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
+                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicadaEnModificacion(datos.razonSocial()),
+                INDICE_CUIT, () -> cuitDuplicadoEnModificacion(datos.cuit()),
+                INDICE_EMAIL, () -> emailDuplicadoEnModificacion(datos.email()),
+                INDICE_ULTIMA_VERSION, ProveedorServicioImpl::proveedorModificadoEnSimultaneo)));
     }
 
     /**
@@ -175,6 +255,8 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * <p>
      * En lugar de eliminar el registro, marca al proveedor con {@link Estado#BAJA} y persiste el
      * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
+     * Todas sus versiones pasan a {@code padreActivo = false}, de modo que su razón social, su CUIT y su correo
+     * electrónico quedan libres para un proveedor nuevo.
      * </p>
      *
      * @param id Identificador clave primaria del proveedor a dar de baja.
@@ -186,8 +268,9 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.PROVEEDOR)
     public ProveedorResponseDTO bajaProveedor(Long id) {
-        // 1. Buscar el proveedor. Si no existe, se dispara RecursoNoEncontradoException
-        ProveedorEntity proveedorEntity = proveedorRepository.findById(id)
+        // 1. Buscar el proveedor bloqueando su fila, para que una modificación simultánea no cree una versión sobre un
+        //    proveedor que se está dando de baja. Si no existe, se dispara RecursoNoEncontradoException
+        ProveedorEntity proveedorEntity = proveedorRepository.findByIdParaActualizarVersiones(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
         // 2. Validar que ninguna versión del proveedor (histórica o activa) tenga una orden de
@@ -196,10 +279,84 @@ public class ProveedorServicioImpl implements IProveedorServicio {
             throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene una orden de compra en estado Pendiente asociada");
         }
 
-        // 3. Ejecutamos la baja lógica: cambiamos el estado, persistimos el cambio y retornamos
-        //    el DTO del proveedor dado de baja
+        // 3. Ejecutamos la baja lógica: cambiamos el estado, liberamos los datos únicos de todas sus versiones,
+        //    persistimos el cambio y retornamos el DTO del proveedor dado de baja
         proveedorEntity.setEstado(Estado.BAJA);
+        MetodosVersionado.marcarPadreInactivo(proveedorEntity.getVersiones());
         return MapperProveedor.toDTO(proveedorRepository.save(proveedorEntity));
+    }
+
+    // === NORMALIZACIÓN Y VALIDACIÓN DE LOS DATOS DE TEXTO ===
+
+    /**
+     * Normaliza los datos de texto de la versión sin modificar el DTO y valida que sean obligatorios, correctos y no
+     * superen la longitud máxima.
+     * <p>
+     * La razón social, el nombre comercial y la dirección conservan las mayúsculas y las tildes escritas (la
+     * puntuación cuenta: {@code ACME S.A.} y {@code ACME SA} son razones sociales distintas); el CUIT se guarda solo
+     * con sus dígitos y el correo electrónico en minúsculas.
+     * </p>
+     *
+     * @throws ReglaNegocioException Si algún dato no cumple su regla.
+     */
+    private static DatosVersion normalizarYValidar(VersionProveedorFormDTO versionFormDTO) {
+        DatosVersion datos = new DatosVersion(
+                NormalizacionTexto.nombrePropio(versionFormDTO.getRazonSocial()),
+                NormalizacionTexto.nombrePropio(versionFormDTO.getNombreComercial()),
+                NormalizacionTexto.cuit(versionFormDTO.getCuit()),
+                NormalizacionTexto.telefono(versionFormDTO.getTelefono()),
+                NormalizacionTexto.correo(versionFormDTO.getEmail()),
+                NormalizacionTexto.nombrePropio(versionFormDTO.getDireccion()));
+
+        validarObligatorioYLongitud(datos.razonSocial(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "La razón social", "obligatoria");
+        validarObligatorioYLongitud(datos.nombreComercial(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre comercial", "obligatorio");
+        ValidacionesTexto.validarCuit(datos.cuit());
+        ValidacionesTexto.validarTelefono(datos.telefono());
+        validarObligatorioYLongitud(datos.email(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
+        validarObligatorioYLongitud(datos.direccion(), LimitesTecnicos.LONGITUD_MAXIMA_DIRECCION, "La dirección", "obligatoria");
+        return datos;
+    }
+
+    private static void validarObligatorioYLongitud(String valor, int maximo, String etiqueta, String obligatorio) {
+        if (valor == null || valor.isEmpty()) {
+            throw new ReglaNegocioException(etiqueta + " es " + obligatorio);
+        }
+        ValidacionesNumericas.validarLongitudMaxima(valor, maximo, etiqueta);
+    }
+
+    /**
+     * Un texto de búsqueda formado solo por espacios equivale a no filtrar por ese criterio.
+     */
+    private static String vacioANulo(String valor) {
+        return (valor == null || valor.isEmpty()) ? null : valor;
+    }
+
+    private static RecursoDuplicadoException razonSocialDuplicadaEnAlta(String razonSocial) {
+        return new RecursoDuplicadoException("Ya existe un proveedor con la razón social '" + razonSocial + "'");
+    }
+
+    private static RecursoDuplicadoException razonSocialDuplicadaEnModificacion(String razonSocial) {
+        return new RecursoDuplicadoException("La razón social '" + razonSocial + "' ya está en uso por otro proveedor");
+    }
+
+    private static RecursoDuplicadoException cuitDuplicadoEnAlta(String cuit) {
+        return new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'");
+    }
+
+    private static RecursoDuplicadoException cuitDuplicadoEnModificacion(String cuit) {
+        return new RecursoDuplicadoException("El CUIT '" + cuit + "' ya está en uso por otro proveedor");
+    }
+
+    private static RecursoDuplicadoException emailDuplicadoEnAlta(String email) {
+        return new RecursoDuplicadoException("Ya existe un proveedor con el correo electrónico '" + email + "'");
+    }
+
+    private static RecursoDuplicadoException emailDuplicadoEnModificacion(String email) {
+        return new RecursoDuplicadoException("El correo electrónico '" + email + "' ya está en uso por otro proveedor");
+    }
+
+    private static ReglaNegocioException proveedorModificadoEnSimultaneo() {
+        return new ReglaNegocioException("El proveedor fue modificado por otra persona al mismo tiempo, intente nuevamente");
     }
 
     // === CONSTRUCCIÓN DEL ÁRBOL DE ENTIDADES DE LA VERSIÓN ===
@@ -208,23 +365,25 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * Construye la {@link VersionProveedorEntity} completa a partir del DTO de formulario,
      * resolviendo la localidad referenciada e incluyendo el catálogo de productos.
      *
-     * @param versionFormDTO Datos de la versión de proveedor a construir.
+     * @param versionFormDTO Datos de la versión de proveedor a construir (la localidad y el catálogo).
+     * @param datos Datos de texto de la versión, ya normalizados y validados.
      * @param proveedorEntity Proveedor contenedor al que pertenece esta versión.
      * @return Entidad de versión de proveedor, marcada como última versión activa, con su catálogo vinculado.
      * @throws RecursoNoEncontradoException Si no existe una localidad activa con el ID indicado.
      */
-    private VersionProveedorEntity construirVersion(VersionProveedorFormDTO versionFormDTO, ProveedorEntity proveedorEntity) {
+    private VersionProveedorEntity construirVersion(VersionProveedorFormDTO versionFormDTO, DatosVersion datos, ProveedorEntity proveedorEntity) {
         LocalidadEntity localidadEntity = localidadRepository.findById(versionFormDTO.getIdLocalidad())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + versionFormDTO.getIdLocalidad()));
 
         VersionProveedorEntity versionProveedorEntity = VersionProveedorEntity.builder()
-                .razonSocial(versionFormDTO.getRazonSocial())
-                .nombreComercial(versionFormDTO.getNombreComercial())
-                .cuit(versionFormDTO.getCuit())
-                .telefono(versionFormDTO.getTelefono())
-                .email(versionFormDTO.getEmail())
-                .direccion(versionFormDTO.getDireccion())
+                .razonSocial(datos.razonSocial())
+                .nombreComercial(datos.nombreComercial())
+                .cuit(datos.cuit())
+                .telefono(datos.telefono())
+                .email(datos.email())
+                .direccion(datos.direccion())
                 .esUltimaVersion(true)
+                .padreActivo(true)
                 .proveedor(proveedorEntity)
                 .localidad(localidadEntity)
                 .build();

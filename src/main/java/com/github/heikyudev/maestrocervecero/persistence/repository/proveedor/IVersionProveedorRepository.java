@@ -9,82 +9,89 @@ import org.springframework.stereotype.Repository;
 /**
  * Repositorio JPA de las versiones de proveedor ({@link VersionProveedorEntity}).
  * <p>
- * {@link VersionProveedorEntity} no tiene {@code estado} propio: la unicidad de la razón social
- * y el CUIT se valida contra el proveedor contenedor activo ({@code proveedor.estado = 'ACTIVO'}),
- * de modo que la razón social o el CUIT de un proveedor dado de baja quedan libres para un
- * proveedor nuevo.
+ * {@link VersionProveedorEntity} no tiene {@code estado} propio: el estado del proveedor vive en
+ * {@code ProveedorEntity} y cada versión lo refleja en {@code padreActivo}. La unicidad de la razón social, el CUIT y el
+ * correo electrónico se valida contra las versiones vigentes ({@code esUltimaVersion = true}) de proveedores activos
+ * ({@code padreActivo = true}), la misma condición de los índices únicos parciales de la base de datos, de modo que los
+ * datos de un proveedor dado de baja quedan libres para un proveedor nuevo.
+ * </p>
+ * <p>
+ * Los valores se guardan ya normalizados, por lo que la comparación solo ignora las mayúsculas.
  * </p>
  */
 @Repository
 public interface IVersionProveedorRepository extends JpaRepository<VersionProveedorEntity, Long> {
 
     /**
-     * Verifica si existe una versión de proveedor activa, marcada como última versión, con la
-     * razón social dada (ignorando mayúsculas y minúsculas), perteneciente a un proveedor activo.
-     * <p>
-     * La razón social de un proveedor es, en rigor, la de su última versión activa: por eso la
-     * unicidad se valida contra {@code esUltimaVersion = true} y no contra todo el historial.
-     * </p>
+     * Verifica si existe un proveedor activo cuya versión vigente tiene la razón social dada (ignorando mayúsculas y
+     * minúsculas).
      *
-     * @param razonSocial La razón social a buscar.
+     * @param razonSocial La razón social normalizada a buscar.
      * @return {@code true} si ya existe un proveedor activo con esa razón social, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE UPPER(v.razonSocial) = UPPER(:razonSocial) " +
-            "AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
+            "WHERE LOWER(v.razonSocial) = LOWER(:razonSocial) AND v.esUltimaVersion = true AND v.padreActivo = true")
     boolean existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(@Param("razonSocial") String razonSocial);
 
     /**
-     * Verifica si existe una versión de proveedor activa, marcada como última versión, con el
-     * CUIT dado, perteneciente a un proveedor activo.
-     * <p>
-     * El CUIT de un proveedor es, en rigor, el de su última versión activa: por eso la unicidad
-     * se valida contra {@code esUltimaVersion = true} y no contra todo el historial.
-     * </p>
+     * Verifica si existe un proveedor activo cuya versión vigente tiene el CUIT dado.
      *
-     * @param cuit El CUIT a buscar.
+     * @param cuit El CUIT normalizado (solo dígitos) a buscar.
      * @return {@code true} si ya existe un proveedor activo con ese CUIT, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE v.cuit = :cuit " +
-            "AND v.esUltimaVersion = true AND v.proveedor.estado = 'ACTIVO'")
+            "WHERE v.cuit = :cuit AND v.esUltimaVersion = true AND v.padreActivo = true")
     boolean existsByCuitAndEsUltimaVersionTrue(@Param("cuit") String cuit);
 
     /**
-     * Verifica si existe una versión de proveedor activa, marcada como última versión, con la
-     * razón social dada (ignorando mayúsculas y minúsculas), perteneciente a un proveedor activo,
-     * excluyendo de la búsqueda al proveedor con el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar la propia razón social actual sin que
-     * la validación de unicidad falle contra el mismo registro.
-     * </p>
+     * Verifica si existe un proveedor activo cuya versión vigente tiene el correo electrónico dado (ignorando
+     * mayúsculas y minúsculas).
      *
-     * @param razonSocial La razón social a buscar.
+     * @param email El correo electrónico normalizado a buscar.
+     * @return {@code true} si ya existe un proveedor activo con ese correo electrónico, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE LOWER(v.email) = LOWER(:email) AND v.esUltimaVersion = true AND v.padreActivo = true")
+    boolean existsByEmailIgnoreCaseAndEsUltimaVersionTrue(@Param("email") String email);
+
+    /**
+     * Igual que {@link #existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(String)}, excluyendo al proveedor con el ID
+     * indicado. Se utiliza en la modificación para permitir conservar la propia razón social sin que la validación
+     * falle contra el mismo proveedor.
+     *
+     * @param razonSocial La razón social normalizada a buscar.
      * @param proveedorId El ID del proveedor a excluir de la verificación.
      * @return {@code true} si otro proveedor activo ya posee esa razón social, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE UPPER(v.razonSocial) = UPPER(:razonSocial) " +
-            "AND v.esUltimaVersion = true AND v.proveedor.id <> :proveedorId AND v.proveedor.estado = 'ACTIVO'")
+            "WHERE LOWER(v.razonSocial) = LOWER(:razonSocial) AND v.esUltimaVersion = true AND v.padreActivo = true " +
+            "AND v.proveedor.id <> :proveedorId")
     boolean existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(@Param("razonSocial") String razonSocial, @Param("proveedorId") Long proveedorId);
 
     /**
-     * Verifica si existe una versión de proveedor activa, marcada como última versión, con el
-     * CUIT dado, perteneciente a un proveedor activo, excluyendo de la búsqueda al proveedor con
-     * el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar el propio CUIT actual sin que la
-     * validación de unicidad falle contra el mismo registro.
-     * </p>
+     * Igual que {@link #existsByCuitAndEsUltimaVersionTrue(String)}, excluyendo al proveedor con el ID indicado.
      *
-     * @param cuit El CUIT a buscar.
+     * @param cuit El CUIT normalizado (solo dígitos) a buscar.
      * @param proveedorId El ID del proveedor a excluir de la verificación.
      * @return {@code true} si otro proveedor activo ya posee ese CUIT, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE v.cuit = :cuit " +
-            "AND v.esUltimaVersion = true AND v.proveedor.id <> :proveedorId AND v.proveedor.estado = 'ACTIVO'")
+            "WHERE v.cuit = :cuit AND v.esUltimaVersion = true AND v.padreActivo = true " +
+            "AND v.proveedor.id <> :proveedorId")
     boolean existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(@Param("cuit") String cuit, @Param("proveedorId") Long proveedorId);
+
+    /**
+     * Igual que {@link #existsByEmailIgnoreCaseAndEsUltimaVersionTrue(String)}, excluyendo al proveedor con el ID
+     * indicado.
+     *
+     * @param email El correo electrónico normalizado a buscar.
+     * @param proveedorId El ID del proveedor a excluir de la verificación.
+     * @return {@code true} si otro proveedor activo ya posee ese correo electrónico, {@code false} en caso contrario.
+     */
+    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
+            "WHERE LOWER(v.email) = LOWER(:email) AND v.esUltimaVersion = true AND v.padreActivo = true " +
+            "AND v.proveedor.id <> :proveedorId")
+    boolean existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(@Param("email") String email, @Param("proveedorId") Long proveedorId);
 
     /**
      * Verifica si existe una versión de proveedor activa, marcada como última versión, cuya

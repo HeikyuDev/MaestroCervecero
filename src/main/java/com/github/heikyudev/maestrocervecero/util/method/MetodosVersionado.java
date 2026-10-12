@@ -49,4 +49,15 @@ public class MetodosVersionado {
                 .filter(VersionadoEntity::isEsUltimaVersion)
                 .forEach(version -> version.setEsUltimaVersion(false));
     }
+
+    /**
+     * Marca todas las versiones de una lista como pertenecientes a un dueño dado de baja
+     * ({@code padreActivo = false}). Se usa al dar de baja el agregado dueño, para que sus datos únicos
+     * (por ejemplo el nombre) queden libres para un registro nuevo.
+     *
+     * @param versiones Las versiones del dueño que se da de baja.
+     */
+    public static void marcarPadreInactivo(List<? extends VersionadoEntity> versiones) {
+        versiones.forEach(version -> version.setPadreActivo(false));
+    }
 }

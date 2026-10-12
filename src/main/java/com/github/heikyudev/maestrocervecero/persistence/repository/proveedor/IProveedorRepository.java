@@ -1,9 +1,11 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.proveedor;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -71,4 +73,20 @@ public interface IProveedorRepository extends JpaRepository<ProveedorEntity, Lon
                                               @Param("cuit") String cuit,
                                               @Param("idLocalidad") Long idLocalidad,
                                               Pageable pageable);
+
+    /**
+     * Busca un proveedor activo por su ID y bloquea su fila hasta el fin de la transacción
+     * ({@code PESSIMISTIC_WRITE}).
+     * <p>
+     * Se usa al modificar o dar de baja el proveedor: serializa los pedidos sobre el mismo proveedor, de modo que dos
+     * modificaciones simultáneas no dejen dos versiones vigentes y una modificación no cree una versión sobre un
+     * proveedor que se está dando de baja.
+     * </p>
+     *
+     * @param id El ID del proveedor a buscar.
+     * @return Un Optional que contiene el proveedor si está activo, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM ProveedorEntity p WHERE p.id = :id AND p.estado = 'ACTIVO'")
+    Optional<ProveedorEntity> findByIdParaActualizarVersiones(@Param("id") Long id);
 }

@@ -9,44 +9,41 @@ import org.springframework.stereotype.Repository;
 /**
  * Repositorio JPA de las versiones de receta ({@link VersionRecetaEntity}).
  * <p>
- * {@link VersionRecetaEntity} no tiene {@code estado} propio: la unicidad del nombre se valida
- * contra la receta contenedora activa ({@code receta.estado = 'ACTIVO'}), de modo que el nombre
- * de una receta dada de baja queda libre para una receta nueva.
+ * {@link VersionRecetaEntity} no tiene {@code estado} propio: el estado de la receta vive en {@code RecetaEntity} y cada
+ * versión lo refleja en {@code padreActivo}. La unicidad del nombre se valida contra la versión vigente
+ * ({@code esUltimaVersion = true}) de recetas activas ({@code padreActivo = true}), la misma condición del índice único
+ * parcial de la base de datos, de modo que el nombre de una receta dada de baja queda libre para una receta nueva.
+ * </p>
+ * <p>
+ * El nombre se guarda ya normalizado, por lo que la comparación solo ignora las mayúsculas.
  * </p>
  */
 @Repository
 public interface IVersionRecetaRepository extends JpaRepository<VersionRecetaEntity, Long> {
 
     /**
-     * Verifica si existe una versión de receta activa, marcada como última versión, con el
-     * nombre dado (ignorando mayúsculas y minúsculas), perteneciente a una receta activa.
-     * <p>
-     * El nombre de una receta es, en rigor, el nombre de su última versión activa: por eso la
-     * unicidad se valida contra {@code esUltimaVersion = true} y no contra todo el historial.
-     * </p>
+     * Verifica si existe una receta activa cuya versión vigente tiene el nombre dado (ignorando mayúsculas y
+     * minúsculas). Los nombres de versiones históricas no cuentan.
      *
-     * @param nombre El nombre a buscar.
+     * @param nombre El nombre normalizado a buscar.
      * @return {@code true} si ya existe una receta activa con ese nombre, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionRecetaEntity v " +
-            "WHERE UPPER(v.nombre) = UPPER(:nombre) AND v.esUltimaVersion = true AND v.receta.estado = 'ACTIVO'")
+            "WHERE LOWER(v.nombre) = LOWER(:nombre) AND v.esUltimaVersion = true AND v.padreActivo = true")
     boolean existsByNombreIgnoreCaseAndEsUltimaVersionTrue(@Param("nombre") String nombre);
 
     /**
-     * Verifica si existe una versión de receta activa, marcada como última versión, con el
-     * nombre dado (ignorando mayúsculas y minúsculas), perteneciente a una receta activa,
-     * excluyendo de la búsqueda a la receta con el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar el propio nombre actual
-     * sin que la validación de unicidad falle contra la propia receta.
-     * </p>
+     * Igual que {@link #existsByNombreIgnoreCaseAndEsUltimaVersionTrue(String)}, excluyendo a la receta con el ID
+     * indicado. Se utiliza en la modificación para permitir conservar el propio nombre sin que la validación falle
+     * contra la misma receta.
      *
-     * @param nombre El nombre a buscar.
+     * @param nombre El nombre normalizado a buscar.
      * @param recetaId El ID de la receta a excluir de la verificación.
      * @return {@code true} si otra receta activa ya posee ese nombre, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionRecetaEntity v " +
-            "WHERE UPPER(v.nombre) = UPPER(:nombre) AND v.esUltimaVersion = true AND v.receta.id <> :recetaId AND v.receta.estado = 'ACTIVO'")
+            "WHERE LOWER(v.nombre) = LOWER(:nombre) AND v.esUltimaVersion = true AND v.padreActivo = true " +
+            "AND v.receta.id <> :recetaId")
     boolean existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(@Param("nombre") String nombre, @Param("recetaId") Long recetaId);
 
     /**

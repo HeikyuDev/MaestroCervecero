@@ -25,13 +25,17 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -40,6 +44,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -47,7 +52,9 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -130,6 +137,28 @@ class RecetaServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
         verify(recetaRepository).filtrarRecetas("Inexistente", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FR-04: filtrarRecetas normaliza el texto buscado antes de consultar")
+    void filtrarRecetas_debeNormalizarElTextoBuscado() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(recetaRepository.filtrarRecetas("IPA Clásica", pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        recetaServicio.filtrarRecetas("   IPA   Clásica ", pageable);
+
+        verify(recetaRepository).filtrarRecetas("IPA Clásica", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FR-05: filtrarRecetas trata el texto de solo espacios como criterio nulo")
+    void filtrarRecetas_debeTratarTextoEnBlancoComoNulo() {
+        Pageable pageable = PageRequest.of(0, 10);
+        when(recetaRepository.filtrarRecetas(null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        recetaServicio.filtrarRecetas("    ", pageable);
+
+        verify(recetaRepository).filtrarRecetas(null, pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -960,6 +989,94 @@ class RecetaServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @Test
+    @DisplayName("CP-AR-68: altaReceta normaliza el nombre que guarda y consulta la unicidad con el valor normalizado")
+    void altaReceta_debeNormalizarElNombreQueGuarda() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().nombre("  Pálé   Ale ").build();
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("Pálé Ale")).thenReturn(false);
+        mockearInsumos(versionFormDTO);
+        when(recetaRepository.save(any(RecetaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        recetaServicio.altaReceta(recetaFormDTO(versionFormDTO));
+
+        ArgumentCaptor<RecetaEntity> captor = ArgumentCaptor.forClass(RecetaEntity.class);
+        verify(recetaRepository).save(captor.capture());
+        assertThat(captor.getValue().getVersiones().get(0).getNombre()).isEqualTo("Pálé Ale");
+        // El DTO no se modifica
+        assertThat(versionFormDTO.getNombre()).isEqualTo("  Pálé   Ale ");
+    }
+
+    @ParameterizedTest(name = "CP-AR-69: nombre [{0}]")
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    @DisplayName("CP-AR-69: altaReceta lanza ReglaNegocioException y no consulta la BD cuando el nombre falta o es de solo espacios")
+    void altaReceta_debeRechazarNombreVacio(String nombre) {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre(nombre).build());
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AR-70: altaReceta detecta el nombre duplicado sobre el valor normalizado")
+    void altaReceta_debeDetectarNombreDuplicadoNormalizado() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre("  ipa   clásica ").build());
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("ipa clásica")).thenReturn(true);
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una receta con el nombre 'ipa clásica'");
+
+        verify(recetaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AR-71: altaReceta traduce la violación del índice único del nombre al mensaje del campo (pedido simultáneo)")
+    void altaReceta_debeTraducirViolacionDelIndiceDeNombre() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue("IPA Clásica")).thenReturn(false);
+        mockearInsumos(versionFormDTO);
+        when(recetaRepository.save(any(RecetaEntity.class)))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_receta_nombre"));
+
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO(versionFormDTO)))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe una receta con el nombre 'IPA Clásica'");
+    }
+
+    @Test
+    @DisplayName("CP-AR-72: altaReceta reutiliza el nombre de una receta dada de baja (la consulta solo ve recetas activas)")
+    void altaReceta_debeReutilizarElNombreDeUnaRecetaDadaDeBaja() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        // Solo una receta con estado BAJA tiene este nombre: la consulta considera padreActivo = true
+        mockearAltaExitosa(versionFormDTO);
+
+        recetaServicio.altaReceta(recetaFormDTO(versionFormDTO));
+
+        ArgumentCaptor<RecetaEntity> captor = ArgumentCaptor.forClass(RecetaEntity.class);
+        verify(recetaRepository).save(captor.capture());
+        VersionRecetaEntity versionGuardada = captor.getValue().getVersiones().get(0);
+        assertThat(captor.getValue().getEstado()).isEqualTo(Estado.ACTIVO);
+        assertThat(versionGuardada.isEsUltimaVersion()).isTrue();
+        assertThat(versionGuardada.isPadreActivo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-AR-73: altaReceta guarda y confirma en la base de datos dentro del método (save y luego flush)")
+    void altaReceta_debeGuardarYConfirmarEnOrden() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        mockearAltaExitosa(versionFormDTO);
+
+        recetaServicio.altaReceta(recetaFormDTO(versionFormDTO));
+
+        InOrder orden = inOrder(recetaRepository);
+        orden.verify(recetaRepository).save(any(RecetaEntity.class));
+        orden.verify(recetaRepository).flush();
+    }
+
     // ==================== modificarReceta ====================
 
     @Test
@@ -1015,17 +1132,17 @@ class RecetaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MR-06: modificarReceta lanza RecursoDuplicadoException y no busca por ID ni persiste cuando el nombre está en uso por otra receta")
+    @DisplayName("CP-MR-06: modificarReceta lanza RecursoDuplicadoException y no persiste cuando el nombre está en uso por otra receta")
     void modificarReceta_debeRechazarNombreEnUsoPorOtraReceta() {
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre("RECETA-EXISTENTE").build());
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(crearRecetaEntityConVersionActiva(1L, "IPA Clásica")));
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("RECETA-EXISTENTE", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe una receta con el nombre 'RECETA-EXISTENTE'");
+                .hasMessage("El nombre 'RECETA-EXISTENTE' ya está en uso por otra receta");
 
         verify(versionRecetaRepository).existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("RECETA-EXISTENTE", 1L);
-        verify(recetaRepository, never()).findById(any());
         verify(recetaRepository, never()).save(any());
     }
 
@@ -1037,7 +1154,7 @@ class RecetaServicioImplTest {
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
         mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
 
@@ -1047,21 +1164,20 @@ class RecetaServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado).isNotNull();
         assertThat(resultado.getVersion().getNombre()).isEqualTo("IPA Clásica");
-        verify(recetaRepository).save(recetaEntityExistente);
+        verify(recetaRepository, times(2)).save(recetaEntityExistente);
     }
 
     @Test
     @DisplayName("CP-MR-08: modificarReceta lanza RecursoNoEncontradoException y no persiste cuando la receta no existe")
     void modificarReceta_debeLanzarExcepcionSiNoExiste() {
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().build());
-        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 99L)).thenReturn(false);
-        when(recetaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(recetaRepository.findByIdParaActualizarVersiones(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(99L, recetaFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la receta con ID: 99");
 
-        verify(recetaRepository).findById(99L);
+        verify(recetaRepository).findByIdParaActualizarVersiones(99L);
         verify(recetaRepository, never()).save(any());
     }
 
@@ -1074,7 +1190,7 @@ class RecetaServicioImplTest {
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
         when(maltaRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
@@ -1093,7 +1209,7 @@ class RecetaServicioImplTest {
         VersionRecetaEntity versionActivaPrevia = crearVersionRecetaEntity(10L, "IPA Clásica", true);
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, versionActivaPrevia);
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
         mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
 
@@ -1106,7 +1222,7 @@ class RecetaServicioImplTest {
         assertThat(recetaEntityExistente.getVersiones()).hasSize(2);
         long cantidadActivas = recetaEntityExistente.getVersiones().stream().filter(VersionRecetaEntity::isEsUltimaVersion).count();
         assertThat(cantidadActivas).isEqualTo(1);
-        verify(recetaRepository).save(recetaEntityExistente);
+        verify(recetaRepository, times(2)).save(recetaEntityExistente);
     }
 
     @Test
@@ -1120,7 +1236,7 @@ class RecetaServicioImplTest {
         VersionRecetaEntity version3 = crearVersionRecetaEntity(12L, "IPA Clásica", true);
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, version1, version2, version3);
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
         mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
 
@@ -1309,7 +1425,7 @@ class RecetaServicioImplTest {
 
         recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO));
 
-        verify(recetaRepository).save(any(RecetaEntity.class));
+        verify(recetaRepository, times(2)).save(any(RecetaEntity.class));
     }
 
     @ParameterizedTest(name = "CP-MR-29: {0}")
@@ -1342,7 +1458,7 @@ class RecetaServicioImplTest {
 
         recetaServicio.modificarReceta(1L, recetaFormDTO(version));
 
-        verify(recetaRepository).save(any(RecetaEntity.class));
+        verify(recetaRepository, times(2)).save(any(RecetaEntity.class));
     }
 
     @ParameterizedTest(name = "CP-MR-32: {0}")
@@ -1356,18 +1472,138 @@ class RecetaServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @Test
+    @DisplayName("CP-MR-33: modificarReceta normaliza el nombre que guarda y consulta la unicidad con el valor normalizado")
+    void modificarReceta_debeNormalizarElNombreQueGuarda() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().nombre("  Pálé   Ale ").build();
+        RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("Pálé Ale", 1L)).thenReturn(false);
+        mockearInsumos(versionFormDTO);
+        when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
+
+        recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO));
+
+        assertThat(recetaEntityExistente.getVersiones().get(1).getNombre()).isEqualTo("Pálé Ale");
+        assertThat(versionFormDTO.getNombre()).isEqualTo("  Pálé   Ale ");
+    }
+
+    @ParameterizedTest(name = "CP-MR-34: nombre [{0}]")
+    @NullAndEmptySource
+    @ValueSource(strings = {"   "})
+    @DisplayName("CP-MR-34: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando el nombre falta o es de solo espacios")
+    void modificarReceta_debeRechazarNombreVacio(String nombre) {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre(nombre).build());
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MR-35: modificarReceta detecta el nombre en uso sobre el valor normalizado")
+    void modificarReceta_debeDetectarNombreEnUsoNormalizado() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().nombre("  ipa   clásica ").build());
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(crearRecetaEntityConVersionActiva(1L, "Stout")));
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("ipa clásica", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'ipa clásica' ya está en uso por otra receta");
+
+        verify(recetaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MR-36: modificarReceta traduce la violación del índice único del nombre al mensaje del campo (pedido simultáneo)")
+    void modificarReceta_debeTraducirViolacionDelIndiceDeNombre() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "Stout", true));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
+        mockearInsumos(versionFormDTO);
+        when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente)
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_receta_nombre"));
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO)))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'IPA Clásica' ya está en uso por otra receta");
+    }
+
+    @Test
+    @DisplayName("CP-MR-37: modificarReceta traduce la violación del índice de versión vigente a ReglaNegocioException (modificación simultánea)")
+    void modificarReceta_debeTraducirViolacionDelIndiceDeVersionVigente() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "Stout", true));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
+        mockearInsumos(versionFormDTO);
+        when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente)
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_receta_ultima_version"));
+
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La receta fue modificada por otra persona al mismo tiempo, intente nuevamente");
+    }
+
+    @Test
+    @DisplayName("CP-MR-38: modificarReceta guarda y confirma la versión anterior desactivada antes de insertar la nueva (save, flush, save, flush)")
+    void modificarReceta_debeConfirmarLaVersionAnteriorAntesDeInsertarLaNueva() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        VersionRecetaEntity versionActivaPrevia = crearVersionRecetaEntity(10L, "Stout", true);
+        RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, versionActivaPrevia);
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L)).thenReturn(false);
+        mockearInsumos(versionFormDTO);
+        // En cada save se registra cuántas versiones tiene la receta y si la anterior sigue vigente
+        List<String> estadoEnCadaSave = new ArrayList<>();
+        when(recetaRepository.save(recetaEntityExistente)).thenAnswer(invocation -> {
+            estadoEnCadaSave.add(recetaEntityExistente.getVersiones().size() + " versiones, anterior vigente: " + versionActivaPrevia.isEsUltimaVersion());
+            return recetaEntityExistente;
+        });
+
+        recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO));
+
+        assertThat(estadoEnCadaSave).containsExactly("1 versiones, anterior vigente: false", "2 versiones, anterior vigente: false");
+        InOrder orden = inOrder(recetaRepository);
+        orden.verify(recetaRepository).findByIdParaActualizarVersiones(1L);
+        orden.verify(recetaRepository).save(recetaEntityExistente);
+        orden.verify(recetaRepository).flush();
+        orden.verify(recetaRepository).save(recetaEntityExistente);
+        orden.verify(recetaRepository).flush();
+        VersionRecetaEntity nuevaVersion = recetaEntityExistente.getVersiones().get(1);
+        assertThat(nuevaVersion.isEsUltimaVersion()).isTrue();
+        assertThat(nuevaVersion.isPadreActivo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-MR-39: modificarReceta bloquea la fila de la receta antes de validar la unicidad y no usa la búsqueda sin bloqueo")
+    void modificarReceta_debeBloquearLaRecetaAntesDeValidarLaUnicidad() {
+        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().build();
+        mockearModificacionExitosa(versionFormDTO);
+
+        recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO));
+
+        InOrder orden = inOrder(recetaRepository, versionRecetaRepository);
+        orden.verify(recetaRepository).findByIdParaActualizarVersiones(1L);
+        orden.verify(versionRecetaRepository).existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("IPA Clásica", 1L);
+        verify(recetaRepository, never()).findById(any());
+    }
+
     // ==================== bajaReceta ====================
 
     @Test
     @DisplayName("CP-BR-01: bajaReceta lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaReceta_debeLanzarExcepcionYNoPersistirSiNoExiste() {
-        when(recetaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(recetaRepository.findByIdParaActualizarVersiones(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> recetaServicio.bajaReceta(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la receta con ID: 99");
 
-        verify(recetaRepository).findById(99L);
+        verify(recetaRepository).findByIdParaActualizarVersiones(99L);
         verify(recetaRepository, never()).save(any());
     }
 
@@ -1376,7 +1612,7 @@ class RecetaServicioImplTest {
     void bajaReceta_debeMarcarBajaYRetornarRecetaExistente() {
         // === PREPARACION DE DATOS ===
         RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntity));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
         when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
         when(recetaRepository.save(recetaEntity)).thenReturn(recetaEntity);
 
@@ -1387,7 +1623,7 @@ class RecetaServicioImplTest {
         // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
         assertThat(recetaEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertThat(resultado.getId()).isEqualTo(1L);
-        verify(recetaRepository).findById(1L);
+        verify(recetaRepository).findByIdParaActualizarVersiones(1L);
         verify(planificacionProduccionRepository).existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE);
         verify(recetaRepository).save(recetaEntity);
         verify(recetaRepository, never()).delete(any());
@@ -1398,7 +1634,7 @@ class RecetaServicioImplTest {
     void bajaReceta_debeRechazarConOrdenDeProduccionPendienteAsociada() {
         // === PREPARACION DE DATOS ===
         RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntity));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
         when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(true);
 
         // === EJECUCION Y ASSERTS ===
@@ -1414,7 +1650,7 @@ class RecetaServicioImplTest {
     void bajaReceta_debePermitirBajaConOrdenesDeProduccionEnOtroEstado() {
         // === PREPARACION DE DATOS ===
         RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntity));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
         when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
         when(recetaRepository.save(recetaEntity)).thenReturn(recetaEntity);
 
@@ -1424,6 +1660,51 @@ class RecetaServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(1L);
         verify(recetaRepository).save(recetaEntity);
+    }
+
+    @Test
+    @DisplayName("CP-BR-05: bajaReceta marca padreActivo = false en todas las versiones, históricas y vigente, para liberar el nombre")
+    void bajaReceta_debeMarcarPadreInactivoEnTodasLasVersiones() {
+        RecetaEntity recetaEntity = crearRecetaEntityConVersiones(1L,
+                crearVersionRecetaEntity(10L, "IPA v1", false),
+                crearVersionRecetaEntity(11L, "IPA v2", false),
+                crearVersionRecetaEntity(12L, "IPA Clásica", true));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
+        when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
+        when(recetaRepository.save(recetaEntity)).thenReturn(recetaEntity);
+
+        recetaServicio.bajaReceta(1L);
+
+        assertThat(recetaEntity.getEstado()).isEqualTo(Estado.BAJA);
+        assertThat(recetaEntity.getVersiones()).hasSize(3).allMatch(version -> !version.isPadreActivo());
+    }
+
+    @Test
+    @DisplayName("CP-BR-06: bajaReceta bloquea la fila de la receta y no usa la búsqueda sin bloqueo")
+    void bajaReceta_debeBloquearLaReceta() {
+        RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
+        when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
+        when(recetaRepository.save(recetaEntity)).thenReturn(recetaEntity);
+
+        recetaServicio.bajaReceta(1L);
+
+        verify(recetaRepository).findByIdParaActualizarVersiones(1L);
+        verify(recetaRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-BR-07: bajaReceta rechazada por planificación Pendiente no modifica el estado ni padreActivo")
+    void bajaReceta_rechazadaNoDebeTocarLaReceta() {
+        RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
+        when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(true);
+
+        assertThatThrownBy(() -> recetaServicio.bajaReceta(1L)).isInstanceOf(ReglaNegocioException.class);
+
+        assertThat(recetaEntity.getEstado()).isEqualTo(Estado.ACTIVO);
+        assertThat(recetaEntity.getVersiones()).allMatch(VersionRecetaEntity::isPadreActivo);
+        verify(recetaRepository, never()).save(any());
     }
 
     // ==================== helpers de mockeo ====================
@@ -1455,7 +1736,7 @@ class RecetaServicioImplTest {
     private void mockearModificacionExitosa(VersionRecetaFormDTO versionFormDTO) {
         RecetaEntity recetaEntityExistente = crearRecetaEntityConVersiones(1L, crearVersionRecetaEntity(10L, "IPA Clásica", true));
         when(versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(versionFormDTO.getNombre(), 1L)).thenReturn(false);
-        when(recetaRepository.findById(1L)).thenReturn(Optional.of(recetaEntityExistente));
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntityExistente));
         mockearInsumos(versionFormDTO);
         when(recetaRepository.save(recetaEntityExistente)).thenReturn(recetaEntityExistente);
     }

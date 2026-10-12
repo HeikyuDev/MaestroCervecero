@@ -63,6 +63,14 @@ public class VersionRecetaEntity implements VersionadoEntity {
     @Column(name = "es_ultima_version", nullable = false)
     private boolean esUltimaVersion;
 
+    /**
+     * {@code true} mientras la receta dueña está activa; pasa a {@code false} en todas sus versiones al darla de baja.
+     * Permite que los índices únicos de la tabla (que no ven el estado de la receta) liberen el nombre.
+     */
+    @Builder.Default
+    @Column(name = "padre_activo", nullable = false)
+    private boolean padreActivo = true;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "receta_id", nullable = false)
     private RecetaEntity receta;

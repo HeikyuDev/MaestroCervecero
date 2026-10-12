@@ -66,4 +66,20 @@ public interface IRecetaRepository extends JpaRepository<RecetaEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM RecetaEntity r WHERE r.id = :id AND r.estado = 'ACTIVO'")
     Optional<RecetaEntity> findByIdParaActualizarContador(@Param("id") Long id);
+
+    /**
+     * Busca una receta activa por su ID y bloquea su fila hasta el fin de la transacción
+     * ({@code PESSIMISTIC_WRITE}).
+     * <p>
+     * Se usa al modificar o dar de baja la receta: serializa los pedidos sobre la misma receta, de modo que dos
+     * modificaciones simultáneas no dejen dos versiones vigentes y una modificación no cree una versión sobre una
+     * receta que se está dando de baja.
+     * </p>
+     *
+     * @param id El ID de la receta a buscar.
+     * @return Un Optional que contiene la receta si está activa, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM RecetaEntity r WHERE r.id = :id AND r.estado = 'ACTIVO'")
+    Optional<RecetaEntity> findByIdParaActualizarVersiones(@Param("id") Long id);
 }
