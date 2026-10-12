@@ -5,6 +5,8 @@
 |**CP-FFB-01**|Filtra por nombre informado|`nombre: "Tonelería"`, `pageable: PageRequest.of(0, 10)`, BD con 2 fabricantes activos que cumplen el criterio|`filtrarFabricantesBarril("Tonelería", pageable)` contiene elementos|Retorna `Page<FabricanteBarrilResponseDTO>` con 2 elementos mapeados.|
 |**CP-FFB-02**|El nombre nulo no restringe la búsqueda|`nombre: null`, `pageable: PageRequest.of(0, 10)`|El service propaga el parámetro nulo tal cual al repositorio|Retorna `Page<FabricanteBarrilResponseDTO>` con todos los fabricantes activos (equivalente a no filtrar).|
 |**CP-FFB-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`|`filtrarFabricantesBarril("Inexistente", pageable)` está vacío|Retorna `Page<FabricanteBarrilResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FFB-04**|El nombre buscado se normaliza|`nombre: "   Tonelería   del Sur  "`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el nombre guardado: sin espacios en los extremos y con un solo espacio entre palabras|Consulta el repositorio con `"Tonelería del Sur"` y retorna la página mapeada a DTO.|
+|**CP-FFB-05**|Un nombre formado solo por espacios no filtra|`nombre: "    "`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `nombre: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

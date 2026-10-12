@@ -60,7 +60,12 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<FabricanteBarrilResponseDTO> filtrarFabricantesBarril(String nombre, Pageable pageable) {
-        return fabricanteBarrilRepository.filtrarFabricantesBarril(nombre, pageable)
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return fabricanteBarrilRepository.filtrarFabricantesBarril(nombreNormalizado, pageable)
                 .map(MapperFabricanteBarril::toDTO);
     }
 

@@ -102,6 +102,38 @@ class FabricanteBarrilServicioImplTest {
         verify(fabricanteBarrilRepository).filtrarFabricantesBarril("Inexistente", pageable);
     }
 
+    @Test
+    @DisplayName("CP-FFB-04: filtrarFabricantesBarril normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarFabricantesBarril_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(fabricanteBarrilRepository.filtrarFabricantesBarril("Tonelería del Sur", pageable))
+                .thenReturn(new PageImpl<>(List.of(crearFabricanteBarrilEntity(1L, "Tonelería del Sur")), pageable, 1));
+
+        // === EJECUCION ===
+        Page<FabricanteBarrilResponseDTO> resultado =
+                fabricanteBarrilServicio.filtrarFabricantesBarril("   Tonelería   del Sur  ", pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        verify(fabricanteBarrilRepository).filtrarFabricantesBarril("Tonelería del Sur", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FFB-05: filtrarFabricantesBarril trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarFabricantesBarril_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(fabricanteBarrilRepository.filtrarFabricantesBarril(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        fabricanteBarrilServicio.filtrarFabricantesBarril("    ", pageable);
+
+        // === ASSERTS ===
+        verify(fabricanteBarrilRepository).filtrarFabricantesBarril(null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
