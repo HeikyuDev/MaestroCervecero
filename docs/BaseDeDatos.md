@@ -176,8 +176,7 @@ Las tildes y la puntuación son caracteres distintos: `Pale Ale` y `Palé Ale` n
 el mismo si son iguales ignorando mayúsculas y espacios repetidos.
 
 La normalización no valida: un valor con caracteres no permitidos se conserva para que lo rechace la validación
-(`ValidacionesTexto.validarCuit`, `validarTelefono`, `validarUsername`). El CUIT se valida con 11 dígitos, un prefijo
-de tipo de persona válido (20, 23, 24, 27, 30, 33, 34) y el dígito verificador de módulo 11.
+(`ValidacionesTexto.validarCuit`, `validarTelefono`, `validarUsername`). El CUIT se valida solo por largo: 11 dígitos.
 
 ### Índices únicos
 

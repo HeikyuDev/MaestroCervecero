@@ -2,7 +2,6 @@ package com.github.heikyudev.maestrocervecero.util.validacion;
 
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -15,8 +14,6 @@ import java.util.regex.Pattern;
 public final class ValidacionesTexto {
 
     private static final int DIGITOS_CUIT = 11;
-    private static final int[] FACTORES_CUIT = {5, 4, 3, 2, 7, 6, 5, 4, 3, 2};
-    private static final Set<String> PREFIJOS_CUIT = Set.of("20", "23", "24", "27", "30", "33", "34");
 
     private static final Pattern SOLO_DIGITOS = Pattern.compile("[0-9]+");
     private static final Pattern FORMATO_USERNAME = Pattern.compile("[A-Za-z0-9._-]+");
@@ -25,20 +22,15 @@ public final class ValidacionesTexto {
     }
 
     /**
-     * Valida un CUIT normalizado (ver {@link NormalizacionTexto#cuit(String)}): debe tener exactamente 11 dígitos,
-     * un prefijo de tipo de persona válido (20, 23, 24, 27, 30, 33 o 34) y un dígito verificador correcto
-     * según el algoritmo de módulo 11.
+     * Valida un CUIT normalizado (ver {@link NormalizacionTexto#cuit(String)}): debe tener exactamente 11 dígitos.
+     * No se verifica el prefijo ni el dígito verificador.
      *
      * @param cuit CUIT normalizado (solo dígitos).
-     * @throws ReglaNegocioException Si el CUIT es nulo o no tiene 11 dígitos ("El CUIT debe tener 11 dígitos"), o si
-     *                               el prefijo o el dígito verificador no son válidos ("El CUIT no es válido").
+     * @throws ReglaNegocioException Si el CUIT es nulo o no tiene 11 dígitos ("El CUIT debe tener 11 dígitos").
      */
     public static void validarCuit(String cuit) {
         if (cuit == null || cuit.length() != DIGITOS_CUIT || !SOLO_DIGITOS.matcher(cuit).matches()) {
             throw new ReglaNegocioException("El CUIT debe tener 11 dígitos");
-        }
-        if (!PREFIJOS_CUIT.contains(cuit.substring(0, 2)) || calcularDigitoVerificador(cuit) != cuit.charAt(10) - '0') {
-            throw new ReglaNegocioException("El CUIT no es válido");
         }
     }
 
@@ -94,22 +86,5 @@ public final class ValidacionesTexto {
             return cuit;
         }
         return digitos.substring(0, 2) + "-" + digitos.substring(2, 10) + "-" + digitos.substring(10);
-    }
-
-    /**
-     * Calcula el dígito verificador esperado de un CUIT a partir de sus 10 primeros dígitos. Devuelve -1 si el
-     * resultado del módulo 11 es 10, caso en el que no existe un dígito verificador válido para ese número.
-     */
-    private static int calcularDigitoVerificador(String cuit) {
-        int suma = 0;
-        for (int i = 0; i < FACTORES_CUIT.length; i++) {
-            suma += (cuit.charAt(i) - '0') * FACTORES_CUIT[i];
-        }
-        int resto = suma % 11;
-        if (resto == 0) {
-            return 0;
-        }
-        int digito = 11 - resto;
-        return digito == 10 ? -1 : digito;
     }
 }
