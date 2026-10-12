@@ -4,7 +4,9 @@
 |---|---|---|---|---|
 |**CP-FMo-01**|Filtra por identificador interno y estado operativo informados|`identificadorInterno: "MOL"`, `estadoOperativo: DISPONIBLE`, `pageable: PageRequest.of(0, 10)`, BD con 2 molinos activos que cumplen ambos criterios|`filtrarMolinos("MOL", DISPONIBLE, pageable)` contiene elementos|Retorna `Page<MolinoResponseDTO>` con 2 elementos mapeados.|
 |**CP-FMo-02**|Identificador interno y estado operativo nulos no restringen la búsqueda|`identificadorInterno: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<MolinoResponseDTO>` con todos los molinos activos (equivalente a no filtrar).|
-|**CP-FMo-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarMolinos("Inexistente", null, pageable)` está vacío|Retorna `Page<MolinoResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FMo-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarMolinos("INEXISTENTE", null, pageable)` está vacío|Retorna `Page<MolinoResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FMo-04**|El identificador buscado se normaliza|`identificadorInterno: "  mol   01  "`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el identificador guardado: sin espacios en los extremos ni repetidos, y en mayúsculas|Consulta el repositorio con `identificadorInterno: "MOL 01"`.|
+|**CP-FMo-05**|Un identificador formado solo por espacios no filtra|`identificadorInterno: "    "`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `identificadorInterno: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

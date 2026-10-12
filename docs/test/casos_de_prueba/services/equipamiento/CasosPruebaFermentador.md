@@ -4,7 +4,9 @@
 |---|---|---|---|---|
 |**CP-FF-01**|Filtra por identificador interno y estado operativo informados|`identificadorInterno: "FERM"`, `estadoOperativo: DISPONIBLE`, `pageable: PageRequest.of(0, 10)`, BD con 2 fermentadores activos que cumplen ambos criterios|`filtrarFermentadores("FERM", DISPONIBLE, pageable)` contiene elementos|Retorna `Page<FermentadorResponseDTO>` con 2 elementos mapeados.|
 |**CP-FF-02**|Identificador interno y estado operativo nulos no restringen la búsqueda|`identificadorInterno: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<FermentadorResponseDTO>` con todos los fermentadores activos (equivalente a no filtrar).|
-|**CP-FF-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarFermentadores("Inexistente", null, pageable)` está vacío|Retorna `Page<FermentadorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FF-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarFermentadores("INEXISTENTE", null, pageable)` está vacío|Retorna `Page<FermentadorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FF-04**|El identificador buscado se normaliza|`identificadorInterno: "  ferm   01  "`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el identificador guardado: sin espacios en los extremos ni repetidos, y en mayúsculas|Consulta el repositorio con `identificadorInterno: "FERM 01"`.|
+|**CP-FF-05**|Un identificador formado solo por espacios no filtra|`identificadorInterno: "    "`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `identificadorInterno: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

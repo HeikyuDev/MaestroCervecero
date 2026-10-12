@@ -71,7 +71,12 @@ public class LupuloServicioImpl implements ILupuloServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<LupuloResponseDTO> filtrarLupulos(String nombre, FormatoLupulo formato, Pageable pageable) {
-        return lupuloRepository.filtrarLupulos(nombre, formato, pageable).map(MapperLupulo::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return lupuloRepository.filtrarLupulos(nombreNormalizado, formato, pageable).map(MapperLupulo::toDTO);
     }
 
     /**

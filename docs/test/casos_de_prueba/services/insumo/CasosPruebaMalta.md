@@ -5,6 +5,8 @@
 |**CP-FM-01**|Filtra por nombre y tipo informados|`nombre: "Pilsen"`, `tipo: BASE`, `pageable: PageRequest.of(0, 10)`, BD con 2 maltas activas que cumplen ambos criterios|`filtrarMaltas("Pilsen", BASE, pageable)` contiene elementos|Retorna `Page<MaltaResponseDTO>` con 2 elementos mapeados.|
 |**CP-FM-02**|Nombre y tipo nulos no restringen la búsqueda|`nombre: null`, `tipo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<MaltaResponseDTO>` con todas las maltas activas (equivalente a no filtrar).|
 |**CP-FM-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `tipo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarMaltas("Inexistente", null, pageable)` está vacío|Retorna `Page<MaltaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FM-04**|El nombre buscado se normaliza|`nombre: "   Pilsen   Nacional  "`, `tipo: null`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el nombre guardado: sin espacios en los extremos y con un solo espacio entre palabras|Consulta el repositorio con `nombre: "Pilsen Nacional"`.|
+|**CP-FM-05**|Un nombre formado solo por espacios no filtra|`nombre: "    "`, `tipo: null`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `nombre: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

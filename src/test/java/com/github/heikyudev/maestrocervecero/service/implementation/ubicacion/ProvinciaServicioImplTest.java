@@ -106,6 +106,36 @@ class ProvinciaServicioImplTest {
         verify(provinciaRepository).filtrarProvincias("Inexistente", null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FPr-04: filtrarProvincias normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarProvincias_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(provinciaRepository.filtrarProvincias("Buenos Aires", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        provinciaServicio.filtrarProvincias("   Buenos   Aires  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(provinciaRepository).filtrarProvincias("Buenos Aires", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FPr-05: filtrarProvincias trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarProvincias_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(provinciaRepository.filtrarProvincias(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        provinciaServicio.filtrarProvincias("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(provinciaRepository).filtrarProvincias(null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

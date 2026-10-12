@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperEquipamiento;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -29,7 +30,12 @@ public class EquipamientoServicioImpl implements IEquipamientoServicio {
     @Transactional(readOnly = true)
     public Page<EquipamientoResponseDTO> filtrarEquipamientos(String identificadorInterno, TipoEquipamiento tipo, EstadoOperativo estadoOperativo, Pageable pageable) {
         Class<? extends EquipamientoEntity> tipoClase = tipo != null ? tipo.getEntityClass() : null;
-        return equipamientoRepository.filtrarEquipamientos(identificadorInterno, tipoClase, estadoOperativo, pageable)
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return equipamientoRepository.filtrarEquipamientos(identificadorInternoNormalizado, tipoClase, estadoOperativo, pageable)
                 .map(MapperEquipamiento::toDTO);
     }
 }

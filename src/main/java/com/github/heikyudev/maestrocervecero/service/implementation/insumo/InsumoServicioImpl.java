@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsu
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperInsumo;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +26,12 @@ public class InsumoServicioImpl implements IInsumoServicio {
     @Transactional(readOnly = true)
     public Page<InsumoResponseDTO> filtrarInsumos(String nombre, TipoInsumo tipo, Pageable pageable) {
         Class<? extends InsumoEntity> tipoClase = tipo != null ? tipo.getEntityClass() : null;
-        return insumoRepository.filtrarInsumos(nombre, tipoClase, pageable)
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return insumoRepository.filtrarInsumos(nombreNormalizado, tipoClase, pageable)
                 .map(MapperInsumo::toDTO);
     }
 }

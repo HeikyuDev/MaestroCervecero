@@ -104,6 +104,36 @@ class PresentacionComercialServicioImplTest {
         verify(presentacionComercialRepository).filtrarPresentacionesComerciales("Inexistente", null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FPC-04: filtrarPresentacionesComerciales normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarPresentacionesComerciales_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(presentacionComercialRepository.filtrarPresentacionesComerciales("Bolsa de 25 kg", null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        presentacionComercialServicio.filtrarPresentacionesComerciales("   Bolsa   de   25  kg  ", null, null, pageable);
+
+        // === ASSERTS ===
+        verify(presentacionComercialRepository).filtrarPresentacionesComerciales("Bolsa de 25 kg", null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FPC-05: filtrarPresentacionesComerciales trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarPresentacionesComerciales_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(presentacionComercialRepository.filtrarPresentacionesComerciales(null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        presentacionComercialServicio.filtrarPresentacionesComerciales("    ", null, null, pageable);
+
+        // === ASSERTS ===
+        verify(presentacionComercialRepository).filtrarPresentacionesComerciales(null, null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

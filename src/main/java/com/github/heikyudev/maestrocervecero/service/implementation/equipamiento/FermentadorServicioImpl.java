@@ -59,7 +59,12 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<FermentadorResponseDTO> filtrarFermentadores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
-        return fermentadorRepository.filtrarFermentadores(identificadorInterno, estadoOperativo, pageable).map(MapperFermentador::toDTO);
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return fermentadorRepository.filtrarFermentadores(identificadorInternoNormalizado, estadoOperativo, pageable).map(MapperFermentador::toDTO);
     }
 
     /**

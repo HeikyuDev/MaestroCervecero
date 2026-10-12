@@ -58,7 +58,12 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<OllaHervorResponseDTO> filtrarOllasHervor(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
-        return ollaHervorRepository.filtrarOllasHervor(identificadorInterno, estadoOperativo, pageable).map(MapperOllaHervor::toDTO);
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return ollaHervorRepository.filtrarOllasHervor(identificadorInternoNormalizado, estadoOperativo, pageable).map(MapperOllaHervor::toDTO);
     }
 
     /**

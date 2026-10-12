@@ -98,7 +98,7 @@ class MolinoServicioImplTest {
     void filtrarMolinos_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(molinoRepository.filtrarMolinos("Inexistente", null, pageable))
+        when(molinoRepository.filtrarMolinos("INEXISTENTE", null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
@@ -106,7 +106,37 @@ class MolinoServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(molinoRepository).filtrarMolinos("Inexistente", null, pageable);
+        verify(molinoRepository).filtrarMolinos("INEXISTENTE", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMo-04: filtrarMolinos normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarMolinos_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(molinoRepository.filtrarMolinos("MOL 01", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        molinoServicio.filtrarMolinos("  mol   01  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(molinoRepository).filtrarMolinos("MOL 01", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMo-05: filtrarMolinos trata el identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarMolinos_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(molinoRepository.filtrarMolinos(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        molinoServicio.filtrarMolinos("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(molinoRepository).filtrarMolinos(null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

@@ -59,7 +59,12 @@ public class MolinoServicioImpl implements IMolinoServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<MolinoResponseDTO> filtrarMolinos(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
-        return molinoRepository.filtrarMolinos(identificadorInterno, estadoOperativo, pageable).map(MapperMolino::toDTO);
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return molinoRepository.filtrarMolinos(identificadorInternoNormalizado, estadoOperativo, pageable).map(MapperMolino::toDTO);
     }
 
 

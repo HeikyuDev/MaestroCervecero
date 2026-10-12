@@ -72,7 +72,12 @@ public class MaltaServicioImpl implements IMaltaServicio {
     @Transactional(readOnly = true)
     public Page<MaltaResponseDTO> filtrarMaltas(String nombre, TipoMalta tipo, Pageable pageable) {
         // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return maltaRepository.filtrarMaltas(nombre, tipo, pageable).map(MapperMalta::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return maltaRepository.filtrarMaltas(nombreNormalizado, tipo, pageable).map(MapperMalta::toDTO);
     }
 
     /**

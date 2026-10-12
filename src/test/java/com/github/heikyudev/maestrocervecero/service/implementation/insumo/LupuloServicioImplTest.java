@@ -115,6 +115,36 @@ class LupuloServicioImplTest {
         verify(lupuloRepository).filtrarLupulos("Inexistente", null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FL-04: filtrarLupulos normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarLupulos_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(lupuloRepository.filtrarLupulos("Cascade Americano", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        lupuloServicio.filtrarLupulos("   Cascade   Americano  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(lupuloRepository).filtrarLupulos("Cascade Americano", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-05: filtrarLupulos trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarLupulos_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(lupuloRepository.filtrarLupulos(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        lupuloServicio.filtrarLupulos("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(lupuloRepository).filtrarLupulos(null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

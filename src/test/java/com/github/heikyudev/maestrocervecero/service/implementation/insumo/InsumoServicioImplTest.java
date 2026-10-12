@@ -108,6 +108,36 @@ class InsumoServicioImplTest {
         verify(insumoRepository).filtrarInsumos("Inexistente", null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FI-05: filtrarInsumos normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarInsumos_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(insumoRepository.filtrarInsumos("Pilsen Nacional", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        insumoServicio.filtrarInsumos("   Pilsen   Nacional  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(insumoRepository).filtrarInsumos("Pilsen Nacional", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FI-06: filtrarInsumos trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarInsumos_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(insumoRepository.filtrarInsumos(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        insumoServicio.filtrarInsumos("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(insumoRepository).filtrarInsumos(null, null, pageable);
+    }
+
     // ==================== helpers ====================
 
     private static MaltaEntity crearMaltaEntity(Long id, String nombre) {

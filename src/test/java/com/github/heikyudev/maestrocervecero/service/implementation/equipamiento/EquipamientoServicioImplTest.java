@@ -96,7 +96,7 @@ class EquipamientoServicioImplTest {
     void filtrarEquipamientos_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(equipamientoRepository.filtrarEquipamientos("Inexistente", null, null, pageable))
+        when(equipamientoRepository.filtrarEquipamientos("INEXISTENTE", null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
@@ -104,7 +104,37 @@ class EquipamientoServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(equipamientoRepository).filtrarEquipamientos("Inexistente", null, null, pageable);
+        verify(equipamientoRepository).filtrarEquipamientos("INEXISTENTE", null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FE-05: filtrarEquipamientos normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarEquipamientos_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(equipamientoRepository.filtrarEquipamientos("MOL 01", null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        equipamientoServicio.filtrarEquipamientos("  mol   01  ", null, null, pageable);
+
+        // === ASSERTS ===
+        verify(equipamientoRepository).filtrarEquipamientos("MOL 01", null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FE-06: filtrarEquipamientos trata el identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarEquipamientos_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(equipamientoRepository.filtrarEquipamientos(null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        equipamientoServicio.filtrarEquipamientos("    ", null, null, pageable);
+
+        // === ASSERTS ===
+        verify(equipamientoRepository).filtrarEquipamientos(null, null, null, pageable);
     }
 
     // ==================== helpers ====================

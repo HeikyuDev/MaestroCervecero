@@ -61,7 +61,17 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<LocalidadResponseDTO> filtrarLocalidades(String nombre, String codigoPostal, Long idProvincia, Long idPais, Pageable pageable) {
-        return localidadRepository.filtrarLocalidades(nombre, codigoPostal, idProvincia, idPais, pageable).map(MapperLocalidad::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String codigoPostalNormalizado = NormalizacionTexto.codigo(codigoPostal);
+        if (codigoPostalNormalizado != null && codigoPostalNormalizado.isEmpty()) {
+            codigoPostalNormalizado = null;
+        }
+        return localidadRepository.filtrarLocalidades(nombreNormalizado, codigoPostalNormalizado, idProvincia, idPais, pageable).map(MapperLocalidad::toDTO);
     }
 
     /**

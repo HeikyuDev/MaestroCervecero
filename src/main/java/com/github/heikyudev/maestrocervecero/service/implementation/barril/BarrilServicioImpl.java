@@ -65,7 +65,12 @@ public class BarrilServicioImpl implements IBarrilServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<BarrilResponseDTO> filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Long idFabricante, Pageable pageable) {
-        return barrilRepository.filtrarBarriles(identificador, capacidad, estadoOperativo, idFabricante, pageable).map(MapperBarril::toDTO);
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorNormalizado = NormalizacionTexto.codigo(identificador);
+        if (identificadorNormalizado != null && identificadorNormalizado.isEmpty()) {
+            identificadorNormalizado = null;
+        }
+        return barrilRepository.filtrarBarriles(identificadorNormalizado, capacidad, estadoOperativo, idFabricante, pageable).map(MapperBarril::toDTO);
     }
 
     /**

@@ -110,6 +110,36 @@ class LocalidadServicioImplTest {
         verify(localidadRepository).filtrarLocalidades("Inexistente", null, null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FL-04: filtrarLocalidades normaliza el nombre y el código postal buscados (espacios y mayúsculas) antes de consultar")
+    void filtrarLocalidades_debeNormalizarNombreYCodigoPostalBuscados() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(localidadRepository.filtrarLocalidades("Villa Carlos Paz", "B1636", null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        localidadServicio.filtrarLocalidades("   Villa   Carlos Paz  ", "  b1636  ", null, null, pageable);
+
+        // === ASSERTS ===
+        verify(localidadRepository).filtrarLocalidades("Villa Carlos Paz", "B1636", null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-05: filtrarLocalidades trata un nombre y un código postal formados solo por espacios como ausencia de filtro")
+    void filtrarLocalidades_debeTratarTextosEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(localidadRepository.filtrarLocalidades(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        localidadServicio.filtrarLocalidades("    ", "   ", null, null, pageable);
+
+        // === ASSERTS ===
+        verify(localidadRepository).filtrarLocalidades(null, null, null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

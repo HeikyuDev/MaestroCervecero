@@ -98,6 +98,36 @@ class CostoDirectoAdicionalServicioImplTest {
         verify(costoDirectoAdicionalRepository).filtrarCostosDirectosAdicionales("Inexistente", pageable);
     }
 
+    @Test
+    @DisplayName("CP-FCDA-04: filtrarCostosDirectosAdicionales normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarCostosDirectosAdicionales_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales("Alquiler de planta", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales("   Alquiler   de   planta  ", pageable);
+
+        // === ASSERTS ===
+        verify(costoDirectoAdicionalRepository).filtrarCostosDirectosAdicionales("Alquiler de planta", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FCDA-05: filtrarCostosDirectosAdicionales trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarCostosDirectosAdicionales_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales("    ", pageable);
+
+        // === ASSERTS ===
+        verify(costoDirectoAdicionalRepository).filtrarCostosDirectosAdicionales(null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

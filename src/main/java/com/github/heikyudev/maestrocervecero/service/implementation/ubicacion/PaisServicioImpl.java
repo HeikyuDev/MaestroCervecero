@@ -53,7 +53,12 @@ public class PaisServicioImpl implements IPaisServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<PaisResponseDTO> filtrarPaises(String nombre, Pageable pageable) {
-        return paisRepository.filtrarPaises(nombre, pageable).map(MapperPais::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return paisRepository.filtrarPaises(nombreNormalizado, pageable).map(MapperPais::toDTO);
     }
 
     /**

@@ -98,7 +98,7 @@ class OllaHervorServicioImplTest {
     void filtrarOllasHervor_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(ollaHervorRepository.filtrarOllasHervor("Inexistente", null, pageable))
+        when(ollaHervorRepository.filtrarOllasHervor("INEXISTENTE", null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
@@ -106,7 +106,37 @@ class OllaHervorServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(ollaHervorRepository).filtrarOllasHervor("Inexistente", null, pageable);
+        verify(ollaHervorRepository).filtrarOllasHervor("INEXISTENTE", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FOH-04: filtrarOllasHervor normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarOllasHervor_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ollaHervorRepository.filtrarOllasHervor("OLLA 01", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        ollaHervorServicio.filtrarOllasHervor("  olla   01  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(ollaHervorRepository).filtrarOllasHervor("OLLA 01", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FOH-05: filtrarOllasHervor trata el identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarOllasHervor_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ollaHervorRepository.filtrarOllasHervor(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        ollaHervorServicio.filtrarOllasHervor("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(ollaHervorRepository).filtrarOllasHervor(null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

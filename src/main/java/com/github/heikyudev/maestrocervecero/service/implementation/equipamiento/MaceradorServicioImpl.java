@@ -59,7 +59,12 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<MaceradorResponseDTO> filtrarMaceradores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
-        return maceradorRepository.filtrarMaceradores(identificadorInterno, estadoOperativo, pageable).map(MapperMacerador::toDTO);
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return maceradorRepository.filtrarMaceradores(identificadorInternoNormalizado, estadoOperativo, pageable).map(MapperMacerador::toDTO);
     }
 
     /**

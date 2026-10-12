@@ -77,7 +77,12 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     @Transactional(readOnly = true)
     public Page<LevaduraResponseDTO> filtrarLevaduras(String nombre, TipoLevadura tipo, Pageable pageable) {
         // Obtengo las entidades de la base de datos y devuelvo el DTO correspondiente
-        return levaduraRepository.filtrarLevaduras(nombre, tipo, pageable).map(MapperLevadura::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return levaduraRepository.filtrarLevaduras(nombreNormalizado, tipo, pageable).map(MapperLevadura::toDTO);
     }
 
     /**

@@ -7,6 +7,8 @@
 |**CP-FPr-01**|Filtra por nombre e idPais informados|`nombre: "Mis"`, `idPais: 1L`, `pageable: PageRequest.of(0, 10)`, BD con 1 provincia activa que cumple ambos criterios|`filtrarProvincias("Mis", 1L, pageable)` contiene elementos|Retorna `Page<ProvinciaResponseDTO>` con 1 elemento mapeado.|
 |**CP-FPr-02**|Los 2 parámetros nulos no restringen la búsqueda|`nombre: null`, `idPais: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 provincias activas|El service propaga los 2 parámetros nulos tal cual al repositorio|Retorna `Page<ProvinciaResponseDTO>` con las 3 provincias activas (equivalente a no filtrar).|
 |**CP-FPr-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `idPais: null`, `pageable: PageRequest.of(0, 10)`|`filtrarProvincias("Inexistente", null, pageable)` está vacío|Retorna `Page<ProvinciaResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FPr-04**|El nombre buscado se normaliza|`nombre: "   Buenos   Aires  "`, `idPais: null`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el nombre guardado: sin espacios en los extremos y con un solo espacio entre palabras|Consulta el repositorio con `nombre: "Buenos Aires"`.|
+|**CP-FPr-05**|Un nombre formado solo por espacios no filtra|`nombre: "    "`, `idPais: null`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `nombre: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

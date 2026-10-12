@@ -98,7 +98,7 @@ class FermentadorServicioImplTest {
     void filtrarFermentadores_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(fermentadorRepository.filtrarFermentadores("Inexistente", null, pageable))
+        when(fermentadorRepository.filtrarFermentadores("INEXISTENTE", null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
@@ -106,7 +106,37 @@ class FermentadorServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(fermentadorRepository).filtrarFermentadores("Inexistente", null, pageable);
+        verify(fermentadorRepository).filtrarFermentadores("INEXISTENTE", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FF-04: filtrarFermentadores normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarFermentadores_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(fermentadorRepository.filtrarFermentadores("FERM 01", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        fermentadorServicio.filtrarFermentadores("  ferm   01  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(fermentadorRepository).filtrarFermentadores("FERM 01", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FF-05: filtrarFermentadores trata el identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarFermentadores_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(fermentadorRepository.filtrarFermentadores(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        fermentadorServicio.filtrarFermentadores("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(fermentadorRepository).filtrarFermentadores(null, null, pageable);
     }
 
     // ==================== listarDadosDeBajaConLotes ====================

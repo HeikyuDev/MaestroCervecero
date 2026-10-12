@@ -100,6 +100,36 @@ class MotivoAjusteServicioImplTest {
         verify(motivoAjusteRepository).filtrarMotivosAjuste("Inexistente", null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FMA-04: filtrarMotivosAjuste normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarMotivosAjuste_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(motivoAjusteRepository.filtrarMotivosAjuste("Rotura de envase", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        motivoAjusteServicio.filtrarMotivosAjuste("   Rotura   de   envase  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(motivoAjusteRepository).filtrarMotivosAjuste("Rotura de envase", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMA-05: filtrarMotivosAjuste trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarMotivosAjuste_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(motivoAjusteRepository.filtrarMotivosAjuste(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        motivoAjusteServicio.filtrarMotivosAjuste("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(motivoAjusteRepository).filtrarMotivosAjuste(null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

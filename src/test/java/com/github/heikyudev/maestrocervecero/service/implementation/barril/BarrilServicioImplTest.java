@@ -116,7 +116,7 @@ class BarrilServicioImplTest {
     void filtrarBarriles_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(barrilRepository.filtrarBarriles("Inexistente", null, null, null, pageable))
+        when(barrilRepository.filtrarBarriles("INEXISTENTE", null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
@@ -124,7 +124,37 @@ class BarrilServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(barrilRepository).filtrarBarriles("Inexistente", null, null, null, pageable);
+        verify(barrilRepository).filtrarBarriles("INEXISTENTE", null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FB-05: filtrarBarriles normaliza el identificador buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarBarriles_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(barrilRepository.filtrarBarriles("KEG 01", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        barrilServicio.filtrarBarriles("  keg   01  ", null, null, null, pageable);
+
+        // === ASSERTS ===
+        verify(barrilRepository).filtrarBarriles("KEG 01", null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FB-06: filtrarBarriles trata el identificador formado solo por espacios como ausencia de filtro")
+    void filtrarBarriles_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(barrilRepository.filtrarBarriles(null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        barrilServicio.filtrarBarriles("    ", null, null, null, pageable);
+
+        // === ASSERTS ===
+        verify(barrilRepository).filtrarBarriles(null, null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

@@ -57,7 +57,12 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<ProvinciaResponseDTO> filtrarProvincias(String nombre, Long idPais, Pageable pageable) {
-        return provinciaRepository.filtrarProvincias(nombre, idPais, pageable).map(MapperProvincia::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return provinciaRepository.filtrarProvincias(nombreNormalizado, idPais, pageable).map(MapperProvincia::toDTO);
     }
 
     /**

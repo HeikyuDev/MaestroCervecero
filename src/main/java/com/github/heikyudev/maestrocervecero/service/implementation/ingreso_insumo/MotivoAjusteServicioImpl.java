@@ -54,7 +54,12 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<MotivoAjusteResponseDTO> filtrarMotivosAjuste(String nombre, TipoAjuste tipoAjuste, Pageable pageable) {
-        return motivoAjusteRepository.filtrarMotivosAjuste(nombre, tipoAjuste, pageable).map(MapperMotivoAjuste::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return motivoAjusteRepository.filtrarMotivosAjuste(nombreNormalizado, tipoAjuste, pageable).map(MapperMotivoAjuste::toDTO);
     }
 
     /**

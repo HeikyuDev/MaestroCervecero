@@ -59,7 +59,12 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     @Override
     @Transactional(readOnly = true)
     public Page<PresentacionComercialResponseDTO> filtrarPresentacionesComerciales(String nombre, Double cantidad, UnidadDeMedida unidadDeMedida, Pageable pageable) {
-        return presentacionComercialRepository.filtrarPresentacionesComerciales(nombre, cantidad, unidadDeMedida, pageable)
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return presentacionComercialRepository.filtrarPresentacionesComerciales(nombreNormalizado, cantidad, unidadDeMedida, pageable)
                 .map(MapperPresentacionComercial::toDTO);
     }
 

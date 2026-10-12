@@ -95,7 +95,7 @@ class MaceradorServicioImplTest {
     void filtrarMaceradores_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(maceradorRepository.filtrarMaceradores("Inexistente", null, pageable))
+        when(maceradorRepository.filtrarMaceradores("INEXISTENTE", null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
@@ -103,7 +103,37 @@ class MaceradorServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(maceradorRepository).filtrarMaceradores("Inexistente", null, pageable);
+        verify(maceradorRepository).filtrarMaceradores("INEXISTENTE", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMa-04: filtrarMaceradores normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarMaceradores_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(maceradorRepository.filtrarMaceradores("MAC 01", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        maceradorServicio.filtrarMaceradores("  mac   01  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(maceradorRepository).filtrarMaceradores("MAC 01", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FMa-05: filtrarMaceradores trata el identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarMaceradores_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(maceradorRepository.filtrarMaceradores(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        maceradorServicio.filtrarMaceradores("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(maceradorRepository).filtrarMaceradores(null, null, pageable);
     }
 
     // ==================== buscarPorId ====================

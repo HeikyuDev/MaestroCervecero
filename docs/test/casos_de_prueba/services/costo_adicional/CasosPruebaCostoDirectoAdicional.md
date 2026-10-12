@@ -7,6 +7,8 @@
 |**CP-FCDA-01**|Filtra por nombre informado|`nombre: "Gas"`, `pageable: PageRequest.of(0, 10)`, BD con 1 costo directo adicional activo cuyo nombre contiene "Gas"|`filtrarCostosDirectosAdicionales("Gas", pageable)` contiene elementos|Retorna `Page<CostoDirectoAdicionalResponseDTO>` con 1 elemento mapeado.|
 |**CP-FCDA-02**|Nombre nulo no restringe la búsqueda|`nombre: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 costos directos adicionales activos|El service propaga `nombre: null` tal cual al repositorio|Retorna `Page<CostoDirectoAdicionalResponseDTO>` con los 3 costos activos (equivalente a no filtrar).|
 |**CP-FCDA-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `pageable: PageRequest.of(0, 10)`|`filtrarCostosDirectosAdicionales("Inexistente", pageable)` está vacío|Retorna `Page<CostoDirectoAdicionalResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FCDA-04**|El nombre buscado se normaliza|`nombre: "   Alquiler   de   planta  "`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el nombre guardado: sin espacios en los extremos y con un solo espacio entre palabras|Consulta el repositorio con `nombre: "Alquiler de planta"`.|
+|**CP-FCDA-05**|Un nombre formado solo por espacios no filtra|`nombre: "    "`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `nombre: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

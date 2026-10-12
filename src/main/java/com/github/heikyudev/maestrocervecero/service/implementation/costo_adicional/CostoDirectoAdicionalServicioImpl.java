@@ -51,7 +51,12 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
     @Override
     @Transactional(readOnly = true)
     public Page<CostoDirectoAdicionalResponseDTO> filtrarCostosDirectosAdicionales(String nombre, Pageable pageable) {
-        return costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales(nombre, pageable).map(MapperCostoDirectoAdicional::toDTO);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombre);
+        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
+            nombreNormalizado = null;
+        }
+        return costoDirectoAdicionalRepository.filtrarCostosDirectosAdicionales(nombreNormalizado, pageable).map(MapperCostoDirectoAdicional::toDTO);
     }
 
     /**

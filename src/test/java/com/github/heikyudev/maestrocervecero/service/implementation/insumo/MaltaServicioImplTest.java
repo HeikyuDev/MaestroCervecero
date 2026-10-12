@@ -115,6 +115,36 @@ class MaltaServicioImplTest {
         verify(maltaRepository).filtrarMaltas("Inexistente", null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FM-04: filtrarMaltas normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarMaltas_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(maltaRepository.filtrarMaltas("Pilsen Nacional", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        maltaServicio.filtrarMaltas("   Pilsen   Nacional  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(maltaRepository).filtrarMaltas("Pilsen Nacional", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FM-05: filtrarMaltas trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarMaltas_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(maltaRepository.filtrarMaltas(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        maltaServicio.filtrarMaltas("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(maltaRepository).filtrarMaltas(null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

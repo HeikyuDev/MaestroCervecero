@@ -5,6 +5,8 @@
 |**CP-FL-01**|Filtra por nombre y formato informados|`nombre: "Cascade"`, `formato: PELLET`, `pageable: PageRequest.of(0, 10)`, BD con 2 lúpulos activos que cumplen ambos criterios|`filtrarLupulos("Cascade", PELLET, pageable)` contiene elementos|Retorna `Page<LupuloResponseDTO>` con 2 elementos mapeados.|
 |**CP-FL-02**|Nombre y formato nulos no restringen la búsqueda|`nombre: null`, `formato: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<LupuloResponseDTO>` con todos los lúpulos activos (equivalente a no filtrar).|
 |**CP-FL-03**|Consulta sin coincidencias|`nombre: "Inexistente"`, `formato: null`, `pageable: PageRequest.of(0, 10)`|`filtrarLupulos("Inexistente", null, pageable)` está vacío|Retorna `Page<LupuloResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FL-04**|El nombre buscado se normaliza|`nombre: "   Cascade   Americano  "`, `formato: null`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el nombre guardado: sin espacios en los extremos y con un solo espacio entre palabras|Consulta el repositorio con `nombre: "Cascade Americano"`.|
+|**CP-FL-05**|Un nombre formado solo por espacios no filtra|`nombre: "    "`, `formato: null`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `nombre: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

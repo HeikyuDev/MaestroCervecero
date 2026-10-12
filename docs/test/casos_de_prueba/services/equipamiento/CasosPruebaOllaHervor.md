@@ -4,7 +4,9 @@
 |---|---|---|---|---|
 |**CP-FOH-01**|Filtra por identificador interno y estado operativo informados|`identificadorInterno: "OLLA"`, `estadoOperativo: DISPONIBLE`, `pageable: PageRequest.of(0, 10)`, BD con 2 ollas activas que cumplen ambos criterios|`filtrarOllasHervor("OLLA", DISPONIBLE, pageable)` contiene elementos|Retorna `Page<OllaHervorResponseDTO>` con 2 elementos mapeados.|
 |**CP-FOH-02**|Identificador interno y estado operativo nulos no restringen la búsqueda|`identificadorInterno: null`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El service propaga ambos parámetros nulos tal cual al repositorio|Retorna `Page<OllaHervorResponseDTO>` con todas las ollas de hervor activas (equivalente a no filtrar).|
-|**CP-FOH-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarOllasHervor("Inexistente", null, pageable)` está vacío|Retorna `Page<OllaHervorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FOH-03**|Consulta sin coincidencias|`identificadorInterno: "Inexistente"`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|`filtrarOllasHervor("INEXISTENTE", null, pageable)` está vacío|Retorna `Page<OllaHervorResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FOH-04**|El identificador buscado se normaliza|`identificadorInterno: "  olla   01  "`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|El texto buscado recibe el mismo tratamiento que el identificador guardado: sin espacios en los extremos ni repetidos, y en mayúsculas|Consulta el repositorio con `identificadorInterno: "OLLA 01"`.|
+|**CP-FOH-05**|Un identificador formado solo por espacios no filtra|`identificadorInterno: "    "`, `estadoOperativo: null`, `pageable: PageRequest.of(0, 10)`|Tras normalizar queda vacío y se interpreta como ausencia de filtro|Consulta el repositorio con `identificadorInterno: null`.|
 
 ### 2. `buscarPorId(Long id)`
 

@@ -115,6 +115,36 @@ class LevaduraServicioImplTest {
         verify(levaduraRepository).filtrarLevaduras("Inexistente", null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FLv-04: filtrarLevaduras normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarLevaduras_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(levaduraRepository.filtrarLevaduras("Safale US-05", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        levaduraServicio.filtrarLevaduras("   Safale   US-05  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(levaduraRepository).filtrarLevaduras("Safale US-05", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FLv-05: filtrarLevaduras trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarLevaduras_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(levaduraRepository.filtrarLevaduras(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        levaduraServicio.filtrarLevaduras("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(levaduraRepository).filtrarLevaduras(null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test

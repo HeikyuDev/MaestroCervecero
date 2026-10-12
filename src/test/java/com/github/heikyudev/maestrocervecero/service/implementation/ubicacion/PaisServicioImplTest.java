@@ -98,6 +98,36 @@ class PaisServicioImplTest {
         verify(paisRepository).filtrarPaises("Inexistente", pageable);
     }
 
+    @Test
+    @DisplayName("CP-FP-04: filtrarPaises normaliza el nombre buscado (espacios extremos e internos) antes de consultar")
+    void filtrarPaises_debeNormalizarElNombreBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(paisRepository.filtrarPaises("Estados Unidos", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        paisServicio.filtrarPaises("   Estados   Unidos  ", pageable);
+
+        // === ASSERTS ===
+        verify(paisRepository).filtrarPaises("Estados Unidos", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FP-05: filtrarPaises trata un nombre formado solo por espacios como ausencia de filtro")
+    void filtrarPaises_debeTratarNombreEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(paisRepository.filtrarPaises(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        paisServicio.filtrarPaises("    ", pageable);
+
+        // === ASSERTS ===
+        verify(paisRepository).filtrarPaises(null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
