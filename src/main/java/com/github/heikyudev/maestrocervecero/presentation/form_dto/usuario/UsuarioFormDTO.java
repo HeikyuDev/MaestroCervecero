@@ -52,9 +52,8 @@ public class UsuarioFormDTO {
     private String correo;
 
     /**
-     * Teléfono del usuario.
+     * Teléfono del usuario. Es opcional: si se informa, el service exige solo dígitos.
      */
-    @NotBlank(message = "El teléfono es obligatorio")
     private String telefono;
 
     /**

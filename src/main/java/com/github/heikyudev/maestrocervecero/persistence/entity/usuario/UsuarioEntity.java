@@ -27,7 +27,8 @@ public class UsuarioEntity extends AuditableEntity<String>{
     private Long id;
 
     // === Credenciales ===
-    @Column(unique = true, nullable = false)
+    // Único entre los usuarios activos: lo garantiza el índice parcial udx_usuarios_username (ver V5)
+    @Column(nullable = false)
     private String username;
 
     // Hash BCrypt (nunca la contraseña en texto plano), generado por el PasswordEncoder
@@ -77,6 +78,6 @@ public class UsuarioEntity extends AuditableEntity<String>{
     private String apellido;
     @Column(nullable = false)
     private String correo;
-    @Column(nullable = false)
+    // Opcional: solo dígitos, sin unicidad
     private String telefono;
 }

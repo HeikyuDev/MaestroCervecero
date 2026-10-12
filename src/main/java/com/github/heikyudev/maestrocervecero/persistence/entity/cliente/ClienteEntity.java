@@ -24,7 +24,7 @@ public class ClienteEntity extends AuditableEntity<String> {
     @Column(nullable = false)
     private String nombre;
 
-    @Column(nullable = false)
+    // Opcional: solo dígitos, sin unicidad
     private String telefono;
 
     @Column(nullable = false)

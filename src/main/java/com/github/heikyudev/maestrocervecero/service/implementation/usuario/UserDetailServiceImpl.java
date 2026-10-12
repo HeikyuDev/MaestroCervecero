@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.UsuarioEntity;
 import com.github.heikyudev.maestrocervecero.persistence.repository.usuario.IUsuarioRepository;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -35,7 +36,9 @@ public class UserDetailServiceImpl implements UserDetailsService{
         // DaoAuthenticationProvider tiene hideUserNotFoundExceptions=true por defecto, así que
         // la reemplaza por un BadCredentialsException genérico. Esto evita que alguien pueda
         // usar el formulario de login para "adivinar" qué usernames existen en el sistema.
-        UsuarioEntity unUsuario = usuarioRepository.findUserEntityByUsername(username)
+        // El nombre de usuario se guarda normalizado (en minúsculas), por eso el ingresado se normaliza igual:
+        // "Admin " y "admin" inician sesión con la misma cuenta.
+        UsuarioEntity unUsuario = usuarioRepository.findUserEntityByUsername(NormalizacionTexto.username(username))
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
 
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();

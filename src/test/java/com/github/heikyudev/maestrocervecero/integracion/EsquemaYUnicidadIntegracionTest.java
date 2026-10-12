@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
 
-    private static final String INDICE_USERNAME = "uk_usuarios_username";
+    private static final String INDICE_USERNAME = "udx_usuarios_username";
 
     @Autowired
     private Flyway flyway;
@@ -89,9 +89,9 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
         GuardadoUnico.guardar(usuarioRepository, usuario("duplicado"), excepcionesDeUsuario());
 
         // Act & Assert
-        assertThatThrownBy(() -> GuardadoUnico.guardar(usuarioRepository, usuario("duplicado"), excepcionesDeUsuario()))
+        assertThatThrownBy(() -> GuardadoUnico.guardar(usuarioRepository, usuario("duplicado", "otro@mail.com"), excepcionesDeUsuario()))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'duplicado' ya está en uso");
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'duplicado'");
         assertThat(jdbcTemplate.queryForObject("select count(*) from usuarios where username = 'duplicado'", Integer.class)).isEqualTo(1);
     }
 
@@ -102,7 +102,7 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
         GuardadoUnico.guardar(usuarioRepository, usuario("generico"), Map.of());
 
         // Act & Assert
-        assertThatThrownBy(() -> GuardadoUnico.guardar(usuarioRepository, usuario("generico"), Map.of()))
+        assertThatThrownBy(() -> GuardadoUnico.guardar(usuarioRepository, usuario("generico", "otro@mail.com"), Map.of()))
                 .isInstanceOf(RecursoDuplicadoException.class)
                 .hasMessage("Ya existe un registro con los mismos datos");
     }
@@ -127,7 +127,7 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
 
         // Act
         DataIntegrityViolationException error = assertThrows(
-                DataIntegrityViolationException.class, () -> usuarioRepository.saveAndFlush(usuario("hallazgo")));
+                DataIntegrityViolationException.class, () -> usuarioRepository.saveAndFlush(usuario("hallazgo", "otro@mail.com")));
 
         // Assert
         ConstraintViolationException hibernate = causa(error, ConstraintViolationException.class);
@@ -161,7 +161,7 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
     }
 
     private static Map<String, Supplier<? extends RuntimeException>> excepcionesDeUsuario() {
-        return Map.of(INDICE_USERNAME, () -> new RecursoDuplicadoException("El nombre de usuario 'duplicado' ya está en uso"));
+        return Map.of(INDICE_USERNAME, () -> new RecursoDuplicadoException("Ya existe un usuario con el nombre de usuario 'duplicado'"));
     }
 
     private static <T extends Throwable> T causa(Throwable error, Class<T> tipo) {
@@ -174,9 +174,13 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
     }
 
     private static UsuarioEntity usuario(String username) {
+        return usuario(username, username + "@mail.com");
+    }
+
+    private static UsuarioEntity usuario(String username, String correo) {
         return UsuarioEntity.builder()
                 .username(username).password("clave").nombre("Nombre").apellido("Apellido")
-                .correo(username + "@mail.com").telefono("1122334455")
+                .correo(correo).telefono("1122334455")
                 .rol(Rol.OPERARIO_DE_PRODUCCION).estado(Estado.ACTIVO).build();
     }
 }

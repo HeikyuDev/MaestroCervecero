@@ -239,13 +239,13 @@ class UsuarioControllerTest {
     @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-UC-11: username duplicado vuelve al formulario con el error asociado al campo, conservando lo tipeado")
     void alta_debeMostrarErrorEnElCampoCuandoElUsernameEstaDuplicado() throws Exception {
-        doThrow(new RecursoDuplicadoException("El nombre de usuario 'carlos' ya está en uso")).when(usuarioServicio).altaUsuario(any());
+        doThrow(new RecursoDuplicadoException("Ya existe un usuario con el nombre de usuario 'carlos'")).when(usuarioServicio).altaUsuario(any());
 
         mockMvc.perform(post("/usuarios").with(csrf()).params(paramsValidos("carlos")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("usuario/usuario-form"))
                 .andExpect(model().attributeHasFieldErrors("usuarioForm", "username"))
-                .andExpect(content().string(containsString("El nombre de usuario &#39;carlos&#39; ya está en uso")))
+                .andExpect(content().string(containsString("Ya existe un usuario con el nombre de usuario &#39;carlos&#39;")))
                 .andExpect(content().string(containsString("Gomez")));
     }
 
@@ -374,13 +374,13 @@ class UsuarioControllerTest {
     @DisplayName("CP-UC-20: modificar con un username ya usado por otra cuenta vuelve al formulario con el error en el campo")
     void modificar_debeMostrarErrorCuandoElUsernameEstaEnUso() throws Exception {
         when(usuarioServicio.buscarPorId(7L)).thenReturn(usuario(7L, "carlos", Rol.GERENTE_DE_COMPRAS));
-        doThrow(new RecursoDuplicadoException("El nombre de usuario 'pedro' ya está en uso")).when(usuarioServicio).modificarUsuario(eq(7L), any());
+        doThrow(new RecursoDuplicadoException("El nombre de usuario 'pedro' ya está en uso por otro usuario")).when(usuarioServicio).modificarUsuario(eq(7L), any());
 
         mockMvc.perform(post("/usuarios/7").with(csrf()).params(paramsValidos("pedro")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("usuario/usuario-form"))
                 .andExpect(model().attributeHasFieldErrors("usuarioForm", "username"))
-                .andExpect(content().string(containsString("El nombre de usuario &#39;pedro&#39; ya está en uso")));
+                .andExpect(content().string(containsString("El nombre de usuario &#39;pedro&#39; ya está en uso por otro usuario")));
     }
 
     @Test
@@ -593,6 +593,60 @@ class UsuarioControllerTest {
                 .andExpect(redirectedUrl("/usuarios"))
                 .andExpect(flash().attribute("mensaje", "No se puede dar de baja el usuario porque es el único administrador activo"))
                 .andExpect(flash().attribute("tipo", "warning"));
+    }
+
+    // ==================== correo, teléfono y ayudas del formulario ====================
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-35: correo electrónico duplicado en el alta vuelve al formulario con el error asociado al campo correo")
+    void alta_debeMostrarErrorEnElCampoCorreoCuandoElCorreoEstaDuplicado() throws Exception {
+        doThrow(new RecursoDuplicadoException("Ya existe un usuario con el correo electrónico 'carlos@mail.com'")).when(usuarioServicio).altaUsuario(any());
+
+        mockMvc.perform(post("/usuarios").with(csrf()).params(paramsValidos("carlos")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("usuario/usuario-form"))
+                .andExpect(model().attributeHasFieldErrors("usuarioForm", "correo"))
+                .andExpect(content().string(containsString("Ya existe un usuario con el correo electrónico &#39;carlos@mail.com&#39;")));
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-36: correo electrónico en uso por otra cuenta al modificar vuelve al formulario con el error asociado al campo correo")
+    void modificar_debeMostrarErrorEnElCampoCorreoCuandoElCorreoEstaEnUso() throws Exception {
+        when(usuarioServicio.buscarPorId(7L)).thenReturn(usuario(7L, "carlos", Rol.GERENTE_DE_COMPRAS));
+        doThrow(new RecursoDuplicadoException("El correo electrónico 'carlos@mail.com' ya está en uso por otro usuario")).when(usuarioServicio).modificarUsuario(eq(7L), any());
+
+        mockMvc.perform(post("/usuarios/7").with(csrf()).params(paramsValidos("carlos")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("usuario/usuario-form"))
+                .andExpect(model().attributeHasFieldErrors("usuarioForm", "correo"))
+                .andExpect(content().string(containsString("El correo electrónico &#39;carlos@mail.com&#39; ya está en uso por otro usuario")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-37: el teléfono es opcional: un alta sin teléfono es válida y llega al service")
+    void alta_debeAceptarUnAltaSinTelefono() throws Exception {
+        org.springframework.util.LinkedMultiValueMap<String, String> params = paramsValidos("carlos");
+        params.set("telefono", "");
+
+        mockMvc.perform(post("/usuarios").with(csrf()).params(params))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/usuarios"));
+
+        verify(usuarioServicio).altaUsuario(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-38: el formulario muestra las ayudas del nombre de usuario, el teléfono y el correo electrónico")
+    void formulario_debeMostrarLasAyudasDeLosCampos() throws Exception {
+        mockMvc.perform(get("/usuarios/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo")))
+                .andExpect(content().string(containsString("Solo dígitos")))
+                .andExpect(content().string(containsString("Se guarda en minúsculas y no puede repetirse en otro usuario")));
     }
 
     // ==================== helpers ====================

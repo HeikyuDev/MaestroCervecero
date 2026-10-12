@@ -42,7 +42,7 @@ public interface IClienteServicio {
      *
      * @param clienteFormDTO Los datos del cliente a registrar.
      * @return El cliente registrado.
-     * @throws RecursoDuplicadoException Si ya existe un cliente activo con el mismo correo electrónico o teléfono.
+     * @throws RecursoDuplicadoException Si ya existe un cliente activo con el mismo correo electrónico.
      * @throws RecursoNoEncontradoException Si la localidad referenciada no existe.
      */
     ClienteResponseDTO altaCliente(ClienteFormDTO clienteFormDTO);
@@ -54,7 +54,7 @@ public interface IClienteServicio {
      * @param clienteFormDTO Los nuevos datos del cliente.
      * @return El cliente modificado.
      * @throws RecursoNoEncontradoException Si no existe un cliente activo con el ID especificado, o si la localidad referenciada no existe.
-     * @throws RecursoDuplicadoException Si el nuevo correo electrónico o teléfono ya pertenece a otro cliente activo.
+     * @throws RecursoDuplicadoException Si el nuevo correo electrónico ya pertenece a otro cliente activo.
      */
     ClienteResponseDTO modificarCliente(Long id, ClienteFormDTO clienteFormDTO);
 

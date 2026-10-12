@@ -94,30 +94,6 @@ public interface IClienteRepository extends JpaRepository<ClienteEntity, Long> {
     boolean existsByEmailIgnoreCaseAndIdNot(@Param("email") String email, @Param("id") Long id);
 
     /**
-     * Verifica si existe un cliente activo con el teléfono dado.
-     *
-     * @param telefono El teléfono a buscar.
-     * @return {@code true} si ya existe un cliente activo con ese teléfono, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE c.telefono = :telefono AND c.estado = 'ACTIVO'")
-    boolean existsByTelefono(@Param("telefono") String telefono);
-
-    /**
-     * Verifica si existe un cliente activo con el teléfono dado, excluyendo de la búsqueda al
-     * cliente con el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar el propio teléfono actual sin que la
-     * validación de unicidad falle contra el mismo registro.
-     * </p>
-     *
-     * @param telefono El teléfono a buscar.
-     * @param id El ID del cliente a excluir de la verificación.
-     * @return {@code true} si otro cliente activo ya posee ese teléfono, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM ClienteEntity c WHERE c.telefono = :telefono AND c.id <> :id AND c.estado = 'ACTIVO'")
-    boolean existsByTelefonoAndIdNot(@Param("telefono") String telefono, @Param("id") Long id);
-
-    /**
      * Verifica si existe algún cliente activo asociado a la localidad indicada.
      * <p>
      * Se utiliza para impedir la baja de una localidad que todavía tiene clientes activos

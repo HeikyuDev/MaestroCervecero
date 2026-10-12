@@ -26,6 +26,9 @@ public final class LimitesTecnicos {
     /** Cantidad máxima de dígitos de un número de teléfono (el máximo del plan internacional E.164). */
     public static final int LONGITUD_MAXIMA_TELEFONO = 15;
 
+    /** Longitud máxima, en caracteres, de una dirección (el máximo de la columna de la base de datos). */
+    public static final int LONGITUD_MAXIMA_DIRECCION = 255;
+
     /** Longitud máxima, en caracteres, de un código postal. */
     public static final int LONGITUD_MAXIMA_CODIGO_POSTAL = 10;
 

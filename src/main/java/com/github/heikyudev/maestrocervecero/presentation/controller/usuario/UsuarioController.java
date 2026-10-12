@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.usuario.IUsuario
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -118,7 +119,7 @@ public class UsuarioController {
                 agregarMensaje(redirectAttributes, "Usuario creado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:/usuarios";
             } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("username", "duplicado", e.getMessage());
+                bindingResult.rejectValue(campoDuplicado(e), "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -174,7 +175,7 @@ public class UsuarioController {
             try {
                 usuarioServicio.modificarUsuario(id, usuarioForm);
 
-                if (cuentaPropia && !actual.getUsername().equalsIgnoreCase(usuarioForm.getUsername())) {
+                if (cuentaPropia && !actual.getUsername().equalsIgnoreCase(NormalizacionTexto.username(usuarioForm.getUsername()))) {
                     new SecurityContextLogoutHandler().logout(request, response, authentication);
                     agregarMensaje(redirectAttributes, "Cambió su nombre de usuario: inicie sesión nuevamente", TipoAlerta.INFO);
                     return "redirect:/login";
@@ -183,7 +184,7 @@ public class UsuarioController {
                 agregarMensaje(redirectAttributes, "Usuario modificado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:/usuarios";
             } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("username", "duplicado", e.getMessage());
+                bindingResult.rejectValue(campoDuplicado(e), "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -214,6 +215,14 @@ public class UsuarioController {
         model.addAttribute("usuarioId", usuarioId);
         model.addAttribute("esCuentaPropia", cuentaPropia);
         model.addAttribute("reglasPassword", MetodosPassword.MENSAJE_INVALIDA);
+    }
+
+    /**
+     * Campo del formulario al que corresponde un duplicado: el correo electrónico o, en cualquier otro caso, el
+     * nombre de usuario (los dos únicos datos con unicidad).
+     */
+    private static String campoDuplicado(RecursoDuplicadoException e) {
+        return e.getMessage().contains("correo electrónico") ? "correo" : "username";
     }
 
     private static boolean esCuentaPropia(UsuarioResponseDTO usuario, Authentication authentication) {

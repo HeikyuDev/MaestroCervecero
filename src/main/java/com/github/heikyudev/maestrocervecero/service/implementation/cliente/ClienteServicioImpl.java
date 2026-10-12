@@ -16,15 +16,27 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.cliente.IClienteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.cliente.ClienteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.cliente.MapperCliente;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class ClienteServicioImpl implements IClienteServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que no haya dos clientes activos con el mismo correo electrónico.
+     */
+    private static final String INDICE_EMAIL = "udx_cliente_email";
 
     private final IClienteRepository clienteRepository;
     private final ILocalidadRepository localidadRepository;
@@ -46,7 +58,12 @@ public class ClienteServicioImpl implements IClienteServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<ClienteResponseDTO> filtrarClientes(String nombre, String direccion, Long idLocalidad, Pageable pageable) {
-        return clienteRepository.filtrarClientes(nombre, direccion, idLocalidad, pageable).map(MapperCliente::toDTO);
+        // Los textos buscados se normalizan igual que los guardados: sin espacios de más
+        return clienteRepository.filtrarClientes(
+                        vacioANulo(NormalizacionTexto.nombrePropio(nombre)),
+                        vacioANulo(NormalizacionTexto.nombrePropio(direccion)),
+                        idLocalidad, pageable)
+                .map(MapperCliente::toDTO);
     }
 
     /**
@@ -65,83 +82,107 @@ public class ClienteServicioImpl implements IClienteServicio {
 
     /**
      * Registra un nuevo cliente en el sistema.
+     * <p>
+     * Normaliza los datos de texto (el correo electrónico se guarda en minúsculas), valida que sean correctos y
+     * que el correo electrónico no esté registrado en otro cliente activo (sin distinguir mayúsculas). El
+     * teléfono es opcional y no tiene unicidad.
+     * </p>
      *
      * @param clienteFormDTO Los datos del cliente a registrar.
      * @return El cliente registrado.
-     * @throws RecursoDuplicadoException Si ya existe un cliente activo con el mismo correo electrónico, o si ya existe un cliente activo con el mismo teléfono.
+     * @throws ReglaNegocioException Si el nombre, la dirección o el correo electrónico faltan o superan su longitud máxima, o si el teléfono informado no tiene solo dígitos o supera los 15.
+     * @throws RecursoDuplicadoException Si ya existe un cliente activo con el mismo correo electrónico.
      * @throws RecursoNoEncontradoException Si la localidad referenciada no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.CLIENTE)
     public ClienteResponseDTO altaCliente(ClienteFormDTO clienteFormDTO) {
-        // 1. Validar que no exista otro cliente con el mismo correo electrónico
-        if (clienteRepository.existsByEmailIgnoreCase(clienteFormDTO.getEmail())) {
-            throw new RecursoDuplicadoException("Ya existe un cliente registrado con el correo electrónico '" + clienteFormDTO.getEmail() + "'");
-        }
+        // 1. Normalizar los datos de texto sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(clienteFormDTO.getNombre());
+        String telefono = NormalizacionTexto.telefono(clienteFormDTO.getTelefono());
+        String email = NormalizacionTexto.correo(clienteFormDTO.getEmail());
+        String direccion = NormalizacionTexto.nombrePropio(clienteFormDTO.getDireccion());
 
-        // 2. Validar que no exista otro cliente con el mismo teléfono
-        if (clienteRepository.existsByTelefono(clienteFormDTO.getTelefono())) {
-            throw new RecursoDuplicadoException("Ya existe un cliente registrado con el teléfono '" + clienteFormDTO.getTelefono() + "'");
-        }
+        // 2. Validar que los datos de texto sean obligatorios, correctos y no superen la longitud máxima
+        validarDatosDeTexto(nombre, telefono, email, direccion);
 
-        // 3. Validar que la localidad esté registrada en el sistema
-        LocalidadEntity localidadEntity = localidadRepository.findById(clienteFormDTO.getIdLocalidad())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + clienteFormDTO.getIdLocalidad()));
-
-        // 4. Construir y persistir la entidad, y retornar el DTO de respuesta correspondiente
-        ClienteEntity clienteEntity = ClienteEntity.builder()
-                .nombre(clienteFormDTO.getNombre())
-                .telefono(clienteFormDTO.getTelefono())
-                .email(clienteFormDTO.getEmail())
-                .direccion(clienteFormDTO.getDireccion())
-                .localidad(localidadEntity)
-                .estado(Estado.ACTIVO)
-                .build();
-
-        return MapperCliente.toDTO(clienteRepository.save(clienteEntity));
-    }
-
-    /**
-     * Modifica un cliente existente en el sistema.
-     *
-     * @param id El ID del cliente a modificar.
-     * @param clienteFormDTO Los nuevos datos del cliente.
-     * @return El cliente modificado.
-     * @throws RecursoNoEncontradoException Si no existe un cliente activo con el ID especificado, o si la localidad referenciada no existe.
-     * @throws RecursoDuplicadoException Si el nuevo correo electrónico ya pertenece a otro cliente activo, o si el nuevo teléfono ya pertenece a otro cliente activo.
-     */
-    @Override
-    @Transactional
-    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.CLIENTE)
-    public ClienteResponseDTO modificarCliente(Long id, ClienteFormDTO clienteFormDTO) {
-        // 1. Localizar el cliente existente. Si no existe, se dispara RecursoNoEncontradoException
-        ClienteEntity clienteEntity = clienteRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el cliente con ID: " + id));
-
-        // 2. Validar que no exista otro cliente con el mismo correo electrónico, excluyendo el propio ID
-        if (clienteRepository.existsByEmailIgnoreCaseAndIdNot(clienteFormDTO.getEmail(), id)) {
-            throw new RecursoDuplicadoException("Ya existe otro cliente registrado con el correo electrónico '" + clienteFormDTO.getEmail() + "'");
-        }
-
-        // 3. Validar que no exista otro cliente con el mismo teléfono, excluyendo el propio ID
-        if (clienteRepository.existsByTelefonoAndIdNot(clienteFormDTO.getTelefono(), id)) {
-            throw new RecursoDuplicadoException("Ya existe otro cliente registrado con el teléfono '" + clienteFormDTO.getTelefono() + "'");
+        // 3. Validar que no exista otro cliente con el mismo correo electrónico
+        if (clienteRepository.existsByEmailIgnoreCase(email)) {
+            throw emailDuplicadoEnAlta(email);
         }
 
         // 4. Validar que la localidad esté registrada en el sistema
         LocalidadEntity localidadEntity = localidadRepository.findById(clienteFormDTO.getIdLocalidad())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + clienteFormDTO.getIdLocalidad()));
 
-        // 5. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
-        clienteEntity.setNombre(clienteFormDTO.getNombre());
-        clienteEntity.setTelefono(clienteFormDTO.getTelefono());
-        clienteEntity.setEmail(clienteFormDTO.getEmail());
-        clienteEntity.setDireccion(clienteFormDTO.getDireccion());
+        // 5. Construir la entidad que se va a almacenar en la base de datos
+        ClienteEntity clienteEntity = ClienteEntity.builder()
+                .nombre(nombre)
+                .telefono(telefono)
+                .email(email)
+                .direccion(direccion)
+                .localidad(localidadEntity)
+                .estado(Estado.ACTIVO)
+                .build();
+
+        // 6. Persistir la entidad (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y retornar el DTO de respuesta correspondiente
+        return MapperCliente.toDTO(GuardadoUnico.guardar(clienteRepository, clienteEntity,
+                Map.of(INDICE_EMAIL, () -> emailDuplicadoEnAlta(email))));
+    }
+
+    /**
+     * Modifica un cliente existente en el sistema.
+     * <p>
+     * Normaliza y valida los datos de texto antes de consultar la base de datos, y verifica que el correo
+     * electrónico no pertenezca a otro cliente activo, permitiendo conservar el propio.
+     * </p>
+     *
+     * @param id El ID del cliente a modificar.
+     * @param clienteFormDTO Los nuevos datos del cliente.
+     * @return El cliente modificado.
+     * @throws ReglaNegocioException Si el nombre, la dirección o el correo electrónico faltan o superan su longitud máxima, o si el teléfono informado no tiene solo dígitos o supera los 15.
+     * @throws RecursoNoEncontradoException Si no existe un cliente activo con el ID especificado, o si la localidad referenciada no existe.
+     * @throws RecursoDuplicadoException Si el nuevo correo electrónico ya pertenece a otro cliente activo.
+     */
+    @Override
+    @Transactional
+    @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.CLIENTE)
+    public ClienteResponseDTO modificarCliente(Long id, ClienteFormDTO clienteFormDTO) {
+        // 1. Normalizar los datos de texto sin modificar el DTO
+        String nombre = NormalizacionTexto.nombrePropio(clienteFormDTO.getNombre());
+        String telefono = NormalizacionTexto.telefono(clienteFormDTO.getTelefono());
+        String email = NormalizacionTexto.correo(clienteFormDTO.getEmail());
+        String direccion = NormalizacionTexto.nombrePropio(clienteFormDTO.getDireccion());
+
+        // 2. Validar que los datos de texto sean obligatorios, correctos y no superen la longitud máxima
+        validarDatosDeTexto(nombre, telefono, email, direccion);
+
+        // 3. Localizar el cliente existente. Si no existe, se dispara RecursoNoEncontradoException
+        ClienteEntity clienteEntity = clienteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el cliente con ID: " + id));
+
+        // 4. Validar que no exista otro cliente con el mismo correo electrónico, excluyendo el propio ID
+        if (clienteRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
+            throw emailDuplicadoEnModificacion(email);
+        }
+
+        // 5. Validar que la localidad esté registrada en el sistema
+        LocalidadEntity localidadEntity = localidadRepository.findById(clienteFormDTO.getIdLocalidad())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la localidad con ID: " + clienteFormDTO.getIdLocalidad()));
+
+        // 6. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
+        clienteEntity.setNombre(nombre);
+        clienteEntity.setTelefono(telefono);
+        clienteEntity.setEmail(email);
+        clienteEntity.setDireccion(direccion);
         clienteEntity.setLocalidad(localidadEntity);
 
-        // 6. Persistir la entidad actualizada y retornar el DTO de respuesta correspondiente
-        return MapperCliente.toDTO(clienteRepository.save(clienteEntity));
+        // 7. Persistir la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        //    y retornar el DTO de respuesta correspondiente
+        return MapperCliente.toDTO(GuardadoUnico.guardar(clienteRepository, clienteEntity,
+                Map.of(INDICE_EMAIL, () -> emailDuplicadoEnModificacion(email))));
     }
 
     /**
@@ -178,5 +219,40 @@ public class ClienteServicioImpl implements IClienteServicio {
 
         // 4. Retornar el DTO del cliente dado de baja
         return MapperCliente.toDTO(clienteEntity);
+    }
+
+    /**
+     * Valida los datos de texto ya normalizados: el nombre, el correo electrónico y la dirección (obligatorios y
+     * de longitud máxima) y el teléfono (opcional, solo dígitos y de longitud máxima).
+     *
+     * @throws ReglaNegocioException Si algún dato no cumple su regla.
+     */
+    private static void validarDatosDeTexto(String nombre, String telefono, String email, String direccion) {
+        validarObligatorioYLongitud(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre", "obligatorio");
+        validarObligatorioYLongitud(email, LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
+        ValidacionesTexto.validarTelefono(telefono);
+        validarObligatorioYLongitud(direccion, LimitesTecnicos.LONGITUD_MAXIMA_DIRECCION, "La dirección", "obligatoria");
+    }
+
+    private static void validarObligatorioYLongitud(String valor, int maximo, String etiqueta, String adjetivo) {
+        if (valor == null || valor.isEmpty()) {
+            throw new ReglaNegocioException(etiqueta + " es " + adjetivo);
+        }
+        ValidacionesNumericas.validarLongitudMaxima(valor, maximo, etiqueta);
+    }
+
+    /**
+     * Un texto de búsqueda formado solo por espacios equivale a no filtrar por ese criterio.
+     */
+    private static String vacioANulo(String valor) {
+        return (valor == null || valor.isEmpty()) ? null : valor;
+    }
+
+    private static RecursoDuplicadoException emailDuplicadoEnAlta(String email) {
+        return new RecursoDuplicadoException("Ya existe un cliente con el correo electrónico '" + email + "'");
+    }
+
+    private static RecursoDuplicadoException emailDuplicadoEnModificacion(String email) {
+        return new RecursoDuplicadoException("El correo electrónico '" + email + "' ya está en uso por otro cliente");
     }
 }

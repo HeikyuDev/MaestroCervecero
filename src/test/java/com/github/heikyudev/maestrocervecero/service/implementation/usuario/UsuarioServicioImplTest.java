@@ -10,6 +10,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.usuario.UsuarioResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -143,7 +145,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(usuarioFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'juanperez' ya está en uso");
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'juanperez'");
 
         verify(usuarioRepository).existsByUsername("juanperez");
         verify(usuarioRepository, never()).save(any());
@@ -322,7 +324,7 @@ class UsuarioServicioImplTest {
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(correoLargo))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico no puede superar 255 caracteres");
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(telefonoLargo))
-                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 15 caracteres");
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 15 dígitos");
 
         verifyNoInteractions(usuarioRepository, passwordEncoder);
     }
@@ -356,7 +358,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usuarioFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'pedro' ya está en uso");
+                .hasMessage("El nombre de usuario 'pedro' ya está en uso por otro usuario");
 
         verify(usuarioRepository).findById(1L);
         verify(usuarioRepository).existsByUsername("pedro");
@@ -423,11 +425,11 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MU-05: modificarUsuario permite conservar el propio username actual con distinta capitalización (case-insensitive)")
+    @DisplayName("CP-MU-05: modificarUsuario permite conservar el propio username actual con distinta capitalización y lo guarda en minúsculas")
     void modificarUsuario_debePermitirConservarUsernamePropioCaseInsensitive() {
         // === PREPARACION DE DATOS ===
         UsuarioEntity usuarioEntity = crearUsuarioEntity(1L, "juan", "hash-viejo", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        // Mismo username (distinto case): equalsIgnoreCase evita la validación de duplicidad
+        // Mismo username (distinto case): una vez normalizado a minúsculas coincide con el actual y se evita la validación de duplicidad
         UsuarioFormDTO usuarioFormDTO = usuarioFormDTO("JUAN", "NuevaClave123", "Juan Perez Actualizado", "juanactualizado@mail.com", "9999", Rol.GERENTE_DE_PRODUCCION);
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioEntity));
         when(passwordEncoder.encode("NuevaClave123")).thenReturn("hash-NuevaClave123");
@@ -437,7 +439,7 @@ class UsuarioServicioImplTest {
         UsuarioResponseDTO resultado = usuarioServicio.modificarUsuario(1L, usuarioFormDTO);
 
         // === ASSERTS ===
-        assertThat(resultado.getUsername()).isEqualTo("JUAN");
+        assertThat(resultado.getUsername()).isEqualTo("juan");
         assertThat(resultado.getNombre()).isEqualTo("Juan Perez Actualizado");
         verify(usuarioRepository, never()).existsByUsername(any());
         verify(usuarioRepository).save(usuarioEntity);
@@ -538,7 +540,7 @@ class UsuarioServicioImplTest {
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, correoLargo))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico no puede superar 255 caracteres");
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, telefonoLargo))
-                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 15 caracteres");
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 15 dígitos");
 
         verifyNoInteractions(usuarioRepository, passwordEncoder);
     }
@@ -617,6 +619,398 @@ class UsuarioServicioImplTest {
 
         assertThat(usuarioEntity.getEstado()).isEqualTo(Estado.BAJA);
         verify(usuarioRepository, never()).existsAdministradorActivoDistintoDe(any());
+    }
+
+    // ==================== normalización, unicidad y formato ====================
+
+    @Test
+    @DisplayName("CP-FU-04: filtrarUsuarios normaliza los textos buscados (espacios, y nombre de usuario y correo en minúsculas) antes de consultar")
+    void filtrarUsuarios_debeNormalizarLosTextosBuscados() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(usuarioRepository.filtrarUsuarios("Juan Carlos", "Pérez", "juan@mail.com", "jperez", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        usuarioServicio.filtrarUsuarios("   Juan   Carlos ", "  Pérez  ", "  JUAN@Mail.COM ", "  JPerez ", null, pageable);
+
+        // === ASSERTS ===
+        verify(usuarioRepository).filtrarUsuarios("Juan Carlos", "Pérez", "juan@mail.com", "jperez", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FU-05: filtrarUsuarios trata un texto formado solo por espacios como ausencia de filtro")
+    void filtrarUsuarios_debeTratarTextosEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(usuarioRepository.filtrarUsuarios(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        usuarioServicio.filtrarUsuarios("   ", "  ", " ", "    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(usuarioRepository).filtrarUsuarios(null, null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-AU-11: altaUsuario guarda los datos normalizados, consulta la unicidad con esos valores y no normaliza la contraseña")
+    void altaUsuario_debeGuardarLosValoresNormalizados() {
+        // === PREPARACION DE DATOS ===
+        UsuarioFormDTO formDTO = UsuarioFormDTO.builder().username("  JPerez ").password("ClaveSegura123")
+                .nombre("  Juan   Carlos ").apellido("  Pérez   Gómez ").correo("  JUAN@Mail.COM ").telefono(" 3511234567 ")
+                .rol(Rol.GERENTE_DE_COMPRAS).build();
+        when(usuarioRepository.existsByUsername("jperez")).thenReturn(false);
+        when(usuarioRepository.existsByCorreo("juan@mail.com")).thenReturn(false);
+        when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        usuarioServicio.altaUsuario(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<UsuarioEntity> captor = ArgumentCaptor.forClass(UsuarioEntity.class);
+        verify(usuarioRepository).save(captor.capture());
+        UsuarioEntity guardada = captor.getValue();
+        assertThat(guardada.getUsername()).isEqualTo("jperez");
+        assertThat(guardada.getNombre()).isEqualTo("Juan Carlos");
+        assertThat(guardada.getApellido()).isEqualTo("Pérez Gómez");
+        assertThat(guardada.getCorreo()).isEqualTo("juan@mail.com");
+        assertThat(guardada.getTelefono()).isEqualTo("3511234567");
+        assertThat(formDTO.getUsername()).isEqualTo("  JPerez ");
+        verify(usuarioRepository).existsByUsername("jperez");
+        verify(usuarioRepository).existsByCorreo("juan@mail.com");
+        verify(passwordEncoder).encode("ClaveSegura123");
+        verify(usuarioRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AU-12: altaUsuario lanza ReglaNegocioException y no consulta la BD cuando el nombre de usuario, el nombre, el apellido o el correo están vacíos")
+    void altaUsuario_debeRechazarDatosObligatoriosVacios() {
+        UsuarioFormDTO sinUsername = usuarioFormDTO("   ", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO sinNombre = usuarioFormDTO("juan", "ClaveSegura123", "   ", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO sinApellido = UsuarioFormDTO.builder().username("juan").password("ClaveSegura123").nombre("Juan")
+                .apellido("  ").correo("juan@mail.com").telefono("1111").rol(Rol.OPERARIO_DE_PRODUCCION).build();
+        UsuarioFormDTO sinCorreo = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "   ", "1111", Rol.OPERARIO_DE_PRODUCCION);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(sinUsername))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre de usuario es obligatorio");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(sinNombre))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre es obligatorio");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(sinApellido))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El apellido es obligatorio");
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(sinCorreo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico es obligatorio");
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-13: altaUsuario rechaza un nombre de usuario con espacios internos, tildes u otros caracteres no permitidos")
+    void altaUsuario_debeRechazarUsernameConCaracteresNoPermitidos() {
+        for (String username : new String[]{"juan perez", "juán", "peña", "juan@perez", "juan/perez"}) {
+            UsuarioFormDTO formDTO = usuarioFormDTO(username, "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+
+            assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                    .as("username: '%s'", username)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos, sin espacios");
+        }
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-14: altaUsuario acepta un nombre de usuario numérico (DNI) y con punto, guion o guion bajo")
+    void altaUsuario_debeAceptarUsernameNumericoYConSeparadores() {
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (String username : new String[]{"12345678", "juan.perez", "juan-perez", "juan_perez"}) {
+            usuarioServicio.altaUsuario(usuarioFormDTO(username, "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION));
+            verify(usuarioRepository).existsByUsername(username);
+        }
+    }
+
+    @Test
+    @DisplayName("CP-AU-15: altaUsuario lanza RecursoDuplicadoException cuando el nombre de usuario normalizado ya está registrado")
+    void altaUsuario_debeDetectarUsernameDuplicadoConElValorNormalizado() {
+        UsuarioFormDTO formDTO = usuarioFormDTO("  JUANPEREZ ", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.existsByUsername("juanperez")).thenReturn(true);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'juanperez'");
+
+        verify(usuarioRepository).existsByUsername("juanperez");
+        verify(usuarioRepository, never()).existsByCorreo(any());
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-16: altaUsuario lanza RecursoDuplicadoException cuando el correo electrónico normalizado ya está registrado")
+    void altaUsuario_debeRechazarCorreoDuplicado() {
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "  JUAN@Mail.com ", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.existsByUsername("juan")).thenReturn(false);
+        when(usuarioRepository.existsByCorreo("juan@mail.com")).thenReturn(true);
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un usuario con el correo electrónico 'juan@mail.com'");
+
+        verify(usuarioRepository).existsByCorreo("juan@mail.com");
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-17: altaUsuario rechaza un teléfono con caracteres que no son dígitos")
+    void altaUsuario_debeRechazarTelefonoConCaracteresNoNumericos() {
+        for (String telefono : new String[]{"351-123456", "+54351123456", "351 123456", "abc123", "(351)123456"}) {
+            UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", telefono, Rol.OPERARIO_DE_PRODUCCION);
+
+            assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                    .as("telefono: '%s'", telefono)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El teléfono solo puede contener dígitos");
+        }
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-AU-18: altaUsuario acepta un teléfono nulo o vacío y lo guarda como nulo")
+    void altaUsuario_debePermitirTelefonoVacio() {
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        for (String telefono : new String[]{null, "", "   "}) {
+            UsuarioResponseDTO resultado = usuarioServicio.altaUsuario(
+                    usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", telefono, Rol.OPERARIO_DE_PRODUCCION));
+
+            assertThat(resultado.getTelefono()).as("telefono: '%s'", telefono).isNull();
+        }
+    }
+
+    @Test
+    @DisplayName("CP-AU-19: altaUsuario no aplica unicidad al teléfono: otro usuario con el mismo teléfono no impide el alta")
+    void altaUsuario_noDebeAplicarUnicidadAlTelefono() {
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UsuarioResponseDTO primero = usuarioServicio.altaUsuario(usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", "3511234567", Rol.OPERARIO_DE_PRODUCCION));
+        UsuarioResponseDTO segundo = usuarioServicio.altaUsuario(usuarioFormDTO("maria", "ClaveSegura123", "María", "maria@mail.com", "3511234567", Rol.OPERARIO_DE_PRODUCCION));
+
+        assertThat(primero.getTelefono()).isEqualTo("3511234567");
+        assertThat(segundo.getTelefono()).isEqualTo("3511234567");
+    }
+
+    @Test
+    @DisplayName("CP-AU-20: altaUsuario traduce la violación del índice único udx_usuarios_username al mensaje de nombre de usuario duplicado")
+    void altaUsuario_debeTraducirLaViolacionDelIndiceDelUsername() {
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_usuarios_username"));
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'juan'");
+    }
+
+    @Test
+    @DisplayName("CP-AU-21: altaUsuario traduce la violación del índice único udx_usuarios_correo al mensaje de correo electrónico duplicado")
+    void altaUsuario_debeTraducirLaViolacionDelIndiceDelCorreo() {
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_usuarios_correo"));
+
+        assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un usuario con el correo electrónico 'juan@mail.com'");
+    }
+
+    @Test
+    @DisplayName("CP-AU-22: altaUsuario permite reutilizar el nombre de usuario y el correo electrónico de un usuario dado de baja")
+    void altaUsuario_debePermitirReutilizarLosValoresDeUnUsuarioDadoDeBaja() {
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        // El único usuario con esos valores está dado de baja: las consultas solo consideran usuarios activos
+        when(usuarioRepository.existsByUsername("juan")).thenReturn(false);
+        when(usuarioRepository.existsByCorreo("juan@mail.com")).thenReturn(false);
+        when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> usuarioServicio.altaUsuario(formDTO)).doesNotThrowAnyException();
+
+        verify(usuarioRepository).save(any(UsuarioEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-MU-11: modificarUsuario guarda los datos normalizados y consulta la unicidad con esos valores")
+    void modificarUsuario_debeGuardarLosValoresNormalizados() {
+        // === PREPARACION DE DATOS ===
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = UsuarioFormDTO.builder().username("  NuevoUser ").nombre("  Juan   Carlos ").apellido("  Pérez   Gómez ")
+                .correo("  NUEVO@Mail.COM ").telefono(" 3511234567 ").rol(Rol.GERENTE_DE_COMPRAS).build();
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.existsByUsername("nuevouser")).thenReturn(false);
+        when(usuarioRepository.existsByCorreoAndIdNot("nuevo@mail.com", 1L)).thenReturn(false);
+        when(usuarioRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        usuarioServicio.modificarUsuario(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getUsername()).isEqualTo("nuevouser");
+        assertThat(existente.getNombre()).isEqualTo("Juan Carlos");
+        assertThat(existente.getApellido()).isEqualTo("Pérez Gómez");
+        assertThat(existente.getCorreo()).isEqualTo("nuevo@mail.com");
+        assertThat(existente.getTelefono()).isEqualTo("3511234567");
+        assertThat(formDTO.getUsername()).isEqualTo("  NuevoUser ");
+        verify(usuarioRepository).existsByUsername("nuevouser");
+        verify(usuarioRepository).existsByCorreoAndIdNot("nuevo@mail.com", 1L);
+        verify(usuarioRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MU-12: modificarUsuario lanza ReglaNegocioException y no consulta la BD cuando los datos obligatorios están vacíos o el nombre de usuario tiene caracteres no permitidos")
+    void modificarUsuario_debeRechazarDatosObligatoriosVaciosOUsernameInvalido() {
+        UsuarioFormDTO sinUsername = usuarioFormDTO("   ", null, "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO usernameInvalido = usuarioFormDTO("juan perez", null, "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO sinNombre = usuarioFormDTO("juan", null, "   ", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO sinCorreo = usuarioFormDTO("juan", null, "Juan", "   ", "1111", Rol.OPERARIO_DE_PRODUCCION);
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, sinUsername))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre de usuario es obligatorio");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usernameInvalido))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos, sin espacios");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, sinNombre))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre es obligatorio");
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, sinCorreo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico es obligatorio");
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-13: modificarUsuario lanza RecursoDuplicadoException cuando el nombre de usuario normalizado está en uso por otra cuenta")
+    void modificarUsuario_debeDetectarUsernameDuplicadoConElValorNormalizado() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("  PEDRO ", null, "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.existsByUsername("pedro")).thenReturn(true);
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre de usuario 'pedro' ya está en uso por otro usuario");
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MU-14: modificarUsuario lanza RecursoDuplicadoException cuando el correo electrónico normalizado está en uso por otra cuenta")
+    void modificarUsuario_debeRechazarCorreoEnUsoPorOtraCuenta() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "  OTRO@Mail.com ", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.existsByCorreoAndIdNot("otro@mail.com", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro usuario");
+
+        verify(usuarioRepository, never()).save(any());
+        assertThat(existente.getCorreo()).isEqualTo("juan@mail.com");
+    }
+
+    @Test
+    @DisplayName("CP-MU-15: modificarUsuario permite conservar el propio correo electrónico con distinta capitalización")
+    void modificarUsuario_debePermitirConservarElCorreoPropio() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "JUAN@Mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // La consulta excluye el propio ID: no encuentra otro usuario con ese correo
+        when(usuarioRepository.existsByCorreoAndIdNot("juan@mail.com", 1L)).thenReturn(false);
+        when(usuarioRepository.save(existente)).thenReturn(existente);
+
+        usuarioServicio.modificarUsuario(1L, formDTO);
+
+        assertThat(existente.getCorreo()).isEqualTo("juan@mail.com");
+        verify(usuarioRepository).existsByCorreoAndIdNot("juan@mail.com", 1L);
+        verify(usuarioRepository).save(existente);
+    }
+
+    @Test
+    @DisplayName("CP-MU-16: modificarUsuario rechaza un teléfono con caracteres que no son dígitos y no consulta la BD")
+    void modificarUsuario_debeRechazarTelefonoConCaracteresNoNumericos() {
+        for (String telefono : new String[]{"351-123456", "+54351123456", "abc123"}) {
+            UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan", "juan@mail.com", telefono, Rol.OPERARIO_DE_PRODUCCION);
+
+            assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
+                    .as("telefono: '%s'", telefono)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El teléfono solo puede contener dígitos");
+        }
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-17: modificarUsuario acepta un teléfono vacío y lo guarda como nulo, y no aplica unicidad al teléfono")
+    void modificarUsuario_debePermitirTelefonoVacio() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "juan@mail.com", "   ", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.save(existente)).thenReturn(existente);
+
+        usuarioServicio.modificarUsuario(1L, formDTO);
+
+        assertThat(existente.getTelefono()).isNull();
+        verify(usuarioRepository).save(existente);
+    }
+
+    @Test
+    @DisplayName("CP-MU-18: modificarUsuario traduce la violación del índice único udx_usuarios_username al mensaje de nombre de usuario en uso")
+    void modificarUsuario_debeTraducirLaViolacionDelIndiceDelUsername() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("pedro", null, "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_usuarios_username"));
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre de usuario 'pedro' ya está en uso por otro usuario");
+    }
+
+    @Test
+    @DisplayName("CP-MU-19: modificarUsuario traduce la violación del índice único udx_usuarios_correo al mensaje de correo electrónico en uso")
+    void modificarUsuario_debeTraducirLaViolacionDelIndiceDelCorreo() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "otro@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(usuarioRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_usuarios_correo"));
+
+        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro usuario");
+    }
+
+    @Test
+    @DisplayName("CP-MU-20: modificarUsuario permite reutilizar el nombre de usuario y el correo electrónico de un usuario dado de baja")
+    void modificarUsuario_debePermitirReutilizarLosValoresDeUnUsuarioDadoDeBaja() {
+        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO formDTO = usuarioFormDTO("pedro", null, "Juan Perez", "pedro@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro usuario con esos valores está dado de baja: las consultas solo consideran usuarios activos
+        when(usuarioRepository.existsByUsername("pedro")).thenReturn(false);
+        when(usuarioRepository.existsByCorreoAndIdNot("pedro@mail.com", 1L)).thenReturn(false);
+        when(usuarioRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> usuarioServicio.modificarUsuario(1L, formDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getUsername()).isEqualTo("pedro");
+        assertThat(existente.getCorreo()).isEqualTo("pedro@mail.com");
     }
 
     // ==================== helpers ====================

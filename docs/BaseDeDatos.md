@@ -39,11 +39,11 @@ spring.flyway.baseline-on-migrate=false
 | Tipo | Patrón | Ejemplo |
 |---|---|---|
 | Clave primaria | `pk_<tabla>` | `pk_barril` |
-| Clave única | `uk_<tabla>_<columnas>` | `uk_usuarios_username` |
+| Clave única | `uk_<tabla>_<columnas>` | `uk_lote_identificador_interno` |
 | Restricción de dominio (enumeración) | `ck_<tabla>_<columna>` | `ck_barril_estado` |
 | Clave foránea | `fk_<tabla>_<columna>` | `fk_barril_fabricante_id` |
 | Índice | `idx_<tabla>_<columnas>` | `idx_lote_estado` |
-| Índice único de negocio | `udx_<tabla>_<campo>` | `udx_cliente_nombre` |
+| Índice único de negocio | `udx_<tabla>_<campo>` | `udx_cliente_email` |
 
 Todos los nombres se declaran de forma explícita. Los límites de PostgreSQL (63 caracteres) aplican a cada nombre.
 
@@ -190,7 +190,7 @@ Los índices únicos de negocio se crean con migraciones SQL, con nombre explíc
 solo rige entre registros activos, por lo que el índice es parcial; la comparación ignora las mayúsculas:
 
 ```sql
-CREATE UNIQUE INDEX udx_cliente_nombre ON cliente (lower(nombre)) WHERE estado = 'ACTIVO';
+CREATE UNIQUE INDEX udx_cliente_email ON cliente (lower(btrim(email))) WHERE estado = 'ACTIVO';
 ```
 
 Los códigos e identificadores se guardan en mayúsculas, por lo que su índice no necesita `lower(...)`:
@@ -225,6 +225,22 @@ registros activos, la creación del índice falla y deben resolverse antes de mi
 |---|---|---|---|
 | `udx_fabricante_barril_nombre` | `fabricante_barril` | `(lower(btrim(nombre)))` | Nombre único entre fabricantes activos |
 
+`V5__indices_unicos_usuario_cliente.sql` crea los índices únicos parciales de usuario y cliente, elimina la restricción
+global `uk_usuarios_username` (el nombre de usuario de un usuario dado de baja puede volver a usarse) y deja el teléfono
+como dato opcional (la columna `telefono` de `usuarios` y de `cliente` admite nulos). También normaliza los datos
+existentes (`lower(btrim(...))` del nombre de usuario y del correo de los usuarios y del correo de los clientes), de modo
+que coincidan con lo que guarda el Service y con el nombre de usuario que se normaliza al iniciar sesión.
+
+| Índice | Tabla | Expresión | Regla |
+|---|---|---|---|
+| `udx_usuarios_username` | `usuarios` | `(lower(btrim(username)))` | Nombre de usuario único entre usuarios activos |
+| `udx_usuarios_correo` | `usuarios` | `(lower(btrim(correo)))` | Correo electrónico único entre usuarios activos |
+| `udx_cliente_email` | `cliente` | `(lower(btrim(email)))` | Correo electrónico único entre clientes activos |
+
+El teléfono de usuarios y clientes no tiene unicidad, y el nombre de un cliente tampoco. Si las tablas contienen nombres
+de usuario o correos repetidos entre registros activos (ignorando mayúsculas y espacios en los extremos), la creación del
+índice falla y deben resolverse antes de migrar.
+
 ### Traducción de una violación de unicidad
 
 Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta
@@ -233,7 +249,7 @@ Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcione
 
 ```java
 GuardadoUnico.guardar(clienteRepository, cliente, Map.of(
-        "udx_cliente_nombre", () -> new RecursoDuplicadoException("Ya existe un cliente activo con el nombre '" + nombre + "'")));
+        "udx_cliente_email", () -> new RecursoDuplicadoException("Ya existe un cliente con el correo electrónico '" + email + "'")));
 ```
 
 - Si el índice violado no figura en el mapa, lanza `RecursoDuplicadoException("Ya existe un registro con los mismos datos")`.
@@ -246,7 +262,7 @@ GuardadoUnico.guardar(clienteRepository, cliente, Map.of(
 índice está en el campo `constraint` del mensaje de error del servidor
 (`PSQLException.getServerErrorMessage().getConstraint()`), que no depende del idioma de la base de datos como sí
 depende el texto del mensaje (con un servidor en español el texto dice `llave duplicada viola restricción de
-unicidad «uk_usuarios_username»`). La misma lectura sirve para restricciones (`uk_usuarios_username`) y para índices
+unicidad «udx_usuarios_username»`). La misma lectura sirve para restricciones (`uk_lote_identificador_interno`) y para índices
 únicos parciales o por expresión (`udx_...`). Por eso el driver `postgresql` se declara con alcance de compilación en
 el `pom.xml`.
 
