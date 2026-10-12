@@ -403,6 +403,50 @@ class OrdenCompraServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
     }
 
+    @Test
+    @DisplayName("CP-ROC-15: registrarOrdenCompra lanza ReglaNegocioException y no consulta la planificación cuando la orden repite el mismo ítem del catálogo")
+    void registrar_debeRechazarItemDeCatalogoRepetido() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(
+                        detalleCompraFormDTO(10, BigDecimal.TEN, 5L),
+                        detalleCompraFormDTO(20, BigDecimal.ONE, 5L)))
+                .build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La orden de compra no puede repetir el mismo ítem del catálogo");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository);
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ROC-16: registrarOrdenCompra acepta dos ítems distintos del catálogo aunque sean del mismo insumo (distinta presentación comercial)")
+    void registrar_debeAceptarItemsDistintosDelMismoInsumo() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(
+                        detalleCompraFormDTO(10, BigDecimal.TEN, 5L),
+                        detalleCompraFormDTO(20, BigDecimal.ONE, 6L)))
+                .build();
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
+        ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L))));
+        when(catalogoProveedorRepository.findById(6L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(6L, versionActiva, maltaEntity(7L))));
+        when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ordenCompraServicio.registrarOrdenCompra(formDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<OrdenCompraEntity> captor = ArgumentCaptor.forClass(OrdenCompraEntity.class);
+        verify(ordenCompraRepository).save(captor.capture());
+        assertThat(captor.getValue().getDetallesCompra()).hasSize(2);
+    }
+
     // ==================== anularOrdenCompra ====================
 
     @Test

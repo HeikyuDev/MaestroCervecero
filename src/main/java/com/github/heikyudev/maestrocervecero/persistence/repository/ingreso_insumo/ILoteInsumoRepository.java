@@ -29,7 +29,7 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      * </p>
      *
      * @param idInsumo El ID del insumo.
-     * @param identificacionLoteProveedor Identificación del lote asignada por el proveedor.
+     * @param identificacionLoteProveedor Identificación del lote asignada por el proveedor, ya normalizada como código (mayúsculas y sin espacios de más).
      * @return Un Optional que contiene el lote si existe, o vacío en caso contrario.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

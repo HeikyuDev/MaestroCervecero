@@ -3,7 +3,9 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -35,6 +37,21 @@ public interface IInsumoRepository extends JpaRepository<InsumoEntity, Long> {
     @Override
     @Query("SELECT i FROM InsumoEntity i WHERE i.id = :id AND i.estado = 'ACTIVO'")
     Optional<InsumoEntity> findById(@Param("id") Long id);
+
+    /**
+     * Busca un insumo por su ID y bloquea su fila hasta el fin de la transacción ({@code PESSIMISTIC_WRITE}).
+     * <p>
+     * Se usa al registrar un ingreso de insumo: serializa los ingresos del mismo insumo, de modo que dos ingresos
+     * simultáneos de la misma identificación de lote de proveedor no decidan ambos que el lote no existe y lo creen
+     * a la vez.
+     * </p>
+     *
+     * @param id El ID del insumo a buscar.
+     * @return Un Optional que contiene el insumo, o vacío si no existe.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM InsumoEntity i WHERE i.id = :id")
+    Optional<InsumoEntity> buscarPorIdParaIngresar(@Param("id") Long id);
 
     /**
      * Busca, entre TODOS los tipos concretos de insumo a la vez, una página de insumos activos

@@ -23,9 +23,13 @@ Solo se puede registrar a partir de una solicitud de búsqueda con `buscado = fa
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-RBB-01**|Solicitud de búsqueda no encontrada|`idSolicitudBusqueda: 99L` (No existe)|`solicitudBusquedaRepository.findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró la solicitud de búsqueda con ID: 99"). No ejecuta `save()`.|
+|**CP-RBB-01**|Solicitud de búsqueda no encontrada|`idSolicitudBusqueda: 99L` (No existe)|`solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró la solicitud de búsqueda con ID: 99"). No ejecuta `save()`.|
 |**CP-RBB-02**|La solicitud de búsqueda ya fue buscada|`idSolicitudBusqueda: 1L` (Existe, `buscado: true`)|`solicitudBusquedaEntity.isBuscado()` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede registrar una búsqueda sobre una solicitud de búsqueda que todavía no fue buscada"). No ejecuta `save()` de la búsqueda.|
 |**CP-RBB-03**|Registro exitoso _(Camino feliz)_|`idSolicitudBusqueda: 1L` (Existe, `buscado: false`)|Todas las validaciones $\rightarrow$ **FALSE**|La solicitud de búsqueda pasa a `buscado = true` y se persiste. La búsqueda se persiste con `estado = REGISTRADO` y `solicitudBusqueda` asignada, y retorna DTO.|
+|**CP-RBB-04**|Bloqueo de la fila de la solicitud|`idSolicitudBusqueda: 1L` (Existe, `buscado: false`)|El Service busca la solicitud con `PESSIMISTIC_WRITE` antes de validar y guardar|Orden verificado con `InOrder`: `buscarPorIdParaRegistrarBusqueda(1L)`, `save` de la solicitud y `save` de la búsqueda; no se usa `findById`.|
+|**CP-RBB-05**|Violación del índice único de búsqueda registrada|`idSolicitudBusqueda: 1L` (Existe, `buscado: false`); `save` de la búsqueda lanza `DataIntegrityViolationException` por `udx_busqueda_barril_solicitud`|La base de datos rechaza una segunda búsqueda registrada sobre la misma solicitud|Lanza `ReglaNegocioException` con el mismo mensaje que la validación previa ("Solo se puede registrar una búsqueda sobre una solicitud de búsqueda que todavía no fue buscada").|
+|**CP-RBB-06**|Guardado confirmado dentro del método|`idSolicitudBusqueda: 1L` (Existe, `buscado: false`)|El Service guarda con `save` y confirma con `flush`|`save` de la búsqueda se ejecuta y a continuación `flush` (verificado con `InOrder`).|
+|**CP-RBB-07**|Nueva búsqueda tras una anulación _(Límite)_|`idSolicitudBusqueda: 1L` (Existe, `buscado: false`, con una búsqueda anterior en `ANULADO`)|La búsqueda anulada no cuenta como búsqueda registrada|La solicitud pasa a `buscado = true` y se persiste una búsqueda nueva con `estado = REGISTRADO`.|
 
 ### 4. `anularBusquedaBarril(Long id, AnulacionBusquedaBarrilFormDTO anulacionFormDTO)`
 

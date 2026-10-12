@@ -38,7 +38,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +67,11 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * Índice único de la base de datos que garantiza que un proveedor tenga una sola versión vigente.
      */
     private static final String INDICE_ULTIMA_VERSION = "udx_version_proveedor_ultima_version";
+
+    /**
+     * Índice único de la base de datos que garantiza que un catálogo no repita el mismo insumo con la misma presentación comercial.
+     */
+    private static final String INDICE_ITEM_CATALOGO = "udx_catalogo_proveedor_item";
 
     /**
      * Datos de texto de la versión ya normalizados, listos para validar, consultar la unicidad y guardar.
@@ -137,7 +146,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor y su versión inicial.
      * @return {@link ProveedorResponseDTO} representativo del proveedor guardado en la base de datos.
      * @throws RecursoDuplicadoException Si la razón social, el CUIT o el correo electrónico ya pertenecen a otro proveedor activo.
-     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, o si el teléfono informado no tiene solo dígitos o supera los 15.
+     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, o si el teléfono informado no tiene solo dígitos o supera los 15, o si el catálogo repite el mismo insumo con la misma presentación comercial.
      * @throws RecursoNoEncontradoException Si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -174,7 +183,8 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
                 INDICE_RAZON_SOCIAL, () -> razonSocialDuplicadaEnAlta(datos.razonSocial()),
                 INDICE_CUIT, () -> cuitDuplicadoEnAlta(datos.cuit()),
-                INDICE_EMAIL, () -> emailDuplicadoEnAlta(datos.email()))));
+                INDICE_EMAIL, () -> emailDuplicadoEnAlta(datos.email()),
+                INDICE_ITEM_CATALOGO, ProveedorServicioImpl::catalogoConItemRepetido)));
     }
 
     /**
@@ -196,7 +206,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * @param proveedorFormDTO DTO que contiene los nuevos datos de la versión del proveedor.
      * @return {@link ProveedorResponseDTO} representativo del proveedor con la nueva versión aplicada.
      * @throws RecursoDuplicadoException Si la nueva razón social, el nuevo CUIT o el nuevo correo electrónico ya pertenecen a otro proveedor activo.
-     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, si el teléfono informado no tiene solo dígitos o supera los 15, o si otra persona modificó el proveedor al mismo tiempo.
+     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, si el teléfono informado no tiene solo dígitos o supera los 15, o si el catálogo repite el mismo insumo con la misma presentación comercial, o si otra persona modificó el proveedor al mismo tiempo.
      * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -247,6 +257,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
                 INDICE_RAZON_SOCIAL, () -> razonSocialDuplicadaEnModificacion(datos.razonSocial()),
                 INDICE_CUIT, () -> cuitDuplicadoEnModificacion(datos.cuit()),
                 INDICE_EMAIL, () -> emailDuplicadoEnModificacion(datos.email()),
+                INDICE_ITEM_CATALOGO, ProveedorServicioImpl::catalogoConItemRepetido,
                 INDICE_ULTIMA_VERSION, ProveedorServicioImpl::proveedorModificadoEnSimultaneo)));
     }
 
@@ -314,7 +325,26 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         ValidacionesTexto.validarTelefono(datos.telefono());
         validarObligatorioYLongitud(datos.email(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
         validarObligatorioYLongitud(datos.direccion(), LimitesTecnicos.LONGITUD_MAXIMA_DIRECCION, "La dirección", "obligatoria");
+        validarCatalogoSinItemsRepetidos(versionFormDTO.getCatalogoProveedor());
         return datos;
+    }
+
+    /**
+     * Valida que el catálogo no repita el mismo ítem: un ítem es la combinación de un insumo y una presentación
+     * comercial.
+     *
+     * @throws ReglaNegocioException Si el mismo insumo con la misma presentación comercial figura más de una vez.
+     */
+    private static void validarCatalogoSinItemsRepetidos(List<CatalogoProveedorFormDTO> catalogo) {
+        if (catalogo == null) {
+            return;
+        }
+        Set<List<Long>> itemsVistos = new HashSet<>();
+        for (CatalogoProveedorFormDTO item : catalogo) {
+            if (!itemsVistos.add(Arrays.asList(item.getIdInsumo(), item.getIdPresentacionComercial()))) {
+                throw catalogoConItemRepetido();
+            }
+        }
     }
 
     private static void validarObligatorioYLongitud(String valor, int maximo, String etiqueta, String obligatorio) {
@@ -353,6 +383,10 @@ public class ProveedorServicioImpl implements IProveedorServicio {
 
     private static RecursoDuplicadoException emailDuplicadoEnModificacion(String email) {
         return new RecursoDuplicadoException("El correo electrónico '" + email + "' ya está en uso por otro proveedor");
+    }
+
+    private static ReglaNegocioException catalogoConItemRepetido() {
+        return new ReglaNegocioException("El catálogo no puede repetir el mismo insumo con la misma presentación comercial");
     }
 
     private static ReglaNegocioException proveedorModificadoEnSimultaneo() {

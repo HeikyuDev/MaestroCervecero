@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -94,7 +95,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      *
      * @param ordenCompraFormDTO Objeto DTO que contiene los datos de creación de la orden de compra.
      * @return {@link OrdenCompraResponseDTO} representativo de la orden de compra guardada en la base de datos, en estado {@code PENDIENTE}.
-     * @throws ReglaNegocioException Si la fecha de entrega estimada no fue informada o es anterior a la fecha actual, si algún ítem tiene cantidad o costo unitario nulo o menor o igual a cero, si la planificación de producción no se encuentra en estado {@code PENDIENTE}, si algún ítem del catálogo no pertenece al proveedor seleccionado, o si el insumo de algún ítem no forma parte de la versión de receta de la planificación de producción.
+     * @throws ReglaNegocioException Si la fecha de entrega estimada no fue informada o es anterior a la fecha actual, si algún ítem tiene cantidad o costo unitario nulo o menor o igual a cero, si la orden repite el mismo ítem del catálogo, si la planificación de producción no se encuentra en estado {@code PENDIENTE}, si algún ítem del catálogo no pertenece al proveedor seleccionado, o si el insumo de algún ítem no forma parte de la versión de receta de la planificación de producción.
      * @throws RecursoNoEncontradoException Si la planificación de producción, el proveedor o algún ítem del catálogo referenciado no existen.
      */
     @Override
@@ -107,9 +108,10 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
             throw new ReglaNegocioException("La fecha de entrega estimada no puede ser anterior a la fecha actual");
         }
 
-        // 2. Validar que cada ítem tenga cantidad y costo unitario mayores a cero
+        // 2. Validar que cada ítem tenga cantidad y costo unitario mayores a cero, y que no se repita el mismo ítem del catálogo
         List<DetalleCompraFormDTO> detallesCompraFormDTO = ordenCompraFormDTO.getDetallesCompra();
         detallesCompraFormDTO.forEach(this::validarCantidadYCosto);
+        validarSinItemsRepetidos(detallesCompraFormDTO);
 
         // 3. Localizar la planificación de producción y validar que se encuentre en estado PENDIENTE
         PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(ordenCompraFormDTO.getIdPlanificacionProduccion())
@@ -244,6 +246,21 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
         if (detalleCompraFormDTO.getCostoUnitario() == null || detalleCompraFormDTO.getCostoUnitario().signum() <= 0) {
             throw new ReglaNegocioException("El costo unitario de cada ítem debe ser mayor a cero");
+        }
+    }
+
+    /**
+     * Valida que la orden de compra no repita el mismo ítem del catálogo del proveedor.
+     *
+     * @param detallesCompraFormDTO Ítems solicitados en el formulario.
+     * @throws ReglaNegocioException Si el mismo ítem del catálogo figura más de una vez.
+     */
+    private void validarSinItemsRepetidos(List<DetalleCompraFormDTO> detallesCompraFormDTO) {
+        Set<Long> idsCatalogoVistos = new HashSet<>();
+        for (DetalleCompraFormDTO detalleCompraFormDTO : detallesCompraFormDTO) {
+            if (!idsCatalogoVistos.add(detalleCompraFormDTO.getIdCatalogoProveedor())) {
+                throw new ReglaNegocioException("La orden de compra no puede repetir el mismo ítem del catálogo");
+            }
         }
     }
 

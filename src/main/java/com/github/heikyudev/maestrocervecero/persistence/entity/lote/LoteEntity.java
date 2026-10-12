@@ -27,7 +27,7 @@ public class LoteEntity extends AuditableEntity<String> {
     @EqualsAndHashCode.Include
     private Long id;
 
-    // Ej: "PILSEN_CLASICA-3" (3er lote cocinado de esa receta). Ver generación abajo.
+    // Ej: "PILSEN_CLASICA-R7-3" (3er lote cocinado de la receta con ID 7). Ver generación abajo.
     @Column(name = "identificador_interno", nullable = false, unique = true)
     private String identificadorInterno;
 

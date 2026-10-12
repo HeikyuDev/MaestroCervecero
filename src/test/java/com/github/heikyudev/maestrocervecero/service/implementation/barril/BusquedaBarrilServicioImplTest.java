@@ -10,10 +10,12 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.barril.Busque
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BusquedaBarrilResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,6 +31,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -170,7 +173,7 @@ class BusquedaBarrilServicioImplTest {
     void registrar_debeRechazarSolicitudInexistente() {
         // === PREPARACION DE DATOS ===
         BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(99L);
-        when(solicitudBusquedaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(99L)).thenReturn(Optional.empty());
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> busquedaBarrilServicio.registrarBusquedaBarril(formDTO))
@@ -186,7 +189,7 @@ class BusquedaBarrilServicioImplTest {
         // === PREPARACION DE DATOS ===
         BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(1L);
         SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, true);
-        when(solicitudBusquedaRepository.findById(1L)).thenReturn(Optional.of(solicitud));
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(1L)).thenReturn(Optional.of(solicitud));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> busquedaBarrilServicio.registrarBusquedaBarril(formDTO))
@@ -203,7 +206,7 @@ class BusquedaBarrilServicioImplTest {
         // === PREPARACION DE DATOS ===
         BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(1L);
         SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, false);
-        when(solicitudBusquedaRepository.findById(1L)).thenReturn(Optional.of(solicitud));
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(1L)).thenReturn(Optional.of(solicitud));
         when(busquedaBarrilRepository.save(any(BusquedaBarrilEntity.class))).thenAnswer(invocation -> {
             BusquedaBarrilEntity entidad = invocation.getArgument(0);
             entidad.setId(1L);
@@ -223,6 +226,79 @@ class BusquedaBarrilServicioImplTest {
         assertThat(busquedaGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(busquedaGuardada.getSolicitudBusqueda()).isSameAs(solicitud);
 
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-RBB-04: registrarBusquedaBarril bloquea la fila de la solicitud antes de validar y guardar, y no usa la búsqueda sin bloqueo")
+    void registrar_debeBloquearLaSolicitudAntesDeValidarYGuardar() {
+        // === PREPARACION DE DATOS ===
+        BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(1L);
+        SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, false);
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(1L)).thenReturn(Optional.of(solicitud));
+        when(busquedaBarrilRepository.save(any(BusquedaBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        busquedaBarrilServicio.registrarBusquedaBarril(formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(solicitudBusquedaRepository, busquedaBarrilRepository);
+        orden.verify(solicitudBusquedaRepository).buscarPorIdParaRegistrarBusqueda(1L);
+        orden.verify(solicitudBusquedaRepository).save(solicitud);
+        orden.verify(busquedaBarrilRepository).save(any(BusquedaBarrilEntity.class));
+        verify(solicitudBusquedaRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-RBB-05: registrarBusquedaBarril traduce la violación del índice de búsqueda registrada al mensaje de solicitud ya buscada (doble clic o pedido simultáneo)")
+    void registrar_debeTraducirViolacionDelIndiceDeBusquedaRegistrada() {
+        // === PREPARACION DE DATOS ===
+        BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(1L);
+        SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, false);
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(1L)).thenReturn(Optional.of(solicitud));
+        when(busquedaBarrilRepository.save(any(BusquedaBarrilEntity.class)))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_busqueda_barril_solicitud"));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> busquedaBarrilServicio.registrarBusquedaBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede registrar una búsqueda sobre una solicitud de búsqueda que todavía no fue buscada");
+    }
+
+    @Test
+    @DisplayName("CP-RBB-06: registrarBusquedaBarril guarda y confirma la búsqueda en la base de datos dentro del método (save y luego flush)")
+    void registrar_debeGuardarYConfirmarEnOrden() {
+        // === PREPARACION DE DATOS ===
+        BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(1L);
+        SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, false);
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(1L)).thenReturn(Optional.of(solicitud));
+        when(busquedaBarrilRepository.save(any(BusquedaBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        busquedaBarrilServicio.registrarBusquedaBarril(formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(busquedaBarrilRepository);
+        orden.verify(busquedaBarrilRepository).save(any(BusquedaBarrilEntity.class));
+        orden.verify(busquedaBarrilRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-RBB-07: registrarBusquedaBarril registra una nueva búsqueda sobre una solicitud cuya búsqueda anterior fue anulada (la anulada no cuenta)")
+    void registrar_debeRegistrarNuevaBusquedaTrasUnaAnulacion() {
+        // === PREPARACION DE DATOS ===
+        // La anulación deja la solicitud con buscado = false y la búsqueda anterior en ANULADO
+        BusquedaBarrilFormDTO formDTO = busquedaBarrilFormDTO(1L);
+        SolicitudBusquedaEntity solicitud = crearSolicitudEntity(1L, false);
+        crearBusquedaEntity(1L, EstadoTransaccion.ANULADO, solicitud);
+        when(solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(1L)).thenReturn(Optional.of(solicitud));
+        when(busquedaBarrilRepository.save(any(BusquedaBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        BusquedaBarrilResponseDTO resultado = busquedaBarrilServicio.registrarBusquedaBarril(formDTO);
+
+        // === ASSERTS ===
+        assertThat(solicitud.isBuscado()).isTrue();
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
     }
 

@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IBusquedaBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BusquedaBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperBusquedaBarril;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,10 +23,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class BusquedaBarrilServicioImpl implements IBusquedaBarrilServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que una solicitud de búsqueda tenga una sola búsqueda registrada.
+     */
+    private static final String INDICE_BUSQUEDA_REGISTRADA = "udx_busqueda_barril_solicitud";
 
     private final IBusquedaBarrilRepository busquedaBarrilRepository;
     private final ISolicitudBusquedaRepository solicitudBusquedaRepository;
@@ -75,27 +82,30 @@ public class BusquedaBarrilServicioImpl implements IBusquedaBarrilServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.BUSQUEDA_BARRIL)
     public BusquedaBarrilResponseDTO registrarBusquedaBarril(BusquedaBarrilFormDTO busquedaBarrilFormDTO) {
-        // 1. Localizar la solicitud de búsqueda. Si no existe, se dispara RecursoNoEncontradoException
+        // 1. Localizar la solicitud de búsqueda bloqueando su fila: los pedidos simultáneos sobre la misma solicitud
+        //    se ejecutan uno a uno. Si no existe, se dispara RecursoNoEncontradoException
         Long idSolicitudBusqueda = busquedaBarrilFormDTO.getIdSolicitudBusqueda();
-        SolicitudBusquedaEntity solicitudBusquedaEntity = solicitudBusquedaRepository.findById(idSolicitudBusqueda)
+        SolicitudBusquedaEntity solicitudBusquedaEntity = solicitudBusquedaRepository.buscarPorIdParaRegistrarBusqueda(idSolicitudBusqueda)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la solicitud de búsqueda con ID: " + idSolicitudBusqueda));
 
         // 2. Validar que la solicitud de búsqueda todavía no haya sido buscada
         if (solicitudBusquedaEntity.isBuscado()) {
-            throw new ReglaNegocioException("Solo se puede registrar una búsqueda sobre una solicitud de búsqueda que todavía no fue buscada");
+            throw solicitudYaBuscada();
         }
 
         // 3. Marcar la solicitud de búsqueda como buscada y persistirla
         solicitudBusquedaEntity.setBuscado(true);
         solicitudBusquedaRepository.save(solicitudBusquedaEntity);
 
-        // 4. Construir y persistir la búsqueda, y retornar el DTO de respuesta correspondiente
+        // 4. Construir y persistir la búsqueda (si el índice único rechaza una segunda búsqueda registrada sobre la
+        //    misma solicitud, se traduce al mismo mensaje del paso 2), y retornar el DTO de respuesta correspondiente
         BusquedaBarrilEntity busquedaBarrilEntity = BusquedaBarrilEntity.builder()
                 .estado(EstadoTransaccion.REGISTRADO)
                 .solicitudBusqueda(solicitudBusquedaEntity)
                 .build();
 
-        return MapperBusquedaBarril.toDTO(busquedaBarrilRepository.save(busquedaBarrilEntity));
+        return MapperBusquedaBarril.toDTO(GuardadoUnico.guardar(busquedaBarrilRepository, busquedaBarrilEntity,
+                Map.of(INDICE_BUSQUEDA_REGISTRADA, BusquedaBarrilServicioImpl::solicitudYaBuscada)));
     }
 
     /**
@@ -140,5 +150,9 @@ public class BusquedaBarrilServicioImpl implements IBusquedaBarrilServicio {
         busquedaBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
 
         return MapperBusquedaBarril.toDTO(busquedaBarrilRepository.save(busquedaBarrilEntity));
+    }
+
+    private static ReglaNegocioException solicitudYaBuscada() {
+        return new ReglaNegocioException("Solo se puede registrar una búsqueda sobre una solicitud de búsqueda que todavía no fue buscada");
     }
 }

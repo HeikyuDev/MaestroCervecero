@@ -278,6 +278,31 @@ vigente), o un padre con más de una versión vigente, la creación del índice 
    evalúa en cada sentencia. Por eso el Service guarda y confirma (`save` y `flush`) la versión anterior ya desactivada
    antes de insertar la nueva.
 
+`V7__indices_unicos_reglas_nuevas.sql` crea los índices únicos que garantizan, en la base de datos, reglas que el Service
+ya valida antes de guardar. Se aplican a todas las filas, salvo el de búsqueda de barril, que es parcial.
+
+| Índice | Tabla | Expresión | Regla |
+|---|---|---|---|
+| `udx_catalogo_proveedor_item` | `catalogo_proveedor` | `(version_proveedor_id, insumo_id, presentacion_comercial_id)` | Un catálogo no repite el mismo insumo con la misma presentación comercial |
+| `udx_detalle_compra_item` | `detalle_compra` | `(orden_compra_id, catalogo_proveedor_id)` | Una orden de compra no repite el mismo ítem del catálogo |
+| `udx_busqueda_barril_solicitud` | `busqueda_barril` | `(solicitud_busqueda_id) WHERE estado = 'REGISTRADO'` | Una solicitud de búsqueda tiene una sola búsqueda registrada; una búsqueda anulada no cuenta |
+| `udx_detalle_malta_version_malta` | `detalle_malta` | `(version_receta_id, malta_id)` | Una versión de receta no repite la misma malta |
+| `udx_detalle_lupulo_version_lupulo_uso_tiempo` | `detalle_lupulo` | `(version_receta_id, lupulo_id, uso, tiempo_de_hervor)` | Una versión de receta no repite un lúpulo con el mismo uso y el mismo tiempo de hervor (se guarda en 0 si el uso no es `HERVOR`) |
+| `udx_detalle_levadura_version_levadura` | `detalle_levadura` | `(version_receta_id, levadura_id)` | Una versión de receta no repite la misma levadura |
+
+Si las tablas ya tuvieran filas repetidas, la creación de un índice falla y deben resolverse antes de migrar.
+
+Dos operaciones de «buscar o crear» o de «una sola vigente» se serializan con un bloqueo `PESSIMISTIC_WRITE` sobre la fila
+que las ordena, antes de validar:
+
+- Ingreso de insumo: bloquea la fila del insumo y luego busca el lote por `(insumo, identificación de lote de proveedor)`.
+  La identificación se normaliza como código (mayúsculas, sin espacios de más; la puntuación cuenta). La restricción
+  `uk_lote_insumo_insumo_id_identificacion_lote_proveedor` es la garantía final.
+- Búsqueda de barril: bloquea la fila de la solicitud de búsqueda antes de verificar que no tenga una búsqueda registrada.
+
+El identificador interno del lote de producción (por ejemplo `PILSEN_CLASICA-R7-3`) es único por la restricción
+`uk_lote_identificador_interno`.
+
 ### Traducción de una violación de unicidad
 
 Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta

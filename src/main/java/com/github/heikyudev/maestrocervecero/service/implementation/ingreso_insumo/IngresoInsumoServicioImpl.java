@@ -23,6 +23,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IIngresoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.IngresoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperIngresoInsumo;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,10 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
+
+    /**
+     * Índice único de la base de datos que garantiza que un insumo no tenga dos lotes con la misma identificación de lote de proveedor.
+     */
+    private static final String INDICE_LOTE_INSUMO = "uk_lote_insumo_insumo_id_identificacion_lote_proveedor";
 
     private final IIngresoInsumoRepository ingresoInsumoRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
@@ -86,7 +94,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      *
      * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.
-     * @throws ReglaNegocioException Si la orden de compra del ítem no está en estado {@code PENDIENTE}, si la cantidad recibida es nula, menor o igual a cero, o supera la cantidad pendiente de entrega del ítem, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta.
+     * @throws ReglaNegocioException Si la orden de compra del ítem no está en estado {@code PENDIENTE}, si la cantidad recibida es nula, menor o igual a cero, o supera la cantidad pendiente de entrega del ítem, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
      * @throws RecursoNoEncontradoException Si el ítem de detalle de compra referenciado no existe.
      */
     @Override
@@ -152,7 +160,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      *
      * @param ingresoInsumoDirectoFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.
-     * @throws ReglaNegocioException Si la cantidad recibida o el costo unitario son nulos, menores o iguales a cero, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta.
+     * @throws ReglaNegocioException Si la cantidad recibida o el costo unitario son nulos, menores o iguales a cero, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
      * @throws RecursoNoEncontradoException Si el insumo referenciado no existe (o no está activo).
      */
     @Override
@@ -310,33 +318,52 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      */
     private LoteInsumoEntity sumarIngresoAlLote(LoteInsumoEntity loteInsumoEntity, double cantidadRecibida, BigDecimal costoUnitario) {
         loteInsumoEntity.sumarIngreso(cantidadRecibida, costoUnitario);
-        return loteInsumoRepository.save(loteInsumoEntity);
+        String identificacionLoteProveedor = loteInsumoEntity.getIdentificacionLoteProveedor();
+        return GuardadoUnico.guardar(loteInsumoRepository, loteInsumoEntity, Map.of(
+                INDICE_LOTE_INSUMO, () -> loteRegistradoEnSimultaneo(identificacionLoteProveedor)));
     }
 
     /**
      * Resuelve el lote de insumo al que debe imputarse un ingreso: si ya existe un lote del
      * insumo con la misma identificación de lote de proveedor, lo reutiliza (validando que la
      * fecha de vencimiento coincida); si no existe, construye uno nuevo sin persistirlo todavía.
+     * <p>
+     * La identificación se normaliza como un código (mayúsculas, sin espacios de más; la puntuación cuenta), de
+     * modo que {@code lote 12} y {@code LOTE  12} son el mismo lote. Antes de buscarlo se bloquea la fila del
+     * insumo ({@code PESSIMISTIC_WRITE}): los ingresos simultáneos del mismo insumo se ejecutan uno a uno, y el
+     * segundo encuentra el lote que creó el primero en lugar de intentar crearlo otra vez.
+     * </p>
      *
      * @param insumoEntity Insumo del lote.
      * @param identificacionLoteProveedor Identificación del lote asignada por el proveedor.
      * @param fechaVencimiento Fecha de vencimiento informada en el ingreso.
      * @return El lote de insumo a utilizar (existente o recién construido).
      * @throws ReglaNegocioException Si ya existe un lote con esa identificación de lote de proveedor pero con una fecha de vencimiento distinta.
+     * @throws RecursoNoEncontradoException Si el insumo ya no existe.
      */
     private LoteInsumoEntity resolverLoteInsumo(InsumoEntity insumoEntity, String identificacionLoteProveedor, LocalDate fechaVencimiento) {
-        return loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(insumoEntity.getId(), identificacionLoteProveedor)
+        String identificacion = NormalizacionTexto.codigo(identificacionLoteProveedor);
+
+        InsumoEntity insumoBloqueado = insumoRepository.buscarPorIdParaIngresar(insumoEntity.getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + insumoEntity.getId()));
+
+        return loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(insumoBloqueado.getId(), identificacion)
                 .map(loteInsumoEntity -> {
                     if (!loteInsumoEntity.getFechaVencimiento().equals(fechaVencimiento)) {
                         throw new ReglaNegocioException("Ya existe un lote del insumo con la identificación de lote de proveedor '"
-                                + identificacionLoteProveedor + "' pero con una fecha de vencimiento distinta");
+                                + identificacion + "' pero con una fecha de vencimiento distinta");
                     }
                     return loteInsumoEntity;
                 })
                 .orElseGet(() -> LoteInsumoEntity.builder()
-                        .identificacionLoteProveedor(identificacionLoteProveedor)
+                        .identificacionLoteProveedor(identificacion)
                         .fechaVencimiento(fechaVencimiento)
-                        .insumo(insumoEntity)
+                        .insumo(insumoBloqueado)
                         .build());
+    }
+
+    private static ReglaNegocioException loteRegistradoEnSimultaneo(String identificacionLoteProveedor) {
+        return new ReglaNegocioException("El lote del insumo con la identificación de lote de proveedor '" + identificacionLoteProveedor
+                + "' fue registrado por otra persona al mismo tiempo, intente nuevamente");
     }
 }

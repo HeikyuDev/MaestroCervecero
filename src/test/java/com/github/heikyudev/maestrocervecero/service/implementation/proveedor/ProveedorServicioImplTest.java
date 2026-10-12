@@ -622,6 +622,51 @@ class ProveedorServicioImplTest {
         orden.verify(proveedorRepository).flush();
     }
 
+    @Test
+    @DisplayName("CP-AP-26: altaProveedor lanza ReglaNegocioException y no consulta la BD cuando el catálogo repite el mismo insumo con la misma presentación comercial")
+    void altaProveedor_debeRechazarCatalogoConItemRepetido() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder()
+                .catalogoProveedor(List.of(catalogoProveedorFormDTO(PRESENTACION_ID, INSUMO_ID), catalogoProveedorFormDTO(PRESENTACION_ID, INSUMO_ID)))
+                .build();
+
+        assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El catálogo no puede repetir el mismo insumo con la misma presentación comercial");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-AP-27: altaProveedor acepta el mismo insumo con distinta presentación comercial y la misma presentación con distinto insumo")
+    void altaProveedor_debeAceptarItemsQueDifierenEnInsumoOEnPresentacion() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder()
+                .catalogoProveedor(List.of(
+                        catalogoProveedorFormDTO(PRESENTACION_ID, INSUMO_ID),
+                        catalogoProveedorFormDTO(2L, INSUMO_ID),
+                        catalogoProveedorFormDTO(PRESENTACION_ID, 2L)))
+                .build();
+        mockearAltaExitosa(versionFormDTO);
+
+        proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO));
+
+        ArgumentCaptor<ProveedorEntity> captor = ArgumentCaptor.forClass(ProveedorEntity.class);
+        verify(proveedorRepository).save(captor.capture());
+        assertThat(captor.getValue().getVersiones().get(0).getCatalogoProveedor()).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("CP-AP-28: altaProveedor traduce la violación del índice único del ítem de catálogo al mensaje del catálogo")
+    void altaProveedor_debeTraducirViolacionDelIndiceDelItemDeCatalogo() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
+        mockearAltaSinGuardado(versionFormDTO);
+        when(proveedorRepository.save(any(ProveedorEntity.class)))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_catalogo_proveedor_item"));
+
+        assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El catálogo no puede repetir el mismo insumo con la misma presentación comercial");
+    }
+
     // ==================== modificarProveedor ====================
 
     @Test
@@ -1075,6 +1120,34 @@ class ProveedorServicioImplTest {
         orden.verify(proveedorRepository).findByIdParaActualizarVersiones(1L);
         orden.verify(versionProveedorRepository).existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getRazonSocial(), 1L);
         verify(proveedorRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-MP-24: modificarProveedor lanza ReglaNegocioException y no consulta la BD cuando el catálogo repite el mismo insumo con la misma presentación comercial")
+    void modificarProveedor_debeRechazarCatalogoConItemRepetido() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder()
+                .catalogoProveedor(List.of(catalogoProveedorFormDTO(PRESENTACION_ID, INSUMO_ID), catalogoProveedorFormDTO(PRESENTACION_ID, INSUMO_ID)))
+                .build();
+
+        assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El catálogo no puede repetir el mismo insumo con la misma presentación comercial");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @Test
+    @DisplayName("CP-MP-25: modificarProveedor traduce la violación del índice único del ítem de catálogo al mensaje del catálogo")
+    void modificarProveedor_debeTraducirViolacionDelIndiceDelItemDeCatalogo() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().catalogoProveedor(List.of()).build();
+        ProveedorEntity proveedorEntityExistente = crearProveedorEntityConVersiones(1L, crearVersionProveedorEntity(10L, "Maltería del Sur S.A.", "30111111111", true));
+        mockearModificacionSinGuardado(versionFormDTO, proveedorEntityExistente);
+        when(proveedorRepository.save(proveedorEntityExistente)).thenReturn(proveedorEntityExistente)
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_catalogo_proveedor_item"));
+
+        assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El catálogo no puede repetir el mismo insumo con la misma presentación comercial");
     }
 
     // ==================== bajaProveedor ====================
