@@ -9,8 +9,8 @@ import lombok.*;
  * <p>
  * Es una entidad de tipo "singleton": existe una y solo una fila, con
  * {@code id} fijo ({@link #SINGLETON_ID}), nunca autogenerado. No se da de
- * alta ni de baja como el resto de las entidades — se crea una única vez al
- * arrancar la aplicación (ver {@code ConfiguracionProduccionDataLoader})
+ * alta ni de baja como el resto de las entidades — la crea una única vez la
+ * migración de datos iniciales de Flyway (ver {@code V2__datos_iniciales.sql})
  * y a partir de ahí el gerente de producción solo la modifica (UPDATE),
  * jamás se inserta una fila nueva ni se elimina la existente.
  * <p>

@@ -92,8 +92,8 @@ public class ConfiguracionProduccionServicioImpl implements IConfiguracionProduc
     }
 
     /**
-     * Busca la única fila de configuración de producción. Existe siempre: la crea
-     * {@code ConfiguracionProduccionDataLoader} al arrancar la aplicación.
+     * Busca la única fila de configuración de producción. Existe siempre: la crea la
+     * migración de datos iniciales de Flyway (V2__datos_iniciales.sql).
      */
     private ConfiguracionProduccionEntity buscarEntidadSingleton() {
         return configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)

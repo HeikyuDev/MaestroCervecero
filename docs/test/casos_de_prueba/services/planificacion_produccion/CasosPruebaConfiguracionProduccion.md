@@ -1,10 +1,10 @@
 ### 1. `buscarConfiguracion()`
 
-Es una entidad singleton (`SINGLETON_ID = 1L`): la crea `ConfiguracionProduccionDataLoader` al arrancar la aplicación, así que siempre existe.
+Es una entidad singleton (`SINGLETON_ID = 1L`): la crea la migración de datos iniciales de Flyway (`V2__datos_iniciales.sql`), así que siempre existe.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BC-01**|Configuración encontrada _(Camino feliz)_|BD con la fila singleton creada por el `DataLoader`|`findById(SINGLETON_ID)` $\rightarrow$ **Presente**|Retorna `ConfiguracionProduccionResponseDTO` con los datos de la entidad.|
+|**CP-BC-01**|Configuración encontrada _(Camino feliz)_|BD con la fila singleton creada por la migración `V2`|`findById(SINGLETON_ID)` $\rightarrow$ **Presente**|Retorna `ConfiguracionProduccionResponseDTO` con los datos de la entidad.|
 
 ### 2. `actualizarConfiguracion(ConfiguracionProduccionFormDTO configuracionProduccionFormDTO)`
 
