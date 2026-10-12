@@ -43,6 +43,7 @@ spring.flyway.baseline-on-migrate=false
 | Restricción de dominio (enumeración) | `ck_<tabla>_<columna>` | `ck_barril_estado` |
 | Clave foránea | `fk_<tabla>_<columna>` | `fk_barril_fabricante_id` |
 | Índice | `idx_<tabla>_<columnas>` | `idx_lote_estado` |
+| Índice único de negocio | `udx_<tabla>_<campo>` | `udx_cliente_nombre` |
 
 Todos los nombres se declaran de forma explícita. Los límites de PostgreSQL (63 caracteres) aplican a cada nombre.
 
@@ -102,28 +103,137 @@ administrador.
 Una base con tablas pero sin tabla `flyway_schema_history` (por ejemplo, creada por Hibernate) no se adopta
 automáticamente; Flyway se niega a migrarla. Debe reiniciarse con alguna de las opciones anteriores.
 
-## Ejecutar los tests contra una base descartable
+## Tests de integración
 
-`MaestroCerveceroApplicationTests.contextLoads` levanta el contexto completo y usa la base configurada en
-`spring.datasource.url`. Para no tocar la base de desarrollo se apunta la ejecución a una base propia:
+Los tests que levantan Spring contra una base real usan el perfil `test`
+(`src/test/resources/application-test.properties`) y una base propia, `maestrocervecero_test`. Ningún test usa la
+base de desarrollo `maestrocervecero`.
 
-```bash
-# Crear la base (una vez)
-psql -U AdminCerveza -h localhost -d postgres -c "CREATE DATABASE maestrocervecero_flyway_check"
+| Propiedad | Valor |
+|---|---|
+| `spring.datasource.url` | `${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/maestrocervecero_test}` |
+| `spring.datasource.username` / `password` | `${SPRING_DATASOURCE_USERNAME:AdminCerveza}` / `${SPRING_DATASOURCE_PASSWORD:admin}` |
+| `spring.flyway.enabled` | `true` |
+| `spring.jpa.hibernate.ddl-auto` | `validate` |
+| `spring.jpa.show-sql` | `false` |
 
-# Ejecutar la suite completa contra ella
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/maestrocervecero_flyway_check ./mvnw test
+### Preparar la base de tests
 
-# Eliminarla al terminar
-psql -U AdminCerveza -h localhost -d postgres -c "DROP DATABASE maestrocervecero_flyway_check"
+Se crea una vez, vacía. Flyway crea el esquema y los datos iniciales al primer arranque:
+
+```sql
+CREATE DATABASE maestrocervecero_test OWNER "AdminCerveza";
 ```
 
-En PowerShell: `$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/maestrocervecero_flyway_check"; ./mvnw test`.
+### Ejecutar
 
-Una base descartable vacía comprueba además que todas las migraciones se aplican de principio a fin.
+| Qué | Comando |
+|---|---|
+| Toda la suite (unitarios e integración) | `./mvnw test` |
+| Solo los de integración | `./mvnw test -Dgroups=integracion` |
+| Solo los unitarios (no necesitan base de datos) | `./mvnw test -DexcludedGroups=integracion` |
 
-En CI (`.github/workflows/ci.yml`) el servicio `postgres:16` arranca con una base vacía llamada `maestrocervecero`:
-Flyway crea el esquema y los datos iniciales en cada ejecución.
+Los tests de integración llevan la etiqueta `@Tag("integracion")`, heredada de `IntegracionBaseTest`. Para apuntar la
+ejecución a otra base se define la URL en la variable de entorno `SPRING_DATASOURCE_URL`. En PowerShell:
+`$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/otra_base"; ./mvnw test`. Una base vacía comprueba además
+que todas las migraciones se aplican de principio a fin.
+
+En CI (`.github/workflows/ci.yml`) el servicio `postgres:16` arranca con una base vacía llamada `maestrocervecero` y el
+paso de tests define `SPRING_DATASOURCE_URL` apuntando a ella: Flyway crea el esquema y los datos iniciales en cada
+ejecución.
+
+### Clase base y limpieza de datos
+
+Todo test de integración extiende `IntegracionBaseTest` (`@SpringBootTest`, `@ActiveProfiles("test")`,
+`@Tag("integracion")`). Antes de cada test la clase base vacía las tablas de negocio con
+`TRUNCATE ... RESTART IDENTITY CASCADE` y elimina los usuarios distintos de `admin`. No se vacían:
+
+- `flyway_schema_history`: historial de migraciones.
+- `configuracion_produccion`: fila singleton cargada por `V2`.
+- `usuarios`: se conserva el administrador que crea `UserDataLoader` al arrancar el contexto.
+
+Se usa `TRUNCATE` y no una transacción con rollback por test porque estos tests necesitan que las transacciones se
+confirmen: verifican restricciones que PostgreSQL evalúa al confirmar y el registro de auditoría, que se guarda de
+forma asíncrona en otra transacción y no vería datos sin confirmar.
+
+## Unicidad
+
+### Criterio de normalización antes de guardar
+
+El Service normaliza cada dato con `NormalizacionTexto` antes de validar y de guardar, de modo que la comparación de
+unicidad y el índice de la base trabajan sobre el mismo valor.
+
+| Dato | Normalización | Se guarda |
+|---|---|---|
+| Nombres propios, razón social, nombres de insumos y demás textos libres (`nombrePropio`) | Recorte de los extremos, colapso de cualquier espacio en blanco (incluidos los no separables) en uno solo, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC | Con las mayúsculas y las tildes escritas |
+| Códigos e identificadores (`codigo`): identificador interno de equipos, identificador de barril, identificación de lote del proveedor | Igual que `nombrePropio` y pasaje a mayúsculas con `Locale.ROOT` | En mayúsculas; la puntuación cuenta |
+| CUIT (`cuit`) | Eliminación de espacios, guiones, puntos y barras | Solo los 11 dígitos, sin guiones |
+| Correo (`correo`) | Recorte y minúsculas | En minúsculas |
+| Teléfono (`telefono`) | Recorte; vacío equivale a nulo | Solo dígitos, hasta 15; es opcional y no tiene unicidad |
+| Nombre de usuario (`username`) | Recorte y minúsculas | En minúsculas; solo letras, números, `.`, `_` y `-` |
+
+Las tildes y la puntuación son caracteres distintos: `Pale Ale` y `Palé Ale` no son el mismo nombre. Dos nombres son
+el mismo si son iguales ignorando mayúsculas y espacios repetidos.
+
+La normalización no valida: un valor con caracteres no permitidos se conserva para que lo rechace la validación
+(`ValidacionesTexto.validarCuit`, `validarTelefono`, `validarUsername`). El CUIT se valida con 11 dígitos, un prefijo
+de tipo de persona válido (20, 23, 24, 27, 30, 33, 34) y el dígito verificador de módulo 11.
+
+### Índices únicos
+
+La unicidad entre registros activos se garantiza en dos niveles:
+
+1. El Service consulta antes de guardar y lanza `RecursoDuplicadoException` con un mensaje por cada campo único (una
+   consulta y una excepción por campo).
+2. Un índice único de la base de datos es la garantía final frente a pedidos simultáneos.
+
+Los índices únicos de negocio se crean con migraciones SQL, con nombre explícito `udx_<tabla>_<campo>`. La unicidad
+solo rige entre registros activos, por lo que el índice es parcial; la comparación ignora las mayúsculas:
+
+```sql
+CREATE UNIQUE INDEX udx_cliente_nombre ON cliente (lower(nombre)) WHERE estado = 'ACTIVO';
+```
+
+Los códigos e identificadores se guardan en mayúsculas, por lo que su índice no necesita `lower(...)`:
+
+```sql
+CREATE UNIQUE INDEX udx_barril_identificador ON barril (identificador) WHERE estado = 'ACTIVO';
+```
+
+### Traducción de una violación de unicidad
+
+Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta
+`save` y `flush` dentro del método y traduce la violación del índice a la excepción de negocio asociada a su nombre
+(el mismo mensaje por campo que da la consulta previa):
+
+```java
+GuardadoUnico.guardar(clienteRepository, cliente, Map.of(
+        "udx_cliente_nombre", () -> new RecursoDuplicadoException("Ya existe un cliente activo con el nombre '" + nombre + "'")));
+```
+
+- Si el índice violado no figura en el mapa, lanza `RecursoDuplicadoException("Ya existe un registro con los mismos datos")`.
+- Una violación que no es de unicidad (clave foránea, columna obligatoria nula) se propaga como
+  `DataIntegrityViolationException`; `ControllerAdvices` la muestra con el mensaje "No se pudo guardar porque los datos
+  entran en conflicto con otro registro. Revise la información e intente nuevamente".
+
+**Nombre de la restricción con PostgreSQL.** Hibernate 7.4 informa el SQLSTATE `23505` y la clase
+`ConstraintViolationException` con `getKind() == UNIQUE`, pero `getConstraintName()` devuelve `null`. El nombre del
+índice está en el campo `constraint` del mensaje de error del servidor
+(`PSQLException.getServerErrorMessage().getConstraint()`), que no depende del idioma de la base de datos como sí
+depende el texto del mensaje (con un servidor en español el texto dice `llave duplicada viola restricción de
+unicidad «uk_usuarios_username»`). La misma lectura sirve para restricciones (`uk_usuarios_username`) y para índices
+únicos parciales o por expresión (`udx_...`). Por eso el driver `postgresql` se declara con alcance de compilación en
+el `pom.xml`.
+
+## Auditoría y transacciones
+
+`AuditAspect` registra la bitácora solo después de que la operación se confirma:
+
+- Tiene el orden explícito `AuditAspect.ORDEN` (`Ordered.LOWEST_PRECEDENCE - 100`), que lo ubica por fuera del
+  interceptor transaccional del Service. El commit ocurre dentro de la ejecución del método auditado, y una falla al
+  confirmar (por ejemplo, un índice único) se propaga antes de auditar.
+- Si el método auditado se ejecuta dentro de una transacción externa que sigue abierta, el registro se difiere a
+  `TransactionSynchronization.afterCommit`; si esa transacción se revierte, no se registra.
 
 ## Política de datos iniciales
 

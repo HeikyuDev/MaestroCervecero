@@ -23,8 +23,8 @@ public final class LimitesTecnicos {
     /** Longitud máxima, en caracteres, de un correo electrónico (el máximo de la columna de la base de datos). */
     public static final int LONGITUD_MAXIMA_CORREO = 255;
 
-    /** Longitud máxima, en caracteres, de un número de teléfono. */
-    public static final int LONGITUD_MAXIMA_TELEFONO = 30;
+    /** Cantidad máxima de dígitos de un número de teléfono (el máximo del plan internacional E.164). */
+    public static final int LONGITUD_MAXIMA_TELEFONO = 15;
 
     /** Longitud máxima, en caracteres, de un código postal. */
     public static final int LONGITUD_MAXIMA_CODIGO_POSTAL = 10;

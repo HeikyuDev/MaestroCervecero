@@ -1,10 +1,9 @@
 package com.github.heikyudev.maestrocervecero;
 
+import com.github.heikyudev.maestrocervecero.integracion.IntegracionBaseTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class MaestroCerveceroApplicationTests {
+class MaestroCerveceroApplicationTests extends IntegracionBaseTest {
 
     @Test
     void contextLoads() {

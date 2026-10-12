@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -27,6 +28,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ControllerAdvices {
 
     private static final String MENSAJE_ERROR_INESPERADO = "Ocurrió un error inesperado. Intente nuevamente";
+    private static final String MENSAJE_CONFLICTO_DE_DATOS =
+            "No se pudo guardar porque los datos entran en conflicto con otro registro. Revise la información e intente nuevamente";
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public String handleRecursoNoEncontrado(RecursoNoEncontradoException ex,
@@ -62,6 +65,19 @@ public class ControllerAdvices {
                                        RedirectAttributes redirectAttributes) {
         log.warn("Excepción de dominio sin handler específico: {}", ex.getMessage());
         return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER);
+    }
+
+    /**
+     * Red de seguridad para una violación de integridad de la base de datos que ningún Service tradujo a una
+     * excepción de negocio (por ejemplo, un índice único sin mensaje asociado o una clave foránea). Sin este
+     * handler, el catch-all de abajo la mostraría como un error inesperado.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public String handleDataIntegrityViolation(DataIntegrityViolationException ex,
+                                               HttpServletRequest request,
+                                               RedirectAttributes redirectAttributes) {
+        log.warn("Violación de integridad de datos en {}: {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        return redirigirConMensaje(request, redirectAttributes, MENSAJE_CONFLICTO_DE_DATOS, TipoAlerta.DANGER);
     }
 
     /**

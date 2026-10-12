@@ -311,7 +311,7 @@ class UsuarioServicioImplTest {
         UsuarioFormDTO apellidoLargo = UsuarioFormDTO.builder().username("juan").password("123456").nombre("Juan")
                 .apellido("a".repeat(101)).correo("juan@mail.com").telefono("1111").rol(Rol.OPERARIO_DE_PRODUCCION).build();
         UsuarioFormDTO correoLargo = usuarioFormDTO("juan", "123456", "Juan", "c".repeat(256), "1111", Rol.OPERARIO_DE_PRODUCCION);
-        UsuarioFormDTO telefonoLargo = usuarioFormDTO("juan", "123456", "Juan", "juan@mail.com", "1".repeat(31), Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO telefonoLargo = usuarioFormDTO("juan", "123456", "Juan", "juan@mail.com", "1".repeat(16), Rol.OPERARIO_DE_PRODUCCION);
 
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(usernameLargo))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre de usuario no puede superar 50 caracteres");
@@ -322,7 +322,7 @@ class UsuarioServicioImplTest {
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(correoLargo))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico no puede superar 255 caracteres");
         assertThatThrownBy(() -> usuarioServicio.altaUsuario(telefonoLargo))
-                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 30 caracteres");
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 15 caracteres");
 
         verifyNoInteractions(usuarioRepository, passwordEncoder);
     }
@@ -527,7 +527,7 @@ class UsuarioServicioImplTest {
         UsuarioFormDTO apellidoLargo = UsuarioFormDTO.builder().username("juan").password("123456").nombre("Juan")
                 .apellido("a".repeat(101)).correo("juan@mail.com").telefono("1111").rol(Rol.OPERARIO_DE_PRODUCCION).build();
         UsuarioFormDTO correoLargo = usuarioFormDTO("juan", "123456", "Juan", "c".repeat(256), "1111", Rol.OPERARIO_DE_PRODUCCION);
-        UsuarioFormDTO telefonoLargo = usuarioFormDTO("juan", "123456", "Juan", "juan@mail.com", "1".repeat(31), Rol.OPERARIO_DE_PRODUCCION);
+        UsuarioFormDTO telefonoLargo = usuarioFormDTO("juan", "123456", "Juan", "juan@mail.com", "1".repeat(16), Rol.OPERARIO_DE_PRODUCCION);
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usernameLargo))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El nombre de usuario no puede superar 50 caracteres");
@@ -538,7 +538,7 @@ class UsuarioServicioImplTest {
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, correoLargo))
                 .isInstanceOf(ReglaNegocioException.class).hasMessage("El correo electrónico no puede superar 255 caracteres");
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, telefonoLargo))
-                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 30 caracteres");
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El teléfono no puede superar 15 caracteres");
 
         verifyNoInteractions(usuarioRepository, passwordEncoder);
     }

@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -205,25 +204,5 @@ class ValidacionesNumericasTest {
         assertThatThrownBy(() -> ValidacionesNumericas.validarLongitudMaxima(excedido, 100, "El nombre"))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El nombre no puede superar 100 caracteres");
-    }
-
-    @Test
-    @DisplayName("CP-VN-16: normalizarTexto elimina espacios de los extremos y colapsa los internos")
-    void normalizarTexto_debeRecortarYColapsarEspacios() {
-        // Act & Assert
-        assertThat(ValidacionesNumericas.normalizarTexto("  Pale Ale  ")).isEqualTo("Pale Ale");
-        assertThat(ValidacionesNumericas.normalizarTexto("Pale    Ale")).isEqualTo("Pale Ale");
-        assertThat(ValidacionesNumericas.normalizarTexto("Pale  \t \n Ale")).isEqualTo("Pale Ale");
-        assertThat(ValidacionesNumericas.normalizarTexto("\tPale Ale\t")).isEqualTo("Pale Ale");
-        assertThat(ValidacionesNumericas.normalizarTexto("Pale Ale")).isEqualTo("Pale Ale");
-    }
-
-    @Test
-    @DisplayName("CP-VN-17: normalizarTexto devuelve nulo para nulo y vacío para vacío o solo espacios")
-    void normalizarTexto_debeManejarNuloYVacio() {
-        // Act & Assert
-        assertThat(ValidacionesNumericas.normalizarTexto(null)).isNull();
-        assertThat(ValidacionesNumericas.normalizarTexto("")).isEmpty();
-        assertThat(ValidacionesNumericas.normalizarTexto("   \t ")).isEmpty();
     }
 }

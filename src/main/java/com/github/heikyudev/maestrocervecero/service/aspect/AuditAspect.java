@@ -8,9 +8,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
@@ -24,12 +28,31 @@ import java.time.LocalDateTime;
  * <p>
  * Si el método falla, la excepción se propaga tal cual y NO se audita: no tiene sentido
  * dejar constancia de una operación que nunca llegó a completarse.
+ * <p>
+ * "Completarse" incluye la confirmación (commit) de la transacción: la base de datos puede rechazar una operación
+ * recién al confirmarla (por ejemplo, por un índice único), y la bitácora es asíncrona, por lo que una entrada
+ * despachada antes del commit quedaría registrada aunque la operación se revierta. Por eso el aspecto:
+ * </p>
+ * <ul>
+ *     <li>tiene un orden explícito ({@link #ORDEN}) que lo ubica por fuera del interceptor transaccional del
+ *     service, de modo que el commit ocurre dentro de {@code proceed()} y una falla al confirmar se propaga
+ *     antes de auditar;</li>
+ *     <li>si el método auditado corre dentro de una transacción externa que sigue abierta, difiere el registro
+ *     hasta que esa transacción se confirme ({@code afterCommit}) y no lo registra si se revierte.</li>
+ * </ul>
  */
 @Slf4j
 @Aspect
 @Component
+@Order(AuditAspect.ORDEN)
 @RequiredArgsConstructor
 public class AuditAspect {
+
+    /**
+     * Orden del aspecto respecto del interceptor transaccional, que usa {@link Ordered#LOWEST_PRECEDENCE}. Un número
+     * menor significa más externo.
+     */
+    public static final int ORDEN = Ordered.LOWEST_PRECEDENCE - 100;
 
     private static final String USUARIO_DESCONOCIDO = "desconocido";
 
@@ -54,10 +77,26 @@ public class AuditAspect {
 
         // Este metodo guardar espera la entidad ya hecha, para realizar el guardado asíncrono
         // desde otro hilo de la aplicacion
-        auditLogService.guardar(auditLogEntity);
+        despacharCuandoSeConfirme(auditLogEntity);
 
         // Devuelve el Objeto que se ha creado/modificado
         return resultado;
+    }
+
+    // Si hay una transacción en curso (la de un llamador externo), la entrada se despacha recién cuando esa
+    // transacción se confirma; si se revierte, no se registra. Sin transacción en curso, el método de negocio
+    // ya se confirmó y se despacha de inmediato.
+    private void despacharCuandoSeConfirme(AuditLogEntity auditLogEntity) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    auditLogService.guardar(auditLogEntity);
+                }
+            });
+        } else {
+            auditLogService.guardar(auditLogEntity);
+        }
     }
 
     // Saca el username del usuario logueado desde el contexto de seguridad de Spring.

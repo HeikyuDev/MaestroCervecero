@@ -1,6 +1,6 @@
 ## Casos de prueba de `ValidacionesNumericas`
 
-**Tipo de prueba:** unitaria (clase `ValidacionesNumericasTest`), sin Spring ni mocks. Verifica las validaciones numéricas y de texto reutilizables por los services.
+**Tipo de prueba:** unitaria (clase `ValidacionesNumericasTest`), sin Spring ni mocks. Verifica las validaciones numéricas y de longitud de texto reutilizables por los services.
 
 **Regla:** cada validación lanza `ReglaNegocioException` con un mensaje en español que empieza con la etiqueta que entrega quien llama (por ejemplo `"La capacidad total"`). Los números rechazados incluyen nulo, `NaN` e infinitos. El máximo se muestra con separador de miles español y sin decimales sobrantes (`100.000`, `1,5`). Un valor igual al máximo se acepta.
 
@@ -33,11 +33,9 @@
 
 ---
 
-### Validaciones de texto
+### Validaciones de longitud de texto
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-VN-14** | Longitud dentro del máximo | `validarLongitudMaxima` con `null`, `""` y 100 caracteres (máximo 100) | La longitud no supera el máximo (el nulo se acepta) | No lanza excepción. |
 | **CP-VN-15** | Longitud superior al máximo | 101 caracteres (máximo 100) | La longitud supera el máximo en un carácter | Lanza `ReglaNegocioException`: "El nombre no puede superar 100 caracteres". |
-| **CP-VN-16** | Normalizar espacios | `"  Pale Ale  "`, `"Pale    Ale"`, `"Pale  \t \n Ale"`, `"\tPale Ale\t"`, `"Pale Ale"` | Se recortan los extremos y se colapsan los espacios internos | Devuelve `"Pale Ale"` en todos los casos. |
-| **CP-VN-17** | Normalizar nulo y vacío | `null`, `""`, `"   \t "` | No hay contenido que normalizar | Devuelve `null` para nulo y cadena vacía para vacío o solo espacios. |

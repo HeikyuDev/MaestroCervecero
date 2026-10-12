@@ -7,7 +7,7 @@ import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
 /**
- * Validaciones numéricas y de texto reutilizables por los services.
+ * Validaciones numéricas y de longitud de texto reutilizables por los services.
  * <p>
  * Todas las validaciones lanzan {@link ReglaNegocioException} con un mensaje en español. La etiqueta
  * que recibe cada método es la frase completa que encabeza el mensaje (por ejemplo
@@ -137,20 +137,6 @@ public final class ValidacionesNumericas {
         if (valor != null && valor.length() > maximo) {
             throw new ReglaNegocioException(etiqueta + " no puede superar " + maximo + " caracteres");
         }
-    }
-
-    /**
-     * Normaliza un texto: elimina los espacios de los extremos y reemplaza cada secuencia interna de
-     * espacios en blanco (espacios, tabulaciones, saltos de línea) por un único espacio.
-     *
-     * @param valor Texto a normalizar.
-     * @return El texto normalizado, o {@code null} si el valor es nulo.
-     */
-    public static String normalizarTexto(String valor) {
-        if (valor == null) {
-            return null;
-        }
-        return valor.trim().replaceAll("\\s+", " ");
     }
 
     private static boolean esFinito(Double valor) {
