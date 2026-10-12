@@ -22,29 +22,9 @@ public class FabricanteBarrilResponseDTO {
     private Long id;
 
     /**
-     * Razón social del fabricante de barril.
+     * Nombre del fabricante de barril.
      */
-    private String razonSocial;
-
-    /**
-     * Nombre comercial del fabricante de barril.
-     */
-    private String nombreComercial;
-
-    /**
-     * CUIT del fabricante de barril.
-     */
-    private String cuit;
-
-    /**
-     * Teléfono de contacto del fabricante de barril.
-     */
-    private String telefono;
-
-    /**
-     * Email de contacto del fabricante de barril.
-     */
-    private String email;
+    private String nombre;
 
     /**
      * Estado lógico del fabricante de barril (activo o dado de baja).

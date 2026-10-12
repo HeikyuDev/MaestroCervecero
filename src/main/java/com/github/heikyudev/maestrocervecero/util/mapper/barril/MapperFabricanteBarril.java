@@ -21,11 +21,7 @@ public class MapperFabricanteBarril {
 
         return FabricanteBarrilResponseDTO.builder()
                 .id(fabricanteBarrilEntity.getId())
-                .razonSocial(fabricanteBarrilEntity.getRazonSocial())
-                .nombreComercial(fabricanteBarrilEntity.getNombreComercial())
-                .cuit(fabricanteBarrilEntity.getCuit())
-                .telefono(fabricanteBarrilEntity.getTelefono())
-                .email(fabricanteBarrilEntity.getEmail())
+                .nombre(fabricanteBarrilEntity.getNombre())
                 .estado(fabricanteBarrilEntity.getEstado())
                 .build();
     }

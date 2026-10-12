@@ -20,27 +20,8 @@ import lombok.NoArgsConstructor;
 public class FabricanteBarrilFormDTO {
 
     /**
-     * Razón social del fabricante de barril.
+     * Nombre del fabricante de barril, que indica el modelo de fabricación del barril. Debe ser único entre los
+     * fabricantes activos (sin distinguir mayúsculas). Ejemplo: "Tonelería del Sur".
      */
-    private String razonSocial;
-
-    /**
-     * Nombre comercial del fabricante de barril.
-     */
-    private String nombreComercial;
-
-    /**
-     * CUIT del fabricante de barril.
-     */
-    private String cuit;
-
-    /**
-     * Teléfono de contacto del fabricante de barril.
-     */
-    private String telefono;
-
-    /**
-     * Email de contacto del fabricante de barril.
-     */
-    private String email;
+    private String nombre;
 }

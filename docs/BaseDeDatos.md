@@ -218,6 +218,13 @@ CREATE UNIQUE INDEX udx_barril_identificador ON barril (identificador) WHERE est
 El código postal de las localidades es un dato informativo y no tiene unicidad. Si las tablas contienen duplicados entre
 registros activos, la creación del índice falla y deben resolverse antes de migrar.
 
+`V4__fabricante_barril_solo_nombre.sql` deja al fabricante de barril con `id`, `nombre` y `estado` (más la auditoría) y crea su
+índice único parcial:
+
+| Índice | Tabla | Expresión | Regla |
+|---|---|---|---|
+| `udx_fabricante_barril_nombre` | `fabricante_barril` | `(lower(btrim(nombre)))` | Nombre único entre fabricantes activos |
+
 ### Traducción de una violación de unicidad
 
 Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta

@@ -557,11 +557,7 @@ class MantenimientoBarrilServicioImplTest {
     private static BarrilEntity crearBarrilEntity(Long id, EstadoOperativoBarril estadoOperativo) {
         FabricanteBarrilEntity fabricante = FabricanteBarrilEntity.builder()
                 .id(1L)
-                .razonSocial("Fabricante Test SA")
-                .nombreComercial("Fabricante Test")
-                .cuit("30-12345678-9")
-                .telefono("11-2233-4455")
-                .email("contacto@fabricante.com")
+                .nombre("Fabricante Test SA")
                 .estado(Estado.ACTIVO)
                 .build();
 

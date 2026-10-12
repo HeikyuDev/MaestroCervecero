@@ -34,83 +34,46 @@ public interface IFabricanteBarrilRepository extends JpaRepository<FabricanteBar
     Optional<FabricanteBarrilEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de fabricantes de barril activos, filtrados opcionalmente por razón
-     * social, nombre comercial y/o CUIT (todas coincidencias parciales, sin distinguir
-     * mayúsculas/minúsculas). Un parámetro nulo no restringe por ese criterio.
+     * Obtiene una página de fabricantes de barril activos, filtrados opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas). Un parámetro nulo no restringe por ese criterio.
      *
-     * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
-     * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
-     * @param cuit Texto a buscar dentro del CUIT, o {@code null} para no filtrar por él.
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por nombre.
      * @param pageable La configuración de paginación.
      * @return Una página de fabricantes de barril activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT f FROM FabricanteBarrilEntity f WHERE f.estado = 'ACTIVO' "
-            + "AND (:razonSocial IS NULL OR UPPER(f.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
-            + "AND (:nombreComercial IS NULL OR UPPER(f.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
-            + "AND (:cuit IS NULL OR UPPER(f.cuit) LIKE UPPER(CONCAT('%', CAST(:cuit AS string), '%')))",
+            + "AND (:nombre IS NULL OR UPPER(f.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))",
             countQuery = "SELECT COUNT(f) FROM FabricanteBarrilEntity f WHERE f.estado = 'ACTIVO' "
-                    + "AND (:razonSocial IS NULL OR UPPER(f.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
-                    + "AND (:nombreComercial IS NULL OR UPPER(f.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
-                    + "AND (:cuit IS NULL OR UPPER(f.cuit) LIKE UPPER(CONCAT('%', CAST(:cuit AS string), '%')))")
-    Page<FabricanteBarrilEntity> filtrarFabricantesBarril(@Param("razonSocial") String razonSocial,
-                                                           @Param("nombreComercial") String nombreComercial,
-                                                           @Param("cuit") String cuit,
-                                                           Pageable pageable);
+                    + "AND (:nombre IS NULL OR UPPER(f.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
+    Page<FabricanteBarrilEntity> filtrarFabricantesBarril(@Param("nombre") String nombre, Pageable pageable);
 
     /**
-     * Verifica si existe un fabricante de barril activo con la razón social dada (ignorando
-     * mayúsculas y minúsculas).
+     * Verifica si existe un fabricante de barril activo con el nombre dado, ignorando mayúsculas y minúsculas.
      * <p>
-     * Un barril puede repetir identificador entre fabricantes distintos, pero un fabricante no
-     * puede repetir razón social ni CUIT con otro fabricante activo.
+     * Un barril puede repetir identificador entre fabricantes distintos, pero un fabricante no puede repetir
+     * nombre con otro fabricante activo.
      * </p>
      *
-     * @param razonSocial La razón social a buscar.
-     * @return {@code true} si ya existe un fabricante activo con esa razón social, {@code false} en caso contrario.
+     * @param nombre El nombre a buscar.
+     * @return {@code true} si ya existe un fabricante activo con ese nombre, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END FROM FabricanteBarrilEntity f "
-            + "WHERE UPPER(f.razonSocial) = UPPER(:razonSocial) AND f.estado = 'ACTIVO'")
-    boolean existsByRazonSocialIgnoreCase(@Param("razonSocial") String razonSocial);
+            + "WHERE LOWER(f.nombre) = LOWER(:nombre) AND f.estado = 'ACTIVO'")
+    boolean existsByNombreIgnoreCase(@Param("nombre") String nombre);
 
     /**
-     * Verifica si existe un fabricante de barril activo con el CUIT dado.
-     *
-     * @param cuit El CUIT a buscar.
-     * @return {@code true} si ya existe un fabricante activo con ese CUIT, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END FROM FabricanteBarrilEntity f "
-            + "WHERE f.cuit = :cuit AND f.estado = 'ACTIVO'")
-    boolean existsByCuit(@Param("cuit") String cuit);
-
-    /**
-     * Verifica si existe un fabricante de barril activo con la razón social dada (ignorando
-     * mayúsculas y minúsculas), excluyendo de la búsqueda al fabricante con el ID indicado.
+     * Verifica si existe un fabricante de barril activo con el nombre dado, ignorando mayúsculas y minúsculas,
+     * excluyendo de la búsqueda al fabricante con el ID indicado.
      * <p>
-     * Se utiliza en la modificación para permitir conservar la propia razón social actual sin que
-     * la validación de unicidad falle contra el mismo registro.
+     * Se utiliza en la modificación para permitir conservar el propio nombre actual sin que la validación de
+     * unicidad falle contra el mismo registro.
      * </p>
      *
-     * @param razonSocial La razón social a buscar.
+     * @param nombre El nombre a buscar.
      * @param id El ID del fabricante de barril a excluir de la verificación.
-     * @return {@code true} si otro fabricante activo ya posee esa razón social, {@code false} en caso contrario.
+     * @return {@code true} si otro fabricante activo ya posee ese nombre, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END FROM FabricanteBarrilEntity f "
-            + "WHERE UPPER(f.razonSocial) = UPPER(:razonSocial) AND f.id <> :id AND f.estado = 'ACTIVO'")
-    boolean existsByRazonSocialIgnoreCaseAndIdNot(@Param("razonSocial") String razonSocial, @Param("id") Long id);
-
-    /**
-     * Verifica si existe un fabricante de barril activo con el CUIT dado, excluyendo de la
-     * búsqueda al fabricante con el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar el propio CUIT actual sin que la
-     * validación de unicidad falle contra el mismo registro.
-     * </p>
-     *
-     * @param cuit El CUIT a buscar.
-     * @param id El ID del fabricante de barril a excluir de la verificación.
-     * @return {@code true} si otro fabricante activo ya posee ese CUIT, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(f) > 0 THEN true ELSE false END FROM FabricanteBarrilEntity f "
-            + "WHERE f.cuit = :cuit AND f.id <> :id AND f.estado = 'ACTIVO'")
-    boolean existsByCuitAndIdNot(@Param("cuit") String cuit, @Param("id") Long id);
+            + "WHERE LOWER(f.nombre) = LOWER(:nombre) AND f.id <> :id AND f.estado = 'ACTIVO'")
+    boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
 }

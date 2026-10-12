@@ -20,20 +20,8 @@ public class FabricanteBarrilEntity extends AuditableEntity<String> {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(name = "razon_social", nullable = false)
-    private String razonSocial;
-
-    @Column(name = "nombre_comercial", nullable = false)
-    private String nombreComercial;
-
     @Column(nullable = false)
-    private String cuit;
-
-    @Column(nullable = false)
-    private String telefono;
-
-    @Column(nullable = false)
-    private String email;
+    private String nombre;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

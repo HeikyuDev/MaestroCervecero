@@ -11,17 +11,14 @@ import org.springframework.data.domain.Pageable;
 public interface IFabricanteBarrilServicio {
 
     /**
-     * Obtiene una página de fabricantes de barril activos, filtrados opcionalmente por razón
-     * social, nombre comercial y/o CUIT (todas coincidencias parciales, sin distinguir mayúsculas/
-     * minúsculas). Un parámetro nulo no restringe por ese criterio.
+     * Obtiene una página de fabricantes de barril activos, filtrados opcionalmente por nombre (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas). Un parámetro nulo no restringe por ese criterio.
      *
-     * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
-     * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
-     * @param cuit Texto a buscar dentro del CUIT, o {@code null} para no filtrar por él.
+     * @param nombre Texto a buscar dentro del nombre, o {@code null} para no filtrar por nombre.
      * @param pageable Información de paginación.
      * @return Página de FabricanteBarrilResponseDTO que cumplen los criterios indicados.
      */
-    Page<FabricanteBarrilResponseDTO> filtrarFabricantesBarril(String razonSocial, String nombreComercial, String cuit, Pageable pageable);
+    Page<FabricanteBarrilResponseDTO> filtrarFabricantesBarril(String nombre, Pageable pageable);
 
     /**
      * Busca un fabricante de barril por su ID.

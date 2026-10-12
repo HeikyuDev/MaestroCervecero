@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.FabricanteBarrilResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,18 +26,16 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class FabricanteBarrilServicioImplTest {
-
-    private static final String NOMBRE_COMERCIAL_DEFAULT = "Fabricante de prueba";
-    private static final String TELEFONO_DEFAULT = "011-4444-5555";
-    private static final String EMAIL_DEFAULT = "contacto@fabricante.com";
 
     @Mock
     private IFabricanteBarrilRepository fabricanteBarrilRepository;
@@ -50,41 +49,41 @@ class FabricanteBarrilServicioImplTest {
     // ==================== filtrarFabricantesBarril ====================
 
     @Test
-    @DisplayName("CP-FFB-01: filtrarFabricantesBarril retorna una página de fabricantes correctamente mapeada a DTO cuando se filtra por razón social, nombre comercial y CUIT")
-    void filtrarFabricantesBarril_debeRetornarPaginaMapeadaFiltrandoPorRazonSocialNombreComercialYCuit() {
+    @DisplayName("CP-FFB-01: filtrarFabricantesBarril retorna una página de fabricantes correctamente mapeada a DTO cuando se filtra por nombre")
+    void filtrarFabricantesBarril_debeRetornarPaginaMapeadaFiltrandoPorNombre() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
-        FabricanteBarrilEntity otroFabricanteEntity = crearFabricanteBarrilEntity(2L, "Tonelería del Sur Hnos.", "30-22222222-2");
-        when(fabricanteBarrilRepository.filtrarFabricantesBarril("Tonelería", "Sur", "30-1111", pageable))
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        FabricanteBarrilEntity otroFabricanteEntity = crearFabricanteBarrilEntity(2L, "Tonelería del Sur Hnos.");
+        when(fabricanteBarrilRepository.filtrarFabricantesBarril("Tonelería", pageable))
                 .thenReturn(new PageImpl<>(List.of(fabricanteEntity, otroFabricanteEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<FabricanteBarrilResponseDTO> resultado = fabricanteBarrilServicio.filtrarFabricantesBarril("Tonelería", "Sur", "30-1111", pageable);
+        Page<FabricanteBarrilResponseDTO> resultado = fabricanteBarrilServicio.filtrarFabricantesBarril("Tonelería", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertFabricanteBarrilDTO(fabricanteEntity, resultado.getContent().get(0));
         assertFabricanteBarrilDTO(otroFabricanteEntity, resultado.getContent().get(1));
-        verify(fabricanteBarrilRepository).filtrarFabricantesBarril("Tonelería", "Sur", "30-1111", pageable);
+        verify(fabricanteBarrilRepository).filtrarFabricantesBarril("Tonelería", pageable);
     }
 
     @Test
-    @DisplayName("CP-FFB-02: filtrarFabricantesBarril propaga razón social, nombre comercial y CUIT nulos sin restringir esos criterios")
+    @DisplayName("CP-FFB-02: filtrarFabricantesBarril propaga el nombre nulo sin restringir la búsqueda")
     void filtrarFabricantesBarril_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
-        FabricanteBarrilEntity otroFabricanteEntity = crearFabricanteBarrilEntity(2L, "Tonelería del Norte S.A.", "30-22222222-2");
-        when(fabricanteBarrilRepository.filtrarFabricantesBarril(null, null, null, pageable))
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        FabricanteBarrilEntity otroFabricanteEntity = crearFabricanteBarrilEntity(2L, "Tonelería del Norte");
+        when(fabricanteBarrilRepository.filtrarFabricantesBarril(null, pageable))
                 .thenReturn(new PageImpl<>(List.of(fabricanteEntity, otroFabricanteEntity), pageable, 2));
 
         // === EJECUCION ===
-        Page<FabricanteBarrilResponseDTO> resultado = fabricanteBarrilServicio.filtrarFabricantesBarril(null, null, null, pageable);
+        Page<FabricanteBarrilResponseDTO> resultado = fabricanteBarrilServicio.filtrarFabricantesBarril(null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(2);
-        verify(fabricanteBarrilRepository).filtrarFabricantesBarril(null, null, null, pageable);
+        verify(fabricanteBarrilRepository).filtrarFabricantesBarril(null, pageable);
     }
 
     @Test
@@ -92,15 +91,15 @@ class FabricanteBarrilServicioImplTest {
     void filtrarFabricantesBarril_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(fabricanteBarrilRepository.filtrarFabricantesBarril("Inexistente", null, null, pageable))
+        when(fabricanteBarrilRepository.filtrarFabricantesBarril("Inexistente", pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<FabricanteBarrilResponseDTO> resultado = fabricanteBarrilServicio.filtrarFabricantesBarril("Inexistente", null, null, pageable);
+        Page<FabricanteBarrilResponseDTO> resultado = fabricanteBarrilServicio.filtrarFabricantesBarril("Inexistente", pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(fabricanteBarrilRepository).filtrarFabricantesBarril("Inexistente", null, null, pageable);
+        verify(fabricanteBarrilRepository).filtrarFabricantesBarril("Inexistente", pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -109,7 +108,7 @@ class FabricanteBarrilServicioImplTest {
     @DisplayName("CP-BI-01: buscarPorId retorna el DTO del fabricante de barril cuando el ID existe")
     void buscarPorId_debeRetornarFabricanteExistente() {
         // === PREPARACION DE DATOS ===
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
 
         // === EJECUCION ===
@@ -135,30 +134,30 @@ class FabricanteBarrilServicioImplTest {
     // ==================== altaFabricanteBarril ====================
 
     @Test
-    @DisplayName("CP-AFB-01: altaFabricanteBarril lanza RecursoDuplicadoException y no consulta el CUIT cuando la razón social ya está registrada por un fabricante activo")
-    void altaFabricanteBarril_debeRechazarRazonSocialDuplicada() {
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur S.A.", "30-99999999-9");
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCase("Tonelería del Sur S.A.")).thenReturn(true);
+    @DisplayName("CP-AFB-01: altaFabricanteBarril lanza RecursoDuplicadoException y no persiste cuando el nombre ya está registrado por un fabricante activo")
+    void altaFabricanteBarril_debeRechazarNombreDuplicado() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur");
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("Tonelería del Sur")).thenReturn(true);
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un fabricante de barril activo con la razón social 'Tonelería del Sur S.A.'");
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'Tonelería del Sur'");
 
-        verify(fabricanteBarrilRepository, never()).existsByCuit(any());
+        verify(fabricanteBarrilRepository).existsByNombreIgnoreCase("Tonelería del Sur");
         verify(fabricanteBarrilRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-AFB-02: altaFabricanteBarril lanza RecursoDuplicadoException cuando el CUIT ya está registrado por un fabricante activo")
-    void altaFabricanteBarril_debeRechazarCuitDuplicado() {
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Norte S.A.", "30-11111111-1");
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCase("Tonelería del Norte S.A.")).thenReturn(false);
-        when(fabricanteBarrilRepository.existsByCuit("30-11111111-1")).thenReturn(true);
+    @DisplayName("CP-AFB-02: altaFabricanteBarril lanza RecursoDuplicadoException cuando el nombre ya existe con distinto case (case-insensitive)")
+    void altaFabricanteBarril_debeRechazarNombreDuplicadoCaseInsensitive() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("tonelería del sur");
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("tonelería del sur")).thenReturn(true);
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un fabricante de barril activo con el CUIT '30-11111111-1'");
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'tonelería del sur'");
 
+        verify(fabricanteBarrilRepository).existsByNombreIgnoreCase("tonelería del sur");
         verify(fabricanteBarrilRepository, never()).save(any());
     }
 
@@ -166,9 +165,8 @@ class FabricanteBarrilServicioImplTest {
     @DisplayName("CP-AFB-03: altaFabricanteBarril persiste y retorna el DTO correspondiente cuando los datos son válidos (camino feliz)")
     void altaFabricanteBarril_debePersistirYRetornarDTOCuandoDatosSonValidos() {
         // === PREPARACION DE DATOS ===
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur S.A.", "30-11111111-1");
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCase("Tonelería del Sur S.A.")).thenReturn(false);
-        when(fabricanteBarrilRepository.existsByCuit("30-11111111-1")).thenReturn(false);
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur");
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("Tonelería del Sur")).thenReturn(false);
         when(fabricanteBarrilRepository.save(any(FabricanteBarrilEntity.class))).thenAnswer(invocation -> {
             FabricanteBarrilEntity entidadGuardada = invocation.getArgument(0);
             entidadGuardada.setId(1L);
@@ -182,18 +180,110 @@ class FabricanteBarrilServicioImplTest {
         ArgumentCaptor<FabricanteBarrilEntity> captor = ArgumentCaptor.forClass(FabricanteBarrilEntity.class);
         verify(fabricanteBarrilRepository).save(captor.capture());
         FabricanteBarrilEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getRazonSocial()).isEqualTo("Tonelería del Sur S.A.");
-        assertThat(entidadCapturada.getNombreComercial()).isEqualTo(NOMBRE_COMERCIAL_DEFAULT);
-        assertThat(entidadCapturada.getCuit()).isEqualTo("30-11111111-1");
-        assertThat(entidadCapturada.getTelefono()).isEqualTo(TELEFONO_DEFAULT);
-        assertThat(entidadCapturada.getEmail()).isEqualTo(EMAIL_DEFAULT);
+        assertThat(entidadCapturada.getNombre()).isEqualTo("Tonelería del Sur");
         // El alta siempre debe registrar al fabricante como ACTIVO, sin importar lo que traiga el FormDTO
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
-        assertThat(resultado.getRazonSocial()).isEqualTo("Tonelería del Sur S.A.");
-        assertThat(resultado.getCuit()).isEqualTo("30-11111111-1");
+        assertThat(resultado.getNombre()).isEqualTo("Tonelería del Sur");
         assertThat(resultado.getEstado()).isEqualTo(Estado.ACTIVO);
+    }
+
+    @Test
+    @DisplayName("CP-AFB-04: altaFabricanteBarril guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void altaFabricanteBarril_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("  Tonelería   del  Sur  ");
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("Tonelería del Sur")).thenReturn(false);
+        when(fabricanteBarrilRepository.save(any(FabricanteBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO);
+
+        // === ASSERTS ===
+        ArgumentCaptor<FabricanteBarrilEntity> captor = ArgumentCaptor.forClass(FabricanteBarrilEntity.class);
+        verify(fabricanteBarrilRepository).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Tonelería del Sur");
+        assertThat(fabricanteBarrilFormDTO.getNombre()).isEqualTo("  Tonelería   del  Sur  ");
+        verify(fabricanteBarrilRepository).existsByNombreIgnoreCase("Tonelería del Sur");
+        verify(fabricanteBarrilRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-AFB-05: altaFabricanteBarril lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void altaFabricanteBarril_debeRechazarNombreVacio() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("   ");
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AFB-06: altaFabricanteBarril lanza RecursoDuplicadoException cuando el nombre normalizado ya existe")
+    void altaFabricanteBarril_debeDetectarDuplicadoConElValorNormalizado() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("  tonelería  del sur ");
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("tonelería del sur")).thenReturn(true);
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'tonelería del sur'");
+
+        verify(fabricanteBarrilRepository).existsByNombreIgnoreCase("tonelería del sur");
+        verify(fabricanteBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AFB-07: altaFabricanteBarril traduce la violación del índice único udx_fabricante_barril_nombre al mensaje de duplicado")
+    void altaFabricanteBarril_debeTraducirLaViolacionDelIndiceUnico() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur");
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("Tonelería del Sur")).thenReturn(false);
+        when(fabricanteBarrilRepository.save(any(FabricanteBarrilEntity.class)))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_fabricante_barril_nombre"));
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'Tonelería del Sur'");
+    }
+
+    @Test
+    @DisplayName("CP-AFB-08: altaFabricanteBarril permite reutilizar el nombre de un fabricante dado de baja")
+    void altaFabricanteBarril_debePermitirReutilizarElNombreDeUnFabricanteDadoDeBaja() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur");
+        // El único fabricante con ese nombre está dado de baja: la consulta solo considera fabricantes activos
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase("Tonelería del Sur")).thenReturn(false);
+        when(fabricanteBarrilRepository.save(any(FabricanteBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO)).doesNotThrowAnyException();
+
+        verify(fabricanteBarrilRepository).save(any(FabricanteBarrilEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-AFB-09: altaFabricanteBarril lanza ReglaNegocioException y no consulta el repositorio cuando el nombre supera los 100 caracteres")
+    void altaFabricanteBarril_debeRechazarNombreQueSuperaElTope() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("a".repeat(101));
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AFB-10: altaFabricanteBarril persiste un nombre de exactamente 100 caracteres (límite)")
+    void altaFabricanteBarril_debePermitirNombreEnElTope() {
+        String nombre = "a".repeat(100);
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO(nombre);
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCase(nombre)).thenReturn(false);
+        when(fabricanteBarrilRepository.save(any(FabricanteBarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatCode(() -> fabricanteBarrilServicio.altaFabricanteBarril(fabricanteBarrilFormDTO)).doesNotThrowAnyException();
+
+        verify(fabricanteBarrilRepository).save(any(FabricanteBarrilEntity.class));
     }
 
     // ==================== modificarFabricanteBarril ====================
@@ -201,7 +291,7 @@ class FabricanteBarrilServicioImplTest {
     @Test
     @DisplayName("CP-MFB-01: modificarFabricanteBarril lanza RecursoNoEncontradoException y no valida duplicados ni persiste cuando el ID no existe")
     void modificarFabricanteBarril_debeLanzarExcepcionSiNoExiste() {
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur S.A.", "30-11111111-1");
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur");
         when(fabricanteBarrilRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(99L, fabricanteBarrilFormDTO))
@@ -209,75 +299,63 @@ class FabricanteBarrilServicioImplTest {
                 .hasMessage("No se encontró el fabricante de barril con ID: 99");
 
         verify(fabricanteBarrilRepository).findById(99L);
-        verify(fabricanteBarrilRepository, never()).existsByRazonSocialIgnoreCaseAndIdNot(any(), any());
-        verify(fabricanteBarrilRepository, never()).existsByCuitAndIdNot(any(), any());
+        verify(fabricanteBarrilRepository, never()).existsByNombreIgnoreCaseAndIdNot(any(), any());
         verify(fabricanteBarrilRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MFB-02: modificarFabricanteBarril lanza RecursoDuplicadoException y no persiste cuando la razón social está en uso por otro fabricante activo")
-    void modificarFabricanteBarril_debeRechazarRazonSocialEnUsoPorOtroFabricante() {
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Norte S.A.", "30-11111111-1");
+    @DisplayName("CP-MFB-02: modificarFabricanteBarril lanza RecursoDuplicadoException y no persiste cuando el nombre está en uso por otro fabricante activo")
+    void modificarFabricanteBarril_debeRechazarNombreEnUsoPorOtroFabricante() {
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Norte");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCaseAndIdNot("Tonelería del Norte S.A.", 1L)).thenReturn(true);
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("Tonelería del Norte", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe otro fabricante de barril activo con la razón social 'Tonelería del Norte S.A.'");
+                .hasMessage("El nombre 'Tonelería del Norte' ya está en uso por otro fabricante de barril");
 
-        verify(fabricanteBarrilRepository, never()).existsByCuitAndIdNot(any(), any());
         verify(fabricanteBarrilRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MFB-03: modificarFabricanteBarril lanza RecursoDuplicadoException y no persiste cuando el CUIT está en uso por otro fabricante activo")
-    void modificarFabricanteBarril_debeRechazarCuitEnUsoPorOtroFabricante() {
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur S.A.", "30-99999999-9");
+    @DisplayName("CP-MFB-03: modificarFabricanteBarril lanza RecursoDuplicadoException cuando el nombre está en uso por otro fabricante activo con distinto case (case-insensitive)")
+    void modificarFabricanteBarril_debeRechazarNombreEnUsoPorOtroFabricanteCaseInsensitive() {
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("tonelería del norte");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCaseAndIdNot("Tonelería del Sur S.A.", 1L)).thenReturn(false);
-        when(fabricanteBarrilRepository.existsByCuitAndIdNot("30-99999999-9", 1L)).thenReturn(true);
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("tonelería del norte", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe otro fabricante de barril activo con el CUIT '30-99999999-9'");
+                .hasMessage("El nombre 'tonelería del norte' ya está en uso por otro fabricante de barril");
 
         verify(fabricanteBarrilRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-MFB-04: modificarFabricanteBarril permite conservar la razón social y el CUIT propios y persiste (camino feliz)")
-    void modificarFabricanteBarril_debePermitirConservarRazonSocialYCuitPropios() {
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur S.A.", "30-11111111-1");
+    @DisplayName("CP-MFB-04: modificarFabricanteBarril permite conservar el nombre propio y persiste (camino feliz)")
+    void modificarFabricanteBarril_debePermitirConservarNombrePropio() {
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Sur");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCaseAndIdNot("Tonelería del Sur S.A.", 1L)).thenReturn(false);
-        when(fabricanteBarrilRepository.existsByCuitAndIdNot("30-11111111-1", 1L)).thenReturn(false);
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("Tonelería del Sur", 1L)).thenReturn(false);
         when(fabricanteBarrilRepository.save(fabricanteEntity)).thenReturn(fabricanteEntity);
 
         FabricanteBarrilResponseDTO resultado = fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO);
 
-        assertThat(resultado.getRazonSocial()).isEqualTo("Tonelería del Sur S.A.");
-        assertThat(resultado.getCuit()).isEqualTo("30-11111111-1");
+        assertThat(resultado.getNombre()).isEqualTo("Tonelería del Sur");
         verify(fabricanteBarrilRepository).save(fabricanteEntity);
     }
 
     @Test
-    @DisplayName("CP-MFB-05: modificarFabricanteBarril actualiza todos los campos y persiste cuando los nuevos datos son válidos y únicos (camino feliz)")
+    @DisplayName("CP-MFB-05: modificarFabricanteBarril actualiza el nombre y persiste cuando el nuevo nombre es válido y único (camino feliz)")
     void modificarFabricanteBarril_debeActualizarFabricanteExistente() {
         // === PREPARACION DE DATOS ===
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería Vieja S.A.", "30-11111111-1");
-        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = FabricanteBarrilFormDTO.builder()
-                .razonSocial("Tonelería Nueva S.A.")
-                .nombreComercial("Tonelería Nueva")
-                .cuit("30-22222222-2")
-                .telefono("011-5555-6666")
-                .email("nuevo@fabricante.com")
-                .build();
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería Vieja");
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería Nueva");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
-        when(fabricanteBarrilRepository.existsByRazonSocialIgnoreCaseAndIdNot("Tonelería Nueva S.A.", 1L)).thenReturn(false);
-        when(fabricanteBarrilRepository.existsByCuitAndIdNot("30-22222222-2", 1L)).thenReturn(false);
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("Tonelería Nueva", 1L)).thenReturn(false);
         when(fabricanteBarrilRepository.save(fabricanteEntity)).thenReturn(fabricanteEntity);
 
         // === EJECUCION ===
@@ -286,16 +364,103 @@ class FabricanteBarrilServicioImplTest {
         // === ASSERTS ===
         ArgumentCaptor<FabricanteBarrilEntity> captor = ArgumentCaptor.forClass(FabricanteBarrilEntity.class);
         verify(fabricanteBarrilRepository).save(captor.capture());
-        FabricanteBarrilEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getRazonSocial()).isEqualTo("Tonelería Nueva S.A.");
-        assertThat(entidadCapturada.getNombreComercial()).isEqualTo("Tonelería Nueva");
-        assertThat(entidadCapturada.getCuit()).isEqualTo("30-22222222-2");
-        assertThat(entidadCapturada.getTelefono()).isEqualTo("011-5555-6666");
-        assertThat(entidadCapturada.getEmail()).isEqualTo("nuevo@fabricante.com");
+        assertThat(captor.getValue().getNombre()).isEqualTo("Tonelería Nueva");
+        assertThat(captor.getValue().getEstado()).isEqualTo(Estado.ACTIVO);
 
-        assertThat(resultado.getRazonSocial()).isEqualTo("Tonelería Nueva S.A.");
-        assertThat(resultado.getCuit()).isEqualTo("30-22222222-2");
+        assertThat(resultado.getNombre()).isEqualTo("Tonelería Nueva");
         verify(fabricanteBarrilRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("CP-MFB-06: modificarFabricanteBarril guarda el nombre normalizado y consulta la unicidad con ese valor")
+    void modificarFabricanteBarril_debeGuardarElValorNormalizado() {
+        // === PREPARACION DE DATOS ===
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("  Tonelería   Nueva  ");
+        FabricanteBarrilEntity existente = crearFabricanteBarrilEntity(1L, "Tonelería Vieja");
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("Tonelería Nueva", 1L)).thenReturn(false);
+        when(fabricanteBarrilRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO);
+
+        // === ASSERTS ===
+        assertThat(existente.getNombre()).isEqualTo("Tonelería Nueva");
+        assertThat(fabricanteBarrilFormDTO.getNombre()).isEqualTo("  Tonelería   Nueva  ");
+        verify(fabricanteBarrilRepository).existsByNombreIgnoreCaseAndIdNot("Tonelería Nueva", 1L);
+        verify(fabricanteBarrilRepository).save(existente);
+        verify(fabricanteBarrilRepository).flush();
+    }
+
+    @Test
+    @DisplayName("CP-MFB-07: modificarFabricanteBarril lanza ReglaNegocioException y no consulta el repositorio cuando el nombre está vacío")
+    void modificarFabricanteBarril_debeRechazarNombreVacio() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("   ");
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre es obligatorio");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MFB-08: modificarFabricanteBarril lanza RecursoDuplicadoException cuando el nombre normalizado está en uso por otro fabricante")
+    void modificarFabricanteBarril_debeDetectarDuplicadoConElValorNormalizado() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("  tonelería  del norte ");
+        FabricanteBarrilEntity existente = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("tonelería del norte", 1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'tonelería del norte' ya está en uso por otro fabricante de barril");
+
+        verify(fabricanteBarrilRepository).existsByNombreIgnoreCaseAndIdNot("tonelería del norte", 1L);
+        verify(fabricanteBarrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MFB-09: modificarFabricanteBarril traduce la violación del índice único udx_fabricante_barril_nombre al mensaje de duplicado")
+    void modificarFabricanteBarril_debeTraducirLaViolacionDelIndiceUnico() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Norte");
+        FabricanteBarrilEntity existente = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("Tonelería del Norte", 1L)).thenReturn(false);
+        when(fabricanteBarrilRepository.save(existente))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_fabricante_barril_nombre"));
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("El nombre 'Tonelería del Norte' ya está en uso por otro fabricante de barril");
+    }
+
+    @Test
+    @DisplayName("CP-MFB-10: modificarFabricanteBarril permite reutilizar el nombre de un fabricante dado de baja")
+    void modificarFabricanteBarril_debePermitirReutilizarElNombreDeUnFabricanteDadoDeBaja() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("Tonelería del Norte");
+        FabricanteBarrilEntity existente = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        // El único otro fabricante con ese nombre está dado de baja: la consulta solo considera fabricantes activos
+        when(fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot("Tonelería del Norte", 1L)).thenReturn(false);
+        when(fabricanteBarrilRepository.save(existente)).thenReturn(existente);
+
+        assertThatCode(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO)).doesNotThrowAnyException();
+
+        assertThat(existente.getNombre()).isEqualTo("Tonelería del Norte");
+        verify(fabricanteBarrilRepository).save(existente);
+    }
+
+    @Test
+    @DisplayName("CP-MFB-11: modificarFabricanteBarril lanza ReglaNegocioException y no consulta el repositorio cuando el nombre supera los 100 caracteres")
+    void modificarFabricanteBarril_debeRechazarNombreQueSuperaElTope() {
+        FabricanteBarrilFormDTO fabricanteBarrilFormDTO = fabricanteBarrilFormDTO("a".repeat(101));
+
+        assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
     }
 
     // ==================== bajaFabricanteBarril ====================
@@ -317,7 +482,7 @@ class FabricanteBarrilServicioImplTest {
     @Test
     @DisplayName("CP-BFB-02: bajaFabricanteBarril lanza ReglaNegocioException y no persiste cuando tiene barriles activos asociados")
     void bajaFabricanteBarril_debeRechazarBarrilesActivosAsociados() {
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
         when(barrilRepository.existsByFabricanteId(1L)).thenReturn(true);
 
@@ -332,7 +497,7 @@ class FabricanteBarrilServicioImplTest {
     @Test
     @DisplayName("CP-BFB-03: bajaFabricanteBarril marca el estado como BAJA, persiste y retorna el DTO cuando no tiene barriles activos asociados")
     void bajaFabricanteBarril_debeMarcarBajaYRetornarFabricanteExistente() {
-        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur S.A.", "30-11111111-1");
+        FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L, "Tonelería del Sur");
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
         when(barrilRepository.existsByFabricanteId(1L)).thenReturn(false);
         when(fabricanteBarrilRepository.save(fabricanteEntity)).thenReturn(fabricanteEntity);
@@ -350,35 +515,23 @@ class FabricanteBarrilServicioImplTest {
 
     // ==================== helpers ====================
 
-    private static FabricanteBarrilEntity crearFabricanteBarrilEntity(Long id, String razonSocial, String cuit) {
+    private static FabricanteBarrilEntity crearFabricanteBarrilEntity(Long id, String nombre) {
         return FabricanteBarrilEntity.builder()
                 .id(id)
-                .razonSocial(razonSocial)
-                .nombreComercial(NOMBRE_COMERCIAL_DEFAULT)
-                .cuit(cuit)
-                .telefono(TELEFONO_DEFAULT)
-                .email(EMAIL_DEFAULT)
+                .nombre(nombre)
                 .estado(Estado.ACTIVO)
                 .build();
     }
 
-    private static FabricanteBarrilFormDTO fabricanteBarrilFormDTO(String razonSocial, String cuit) {
+    private static FabricanteBarrilFormDTO fabricanteBarrilFormDTO(String nombre) {
         return FabricanteBarrilFormDTO.builder()
-                .razonSocial(razonSocial)
-                .nombreComercial(NOMBRE_COMERCIAL_DEFAULT)
-                .cuit(cuit)
-                .telefono(TELEFONO_DEFAULT)
-                .email(EMAIL_DEFAULT)
+                .nombre(nombre)
                 .build();
     }
 
     private static void assertFabricanteBarrilDTO(FabricanteBarrilEntity entidad, FabricanteBarrilResponseDTO dto) {
         assertThat(dto.getId()).isEqualTo(entidad.getId());
-        assertThat(dto.getRazonSocial()).isEqualTo(entidad.getRazonSocial());
-        assertThat(dto.getNombreComercial()).isEqualTo(entidad.getNombreComercial());
-        assertThat(dto.getCuit()).isEqualTo(entidad.getCuit());
-        assertThat(dto.getTelefono()).isEqualTo(entidad.getTelefono());
-        assertThat(dto.getEmail()).isEqualTo(entidad.getEmail());
+        assertThat(dto.getNombre()).isEqualTo(entidad.getNombre());
         assertThat(dto.getEstado()).isEqualTo(entidad.getEstado());
     }
 }

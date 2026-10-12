@@ -562,11 +562,7 @@ class BarrilServicioImplTest {
     private static FabricanteBarrilEntity crearFabricanteBarrilEntity(Long id) {
         return FabricanteBarrilEntity.builder()
                 .id(id)
-                .razonSocial("Tonelería de prueba")
-                .nombreComercial("Tonelería")
-                .cuit("30-11111111-1")
-                .telefono("011-4444-5555")
-                .email("contacto@tonelera.com")
+                .nombre("Tonelería de prueba")
                 .estado(Estado.ACTIVO)
                 .build();
     }
