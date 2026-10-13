@@ -47,6 +47,7 @@ import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -162,6 +163,7 @@ class ConsumoInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getCantidadConsumida()).isEqualTo(5.0);
+        assertThat(resultado.getAdvertencias()).isEmpty();
         verify(consumoInsumoRepository).findById(1L);
     }
 
@@ -199,7 +201,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarReservado_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.PENDIENTE);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
@@ -215,7 +217,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarReservado_debeLanzarExcepcionSiEtapaNoEstaEnCurso() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.PENDIENTE, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.PENDIENTE, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
@@ -247,7 +249,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarReservado_debeLanzarExcepcionSiLoteInsumoNoExiste() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(99L)).thenReturn(Optional.empty());
         ConsumoInsumoFormDTO formDTO = formDTOBase(99L, 5.0);
@@ -266,7 +268,7 @@ class ConsumoInsumoServicioImplTest {
         // La receta no tiene ningún detalle de malta que use esta malta en esta etapa
         MaltaEntity maltaNoUsada = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, VersionRecetaEntity.builder().build());
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, maltaNoUsada, 10.0, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -286,7 +288,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -346,7 +348,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
@@ -368,7 +370,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
@@ -395,7 +397,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
         loteInsumo.setCostoUnitarioPPP(BigDecimal.valueOf(12.5));
         ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
@@ -426,7 +428,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarReservado_debeLanzarExcepcionSiLoteFinalizado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.FINALIZADO);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.FINALIZADA, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.FINALIZADA, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
@@ -485,7 +487,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 0.3, 0.3);
         ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 0.3);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
@@ -511,7 +513,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.30000000000000004);
         ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 0.30000000000000004);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
@@ -531,7 +533,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         InsumoEntity insumoProxy = insumoProxy(malta);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy, 10.0, 6.0);
         ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
@@ -556,7 +558,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy(maltaEntity(2L)), 10.0, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -566,6 +568,138 @@ class ConsumoInsumoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-23: registrarConsumoInsumoReservado lanza ReglaNegocioException si la etapa es Maceración, que no admite consumos de insumo")
+    void registrarReservado_debeLanzarExcepcionSiLaEtapaEsMaceracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaMaceracion = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaceracion));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa Maceración no admite el registro de consumos de insumo");
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-24: registrarConsumoInsumoReservado — la reserva de un lote de insumo vencido se mantiene: el consumo se registra con la advertencia del vencimiento")
+    void registrarReservado_debeAdvertirElLoteDeInsumoVencido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
+        LocalDate vencimiento = LocalDate.now().minusDays(3);
+        loteInsumo.setFechaVencimiento(vencimiento);
+        ReservaInsumoEntity reserva = prepararConsumoReservado(malta, loteInsumo, 6.0, 100.0);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).containsExactly("Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(2.0);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
+        verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-CR-25: registrarConsumoInsumoReservado — el total consumido del insumo en la etapa (consumos registrados más este) supera lo requerido: advierte el exceso y no bloquea")
+    void registrarReservado_debeAdvertirElExcesoSobreLoRequeridoSinBloquear() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
+        LoteInsumoEntity otroLoteInsumo = loteInsumoEntity(2L, malta, 5.0, 0.0);
+        ConsumoInsumoEntity consumoPrevio = consumoInsumoEntity(otroLoteInsumo, 8.0, EstadoTransaccion.REGISTRADO);
+        ReservaInsumoEntity reserva = prepararConsumoReservado(malta, loteInsumo, 6.0, 10.0, consumoPrevio);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).containsExactly("El total consumido de Malta Pilsen en esta etapa (12 kg) supera la cantidad requerida (10 kg)");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(2.0);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
+        verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-CR-26: registrarConsumoInsumoReservado — lote de insumo vencido y exceso a la vez: devuelve ambas advertencias, primero la del vencimiento")
+    void registrarReservado_debeAdvertirElVencimientoYElExcesoALaVez() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
+        LocalDate vencimiento = LocalDate.now().minusDays(1);
+        loteInsumo.setFechaVencimiento(vencimiento);
+        prepararConsumoReservado(malta, loteInsumo, 6.0, 3.5);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).containsExactly(
+                "Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")",
+                "El total consumido de Malta Pilsen en esta etapa (4 kg) supera la cantidad requerida (3,5 kg)");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-CR-27: registrarConsumoInsumoReservado — lote de insumo vigente y total consumido igual a lo requerido (límite): sin advertencias")
+    void registrarReservado_noDebeAdvertirSiElTotalConsumidoIgualaLoRequerido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
+        LoteInsumoEntity otroLoteInsumo = loteInsumoEntity(2L, malta, 5.0, 0.0);
+        ConsumoInsumoEntity consumoPrevio = consumoInsumoEntity(otroLoteInsumo, 6.0, EstadoTransaccion.REGISTRADO);
+        prepararConsumoReservado(malta, loteInsumo, 6.0, 10.0, consumoPrevio);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).isEmpty();
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-CR-28: registrarConsumoInsumoReservado — un lote de insumo que vence hoy todavía es válido (límite): sin advertencia de vencimiento")
+    void registrarReservado_noDebeAdvertirUnLoteDeInsumoQueVenceHoy() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
+        loteInsumo.setFechaVencimiento(LocalDate.now());
+        prepararConsumoReservado(malta, loteInsumo, 6.0, 100.0);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-CR-29: registrarConsumoInsumoReservado — el exceso solo suma los consumos del mismo insumo y compara con redondeo a 4 decimales: 0,1 + 0,2 contra 0,3 no advierte")
+    void registrarReservado_elExcesoSoloSumaElMismoInsumoYRedondea() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LevaduraEntity levadura = levaduraEntity(2L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.2);
+        LoteInsumoEntity loteInsumoMalta = loteInsumoEntity(3L, malta, 5.0, 0.0);
+        LoteInsumoEntity loteInsumoLevadura = loteInsumoEntity(4L, levadura, 500.0, 0.0);
+        ConsumoInsumoEntity consumoMalta = consumoInsumoEntity(loteInsumoMalta, 0.1, EstadoTransaccion.REGISTRADO);
+        ConsumoInsumoEntity consumoLevadura = consumoInsumoEntity(loteInsumoLevadura, 50.0, EstadoTransaccion.REGISTRADO);
+        prepararConsumoReservado(malta, loteInsumo, 0.2, 0.3, consumoMalta, consumoLevadura);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 0.2));
+
+        // === ASSERTS ===
+        assertThat(0.1 + 0.2).isNotEqualTo(0.3);
+        assertThat(resultado.getAdvertencias()).isEmpty();
     }
 
     // ==================== registrarConsumoInsumoDirecto ====================
@@ -589,7 +723,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarDirecto_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.FINALIZADO);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
@@ -605,7 +739,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarDirecto_debeLanzarExcepcionSiEtapaNoEstaEnCurso() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.FINALIZADA, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.FINALIZADA, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 5.0);
 
@@ -637,7 +771,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarDirecto_debeLanzarExcepcionSiLoteInsumoNoExiste() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(99L)).thenReturn(Optional.empty());
         ConsumoInsumoFormDTO formDTO = formDTOBase(99L, 5.0);
@@ -655,7 +789,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity maltaNoUsada = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, VersionRecetaEntity.builder().build());
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, maltaNoUsada, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -714,7 +848,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -734,7 +868,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -757,7 +891,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         // Este lote de insumo tiene 4.0 reservados para ESTA MISMA etapa (a través de una reserva
         // todavía activa) y 3.0 disponibles; el consumo directo no exige que esa reserva esté agotada
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 7.0, 4.0);
@@ -821,7 +955,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 0.3, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -845,7 +979,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 0.7, 0.4);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
@@ -892,9 +1026,9 @@ class ConsumoInsumoServicioImplTest {
                 .detallesLevadura(List.of(DetalleLevaduraEntity.builder().levadura(levadura).cantidad(10.0).build()))
                 .build();
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
-        EtapaLoteEntity etapaMaceracion = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaMolienda = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy(levadura), 10.0, 0.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaceracion));
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMolienda));
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
 
         // === EJECUCION Y ASSERTS ===
@@ -902,6 +1036,115 @@ class ConsumoInsumoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CD-20: registrarConsumoInsumoDirecto lanza ReglaNegocioException si la etapa es Maceración, que no admite consumos de insumo")
+    void registrarDirecto_debeLanzarExcepcionSiLaEtapaEsMaceracion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaMaceracion = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaceracion));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa Maceración no admite el registro de consumos de insumo");
+        verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CD-21: registrarConsumoInsumoDirecto — el consumo directo sobre un lote de insumo vencido se permite, con la advertencia del vencimiento")
+    void registrarDirecto_debeAdvertirElLoteDeInsumoVencido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
+        LocalDate vencimiento = LocalDate.now().minusDays(10);
+        loteInsumo.setFechaVencimiento(vencimiento);
+        prepararConsumoDirecto(malta, loteInsumo, 100.0);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).containsExactly("Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
+        verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-CD-22: registrarConsumoInsumoDirecto — el total consumido del insumo en la etapa supera lo requerido: advierte el exceso y no bloquea")
+    void registrarDirecto_debeAdvertirElExcesoSobreLoRequeridoSinBloquear() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
+        LoteInsumoEntity otroLoteInsumo = loteInsumoEntity(2L, malta, 5.0, 0.0);
+        ConsumoInsumoEntity consumoPrevio = consumoInsumoEntity(otroLoteInsumo, 8.0, EstadoTransaccion.REGISTRADO);
+        prepararConsumoDirecto(malta, loteInsumo, 10.0, consumoPrevio);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).containsExactly("El total consumido de Malta Pilsen en esta etapa (12 kg) supera la cantidad requerida (10 kg)");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
+        verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-CD-23: registrarConsumoInsumoDirecto — lote de insumo vencido y exceso a la vez: devuelve ambas advertencias, primero la del vencimiento")
+    void registrarDirecto_debeAdvertirElVencimientoYElExcesoALaVez() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
+        LocalDate vencimiento = LocalDate.now().minusDays(1);
+        loteInsumo.setFechaVencimiento(vencimiento);
+        prepararConsumoDirecto(malta, loteInsumo, 3.5);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).containsExactly(
+                "Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")",
+                "El total consumido de Malta Pilsen en esta etapa (4 kg) supera la cantidad requerida (3,5 kg)");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-CD-24: registrarConsumoInsumoDirecto — lote de insumo vigente y total consumido igual a lo requerido (límite): sin advertencias")
+    void registrarDirecto_noDebeAdvertirSiElTotalConsumidoIgualaLoRequerido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
+        LoteInsumoEntity otroLoteInsumo = loteInsumoEntity(2L, malta, 5.0, 0.0);
+        ConsumoInsumoEntity consumoPrevio = consumoInsumoEntity(otroLoteInsumo, 6.0, EstadoTransaccion.REGISTRADO);
+        prepararConsumoDirecto(malta, loteInsumo, 10.0, consumoPrevio);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).isEmpty();
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-CD-25: registrarConsumoInsumoDirecto — un lote de insumo que vence hoy todavía es válido (límite): sin advertencia de vencimiento")
+    void registrarDirecto_noDebeAdvertirUnLoteDeInsumoQueVenceHoy() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
+        loteInsumo.setFechaVencimiento(LocalDate.now());
+        prepararConsumoDirecto(malta, loteInsumo, 100.0);
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getAdvertencias()).isEmpty();
     }
 
     // ==================== filtrarInsumosRequeridos ====================
@@ -929,11 +1172,11 @@ class ConsumoInsumoServicioImplTest {
         MaltaEntity malta = maltaEntity(1L);
         LevaduraEntity levadura = levaduraEntity(2L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaMaceracion = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaceracion));
-        when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion)).thenReturn(List.of(
-                new RequerimientoInsumo(malta, etapaMaceracion, 500.0),
-                new RequerimientoInsumo(levadura, etapaMaceracion, 10.0)));
+        EtapaLoteEntity etapaMolienda = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMolienda));
+        when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda)).thenReturn(List.of(
+                new RequerimientoInsumo(malta, etapaMolienda, 500.0),
+                new RequerimientoInsumo(levadura, etapaMolienda, 10.0)));
 
         LoteInsumoEntity loteInsumoMalta1 = loteInsumoEntity(10L, malta, 300.0, 0.0);
         LoteInsumoEntity loteInsumoMalta2 = loteInsumoEntity(11L, malta, 300.0, 0.0);
@@ -1094,7 +1337,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 2.0);
         ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
         when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
@@ -1116,7 +1359,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 2.0);
         ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 2.0);
         ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
@@ -1150,7 +1393,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 0.0);
         ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.DIRECTO, loteInsumo, etapaLote);
         when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
@@ -1176,7 +1419,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity malta = maltaEntity(1L);
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 0.1, 0.1);
         ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 0.1);
         ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 0.2, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
@@ -1196,6 +1439,40 @@ class ConsumoInsumoServicioImplTest {
     }
 
     // ==================== helpers de construcción ====================
+
+    /**
+     * Prepara el registro de un consumo reservado de malta en una etapa de Molienda en curso: devuelve la reserva y
+     * deja stubbeados los colaboradores, incluidos lo requerido de la malta en la etapa y los consumos ya registrados.
+     */
+    private ReservaInsumoEntity prepararConsumoReservado(MaltaEntity malta, LoteInsumoEntity loteInsumo, double cantidadReservada, double cantidadRequerida, ConsumoInsumoEntity... consumosPrevios) {
+        EtapaLoteEntity etapaLote = prepararEtapaConMaltaRequerida(malta, loteInsumo, cantidadRequerida, consumosPrevios);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, cantidadReservada);
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, loteInsumo.getId())).thenReturn(Optional.of(reserva));
+        return reserva;
+    }
+
+    /**
+     * Prepara el registro de un consumo directo de malta en una etapa de Molienda en curso, con los colaboradores
+     * stubbeados, incluidos lo requerido de la malta en la etapa y los consumos ya registrados.
+     */
+    private void prepararConsumoDirecto(MaltaEntity malta, LoteInsumoEntity loteInsumo, double cantidadRequerida, ConsumoInsumoEntity... consumosPrevios) {
+        prepararEtapaConMaltaRequerida(malta, loteInsumo, cantidadRequerida, consumosPrevios);
+    }
+
+    private EtapaLoteEntity prepararEtapaConMaltaRequerida(MaltaEntity malta, LoteInsumoEntity loteInsumo, double cantidadRequerida, ConsumoInsumoEntity... consumosPrevios) {
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(loteInsumo.getId())).thenReturn(Optional.of(loteInsumo));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaLote)).thenReturn(List.of(new RequerimientoInsumo(malta, etapaLote, cantidadRequerida)));
+        when(consumoInsumoRepository.findByEtapaLoteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(consumosPrevios));
+        return etapaLote;
+    }
+
+    private static String formatearFecha(LocalDate fecha) {
+        return fecha.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
 
     private static ConsumoInsumoFormDTO formDTOBase(Long idLoteInsumo, Double cantidadConsumida) {
         return ConsumoInsumoFormDTO.builder()
@@ -1312,7 +1589,7 @@ class ConsumoInsumoServicioImplTest {
 
     private static ConsumoInsumoEntity crearConsumoBase(Long id, double cantidadConsumida) {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         MaltaEntity malta = maltaEntity(1L);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
         return ConsumoInsumoEntity.builder()

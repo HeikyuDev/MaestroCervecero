@@ -40,7 +40,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -57,6 +60,8 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     private final ILoteInsumoRepository loteInsumoRepository;
     private final IReservaInsumoRepository reservaInsumoRepository;
     private final IEscaladoInsumoServicio escaladoInsumoServicio;
+
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /**
      * Filtra los consumos de insumo de una etapa de lote puntual.
@@ -97,7 +102,9 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
-     * @return El consumo registrado.
+     * @return El consumo registrado, con sus advertencias: el lote de insumo vencido (una reserva de un lote que
+     *         se venció durante la ejecución se mantiene y se puede consumir) y el exceso del total consumido
+     *         del insumo en la etapa sobre la cantidad requerida. Las advertencias no impiden el consumo.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados
      *                                      no existen.
      * @throws ReglaNegocioException Si no se informó el lote de insumo, si la cantidad consumida no se
@@ -141,14 +148,17 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                     + describirCantidad(cantidadReservada, loteInsumo) + ")");
         }
 
-        // 7. Descontar la reserva y ejecutar el consumo sobre el lote de insumo
+        // 7. Armar las advertencias (lote vencido y exceso sobre lo requerido), que no impiden el consumo
+        List<String> advertencias = construirAdvertencias(etapaLote, loteInsumo, cantidadConsumida);
+
+        // 8. Descontar la reserva y ejecutar el consumo sobre el lote de insumo
         reserva.setCantidadReservada(Redondeo.redondear(cantidadReservada - cantidadConsumida));
         reservaInsumoRepository.save(reserva);
 
         loteInsumo.ejecutarConsumo(cantidadConsumida);
         loteInsumoRepository.save(loteInsumo);
 
-        // 8. Registrar el consumo, congelando el costo PPP vigente del lote de insumo, y persistir
+        // 9. Registrar el consumo, congelando el costo PPP vigente del lote de insumo, y persistir
         ConsumoInsumoEntity consumoInsumo = ConsumoInsumoEntity.builder()
                 .cantidadConsumida(cantidadConsumida)
                 .costoUnitarioPPP(loteInsumo.getCostoUnitarioPPP())
@@ -158,7 +168,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                 .loteInsumo(loteInsumo)
                 .build();
 
-        return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo));
+        return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo), advertencias);
     }
 
     /**
@@ -170,7 +180,9 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
-     * @return El consumo registrado.
+     * @return El consumo registrado, con sus advertencias: el lote de insumo vencido (el consumo directo sobre un
+     *         lote vencido se permite) y el exceso del total consumido del insumo en la etapa sobre la cantidad
+     *         requerida. Las advertencias no impiden el consumo.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados
      *                                      no existen.
      * @throws ReglaNegocioException Si no se informó el lote de insumo, si la cantidad consumida no se
@@ -209,11 +221,14 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                     + describirCantidad(cantidadDisponible, loteInsumo) + ")");
         }
 
-        // 6. Ejecutar el consumo directo sobre el lote de insumo (sin tocar la cantidad reservada)
+        // 6. Armar las advertencias (lote vencido y exceso sobre lo requerido), que no impiden el consumo
+        List<String> advertencias = construirAdvertencias(etapaLote, loteInsumo, cantidadConsumida);
+
+        // 7. Ejecutar el consumo directo sobre el lote de insumo (sin tocar la cantidad reservada)
         loteInsumo.consumirDirecto(cantidadConsumida);
         loteInsumoRepository.save(loteInsumo);
 
-        // 7. Registrar el consumo, congelando el costo PPP vigente del lote de insumo, y persistir
+        // 8. Registrar el consumo, congelando el costo PPP vigente del lote de insumo, y persistir
         ConsumoInsumoEntity consumoInsumo = ConsumoInsumoEntity.builder()
                 .cantidadConsumida(cantidadConsumida)
                 .costoUnitarioPPP(loteInsumo.getCostoUnitarioPPP())
@@ -223,7 +238,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                 .loteInsumo(loteInsumo)
                 .build();
 
-        return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo));
+        return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo), advertencias);
     }
 
     /**
@@ -353,7 +368,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
 
     /**
      * Valida que el insumo indicado sea efectivamente uno de los que la receta vigente del lote
-     * requiere en esa etapa puntual: Malta solo en Maceración, Levadura solo en Fermentación, y
+     * requiere en esa etapa puntual: Malta solo en Molienda, Levadura solo en Fermentación, y
      * Lúpulo según la etapa de uso particular de cada línea de detalle (puede requerirse en una
      * etapa y no en otra, aunque el mismo lúpulo aparezca en ambas).
      * <p>
@@ -374,7 +389,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         TipoEtapa etapaActual = etapaLote.getEtapa();
         Long idInsumo = insumo.getId();
 
-        boolean esMaltaRequerida = etapaActual == TipoEtapa.MACERACION
+        boolean esMaltaRequerida = etapaActual == TipoEtapa.MOLIENDA
                 && versionReceta.getDetallesMalta().stream()
                 .anyMatch(detalle -> idInsumo.equals(detalle.getMalta().getId()));
         boolean esLupuloRequerido = versionReceta.getDetallesLupulo().stream()
@@ -386,6 +401,47 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         if (!esMaltaRequerida && !esLupuloRequerido && !esLevaduraRequerida) {
             throw new ReglaNegocioException("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         }
+    }
+
+    /**
+     * Arma las advertencias de un consumo que está por registrarse. Las advertencias no son errores: el
+     * consumo se registra igual.
+     * <ul>
+     *     <li>Lote de insumo vencido: su fecha de vencimiento es anterior a hoy (si vence hoy todavía es válido).</li>
+     *     <li>Exceso: el total consumido (registrado) del insumo en la etapa, incluyendo este consumo, supera la
+     *     cantidad requerida por el escalado para esa etapa. Ambos lados se redondean a 4 decimales.</li>
+     * </ul>
+     *
+     * @param etapaLote La etapa sobre la que se registra el consumo.
+     * @param loteInsumo El lote de insumo del que se descuenta el consumo.
+     * @param cantidadConsumida La cantidad que se va a consumir, ya redondeada.
+     * @return Las advertencias en el orden vencimiento, exceso; vacía si no hay ninguna.
+     */
+    private List<String> construirAdvertencias(EtapaLoteEntity etapaLote, LoteInsumoEntity loteInsumo, double cantidadConsumida) {
+        List<String> advertencias = new ArrayList<>();
+
+        if (loteInsumo.getFechaVencimiento().isBefore(LocalDate.now())) {
+            advertencias.add("Este lote de insumo se encuentra vencido (venció el " + loteInsumo.getFechaVencimiento().format(FORMATO_FECHA) + ")");
+        }
+
+        Long idInsumo = loteInsumo.getInsumo().getId();
+        double cantidadRequerida = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaLote).stream()
+                .filter(requerimiento -> idInsumo.equals(requerimiento.insumo().getId()))
+                .mapToDouble(RequerimientoInsumo::cantidadRequerida)
+                .sum();
+        double cantidadYaConsumida = consumoInsumoRepository.findByEtapaLoteIdAndEstado(etapaLote.getId(), EstadoTransaccion.REGISTRADO).stream()
+                .filter(consumo -> idInsumo.equals(consumo.getLoteInsumo().getInsumo().getId()))
+                .mapToDouble(ConsumoInsumoEntity::getCantidadConsumida)
+                .sum();
+        double totalConsumido = Redondeo.redondear(cantidadYaConsumida + cantidadConsumida);
+
+        if (cantidadRequerida > 0 && totalConsumido > Redondeo.redondear(cantidadRequerida)) {
+            advertencias.add("El total consumido de " + loteInsumo.getInsumo().getNombre() + " en esta etapa ("
+                    + describirCantidad(totalConsumido, loteInsumo) + ") supera la cantidad requerida ("
+                    + describirCantidad(Redondeo.redondear(cantidadRequerida), loteInsumo) + ")");
+        }
+
+        return advertencias;
     }
 
     /**

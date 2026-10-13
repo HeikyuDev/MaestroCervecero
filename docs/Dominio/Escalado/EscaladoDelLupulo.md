@@ -4,13 +4,15 @@
 
 Esta sección describe cómo el sistema calcula la cantidad de lúpulo necesaria para una receta, según el volumen del lote a producir. A diferencia de la malta, el lúpulo tiene dos comportamientos distintos según su uso: los lúpulos utilizados durante el hervor aportan amargor (IBU) y se calculan con la fórmula de Tinseth; los lúpulos utilizados en whirlpool o dry hop tienen fines exclusivamente aromáticos, no aportan amargor de forma significativa, y se escalan de manera simple, en proporción directa al volumen del lote.
 
+El lúpulo se consume en la etapa que indica cada línea de detalle de la receta: los de uso HERVOR y WHIRLPOOL, en Hervido; los de uso DRY HOP, en Fermentación o en Maduración.
+
 ### **A. Datos de entrada**
 
 | Dato | Descripción | Origen |
 | ----- | ----- | ----- |
 | IBU Objetivo | Amargor que se desea alcanzar en la receta. | Definido en la versión vigente de la receta. |
 | OG Objetivo | Densidad inicial objetivo (afecta la utilización del lúpulo). | Definido en la versión vigente de la receta. |
-| Volumen Objetivo del Lote | Litros de cerveza que se desean obtener. | Ingresado por el usuario al iniciar el lote. |
+| Volumen Objetivo del Lote | Litros de cerveza que se desean obtener. | Ingresado por el usuario al registrar el lote. |
 | Volumen Base de la Receta | Litros para los que fue pensada originalmente la receta. | Definido en la versión vigente de la receta. |
 | Detalle de Lúpulos de la Receta | Listado de lúpulos utilizados, con cantidad (gramos, para el volumen base), uso, tiempo de hervor (si aplica) y AA% del lúpulo. | Definido en la versión vigente de la receta. |
 
@@ -107,28 +109,28 @@ $Gramo{s}_{i}\ =\ Cantida{d}_{i\ base}\ ×\ ({V}_{obj}\ /\ {V}_{base})$
 **Cálculo:**
 
 1. Factor de Densidad (común):   
-   $1.65\ ×\ 0.000125\ ^\ 0.050\ ≈\ 1.65\ ×\ 0.6382\ ≈\ 1.053$
+   $1.65\ ×\ 0.000125\ ^\ 0.050\ ≈\ 1.65\ ×\ 0.63804\ ≈\ 1.05276$
 
 2. Factor de Tiempo y Utilización Lúpulo A (60 min):   
-   $FactorTiemp{o}_{A}\ =\ (1\ -\ e^(-0.04×60))\ /\ 4.15\ ≈\ (1\ -\ 0.0907)\ /\ 4.15\ ≈\ 0.219\ $  
-   $Utilizacio{n}_{A}\ =\ 1.053\ ×\ 0.219\ ×\ 1.10\ ≈\ 0.254$
+   $FactorTiemp{o}_{A}\ =\ (1\ -\ e^(-0.04×60))\ /\ 4.15\ ≈\ (1\ -\ 0.0907)\ /\ 4.15\ ≈\ 0.2191\ $  
+   $Utilizacio{n}_{A}\ =\ 1.05276\ ×\ 0.2191\ ×\ 1.10\ ≈\ 0.25373$
 
 3. Factor de Tiempo y Utilización — Lúpulo B (15 min):   
-   $FactorTiemp{o}_{B}\ =\ (1\ -\ e^(-0.04×15))\ /\ 4.15\ ≈\ (1\ -\ 0.5488)\ /\ 4.15\ ≈\ 0.109$$Utilizacio{n}_{B}\ =\ 1.053\ ×\ 0.109\ ×\ 1.10\ ≈\ 0.126$
+   $FactorTiemp{o}_{B}\ =\ (1\ -\ e^(-0.04×15))\ /\ 4.15\ ≈\ (1\ -\ 0.5488)\ /\ 4.15\ ≈\ 0.1087$$Utilizacio{n}_{B}\ =\ 1.05276\ ×\ 0.1087\ ×\ 1.10\ ≈\ 0.12590$
 
 4. Proporciones (sobre el total de HERVOR, 30 \+ 10 \= 40 g):   
    $Proporcion_A\ =\ 30\ /\ 40\ =\ 0.75\ (75%)\ $  
    $Proporcion_B\ =\ 10\ /\ 40\ =\ 0.25\ (25%)$
 
 5. Constante ponderada K:   
-   $K\ =\ (0.75\ ×\ 0.055\ ×\ 0.254)\ +\ (0.25\ ×\ 0.10\ ×\ 0.126)\ ≈\ 0.01048\ +\ 0.00315\ ≈\ 0.01363$
+   $K\ =\ (0.75\ ×\ 0.055\ ×\ 0.25373)\ +\ (0.25\ ×\ 0.10\ ×\ 0.12590)\ ≈\ 0.010466\ +\ 0.003148\ ≈\ 0.013614$
 
 6. Gramos totales de HERVOR:   
-   $(35\ ×\ 100)\ /\ (1000\ ×\ 0.01363)\ ≈\ 3500\ /\ 13.63\ ≈\ 256.8\ g$
+   $(35\ ×\ 100)\ /\ (1000\ ×\ 0.0136139)\ ≈\ 3500\ /\ 13.6139\ ≈\ 257.09\ g$
 
 7. Reparto:   
-   $Gramo{s}_{A}\ =\ 256.8\ ×\ 0.75\ ≈\ 192.6\ g\ $  
-   $Gramo{s}_{B}\ =\ 256.8\ ×\ 0.25\ ≈\ 64.2\ g$
+   $Gramo{s}_{A}\ =\ 257.09\ ×\ 0.75\ ≈\ 192.82\ g\ $  
+   $Gramo{s}_{B}\ =\ 257.09\ ×\ 0.25\ ≈\ 64.27\ g$
 
 8. Lúpulo C (DRY HOP, escalado lineal):   
    $15\ ×\ (100\ /\ 20)\ =\ 15\ ×\ 5\ =\ 75\ g$

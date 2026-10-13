@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.Cancelac
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import org.springframework.data.domain.Page;
@@ -85,7 +86,9 @@ public interface ILoteServicio {
      * real: escala todos los insumos de la receta al volumen objetivo del lote, verifica que
      * haya stock suficiente de cada uno y que el equipamiento de cada etapa (Molino, Macerador,
      * Olla de Hervor, Fermentador) esté disponible, y reserva los lotes de insumo necesarios
-     * aplicando el criterio FEFO (First Expired, First Out).
+     * aplicando el criterio FEFO (First Expired, First Out). Los lotes de insumo vencidos (con fecha de
+     * vencimiento anterior a hoy) no cuentan como stock disponible ni se reservan; uno que vence hoy
+     * todavía es válido.
      * </p>
      * <p>
      * Cualquier lote PENDIENTE puede iniciarse, sin importar su posición en la cola de su
@@ -144,18 +147,26 @@ public interface ILoteServicio {
      * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote.
      * </p>
      * <ul>
+     *     <li>Valida que el consumo de cada insumo requerido de la etapa (la malta se consume en
+     *     Molienda) alcance el porcentaje mínimo de consumo configurado por el gerente de
+     *     producción — evita avanzar de etapa por error sin haber registrado consumos, o
+     *     habiéndolos registrado de forma incompleta.</li>
      *     <li>La etapa de Molienda se desmarca como etapa actual (pasa a FINALIZADA) y se registra
      *     su fecha y hora de fin.</li>
      *     <li>La etapa de Maceración se marca como etapa actual (pasa a EN_CURSO) y se registra su
      *     fecha y hora de inicio.</li>
      *     <li>El molino utilizado pasa a estado "En Limpieza".</li>
+     *     <li>Se liberan las reservas de insumo que hayan quedado sin consumir de la etapa de
+     *     Molienda.</li>
      * </ul>
      *
      * @param id El ID del lote cuya Molienda se quiere finalizar.
      * @return El lote actualizado.
-     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, o si su
-     *                               etapa actual (EN_CURSO) no es Molienda.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su
+     *                               etapa actual (EN_CURSO) no es Molienda, o si algún insumo requerido de la etapa no
+     *                               alcanzó el porcentaje mínimo de consumo configurado.
      */
     LoteResponseDTO finalizarMolienda(Long id);
 
@@ -164,27 +175,23 @@ public interface ILoteServicio {
      * <p>
      * No solicita ningún dato al usuario: el sistema valida y actúa a partir del ID del lote.
      * </p>
+     * <p>
+     * La Maceración no requiere insumos (la malta se consume en Molienda), por lo que no se valida
+     * el porcentaje mínimo de consumo ni hay reservas que liberar.
+     * </p>
      * <ul>
-     *     <li>Valida que el consumo de cada insumo requerido de la etapa alcance el porcentaje
-     *     mínimo de consumo configurado por el gerente de producción — evita avanzar de etapa por
-     *     error sin haber registrado consumos, o habiéndolos registrado de forma incompleta.</li>
      *     <li>La etapa de Maceración se desmarca como etapa actual (pasa a FINALIZADA) y se
      *     registra su fecha y hora de fin.</li>
      *     <li>La etapa de Hervido se marca como etapa actual (pasa a EN_CURSO) y se registra su
      *     fecha y hora de inicio.</li>
      *     <li>El macerador utilizado pasa a estado "En Limpieza".</li>
-     *     <li>Se liberan las reservas de insumo que hayan quedado sin consumir de la etapa de
-     *     Maceración.</li>
      * </ul>
      *
      * @param id El ID del lote cuya Maceración se quiere finalizar.
      * @return El lote actualizado.
-     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
-     *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
-     *                               actual (EN_CURSO) no es Maceración, o si algún insumo
-     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
-     *                               consumo configurado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, o si su
+     *                               etapa actual (EN_CURSO) no es Maceración.
      */
     LoteResponseDTO finalizarMaceracion(Long id);
 
@@ -313,6 +320,27 @@ public interface ILoteServicio {
      *                               envasados registrados.
      */
     LoteResponseDTO finalizarEnvasado(Long id);
+
+    /**
+     * Calcula el agua que la planta debe preparar para un lote (Pasos 3 a 5 de
+     * docs/Dominio/Escalado/EscaladoDelAgua.md), a partir de la masa de malta escalada con el macerador del lote, la
+     * relación de empaste de la receta y los parámetros de su macerador y su olla de hervor. Es de solo lectura y
+     * sirve para un lote en cualquier estado.
+     * <ul>
+     *     <li>Agua de macerado: masa de malta por la relación de empaste, más el espacio muerto del macerador.</li>
+     *     <li>Agua de lavado: volumen pre-hervor menos el mosto extraído del macerador (agua de macerado menos el
+     *     espacio muerto y menos el agua que retiene el grano). Si resulta negativa vale 0 y se informa una
+     *     advertencia.</li>
+     *     <li>Agua total: agua de macerado más agua de lavado.</li>
+     * </ul>
+     *
+     * @param id El ID del lote.
+     * @return El agua del lote, en litros, con las advertencias del cálculo.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó el lote, si el equipamiento de la etapa de Maceración o de Hervido
+     *                               no es un macerador o una olla de hervor, o si el cálculo produce un valor no válido.
+     */
+    AguaLoteResponseDTO calcularAguaDelLote(Long id);
 
     /**
      * Lista los lotes reales de una planificación de producción, en una versión liviana pensada

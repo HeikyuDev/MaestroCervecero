@@ -57,9 +57,12 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoIn
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
+import org.hibernate.proxy.HibernateProxy;
+import org.hibernate.proxy.LazyInitializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -96,11 +99,13 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 @ExtendWith(MockitoExtension.class)
 class LoteServicioImplTest {
@@ -1178,7 +1183,7 @@ class LoteServicioImplTest {
         mockearEquipamientoParaIniciar(lote);
         // requerimiento ≈ 3.70kg, disponible 2.0kg
         LoteInsumoEntity stockMalta = crearLoteInsumo(100L, malta, 2.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(stockMalta));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now())).thenReturn(List.of(stockMalta));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
@@ -1197,10 +1202,10 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, null);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         // requerimiento ≈ 14.4g, disponible 5.0g
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 5.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
 
         // === EJECUCION Y ASSERTS ===
@@ -1221,12 +1226,12 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         // requerimiento = 7.5g, disponible 2.0g
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(12L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(102L, levadura, 2.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
 
         // === EJECUCION Y ASSERTS ===
@@ -1248,13 +1253,13 @@ class LoteServicioImplTest {
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         // malta insuficiente: requerimiento ≈3.70kg, disponible 2.0kg
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 2.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         // lúpulo suficiente
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         // levadura insuficiente: requerimiento = 7.5g, disponible 2.0g
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(12L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(102L, levadura, 2.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
 
         // === EJECUCION Y ASSERTS ===
@@ -1278,14 +1283,14 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         // requerimiento levadura = 7.5g: lote A vence antes (5.0g disponible), lote B vence después (10.0g disponible)
         LoteInsumoEntity levaduraA = crearLoteInsumo(102L, levadura, 5.0, 0.0, LocalDate.now().plusDays(10), BigDecimal.valueOf(5));
         LoteInsumoEntity levaduraB = crearLoteInsumo(103L, levadura, 10.0, 0.0, LocalDate.now().plusDays(60), BigDecimal.valueOf(8));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(12L, LocalDate.now()))
                 .thenReturn(List.of(levaduraA, levaduraB));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         @SuppressWarnings("unchecked")
@@ -1315,12 +1320,12 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         LoteInsumoEntity unicoLoteLevadura = crearLoteInsumo(102L, levadura, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.valueOf(5));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(12L, LocalDate.now()))
                 .thenReturn(List.of(unicoLoteLevadura));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         @SuppressWarnings("unchecked")
@@ -1347,10 +1352,10 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MACERACION), 12.345678)))
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), 12.345678)))
                 .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
         // 0,1 + 0,2 = 0,30000000000000004
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now())).thenReturn(List.of(
                 crearLoteInsumo(100L, malta, 0.1, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN),
                 crearLoteInsumo(101L, malta, 0.2, 0.0, LocalDate.now().plusDays(60), BigDecimal.TEN)));
 
@@ -1370,11 +1375,11 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MACERACION), 0.3)))
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), 0.3)))
                 .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
         LoteInsumoEntity loteA = crearLoteInsumo(100L, malta, 0.1, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
         LoteInsumoEntity loteB = crearLoteInsumo(101L, malta, 0.2, 0.0, LocalDate.now().plusDays(60), BigDecimal.TEN);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(loteA, loteB));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now())).thenReturn(List.of(loteA, loteB));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ReservaInsumoEntity>> captor = ArgumentCaptor.forClass(List.class);
@@ -1399,10 +1404,10 @@ class LoteServicioImplTest {
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         double requerimientoConResiduo = 0.1 + 0.2;
-        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MACERACION), requerimientoConResiduo)))
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), requerimientoConResiduo)))
                 .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
         LoteInsumoEntity unicoLote = crearLoteInsumo(100L, malta, 0.3, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(unicoLote));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now())).thenReturn(List.of(unicoLote));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ReservaInsumoEntity>> captor = ArgumentCaptor.forClass(List.class);
@@ -1418,6 +1423,74 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-IL-28: iniciarLote — los lotes de insumo vencidos no cuentan como stock disponible: si la consulta de no vencidos no devuelve nada, el stock es insuficiente")
+    void iniciarLote_noDebeContarLosLotesDeInsumoVencidosComoStock() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), 4.0)))
+                .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
+        // El único stock de la malta está vencido: la consulta FEFO lo excluye
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now())).thenReturn(List.of());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Stock disponible insuficiente de los siguientes insumos: 'MaltaB' (se requieren 4 kg y solo hay 0 kg disponibles)");
+        verify(loteInsumoRepository, never()).save(any());
+        verifyNoInteractions(reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-IL-29: iniciarLote — la consulta FEFO usa hoy como corte (un lote de insumo que vence hoy todavía es válido y se reserva)")
+    void iniciarLote_debeReservarUnLoteDeInsumoQueVenceHoy() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), 4.0)))
+                .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
+        LoteInsumoEntity venceHoy = crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now(), BigDecimal.TEN);
+        ArgumentCaptor<LocalDate> corteCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(eq(10L), corteCaptor.capture())).thenReturn(List.of(venceHoy));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(reservaInsumoRepository.saveAll(anyList())).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        assertThat(corteCaptor.getValue()).isEqualTo(LocalDate.now());
+        assertThat(venceHoy.getCantidadReservada()).isEqualTo(4.0);
+    }
+
+    @Test
+    @DisplayName("CP-IL-30: iniciarLote — las reservas de la malta quedan atadas a la etapa de Molienda, no a la de Maceración")
+    void iniciarLote_debeAtarLasReservasDeLaMaltaALaEtapaDeMolienda() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
+                .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ReservaInsumoEntity>> captor = ArgumentCaptor.forClass(List.class);
+        when(reservaInsumoRepository.saveAll(captor.capture())).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        assertThat(captor.getValue()).hasSize(1);
+        assertThat(captor.getValue().get(0).getEtapaLote().getEtapa()).isEqualTo(TipoEtapa.MOLIENDA);
+    }
+
+    @Test
     @DisplayName("CP-IL-14: iniciarLote calcula los gramos de lúpulo HERVOR según la fórmula de Tinseth")
     void iniciarLote_debeCalcularLupuloHervorSegunTinseth() {
         // === PREPARACION DE DATOS ===
@@ -1430,7 +1503,7 @@ class LoteServicioImplTest {
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLupulo = crearLoteInsumo(200L, lupulo, 60.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(20L)).thenReturn(List.of(stockLupulo));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(20L, LocalDate.now())).thenReturn(List.of(stockLupulo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservaInsumoRepository.saveAll(anyList())).thenReturn(List.of());
 
@@ -1455,7 +1528,7 @@ class LoteServicioImplTest {
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLupulo = crearLoteInsumo(201L, lupulo, 100.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(21L)).thenReturn(List.of(stockLupulo));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(21L, LocalDate.now())).thenReturn(List.of(stockLupulo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservaInsumoRepository.saveAll(anyList())).thenReturn(List.of());
 
@@ -1478,7 +1551,7 @@ class LoteServicioImplTest {
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLevadura = crearLoteInsumo(202L, levadura, 20.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(22L)).thenReturn(List.of(stockLevadura));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(22L, LocalDate.now())).thenReturn(List.of(stockLevadura));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(reservaInsumoRepository.saveAll(anyList())).thenReturn(List.of());
 
@@ -1503,7 +1576,7 @@ class LoteServicioImplTest {
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
         LoteInsumoEntity stockLupulo = crearLoteInsumo(203L, lupulo, 20.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.ONE);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(23L)).thenReturn(List.of(stockLupulo));
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(23L, LocalDate.now())).thenReturn(List.of(stockLupulo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ReservaInsumoEntity>> captor = ArgumentCaptor.forClass(List.class);
@@ -1543,11 +1616,11 @@ class LoteServicioImplTest {
         LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
         when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(12L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(102L, levadura, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         ArgumentCaptor<LoteEntity> loteCaptor = ArgumentCaptor.forClass(LoteEntity.class);
         when(loteRepository.save(loteCaptor.capture())).thenAnswer(inv -> inv.getArgument(0));
@@ -2288,12 +2361,68 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FM-04: finalizarMolienda — camino feliz: Molienda FINALIZADA, Maceración EN_CURSO, molino EN_LIMPIEZA, resto sigue PENDIENTE")
-    void finalizarMolienda_debeAvanzarDeMoliendaAMaceracionCorrectamente() {
+    @DisplayName("CP-FM-06: finalizarMolienda lanza RecursoNoEncontradoException si no existe la configuración de producción")
+    void finalizarMolienda_debeLanzarExcepcionSiNoExisteConfiguracion() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMolienda(1L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
+        verifyNoInteractions(consumoInsumoServicio, molinoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FM-07: finalizarMolienda lanza ReglaNegocioException si algún insumo requerido (la malta) no alcanzó el porcentaje mínimo de consumo configurado")
+    void finalizarMolienda_debeLanzarExcepcionSiNoAlcanzaElPorcentajeMinimo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        EtapaLoteEntity etapaMolienda = findEtapa(lote, TipoEtapa.MOLIENDA);
+        etapaMolienda.setId(1L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(7.0) // 70% < 80% requerido
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMolienda(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("Malta Pilsen");
+        verifyNoInteractions(molinoRepository, reservaInsumoRepository);
+        verify(loteRepository, never()).save(any());
+        assertThat(etapaMolienda.getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+    }
+
+    @Test
+    @DisplayName("CP-FM-04: finalizarMolienda — camino feliz: valida el porcentaje mínimo de consumo, Molienda FINALIZADA, Maceración EN_CURSO, molino EN_LIMPIEZA, se liberan las reservas de la etapa y el resto sigue PENDIENTE")
+    void finalizarMolienda_debeAvanzarDeMoliendaAMaceracionCorrectamente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        EtapaLoteEntity etapaMolienda = findEtapa(lote, TipoEtapa.MOLIENDA);
+        etapaMolienda.setId(1L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(8.0) // exactamente 80%: alcanza (>=)
+                        .build()));
         mockearEquipamientoParaIniciar(lote);
+
+        MaltaEntity malta = MaltaEntity.builder().id(1L).nombre("Malta Pilsen").estado(Estado.ACTIVO).build();
+        LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(malta).identificacionLoteProveedor("LOTE-A")
+                .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMolienda).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        when(reservaInsumoRepository.findByEtapaLoteId(1L)).thenReturn(List.of(reserva));
+        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
 
@@ -2302,7 +2431,6 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
-        EtapaLoteEntity etapaMolienda = findEtapa(lote, TipoEtapa.MOLIENDA);
         EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
         assertThat(etapaMolienda.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
         assertThat(etapaMolienda.getFechaFinalizacion()).isNotNull().isBetween(antes, despues);
@@ -2318,8 +2446,64 @@ class LoteServicioImplTest {
         ArgumentCaptor<MolinoEntity> molinoCaptor = ArgumentCaptor.forClass(MolinoEntity.class);
         verify(molinoRepository).save(molinoCaptor.capture());
         assertThat(molinoCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+
+        // La reserva de la etapa de Molienda se libera: se devuelve al lote de insumo y se elimina la reserva
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verify(loteInsumoRepository).save(loteInsumo);
+        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
         verifyNoInteractions(maceradorRepository, ollaHervorRepository, fermentadorRepository);
         verify(loteRepository).save(lote);
+    }
+
+    @Test
+    @DisplayName("CP-FM-08: finalizarMolienda con porcentaje mínimo 100% acepta un consumo igual al requerido aunque tenga residuo decimal (0,3 contra 0,30000000000000004)")
+    void finalizarMolienda_debeAceptarElConsumoIgualAlRequeridoConResiduoDecimal() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        EtapaLoteEntity etapaMolienda = findEtapa(lote, TipoEtapa.MOLIENDA);
+        etapaMolienda.setId(1L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionConPorcentajeMinimo(100.0);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(0.1 + 0.2)
+                        .cantidadConsumida(0.3)
+                        .build()));
+        mockearEquipamientoParaIniciar(lote);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.finalizarMolienda(1L);
+
+        // === ASSERTS ===
+        assertThat(0.1 + 0.2).isGreaterThan(0.3);
+        assertThat(etapaMolienda.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(findEtapa(lote, TipoEtapa.MACERACION).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+    }
+
+    @Test
+    @DisplayName("CP-FM-09: finalizarMolienda con porcentaje mínimo 100% rechaza un consumo menor al requerido por más de 4 decimales")
+    void finalizarMolienda_debeRechazarElConsumoMenorAlRequeridoConPorcentajeCien() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MOLIENDA);
+        EtapaLoteEntity etapaMolienda = findEtapa(lote, TipoEtapa.MOLIENDA);
+        etapaMolienda.setId(1L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionConPorcentajeMinimo(100.0);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(9.9998)
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMolienda(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el 100% mínimo de consumo requerido: Malta Pilsen");
+        verify(loteRepository, never()).save(any());
+        verifyNoInteractions(molinoRepository);
     }
 
     // ==================== finalizarMaceracion ====================
@@ -2372,67 +2556,14 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FMC-04: finalizarMaceracion lanza RecursoNoEncontradoException si no existe la configuración de producción")
-    void finalizarMaceracion_debeLanzarExcepcionSiNoExisteConfiguracion() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
-                .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("No se encontró la configuración de producción");
-        verifyNoInteractions(consumoInsumoServicio, maceradorRepository);
-    }
-
-    @Test
-    @DisplayName("CP-FMC-05: finalizarMaceracion lanza ReglaNegocioException si algún insumo requerido no alcanzó el porcentaje mínimo de consumo configurado")
-    void finalizarMaceracion_debeLanzarExcepcionSiNoAlcanzaElPorcentajeMinimo() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
-        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
-        etapaMaceracion.setId(2L);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
-                InsumoRequeridoResponseDTO.builder()
-                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
-                        .cantidadRequerida(10.0)
-                        .cantidadConsumida(7.0) // 70% < 80% requerido
-                        .build()));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessageContaining("Malta Pilsen");
-        verifyNoInteractions(maceradorRepository, reservaInsumoRepository);
-        verify(loteRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-FMC-06: finalizarMaceracion — camino feliz: Maceración FINALIZADA, Hervido EN_CURSO, macerador EN_LIMPIEZA, se liberan las reservas de la etapa")
+    @DisplayName("CP-FMC-06: finalizarMaceracion — camino feliz: Maceración FINALIZADA, Hervido EN_CURSO, macerador EN_LIMPIEZA; no valida el porcentaje mínimo de consumo ni libera reservas (la malta se consume en Molienda)")
     void finalizarMaceracion_debeAvanzarDeMaceracionAHervidoCorrectamente() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
         EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
         etapaMaceracion.setId(2L);
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        mockearConfiguracionYReceta(); // porcentajeMinimoConsumoParaAvanzarEtapa = 80.0
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
-                InsumoRequeridoResponseDTO.builder()
-                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
-                        .cantidadRequerida(10.0)
-                        .cantidadConsumida(8.0) // exactamente 80%: alcanza (>=)
-                        .build()));
         mockearEquipamientoParaIniciar(lote);
-
-        MaltaEntity malta = MaltaEntity.builder().id(1L).nombre("Malta Pilsen").estado(Estado.ACTIVO).build();
-        LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(malta).identificacionLoteProveedor("LOTE-A")
-                .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
-        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMaceracion).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
-        when(reservaInsumoRepository.findByEtapaLoteId(2L)).thenReturn(List.of(reserva));
-        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         LocalDateTime antes = LocalDateTime.now().minusSeconds(1);
 
@@ -2457,63 +2588,10 @@ class LoteServicioImplTest {
         verify(maceradorRepository).save(maceradorCaptor.capture());
         assertThat(maceradorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
 
-        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
-        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
-        verify(loteInsumoRepository).save(loteInsumo);
-        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        // La Maceración no requiere insumos: ni se consulta la configuración ni los insumos requeridos, ni hay reservas que liberar
+        verifyNoInteractions(configuracionProduccionRepository, consumoInsumoServicio, reservaInsumoRepository, loteInsumoRepository);
         verifyNoInteractions(molinoRepository, ollaHervorRepository, fermentadorRepository);
         verify(loteRepository).save(lote);
-    }
-
-    @Test
-    @DisplayName("CP-FMC-07: finalizarMaceracion con porcentaje mínimo 100% acepta un consumo igual al requerido aunque tenga residuo decimal (0,3 contra 0,30000000000000004)")
-    void finalizarMaceracion_debeAceptarElConsumoIgualAlRequeridoConResiduoDecimal() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
-        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
-        etapaMaceracion.setId(2L);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        mockearConfiguracionConPorcentajeMinimo(100.0);
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
-                InsumoRequeridoResponseDTO.builder()
-                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
-                        .cantidadRequerida(0.1 + 0.2)
-                        .cantidadConsumida(0.3)
-                        .build()));
-        mockearEquipamientoParaIniciar(lote);
-        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        // === EJECUCION ===
-        loteServicio.finalizarMaceracion(1L);
-
-        // === ASSERTS ===
-        assertThat(0.1 + 0.2).isGreaterThan(0.3);
-        assertThat(etapaMaceracion.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
-        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
-    }
-
-    @Test
-    @DisplayName("CP-FMC-08: finalizarMaceracion con porcentaje mínimo 100% rechaza un consumo menor al requerido por más de 4 decimales")
-    void finalizarMaceracion_debeRechazarElConsumoMenorAlRequeridoConPorcentajeCien() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
-        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
-        etapaMaceracion.setId(2L);
-        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
-        mockearConfiguracionConPorcentajeMinimo(100.0);
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
-                InsumoRequeridoResponseDTO.builder()
-                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
-                        .cantidadRequerida(10.0)
-                        .cantidadConsumida(9.9998)
-                        .build()));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el 100% mínimo de consumo requerido: Malta Pilsen");
-        verify(loteRepository, never()).save(any());
-        verifyNoInteractions(maceradorRepository);
     }
 
     // ==================== finalizarHervido ====================
@@ -3340,6 +3418,152 @@ class LoteServicioImplTest {
         InOrder orden = inOrder(loteRepository, planificacionProduccionRepository);
         orden.verify(loteRepository).saveAll(anyList());
         orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
+    }
+
+    // ==================== calcularAguaDelLote ====================
+
+    @Test
+    @DisplayName("CP-CA-01: calcularAguaDelLote lanza RecursoNoEncontradoException si el lote no existe")
+    void calcularAguaDelLote_debeLanzarExcepcionSiLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularAguaDelLote(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 99");
+    }
+
+    @Test
+    @DisplayName("CP-CA-02: calcularAguaDelLote lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void calcularAguaDelLote_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.calcularAguaDelLote(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CA-03: calcularAguaDelLote — camino feliz con el ejemplo de EscaladoDelAgua.md: agua de macerado, de lavado, total y volumen pre-hervor")
+    void calcularAguaDelLote_debeCalcularElEjemploDelDocumento() {
+        // === PREPARACION DE DATOS ===
+        // Receta de EscaladoDeMalta.md (OG 1.050, Pilsen 100 kg al 80% y Caramelo 20 kg al 74%), 20 L, macerador al 75% con
+        // espacio muerto de 5 L, olla con evaporación de 3 L/h y trub de 2 L, relación de empaste 3 y hervor de 60 minutos
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        // M = 4,3952 kg; Vpre = 20 + 2 + 3 = 25; Vagua_mac = 4,3952*3 + 5 = 18,1857; Vmosto = 18,1857 - 5 - 4,3952 = 8,7904;
+        // Vlavado = 25 - 8,7904 = 16,2096; Vtotal = 18,1857 + 16,2096 = 34,3952
+        assertThat(resultado.getVolumenObjetivo()).isEqualTo(20.0);
+        assertThat(resultado.getMasaMalta()).isEqualTo(4.3952);
+        assertThat(resultado.getVolumenPreHervor()).isEqualTo(25.0);
+        assertThat(resultado.getAguaMacerado()).isEqualTo(18.1857);
+        assertThat(resultado.getAguaLavado()).isEqualTo(16.2096);
+        assertThat(resultado.getAguaTotal()).isEqualTo(34.3952);
+        assertThat(resultado.getAdvertencias()).isEmpty();
+        verify(loteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CA-04: calcularAguaDelLote con el mosto extraído mayor al volumen pre-hervor deja el agua de lavado en 0 y devuelve la advertencia")
+    void calcularAguaDelLote_debeDejarElLavadoEnCeroYAdvertirSiSeraNegativo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        lote.getPlanificacionProduccion().getVersionReceta().setRelacionDeEmpaste(8.0);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        // Vagua_mac = 4,3952*8 + 5 = 40,1617; Vmosto = 40,1617 - 5 - 4,3952 = 30,7665; Vlavado = 25 - 30,7665 < 0 → 0
+        assertThat(resultado.getAguaMacerado()).isEqualTo(40.1617);
+        assertThat(resultado.getAguaLavado()).isEqualTo(0.0);
+        assertThat(resultado.getAguaTotal()).isEqualTo(40.1617);
+        assertThat(resultado.getAdvertencias()).containsExactly(
+                "El mosto extraído del macerador (30,77 L) supera el volumen pre-hervor (25 L), por lo que no se requiere agua de lavado");
+    }
+
+    @Test
+    @DisplayName("CP-CA-05: calcularAguaDelLote calcula el agua de un lote en cualquier estado (FINALIZADO)")
+    void calcularAguaDelLote_debeCalcularParaUnLoteFinalizado() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.FINALIZADO, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getAguaTotal()).isEqualTo(34.3952);
+    }
+
+    @Test
+    @DisplayName("CP-CA-06: calcularAguaDelLote resuelve el macerador y la olla de hervor desenvolviendo sus proxies de Hibernate")
+    void calcularAguaDelLote_debeResolverElEquipamientoDesdeProxies() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaHervido = findEtapa(lote, TipoEtapa.HERVIDO);
+        EquipamientoEntity proxyMacerador = proxyDe(etapaMaceracion.getEquipamiento());
+        EquipamientoEntity proxyOlla = proxyDe(etapaHervido.getEquipamiento());
+        etapaMaceracion.setEquipamiento(proxyMacerador);
+        etapaHervido.setEquipamiento(proxyOlla);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(proxyMacerador).isNotInstanceOf(MaceradorEntity.class);
+        assertThat(proxyOlla).isNotInstanceOf(OllaHervorEntity.class);
+        assertThat(resultado.getAguaTotal()).isEqualTo(34.3952);
+    }
+
+    @Test
+    @DisplayName("CP-CA-07: calcularAguaDelLote lanza ReglaNegocioException si el equipamiento de la etapa de Maceración no es un macerador")
+    void calcularAguaDelLote_debeRechazarUnEquipamientoDeMaceracionQueNoEsMacerador() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        findEtapa(lote, TipoEtapa.MACERACION).setEquipamiento(crearMolino(9L, 5.0));
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularAguaDelLote(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de Maceración del lote 1 no tiene un macerador asociado como equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-CA-08: calcularAguaDelLote lanza ReglaNegocioException si el equipamiento de la etapa de Hervido no es una olla de hervor")
+    void calcularAguaDelLote_debeRechazarUnEquipamientoDeHervidoQueNoEsOlla() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        findEtapa(lote, TipoEtapa.HERVIDO).setEquipamiento(crearMolino(9L, 5.0));
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularAguaDelLote(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de Hervido del lote 1 no tiene una olla de hervor asociada como equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-CA-09: calcularAguaDelLote lanza ReglaNegocioException si la masa de malta no es finita (extracto potencial de las maltas en 0)")
+    void calcularAguaDelLote_debeRechazarUnaMasaDeMaltaInfinita() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        lote.getPlanificacionProduccion().getVersionReceta().setDetallesMalta(List.of(detalleMalta(100.0, crearMalta(1L, "Pilsen", 0))));
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularAguaDelLote(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede calcular el agua del lote porque los datos de la receta o de los equipos producen un valor no válido");
     }
 
     // ==================== listarLotesDePlanificacion ====================
@@ -4994,6 +5218,20 @@ class LoteServicioImplTest {
         return captor.getValue();
     }
 
+    /**
+     * Simula el proxy perezoso de Hibernate que llega desde {@code EtapaLoteEntity.getEquipamiento()}: una instancia
+     * de la clase abstracta {@code EquipamientoEntity} (no de su clase concreta) que delega en el equipamiento real.
+     */
+    private static EquipamientoEntity proxyDe(EquipamientoEntity real) {
+        EquipamientoEntity proxy = mock(EquipamientoEntity.class, withSettings().extraInterfaces(HibernateProxy.class));
+        HibernateProxy proxyHibernate = (HibernateProxy) proxy;
+        LazyInitializer inicializador = mock(LazyInitializer.class);
+        lenient().when(proxyHibernate.asHibernateProxy()).thenReturn(proxyHibernate);
+        lenient().when(proxyHibernate.getHibernateLazyInitializer()).thenReturn(inicializador);
+        lenient().when(inicializador.getImplementation()).thenReturn(real);
+        return proxy;
+    }
+
     private static EtapaLoteEntity findEtapa(LoteEntity lote, TipoEtapa tipo) {
         return lote.getEtapas().stream().filter(e -> e.getEtapa() == tipo).findFirst().orElseThrow();
     }
@@ -5068,11 +5306,11 @@ class LoteServicioImplTest {
         usarFermentadorDeLaCola(lote);
         when(loteRepository.buscarPorIdParaActualizar(idLote)).thenReturn(Optional.of(lote));
         mockearEquipamientoParaIniciar(lote);
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(10L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(11L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(11L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(101L, lupulo, 30.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(12L))
+        when(loteInsumoRepository.buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(12L, LocalDate.now()))
                 .thenReturn(List.of(crearLoteInsumo(102L, levadura, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         return lote;

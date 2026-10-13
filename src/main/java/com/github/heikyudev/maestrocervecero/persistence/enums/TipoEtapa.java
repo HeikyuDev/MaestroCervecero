@@ -19,13 +19,13 @@ import lombok.RequiredArgsConstructor;
  * etapa: {@code permiteRegistrarConsumo} y {@code permiteRegistrarEnvasado} los consultan
  * los services de consumo de insumo y de envasado para rechazar el registro en una etapa
  * que no lo admite. La validación del tipo de insumo que se puede consumir en cada
- * etapa (Malta solo en Maceración, Levadura solo en Fermentación) la resuelve el service.
+ * etapa (Malta solo en Molienda, Levadura solo en Fermentación) la resuelve el service.
  */
 @Getter
 @RequiredArgsConstructor
 public enum TipoEtapa {
-    MOLIENDA("Molienda", false, false),
-    MACERACION("Maceración", true, false),
+    MOLIENDA("Molienda", true, false),
+    MACERACION("Maceración", false, false),
     HERVIDO("Hervido", true, false),
     FERMENTACION("Fermentación", true, false),
     MADURACION("Maduración", true, false),

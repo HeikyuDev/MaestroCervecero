@@ -63,12 +63,12 @@ class EscaladoInsumoServicioImplTest {
         List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosMalta(versionReceta, 20.0, macerador);
 
         // === ASSERTS ===
-        // PD=1000; EPpromedio=0.79; KgTotal=1000/(0.79*0.75*384)≈4.3954kg; reparto 83.3%/16.7%
+        // PD=1000; EPpromedio=0.79; KgTotal=1000/(0.79*0.75*384)=4.3952kg; reparto 5/6 y 1/6: Pilsen 3.6627kg, Caramelo 0.7325kg
         assertThat(resultado).hasSize(2);
         RequerimientoInsumo requerimientoPilsen = resultado.stream().filter(r -> r.insumo().equals(pilsen)).findFirst().orElseThrow();
         RequerimientoInsumo requerimientoCaramelo = resultado.stream().filter(r -> r.insumo().equals(caramelo)).findFirst().orElseThrow();
-        assertThat(requerimientoPilsen.cantidadRequerida()).isCloseTo(3.6628, within(0.001));
-        assertThat(requerimientoCaramelo.cantidadRequerida()).isCloseTo(0.7326, within(0.001));
+        assertThat(requerimientoPilsen.cantidadRequerida()).isCloseTo(3.6627, within(0.0001));
+        assertThat(requerimientoCaramelo.cantidadRequerida()).isCloseTo(0.7325, within(0.0001));
         assertThat(requerimientoPilsen.etapa()).isNull();
         assertThat(requerimientoCaramelo.etapa()).isNull();
     }
@@ -102,9 +102,9 @@ class EscaladoInsumoServicioImplTest {
         RequerimientoInsumo reqCentennial = resultado.stream().filter(r -> r.insumo().equals(centennial)).findFirst().orElseThrow();
         RequerimientoInsumo reqCitra = resultado.stream().filter(r -> r.insumo().equals(citra)).findFirst().orElseThrow();
 
-        // Gramos totales HERVOR ≈ 256.8g, repartidos 75%/25% → A≈192.6g, B≈64.2g (tolerancia amplia por redondeos del ejemplo del dominio)
-        assertThat(reqCascade.cantidadRequerida()).isCloseTo(192.6, within(0.5));
-        assertThat(reqCentennial.cantidadRequerida()).isCloseTo(64.2, within(0.5));
+        // Gramos totales HERVOR = 257.09g, repartidos 75%/25% → A = 192.82g, B = 64.27g
+        assertThat(reqCascade.cantidadRequerida()).isCloseTo(192.82, within(0.01));
+        assertThat(reqCentennial.cantidadRequerida()).isCloseTo(64.27, within(0.01));
         assertThat(reqCascade.etapa().getEtapa()).isEqualTo(TipoEtapa.HERVIDO);
         assertThat(reqCentennial.etapa().getEtapa()).isEqualTo(TipoEtapa.HERVIDO);
 
@@ -168,14 +168,14 @@ class EscaladoInsumoServicioImplTest {
         MaltaEntity malta = crearMalta(1L, "Pilsen", 80);
         RequerimientoInsumo requerimientoSinEtapa = new RequerimientoInsumo(malta, null, 3.5);
         LoteEntity lote = crearLoteConEtapas();
-        EtapaLoteEntity etapaMaceracion = lote.getEtapas().stream().filter(e -> e.getEtapa() == TipoEtapa.MACERACION).findFirst().orElseThrow();
+        EtapaLoteEntity etapaMolienda = lote.getEtapas().stream().filter(e -> e.getEtapa() == TipoEtapa.MOLIENDA).findFirst().orElseThrow();
 
         // === EJECUCION ===
-        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.asociarEtapa(List.of(requerimientoSinEtapa), etapaMaceracion);
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.asociarEtapa(List.of(requerimientoSinEtapa), etapaMolienda);
 
         // === ASSERTS ===
         assertThat(resultado).hasSize(1);
-        assertThat(resultado.get(0).etapa()).isEqualTo(etapaMaceracion);
+        assertThat(resultado.get(0).etapa()).isEqualTo(etapaMolienda);
         assertThat(resultado.get(0).cantidadRequerida()).isEqualTo(3.5);
         assertThat(resultado.get(0).insumo()).isEqualTo(malta);
     }
@@ -216,11 +216,9 @@ class EscaladoInsumoServicioImplTest {
         assertThat(requerimientoMaduracion.cantidadRequerida()).isCloseTo(5.0, within(0.001));
     }
 
-    // ==================== calcularRequerimientosEtapa ====================
-
     @Test
-    @DisplayName("CP-EI-CE-01: calcularRequerimientosEtapa en la etapa de Maceración solo calcula malta, aunque la receta también tenga lúpulo y levadura")
-    void calcularRequerimientosEtapa_debeCalcularSoloMaltaEnMaceracion() {
+    @DisplayName("CP-EI-CT-02: calcularRequerimientosTotales asocia la malta a la etapa de Molienda (calculada con el macerador de la etapa de Maceración), la levadura a Fermentación y el lúpulo a la etapa de su detalle")
+    void calcularRequerimientosTotales_debeAsociarLaMaltaALaEtapaDeMolienda() {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
         LevaduraEntity levadura = crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6);
@@ -232,15 +230,47 @@ class EscaladoInsumoServicioImplTest {
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
-        EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
 
         // === EJECUCION ===
-        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion);
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosTotales(lote);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(3);
+        RequerimientoInsumo reqMalta = resultado.stream().filter(r -> r.insumo().equals(pilsen)).findFirst().orElseThrow();
+        RequerimientoInsumo reqLevadura = resultado.stream().filter(r -> r.insumo().equals(levadura)).findFirst().orElseThrow();
+        RequerimientoInsumo reqLupulo = resultado.stream().filter(r -> r.insumo().equals(cascade)).findFirst().orElseThrow();
+        assertThat(reqMalta.etapa().getEtapa()).isEqualTo(TipoEtapa.MOLIENDA);
+        assertThat(reqMalta.cantidadRequerida()).isCloseTo(4.3403, within(0.0001));
+        assertThat(reqLevadura.etapa().getEtapa()).isEqualTo(TipoEtapa.FERMENTACION);
+        assertThat(reqLupulo.etapa().getEtapa()).isEqualTo(TipoEtapa.HERVIDO);
+    }
+
+    // ==================== calcularRequerimientosEtapa ====================
+
+    @Test
+    @DisplayName("CP-EI-CE-01: calcularRequerimientosEtapa en la etapa de Molienda solo calcula malta (con el macerador de la etapa de Maceración), aunque la receta también tenga lúpulo y levadura")
+    void calcularRequerimientosEtapa_debeCalcularSoloMaltaEnMolienda() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
+        LevaduraEntity levadura = crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6);
+        LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
+                .detallesLevadura(List.of(detalleLevadura(6.0, levadura)))
+                .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+        EtapaLoteEntity etapaMolienda = lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA);
+
+        // === EJECUCION ===
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda);
 
         // === ASSERTS ===
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).insumo()).isEqualTo(pilsen);
-        assertThat(resultado.get(0).etapa()).isEqualTo(etapaMaceracion);
+        assertThat(resultado.get(0).etapa()).isEqualTo(etapaMolienda);
+        assertThat(resultado.get(0).cantidadRequerida()).isCloseTo(4.3403, within(0.0001));
     }
 
     @Test
@@ -294,14 +324,14 @@ class EscaladoInsumoServicioImplTest {
         assertThat(resultado).hasSize(2);
         RequerimientoInsumo reqCascade = resultado.stream().filter(r -> r.insumo().equals(cascade)).findFirst().orElseThrow();
         RequerimientoInsumo reqCentennial = resultado.stream().filter(r -> r.insumo().equals(centennial)).findFirst().orElseThrow();
-        assertThat(reqCascade.cantidadRequerida()).isCloseTo(192.6, within(0.5));
-        assertThat(reqCentennial.cantidadRequerida()).isCloseTo(64.2, within(0.5));
+        assertThat(reqCascade.cantidadRequerida()).isCloseTo(192.82, within(0.01));
+        assertThat(reqCentennial.cantidadRequerida()).isCloseTo(64.27, within(0.01));
         assertThat(reqCascade.etapa()).isEqualTo(etapaHervido);
         assertThat(reqCentennial.etapa()).isEqualTo(etapaHervido);
     }
 
     @Test
-    @DisplayName("CP-EI-CE-04: calcularRequerimientosEtapa retorna una lista vacía cuando la etapa no requiere ningún insumo (ni Maceración ni Fermentación, y ningún lúpulo apunta a ella)")
+    @DisplayName("CP-EI-CE-04: calcularRequerimientosEtapa retorna una lista vacía cuando la etapa no requiere ningún insumo (ni Molienda ni Fermentación, y ningún lúpulo apunta a ella)")
     void calcularRequerimientosEtapa_debeRetornarListaVaciaSiNoHayInsumosParaEsaEtapa() {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
@@ -347,7 +377,7 @@ class EscaladoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-EI-CE-06: calcularRequerimientosEtapa lanza ReglaNegocioException si la etapa de Maceración no tiene un macerador asociado como equipamiento")
+    @DisplayName("CP-EI-CE-06: calcularRequerimientosEtapa en la etapa de Molienda lanza ReglaNegocioException si la etapa de Maceración del lote no tiene un macerador asociado como equipamiento")
     void calcularRequerimientosEtapa_debeLanzarExcepcionSiElEquipamientoDeMaceracionNoEsUnMacerador() {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
@@ -361,17 +391,18 @@ class EscaladoInsumoServicioImplTest {
         LoteEntity lote = LoteEntity.builder().id(1L).volumenObjetivo(20.0).planificacionProduccion(planificacion).build();
         // Equipamiento mal asociado deliberadamente: un Molino en vez de un Macerador
         MolinoEntity molino = MolinoEntity.builder().id(9L).identificadorInterno("Molino 1").estado(Estado.ACTIVO).build();
+        EtapaLoteEntity etapaMolienda = EtapaLoteEntity.builder().id(1L).etapa(TipoEtapa.MOLIENDA).estado(EstadoEtapaLote.PENDIENTE).equipamiento(molino).lote(lote).build();
         EtapaLoteEntity etapaMaceracion = EtapaLoteEntity.builder().id(2L).etapa(TipoEtapa.MACERACION).estado(EstadoEtapaLote.PENDIENTE).equipamiento(molino).lote(lote).build();
-        lote.setEtapas(List.of(etapaMaceracion));
+        lote.setEtapas(List.of(etapaMolienda, etapaMaceracion));
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion))
+        assertThatThrownBy(() -> escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La etapa de Maceración del lote 1 no tiene un macerador asociado como equipamiento");
     }
 
     @Test
-    @DisplayName("CP-EI-CE-07: calcularRequerimientosEtapa resuelve el macerador desenvolviendo el proxy de Hibernate del equipamiento de la etapa de Maceración")
+    @DisplayName("CP-EI-CE-07: calcularRequerimientosEtapa en la etapa de Molienda resuelve el macerador desenvolviendo el proxy de Hibernate del equipamiento de la etapa de Maceración")
     void calcularRequerimientosEtapa_debeResolverElMaceradorDesdeUnProxy() {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
@@ -380,19 +411,41 @@ class EscaladoInsumoServicioImplTest {
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+        EtapaLoteEntity etapaMolienda = lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA);
         EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
-        double cantidadConMaceradorReal = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion).get(0).cantidadRequerida();
+        double cantidadConMaceradorReal = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda).get(0).cantidadRequerida();
         EquipamientoEntity proxy = proxyDe(crearMacerador(75.0));
         etapaMaceracion.setEquipamiento(proxy);
 
         // === EJECUCION ===
-        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion);
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda);
 
         // === ASSERTS ===
         assertThat(proxy).isNotInstanceOf(MaceradorEntity.class);
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).insumo()).isEqualTo(pilsen);
         assertThat(resultado.get(0).cantidadRequerida()).isEqualTo(cantidadConMaceradorReal);
+    }
+
+    @Test
+    @DisplayName("CP-EI-CE-08: calcularRequerimientosEtapa retorna una lista vacía en la etapa de Maceración, que no requiere insumos (la malta se requiere en Molienda), aunque la receta tenga malta")
+    void calcularRequerimientosEtapa_debeRetornarListaVaciaEnMaceracion() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
+                .detallesLevadura(List.of())
+                .detallesLupulo(List.of())
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+        EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
+
+        // === EJECUCION ===
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion);
+
+        // === ASSERTS ===
+        assertThat(resultado).isEmpty();
     }
 
     // ==================== helpers de construcción ====================

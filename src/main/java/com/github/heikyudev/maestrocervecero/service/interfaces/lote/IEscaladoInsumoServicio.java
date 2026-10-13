@@ -74,7 +74,7 @@ public interface IEscaladoInsumoServicio {
 
     /**
      * Calcula el requerimiento total de insumos de un lote, escalado al volumen objetivo,
-     * asociando cada uno a la etapa donde efectivamente se usa: Maceración para la malta,
+     * asociando cada uno a la etapa donde efectivamente se usa: Molienda para la malta,
      * Fermentación para la levadura, y la etapa configurada en cada detalle para el lúpulo.
      * <p>
      * Un mismo insumo (típicamente un lúpulo) puede usarse en más de una etapa dentro de la
@@ -101,7 +101,7 @@ public interface IEscaladoInsumoServicio {
 
     /**
      * Calcula el requerimiento de insumos de una única etapa de lote puntual, evitando el trabajo
-     * de las categorías de insumo que no aplican a esa etapa: si no es Maceración, no calcula
+     * de las categorías de insumo que no aplican a esa etapa: si no es Molienda, no calcula
      * malta; si no es Fermentación, no calcula levadura; y el lúpulo solo se calcula si algún
      * detalle de la receta efectivamente apunta a esta etapa (la fórmula de Tinseth sigue
      * agrupando, quien corresponda, todos los lúpulos de HERVOR de la receta para ese cálculo, ya

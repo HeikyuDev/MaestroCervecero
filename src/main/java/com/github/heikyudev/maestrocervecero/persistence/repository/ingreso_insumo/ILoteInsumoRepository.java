@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,8 +38,12 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
     Optional<LoteInsumoEntity> buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(@Param("idInsumo") Long idInsumo, @Param("identificacionLoteProveedor") String identificacionLoteProveedor);
 
     /**
-     * Busca, bloqueándolos para escritura, todos los lotes de insumo de un insumo determinado,
+     * Busca, bloqueándolos para escritura, los lotes de insumo no vencidos de un insumo determinado,
      * ordenados por fecha de vencimiento ascendente (criterio FEFO: First Expired, First Out).
+     * <p>
+     * Un lote de insumo está vencido cuando su fecha de vencimiento es anterior a la fecha indicada: si
+     * vence ese mismo día todavía es válido. Los lotes vencidos no cuentan como stock disponible.
+     * </p>
      * <p>
      * Se usa al iniciar un lote de producción, para reservar stock priorizando siempre el
      * insumo que vence antes. El bloqueo evita que dos lotes de producción reserven, al mismo
@@ -46,11 +51,12 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      * </p>
      *
      * @param idInsumo El ID del insumo cuyo stock se quiere reservar.
-     * @return Los lotes de insumo de ese insumo, ordenados por fecha de vencimiento ascendente.
+     * @param hoy La fecha de referencia: se excluyen los lotes que vencieron antes de ella.
+     * @return Los lotes de insumo no vencidos de ese insumo, ordenados por fecha de vencimiento ascendente.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo ORDER BY li.fechaVencimiento ASC")
-    List<LoteInsumoEntity> buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(@Param("idInsumo") Long idInsumo);
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id = :idInsumo AND li.fechaVencimiento >= :hoy ORDER BY li.fechaVencimiento ASC")
+    List<LoteInsumoEntity> buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(@Param("idInsumo") Long idInsumo, @Param("hoy") LocalDate hoy);
 
     /**
      * Busca, bloqueándolo para escritura, un lote de insumo por su ID.

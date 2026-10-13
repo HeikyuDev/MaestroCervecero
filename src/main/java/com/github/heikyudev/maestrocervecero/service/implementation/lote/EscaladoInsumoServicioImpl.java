@@ -147,11 +147,13 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
     public List<RequerimientoInsumo> calcularRequerimientosTotales(LoteEntity lote) {
         VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
         double volumenObjetivo = lote.getVolumenObjetivo();
+        EtapaLoteEntity etapaMolienda = lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA);
         EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
         EtapaLoteEntity etapaFermentacion = lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION);
 
         List<RequerimientoInsumo> todosLosRequerimientos = new ArrayList<>();
-        todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, resolverMacerador(etapaMaceracion)), etapaMaceracion));
+        // La malta se consume en Molienda, pero su cantidad total se calcula con el macerador de la etapa de Maceración
+        todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, resolverMacerador(etapaMaceracion)), etapaMolienda));
         todosLosRequerimientos.addAll(calcularRequerimientosLupulo(versionReceta, volumenObjetivo, lote));
         todosLosRequerimientos.addAll(asociarEtapa(calcularRequerimientosLevadura(versionReceta, volumenObjetivo), etapaFermentacion));
 
@@ -167,10 +169,12 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
 
         List<RequerimientoInsumo> requerimientos = new ArrayList<>();
 
-        // La malta solo se requiere en Maceración: si la etapa pedida es otra, ni siquiera se
-        // resuelve el macerador ni se calcula el escalado de malta.
-        if (tipoEtapa == TipoEtapa.MACERACION) {
-            requerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, resolverMacerador(etapaLote)), etapaLote));
+        // La malta solo se requiere en Molienda: si la etapa pedida es otra, ni siquiera se
+        // resuelve el macerador ni se calcula el escalado de malta. La cantidad total se calcula con el
+        // macerador de la etapa de Maceración del lote (su eficiencia determina los kilos necesarios).
+        if (tipoEtapa == TipoEtapa.MOLIENDA) {
+            MaceradorEntity macerador = resolverMacerador(lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION));
+            requerimientos.addAll(asociarEtapa(calcularRequerimientosMalta(versionReceta, volumenObjetivo, macerador), etapaLote));
         }
 
         // La levadura solo se requiere en Fermentación.

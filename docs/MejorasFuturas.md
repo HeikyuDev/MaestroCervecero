@@ -16,7 +16,7 @@ El problema que deja abierto ese comportamiento: la(s) etapa(s) de producción q
 
 En lugar de solo reducir la reserva afectada, el sistema debería intentar **re-reservar automáticamente la cantidad faltante usando el mismo algoritmo FEFO** (First Expired, First Out) que ya se usa en `iniciarLote`, buscando otro(s) lote(s) de insumo disponibles para cubrir el déficit.
 
-Ejemplo: se pierden 100 Kg de un lote físico de Malta A que tenía reservados 60 Kg para la etapa de Maceración del Lote de producción #12. Hoy, esa reserva simplemente queda reducida (o en 0, si el excedente la consume entera). Con la mejora, el sistema debería buscar automáticamente otro lote de Malta A en stock (el siguiente más próximo a vencer) y generar una nueva `ReservaInsumoEntity` para cubrir esos 60 Kg faltantes de esa misma etapa.
+Ejemplo: se pierden 100 Kg de un lote físico de Malta A que tenía reservados 60 Kg para la etapa de Molienda del Lote de producción #12. Hoy, esa reserva simplemente queda reducida (o en 0, si el excedente la consume entera). Con la mejora, el sistema debería buscar automáticamente otro lote de Malta A en stock (el siguiente más próximo a vencer) y generar una nueva `ReservaInsumoEntity` para cubrir esos 60 Kg faltantes de esa misma etapa.
 
 ### Por qué no es trivial
 

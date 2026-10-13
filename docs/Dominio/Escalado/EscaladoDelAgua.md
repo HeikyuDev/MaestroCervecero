@@ -10,7 +10,7 @@ La lógica parte de una particularidad del proceso: en la planta, el agua se va 
 
 | Dato | Descripción | Origen |
 | :---- | :---- | :---- |
-| Volumen Objetivo del Lote | Cantidad de litros de cerveza que se desea obtener en el fermentador. | Ingresado por el usuario al iniciar el lote. |
+| Volumen Objetivo del Lote | Cantidad de litros de cerveza que se desea obtener en el fermentador. | Ingresado por el usuario al registrar el lote. |
 | Masa de Malta Escalada | Kilos totales de malta que se van a utilizar, ya calculados en función del volumen objetivo del lote. | Resultado del  escalado de malta. |
 | Relación de Empaste | Litros de agua recomendados por cada kilo de malta utilizada. | Definida en la versión vigente de la receta. |
 | Duración estimada del hervor | Tiempo que va a durar el hervido del mosto, expresado en minutos. | Definida en la versión vigente de la receta. |
@@ -64,7 +64,9 @@ A este resultado se le suma el volumen físico que ocupa la malta al mojarse (us
 
 Como ese líquido extraído casi nunca alcanza el volumen que la olla necesita (calculado en el Paso 2), el sistema calcula la diferencia: esa diferencia es el agua de lavado, que se agrega rociando agua caliente adicional sobre el grano para completar el volumen necesario.
 
-**Paso 5 — Agua total a preparar** Finalmente, el sistema suma el agua utilizada en la maceración (Paso 3\) más el agua de lavado (Paso 4), obteniendo el total de agua que la planta debe preparar y calentar para ejecutar el lote completo.
+Si el líquido extraído ya supera el volumen que la olla necesita (por ejemplo, con una relación de empaste muy alta), la diferencia sería negativa: en ese caso el agua de lavado vale 0, el agua total es solo el agua de la maceración y el sistema informa una advertencia.
+
+**Paso 5 — Agua total a preparar** Finalmente, el sistema suma el agua utilizada en la maceración (Paso 3\) más el agua de lavado (Paso 4), obteniendo el total de agua que la planta debe preparar y calentar para ejecutar el lote completo. Los pasos 3 a 5 se consultan para un lote registrado: agua de macerado, agua de lavado, agua total y volumen pre-hervor, en litros.
 
 ## 
 
@@ -74,9 +76,9 @@ Como ese líquido extraído casi nunca alcanza el volumen que la olla necesita (
 
 | Equipo | Se valida que... | Mensaje si falla |
 | :---- | :---- | :---- |
-| Fermentador | El volumen objetivo del lote no supere la capacidad útil del fermentador. | Volumen físico que ocupa un kilo de malta molida al sumergirse en agua. |
-| Olla de Hervor | El volumen a hervir (Paso 2\) no supere la capacidad útil de la olla | "El volumen pre-hervor supera la capacidad útil de la olla." |
-| Macerador | El volumen de la mezcla de agua y malta (Paso 3\) no supere la capacidad útil del macerador | "La mezcla de agua y grano desbordará el macerador." |
+| Fermentador | El volumen objetivo del lote no supere la capacidad útil del fermentador. | "El volumen objetivo del lote (X L) supera la capacidad útil del fermentador seleccionado (Y L)" |
+| Olla de Hervor | El volumen a hervir (Paso 2\) no supere la capacidad útil de la olla | "El volumen pre-hervor calculado (X L) supera la capacidad útil de la olla de hervor seleccionada (Y L)" |
+| Macerador | El volumen de la mezcla de agua y malta (Paso 3\) no supere la capacidad útil del macerador | "La mezcla de agua y grano (X L) desbordará el macerador seleccionado (capacidad útil: Y L)" |
 
 ### **Glosario de variables** 
 
@@ -138,3 +140,38 @@ ${V}_{agu{a}_{}lavado}={V}_{pre-hervor}-{V}_{most{o}_{}extraido}$
 **Paso 5 — Agua total a preparar**
 
 ${V}_{agu{a}_{}total}={V}_{agu{a}_{}mac}+{V}_{agu{a}_{}lavado}$
+
+El agua de lavado no puede ser negativa: si ${V}_{pre-hervor}-{V}_{most{o}_{}extraido}<0$, entonces ${V}_{agu{a}_{}lavado}=0$ y el sistema informa que no se requiere agua de lavado.
+
+### **Ejemplo numérico ilustrativo**
+
+*Nota: los valores de este ejemplo son ilustrativos, con el único fin de mostrar el mecanismo de cálculo — no representan datos reales del sistema.*
+
+**Datos de la receta y del lote:**
+
+* Volumen Objetivo: 20 L  
+* Masa de malta escalada: 4.3952 kg (la del ejemplo de EscaladoDeMalta.md)  
+* Relación de empaste: 3 L/kg  
+* Duración del hervor: 60 minutos
+
+**Datos de los equipos:**
+
+* Macerador: espacio muerto 5 L  
+* Olla de hervor: evaporación 3 L/hora, pérdida por trub 2 L
+
+**Cálculo:**
+
+1. Volumen a hervir:  
+   20 + 2 + (3 × 60 / 60) = 25 L
+
+2. Agua para la maceración:  
+   (4.3952 × 3) + 5 = 18.19 L  
+   Volumen de la mezcla en el macerador: 18.19 + (4.3952 × 0.7) = 21.26 L
+
+3. Agua de lavado:  
+   Pérdida en el bagazo: 4.3952 × 1.0 = 4.40 L  
+   Mosto extraído: 18.19 − 5 − 4.40 = 8.79 L  
+   Agua de lavado: 25 − 8.79 = 16.21 L
+
+4. Agua total a preparar:  
+   18.19 + 16.21 = 34.40 L (con más decimales: 18.1857 + 16.2096 = 34.3952 L)

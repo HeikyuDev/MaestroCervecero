@@ -6,12 +6,14 @@ Esta sección describe cómo el sistema calcula la cantidad de levadura necesari
 
 Cuando la receta define más de una levadura, el sistema aplica el mismo criterio ya usado en malta y lúpulo: preserva la proporción entre las levaduras definida en la receta, calcula un valor combinado ponderado de la mezcla, y reparte el total resultante manteniendo esa proporción.
 
+La levadura se consume en la etapa de Fermentación.
+
 ### **A. Datos de entrada**
 
 | Dato | Descripción | Origen |
 | ----- | ----- | ----- |
 | OG Objetivo | Densidad inicial que se desea alcanzar en el mosto. | Definida en la versión vigente de la receta. |
-| Volumen Objetivo del Lote | Litros de cerveza que se desean obtener. | Ingresado por el usuario al iniciar el lote. |
+| Volumen Objetivo del Lote | Litros de cerveza que se desean obtener. | Ingresado por el usuario al registrar el lote. |
 | Detalle de Levaduras de la Receta | Listado de levaduras utilizadas, con cantidad (gramos, para el volumen base de la receta). | Definido en la versión vigente de la receta. |
 
 ### **B. Parámetros de insumo**
@@ -122,7 +124,7 @@ $Gramo{s}_{i}\ =\ (Celulas_i_millones\ x\ 1.000.000)\ /\ Celulas_por_gram{o}_{i}
 
 5. Reparto:   
    $Celula{s}_{A}\ =\ 212.500\ x\ 0,6\ =\ 127.500\ millones\ $  
-   $Celula{s}_{A}\ =\ 212.500\ x\ 0,4\ =\ 85.000\ millones$
+   $Celula{s}_{B}\ =\ 212.500\ x\ 0,4\ =\ 85.000\ millones$
 
 6. Conversión a gramos:   
    $Gramo{s}_{A}\ =\ (127.500\ x\ 1.000.000)\ /\ (18.000\ x\ 1.000.000)\ =\ 127.500\ /\ 18.000\ ≈\ 7,08\ g\ $  

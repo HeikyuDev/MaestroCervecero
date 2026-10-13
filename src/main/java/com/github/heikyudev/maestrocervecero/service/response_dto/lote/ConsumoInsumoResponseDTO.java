@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DTO de respuesta que representa el consumo efectivo de un insumo.
@@ -66,4 +67,12 @@ public class ConsumoInsumoResponseDTO {
      * Lote de insumo del que se descontó este consumo.
      */
     private LoteInsumoResponseDTO loteInsumo;
+
+    /**
+     * Avisos que no impiden el consumo: el consumo se registra igual. Vacía si no hay ninguno. Se
+     * informan, por ejemplo, cuando el lote de insumo está vencido o cuando el total consumido del
+     * insumo en la etapa supera la cantidad requerida.
+     */
+    @Builder.Default
+    private List<String> advertencias = List.of();
 }

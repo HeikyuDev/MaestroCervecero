@@ -59,7 +59,9 @@ public interface IConsumoInsumoServicio {
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
-     * @return El consumo registrado.
+     * @return El consumo registrado, con sus advertencias: el lote de insumo vencido (una reserva de un lote que se
+     *         venció durante la ejecución se mantiene y se puede consumir) y el exceso del total consumido del
+     *         insumo en la etapa sobre la cantidad requerida. Las advertencias no impiden el consumo.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados no existen.
      * @throws ReglaNegocioException Si el lote de insumo o la cantidad consumida no son válidos, si el lote no está en ejecución,
      *                               si la etapa no está en curso o no admite consumos, si el insumo no corresponde a la etapa
@@ -78,7 +80,9 @@ public interface IConsumoInsumoServicio {
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
-     * @return El consumo registrado.
+     * @return El consumo registrado, con sus advertencias: el lote de insumo vencido (el consumo directo sobre un
+     *         lote vencido se permite) y el exceso del total consumido del insumo en la etapa sobre la cantidad
+     *         requerida. Las advertencias no impiden el consumo.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados no existen.
      * @throws ReglaNegocioException Si el lote de insumo o la cantidad consumida no son válidos, si el lote no está en ejecución,
      *                               si la etapa no está en curso o no admite consumos, si el insumo no corresponde a la etapa

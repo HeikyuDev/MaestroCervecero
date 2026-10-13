@@ -45,6 +45,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoIns
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.VolumenesAgua;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
@@ -54,6 +56,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -80,20 +83,16 @@ import java.util.stream.Collectors;
 /**
  * Implementación de {@link ILoteServicio}.
  * <p>
- * El cálculo de los volúmenes de escalado de agua (Paso 2 y Paso 3 del documento
- * de dominio "Escalado del Agua") se resuelve aquí mismo, ya que hoy solo se
- * utiliza para validar la capacidad de los equipos al registrar el lote. Si en el
- * futuro otra operación (por ejemplo, "Iniciar Lote", que necesita también el
- * agua de lavado y el agua total a preparar) requiere este mismo cálculo, vale la
- * pena extraerlo a una clase de dominio compartida.
+ * Los volúmenes del escalado de agua (documento de dominio "Escalado del Agua") los calcula
+ * {@link EscaladoAgua}: al registrar el lote se usan los Pasos 2 y 3 para validar la capacidad de la olla de hervor
+ * y del macerador, y {@link #calcularAguaDelLote(Long)} informa el agua de macerado, el agua de lavado y el agua
+ * total (Pasos 3 a 5).
  * </p>
  */
 @Service
 @RequiredArgsConstructor
 public class LoteServicioImpl implements ILoteServicio {
 
-    // Constantes fijas del sistema (ver docs/Dominio/Escalado/EscaladoDelAgua.md y EscaladoDeMalta.md)
-    private static final double DESPLAZAMIENTO_GRANO_L_POR_KG = 0.7;
     private static final int HORAS_POR_DIA = 24;
 
     // Nombre que usa el código del lote cuando el nombre de la versión de receta no deja ningún carácter utilizable
@@ -224,7 +223,7 @@ public class LoteServicioImpl implements ILoteServicio {
         double masaMaltaEscalada = calcularMasaMaltaEscalada(volumenObjetivo, macerador, versionReceta);
 
         // 5. Validar el volumen pre-hervor contra la capacidad de la olla de hervor (Paso 2 del escalado de agua)
-        double volumenPreHervor = Redondeo.redondear(calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta));
+        double volumenPreHervor = Redondeo.redondear(EscaladoAgua.calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta));
         if (volumenPreHervor > Redondeo.redondear(ollaHervor.getCapacidadUtil())) {
             throw new ReglaNegocioException("El volumen pre-hervor calculado (" + ValidacionesNumericas.formatearNumero(volumenPreHervor)
                     + " L) supera la capacidad útil de la olla de hervor seleccionada ("
@@ -232,7 +231,7 @@ public class LoteServicioImpl implements ILoteServicio {
         }
 
         // 6. Validar el volumen de la mezcla de agua y malta contra la capacidad del macerador (Paso 3 del escalado de agua)
-        double volumenMezclaMacerador = Redondeo.redondear(calcularVolumenMezclaMacerador(masaMaltaEscalada, macerador, versionReceta));
+        double volumenMezclaMacerador = Redondeo.redondear(EscaladoAgua.calcularVolumenMezclaMacerador(masaMaltaEscalada, macerador, versionReceta));
         if (volumenMezclaMacerador > Redondeo.redondear(macerador.getCapacidadUtil())) {
             throw new ReglaNegocioException("La mezcla de agua y grano (" + ValidacionesNumericas.formatearNumero(volumenMezclaMacerador)
                     + " L) desbordará el macerador seleccionado (capacidad útil: "
@@ -299,7 +298,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EquipamientoDelLote equipamiento = bloquearYValidarEquipamientoDisponible(lote);
 
         // 4. Calcular la cantidad requerida de cada insumo, escalada al volumen objetivo del lote,
-        //    y asociarla a la etapa donde efectivamente se va a usar: Maceración para la malta,
+        //    y asociarla a la etapa donde efectivamente se va a usar: Molienda para la malta,
         //    Fermentación para la levadura, y la etapa configurada en cada detalle para el lúpulo
         //    (HERVIDO para HERVOR/WHIRLPOOL, FERMENTACION o MADURACION para DRY_HOP).
         List<RequerimientoInsumo> requerimientos = escaladoInsumoServicio.calcularRequerimientosTotales(lote);
@@ -450,12 +449,18 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Finaliza la etapa de Molienda del lote y da paso a la Maceración.
+     * <p>
+     * La malta se consume en Molienda, por lo que al finalizarla se exige el porcentaje mínimo de consumo y se
+     * liberan las reservas de malta que hayan quedado sin consumir.
+     * </p>
      *
      * @param id El ID del lote cuya Molienda se quiere finalizar.
      * @return El lote actualizado.
-     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, o si su
-     *                               etapa actual (EN_CURSO) no es Molienda.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
+     *                                      se encuentra la configuración de producción.
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su
+     *                               etapa actual (EN_CURSO) no es Molienda, o si algún insumo requerido de la etapa no
+     *                               alcanzó el porcentaje mínimo de consumo configurado.
      */
     @Override
     @Transactional
@@ -475,31 +480,42 @@ public class LoteServicioImpl implements ILoteServicio {
         // 3. Validar que la etapa actual (EN_CURSO) sea Molienda
         EtapaLoteEntity etapaMolienda = obtenerEtapaEnCursoValidando(lote, TipoEtapa.MOLIENDA);
 
-        // 4. Finalizar Molienda e iniciar Maceración
+        // 4. Validar que el consumo de cada insumo requerido de la etapa (la malta) alcance el porcentaje
+        //    mínimo configurado
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
+        validarPorcentajeMinimoConsumido(etapaMolienda, configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa());
+
+        // 5. Finalizar Molienda e iniciar Maceración
         EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
         avanzarEtapa(etapaMolienda, etapaMaceracion);
 
-        // 5. El molino utilizado pasa a estado EN_LIMPIEZA
+        // 6. El molino utilizado pasa a estado EN_LIMPIEZA
         Long idMolino = etapaMolienda.getEquipamiento().getId();
         MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolino)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolino));
         molino.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         molinoRepository.save(molino);
 
+        // 7. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Molienda
+        liberarReservasDeLaEtapa(etapaMolienda);
+
         return MapperLote.toDTO(loteRepository.save(lote));
     }
 
     /**
      * Finaliza la etapa de Maceración del lote y da paso al Hervido.
+     * <p>
+     * La Maceración no requiere insumos (la malta se consume en Molienda), por lo que no se valida el porcentaje
+     * mínimo de consumo ni hay reservas que liberar.
+     * </p>
      *
      * @param id El ID del lote cuya Maceración se quiere finalizar.
      * @return El lote actualizado.
-     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
-     *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
-     *                               actual (EN_CURSO) no es Maceración, o si algún insumo
-     *                               requerido de la etapa no alcanzó el porcentaje mínimo de
-     *                               consumo configurado.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, o si su
+     *                               etapa actual (EN_CURSO) no es Maceración.
      */
     @Override
     @Transactional
@@ -519,26 +535,16 @@ public class LoteServicioImpl implements ILoteServicio {
         // 3. Validar que la etapa actual (EN_CURSO) sea Maceración
         EtapaLoteEntity etapaMaceracion = obtenerEtapaEnCursoValidando(lote, TipoEtapa.MACERACION);
 
-        // 4. Validar que el consumo de cada insumo requerido de la etapa alcance el porcentaje
-        //    mínimo configurado
-        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
-                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
-        validarPorcentajeMinimoConsumido(etapaMaceracion, configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa());
-
-        // 5. Finalizar Maceración e iniciar Hervido
+        // 4. Finalizar Maceración e iniciar Hervido
         EtapaLoteEntity etapaHervido = lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO);
         avanzarEtapa(etapaMaceracion, etapaHervido);
 
-        // 6. El macerador utilizado pasa a estado EN_LIMPIEZA
+        // 5. El macerador utilizado pasa a estado EN_LIMPIEZA
         Long idMacerador = etapaMaceracion.getEquipamiento().getId();
         MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMacerador)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMacerador));
         macerador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         maceradorRepository.save(macerador);
-
-        // 7. Liberar las reservas de insumo que hayan quedado sin consumir de la etapa de Maceración
-        liberarReservasDeLaEtapa(etapaMaceracion);
 
         return MapperLote.toDTO(loteRepository.save(lote));
     }
@@ -783,6 +789,65 @@ public class LoteServicioImpl implements ILoteServicio {
         finalizarPlanificacionSiCorresponde(lote.getPlanificacionProduccion().getId());
 
         return MapperLote.toDTO(loteFinalizado);
+    }
+
+    /**
+     * Calcula el agua que la planta debe preparar para un lote (Pasos 3 a 5 del escalado de agua): el agua de
+     * macerado, el agua de lavado y el agua total, junto con el volumen pre-hervor. Es de solo lectura y sirve para
+     * un lote en cualquier estado.
+     *
+     * @param id El ID del lote.
+     * @return El agua del lote, en litros, con las advertencias del cálculo.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó el lote, si el equipamiento de la etapa de Maceración o de Hervido
+     *                               no es un macerador o una olla de hervor, o si el cálculo produce un valor no válido.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AguaLoteResponseDTO calcularAguaDelLote(Long id) {
+        validarLoteInformado(id);
+
+        // 1. Validar que el lote esté registrado en el sistema
+        LoteEntity lote = loteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+
+        // 2. Resolver el macerador y la olla de hervor del lote, y la masa de malta escalada con ese macerador
+        VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
+        MaceradorEntity macerador = obtenerEquipamientoDeEtapa(lote, TipoEtapa.MACERACION, MaceradorEntity.class, "un macerador asociado");
+        OllaHervorEntity ollaHervor = obtenerEquipamientoDeEtapa(lote, TipoEtapa.HERVIDO, OllaHervorEntity.class, "una olla de hervor asociada");
+        double masaMalta = calcularMasaMaltaEscalada(lote.getVolumenObjetivo(), macerador, versionReceta);
+        if (!Double.isFinite(masaMalta)) {
+            throw new ReglaNegocioException("No se puede calcular el agua del lote porque los datos de la receta o de los equipos producen un valor no válido");
+        }
+
+        // 3. Calcular los volúmenes de agua
+        VolumenesAgua agua = EscaladoAgua.calcular(lote.getVolumenObjetivo(), masaMalta, macerador, ollaHervor, versionReceta);
+
+        return AguaLoteResponseDTO.builder()
+                .volumenObjetivo(lote.getVolumenObjetivo())
+                .masaMalta(Redondeo.redondear(masaMalta))
+                .volumenPreHervor(agua.volumenPreHervor())
+                .aguaMacerado(agua.aguaMacerado())
+                .aguaLavado(agua.aguaLavado())
+                .aguaTotal(agua.aguaTotal())
+                .advertencias(agua.advertencias())
+                .build();
+    }
+
+    /**
+     * Obtiene el equipamiento de la etapa del tipo indicado, desenvolviéndolo si es un proxy de Hibernate de la clase
+     * abstracta {@code EquipamientoEntity} (que no es instancia de su clase concreta).
+     *
+     * @throws ReglaNegocioException Si el equipamiento de la etapa no es del tipo esperado.
+     */
+    private <T extends EquipamientoEntity> T obtenerEquipamientoDeEtapa(LoteEntity lote, TipoEtapa tipoEtapa, Class<T> claseEquipamiento, String descripcion) {
+        EtapaLoteEntity etapa = lote.obtenerEtapaPorTipo(tipoEtapa);
+        Object equipamiento = Hibernate.unproxy(etapa.getEquipamiento());
+        if (claseEquipamiento.isInstance(equipamiento)) {
+            return claseEquipamiento.cast(equipamiento);
+        }
+        throw new ReglaNegocioException("La etapa de " + tipoEtapa.getEtiqueta() + " del lote " + lote.getId()
+                + " no tiene " + descripcion + " como equipamiento");
     }
 
     /**
@@ -1146,25 +1211,6 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Calcula el volumen que debe reunirse en la olla antes de empezar a hervir (V_pre-hervor),
-     * sumando al volumen objetivo la pérdida por trub y la evaporación estimada durante el hervor.
-     */
-    private double calcularVolumenPreHervor(double volumenObjetivo, OllaHervorEntity ollaHervor, VersionRecetaEntity versionReceta) {
-        double horasHervor = versionReceta.getDuracionHervido() / 60.0;
-        return volumenObjetivo + ollaHervor.getPerdidaPorTrub() + (ollaHervor.getEvaporacion() * horasHervor);
-    }
-
-    /**
-     * Calcula el volumen que va a ocupar la mezcla de agua y malta dentro del macerador (V_mezcla_mac),
-     * a partir de la masa de malta escalada (ver docs/Dominio/Escalado/EscaladoDeMalta.md), la relación
-     * de empaste de la receta, el espacio muerto del macerador y el desplazamiento físico del grano.
-     */
-    private double calcularVolumenMezclaMacerador(double masaMaltaEscalada, MaceradorEntity macerador, VersionRecetaEntity versionReceta) {
-        double volumenAguaMaceracion = (masaMaltaEscalada * versionReceta.getRelacionDeEmpaste()) + macerador.getEspacioMuerto();
-        return volumenAguaMaceracion + (masaMaltaEscalada * DESPLAZAMIENTO_GRANO_L_POR_KG);
-    }
-
-    /**
      * Calcula la masa total de malta necesaria para alcanzar el OG objetivo de la receta, dado el
      * volumen objetivo del lote y el rendimiento de maceración del macerador seleccionado.
      */
@@ -1175,8 +1221,9 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Para cada insumo requerido, busca (bloqueando para escritura) sus lotes de insumo
-     * ordenados por FEFO y valida que la suma de cantidad disponible entre todos ellos alcance la
+     * Para cada insumo requerido, busca (bloqueando para escritura) sus lotes de insumo NO VENCIDOS
+     * ordenados por FEFO (un lote vencido, con fecha de vencimiento anterior a hoy, no cuenta como stock
+     * disponible; si vence hoy todavía es válido) y valida que la suma de cantidad disponible entre todos ellos alcance la
      * cantidad requerida SUMADA ENTRE TODAS LAS ETAPAS que lo necesiten (el mismo insumo puede
      * tener requerimientos separados por etapa, pero el stock físico que lo cubre es uno solo,
      * compartido). No reserva nada todavía.
@@ -1201,12 +1248,13 @@ public class LoteServicioImpl implements ILoteServicio {
 
         Map<Long, List<LoteInsumoEntity>> stockPorInsumo = new LinkedHashMap<>();
         List<String> faltantes = new ArrayList<>();
+        LocalDate hoy = LocalDate.now();
 
         for (Map.Entry<Long, Double> entry : cantidadRequeridaPorInsumo.entrySet()) {
             Long idInsumo = entry.getKey();
             double cantidadRequeridaTotal = entry.getValue();
             List<LoteInsumoEntity> lotesDisponibles = loteInsumoRepository
-                    .buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(idInsumo);
+                    .buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(idInsumo, hoy);
 
             double totalDisponible = Redondeo.redondear(lotesDisponibles.stream().mapToDouble(LoteInsumoEntity::getCantidadDisponible).sum());
             if (totalDisponible < cantidadRequeridaTotal) {

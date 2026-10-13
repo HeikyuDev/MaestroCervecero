@@ -8,6 +8,8 @@ Esta sección describe la lógica que el sistema utiliza para calcular automáti
 2. Qué tan eficiente es el macerador utilizado para extraer los azúcares del grano  
 3. Qué tan "rica" en azúcares es cada malta en particular.
 
+La malta se consume en la etapa de Molienda: los requerimientos que se calculan aquí se asocian a esa etapa, y su cantidad total se calcula con el macerador del lote (el de la etapa de Maceración), porque su rendimiento determina cuántos kilos hacen falta. La etapa de Maceración no consume insumos.
+
 ### **Aclaración de terminología:** 
 
 Antes de presentar la fórmula, es importante distinguir dos datos del sistema que, si no se diferencian con claridad, pueden confundirse por tratar temas cercanos:
@@ -23,7 +25,7 @@ Estos dos valores actúan en conjunto: el Extracto Potencial dice "cuánta azúc
 | Dato | Descripción | Origen |
 | :---- | :---- | :---- |
 | OG Objetivo | Densidad inicial que se desea alcanzar en el mosto. | Definida en la versión vigente de la receta. |
-| Volumen Objetivo del Lote | Cantidad de litros de cerveza que se desea obtener. | Ingresado por el usuario al iniciar el lote. |
+| Volumen Objetivo del Lote | Cantidad de litros de cerveza que se desea obtener. | Ingresado por el usuario al registrar el lote. |
 | Detalle de Maltas de la Receta | Listado de maltas utilizadas en la receta, junto con la cantidad (en kg) definida para el volumen base de la misma. | Definido en la versión vigente de la receta. |
 
 ### **B. Parámetros de equipamiento**
@@ -114,5 +116,5 @@ De esta forma, el sistema garantiza que la relación entre las distintas maltas 
 4. Malta total:  
    1. $\ 1000\ /\ (0.79\ ×\ 0.75\ ×\ 384)\ =\ 1000\ /\ 227.52\ ≈\ 4.40\ kg$  
 5. Reparto:  
-   1. $Kg_Pilsen\ =\ 4.40\ ×\ 0.833\ ≈\ 3.66\ kg$  
-   2. $\ Kg_Caramelo\ =\ 4.40\ ×\ 0.167\ ≈\ 0.74\ kg$
+   1. $Kg_Pilsen\ =\ 4.3952\ ×\ 0.8333\ ≈\ 3.66\ kg$  
+   2. $\ Kg_Caramelo\ =\ 4.3952\ ×\ 0.1667\ ≈\ 0.73\ kg$
