@@ -45,6 +45,8 @@ Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25% (el límite in
 
 ### 4. `modificarLupulo(Long id, LupuloFormDTO formDTO)`
 
+Orden de los chequeos: nombre obligatorio y largo, ácidos alfa, existencia del lúpulo, nombre duplicado entre los lúpulos activos y, por último, el bloqueo por lotes: si los ácidos alfa o el formato cambian (se comparan con los valores guardados) y algún lote `PENDIENTE` o `EN_EJECUCION` usa el lúpulo en cualquier versión de la receta de su planificación, se rechaza la modificación con los códigos de los lotes. El resto de los datos (el nombre) siguen siendo editables. El formato del mensaje se describe en `CasosPruebaBloqueoPorLotesVivos.md`.
+
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-ML-01**|Falla por ácidos alfa inválidos|`id: 1L`, `aa: 0` (o `null`, `26`)|`aa <= 0 \| aa > 25` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No consulta la BD.|
@@ -60,6 +62,14 @@ Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25% (el límite in
 |**CP-ML-11**|Duplicado detectado sobre el valor normalizado|`id: 1L` (existe), `nombre: "  pilsen "` (en uso por otro registro activo)|`existsByNombreIgnoreCaseAndIdNot` con el valor normalizado → **TRUE**|Lanza `RecursoDuplicadoException` ("El nombre 'pilsen' ya está en uso por otro lúpulo"). No persiste.|
 |**CP-ML-12**|Violación del índice único al guardar|`id: 1L` (existe), `nombre: "Pilsen Nacional"`, la consulta previa devuelve FALSE y `save` lanza `DataIntegrityViolationException` por `udx_insumo_nombre` (pedido simultáneo)|La base de datos rechaza el duplicado que la consulta previa no vio|Lanza `RecursoDuplicadoException` con el mismo mensaje que la consulta previa ("El nombre 'Pilsen Nacional' ya está en uso por otro lúpulo").|
 |**CP-ML-13**|Reutilización del nombre de un registro dado de baja|`id: 1L` (existe), `nombre: "Pilsen Nacional"` (solo otro registro con `estado = BAJA` tiene ese valor)|La consulta de unicidad considera solo registros `ACTIVO` → **FALSE**|Persiste con éxito: el valor de un registro dado de baja puede volver a usarse.|
+|**CP-ML-14**|Cambian los ácidos alfa y lo usan dos lotes vivos|`id: 1L` (existe, `aa: 5.5`, `PELLET`), DTO con `aa: 6.0`; `buscarCodigosDeLotesVivosPorLupulo(1L)` $\rightarrow$ `["PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"]`|Los ácidos alfa cambian y hay lotes vivos $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`: "No se puede modificar los ácidos alfa del lúpulo porque lo usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4". No persiste.|
+|**CP-ML-15**|Cambia el formato y lo usa un solo lote vivo|`id: 1L` (existe, `aa: 5.5`, `PELLET`), DTO con `formato: FLOR` y `aa: 5.5`; lotes vivos $\rightarrow$ `["PILSEN_CLASICA-R7-3"]`|El formato cambia y hay un lote vivo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`: "No se puede modificar el formato del lúpulo porque lo usa el lote PILSEN_CLASICA-R7-3". No persiste.|
+|**CP-ML-16**|Cambian los ácidos alfa y el formato a la vez|`id: 1L` (existe), DTO con `aa: 6.0` y `formato: FLOR`; dos lotes vivos|Ambos datos cambian y hay lotes vivos $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`: "No se puede modificar los ácidos alfa y el formato del lúpulo porque lo usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4". No persiste.|
+|**CP-ML-17**|Más de 5 lotes vivos|`id: 1L` (existe), DTO con `aa: 6.0`; lotes `PILSEN_CLASICA-R7-1` a `PILSEN_CLASICA-R7-7`|Cantidad mayor al máximo listado|El mensaje lista los primeros 5 códigos y termina con " y 2 más". No persiste.|
+|**CP-ML-18**|Cambia solo el nombre|`id: 1L` (existe, `aa: 5.5`, `PELLET`), DTO con otro `nombre` y los mismos `aa` y `formato`|Ningún dato que cambia el escalado cambia $\rightarrow$ **no consulta los lotes**|Persiste con el nuevo nombre. No llama a `ILoteRepository`.|
+|**CP-ML-19**|Cambian los ácidos alfa sin lotes vivos|`id: 1L` (existe, `aa: 5.5`), DTO con `aa: 6.0`; sin lotes vivos|`ILoteRepository.buscarCodigosDeLotesVivosPorLupulo(1L)` $\rightarrow$ **lista vacía** (los lotes `FINALIZADO` y `CANCELADO` no los devuelve la consulta)|Persiste con el nuevo valor.|
+|**CP-ML-20**|Ácidos alfa y formato sin cambios|`id: 1L` (existe, `aa: 5.5`, `PELLET`), DTO con los mismos `aa` y `formato`|El valor enviado es igual al guardado $\rightarrow$ **no consulta los lotes**|Persiste. No llama a `ILoteRepository`.|
+|**CP-ML-21**|El nombre duplicado se valida antes del bloqueo por lotes|`id: 1L` (existe), `nombre: "Duplicado"` en uso por otro registro activo, DTO con `aa: 6.0`|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No consulta los lotes ni persiste.|
 
 ### 5. `bajaLupulo(Long id)`
 
@@ -91,3 +101,5 @@ Los tests de servicio usan mocks, por lo que las consultas se verifican manualme
 | **CP-BL-M06** | `IOrdenCompraRepository.existsByInsumoEnOrdenCompraPendiente` | La orden con el insumo está `FINALIZADA` o `ANULADA` | `FALSE` |
 | **CP-BL-M07** | `ICatalogoProveedorRepository.existsByInsumoId` | Ítem de catálogo con el insumo en la última versión de un proveedor `ACTIVO` | `TRUE` |
 | **CP-BL-M08** | `ICatalogoProveedorRepository.existsByInsumoId` | El insumo solo figura en una versión anterior del proveedor, o el proveedor tiene `estado = BAJA` | `FALSE` |
+| **CP-BL-M09** | `ILoteRepository.buscarCodigosDeLotesVivosPorLupulo(idLupulo)` | Lotes `PENDIENTE` y `EN_EJECUCION` cuya planificación usa una versión de receta (cualquiera, no solo la última) con el lúpulo | Devuelve los códigos de esos lotes, ordenados por ID |
+| **CP-BL-M10** | `ILoteRepository.buscarCodigosDeLotesVivosPorLupulo(idLupulo)` | Los lotes que usan el lúpulo están `FINALIZADO` o `CANCELADO`, o no hay ninguno | Lista vacía |

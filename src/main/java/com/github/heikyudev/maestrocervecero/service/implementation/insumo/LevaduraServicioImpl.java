@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -21,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.ILevadura
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLevadura;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.BloqueoPorLotesVivos;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +58,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
     private final ILevaduraRepository levaduraRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
+    private final ILoteRepository loteRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IOrdenCompraRepository ordenCompraRepository;
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
@@ -154,6 +158,12 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
      * la levadura por su ID y verifica que el nuevo nombre no colisione con el de otra levadura
      * activa (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
+     * <p>
+     * Si el tipo o la cantidad de células por gramo cambian y algún lote Pendiente o En ejecución usa la levadura
+     * (en cualquier versión de la receta de su planificación), la modificación se rechaza: esos datos definen el
+     * escalado de esos lotes. Esta verificación va después de localizar la levadura y de validar el nombre
+     * duplicado. El resto de los campos siguen siendo editables.
+     * </p>
      *
      * @param id Identificador clave primaria de la levadura a modificar.
      * @param levaduraFormDTO DTO con la información actualizada.
@@ -185,13 +195,22 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
             throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 6. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 6. Si el tipo o la cantidad de células por gramo cambian, ningún lote Pendiente o En ejecución puede estar usando la levadura
+        boolean cambiaTipo = !Objects.equals(levaduraEntity.getTipo(), levaduraFormDTO.getTipo());
+        boolean cambiaCelulas = !Objects.equals(levaduraEntity.getCantidadCelulasPorGramo(), levaduraFormDTO.getCantidadCelulasPorGramo());
+        if (cambiaTipo || cambiaCelulas) {
+            String campos = cambiaTipo && cambiaCelulas ? "el tipo y la cantidad de células viables por gramo de la levadura"
+                    : cambiaTipo ? "el tipo de la levadura" : "la cantidad de células viables por gramo de la levadura";
+            BloqueoPorLotesVivos.validar(loteRepository.buscarCodigosDeLotesVivosPorLevadura(id), campos, "la");
+        }
+
+        // 7. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (GRAMO).
         levaduraEntity.setNombre(nombre);
         levaduraEntity.setTipo(levaduraFormDTO.getTipo());
         levaduraEntity.setCantidadCelulasPorGramo(levaduraFormDTO.getCantidadCelulasPorGramo());
 
-        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        // 8. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperLevadura.toDTO(GuardadoUnico.guardar(levaduraRepository, levaduraEntity,
                 Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));

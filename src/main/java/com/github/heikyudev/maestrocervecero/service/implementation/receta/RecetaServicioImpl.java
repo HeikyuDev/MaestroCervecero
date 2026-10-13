@@ -326,10 +326,10 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (versionFormDTO.getIbuObjetivo() == null) {
             throw new ReglaNegocioException("El IBU objetivo es obligatorio");
         }
-        if (versionFormDTO.getIbuObjetivo() < 0) {
-            throw new ReglaNegocioException("El IBU objetivo debe ser mayor o igual a 0");
+        if (versionFormDTO.getIbuObjetivo() <= 0) {
+            throw new ReglaNegocioException("El IBU objetivo debe ser mayor a 0");
         }
-        ValidacionesNumericas.validarEnteroMayorOIgualACeroConMaximo(versionFormDTO.getIbuObjetivo(),
+        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getIbuObjetivo(),
                 LimitesTecnicos.IBU_MAXIMO, "El IBU objetivo", "IBU");
         if (versionFormDTO.getDuracionMaceracion() == null) {
             throw new ReglaNegocioException("La duración estimada de la maceración es obligatoria");
@@ -393,8 +393,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * Valida que la receta tenga al menos un lúpulo, que todas las cantidades ingresadas sean
      * estrictamente mayores a 0, que la etapa de uso de cada lúpulo sea coherente con su uso
      * (HERVOR y WHIRLPOOL en HERVIDO; DRY_HOP en FERMENTACION o MADURACION), que exista al menos un
-     * lúpulo con uso HERVOR, que el tiempo de hervor de cada lúpulo HERVOR sea mayor a 0 y menor a la
-     * duración estimada del hervido, y que no se repita un mismo lúpulo con el mismo uso y tiempo de hervor.
+     * lúpulo con uso HERVOR, que el tiempo de hervor de cada lúpulo HERVOR sea mayor a 0 y no supere la
+     * duración estimada del hervido (puede ser igual), y que no se repita un mismo lúpulo con el mismo uso y tiempo de hervor.
      *
      * @param detallesLupulo Lista de detalles de lúpulo a validar.
      * @param duracionHervido Duración estimada del hervido de la versión, usada como tope del tiempo de hervor.
@@ -437,8 +437,9 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (lupulosHervor.stream().anyMatch(detalle -> detalle.getTiempoDeHervor() <= 0)) {
             throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo debe ser mayor a 0");
         }
-        if (lupulosHervor.stream().anyMatch(detalle -> detalle.getTiempoDeHervor() >= duracionHervido)) {
-            throw new ReglaNegocioException("El tiempo de hervor de cada lúpulo con uso Hervor debe ser menor a la duración estimada del hervido");
+        if (lupulosHervor.stream().anyMatch(detalle -> detalle.getTiempoDeHervor() > duracionHervido)) {
+            throw new ReglaNegocioException("El tiempo de hervor del lúpulo no puede superar la duración del hervido ("
+                    + ValidacionesNumericas.formatearNumero(duracionHervido) + " minutos)");
         }
         lupulosHervor.forEach(detalle -> ValidacionesNumericas.validarMayorACero(detalle.getTiempoDeHervor(), "El tiempo de hervor"));
 

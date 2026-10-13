@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -21,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IMaltaSer
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperMalta;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.BloqueoPorLotesVivos;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -50,6 +53,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
     private final IMaltaRepository maltaRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
+    private final ILoteRepository loteRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IOrdenCompraRepository ordenCompraRepository;
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
@@ -149,6 +153,12 @@ public class MaltaServicioImpl implements IMaltaServicio {
      * por su ID y verifica que el nuevo nombre no colisione con el de otra malta activa
      * (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
+     * <p>
+     * Si el extracto potencial cambia y algún lote Pendiente o En ejecución usa la malta (en cualquier versión de
+     * la receta de su planificación), la modificación se rechaza: ese dato define el escalado de esos lotes. Esta
+     * verificación va después de localizar la malta y de validar el nombre duplicado. El resto de los campos siguen
+     * siendo editables.
+     * </p>
      *
      * @param id Identificador clave primaria de la malta a modificar.
      * @param maltaFormDTO DTO con la información actualizada.
@@ -180,13 +190,19 @@ public class MaltaServicioImpl implements IMaltaServicio {
             throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 6. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 6. Si el extracto potencial cambia, ningún lote Pendiente o En ejecución puede estar usando la malta
+        if (!Objects.equals(maltaEntity.getPotencialExtracto(), maltaFormDTO.getPotencialExtracto())) {
+            BloqueoPorLotesVivos.validar(loteRepository.buscarCodigosDeLotesVivosPorMalta(id),
+                    "el extracto potencial de la malta", "la");
+        }
+
+        // 7. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (KILOGRAMO).
         maltaEntity.setNombre(nombre);
         maltaEntity.setTipo(maltaFormDTO.getTipo());
         maltaEntity.setPotencialExtracto(maltaFormDTO.getPotencialExtracto());
 
-        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        // 8. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperMalta.toDTO(GuardadoUnico.guardar(maltaRepository, maltaEntity,
                 Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));

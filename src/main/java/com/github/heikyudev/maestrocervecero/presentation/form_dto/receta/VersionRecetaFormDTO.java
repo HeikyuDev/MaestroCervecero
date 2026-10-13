@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -67,7 +66,7 @@ public class VersionRecetaFormDTO {
      * IBU Objetivo de la receta.
      */
     @NotNull(message = "El IBU objetivo es obligatorio")
-    @PositiveOrZero(message = "El IBU objetivo debe ser mayor o igual a 0")
+    @Positive(message = "El IBU objetivo debe ser mayor a 0")
     private Integer ibuObjetivo;
 
     /**

@@ -255,32 +255,28 @@ class RecetaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AR-06: altaReceta lanza ReglaNegocioException cuando el IBU objetivo es negativo (límite inferior)")
+    @DisplayName("CP-AR-06: altaReceta lanza ReglaNegocioException cuando el IBU objetivo es negativo")
     void altaReceta_debeRechazarIbuObjetivoNegativo() {
         // Nota: el campo ibuObjetivo es Integer (no admite -0.1 como en el caso de prueba documentado); se usa -1 como límite negativo equivalente.
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ibuObjetivo(-1).build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El IBU objetivo debe ser mayor o igual a 0");
+                .hasMessage("El IBU objetivo debe ser mayor a 0");
 
         verifyNoRepositoryInteractions();
     }
 
     @Test
-    @DisplayName("CP-AR-07: altaReceta persiste y retorna DTO cuando el IBU objetivo es cero (límite válido)")
-    void altaReceta_debePersistirConIbuObjetivoCero() {
-        // === PREPARACION DE DATOS ===
-        VersionRecetaFormDTO versionFormDTO = versionValidaBuilder().ibuObjetivo(0).build();
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
-        mockearAltaExitosa(versionFormDTO);
+    @DisplayName("CP-AR-07: altaReceta lanza ReglaNegocioException cuando el IBU objetivo es cero (límite inferior)")
+    void altaReceta_debeRechazarIbuObjetivoCero() {
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ibuObjetivo(0).build());
 
-        // === EJECUCION ===
-        RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El IBU objetivo debe ser mayor a 0");
 
-        // === ASSERTS ===
-        assertThat(resultado.getVersion().getIbuObjetivo()).isZero();
-        verify(recetaRepository).save(any(RecetaEntity.class));
+        verifyNoRepositoryInteractions();
     }
 
     @Test
@@ -416,27 +412,27 @@ class RecetaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AR-18: altaReceta lanza ReglaNegocioException cuando el tiempo de hervor iguala la duración del hervido (límite superior)")
-    void altaReceta_debeRechazarTiempoDeHervorIgualADuracion() {
+    @DisplayName("CP-AR-18: altaReceta lanza ReglaNegocioException cuando el tiempo de hervor supera la duración del hervido")
+    void altaReceta_debeRechazarTiempoDeHervorMayorALaDuracion() {
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder()
                 .duracionHervido(60)
-                .detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, LUPULO_ID)))
+                .detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 61.0, LUPULO_ID)))
                 .build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El tiempo de hervor de cada lúpulo con uso Hervor debe ser menor a la duración estimada del hervido");
+                .hasMessage("El tiempo de hervor del lúpulo no puede superar la duración del hervido (60 minutos)");
 
         verifyNoInteractions(lupuloRepository);
     }
 
     @Test
-    @DisplayName("CP-AR-19: altaReceta persiste cuando el tiempo de hervor está en el límite superior válido")
+    @DisplayName("CP-AR-19: altaReceta persiste cuando el tiempo de hervor es igual a la duración del hervido (límite superior válido)")
     void altaReceta_debePersistirConTiempoDeHervorEnLimiteValido() {
         // === PREPARACION DE DATOS ===
         VersionRecetaFormDTO versionFormDTO = versionValidaBuilder()
                 .duracionHervido(60)
-                .detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 59.0, LUPULO_ID)))
+                .detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, LUPULO_ID)))
                 .build();
         RecetaFormDTO recetaFormDTO = recetaFormDTO(versionFormDTO);
         mockearAltaExitosa(versionFormDTO);
@@ -445,7 +441,7 @@ class RecetaServicioImplTest {
         RecetaResponseDTO resultado = recetaServicio.altaReceta(recetaFormDTO);
 
         // === ASSERTS ===
-        assertThat(resultado.getVersion().getDetallesLupulo().get(0).getTiempoDeHervor()).isEqualTo(59.0);
+        assertThat(resultado.getVersion().getDetallesLupulo().get(0).getTiempoDeHervor()).isEqualTo(60.0);
         verify(recetaRepository).save(any(RecetaEntity.class));
     }
 

@@ -737,7 +737,7 @@ class RecetaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-form"))
                 .andExpect(content().string(containsString("El volumen base debe ser mayor a 0")))
-                .andExpect(content().string(containsString("El IBU objetivo debe ser mayor o igual a 0")))
+                .andExpect(content().string(containsString("El IBU objetivo debe ser mayor a 0")))
                 .andExpect(content().string(containsString("La duraci")))
                 .andExpect(content().string(containsString("La cantidad de cada malta debe ser mayor a 0")))
                 .andExpect(content().string(containsString("La cantidad de cada levadura debe ser mayor a 0")));
