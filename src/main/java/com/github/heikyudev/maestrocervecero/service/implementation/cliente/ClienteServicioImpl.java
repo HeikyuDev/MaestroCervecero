@@ -210,7 +210,7 @@ public class ClienteServicioImpl implements IClienteServicio {
         // 2. Validar que el cliente no tenga un barril actualmente en su poder (despacho REGISTRADO
         //    más reciente del barril, que sigue en estado operativo DESPACHADO)
         if (despachoBarrilRepository.clienteTieneBarrilEnSuPoder(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el cliente porque tiene un despacho de barril registrado a su nombre");
+            throw new ReglaNegocioException("No se puede dar de baja el cliente porque tiene un barril en su poder");
         }
 
         // 3. Ejecutar la baja lógica y persistir el cambio

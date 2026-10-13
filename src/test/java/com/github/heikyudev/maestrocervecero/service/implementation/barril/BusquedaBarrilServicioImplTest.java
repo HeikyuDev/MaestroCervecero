@@ -329,6 +329,18 @@ class BusquedaBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-ABB-06: anularBusquedaBarril lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionBusquedaBarrilFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> busquedaBarrilServicio.anularBusquedaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
+
+        verifyNoInteractions(busquedaBarrilRepository, solicitudBusquedaRepository);
+    }
+
+    @Test
     @DisplayName("CP-ABB-03: anularBusquedaBarril lanza RecursoNoEncontradoException cuando la búsqueda no existe")
     void anular_debeLanzarExcepcionSiNoExiste() {
         AnulacionBusquedaBarrilFormDTO formDTO = anulacionFormDTO("Búsqueda cargada por error");

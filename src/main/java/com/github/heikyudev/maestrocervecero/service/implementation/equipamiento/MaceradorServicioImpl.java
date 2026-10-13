@@ -252,39 +252,37 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
     }
 
     /**
-     * Valida que el espacio muerto sea un número finito mayor o igual a 0, que no supere
-     * {@link LimitesTecnicos#CAPACIDAD_EQUIPO_MAXIMA_LITROS} litros y que sea estrictamente menor a la
-     * capacidad útil.
+     * Valida que el espacio muerto sea estrictamente menor a la capacidad útil, que sea un número finito mayor o
+     * igual a 0 y que no supere {@link LimitesTecnicos#CAPACIDAD_EQUIPO_MAXIMA_LITROS} litros.
      *
      * @param espacioMuerto Espacio muerto del macerador, en litros.
      * @param capacidadUtil Capacidad útil del macerador, en litros (ya validada).
-     * @throws ReglaNegocioException Si el espacio muerto es nulo, NaN, infinito, negativo, supera el máximo o no es menor a la capacidad útil.
+     * @throws ReglaNegocioException Si el espacio muerto es nulo, no es menor a la capacidad útil, es NaN, infinito o negativo, o supera el máximo.
      */
     public static void validarEspacioMuerto(Double espacioMuerto, Double capacidadUtil) {
         if (espacioMuerto == null) {
             throw new ReglaNegocioException("El espacio muerto es obligatorio");
         }
-        ValidacionesNumericas.validarMayorOIgualACeroConMaximo(espacioMuerto,
-                LimitesTecnicos.CAPACIDAD_EQUIPO_MAXIMA_LITROS, "El espacio muerto", "litros");
         if (espacioMuerto >= capacidadUtil) {
             throw new ReglaNegocioException("El espacio muerto debe ser menor a la capacidad útil");
         }
+        ValidacionesNumericas.validarMayorOIgualACeroConMaximo(espacioMuerto,
+                LimitesTecnicos.CAPACIDAD_EQUIPO_MAXIMA_LITROS, "El espacio muerto", "litros");
     }
 
     /**
-     * Valida que la eficiencia de maceración esté entre 40 y 100 inclusive y que sea un número.
+     * Valida que la eficiencia de maceración sea un número entre 40 y 100 inclusive.
      *
      * @param eficienciaMaceracion Eficiencia de maceración del macerador.
-     * @throws ReglaNegocioException Si la eficiencia de maceración es nula, no está entre 40 y 100 inclusive o es NaN.
+     * @throws ReglaNegocioException Si la eficiencia de maceración es nula, es NaN o no está entre 40 y 100 inclusive.
      */
     public static void validarEficienciaMaceracion(Double eficienciaMaceracion) {
         if (eficienciaMaceracion == null) {
             throw new ReglaNegocioException("La eficiencia de maceración es obligatoria");
         }
-        if (eficienciaMaceracion < 40 || eficienciaMaceracion > 100) {
+        if (!(eficienciaMaceracion >= 40 && eficienciaMaceracion <= 100)) {
             throw new ReglaNegocioException("La eficiencia de maceración debe estar entre 40 y 100");
         }
-        ValidacionesNumericas.validarMayorACero(eficienciaMaceracion, "La eficiencia de maceración");
     }
 
     private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {

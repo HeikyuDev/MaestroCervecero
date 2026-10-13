@@ -224,6 +224,18 @@ class LimpiezaEquipamientoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RLE-11: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository);
+    }
+
+    @Test
     @DisplayName("CP-RLE-04: registrarLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
     void registrar_debeRechazarEquipamientoInexistente() {
         LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
@@ -388,6 +400,18 @@ class LimpiezaEquipamientoServicioImplTest {
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ALE-11: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
     }

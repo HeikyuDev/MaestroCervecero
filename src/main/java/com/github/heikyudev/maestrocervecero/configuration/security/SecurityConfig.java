@@ -31,7 +31,7 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
  * de los propios métodos {@code @Bean}. Eso es justamente la forma recomendada de inyectar
  * dependencias en una clase {@code @Configuration}, así que no hay nada que "corregir" ahí.
  */
-@Configuration          // Le dice a Spring "esta clase define Beans, cargala al arrancar"
+@Configuration          // Le dice a Spring "esta clase define Beans, cárguela al arrancar"
 @EnableWebSecurity      // Activa toda la infraestructura de Spring Security (filtros, etc)
 @EnableMethodSecurity   // Permite usar @PreAuthorize("hasRole('ADMIN')") en los @Service o @Controller
 public class SecurityConfig {

@@ -222,7 +222,7 @@ class LevaduraControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("insumo/levadura-form"))
                 .andExpect(content().string(containsString("No se pudo crear la levadura")))
-                .andExpect(content().string(containsString("El nombre de la levadura es obligatorio")))
+                .andExpect(content().string(containsString("El nombre es obligatorio")))
                 .andExpect(content().string(containsString("El tipo de levadura es obligatorio")))
                 .andExpect(content().string(containsString("La cantidad de células viables por gramo es obligatoria")));
 

@@ -80,7 +80,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
     public PresentacionComercialResponseDTO buscarPorId(Long id) {
         // 1. Obtengo la entidad de la base de datos y devuelvo el DTO correspondiente
         return MapperPresentacionComercial.toDTO(presentacionComercialRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La presentación comercial no existe")));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la presentación comercial con ID: " + id)));
     }
 
     /**
@@ -160,7 +160,7 @@ public class PresentacionComercialServicioImpl implements IPresentacionComercial
 
         // 4. Localizar la presentación comercial existente. Si no existe, se dispara RecursoNoEncontradoException
         PresentacionComercialEntity presentacionComercialEntity = presentacionComercialRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("La presentación comercial no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la presentación comercial con ID: " + id));
 
         // 5. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro

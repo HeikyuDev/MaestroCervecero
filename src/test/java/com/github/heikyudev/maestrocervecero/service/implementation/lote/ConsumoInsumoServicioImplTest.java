@@ -755,6 +755,19 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AC-11: anularConsumoInsumo lanza ReglaNegocioException si el motivo de anulación tiene 256 caracteres")
+    void anularConsumoInsumo_debeLanzarExcepcionSiMotivoDe256Caracteres() {
+        // === PREPARACION DE DATOS ===
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("a".repeat(256)).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
+        verifyNoInteractions(consumoInsumoRepository, loteInsumoRepository, reservaInsumoRepository);
+    }
+
+    @Test
     @DisplayName("CP-AC-03: anularConsumoInsumo lanza RecursoNoEncontradoException si el consumo no existe")
     void anularConsumoInsumo_debeLanzarExcepcionSiNoExiste() {
         // === PREPARACION DE DATOS ===

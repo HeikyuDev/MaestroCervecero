@@ -162,7 +162,7 @@ class LupuloControllerTest {
                 .andExpect(content().string(containsString("la define el sistema")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Cascade\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 5,5\"")))
-                .andExpect(content().string(containsString("Un número mayor a 0 y hasta 25.")))
+                .andExpect(content().string(containsString("Un número mayor a 0 y hasta 25")))
                 .andExpect(content().string(containsString("Crear lúpulo")))
                 .andExpect(content().string(containsString("Volver a lúpulos")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))))
@@ -220,7 +220,7 @@ class LupuloControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("insumo/lupulo-form"))
                 .andExpect(content().string(containsString("No se pudo crear el lúpulo")))
-                .andExpect(content().string(containsString("El nombre del lúpulo es obligatorio")))
+                .andExpect(content().string(containsString("El nombre es obligatorio")))
                 .andExpect(content().string(containsString("El formato es obligatorio")))
                 .andExpect(content().string(containsString("Los ácidos alfa son obligatorios")));
 

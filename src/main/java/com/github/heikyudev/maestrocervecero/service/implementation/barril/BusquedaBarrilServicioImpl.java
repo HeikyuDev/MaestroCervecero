@@ -16,6 +16,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IBusqueda
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BusquedaBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperBusquedaBarril;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -126,9 +129,11 @@ public class BusquedaBarrilServicioImpl implements IBusquedaBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.BUSQUEDA_BARRIL)
     public BusquedaBarrilResponseDTO anularBusquedaBarril(Long id, AnulacionBusquedaBarrilFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la búsqueda de barril. Si no existe, se dispara RecursoNoEncontradoException
         BusquedaBarrilEntity busquedaBarrilEntity = busquedaBarrilRepository.findById(id)
@@ -147,7 +152,7 @@ public class BusquedaBarrilServicioImpl implements IBusquedaBarrilServicio {
         // 5. Aplicar la anulación sobre la búsqueda y persistirla
         busquedaBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         busquedaBarrilEntity.setFechaAnulacion(LocalDateTime.now());
-        busquedaBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        busquedaBarrilEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperBusquedaBarril.toDTO(busquedaBarrilRepository.save(busquedaBarrilEntity));
     }

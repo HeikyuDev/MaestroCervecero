@@ -13,6 +13,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ISolicitudBusquedaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.SolicitudBusquedaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperSolicitudBusqueda;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -70,7 +72,7 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
      *
      * @param solicitudBusquedaFormDTO Los datos de la solicitud a registrar.
      * @return La solicitud de búsqueda registrada.
-     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, o si es anterior a la fecha y hora actual.
+     * @throws ReglaNegocioException Si la fecha de búsqueda no fue informada, si es anterior a la fecha y hora actual, o si las observaciones superan los 255 caracteres.
      * @throws RecursoNoEncontradoException Si el despacho de barril referenciado no existe.
      */
     @Override
@@ -87,15 +89,24 @@ public class SolicitudBusquedaServicioImpl implements ISolicitudBusquedaServicio
             throw new ReglaNegocioException("La fecha de búsqueda no puede ser anterior a la fecha y hora actual");
         }
 
-        // 3. Localizar el despacho de barril. Si no existe, se dispara RecursoNoEncontradoException
+        // 3. Normalizar las observaciones (opcionales: en blanco equivale a no informadas) y validar su longitud
+        String observaciones = NormalizacionTexto.nombrePropio(solicitudBusquedaFormDTO.getObservaciones());
+        if (observaciones != null && observaciones.isEmpty()) {
+            observaciones = null;
+        }
+        if (observaciones != null && observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
+        }
+
+        // 4. Localizar el despacho de barril. Si no existe, se dispara RecursoNoEncontradoException
         Long idDespachoBarril = solicitudBusquedaFormDTO.getIdDespachoBarril();
         DespachoBarrilEntity despachoBarrilEntity = despachoBarrilRepository.findById(idDespachoBarril)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el despacho de barril con ID: " + idDespachoBarril));
 
-        // 4. Construir y persistir la solicitud, y retornar el DTO de respuesta correspondiente
+        // 5. Construir y persistir la solicitud, y retornar el DTO de respuesta correspondiente
         SolicitudBusquedaEntity solicitudBusquedaEntity = SolicitudBusquedaEntity.builder()
                 .fechaBusqueda(solicitudBusquedaFormDTO.getFechaBusqueda())
-                .observaciones(solicitudBusquedaFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .despachoBarril(despachoBarrilEntity)
                 .buscado(false)
                 .build();

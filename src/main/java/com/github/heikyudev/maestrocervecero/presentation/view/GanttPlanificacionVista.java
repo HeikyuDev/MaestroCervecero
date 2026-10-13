@@ -5,6 +5,7 @@ import lombok.Value;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Modelo de vista del diagrama de Gantt de una planificación de producción.
@@ -182,7 +183,7 @@ public class GanttPlanificacionVista {
 
         /** Nombre en minúsculas, para armar el nombre de la clase CSS. */
         public String clave() {
-            return name().toLowerCase();
+            return name().toLowerCase(Locale.ROOT);
         }
     }
 }

@@ -24,7 +24,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.I
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.IngresoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperIngresoInsumo;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -71,7 +73,12 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<IngresoInsumoResponseDTO> filtrarIngresoInsumo(Long idInsumo, String identificacionLoteProveedor, EstadoTransaccion estado, TipoIngreso tipoIngreso, LocalDate fechaIngreso, Pageable pageable) {
-        return ingresoInsumoRepository.filtrarIngresoInsumo(idInsumo, identificacionLoteProveedor, estado, tipoIngreso, fechaIngreso, pageable)
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificacionLoteNormalizada = NormalizacionTexto.codigo(identificacionLoteProveedor);
+        if (identificacionLoteNormalizada != null && identificacionLoteNormalizada.isEmpty()) {
+            identificacionLoteNormalizada = null;
+        }
+        return ingresoInsumoRepository.filtrarIngresoInsumo(idInsumo, identificacionLoteNormalizada, estado, tipoIngreso, fechaIngreso, pageable)
                 .map(MapperIngresoInsumo::toDTO);
     }
 
@@ -230,9 +237,11 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.INGRESO_INSUMO)
     public IngresoInsumoResponseDTO anularIngresoInsumo(Long id, AnularIngresoInsumoFormDTO anularIngresoInsumoFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anularIngresoInsumoFormDTO.getMotivoAnulacion() == null || anularIngresoInsumoFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anularIngresoInsumoFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar el ingreso de insumo. Si no existe, se dispara RecursoNoEncontradoException
         IngresoInsumoEntity ingresoInsumoEntity = ingresoInsumoRepository.findById(id)
@@ -260,7 +269,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         // 6. Aplicar la anulación sobre el ingreso y persistirlo
         ingresoInsumoEntity.setEstado(EstadoTransaccion.ANULADO);
         ingresoInsumoEntity.setFechaAnulacion(LocalDateTime.now());
-        ingresoInsumoEntity.setMotivoAnulacion(anularIngresoInsumoFormDTO.getMotivoAnulacion());
+        ingresoInsumoEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperIngresoInsumo.toDTO(ingresoInsumoRepository.save(ingresoInsumoEntity));
     }
@@ -338,11 +347,16 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * @param identificacionLoteProveedor Identificación del lote asignada por el proveedor.
      * @param fechaVencimiento Fecha de vencimiento informada en el ingreso.
      * @return El lote de insumo a utilizar (existente o recién construido).
-     * @throws ReglaNegocioException Si ya existe un lote con esa identificación de lote de proveedor pero con una fecha de vencimiento distinta.
+     * @throws ReglaNegocioException Si la identificación de lote de proveedor falta, supera los 255 caracteres, o si ya existe un lote con esa identificación de lote de proveedor pero con una fecha de vencimiento distinta.
      * @throws RecursoNoEncontradoException Si el insumo ya no existe.
      */
     private LoteInsumoEntity resolverLoteInsumo(InsumoEntity insumoEntity, String identificacionLoteProveedor, LocalDate fechaVencimiento) {
         String identificacion = NormalizacionTexto.codigo(identificacionLoteProveedor);
+        if (identificacion == null || identificacion.isEmpty()) {
+            throw new ReglaNegocioException("La identificación del lote del proveedor es obligatoria");
+        }
+        ValidacionesNumericas.validarLongitudMaxima(identificacion, LimitesTecnicos.LONGITUD_MAXIMA_IDENTIFICACION_LOTE,
+                "La identificación del lote del proveedor");
 
         InsumoEntity insumoBloqueado = insumoRepository.buscarPorIdParaIngresar(insumoEntity.getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + insumoEntity.getId()));

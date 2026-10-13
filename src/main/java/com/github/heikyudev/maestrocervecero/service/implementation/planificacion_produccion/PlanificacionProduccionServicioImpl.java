@@ -27,6 +27,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccio
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -236,10 +237,11 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.PLANIFICACION_PRODUCCION)
     public PlanificacionProduccionResponseDTO anularPlanificacionProduccion(Long id, AnulacionPlanificacionProduccionFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
-        ValidacionesNumericas.validarLongitudMaxima(anulacionFormDTO.getMotivoAnulacion(), LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la planificación de producción. Si no existe, se dispara RecursoNoEncontradoException
         PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(id)
@@ -262,7 +264,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
 
         // 6. Aplicar la anulación sobre la entidad administrada por persistencia
-        planificacionProduccionEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        planificacionProduccionEntity.setMotivoAnulacion(motivoAnulacion);
         planificacionProduccionEntity.setFechaAnulacion(LocalDateTime.now());
         planificacionProduccionEntity.setEstado(EstadoSolicitud.ANULADA);
 
@@ -290,10 +292,11 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
     @AuditableAction(accion = AccionAuditoria.FINALIZAR, conceptoAuditoria = ConceptoAuditoria.PLANIFICACION_PRODUCCION)
     public PlanificacionProduccionResponseDTO finalizarPlanificacionProduccion(Long id, FinalizacionForzadaPlanificacionProduccionFormDTO finalizacionFormDTO) {
         // 1. Validar que se haya informado el motivo de finalización
-        if (finalizacionFormDTO.getMotivoFinalizacion() == null || finalizacionFormDTO.getMotivoFinalizacion().isBlank()) {
+        String motivoFinalizacion = NormalizacionTexto.nombrePropio(finalizacionFormDTO.getMotivoFinalizacion());
+        if (motivoFinalizacion == null || motivoFinalizacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de finalización es obligatorio");
         }
-        ValidacionesNumericas.validarLongitudMaxima(finalizacionFormDTO.getMotivoFinalizacion(), LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de finalización");
+        ValidacionesNumericas.validarLongitudMaxima(motivoFinalizacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de finalización");
 
         // 2. Localizar la planificación de producción. Si no existe, se dispara RecursoNoEncontradoException
         PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(id)
@@ -317,7 +320,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
 
         // 6. Aplicar la finalización forzada sobre la entidad administrada por persistencia
-        planificacionProduccionEntity.setMotivoFinalizacion(finalizacionFormDTO.getMotivoFinalizacion());
+        planificacionProduccionEntity.setMotivoFinalizacion(motivoFinalizacion);
         planificacionProduccionEntity.setFechaFinalizacion(LocalDateTime.now());
         planificacionProduccionEntity.setEstado(EstadoSolicitud.FINALIZADA);
 

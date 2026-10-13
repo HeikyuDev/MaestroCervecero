@@ -23,7 +23,7 @@ public class MaltaFormDTO {
     /**
      * Nombre de la malta. Debe ser único entre las maltas activas (case-insensitive).
      */
-    @NotBlank(message = "El nombre de la malta es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
     /**

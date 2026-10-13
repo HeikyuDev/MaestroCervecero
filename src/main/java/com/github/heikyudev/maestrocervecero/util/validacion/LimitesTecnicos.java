@@ -35,6 +35,9 @@ public final class LimitesTecnicos {
     /** Longitud máxima, en caracteres, de un motivo u observación. */
     public static final int LONGITUD_MAXIMA_MOTIVO = 255;
 
+    /** Longitud máxima, en caracteres, de la identificación del lote asignada por el proveedor (el máximo de la columna de la base de datos). */
+    public static final int LONGITUD_MAXIMA_IDENTIFICACION_LOTE = 255;
+
     /** Capacidad máxima, en litros, de un equipo (capacidad total, útil y espacio muerto). */
     public static final double CAPACIDAD_EQUIPO_MAXIMA_LITROS = 100_000.0;
 
@@ -68,7 +71,11 @@ public final class LimitesTecnicos {
     /** Rango máximo, en días, entre el inicio y el fin de una planificación (5 años). */
     public static final int RANGO_MAXIMO_PLANIFICACION_DIAS = 1_825;
 
-    /** Rango máximo, en días, entre el primer y el último día del período del cronograma de producción (5 años). */
+    /**
+     * Rango máximo, en días, entre el primer y el último día del período del cronograma de producción (5 años): un
+     * período de {@code RANGO_MAXIMO_CRONOGRAMA_DIAS + 1} días contando ambos extremos, de modo que entra completa una
+     * planificación del rango máximo de {@link #RANGO_MAXIMO_PLANIFICACION_DIAS}.
+     */
     public static final int RANGO_MAXIMO_CRONOGRAMA_DIAS = 1_825;
 
     /** Capacidad máxima del lote estándar de la configuración de producción, en litros. */

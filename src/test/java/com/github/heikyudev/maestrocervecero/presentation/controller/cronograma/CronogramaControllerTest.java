@@ -23,7 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -40,7 +39,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -919,7 +917,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-51: el tope del periodo es de 1.825 dias (5 anios): 1825 se acepta y 1826 se rechaza con una alerta")
+    @DisplayName("CP-CGC-51: el tope del periodo es de 1.826 dias contando ambos extremos (5 anios): 1826 se acepta y 1827 se rechaza con una alerta")
     void periodo_topeMaximo() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
@@ -934,7 +932,7 @@ class CronogramaControllerTest {
         verify(loteServicio).listarLotesParaCronograma(null, d(2018, 1, 1), d(2022, 12, 31));
         verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
         assertThat(aceptado).contains("(1826 días)").doesNotContain(ALERTA_ADVERTENCIA);
-        assertThat(rechazado).contains("El período no puede superar los 1.825 días (5 años), se muestra el período por defecto");
+        assertThat(rechazado).contains("El período no puede superar los 1.826 días (5 años), se muestra el período por defecto");
     }
 
     @Test

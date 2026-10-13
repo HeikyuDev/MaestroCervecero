@@ -270,7 +270,8 @@ public class MaltaServicioImpl implements IMaltaServicio {
 
     /**
      * Valida la regla de negocio del extracto potencial de la malta: debe ser mayor a 0% y menor o
-     * igual a {@value #POTENCIAL_EXTRACTO_MAXIMO}%.
+     * igual a {@value #POTENCIAL_EXTRACTO_MAXIMO}%. Como el límite inferior es exclusivo, el mensaje del tope conserva esa
+     * precisión en lugar de usar la fórmula "debe estar entre".
      *
      * @param potencialExtracto Extracto potencial en porcentaje a validar.
      * @throws ReglaNegocioException Si el extracto potencial es nulo, no es mayor a 0% o supera el 90%.

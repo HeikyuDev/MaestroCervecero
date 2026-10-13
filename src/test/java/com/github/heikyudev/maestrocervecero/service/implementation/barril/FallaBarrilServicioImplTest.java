@@ -231,6 +231,18 @@ class FallaBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RFB-09: registrarFallaBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "a".repeat(256));
+
+        assertThatThrownBy(() -> fallaBarrilServicio.registrarFallaBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(barrilRepository, fallaBarrilRepository);
+    }
+
+    @Test
     @DisplayName("CP-RFB-04: registrarFallaBarril lanza RecursoNoEncontradoException cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
         FallaBarrilFormDTO formDTO = fallaBarrilFormDTO(99L, LocalDateTime.of(2026, 1, 15, 10, 0), "Pérdida de presión");
@@ -341,6 +353,18 @@ class FallaBarrilServicioImplTest {
         assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AFB-13: anularFallaBarril lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionFallaBarrilFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> fallaBarrilServicio.anularFallaBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
     }

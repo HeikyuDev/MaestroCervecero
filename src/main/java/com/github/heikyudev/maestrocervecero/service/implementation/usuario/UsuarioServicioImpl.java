@@ -201,7 +201,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
 
         // 5. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
         //    envía algo, tiene que ser válida: un texto en blanco NO cuenta como "no enviada", se
-        //    rechaza (antes se ignoraba en silencio). Se valida antes de tocar la entidad.
+        //    rechaza. Se valida antes de tocar la entidad.
         String password = usuarioFormDTO.getPassword();
         boolean cambiaPassword = password != null && !password.isEmpty();
         if (cambiaPassword) {

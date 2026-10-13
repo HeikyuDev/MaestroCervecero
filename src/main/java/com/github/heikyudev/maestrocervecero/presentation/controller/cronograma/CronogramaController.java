@@ -11,6 +11,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -37,6 +38,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
@@ -45,8 +47,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * Controller del cronograma de producción global ("Cronograma de Producción"), exclusivo del
  * GERENTE_DE_PRODUCCION.
  * <p>
- * Muestra, para todas las planificaciones a la vez, un diagrama de Gantt de un período con un carril por línea de
- * producción (fermentador), de a 10 fermentadores por página, y, debajo, la cola de lotes pendientes de cada
+ * Muestra, para todas las planificaciones a la vez, un diagrama de Gantt de un período con un carril por
+ * fermentador, de a 10 fermentadores por página, y, debajo, la cola de lotes pendientes de cada
  * fermentador de la página, donde el gerente puede subir o bajar un lote una posición. Las reglas de la cola (qué
  * lotes se pueden mover y cómo se reencadenan las fechas) son del service; este controller solo traduce los
  * parámetros, arma la vista y vuelve a la pantalla conservando los filtros.
@@ -82,7 +84,7 @@ public class CronogramaController {
     private static final String AVISO_PERIODO_INVALIDO = "El período indicado no es válido, se muestra el período por defecto";
     private static final String AVISO_PERIODO_INVERTIDO = "La fecha de fin del período no puede ser anterior a la fecha de inicio, se muestra el período por defecto";
     private static final String AVISO_PERIODO_EXCEDIDO = "El período no puede superar los "
-            + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS)
+            + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS + 1)
             + " días (5 años), se muestra el período por defecto";
     private static final String AVISO_PAGINA_INVALIDA = "La página indicada no es válida, se muestra la primera";
     private static final String AVISO_PAGINA_INEXISTENTE = "La página indicada no existe, se muestra la última";
@@ -259,12 +261,13 @@ public class CronogramaController {
     public String buscarPlanificaciones(@RequestParam(required = false) String receta,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
-        String nombre = vacioANulo(receta);
+        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
+        String nombre = vacioANulo(NormalizacionTexto.nombrePropio(receta));
         List<PlanificacionProduccionResponseDTO> coincidentes = planificacionServicio.filtrarPlanificacionesProduccion(
                         null, null, null, PageRequest.of(0, Integer.MAX_VALUE, ORDEN_MAS_RECIENTE_PRIMERO))
                 .getContent().stream()
                 .filter(p -> nombre == null || (p.getVersionReceta() != null && p.getVersionReceta().getNombre() != null
-                        && p.getVersionReceta().getNombre().toLowerCase().contains(nombre.toLowerCase())))
+                        && p.getVersionReceta().getNombre().toLowerCase(Locale.ROOT).contains(nombre.toLowerCase(Locale.ROOT))))
                 .toList();
 
         Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR);
@@ -303,8 +306,8 @@ public class CronogramaController {
 
     /**
      * Resuelve el período a mostrar. Sin extremos, el período por defecto; con uno solo, el otro se completa a 75 días
-     * de distancia. Un extremo que no es una fecha ISO existente, un período invertido o de más de 1.825 días se
-     * rechazan con un aviso y se muestra el período por defecto completo.
+     * de distancia. Un extremo que no es una fecha ISO existente, un período invertido o de más de 1.826 días (contando
+     * ambos extremos) se rechazan con un aviso y se muestra el período por defecto completo.
      */
     private static Periodo resolverPeriodo(String desdeTexto, String hastaTexto, LocalDate hoy, List<String> avisos) {
         String textoDesde = vacioANulo(desdeTexto);

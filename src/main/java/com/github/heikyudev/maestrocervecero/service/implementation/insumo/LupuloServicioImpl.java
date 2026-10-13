@@ -269,7 +269,8 @@ public class LupuloServicioImpl implements ILupuloServicio {
 
     /**
      * Valida la regla de negocio de los ácidos alfa del lúpulo: deben ser mayores a 0% y menores o
-     * iguales a {@value #ALFA_ACIDOS_MAXIMO}%.
+     * iguales a {@value #ALFA_ACIDOS_MAXIMO}%. Como el límite inferior es exclusivo, el mensaje del tope conserva esa
+     * precisión en lugar de usar la fórmula "debe estar entre".
      *
      * @param aa Porcentaje de ácidos alfa a validar.
      * @throws ReglaNegocioException Si los ácidos alfa son nulos, no son mayores a 0%, superan el 25% o son NaN.
@@ -281,9 +282,11 @@ public class LupuloServicioImpl implements ILupuloServicio {
         if (aa <= 0) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0");
         }
+        if (Double.isNaN(aa)) {
+            throw new ReglaNegocioException("Los ácidos alfa deben ser un número mayor a 0");
+        }
         if (aa > ALFA_ACIDOS_MAXIMO) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");
         }
-        ValidacionesNumericas.validarMayorACero(aa, "El valor de los ácidos alfa");
     }
 }

@@ -231,6 +231,18 @@ class DevolucionBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RDVB-12: registrarDevolucionBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(1L, LocalDateTime.of(2026, 2, 5, 10, 0), "a".repeat(256));
+
+        assertThatThrownBy(() -> devolucionBarrilServicio.registrarDevolucionBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(barrilRepository, devolucionBarrilRepository);
+    }
+
+    @Test
     @DisplayName("CP-RDVB-04: registrarDevolucionBarril lanza RecursoNoEncontradoException cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
         DevolucionBarrilFormDTO formDTO = devolucionBarrilFormDTO(99L, LocalDateTime.of(2026, 2, 5, 10, 0), "Barril recibido en depósito");
@@ -401,6 +413,18 @@ class DevolucionBarrilServicioImplTest {
         assertThatThrownBy(() -> devolucionBarrilServicio.anularDevolucionBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(devolucionBarrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ADVB-11: anularDevolucionBarril lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionDevolucionBarrilFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> devolucionBarrilServicio.anularDevolucionBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(devolucionBarrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
     }

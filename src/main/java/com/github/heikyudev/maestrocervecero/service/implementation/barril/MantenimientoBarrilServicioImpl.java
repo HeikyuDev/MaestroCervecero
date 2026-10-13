@@ -23,6 +23,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IMantenim
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.MantenimientoBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperMantenimientoBarril;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -105,8 +108,12 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         MetodosCicloVida.validarFechaNoFutura(mantenimientoBarrilFormDTO.getFechaMantenimiento());
 
         // 3. Validar que se hayan informado las observaciones
-        if (mantenimientoBarrilFormDTO.getObservaciones() == null || mantenimientoBarrilFormDTO.getObservaciones().isBlank()) {
+        String observaciones = NormalizacionTexto.nombrePropio(mantenimientoBarrilFormDTO.getObservaciones());
+        if (observaciones == null || observaciones.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
+        }
+        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
         // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
@@ -139,7 +146,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         // 8. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoBarrilEntity mantenimientoBarrilEntity = MantenimientoBarrilEntity.builder()
                 .fecha(mantenimientoBarrilFormDTO.getFechaMantenimiento())
-                .observaciones(mantenimientoBarrilFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .build();
@@ -166,9 +173,11 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.MANTENIMIENTO_BARRIL)
     public MantenimientoBarrilResponseDTO anularMantenimientoBarril(Long id, AnulacionMantenimientoBarrilFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar el mantenimiento de barril. Si no existe, se dispara RecursoNoEncontradoException
         MantenimientoBarrilEntity mantenimientoBarrilEntity = mantenimientoBarrilRepository.findById(id)
@@ -209,7 +218,7 @@ public class MantenimientoBarrilServicioImpl implements IMantenimientoBarrilServ
         // 7. Aplicar la anulación sobre el mantenimiento y persistirlo
         mantenimientoBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         mantenimientoBarrilEntity.setFechaAnulacion(LocalDateTime.now());
-        mantenimientoBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        mantenimientoBarrilEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperMantenimientoBarril.toDTO(mantenimientoBarrilRepository.save(mantenimientoBarrilEntity));
     }

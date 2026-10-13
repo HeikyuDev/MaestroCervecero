@@ -24,7 +24,7 @@ import java.util.Optional;
  * <p>
  * A diferencia de otras entidades del sistema, {@code LoteEntity} no maneja un
  * ciclo de vida ACTIVO/BAJA: su campo {@code estado} representa el estado
- * productivo del lote (PENDIENTE, EN_EJECUCION, FINALIZADO, ANULADO), no una baja
+ * productivo del lote (PENDIENTE, EN_EJECUCION, FINALIZADO, CANCELADO), no una baja
  * lógica. Por eso no se sobrescriben {@code findById}/{@code findAll} con ningún
  * filtro adicional.
  * </p>
@@ -34,7 +34,7 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
 
     /**
      * Busca, entre los lotes que todavía ocupan un lugar en el cronograma del fermentador dado
-     * (no anulados ni finalizados), la fecha de finalización estimada más lejana ya planificada.
+     * (no cancelados ni finalizados), la fecha de finalización estimada más lejana ya planificada.
      * Sirve para encolar un nuevo lote detrás del último que ya tiene reservado ese fermentador.
      *
      * @param fermentador   El fermentador cuyo cronograma se quiere consultar.

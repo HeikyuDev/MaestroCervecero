@@ -21,6 +21,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFa
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FallaEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperFallaEquipamiento;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -103,8 +106,12 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         MetodosCicloVida.validarFechaNoFutura(fallaEquipamientoFormDTO.getFechaFalla());
 
         // 3. Validar que se hayan informado las observaciones
-        if (fallaEquipamientoFormDTO.getObservaciones() == null || fallaEquipamientoFormDTO.getObservaciones().isBlank()) {
+        String observaciones = NormalizacionTexto.nombrePropio(fallaEquipamientoFormDTO.getObservaciones());
+        if (observaciones == null || observaciones.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
+        }
+        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
         // 4. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
@@ -133,7 +140,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         // 8. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaEquipamientoEntity fallaEquipamientoEntity = FallaEquipamientoEntity.builder()
                 .fecha(fallaEquipamientoFormDTO.getFechaFalla())
-                .observaciones(fallaEquipamientoFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .build();
@@ -160,9 +167,11 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.FALLA_EQUIPAMIENTO)
     public FallaEquipamientoResponseDTO anularFallaEquipamiento(Long id, AnulacionFallaEquipamientoFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la falla de equipamiento. Si no existe, se dispara RecursoNoEncontradoException
         FallaEquipamientoEntity fallaEquipamientoEntity = fallaEquipamientoRepository.findById(id)
@@ -200,7 +209,7 @@ public class FallaEquipamientoServicioImpl implements IFallaEquipamientoServicio
         // 7. Aplicar la anulación sobre la falla y persistirla
         fallaEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         fallaEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
-        fallaEquipamientoEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        fallaEquipamientoEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperFallaEquipamiento.toDTO(fallaEquipamientoRepository.save(fallaEquipamientoEntity));
     }

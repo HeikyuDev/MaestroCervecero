@@ -25,7 +25,7 @@ public class LevaduraFormDTO {
     /**
      * Nombre de la levadura. Debe ser único entre las levaduras activas (case-insensitive).
      */
-    @NotBlank(message = "El nombre de la levadura es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
     /**

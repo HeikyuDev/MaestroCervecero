@@ -474,6 +474,18 @@ class OrdenCompraServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AOC-07: anularOrdenCompra lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionOrdenCompraFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> ordenCompraServicio.anularOrdenCompra(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
+
+        verifyNoInteractions(ordenCompraRepository, ingresoInsumoRepository);
+    }
+
+    @Test
     @DisplayName("CP-AOC-03: anularOrdenCompra lanza RecursoNoEncontradoException cuando la orden de compra no existe")
     void anular_debeLanzarExcepcionSiNoExiste() {
         AnulacionOrdenCompraFormDTO formDTO = anulacionFormDTO("Error de carga");
@@ -565,6 +577,18 @@ class OrdenCompraServicioImplTest {
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de finalización es obligatorio");
+
+        verifyNoInteractions(ordenCompraRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FZOC-07: finalizarOrdenCompra lanza ReglaNegocioException cuando el motivo de finalización tiene 256 caracteres")
+    void finalizar_debeRechazarMotivoDe256Caracteres() {
+        FinalizacionForzadaOrdenCompraFormDTO formDTO = finalizacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de finalización no puede superar 255 caracteres");
 
         verifyNoInteractions(ordenCompraRepository, ingresoInsumoRepository);
     }

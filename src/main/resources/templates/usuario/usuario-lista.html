@@ -130,7 +130,7 @@
     </div>
 
     <!-- Diálogo de confirmación de baja (la apertura y el cierre los maneja /js/modales.js) -->
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja usuario', 'Ya no podrá iniciar sesión en el sistema.')}"></div>
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja usuario', 'Ya no podrá iniciar sesión en el sistema. No se puede dar de baja la propia cuenta ni al único administrador activo.')}"></div>
 </div>
 
 </body>

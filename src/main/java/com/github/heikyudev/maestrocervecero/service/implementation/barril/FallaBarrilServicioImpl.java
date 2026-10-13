@@ -23,6 +23,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IFallaBar
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.FallaBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperFallaBarril;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -104,8 +107,12 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
         MetodosCicloVida.validarFechaNoFutura(fallaBarrilFormDTO.getFechaFalla());
 
         // 3. Validar que se hayan informado las observaciones
-        if (fallaBarrilFormDTO.getObservaciones() == null || fallaBarrilFormDTO.getObservaciones().isBlank()) {
+        String observaciones = NormalizacionTexto.nombrePropio(fallaBarrilFormDTO.getObservaciones());
+        if (observaciones == null || observaciones.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
+        }
+        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
         // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
@@ -138,7 +145,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
         // 8. Construir y persistir la falla, y retornar el DTO de respuesta correspondiente
         FallaBarrilEntity fallaBarrilEntity = FallaBarrilEntity.builder()
                 .fecha(fallaBarrilFormDTO.getFechaFalla())
-                .observaciones(fallaBarrilFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .build();
@@ -165,9 +172,11 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.FALLA_BARRIL)
     public FallaBarrilResponseDTO anularFallaBarril(Long id, AnulacionFallaBarrilFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la falla de barril. Si no existe, se dispara RecursoNoEncontradoException
         FallaBarrilEntity fallaBarrilEntity = fallaBarrilRepository.findById(id)
@@ -208,7 +217,7 @@ public class FallaBarrilServicioImpl implements IFallaBarrilServicio {
         // 7. Aplicar la anulación sobre la falla y persistirla
         fallaBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         fallaBarrilEntity.setFechaAnulacion(LocalDateTime.now());
-        fallaBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        fallaBarrilEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperFallaBarril.toDTO(fallaBarrilRepository.save(fallaBarrilEntity));
     }

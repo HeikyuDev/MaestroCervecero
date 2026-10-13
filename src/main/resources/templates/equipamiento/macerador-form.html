@@ -47,7 +47,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('capacidadTotal')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('capacidadTotal')}" th:errors="*{capacidadTotal}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('capacidadTotal')}" class="mt-1 text-xs text-slate-400">En litros.</p>
+                    <p th:unless="${#fields.hasErrors('capacidadTotal')}" class="mt-1 text-xs text-slate-400">En litros</p>
                 </div>
 
                 <div>
@@ -74,7 +74,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('eficienciaMaceracion')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('eficienciaMaceracion')}" th:errors="*{eficienciaMaceracion}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('eficienciaMaceracion')}" class="mt-1 text-xs text-slate-400">Un porcentaje entre 40 y 100.</p>
+                    <p th:unless="${#fields.hasErrors('eficienciaMaceracion')}" class="mt-1 text-xs text-slate-400">Un porcentaje entre 40 y 100</p>
                 </div>
 
                 <div>

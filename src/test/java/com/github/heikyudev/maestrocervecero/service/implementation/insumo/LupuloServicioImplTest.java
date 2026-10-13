@@ -563,7 +563,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.altaLupulo(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor de los ácidos alfa debe ser un número mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser un número mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }
@@ -635,7 +635,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El valor de los ácidos alfa debe ser un número mayor a 0");
+                .hasMessage("Los ácidos alfa deben ser un número mayor a 0");
 
         verifyNoInteractions(lupuloRepository);
     }

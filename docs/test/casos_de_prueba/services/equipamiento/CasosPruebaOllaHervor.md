@@ -13,7 +13,7 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Olla de hervor encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `OllaHervorResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|Olla de hervor inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "La olla de hervor no existe".|
+|**CP-BI-02**|Olla de hervor inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la olla de hervor con ID: 99".|
 
 ### 3. `altaOllaHervor(OllaHervorFormDTO formDTO)`
 

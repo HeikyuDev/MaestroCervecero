@@ -25,6 +25,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IDespacho
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.DespachoBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperDespachoBarril;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -117,8 +120,12 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
         }
 
         // 4. Validar que se hayan informado las observaciones
-        if (despachoBarrilFormDTO.getObservaciones() == null || despachoBarrilFormDTO.getObservaciones().isBlank()) {
+        String observaciones = NormalizacionTexto.nombrePropio(despachoBarrilFormDTO.getObservaciones());
+        if (observaciones == null || observaciones.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
+        }
+        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
         // 5. Localizar el cliente. Si no existe o no está activo, se dispara RecursoNoEncontradoException
@@ -160,7 +167,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
         // 11. Construir y persistir el despacho, y retornar el DTO de respuesta correspondiente
         DespachoBarrilEntity despachoBarrilEntity = DespachoBarrilEntity.builder()
                 .fecha(despachoBarrilFormDTO.getFechaDespacho())
-                .observaciones(despachoBarrilFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .fechaDevolucionEstimada(despachoBarrilFormDTO.getFechaDevolucionEstimada())
                 .cliente(clienteEntity)
                 .barril(barrilEntity)
@@ -189,9 +196,11 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.DESPACHO_BARRIL)
     public DespachoBarrilResponseDTO anularDespachoBarril(Long id, AnulacionDespachoBarrilFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar el despacho de barril. Si no existe, se dispara RecursoNoEncontradoException
         DespachoBarrilEntity despachoBarrilEntity = despachoBarrilRepository.findById(id)
@@ -232,7 +241,7 @@ public class DespachoBarrilServicioImpl implements IDespachoBarrilServicio {
         // 7. Aplicar la anulación sobre el despacho y persistirlo
         despachoBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         despachoBarrilEntity.setFechaAnulacion(LocalDateTime.now());
-        despachoBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        despachoBarrilEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperDespachoBarril.toDTO(despachoBarrilRepository.save(despachoBarrilEntity));
     }

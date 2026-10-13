@@ -193,6 +193,21 @@ class AuditLogServiceImplTest {
         verify(auditLogRepository).filtrarAuditLogs(null, null, null, null, "admin", pageable);
     }
 
+    @Test
+    @DisplayName("CP-FA-10: filtrarAuditLogs colapsa los espacios internos del username antes de consultar")
+    void filtrarAuditLogs_debeColapsarEspaciosInternosDelUsername() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        when(auditLogRepository.filtrarAuditLogs(null, null, null, null, "juan perez", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        auditLogService.filtrarAuditLogs(null, null, null, null, "  juan   perez ", pageable);
+
+        // === ASSERTS ===
+        verify(auditLogRepository).filtrarAuditLogs(null, null, null, null, "juan perez", pageable);
+    }
+
     // ==================== guardar ====================
 
     @Test

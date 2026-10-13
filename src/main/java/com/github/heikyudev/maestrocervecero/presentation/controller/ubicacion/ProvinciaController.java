@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
-import static com.github.heikyudev.maestrocervecero.presentation.controller.ubicacion.UbicacionWeb.etiqueta;
 
 /**
  * Controller de la gestión de provincias. El módulo de ubicaciones es solo del ADMINISTRADOR; la

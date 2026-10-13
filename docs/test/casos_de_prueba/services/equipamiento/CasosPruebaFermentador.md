@@ -13,7 +13,7 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Fermentador encontrado|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `FermentadorResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|Fermentador inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "El fermentador no existe".|
+|**CP-BI-02**|Fermentador inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el fermentador con ID: 99".|
 
 ### 3. `altaFermentador(FermentadorFormDTO fermentadorFormDTO)`
 

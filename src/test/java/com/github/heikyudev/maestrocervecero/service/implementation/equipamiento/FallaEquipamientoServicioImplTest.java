@@ -224,6 +224,18 @@ class FallaEquipamientoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RFE-09: registrarFallaEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        FallaEquipamientoFormDTO formDTO = fallaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 15, 10, 0), "a".repeat(256));
+
+        assertThatThrownBy(() -> fallaEquipamientoServicio.registrarFallaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(equipamientoRepository, fallaEquipamientoRepository);
+    }
+
+    @Test
     @DisplayName("CP-RFE-04: registrarFallaEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
     void registrar_debeRechazarEquipamientoInexistente() {
         FallaEquipamientoFormDTO formDTO = fallaEquipamientoFormDTO(99L, LocalDateTime.of(2026, 1, 15, 10, 0), "Ruido anormal");
@@ -339,6 +351,18 @@ class FallaEquipamientoServicioImplTest {
         assertThatThrownBy(() -> fallaEquipamientoServicio.anularFallaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(fallaEquipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AFE-10: anularFallaEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionFallaEquipamientoFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> fallaEquipamientoServicio.anularFallaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(fallaEquipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
     }

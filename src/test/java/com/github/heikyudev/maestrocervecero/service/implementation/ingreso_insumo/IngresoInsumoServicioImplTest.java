@@ -146,6 +146,36 @@ class IngresoInsumoServicioImplTest {
         verify(ingresoInsumoRepository).filtrarIngresoInsumo(99L, null, null, null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FII-05: filtrarIngresoInsumo normaliza la identificación del lote del proveedor buscada (espacios y mayúsculas) antes de consultar")
+    void filtrar_debeNormalizarLaIdentificacionDelLoteBuscada() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(null, "LOTE 1", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.filtrarIngresoInsumo(null, "  lote   1 ", null, null, null, pageable);
+
+        // === ASSERTS ===
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(null, "LOTE 1", null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FII-06: filtrarIngresoInsumo trata una identificación del lote formada solo por espacios como ausencia de filtro")
+    void filtrar_debeTratarIdentificacionEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.filtrarIngresoInsumo(null, "    ", null, null, null, pageable);
+
+        // === ASSERTS ===
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(null, null, null, null, null, pageable);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -597,6 +627,57 @@ class IngresoInsumoServicioImplTest {
         verify(ingresoInsumoRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RC-21: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no bloquea el insumo cuando la identificación del lote del proveedor es nula")
+    void registrarPorCompra_debeRechazarIdentificacionNula() {
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor(null).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La identificación del lote del proveedor es obligatoria");
+
+        verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-22: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no bloquea el insumo cuando la identificación del lote del proveedor está en blanco")
+    void registrarPorCompra_debeRechazarIdentificacionEnBlanco() {
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor("   ").build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La identificación del lote del proveedor es obligatoria");
+
+        verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-23: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no bloquea el insumo cuando la identificación del lote del proveedor tiene 256 caracteres")
+    void registrarPorCompra_debeRechazarIdentificacionDe256Caracteres() {
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor("A".repeat(256)).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La identificación del lote del proveedor no puede superar 255 caracteres");
+
+        verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
     // ==================== registrarIngresoInsumoDirecto ====================
 
     @Test
@@ -899,6 +980,51 @@ class IngresoInsumoServicioImplTest {
         verify(ingresoInsumoRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RD-17: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no bloquea el insumo cuando la identificación del lote del proveedor es nula")
+    void registrarDirecto_debeRechazarIdentificacionNula() {
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).identificacionLoteProveedor(null).build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La identificación del lote del proveedor es obligatoria");
+
+        verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RD-18: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no bloquea el insumo cuando la identificación del lote del proveedor está en blanco")
+    void registrarDirecto_debeRechazarIdentificacionEnBlanco() {
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).identificacionLoteProveedor("   ").build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La identificación del lote del proveedor es obligatoria");
+
+        verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RD-19: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no bloquea el insumo cuando la identificación del lote del proveedor tiene 256 caracteres")
+    void registrarDirecto_debeRechazarIdentificacionDe256Caracteres() {
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).identificacionLoteProveedor("A".repeat(256)).build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La identificación del lote del proveedor no puede superar 255 caracteres");
+
+        verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
     // ==================== anularIngresoInsumo ====================
 
     @Test
@@ -921,6 +1047,18 @@ class IngresoInsumoServicioImplTest {
         assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(ingresoInsumoRepository, loteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AI-07: anularIngresoInsumo lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnularIngresoInsumoFormDTO formDTO = anularFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(ingresoInsumoRepository, loteInsumoRepository);
     }

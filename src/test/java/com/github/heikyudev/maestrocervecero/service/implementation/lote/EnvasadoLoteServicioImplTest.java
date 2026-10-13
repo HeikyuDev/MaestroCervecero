@@ -513,6 +513,16 @@ class EnvasadoLoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-AEL-12: anularEnvasadoLote lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anularEnvasadoLote_debeRechazarMotivoDe256Caracteres() {
+        assertThatThrownBy(() -> envasadoLoteServicio.anularEnvasadoLote(1L, anularFormDTO("a".repeat(256))))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
+
+        verifyNoInteractions(envasadoLoteRepository, barrilRepository);
+    }
+
+    @Test
     @DisplayName("CP-AEL-03: anularEnvasadoLote lanza RecursoNoEncontradoException y no persiste cuando el envasado no existe")
     void anularEnvasadoLote_debeRechazarEnvasadoInexistente() {
         when(envasadoLoteRepository.findById(99L)).thenReturn(Optional.empty());

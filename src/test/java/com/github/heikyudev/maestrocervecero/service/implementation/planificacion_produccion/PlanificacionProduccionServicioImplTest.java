@@ -616,6 +616,22 @@ class PlanificacionProduccionServicioImplTest {
         verify(planificacionProduccionRepository).save(planificacion);
     }
 
+    @Test
+    @DisplayName("CP-APP-10: anularPlanificacionProduccion normaliza el motivo de anulación (espacios extremos e internos) antes de validar y guardar")
+    void anular_debeNormalizarElMotivo() {
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("   Error   de  carga  ");
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(false);
+        when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
+
+        planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO);
+
+        assertThat(planificacion.getMotivoAnulacion()).isEqualTo("Error de carga");
+        assertThat(formDTO.getMotivoAnulacion()).isEqualTo("   Error   de  carga  ");
+    }
+
     // ==================== finalizarPlanificacionProduccion ====================
 
     @Test
@@ -749,6 +765,22 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThat(planificacion.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
         verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-FZPP-10: finalizarPlanificacionProduccion normaliza el motivo de finalización (espacios extremos e internos) antes de validar y guardar")
+    void finalizar_debeNormalizarElMotivo() {
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("   Se cubrió   la demanda  ");
+        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
+        when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
+
+        planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO);
+
+        assertThat(planificacion.getMotivoFinalizacion()).isEqualTo("Se cubrió la demanda");
+        assertThat(formDTO.getMotivoFinalizacion()).isEqualTo("   Se cubrió   la demanda  ");
     }
 
     // ==================== sugerirFechaFinalizacion ====================

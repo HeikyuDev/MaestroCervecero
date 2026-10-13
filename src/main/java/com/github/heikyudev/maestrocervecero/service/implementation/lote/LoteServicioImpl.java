@@ -49,6 +49,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteRespo
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -141,7 +142,12 @@ public class LoteServicioImpl implements ILoteServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<LoteResponseDTO> filtrarLotes(Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable) {
-        return loteRepository.filtrarLotes(idReceta, identificadorInterno, estado, etapaActual, volumenObjetivo, pageable)
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return loteRepository.filtrarLotes(idReceta, identificadorInternoNormalizado, estado, etapaActual, volumenObjetivo, pageable)
                 .map(MapperLote::toDTO);
     }
 
@@ -352,9 +358,11 @@ public class LoteServicioImpl implements ILoteServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO cancelarLote(Long id, CancelacionLoteFormDTO cancelacionLoteFormDTO) {
         // 1. Validar que se haya informado el motivo de cancelación
-        if (cancelacionLoteFormDTO.getMotivoCancelacion() == null || cancelacionLoteFormDTO.getMotivoCancelacion().isBlank()) {
+        String motivoCancelacion = NormalizacionTexto.nombrePropio(cancelacionLoteFormDTO.getMotivoCancelacion());
+        if (motivoCancelacion == null || motivoCancelacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de cancelación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoCancelacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de cancelación");
 
         // 2. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
         LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
@@ -386,7 +394,7 @@ public class LoteServicioImpl implements ILoteServicio {
         LocalDateTime fechaCancelacion = LocalDateTime.now();
         lote.setEstado(EstadoLote.CANCELADO);
         lote.setFechaCancelacion(fechaCancelacion);
-        lote.setMotivoCancelacion(cancelacionLoteFormDTO.getMotivoCancelacion());
+        lote.setMotivoCancelacion(motivoCancelacion);
 
         // 7. Cancelar las etapas que todavía no habían finalizado, como registro histórico del
         //    punto donde se interrumpió el lote. Las etapas ya FINALIZADA no se tocan.
@@ -696,7 +704,7 @@ public class LoteServicioImpl implements ILoteServicio {
         // 4. Validar que el lote tenga litros envasados: un lote sin envasados no produjo nada y corresponde cancelarlo
         BigDecimal totalEnvasado = BigDecimal.valueOf(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(etapaEnvasado.getId()));
         if (totalEnvasado.signum() <= 0) {
-            throw new ReglaNegocioException("No se puede finalizar el envasado de un lote sin litros envasados. Si no se va a producir, debe cancelarse el lote");
+            throw new ReglaNegocioException("No se puede finalizar el envasado de un lote sin litros envasados, si no se va a producir debe cancelarse el lote");
         }
 
         // 5. El fermentador utilizado pasa a estado EN_LIMPIEZA (concluyen las tres etapas que lo comparten)
@@ -1392,7 +1400,7 @@ public class LoteServicioImpl implements ILoteServicio {
         }
         if (ChronoUnit.DAYS.between(desde, hasta) > LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS) {
             throw new ReglaNegocioException("El período del cronograma no puede superar los "
-                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS) + " días (5 años)");
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS + 1) + " días (5 años)");
         }
 
         // 2. Si se pidió un fermentador puntual, validar que exista; un fermentador dado de baja es válido porque sus lotes

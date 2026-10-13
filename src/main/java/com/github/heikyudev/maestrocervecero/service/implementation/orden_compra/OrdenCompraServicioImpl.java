@@ -27,6 +27,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOr
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.orden_compra.MapperOrdenCompra;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -157,9 +160,11 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.ORDEN_COMPRA)
     public OrdenCompraResponseDTO anularOrdenCompra(Long id, AnulacionOrdenCompraFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la orden de compra. Si no existe, se dispara RecursoNoEncontradoException
         OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.findById(id)
@@ -178,7 +183,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
 
         // 5. Aplicar la anulación sobre la entidad administrada por persistencia
-        ordenCompraEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        ordenCompraEntity.setMotivoAnulacion(motivoAnulacion);
         ordenCompraEntity.setFechaAnulacion(LocalDateTime.now());
         ordenCompraEntity.setEstado(EstadoSolicitud.ANULADA);
 
@@ -204,9 +209,11 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     @AuditableAction(accion = AccionAuditoria.FINALIZAR, conceptoAuditoria = ConceptoAuditoria.ORDEN_COMPRA)
     public OrdenCompraResponseDTO finalizarOrdenCompra(Long id, FinalizacionForzadaOrdenCompraFormDTO finalizacionFormDTO) {
         // 1. Validar que se haya informado el motivo de finalización
-        if (finalizacionFormDTO.getMotivoFinalizacion() == null || finalizacionFormDTO.getMotivoFinalizacion().isBlank()) {
+        String motivoFinalizacion = NormalizacionTexto.nombrePropio(finalizacionFormDTO.getMotivoFinalizacion());
+        if (motivoFinalizacion == null || motivoFinalizacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de finalización es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoFinalizacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de finalización");
 
         // 2. Localizar la orden de compra. Si no existe, se dispara RecursoNoEncontradoException
         OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.findById(id)
@@ -226,7 +233,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
 
         // 5. Aplicar la finalización forzada sobre la entidad administrada por persistencia
-        ordenCompraEntity.setMotivoFinalizacion(finalizacionFormDTO.getMotivoFinalizacion());
+        ordenCompraEntity.setMotivoFinalizacion(motivoFinalizacion);
         ordenCompraEntity.setFechaFinalizacion(LocalDateTime.now());
         ordenCompraEntity.setEstado(EstadoSolicitud.FINALIZADA);
 

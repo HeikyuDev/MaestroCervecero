@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.proveedor;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

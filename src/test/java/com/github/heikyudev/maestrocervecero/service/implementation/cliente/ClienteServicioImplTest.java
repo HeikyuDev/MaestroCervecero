@@ -378,7 +378,7 @@ class ClienteServicioImplTest {
 
         assertThatThrownBy(() -> clienteServicio.bajaCliente(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el cliente porque tiene un despacho de barril registrado a su nombre");
+                .hasMessage("No se puede dar de baja el cliente porque tiene un barril en su poder");
 
         verify(clienteRepository, never()).save(any());
     }

@@ -170,7 +170,7 @@ class MaltaControllerTest {
                 .andExpect(content().string(containsString("la define el sistema")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Pilsen\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
-                .andExpect(content().string(containsString("Un número entero mayor a 0 y hasta 90.")))
+                .andExpect(content().string(containsString("Un número entero mayor a 0 y hasta 90")))
                 .andExpect(content().string(containsString("Crear malta")))
                 .andExpect(content().string(containsString("Volver a maltas")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))))
@@ -233,7 +233,7 @@ class MaltaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("insumo/malta-form"))
                 .andExpect(content().string(containsString("No se pudo crear la malta")))
-                .andExpect(content().string(containsString("El nombre de la malta es obligatorio")))
+                .andExpect(content().string(containsString("El nombre es obligatorio")))
                 .andExpect(content().string(containsString("El tipo de malta es obligatorio")))
                 .andExpect(content().string(containsString("El extracto potencial es obligatorio")));
 

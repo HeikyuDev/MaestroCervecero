@@ -224,6 +224,18 @@ class MantenimientoEquipamientoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RME-09: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
+    }
+
+    @Test
     @DisplayName("CP-RME-04: registrarMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
     void registrar_debeRechazarEquipamientoInexistente() {
         MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento");
@@ -339,6 +351,18 @@ class MantenimientoEquipamientoServicioImplTest {
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(mantenimientoEquipamientoRepository, fallaEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AME-10: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(mantenimientoEquipamientoRepository, fallaEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
     }

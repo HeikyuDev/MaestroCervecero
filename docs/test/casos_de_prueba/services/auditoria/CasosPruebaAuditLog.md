@@ -13,6 +13,7 @@ La bitácora es de solo lectura y no tiene baja lógica: no hay condición de es
 |**CP-FA-07**|Fecha desde igual a fecha hasta|`fechaDesde` = `fechaHasta` = `2026-09-15T10:30`|El rango de un único instante es válido (límites inclusivos)|No lanza excepción; consulta el repositorio con ambos valores iguales.|
 |**CP-FA-08**|Username en blanco equivale a no filtrar|`username: "   "`, resto `null`|Un username vacío o en blanco se normaliza a `null`|Consulta el repositorio con `username: null`.|
 |**CP-FA-09**|Username con espacios sobrantes|`username: "  admin  "`, resto `null`|El username se recorta antes de consultar|Consulta el repositorio con `username: "admin"`.|
+|**CP-FA-10**|Username con espacios internos repetidos|`username: "  juan   perez "`, resto `null`|El username se normaliza (recorta y colapsa espacios) antes de consultar|Consulta el repositorio con `username: "juan perez"`.|
 
 ### 2. `guardar(AuditLogEntity auditLogEntity)`
 

@@ -17,7 +17,7 @@
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
 | **CP-BI-01** | Usuario encontrado | `id: 1L` (Existe en BD) | `findById(1L)` $\rightarrow$ **Presente** | Retorna `UsuarioResponseDTO` con los datos de la entidad. |
-| **CP-BI-02** | Usuario inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "El usuario no existe". |
+| **CP-BI-02** | Usuario inexistente | `id: 99L` (No existe en BD) | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el usuario con ID: 99". |
 
 ---
 
@@ -54,7 +54,7 @@
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |
-| **CP-MU-01** | Usuario no encontrado por ID | `id: 99L` (No existe en BD), DTO válido | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "El usuario no existe". No persiste. |
+| **CP-MU-01** | Usuario no encontrado por ID | `id: 99L` (No existe en BD), DTO válido | `findById(99L)` $\rightarrow$ **Optional.empty()** | Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el usuario con ID: 99". No persiste. |
 | **CP-MU-02** | Modificación de username en uso por otra cuenta | `id: 1L` (User actual: `"juan"`), `username: "pedro"` (Existe en BD) | El username normalizado difiere del actual && `existsByUsername` $\rightarrow$ **TRUE** | Lanza `RecursoDuplicadoException` ("El nombre de usuario 'pedro' ya está en uso por otro usuario"). No actualiza ni persiste. |
 | **CP-MU-03** | Modificación exitosa con nuevo username y nueva contraseña *(Camino Feliz)* | `id: 1L` (User actual: `"juan"`), `username: "juan_nuevo"` (Libre), `password: "NuevaClave123"` | El username normalizado difiere del actual, `password != null && !isEmpty()` $\rightarrow$ **TRUE**, `validarPassword` $\rightarrow$ **OK** | Encripta nueva contraseña, actualiza todos los datos (incluido el apellido), persiste y retorna DTO. |
 | **CP-MU-04** | Conservar el propio username actual | `id: 1L` (User actual: `"juan"`), `username: "juan"` | El username normalizado coincide con el actual | No consulta duplicados en BD, actualiza datos, persiste y retorna DTO. |

@@ -267,6 +267,20 @@ class AjusteInsumoServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RA-15: registrarAjusteInsumo lanza ReglaNegocioException cuando la observación tiene 256 caracteres")
+    void registrarAjusteInsumo_debeRechazarObservacionDe256Caracteres() {
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 10.0, "a".repeat(256));
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.INGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, insumoEntity(1L), 20.0, 0.0)));
+
+        assertThatThrownBy(() -> ajusteInsumoServicio.registrarAjusteInsumo(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La observación no puede superar 255 caracteres");
+
+        verifyNoInteractions(ajusteInsumoRepository);
+    }
+
+    @Test
     @DisplayName("CP-RA-08: registrarAjusteInsumo lanza ReglaNegocioException con motivo EGRESO cuando la cantidad supera la cantidad actual del lote")
     void registrarAjusteInsumo_debeRechazarEgresoQueSuperaCantidadActual() {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 15.0, "Rotura de lote");
@@ -455,6 +469,18 @@ class AjusteInsumoServicioImplTest {
         assertThatThrownBy(() -> ajusteInsumoServicio.anularAjusteInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(ajusteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AA-09: anularAjusteInsumo lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anularAjusteInsumo_debeRechazarMotivoAnulacionDe256Caracteres() {
+        AnularAjusteInsumoFormDTO formDTO = anularFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> ajusteInsumoServicio.anularAjusteInsumo(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(ajusteInsumoRepository);
     }

@@ -264,6 +264,50 @@ class SolicitudBusquedaServicioImplTest {
         assertThat(resultado.isBuscado()).isFalse();
     }
 
+    @Test
+    @DisplayName("CP-RSB-06: registrarSolicitudBusqueda lanza ReglaNegocioException y no consulta el despacho cuando las observaciones tienen 256 caracteres")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "a".repeat(256));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(despachoBarrilRepository, solicitudBusquedaRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RSB-07: registrarSolicitudBusqueda guarda las observaciones normalizadas (espacios extremos e internos)")
+    void registrar_debeNormalizarLasObservaciones() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "   Horario   de la tarde  ");
+        when(despachoBarrilRepository.findById(1L)).thenReturn(Optional.of(crearDespachoEntity(1L)));
+        when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        SolicitudBusquedaResponseDTO resultado = solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getObservaciones()).isEqualTo("Horario de la tarde");
+    }
+
+    @Test
+    @DisplayName("CP-RSB-08: registrarSolicitudBusqueda guarda observaciones nulas cuando las observaciones están en blanco")
+    void registrar_debeTratarObservacionesEnBlancoComoNulas() {
+        // === PREPARACION DE DATOS ===
+        SolicitudBusquedaFormDTO formDTO = solicitudBusquedaFormDTO(1L, LocalDateTime.now().plusDays(1), "    ");
+        when(despachoBarrilRepository.findById(1L)).thenReturn(Optional.of(crearDespachoEntity(1L)));
+        when(solicitudBusquedaRepository.save(any(SolicitudBusquedaEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        SolicitudBusquedaResponseDTO resultado = solicitudBusquedaServicio.registrarSolicitudBusqueda(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getObservaciones()).isNull();
+    }
+
     // ==================== Helpers ====================
 
     private static SolicitudBusquedaFormDTO solicitudBusquedaFormDTO(Long idDespachoBarril, LocalDateTime fechaBusqueda, String observaciones) {

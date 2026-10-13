@@ -23,6 +23,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.ILimpieza
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.LimpiezaBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperLimpiezaBarril;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -109,8 +112,12 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         MetodosCicloVida.validarFechaNoFutura(limpiezaBarrilFormDTO.getFechaLimpieza());
 
         // 3. Validar que se hayan informado las observaciones
-        if (limpiezaBarrilFormDTO.getObservaciones() == null || limpiezaBarrilFormDTO.getObservaciones().isBlank()) {
+        String observaciones = NormalizacionTexto.nombrePropio(limpiezaBarrilFormDTO.getObservaciones());
+        if (observaciones == null || observaciones.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
+        }
+        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
         // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
@@ -152,7 +159,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         // 9. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaBarrilEntity limpiezaBarrilEntity = LimpiezaBarrilEntity.builder()
                 .fecha(limpiezaBarrilFormDTO.getFechaLimpieza())
-                .observaciones(limpiezaBarrilFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .estadoOperativoResultante(estadoOperativoResultante)
@@ -182,9 +189,11 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.LIMPIEZA_BARRIL)
     public LimpiezaBarrilResponseDTO anularLimpiezaBarril(Long id, AnulacionLimpiezaBarrilFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la limpieza de barril. Si no existe, se dispara RecursoNoEncontradoException
         LimpiezaBarrilEntity limpiezaBarrilEntity = limpiezaBarrilRepository.findById(id)
@@ -224,7 +233,7 @@ public class LimpiezaBarrilServicioImpl implements ILimpiezaBarrilServicio {
         // 7. Aplicar la anulación sobre la limpieza y persistirla
         limpiezaBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         limpiezaBarrilEntity.setFechaAnulacion(LocalDateTime.now());
-        limpiezaBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        limpiezaBarrilEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperLimpiezaBarril.toDTO(limpiezaBarrilRepository.save(limpiezaBarrilEntity));
     }

@@ -4,7 +4,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AuditableE
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.SoftDelete;
 
 @Entity
 @Table(name = "motivo_ajuste")

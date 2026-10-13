@@ -231,6 +231,18 @@ class MantenimientoBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RMB-09: registrarMantenimientoBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+
+        assertThatThrownBy(() -> mantenimientoBarrilServicio.registrarMantenimientoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(barrilRepository, mantenimientoBarrilRepository);
+    }
+
+    @Test
     @DisplayName("CP-RMB-04: registrarMantenimientoBarril lanza RecursoNoEncontradoException cuando el barril no existe")
     void registrar_debeRechazarBarrilInexistente() {
         MantenimientoBarrilFormDTO formDTO = mantenimientoBarrilFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó la válvula de presión");
@@ -341,6 +353,18 @@ class MantenimientoBarrilServicioImplTest {
         assertThatThrownBy(() -> mantenimientoBarrilServicio.anularMantenimientoBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(mantenimientoBarrilRepository, fallaBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AMB-13: anularMantenimientoBarril lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionMantenimientoBarrilFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> mantenimientoBarrilServicio.anularMantenimientoBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(mantenimientoBarrilRepository, fallaBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
     }

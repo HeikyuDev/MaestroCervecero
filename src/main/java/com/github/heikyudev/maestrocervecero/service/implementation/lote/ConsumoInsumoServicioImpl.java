@@ -33,6 +33,9 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoIn
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperInsumo;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperConsumoInsumo;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -265,9 +268,11 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.CONSUMO_INSUMO)
     public ConsumoInsumoResponseDTO anularConsumoInsumo(Long id, AnularConsumoInsumoFormDTO anularConsumoInsumoFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anularConsumoInsumoFormDTO.getMotivoAnulacion() == null || anularConsumoInsumoFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anularConsumoInsumoFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Validar que el consumo de insumo esté registrado en el sistema
         ConsumoInsumoEntity consumoInsumo = consumoInsumoRepository.findById(id)
@@ -311,7 +316,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         // 7. Aplicar la anulación sobre el consumo y persistir
         consumoInsumo.setEstado(EstadoTransaccion.ANULADO);
         consumoInsumo.setFechaAnulacion(LocalDateTime.now());
-        consumoInsumo.setMotivoAnulacion(anularConsumoInsumoFormDTO.getMotivoAnulacion());
+        consumoInsumo.setMotivoAnulacion(motivoAnulacion);
 
         return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo));
     }

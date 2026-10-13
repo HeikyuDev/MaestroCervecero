@@ -168,9 +168,9 @@ unicidad y el índice de la base trabajan sobre el mismo valor.
 | Nombres propios, razón social, nombres de insumos y de recetas y demás textos libres (`nombrePropio`) | Recorte de los extremos, colapso de cualquier espacio en blanco (incluidos los no separables) en uno solo, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC | Con las mayúsculas y las tildes escritas |
 | Códigos e identificadores (`codigo`): identificador interno de equipos, identificador de barril, identificación de lote del proveedor | Igual que `nombrePropio` y pasaje a mayúsculas con `Locale.ROOT` | En mayúsculas; la puntuación cuenta |
 | CUIT (`cuit`) | Eliminación de espacios, guiones, puntos y barras | Solo los 11 dígitos, sin guiones |
-| Correo (`correo`) | Recorte y minúsculas | En minúsculas |
-| Teléfono (`telefono`) | Recorte; vacío equivale a nulo | Solo dígitos, hasta 15; es opcional y no tiene unicidad |
-| Nombre de usuario (`username`) | Recorte y minúsculas | En minúsculas; solo letras, números, `.`, `_` y `-` |
+| Correo (`correo`) | Eliminación de caracteres invisibles de ancho cero, recorte, colapso de espacios y minúsculas con `Locale.ROOT` | En minúsculas |
+| Teléfono (`telefono`) | Igual que `nombrePropio` (recorte, colapso de espacios, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC); vacío equivale a nulo | Solo dígitos, hasta 15; es opcional y no tiene unicidad |
+| Nombre de usuario (`username`) | Eliminación de caracteres invisibles de ancho cero, recorte, colapso de espacios y minúsculas con `Locale.ROOT` | En minúsculas; solo letras, números, `.`, `_` y `-` |
 
 Las tildes y la puntuación son caracteres distintos: `Pale Ale` y `Palé Ale` no son el mismo nombre. Dos nombres son
 el mismo si son iguales ignorando mayúsculas y espacios repetidos.
@@ -196,7 +196,7 @@ CREATE UNIQUE INDEX udx_cliente_email ON cliente (lower(btrim(email))) WHERE est
 Los códigos e identificadores se guardan en mayúsculas, por lo que su índice no necesita `lower(...)`:
 
 ```sql
-CREATE UNIQUE INDEX udx_barril_identificador ON barril (identificador) WHERE estado = 'ACTIVO';
+CREATE UNIQUE INDEX udx_barril_identificador ON barril (fabricante_id, identificador) WHERE estado = 'ACTIVO';
 ```
 
 ### Índices únicos de los maestros simples
@@ -343,7 +343,7 @@ el `pom.xml`.
 | Tipo de dato | Dónde vive | Motivo |
 |---|---|---|
 | Datos de sistema determinísticos, iguales en todo ambiente (configuración singleton de producción) | Migración Flyway (`V2__datos_iniciales.sql`) | Se versionan junto al esquema y se aplican una sola vez, en orden |
-| Datos que requieren lógica de la aplicación (usuario administrador, cuya contraseña se cifra con `PasswordEncoder`) | `DataLoader` idempotente (`UserDataLoader`) | El hash no puede calcularse de forma fiable en SQL; el `DataLoader` verifica la existencia antes de insertar |
+| Datos que requieren lógica de la aplicación (usuario administrador, cuya contraseña se cifra con `PasswordEncoder`) | `DataLoader` (`UserDataLoader`) | El hash no puede calcularse de forma fiable en SQL; el `DataLoader` crea el usuario `admin` con la contraseña `admin` solo si no existe un usuario activo con ese nombre de usuario. La contraseña inicial debe cambiarse en el primer ingreso |
 | Datos de prueba o de demostración | Fuera de las migraciones | Las migraciones se ejecutan en todos los ambientes, incluida producción |
 
 Cambiar un valor por defecto de un dato inicial ya aplicado se hace con una migración nueva (`UPDATE`), nunca

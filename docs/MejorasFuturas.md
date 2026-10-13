@@ -30,4 +30,4 @@ Ejemplo: se pierden 100 Kg de un lote físico de Malta A que tenía reservados 6
 
 ### Cuándo retomarla
 
-Después de cerrar "Registrar Consumo de Insumo", ya que esa funcionalidad también trabaja de lleno sobre `ReservaInsumoEntity` y va a dejar más clara la forma correcta de manipular reservas antes de meterle una re-reserva automática encima.
+"Registrar Consumo de Insumo" (`ConsumoInsumoServicioImpl`) ya trabaja de lleno sobre `ReservaInsumoEntity`, por lo que la forma de manipular reservas está definida. La re-reserva automática puede abordarse tomando ese servicio como referencia para extraer la lógica FEFO a un componente compartido.

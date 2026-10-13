@@ -159,7 +159,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.buscarPorId(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La presentación comercial no existe");
+                .hasMessage("No se encontró la presentación comercial con ID: 99");
         verify(presentacionComercialRepository).findById(99L);
     }
 
@@ -381,7 +381,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
-                .hasMessage("La presentación comercial no existe");
+                .hasMessage("No se encontró la presentación comercial con ID: 99");
 
         verify(presentacionComercialRepository).findById(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de nombre

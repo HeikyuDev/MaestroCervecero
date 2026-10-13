@@ -273,6 +273,18 @@ class DespachoBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RDB-15: registrarDespachoBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 1L, LocalDateTime.of(2026, 1, 20, 9, 0), LocalDate.of(2026, 2, 1), "a".repeat(256));
+
+        assertThatThrownBy(() -> despachoBarrilServicio.registrarDespachoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(clienteRepository, barrilRepository, despachoBarrilRepository);
+    }
+
+    @Test
     @DisplayName("CP-RDB-05: registrarDespachoBarril lanza RecursoNoEncontradoException cuando el cliente no existe o no está activo")
     void registrar_debeRechazarClienteInexistente() {
         DespachoBarrilFormDTO formDTO = despachoBarrilFormDTO(1L, 99L, LocalDateTime.of(2026, 1, 20, 9, 0), LocalDate.of(2026, 2, 1), "Retiro programado");
@@ -491,6 +503,18 @@ class DespachoBarrilServicioImplTest {
         assertThatThrownBy(() -> despachoBarrilServicio.anularDespachoBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(despachoBarrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ADB-11: anularDespachoBarril lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionDespachoBarrilFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> despachoBarrilServicio.anularDespachoBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(despachoBarrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, devolucionBarrilRepository, fraccionamientoBarrilRepository, barrilRepository);
     }

@@ -23,6 +23,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IDevoluci
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.DevolucionBarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperDevolucionBarril;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -112,8 +115,12 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         MetodosCicloVida.validarFechaNoFutura(devolucionBarrilFormDTO.getFechaDevolucion());
 
         // 3. Validar que se hayan informado las observaciones
-        if (devolucionBarrilFormDTO.getObservaciones() == null || devolucionBarrilFormDTO.getObservaciones().isBlank()) {
+        String observaciones = NormalizacionTexto.nombrePropio(devolucionBarrilFormDTO.getObservaciones());
+        if (observaciones == null || observaciones.isEmpty()) {
             throw new ReglaNegocioException("Las observaciones son obligatorias");
+        }
+        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
+            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
         }
 
         // 4. Localizar el barril, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
@@ -147,7 +154,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         // 8. Construir y persistir la devolución, y retornar el DTO de respuesta correspondiente
         DevolucionBarrilEntity devolucionBarrilEntity = DevolucionBarrilEntity.builder()
                 .fecha(devolucionBarrilFormDTO.getFechaDevolucion())
-                .observaciones(devolucionBarrilFormDTO.getObservaciones())
+                .observaciones(observaciones)
                 .barril(barrilEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .build();
@@ -174,9 +181,11 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.DEVOLUCION_BARRIL)
     public DevolucionBarrilResponseDTO anularDevolucionBarril(Long id, AnulacionDevolucionBarrilFormDTO anulacionFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anulacionFormDTO.getMotivoAnulacion() == null || anulacionFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar la devolución de barril. Si no existe, se dispara RecursoNoEncontradoException
         DevolucionBarrilEntity devolucionBarrilEntity = devolucionBarrilRepository.findById(id)
@@ -217,7 +226,7 @@ public class DevolucionBarrilServicioImpl implements IDevolucionBarrilServicio {
         // 7. Aplicar la anulación sobre la devolución y persistirla
         devolucionBarrilEntity.setEstado(EstadoTransaccion.ANULADO);
         devolucionBarrilEntity.setFechaAnulacion(LocalDateTime.now());
-        devolucionBarrilEntity.setMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
+        devolucionBarrilEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperDevolucionBarril.toDTO(devolucionBarrilRepository.save(devolucionBarrilEntity));
     }

@@ -31,7 +31,7 @@ public class VersionRecetaFormDTO {
      * Se espera que este nombre sea único dentro del contexto de la receta a la que pertenece.
      * </p>
      */
-    @NotBlank(message = "El nombre de la receta es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
 
@@ -73,29 +73,29 @@ public class VersionRecetaFormDTO {
     /**
      * Duración de la maceración en minutos.
      */
-    @NotNull(message = "La duración de la maceración es obligatoria")
-    @Positive(message = "La duración de la maceración debe ser mayor a 0")
+    @NotNull(message = "La duración estimada de la maceración es obligatoria")
+    @Positive(message = "La duración estimada de la maceración debe ser mayor a 0")
     private Integer duracionMaceracion;
 
     /**
      * Duración del hervido en minutos.
      */
-    @NotNull(message = "La duración del hervido es obligatoria")
-    @Positive(message = "La duración del hervido debe ser mayor a 0")
+    @NotNull(message = "La duración estimada del hervido es obligatoria")
+    @Positive(message = "La duración estimada del hervido debe ser mayor a 0")
     private Integer duracionHervido;
 
     /**
      * Duración de la fermentación en días.
      */
-    @NotNull(message = "La duración de la fermentación es obligatoria")
-    @Positive(message = "La duración de la fermentación debe ser mayor a 0")
+    @NotNull(message = "La duración estimada de la fermentación es obligatoria")
+    @Positive(message = "La duración estimada de la fermentación debe ser mayor a 0")
     private Integer duracionFermentacion;
 
     /**
      * Duración de la maduración en días.
      */
-    @NotNull(message = "La duración de la maduración es obligatoria")
-    @Positive(message = "La duración de la maduración debe ser mayor a 0")
+    @NotNull(message = "La duración estimada de la maduración es obligatoria")
+    @Positive(message = "La duración estimada de la maduración debe ser mayor a 0")
     private Integer duracionMaduracion;
 
     /**

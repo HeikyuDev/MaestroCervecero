@@ -88,7 +88,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -184,15 +183,46 @@ class LoteServicioImplTest {
     void filtrarLotes_debeRetornarPaginaVaciaSinCoincidencias() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(loteRepository.filtrarLotes(null, "Inexistente", null, null, null, pageable))
+        when(loteRepository.filtrarLotes(null, "INEXISTENTE", null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteResponseDTO> resultado = loteServicio.filtrarLotes(null, "Inexistente", null, null, null, pageable);
+        Page<LoteResponseDTO> resultado = loteServicio.filtrarLotes(null, "INEXISTENTE", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(loteRepository).filtrarLotes(null, "Inexistente", null, null, null, pageable);
+        verify(loteRepository).filtrarLotes(null, "INEXISTENTE", null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-04: filtrarLotes normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarLotes_debeNormalizarElIdentificadorInternoBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(loteRepository.filtrarLotes(null, "IPA 1", null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(crearLoteMinimo(1L, "IPA 1")), pageable, 1));
+
+        // === EJECUCION ===
+        Page<LoteResponseDTO> resultado = loteServicio.filtrarLotes(null, "   ipa   1  ", null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        verify(loteRepository).filtrarLotes(null, "IPA 1", null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FL-05: filtrarLotes trata un identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarLotes_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        when(loteRepository.filtrarLotes(null, null, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        loteServicio.filtrarLotes(null, "    ", null, null, null, pageable);
+
+        // === ASSERTS ===
+        verify(loteRepository).filtrarLotes(null, null, null, null, null, pageable);
     }
 
     // ==================== buscarPorId ====================
@@ -1504,6 +1534,20 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-CL-25: cancelarLote lanza ReglaNegocioException si el motivo de cancelación tiene 256 caracteres")
+    void cancelarLote_debeLanzarExcepcionSiMotivoDe256Caracteres() {
+        // === PREPARACION DE DATOS ===
+        CancelacionLoteFormDTO formDTO = CancelacionLoteFormDTO.builder().motivoCancelacion("a".repeat(256)).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.cancelarLote(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de cancelación no puede superar 255 caracteres");
+        verifyNoInteractions(loteRepository, reservaInsumoRepository, loteInsumoRepository,
+                molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
     @DisplayName("CP-CL-04: cancelarLote lanza ReglaNegocioException si el lote está FINALIZADO")
     void cancelarLote_debeLanzarExcepcionSiLoteFinalizado() {
         // === PREPARACION DE DATOS ===
@@ -2706,7 +2750,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarEnvasado(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar el envasado de un lote sin litros envasados. Si no se va a producir, debe cancelarse el lote");
+                .hasMessage("No se puede finalizar el envasado de un lote sin litros envasados, si no se va a producir debe cancelarse el lote");
         assertThat(lote.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
         assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
         assertThat(lote.getDetallesCostoDirecto()).isEmpty();
@@ -3623,7 +3667,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-LC-24: listarLotesParaCronograma acepta 1825 días entre desde y hasta y rechaza 1826 (tope de 5 años)")
+    @DisplayName("CP-LC-24: listarLotesParaCronograma acepta un período de 1826 días contando ambos extremos (1825 entre desde y hasta) y rechaza 1827 (tope de 5 años)")
     void listarLotesParaCronograma_debeAplicarElTopeDelPeriodo() {
         // === PREPARACION DE DATOS ===
         when(loteRepository.buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of());
@@ -3634,7 +3678,7 @@ class LoteServicioImplTest {
         verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
         assertThatThrownBy(() -> loteServicio.listarLotesParaCronograma(null, LocalDate.of(2018, 1, 1), LocalDate.of(2023, 1, 1)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El período del cronograma no puede superar los 1.825 días (5 años)");
+                .hasMessage("El período del cronograma no puede superar los 1.826 días (5 años)");
         verify(loteRepository, times(1)).buscarLotesParaCronograma(isNull(), any(LocalDateTime.class), any(LocalDateTime.class));
     }
 

@@ -13,7 +13,7 @@
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Molino encontrado|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `MolinoResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|Molino inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "El molino no existe".|
+|**CP-BI-02**|Molino inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el molino con ID: 99".|
 
 ### 3. `altaMolino(MolinoFormDTO molinoFormDTO)`
 

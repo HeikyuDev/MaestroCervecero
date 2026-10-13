@@ -15,7 +15,7 @@ Solo devuelve presentaciones comerciales activas (`estado = 'ACTIVO'`). `nombre`
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-BI-01**|Presentación comercial encontrada|`id: 1L` (Existe en BD)|`findById(1L)` $\rightarrow$ **Presente**|Retorna `PresentacionComercialResponseDTO` con los datos de la entidad.|
-|**CP-BI-02**|Presentación comercial inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "La presentación comercial no existe".|
+|**CP-BI-02**|Presentación comercial inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la presentación comercial con ID: 99".|
 
 ### 3. `altaPresentacionComercial(PresentacionComercialFormDTO presentacionComercialFormDTO)`
 

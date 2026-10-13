@@ -13,6 +13,18 @@
 </a>
 
 <!--
+    Botón de navegación de una pantalla que todavía no existe: se muestra atenuado, sin enlace (no navega a una página
+    inexistente) y con la leyenda "Próximamente". Cuando exista el controller, se reemplaza por el fragmento "enlace".
+    Parámetros: icono (Bootstrap Icons) y texto.
+-->
+<span th:fragment="enlaceProximamente(icono, texto)" title="Próximamente" aria-disabled="true"
+      class="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-4 border-transparent font-medium text-sm text-slate-600 cursor-not-allowed">
+    <i class="bi text-lg" th:classappend="${icono}"></i>
+    <span th:text="${texto}">Opción</span>
+    <span class="ml-auto text-xs font-normal text-slate-500">Próximamente</span>
+</span>
+
+<!--
     Título de una sección de la sidebar.
 -->
 <p th:fragment="seccion(titulo)" th:text="${titulo}"
@@ -53,9 +65,9 @@
         <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
             <p th:replace="~{fragments/sidebar ::seccion('Operación')}"></p>
 
-            <!-- CONTROL DE LOTES (Operario de Producción, Gerente de Producción) -->
+            <!-- CONTROL DE LOTES (Operario de Producción, Gerente de Producción). Todavía no tiene controller: se muestra como "Próximamente" -->
             <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION')">
-                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-droplet-half', 'Control de Lotes')}"></a>
+                <span th:replace="~{fragments/sidebar ::enlaceProximamente('bi-droplet-half', 'Control de Lotes')}"></span>
             </th:block>
 
             <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->
@@ -68,9 +80,9 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/cronograma-produccion', ${opcionActiva}, 'cronograma', 'bi-bar-chart-steps', 'Cronograma de Producción')}"></a>
             </th:block>
 
-            <!-- ÓRDENES DE COMPRA (Gerente de Compras) -->
+            <!-- ÓRDENES DE COMPRA (Gerente de Compras). Todavía no tiene controller: se muestra como "Próximamente" -->
             <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
-                <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'compras', 'bi-cart3', 'Órdenes de Compra')}"></a>
+                <span th:replace="~{fragments/sidebar ::enlaceProximamente('bi-cart3', 'Órdenes de Compra')}"></span>
             </th:block>
         </th:block>
 

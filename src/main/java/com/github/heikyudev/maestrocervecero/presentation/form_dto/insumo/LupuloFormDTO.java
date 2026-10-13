@@ -23,7 +23,7 @@ public class LupuloFormDTO {
     /**
      * Nombre del lúpulo. Debe ser único entre los lúpulos activos (case-insensitive).
      */
-    @NotBlank(message = "El nombre del lúpulo es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
     /**

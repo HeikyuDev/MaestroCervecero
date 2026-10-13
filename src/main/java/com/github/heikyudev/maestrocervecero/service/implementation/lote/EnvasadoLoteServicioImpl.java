@@ -23,6 +23,9 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEnvasadoLote;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -173,9 +176,11 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.ENVASADO_LOTE)
     public EnvasadoLoteResponseDTO anularEnvasadoLote(Long id, AnularEnvasadoLoteFormDTO anularEnvasadoLoteFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anularEnvasadoLoteFormDTO.getMotivoAnulacion() == null || anularEnvasadoLoteFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anularEnvasadoLoteFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Validar que el envasado de lote esté registrado en el sistema
         EnvasadoLoteEntity envasadoLote = envasadoLoteRepository.findById(id)
@@ -209,7 +214,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         // 7. Aplicar la anulación sobre el envasado y persistir
         envasadoLote.setEstado(EstadoTransaccion.ANULADO);
         envasadoLote.setFechaAnulacion(LocalDateTime.now());
-        envasadoLote.setMotivoAnulacion(anularEnvasadoLoteFormDTO.getMotivoAnulacion());
+        envasadoLote.setMotivoAnulacion(motivoAnulacion);
 
         return MapperEnvasadoLote.toDTO(envasadoLoteRepository.save(envasadoLote));
     }

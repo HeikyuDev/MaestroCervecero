@@ -231,6 +231,18 @@ class FraccionamientoBarrilServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-RFRB-15: registrarFraccionamientoBarril lanza ReglaNegocioException cuando las observaciones están en blanco")
+    void registrar_debeRechazarObservacionesDe256Caracteres() {
+        FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), 5.0, "a".repeat(256));
+
+        assertThatThrownBy(() -> fraccionamientoBarrilServicio.registrarFraccionamientoBarril(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Las observaciones no pueden superar 255 caracteres");
+
+        verifyNoInteractions(barrilRepository, fraccionamientoBarrilRepository);
+    }
+
+    @Test
     @DisplayName("CP-RFRB-04: registrarFraccionamientoBarril lanza ReglaNegocioException cuando la cantidad a extraer es nula")
     void registrar_debeRechazarCantidadNula() {
         FraccionamientoBarrilFormDTO formDTO = fraccionamientoBarrilFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), null, "Merma");
@@ -467,6 +479,18 @@ class FraccionamientoBarrilServicioImplTest {
         assertThatThrownBy(() -> fraccionamientoBarrilServicio.anularFraccionamientoBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
+
+        verifyNoInteractions(fraccionamientoBarrilRepository, barrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AFRB-11: anularFraccionamientoBarril lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    void anular_debeRechazarMotivoDe256Caracteres() {
+        AnulacionFraccionamientoBarrilFormDTO formDTO = anulacionFormDTO("a".repeat(256));
+
+        assertThatThrownBy(() -> fraccionamientoBarrilServicio.anularFraccionamientoBarril(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
 
         verifyNoInteractions(fraccionamientoBarrilRepository, barrilRepository, fallaBarrilRepository, mantenimientoBarrilRepository, limpiezaBarrilRepository, despachoBarrilRepository, devolucionBarrilRepository);
     }

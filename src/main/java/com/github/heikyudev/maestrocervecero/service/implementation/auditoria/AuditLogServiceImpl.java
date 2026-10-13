@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.auditoria.IAuditLogService;
 import com.github.heikyudev.maestrocervecero.service.response_dto.auditoria.AuditLogResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.auditoria.MapperAuditLog;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -77,7 +78,11 @@ public class AuditLogServiceImpl implements IAuditLogService {
             throw new ReglaNegocioException("La fecha hasta no puede ser anterior a la fecha desde");
         }
 
-        String usernameNormalizado = (username == null || username.isBlank()) ? null : username.trim();
+        // El texto buscado se normaliza igual que los textos guardados: sin espacios de más
+        String usernameNormalizado = NormalizacionTexto.nombrePropio(username);
+        if (usernameNormalizado != null && usernameNormalizado.isEmpty()) {
+            usernameNormalizado = null;
+        }
 
         return auditLogRepository
                 .filtrarAuditLogs(fechaDesde, fechaHasta, accion, conceptoAuditoria, usernameNormalizado, pageable)

@@ -20,6 +20,9 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IAjusteInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.AjusteInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperAjusteInsumo;
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
+import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -107,9 +110,11 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
         }
 
         // 4. Validar que se haya informado la observación
-        if (ajusteInsumoFormDTO.getObservacion() == null || ajusteInsumoFormDTO.getObservacion().isBlank()) {
+        String observacion = NormalizacionTexto.nombrePropio(ajusteInsumoFormDTO.getObservacion());
+        if (observacion == null || observacion.isEmpty()) {
             throw new ReglaNegocioException("La observación es obligatoria");
         }
+        ValidacionesNumericas.validarLongitudMaxima(observacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "La observación");
 
         // 5. Aplicar el ajuste al lote (valida, para un EGRESO, que no deje cantidad disponible
         //    negativa) y persistirlo
@@ -118,7 +123,7 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
         // 6. Construir y persistir el ajuste de insumo, y retornar el DTO de respuesta correspondiente
         AjusteInsumoEntity ajusteInsumoEntity = AjusteInsumoEntity.builder()
                 .cantidad(cantidad)
-                .observacion(ajusteInsumoFormDTO.getObservacion())
+                .observacion(observacion)
                 .motivoAjuste(motivoAjusteEntity)
                 .loteInsumo(loteInsumoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -145,9 +150,11 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.AJUSTE_INSUMO)
     public AjusteInsumoResponseDTO anularAjusteInsumo(Long id, AnularAjusteInsumoFormDTO anularAjusteInsumoFormDTO) {
         // 1. Validar que se haya informado el motivo de anulación
-        if (anularAjusteInsumoFormDTO.getMotivoAnulacion() == null || anularAjusteInsumoFormDTO.getMotivoAnulacion().isBlank()) {
+        String motivoAnulacion = NormalizacionTexto.nombrePropio(anularAjusteInsumoFormDTO.getMotivoAnulacion());
+        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
             throw new ReglaNegocioException("El motivo de anulación es obligatorio");
         }
+        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
         // 2. Localizar el ajuste de insumo. Si no existe, se dispara RecursoNoEncontradoException
         AjusteInsumoEntity ajusteInsumoEntity = ajusteInsumoRepository.findById(id)
@@ -173,7 +180,7 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
         // 5. Aplicar la anulación sobre el ajuste y persistirlo
         ajusteInsumoEntity.setEstado(EstadoTransaccion.ANULADO);
         ajusteInsumoEntity.setFechaAnulacion(LocalDateTime.now());
-        ajusteInsumoEntity.setMotivoAnulacion(anularAjusteInsumoFormDTO.getMotivoAnulacion());
+        ajusteInsumoEntity.setMotivoAnulacion(motivoAnulacion);
 
         return MapperAjusteInsumo.toDTO(ajusteInsumoRepository.save(ajusteInsumoEntity));
     }

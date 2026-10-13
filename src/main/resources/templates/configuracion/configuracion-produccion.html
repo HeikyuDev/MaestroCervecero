@@ -61,7 +61,7 @@
                         <option th:each="criterio : ${criteriosSecuenciales}" th:value="${criterio}" th:text="${criterio.etiqueta}">Criterio</option>
                     </select>
                     <p th:if="${#fields.hasErrors('criterioSeleccionPlanSecuencial')}" th:errors="*{criterioSeleccionPlanSecuencial}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Criterio con el que se elegirán los equipos al generar planes de producción automáticos.</p>
+                    <p class="mt-1 text-xs text-slate-400">Criterio con el que se elegirán los equipos al generar planes de producción automáticos</p>
                 </div>
                 <div>
                     <label for="criterioSeleccionPlanConcurrente" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Criterio para planes concurrentes <span class="text-rose-600" title="Obligatorio">*</span></span></label>
@@ -71,7 +71,7 @@
                         <option th:each="criterio : ${criteriosConcurrentes}" th:value="${criterio}" th:text="${criterio.etiqueta}">Criterio</option>
                     </select>
                     <p th:if="${#fields.hasErrors('criterioSeleccionPlanConcurrente')}" th:errors="*{criterioSeleccionPlanConcurrente}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Criterio con el que se elegirán los equipos al generar planes de producción automáticos.</p>
+                    <p class="mt-1 text-xs text-slate-400">Criterio con el que se elegirán los equipos al generar planes de producción automáticos</p>
                 </div>
             </div>
         </section>
