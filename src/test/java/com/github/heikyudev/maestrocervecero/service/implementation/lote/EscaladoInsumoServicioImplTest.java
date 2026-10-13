@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
@@ -25,6 +26,8 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
+import org.hibernate.proxy.HibernateProxy;
+import org.hibernate.proxy.LazyInitializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +37,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 class EscaladoInsumoServicioImplTest {
 
@@ -364,7 +370,46 @@ class EscaladoInsumoServicioImplTest {
                 .hasMessage("La etapa de Maceración del lote 1 no tiene un macerador asociado como equipamiento");
     }
 
+    @Test
+    @DisplayName("CP-EI-CE-07: calcularRequerimientosEtapa resuelve el macerador desenvolviendo el proxy de Hibernate del equipamiento de la etapa de Maceración")
+    void calcularRequerimientosEtapa_debeResolverElMaceradorDesdeUnProxy() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+        EtapaLoteEntity etapaMaceracion = lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION);
+        double cantidadConMaceradorReal = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion).get(0).cantidadRequerida();
+        EquipamientoEntity proxy = proxyDe(crearMacerador(75.0));
+        etapaMaceracion.setEquipamiento(proxy);
+
+        // === EJECUCION ===
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMaceracion);
+
+        // === ASSERTS ===
+        assertThat(proxy).isNotInstanceOf(MaceradorEntity.class);
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).insumo()).isEqualTo(pilsen);
+        assertThat(resultado.get(0).cantidadRequerida()).isEqualTo(cantidadConMaceradorReal);
+    }
+
     // ==================== helpers de construcción ====================
+
+    /**
+     * Simula el proxy perezoso de Hibernate que llega desde {@code EtapaLoteEntity.getEquipamiento()}: una instancia
+     * de la clase abstracta {@code EquipamientoEntity} (no de {@code MaceradorEntity}) que delega en el real.
+     */
+    private static EquipamientoEntity proxyDe(MaceradorEntity real) {
+        EquipamientoEntity proxy = mock(EquipamientoEntity.class, withSettings().extraInterfaces(HibernateProxy.class));
+        HibernateProxy proxyHibernate = (HibernateProxy) proxy;
+        LazyInitializer inicializador = mock(LazyInitializer.class);
+        when(proxyHibernate.asHibernateProxy()).thenReturn(proxyHibernate);
+        when(proxyHibernate.getHibernateLazyInitializer()).thenReturn(inicializador);
+        when(inicializador.getImplementation()).thenReturn(real);
+        return proxy;
+    }
 
     private static MaltaEntity crearMalta(Long id, String nombre, int potencialExtracto) {
         return MaltaEntity.builder().id(id).nombre(nombre).unidadDeMedida(UnidadDeMedida.KILOGRAMO).estado(Estado.ACTIVO).potencialExtracto(potencialExtracto).build();

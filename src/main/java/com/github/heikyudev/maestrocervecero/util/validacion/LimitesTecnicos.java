@@ -84,6 +84,18 @@ public final class LimitesTecnicos {
     /** Velocidad máxima de envasado de la configuración de producción, en litros por hora. */
     public static final double VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA = 100_000.0;
 
+    /** Cantidad máxima que se puede consumir de un insumo en un solo consumo, en kilogramos o gramos según el insumo (igual que la cantidad máxima de un insumo en una receta). */
+    public static final double CANTIDAD_CONSUMIDA_MAXIMA = CANTIDAD_INSUMO_RECETA_MAXIMA;
+
+    /** Cantidad máxima que se puede envasar en un solo envasado, en litros (igual que la capacidad máxima de un equipo). */
+    public static final double CANTIDAD_ENVASADA_MAXIMA_LITROS = CAPACIDAD_EQUIPO_MAXIMA_LITROS;
+
+    /**
+     * Cantidad de decimales con la que se guardan y se comparan las cantidades de stock, reservas, consumos y envasados:
+     * absorbe el error de representación de los números de punto flotante (por ejemplo, {@code 0,1 + 0,2}).
+     */
+    public static final int ESCALA_CANTIDADES = 4;
+
     private LimitesTecnicos() {
     }
 }

@@ -21,6 +21,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEn
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanConcurrente;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.CriterioSeleccionPlanSecuencial;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
@@ -91,6 +93,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -349,27 +352,29 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-07: registrarLote lanza ReglaNegocioException si el volumen objetivo es nulo")
+    @DisplayName("CP-RL-07: registrarLote lanza ReglaNegocioException sin consultar nada si el volumen objetivo es nulo")
     void registrarLote_debeLanzarExcepcionSiVolumenObjetivoNulo() {
         // === PREPARACION DE DATOS ===
-        mockearEquipamientoBase();
         LoteFormDTO formDTO = loteFormDTOBuilderBase().volumenObjetivo(null).build();
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen objetivo del lote es obligatorio");
+        verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
 
     @Test
-    @DisplayName("CP-RL-08: registrarLote lanza ReglaNegocioException si el volumen objetivo es cero (límite)")
+    @DisplayName("CP-RL-08: registrarLote lanza ReglaNegocioException sin consultar nada si el volumen objetivo es cero (límite)")
     void registrarLote_debeLanzarExcepcionSiVolumenObjetivoEsCero() {
         // === PREPARACION DE DATOS ===
-        mockearEquipamientoBase();
         LoteFormDTO formDTO = loteFormDTOBuilderBase().volumenObjetivo(0.0).build();
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+        verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
     }
 
     @Test
@@ -381,7 +386,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen objetivo del lote (25 L) supera la capacidad útil del fermentador seleccionado (20 L)");
     }
 
     @Test
@@ -412,7 +418,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen pre-hervor calculado (25 L) supera la capacidad útil de la olla de hervor seleccionada (24 L)");
     }
 
     @Test
@@ -429,11 +436,12 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La mezcla de agua y grano (21,26 L) desbordará el macerador seleccionado (capacidad útil: 20 L)");
     }
 
     @Test
-    @DisplayName("CP-RL-13: registrarLote lanza RecursoNoEncontradoException si no existe la configuración de planificación de producción")
+    @DisplayName("CP-RL-13: registrarLote lanza RecursoNoEncontradoException si no existe la configuración de producción")
     void registrarLote_debeLanzarExcepcionSiConfiguracionNoExiste() {
         // === PREPARACION DE DATOS ===
         mockearEquipamientoBase();
@@ -444,7 +452,79 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.registrarLote(formDTO))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
+    }
+
+    @Test
+    @DisplayName("CP-RL-43: registrarLote lanza ReglaNegocioException sin consultar nada si el volumen objetivo es NaN o infinito")
+    void registrarLote_debeLanzarExcepcionSiVolumenObjetivoNoEsFinito() {
+        // === EJECUCION Y ASSERTS ===
+        for (double noFinito : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(noFinito).build()))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El volumen objetivo del lote debe ser un número mayor a 0");
+        }
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(-5.0).build()))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+        verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RL-44: registrarLote lanza ReglaNegocioException sin consultar nada si falta la planificación de producción o algún equipamiento")
+    void registrarLote_debeLanzarExcepcionSiFaltaUnIdObligatorio() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().idPlanificacionProduccion(null).build()))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("La planificación de producción es obligatoria");
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().idMolino(null).build()))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El molino es obligatorio");
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().idMacerador(null).build()))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El macerador es obligatorio");
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().idOllaHervor(null).build()))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("La olla de hervor es obligatoria");
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().idFermentador(null).build()))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El fermentador es obligatorio");
+        verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RL-45: registrarLote lanza ReglaNegocioException sin consultar nada si el volumen objetivo redondeado a 4 decimales es cero")
+    void registrarLote_debeLanzarExcepcionSiVolumenObjetivoSeRedondeaACero() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(0.00001).build()))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
+        verifyNoInteractions(planificacionProduccionRepository, molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RL-46: registrarLote compara y guarda el volumen objetivo redondeado a 4 decimales (20,00004 L contra una capacidad útil de 20 L)")
+    void registrarLote_debeRedondearElVolumenObjetivoAntesDeCompararlo() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captor = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(20.00004).build());
+
+        // === ASSERTS ===
+        assertThat(captor.getValue().getVolumenObjetivo()).isEqualTo(20.0);
+    }
+
+    @Test
+    @DisplayName("CP-RL-47: registrarLote muestra el volumen objetivo formateado, sin residuos decimales, cuando supera la capacidad útil del fermentador")
+    void registrarLote_debeFormatearElVolumenObjetivoEnElMensaje() {
+        // === PREPARACION DE DATOS ===
+        mockearEquipamientoBase();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(21.264000000000003).build()))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El volumen objetivo del lote (21,26 L) supera la capacidad útil del fermentador seleccionado (20 L)");
     }
 
     @Test
@@ -985,6 +1065,15 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-IL-24: iniciarLote lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void iniciarLote_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.iniciarLote(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository);
+    }
+
+    @Test
     @DisplayName("CP-IL-02: iniciarLote lanza ReglaNegocioException si el lote está en EN_EJECUCION")
     void iniciarLote_debeLanzarExcepcionSiLoteEnEjecucion() {
         // === PREPARACION DE DATOS ===
@@ -1093,7 +1182,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageMatching("Stock disponible insuficiente de los siguientes insumos: 'MaltaB' \\(se requieren \\d+,\\d{1,2} kg y solo hay 2 kg disponibles\\)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1115,7 +1205,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageMatching("Stock disponible insuficiente de los siguientes insumos: 'LupuloB' \\(se requieren \\d+,\\d{1,2} g y solo hay 5 g disponibles\\)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1140,7 +1231,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
-                .isInstanceOf(ReglaNegocioException.class);
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Stock disponible insuficiente de los siguientes insumos: 'LevaduraB' (se requieren 7,5 g y solo hay 2 g disponibles)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1245,6 +1337,84 @@ class LoteServicioImplTest {
                 .toList();
         assertThat(reservasLevadura).hasSize(1);
         assertThat(reservasLevadura.get(0).getCantidadReservada()).isCloseTo(7.5, within(0.01));
+    }
+
+    @Test
+    @DisplayName("CP-IL-25: iniciarLote muestra en el mensaje de stock insuficiente las cantidades formateadas y con la unidad del insumo, sin residuos decimales")
+    void iniciarLote_debeFormatearLasCantidadesDelMensajeDeStockInsuficiente() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MACERACION), 12.345678)))
+                .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
+        // 0,1 + 0,2 = 0,30000000000000004
+        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(
+                crearLoteInsumo(100L, malta, 0.1, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN),
+                crearLoteInsumo(101L, malta, 0.2, 0.0, LocalDate.now().plusDays(60), BigDecimal.TEN)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Stock disponible insuficiente de los siguientes insumos: 'MaltaB' (se requieren 12,35 kg y solo hay 0,3 kg disponibles)");
+        verify(loteInsumoRepository, never()).save(any());
+        verifyNoInteractions(reservaInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-IL-26: iniciarLote reserva por FEFO sin dejar residuos decimales: requerimiento de 0,3 contra lotes de insumo de 0,1 y 0,2")
+    void iniciarLote_debeReservarPorFefoSinResiduosDecimales() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MACERACION), 0.3)))
+                .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
+        LoteInsumoEntity loteA = crearLoteInsumo(100L, malta, 0.1, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
+        LoteInsumoEntity loteB = crearLoteInsumo(101L, malta, 0.2, 0.0, LocalDate.now().plusDays(60), BigDecimal.TEN);
+        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(loteA, loteB));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ReservaInsumoEntity>> captor = ArgumentCaptor.forClass(List.class);
+        when(reservaInsumoRepository.saveAll(captor.capture())).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        assertThat(loteA.getCantidadReservada()).isEqualTo(0.1);
+        assertThat(loteB.getCantidadReservada()).isEqualTo(0.2);
+        assertThat(loteB.getCantidadDisponible()).isEqualTo(0.0);
+        assertThat(captor.getValue()).extracting(ReservaInsumoEntity::getCantidadReservada).containsExactly(0.1, 0.2);
+    }
+
+    @Test
+    @DisplayName("CP-IL-27: iniciarLote considera suficiente un stock de 0,3 para un requerimiento con residuo decimal de 0,30000000000000004")
+    void iniciarLote_debeConsiderarSuficienteElStockQueIgualaAlRequerimientoRedondeado() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, null, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        mockearEquipamientoParaIniciar(lote);
+        double requerimientoConResiduo = 0.1 + 0.2;
+        doReturn(List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MACERACION), requerimientoConResiduo)))
+                .when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
+        LoteInsumoEntity unicoLote = crearLoteInsumo(100L, malta, 0.3, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
+        when(loteInsumoRepository.buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(10L)).thenReturn(List.of(unicoLote));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<ReservaInsumoEntity>> captor = ArgumentCaptor.forClass(List.class);
+        when(reservaInsumoRepository.saveAll(captor.capture())).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        assertThat(requerimientoConResiduo).isGreaterThan(0.3);
+        assertThat(unicoLote.getCantidadReservada()).isEqualTo(0.3);
+        assertThat(captor.getValue()).extracting(ReservaInsumoEntity::getCantidadReservada).containsExactly(0.3);
     }
 
     @Test
@@ -1573,6 +1743,63 @@ class LoteServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(reservaInsumoRepository, loteInsumoRepository,
                 molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CL-26: cancelarLote lanza ReglaNegocioException sin tocar nada si el lote tiene envasados registrados")
+    void cancelarLote_debeLanzarExcepcionSiElLoteTieneEnvasadosRegistrados() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        when(envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase()))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede cancelar el lote porque tiene envasados registrados, anule los envasados para poder cancelarlo");
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
+        assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+        verify(loteRepository, never()).save(any());
+        verifyNoInteractions(reservaInsumoRepository, loteInsumoRepository,
+                molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CL-27: cancelarLote consulta los envasados REGISTRADO del lote y cancela cuando no tiene ninguno (los anulados no bloquean)")
+    void cancelarLote_debeConsultarLosEnvasadosRegistradosYCancelarSiNoTiene() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaCancelarConPlanificacionDelLote();
+        when(envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.CANCELADO);
+        verify(envasadoLoteRepository).existsByEtapaLote_Lote_IdAndEstado(1L, EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-CL-28: cancelarLote lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void cancelarLote_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.cancelarLote(null, cancelacionLoteFormDTOBase()))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, envasadoLoteRepository, reservaInsumoRepository, loteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CL-29: cancelarLote valida el estado del lote antes de consultar sus envasados")
+    void cancelarLote_debeValidarElEstadoDelLoteAntesDeConsultarSusEnvasados() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.FINALIZADO, null);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase()))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote debe encontrarse en estado Pendiente o En ejecución para poder cancelarse");
+        verifyNoInteractions(envasadoLoteRepository);
     }
 
     @Test
@@ -2026,6 +2253,15 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-FM-05: finalizarMolienda lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void finalizarMolienda_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.finalizarMolienda(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, molinoRepository);
+    }
+
+    @Test
     @DisplayName("CP-FM-02: finalizarMolienda lanza ReglaNegocioException si el lote no está EN_EJECUCION")
     void finalizarMolienda_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
@@ -2101,6 +2337,15 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-FMC-09: finalizarMaceracion lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void finalizarMaceracion_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, maceradorRepository, consumoInsumoServicio);
+    }
+
+    @Test
     @DisplayName("CP-FMC-02: finalizarMaceracion lanza ReglaNegocioException si el lote no está EN_EJECUCION")
     void finalizarMaceracion_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
@@ -2136,7 +2381,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
         verifyNoInteractions(consumoInsumoServicio, maceradorRepository);
     }
 
@@ -2219,6 +2465,57 @@ class LoteServicioImplTest {
         verify(loteRepository).save(lote);
     }
 
+    @Test
+    @DisplayName("CP-FMC-07: finalizarMaceracion con porcentaje mínimo 100% acepta un consumo igual al requerido aunque tenga residuo decimal (0,3 contra 0,30000000000000004)")
+    void finalizarMaceracion_debeAceptarElConsumoIgualAlRequeridoConResiduoDecimal() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
+        etapaMaceracion.setId(2L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionConPorcentajeMinimo(100.0);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(0.1 + 0.2)
+                        .cantidadConsumida(0.3)
+                        .build()));
+        mockearEquipamientoParaIniciar(lote);
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.finalizarMaceracion(1L);
+
+        // === ASSERTS ===
+        assertThat(0.1 + 0.2).isGreaterThan(0.3);
+        assertThat(etapaMaceracion.getEstado()).isEqualTo(EstadoEtapaLote.FINALIZADA);
+        assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
+    }
+
+    @Test
+    @DisplayName("CP-FMC-08: finalizarMaceracion con porcentaje mínimo 100% rechaza un consumo menor al requerido por más de 4 decimales")
+    void finalizarMaceracion_debeRechazarElConsumoMenorAlRequeridoConPorcentajeCien() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION);
+        EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
+        etapaMaceracion.setId(2L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        mockearConfiguracionConPorcentajeMinimo(100.0);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(2L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder()
+                        .insumo(MaltaResponseDTO.builder().id(1L).nombre("Malta Pilsen").build())
+                        .cantidadRequerida(10.0)
+                        .cantidadConsumida(9.9998)
+                        .build()));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.finalizarMaceracion(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el 100% mínimo de consumo requerido: Malta Pilsen");
+        verify(loteRepository, never()).save(any());
+        verifyNoInteractions(maceradorRepository);
+    }
+
     // ==================== finalizarHervido ====================
 
     @Test
@@ -2231,6 +2528,15 @@ class LoteServicioImplTest {
         assertThatThrownBy(() -> loteServicio.finalizarHervido(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
         verifyNoInteractions(ollaHervorRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FH-07: finalizarHervido lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void finalizarHervido_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.finalizarHervido(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, ollaHervorRepository, consumoInsumoServicio);
     }
 
     @Test
@@ -2269,7 +2575,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarHervido(1L))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
         verifyNoInteractions(consumoInsumoServicio, ollaHervorRepository);
     }
 
@@ -2367,6 +2674,15 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-FF-07: finalizarFermentacion lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void finalizarFermentacion_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.finalizarFermentacion(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, consumoInsumoServicio);
+    }
+
+    @Test
     @DisplayName("CP-FF-02: finalizarFermentacion lanza ReglaNegocioException si el lote no está EN_EJECUCION")
     void finalizarFermentacion_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
@@ -2402,7 +2718,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarFermentacion(1L))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
         verifyNoInteractions(consumoInsumoServicio);
     }
 
@@ -2497,6 +2814,15 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-FMD-07: finalizarMaduracion lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void finalizarMaduracion_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.finalizarMaduracion(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, consumoInsumoServicio);
+    }
+
+    @Test
     @DisplayName("CP-FMD-02: finalizarMaduracion lanza ReglaNegocioException si el lote no está EN_EJECUCION")
     void finalizarMaduracion_debeLanzarExcepcionSiLoteNoEstaEnEjecucion() {
         // === PREPARACION DE DATOS ===
@@ -2532,7 +2858,8 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarMaduracion(1L))
-                .isInstanceOf(RecursoNoEncontradoException.class);
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la configuración de producción");
         verifyNoInteractions(consumoInsumoServicio);
     }
 
@@ -2624,6 +2951,15 @@ class LoteServicioImplTest {
         assertThatThrownBy(() -> loteServicio.finalizarEnvasado(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class);
         verifyNoInteractions(fermentadorRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FE-20: finalizarEnvasado lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void finalizarEnvasado_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.finalizarEnvasado(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, envasadoLoteRepository, fermentadorRepository);
     }
 
     @Test
@@ -2874,6 +3210,25 @@ class LoteServicioImplTest {
         DetalleCostoDirectoEntity detalle = lote.getDetallesCostoDirecto().get(0);
         assertThat(detalle.getCostoPorLitroAplicado()).isEqualByComparingTo("0.50");
         assertThat(detalle.getSubtotal()).isEqualByComparingTo("200.0000");
+        verify(envasadoLoteRepository, times(1)).sumarCantidadEnvasadaRegistrada(any());
+    }
+
+    @Test
+    @DisplayName("CP-FE-21: finalizarEnvasado finaliza un lote con más litros que su volumen objetivo y calcula los costos sobre lo envasado")
+    void finalizarEnvasado_debeFinalizarLoteConMasLitrosQueSuObjetivo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = prepararLoteParaFinalizarEnvasado(650.0);
+        lote.setVolumenObjetivo(600.0);
+        CostoDirectoAdicionalEntity etiquetas = CostoDirectoAdicionalEntity.builder().id(1L).nombre("Etiquetas").costoPorLitro(BigDecimal.valueOf(0.50)).estado(Estado.ACTIVO).build();
+        when(costoDirectoAdicionalRepository.findAllActivos()).thenReturn(List.of(etiquetas));
+
+        // === EJECUCION ===
+        loteServicio.finalizarEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEstado()).isEqualTo(EstadoLote.FINALIZADO);
+        assertThat(lote.getDetallesCostoDirecto()).hasSize(1);
+        assertThat(lote.getDetallesCostoDirecto().get(0).getSubtotal()).isEqualByComparingTo("325.0000");
         verify(envasadoLoteRepository, times(1)).sumarCantidadEnvasadaRegistrada(any());
     }
 
@@ -3749,6 +4104,15 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-SQ-19: subirLoteEnCola lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void subirLoteEnCola_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.subirLoteEnCola(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository);
+    }
+
+    @Test
     @DisplayName("CP-SQ-02: subirLoteEnCola lanza ReglaNegocioException cuando el lote está EN_EJECUCION")
     void subirLoteEnCola_debeLanzarExcepcionSiLoteEnEjecucion() {
         // === PREPARACION DE DATOS ===
@@ -3979,7 +4343,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.subirLoteEnCola(13L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
+                .hasMessage("No se pueden reordenar las fechas de la cola del fermentador porque el lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
         assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
@@ -4002,7 +4366,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.subirLoteEnCola(13L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
+                .hasMessage("No se pueden reordenar las fechas de la cola del fermentador porque el lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
         assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
@@ -4069,6 +4433,15 @@ class LoteServicioImplTest {
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el lote con ID: 99");
         verificarSinColaNiPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-BQ-18: bajarLoteEnCola lanza ReglaNegocioException sin consultar nada si no se informó el lote")
+    void bajarLoteEnCola_debeLanzarExcepcionSiNoSeInformoElLote() {
+        assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository);
     }
 
     @Test
@@ -4302,7 +4675,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
+                .hasMessage("No se pueden reordenar las fechas de la cola del fermentador porque el lote IPA Test-12 no tiene sus fechas estimadas de inicio y finalización");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
         assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
@@ -4325,7 +4698,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.bajarLoteEnCola(11L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
+                .hasMessage("No se pueden reordenar las fechas de la cola del fermentador porque el lote IPA Test-12 tiene una fecha de finalización estimada anterior a la de inicio");
         verify(loteRepository, never()).buscarLoteEnEjecucionDeFermentador(any());
         verify(loteRepository, never()).saveAll(anyList());
         assertFechas(loteB, hoy.plusDays(12), hoy.plusDays(30));
@@ -4754,6 +5127,18 @@ class LoteServicioImplTest {
                 .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
                 .build();
         lenient().when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
+    }
+
+    private void mockearConfiguracionConPorcentajeMinimo(double porcentajeMinimo) {
+        ConfiguracionProduccionEntity configuracion = ConfiguracionProduccionEntity.builder()
+                .id(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .velocidadEstandarEnvasado(10.0)
+                .capacidadLoteEstandar(20.0)
+                .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
+                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
+                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
+                .build();
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracion));
     }
 
     private void mockearEquipamientoParaIniciar(LoteEntity lote) {

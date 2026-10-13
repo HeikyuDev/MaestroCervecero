@@ -69,8 +69,10 @@ public interface ILoteServicio {
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.
      * @throws RecursoNoEncontradoException Si la planificación de producción o alguno de los equipamientos referenciados no existe.
-     * @throws ReglaNegocioException Si la planificación de producción no está en estado PENDIENTE, si el volumen objetivo es
-     *                               inválido, si algún equipo seleccionado no tiene capacidad suficiente, o si los lotes de la
+     * @throws ReglaNegocioException Si el volumen objetivo no se informó o no es un número mayor a 0, si no se informó la
+     *                               planificación de producción o algún equipamiento, si la planificación de producción no está
+     *                               en estado PENDIENTE, si el volumen objetivo supera la capacidad útil del fermentador, si
+     *                               algún otro equipo seleccionado no tiene capacidad suficiente, o si los lotes de la
      *                               planificación (litros ya producidos por sus lotes finalizados más el volumen objetivo de
      *                               sus lotes pendientes y en ejecución) ya cubren la cantidad a producir.
      */
@@ -96,7 +98,7 @@ public interface ILoteServicio {
      * @param id El ID del lote a iniciar.
      * @return El lote iniciado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado PENDIENTE, si no hay
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado PENDIENTE, si no hay
      *                               stock suficiente de algún insumo, o si algún equipamiento
      *                               requerido no está disponible.
      */
@@ -106,7 +108,8 @@ public interface ILoteServicio {
      * Cancela un lote en curso.
      * <p>
      * A diferencia de una anulación, cancelar un lote NO revierte los consumos de insumo ya
-     * ejecutados en sus etapas — esos consumos quedan firmes. Lo que sí hace:
+     * ejecutados en sus etapas — esos consumos quedan firmes. Tampoco se puede cancelar un lote que
+     * tiene envasados en estado REGISTRADO: primero deben anularse esos envasados. Lo que sí hace:
      * </p>
      * <ul>
      *     <li>Libera automáticamente todas las reservas de insumo del lote todavía pendientes.</li>
@@ -129,8 +132,9 @@ public interface ILoteServicio {
      * @param cancelacionLoteFormDTO Los datos de la cancelación (motivo).
      * @return El lote cancelado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si el motivo de cancelación no fue informado, o si el lote no
-     *                               se encuentra en estado PENDIENTE o EN_EJECUCION.
+     * @throws ReglaNegocioException Si no se informó el lote, si el motivo de cancelación no fue informado, si el lote no
+     *                               se encuentra en estado PENDIENTE o EN_EJECUCION, o si el lote tiene
+     *                               envasados en estado REGISTRADO.
      */
     LoteResponseDTO cancelarLote(Long id, CancelacionLoteFormDTO cancelacionLoteFormDTO);
 
@@ -150,7 +154,7 @@ public interface ILoteServicio {
      * @param id El ID del lote cuya Molienda se quiere finalizar.
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, o si su
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, o si su
      *                               etapa actual (EN_CURSO) no es Molienda.
      */
     LoteResponseDTO finalizarMolienda(Long id);
@@ -177,7 +181,7 @@ public interface ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Maceración, o si algún insumo
      *                               requerido de la etapa no alcanzó el porcentaje mínimo de
      *                               consumo configurado.
@@ -206,7 +210,7 @@ public interface ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Hervido, o si algún insumo requerido
      *                               de la etapa no alcanzó el porcentaje mínimo de consumo
      *                               configurado.
@@ -237,7 +241,7 @@ public interface ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Fermentación, o si algún insumo
      *                               requerido de la etapa no alcanzó el porcentaje mínimo de
      *                               consumo configurado.
@@ -268,7 +272,7 @@ public interface ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Maduración, o si algún insumo
      *                               requerido de la etapa no alcanzó el porcentaje mínimo de
      *                               consumo configurado.
@@ -304,7 +308,7 @@ public interface ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra el fermentador asociado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su
      *                               etapa actual (EN_CURSO) no es Envasado, o si no tiene litros
      *                               envasados registrados.
      */

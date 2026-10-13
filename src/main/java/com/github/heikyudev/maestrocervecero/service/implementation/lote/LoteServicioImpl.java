@@ -22,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_pr
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.RecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.costo_adicional.ICostoDirectoAdicionalRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
@@ -50,6 +51,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -171,16 +173,28 @@ public class LoteServicioImpl implements ILoteServicio {
      * @param loteFormDTO Los datos del lote a registrar.
      * @return El lote registrado.
      * @throws RecursoNoEncontradoException Si la planificación de producción o alguno de los equipamientos referenciados no existe.
-     * @throws ReglaNegocioException Si la planificación de producción no está en estado PENDIENTE, si el volumen objetivo es
-     *                               inválido, si algún equipo seleccionado no tiene capacidad suficiente, o si los lotes de la
-     *                               planificación (litros ya producidos por sus lotes finalizados más el volumen objetivo de
-     *                               sus lotes pendientes y en ejecución) ya cubren la cantidad a producir.
+     * @throws ReglaNegocioException Si el volumen objetivo no se informó o no es un número mayor a 0, si no se informó
+     *                               la planificación de producción o algún equipamiento (estas validaciones se hacen antes
+     *                               de consultar nada), si la planificación de producción no está en estado PENDIENTE, si
+     *                               el volumen objetivo supera la capacidad útil del fermentador, si algún otro equipo
+     *                               seleccionado no tiene capacidad suficiente, o si los lotes de la planificación (litros
+     *                               ya producidos por sus lotes finalizados más el volumen objetivo de sus lotes pendientes
+     *                               y en ejecución) ya cubren la cantidad a producir.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO registrarLote(LoteFormDTO loteFormDTO) {
-        // 1. Validar que la planificación de producción esté registrada y en estado PENDIENTE
+        // 1. Validar los datos del formulario antes de consultar nada: el volumen objetivo (redondeado a la escala
+        //    de las cantidades) y los IDs de la planificación y de los equipamientos
+        double volumenObjetivo = validarVolumenObjetivoInformado(loteFormDTO.getVolumenObjetivo());
+        validarInformado(loteFormDTO.getIdPlanificacionProduccion(), "La planificación de producción es obligatoria");
+        validarInformado(loteFormDTO.getIdMolino(), "El molino es obligatorio");
+        validarInformado(loteFormDTO.getIdMacerador(), "El macerador es obligatorio");
+        validarInformado(loteFormDTO.getIdOllaHervor(), "La olla de hervor es obligatoria");
+        validarInformado(loteFormDTO.getIdFermentador(), "El fermentador es obligatorio");
+
+        // 2. Validar que la planificación de producción esté registrada y en estado PENDIENTE
         //    (se bloquea para escritura: dos lotes registrados en simultáneo sobre la misma planificación no deben poder pasar ambos)
         PlanificacionProduccionEntity planificacionProduccion = planificacionProduccionRepository.buscarPorIdParaActualizar(loteFormDTO.getIdPlanificacionProduccion())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + loteFormDTO.getIdPlanificacionProduccion()));
@@ -189,7 +203,7 @@ public class LoteServicioImpl implements ILoteServicio {
             throw new ReglaNegocioException("La planificación de producción debe encontrarse en estado Pendiente para poder registrar un lote");
         }
 
-        // 2. Validar que los equipamientos seleccionados estén registrados en el sistema
+        // 3. Validar que los equipamientos seleccionados estén registrados en el sistema
         MolinoEntity molino = molinoRepository.findById(loteFormDTO.getIdMolino())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + loteFormDTO.getIdMolino()));
 
@@ -202,38 +216,42 @@ public class LoteServicioImpl implements ILoteServicio {
         FermentadorEntity fermentador = fermentadorRepository.findById(loteFormDTO.getIdFermentador())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + loteFormDTO.getIdFermentador()));
 
-        // 3. Validar el volumen objetivo del lote (Paso 1 del escalado de agua: verificación del fermentador)
-        Double volumenObjetivo = loteFormDTO.getVolumenObjetivo();
-        validarVolumenObjetivo(volumenObjetivo, fermentador);
+        // 4. Validar que el volumen objetivo del lote no supere la capacidad útil del fermentador (Paso 1 del escalado
+        //    de agua: verificación del fermentador)
+        validarVolumenObjetivoContraFermentador(volumenObjetivo, fermentador);
 
         VersionRecetaEntity versionReceta = planificacionProduccion.getVersionReceta();
         double masaMaltaEscalada = calcularMasaMaltaEscalada(volumenObjetivo, macerador, versionReceta);
 
-        // 4. Validar el volumen pre-hervor contra la capacidad de la olla de hervor (Paso 2 del escalado de agua)
-        double volumenPreHervor = calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta);
-        if (volumenPreHervor > ollaHervor.getCapacidadUtil()) {
-            throw new ReglaNegocioException("El volumen pre-hervor calculado (" + volumenPreHervor + " L) supera la capacidad útil de la olla de hervor seleccionada (" + ollaHervor.getCapacidadUtil() + " L)");
+        // 5. Validar el volumen pre-hervor contra la capacidad de la olla de hervor (Paso 2 del escalado de agua)
+        double volumenPreHervor = Redondeo.redondear(calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta));
+        if (volumenPreHervor > Redondeo.redondear(ollaHervor.getCapacidadUtil())) {
+            throw new ReglaNegocioException("El volumen pre-hervor calculado (" + ValidacionesNumericas.formatearNumero(volumenPreHervor)
+                    + " L) supera la capacidad útil de la olla de hervor seleccionada ("
+                    + ValidacionesNumericas.formatearNumero(ollaHervor.getCapacidadUtil()) + " L)");
         }
 
-        // 5. Validar el volumen de la mezcla de agua y malta contra la capacidad del macerador (Paso 3 del escalado de agua)
-        double volumenMezclaMacerador = calcularVolumenMezclaMacerador(masaMaltaEscalada, macerador, versionReceta);
-        if (volumenMezclaMacerador > macerador.getCapacidadUtil()) {
-            throw new ReglaNegocioException("La mezcla de agua y grano (" + volumenMezclaMacerador + " L) desbordará el macerador seleccionado (capacidad útil: " + macerador.getCapacidadUtil() + " L)");
+        // 6. Validar el volumen de la mezcla de agua y malta contra la capacidad del macerador (Paso 3 del escalado de agua)
+        double volumenMezclaMacerador = Redondeo.redondear(calcularVolumenMezclaMacerador(masaMaltaEscalada, macerador, versionReceta));
+        if (volumenMezclaMacerador > Redondeo.redondear(macerador.getCapacidadUtil())) {
+            throw new ReglaNegocioException("La mezcla de agua y grano (" + ValidacionesNumericas.formatearNumero(volumenMezclaMacerador)
+                    + " L) desbordará el macerador seleccionado (capacidad útil: "
+                    + ValidacionesNumericas.formatearNumero(macerador.getCapacidadUtil()) + " L)");
         }
 
-        // 6. Validar que la planificación todavía necesite lotes: lo ya producido por los lotes finalizados
+        // 7. Validar que la planificación todavía necesite lotes: lo ya producido por los lotes finalizados
         //    más el volumen objetivo de los lotes vivos (sin contar el lote nuevo) no debe alcanzar la cantidad a producir
         validarPlanificacionNecesitaMasLotes(planificacionProduccion);
 
-        // 7. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
+        // 8. Generar el identificador interno del lote, incrementando de forma segura el contador de la receta
         String identificadorInterno = generarIdentificadorInterno(versionReceta);
 
-        // 8. Calcular la planificación del lote en el cronograma del fermentador seleccionado (nunca antes de
+        // 9. Calcular la planificación del lote en el cronograma del fermentador seleccionado (nunca antes de
         //    la fecha de inicio estimada de su planificación de producción ni antes de hoy)
         LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador, planificacionProduccion);
         LocalDate fechaFinalizacionEstimada = calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino, masaMaltaEscalada, versionReceta);
 
-        // 9. Construir el lote y sus 6 etapas (todas en PENDIENTE), y persistir
+        // 10. Construir el lote y sus 6 etapas (todas en PENDIENTE), y persistir
         LoteEntity loteEntity = LoteEntity.builder()
                 .identificadorInterno(identificadorInterno)
                 .volumenObjetivo(volumenObjetivo)
@@ -258,7 +276,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * @param id El ID del lote a iniciar.
      * @return El lote iniciado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado PENDIENTE, si no hay
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado PENDIENTE, si no hay
      *                               stock suficiente de algún insumo, o si algún equipamiento
      *                               requerido no está disponible.
      */
@@ -266,6 +284,8 @@ public class LoteServicioImpl implements ILoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO iniciarLote(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
         LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -339,6 +359,10 @@ public class LoteServicioImpl implements ILoteServicio {
      * corresponda (ver {@link #actualizarEquipamientoAlCancelar}).
      * </p>
      * <p>
+     * Un lote con envasados en estado REGISTRADO no se puede cancelar: primero deben anularse esos
+     * envasados. Los lotes cancelados no suman litros producidos a su planificación.
+     * </p>
+     * <p>
      * Las fechas estimadas de los lotes pendientes del fermentador del lote se reencadenan.
      * </p>
      * <p>
@@ -350,13 +374,16 @@ public class LoteServicioImpl implements ILoteServicio {
      * @param cancelacionLoteFormDTO Los datos de la cancelación (motivo).
      * @return El lote cancelado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si el motivo de cancelación no fue informado, o si el lote no
-     *                               se encuentra en estado PENDIENTE o EN_EJECUCION.
+     * @throws ReglaNegocioException Si no se informó el lote, si el motivo de cancelación no fue informado, si el lote no
+     *                               se encuentra en estado PENDIENTE o EN_EJECUCION, o si el lote tiene
+     *                               envasados en estado REGISTRADO.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO cancelarLote(Long id, CancelacionLoteFormDTO cancelacionLoteFormDTO) {
+        validarLoteInformado(id);
+
         // 1. Validar que se haya informado el motivo de cancelación
         String motivoCancelacion = NormalizacionTexto.nombrePropio(cancelacionLoteFormDTO.getMotivoCancelacion());
         if (motivoCancelacion == null || motivoCancelacion.isEmpty()) {
@@ -374,13 +401,19 @@ public class LoteServicioImpl implements ILoteServicio {
         }
         boolean estabaEnEjecucion = lote.getEstado() == EstadoLote.EN_EJECUCION;
 
-        // 4. Liberar todas las reservas de insumo del lote todavía pendientes. Cancelar NO revierte
+        // 4. Validar que el lote no tenga envasados registrados: la cerveza ya está en los barriles, así que primero
+        //    deben anularse esos envasados
+        if (envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(lote.getId(), EstadoTransaccion.REGISTRADO)) {
+            throw new ReglaNegocioException("No se puede cancelar el lote porque tiene envasados registrados, anule los envasados para poder cancelarlo");
+        }
+
+        // 5. Liberar todas las reservas de insumo del lote todavía pendientes. Cancelar NO revierte
         //    los consumos ya ejecutados: hoy no existe ninguna forma de consumir un insumo sin pasar
         //    antes por una reserva, así que toda reserva de un lote PENDIENTE/EN_EJECUCION representa
         //    stock que todavía no se consumió.
         liberarReservasDelLote(lote);
 
-        // 5. Si el lote estaba en ejecución, actualizar el estado del equipamiento según el estado de
+        // 6. Si el lote estaba en ejecución, actualizar el estado del equipamiento según el estado de
         //    cada etapa (antes de cancelar las etapas en sí, ya que esta resolución se basa en su estado
         //    PENDIENTE/EN_CURSO/FINALIZADA original): el equipamiento de la etapa EN_CURSO pasa a
         //    EN_LIMPIEZA, el de las etapas PENDIENTE pasa a DISPONIBLE, y el de las etapas ya FINALIZADA
@@ -390,26 +423,26 @@ public class LoteServicioImpl implements ILoteServicio {
             actualizarEquipamientoAlCancelar(lote);
         }
 
-        // 6. Cancelar el lote
+        // 7. Cancelar el lote
         LocalDateTime fechaCancelacion = LocalDateTime.now();
         lote.setEstado(EstadoLote.CANCELADO);
         lote.setFechaCancelacion(fechaCancelacion);
         lote.setMotivoCancelacion(motivoCancelacion);
 
-        // 7. Cancelar las etapas que todavía no habían finalizado, como registro histórico del
+        // 8. Cancelar las etapas que todavía no habían finalizado, como registro histórico del
         //    punto donde se interrumpió el lote. Las etapas ya FINALIZADA no se tocan.
         cancelarEtapasNoFinalizadas(lote, fechaCancelacion);
 
         LoteEntity loteCancelado = loteRepository.save(lote);
         loteRepository.flush();
 
-        // 8. Reencadenar los lotes pendientes del fermentador del lote cancelado (si el fermentador quedó
+        // 9. Reencadenar los lotes pendientes del fermentador del lote cancelado (si el fermentador quedó
         //    en ejecución, la cola arranca como mínimo mañana por el día de limpieza). Va antes que la
         //    planificación para respetar el orden de bloqueo lote -> fermentador -> cola pendiente ->
         //    planificación.
         reencadenarColaPendienteDeFermentador(obtenerIdFermentador(lote), estabaEnEjecucion);
 
-        // 9. Si la planificación ya había cubierto su cantidad y este era su último lote vivo, se finaliza
+        // 10. Si la planificación ya había cubierto su cantidad y este era su último lote vivo, se finaliza
         finalizarPlanificacionSiCorresponde(lote.getPlanificacionProduccion().getId());
 
         return MapperLote.toDTO(loteCancelado);
@@ -421,13 +454,15 @@ public class LoteServicioImpl implements ILoteServicio {
      * @param id El ID del lote cuya Molienda se quiere finalizar.
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, o si su
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, o si su
      *                               etapa actual (EN_CURSO) no es Molienda.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO finalizarMolienda(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -461,7 +496,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Maceración, o si algún insumo
      *                               requerido de la etapa no alcanzó el porcentaje mínimo de
      *                               consumo configurado.
@@ -470,6 +505,8 @@ public class LoteServicioImpl implements ILoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO finalizarMaceracion(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -513,7 +550,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Hervido, o si algún insumo requerido
      *                               de la etapa no alcanzó el porcentaje mínimo de consumo
      *                               configurado.
@@ -522,6 +559,8 @@ public class LoteServicioImpl implements ILoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO finalizarHervido(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -570,7 +609,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Fermentación, o si algún insumo
      *                               requerido de la etapa no alcanzó el porcentaje mínimo de
      *                               consumo configurado.
@@ -579,6 +618,8 @@ public class LoteServicioImpl implements ILoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO finalizarFermentacion(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -623,7 +664,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra la configuración de producción.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su etapa
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su etapa
      *                               actual (EN_CURSO) no es Maduración, o si algún insumo
      *                               requerido de la etapa no alcanzó el porcentaje mínimo de
      *                               consumo configurado.
@@ -632,6 +673,8 @@ public class LoteServicioImpl implements ILoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO finalizarMaduracion(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -681,7 +724,7 @@ public class LoteServicioImpl implements ILoteServicio {
      * @return El lote actualizado.
      * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado, o si no
      *                                      se encuentra el fermentador asociado.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si su
+     * @throws ReglaNegocioException Si no se informó el lote, si el lote no se encuentra en estado EN_EJECUCION, si su
      *                               etapa actual (EN_CURSO) no es Envasado, o si no tiene litros
      *                               envasados registrados.
      */
@@ -689,6 +732,8 @@ public class LoteServicioImpl implements ILoteServicio {
     @Transactional
     @AuditableAction(accion = AccionAuditoria.MODIFICAR, conceptoAuditoria = ConceptoAuditoria.LOTE)
     public LoteResponseDTO finalizarEnvasado(Long id) {
+        validarLoteInformado(id);
+
         // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
         LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
@@ -824,14 +869,16 @@ public class LoteServicioImpl implements ILoteServicio {
      * <p>
      * Reutiliza {@link IConsumoInsumoServicio#filtrarInsumosRequeridos(Long)} para obtener, por
      * insumo, cuánto requiere la etapa y cuánto ya se consumió — la misma fuente que usa la
-     * pantalla de gestión de consumos, evitando recalcular o duplicar esa lógica aquí.
+     * pantalla de gestión de consumos, evitando recalcular o duplicar esa lógica aquí. Ambos lados de
+     * la comparación se redondean a 4 decimales.
      * </p>
      *
      * @throws ReglaNegocioException Si algún insumo requerido no alcanza el porcentaje mínimo.
      */
     private void validarPorcentajeMinimoConsumido(EtapaLoteEntity etapa, double porcentajeMinimo) {
         List<String> insumosInsuficientes = consumoInsumoServicio.filtrarInsumosRequeridos(etapa.getId()).stream()
-                .filter(insumoRequerido -> insumoRequerido.getCantidadConsumida() < insumoRequerido.getCantidadRequerida() * (porcentajeMinimo / 100.0))
+                .filter(insumoRequerido -> Redondeo.redondear(insumoRequerido.getCantidadConsumida())
+                        < Redondeo.redondear(insumoRequerido.getCantidadRequerida() * (porcentajeMinimo / 100.0)))
                 .map(insumoRequerido -> insumoRequerido.getInsumo().getNombre())
                 .toList();
 
@@ -1046,16 +1093,56 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Valida el volumen objetivo del lote (Paso 1 del escalado de agua): debe ser mayor a cero y no
-     * superar la capacidad útil del fermentador seleccionado.
+     * Valida que el volumen objetivo del lote se haya informado y sea un número finito mayor a 0, y lo devuelve
+     * redondeado a la escala de las cantidades ({@link LimitesTecnicos#ESCALA_CANTIDADES} decimales). No consulta nada.
+     *
+     * @return El volumen objetivo redondeado.
+     * @throws ReglaNegocioException Si el volumen objetivo es nulo o no es un número mayor a 0.
      */
-    private void validarVolumenObjetivo(Double volumenObjetivo, FermentadorEntity fermentador) {
-        if (volumenObjetivo == null || volumenObjetivo <= 0) {
-            throw new ReglaNegocioException("El volumen objetivo del lote debe ser mayor a cero");
+    private double validarVolumenObjetivoInformado(Double volumenObjetivo) {
+        if (volumenObjetivo == null) {
+            throw new ReglaNegocioException("El volumen objetivo del lote es obligatorio");
         }
-        if (volumenObjetivo > fermentador.getCapacidadUtil()) {
-            throw new ReglaNegocioException("El volumen objetivo del lote (" + volumenObjetivo + " L) supera la capacidad útil del fermentador seleccionado (" + fermentador.getCapacidadUtil() + " L)");
+        double volumenRedondeado = Redondeo.redondear(volumenObjetivo);
+        if (volumenRedondeado <= 0) {
+            throw new ReglaNegocioException("El volumen objetivo del lote debe ser mayor a 0");
         }
+        ValidacionesNumericas.validarMayorACero(volumenRedondeado, "El volumen objetivo del lote");
+        return volumenRedondeado;
+    }
+
+    /**
+     * Valida que el volumen objetivo del lote (Paso 1 del escalado de agua) no supere la capacidad útil del
+     * fermentador seleccionado.
+     */
+    private void validarVolumenObjetivoContraFermentador(double volumenObjetivo, FermentadorEntity fermentador) {
+        if (volumenObjetivo > Redondeo.redondear(fermentador.getCapacidadUtil())) {
+            throw new ReglaNegocioException("El volumen objetivo del lote (" + ValidacionesNumericas.formatearNumero(volumenObjetivo)
+                    + " L) supera la capacidad útil del fermentador seleccionado ("
+                    + ValidacionesNumericas.formatearNumero(fermentador.getCapacidadUtil()) + " L)");
+        }
+    }
+
+    /**
+     * Valida que se haya informado un dato obligatorio del formulario.
+     *
+     * @param valor   El dato a validar.
+     * @param mensaje El mensaje de la excepción si el dato es nulo.
+     * @throws ReglaNegocioException Si el dato es nulo.
+     */
+    private static void validarInformado(Object valor, String mensaje) {
+        if (valor == null) {
+            throw new ReglaNegocioException(mensaje);
+        }
+    }
+
+    /**
+     * Valida que se haya informado el lote sobre el que se opera.
+     *
+     * @throws ReglaNegocioException Si el ID del lote es nulo.
+     */
+    private static void validarLoteInformado(Long idLote) {
+        validarInformado(idLote, "El lote es obligatorio");
     }
 
     /**
@@ -1098,13 +1185,18 @@ public class LoteServicioImpl implements ILoteServicio {
      * usuario ve de una sola vez la lista completa de insumos con stock insuficiente, sin tener que
      * corregir uno, reintentar, y recién ahí enterarse del siguiente.
      * </p>
+     * <p>
+     * Las cantidades se redondean a 4 decimales antes de compararlas, y el mensaje las muestra con la
+     * unidad de medida del insumo.
+     * </p>
      */
     private Map<Long, List<LoteInsumoEntity>> obtenerYValidarStockDisponible(Collection<RequerimientoInsumo> requerimientos) {
         Map<Long, InsumoEntity> insumoPorId = new LinkedHashMap<>();
         Map<Long, Double> cantidadRequeridaPorInsumo = new LinkedHashMap<>();
         for (RequerimientoInsumo requerimiento : requerimientos) {
             insumoPorId.putIfAbsent(requerimiento.insumo().getId(), requerimiento.insumo());
-            cantidadRequeridaPorInsumo.merge(requerimiento.insumo().getId(), requerimiento.cantidadRequerida(), Double::sum);
+            cantidadRequeridaPorInsumo.merge(requerimiento.insumo().getId(), Redondeo.redondear(requerimiento.cantidadRequerida()),
+                    (acumulada, nueva) -> Redondeo.redondear(acumulada + nueva));
         }
 
         Map<Long, List<LoteInsumoEntity>> stockPorInsumo = new LinkedHashMap<>();
@@ -1116,10 +1208,12 @@ public class LoteServicioImpl implements ILoteServicio {
             List<LoteInsumoEntity> lotesDisponibles = loteInsumoRepository
                     .buscarPorInsumoIdOrdenadoPorVencimientoParaReservar(idInsumo);
 
-            double totalDisponible = lotesDisponibles.stream().mapToDouble(LoteInsumoEntity::getCantidadDisponible).sum();
+            double totalDisponible = Redondeo.redondear(lotesDisponibles.stream().mapToDouble(LoteInsumoEntity::getCantidadDisponible).sum());
             if (totalDisponible < cantidadRequeridaTotal) {
-                faltantes.add("'" + insumoPorId.get(idInsumo).getNombre() + "' (se requieren " + cantidadRequeridaTotal
-                        + " y solo hay " + totalDisponible + " disponibles)");
+                InsumoEntity insumo = insumoPorId.get(idInsumo);
+                String unidad = insumo.getUnidadDeMedida().getSimbolo();
+                faltantes.add("'" + insumo.getNombre() + "' (se requieren " + ValidacionesNumericas.formatearNumero(cantidadRequeridaTotal)
+                        + " " + unidad + " y solo hay " + ValidacionesNumericas.formatearNumero(totalDisponible) + " " + unidad + " disponibles)");
             }
 
             stockPorInsumo.put(idInsumo, lotesDisponibles);
@@ -1138,12 +1232,13 @@ public class LoteServicioImpl implements ILoteServicio {
      * que requieran ese mismo insumo, así que se van agotando de forma acumulativa a medida que se
      * procesa cada requerimiento), tomando de cada uno la cantidad disponible que haga falta hasta
      * cubrir el requerimiento, generando una {@link ReservaInsumoEntity} por cada lote de insumo
-     * que contribuye, asociada a la etapa de ESE requerimiento puntual.
+     * que contribuye, asociada a la etapa de ESE requerimiento puntual. Las cantidades se redondean a
+     * 4 decimales al restar y al guardar cada reserva.
      */
     private List<ReservaInsumoEntity> reservarInsumosFEFO(Collection<RequerimientoInsumo> requerimientos, Map<Long, List<LoteInsumoEntity>> stockPorInsumo) {
         List<ReservaInsumoEntity> reservas = new ArrayList<>();
         for (RequerimientoInsumo requerimiento : requerimientos) {
-            double cantidadRestante = requerimiento.cantidadRequerida();
+            double cantidadRestante = Redondeo.redondear(requerimiento.cantidadRequerida());
 
             for (LoteInsumoEntity loteInsumo : stockPorInsumo.get(requerimiento.insumo().getId())) {
                 if (cantidadRestante <= 0) {
@@ -1163,7 +1258,7 @@ public class LoteServicioImpl implements ILoteServicio {
                         .loteInsumo(loteInsumo)
                         .cantidadReservada(cantidadAReservar)
                         .build());
-                cantidadRestante -= cantidadAReservar;
+                cantidadRestante = Redondeo.redondear(cantidadRestante - cantidadAReservar);
             }
         }
         return reservas;
@@ -1335,7 +1430,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
                 .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de planificación de producción"));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
         double horasEnvasado = volumenObjetivo / configuracion.getVelocidadEstandarEnvasado();
 
         long diasBrewDayYEnvasado = (long) Math.ceil((horasMolienda + horasMaceracionYHervido + horasEnvasado) / HORAS_POR_DIA);
@@ -1550,6 +1645,8 @@ public class LoteServicioImpl implements ILoteServicio {
      * @param desplazamiento {@code -1} para subirlo (adelantarlo), {@code +1} para bajarlo (retrasarlo).
      */
     private LoteCronogramaResponseDTO moverLoteEnCola(Long idLote, int desplazamiento) {
+        validarLoteInformado(idLote);
+
         // 1. Validar que el lote esté registrado en el sistema
         LoteEntity lote = loteRepository.findById(idLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
@@ -1709,11 +1806,13 @@ public class LoteServicioImpl implements ILoteServicio {
 
     private long calcularDuracionEnDias(LoteEntity lote) {
         if (lote.getFechaInicioEstimada() == null || lote.getFechaFinalizacionEstimada() == null) {
-            throw new ReglaNegocioException("El lote " + lote.getIdentificadorInterno() + " no tiene sus fechas estimadas de inicio y finalización, no se puede reencadenar la cola");
+            throw new ReglaNegocioException("No se pueden reordenar las fechas de la cola del fermentador porque el lote "
+                    + lote.getIdentificadorInterno() + " no tiene sus fechas estimadas de inicio y finalización");
         }
         long duracion = ChronoUnit.DAYS.between(lote.getFechaInicioEstimada(), lote.getFechaFinalizacionEstimada());
         if (duracion < 0) {
-            throw new ReglaNegocioException("El lote " + lote.getIdentificadorInterno() + " tiene una fecha de finalización estimada anterior a la de inicio, no se puede reencadenar la cola");
+            throw new ReglaNegocioException("No se pueden reordenar las fechas de la cola del fermentador porque el lote "
+                    + lote.getIdentificadorInterno() + " tiene una fecha de finalización estimada anterior a la de inicio");
         }
         return duracion;
     }

@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.LoteInsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ConsumoInsumoEntity;
@@ -11,11 +12,13 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IConsumoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
@@ -28,6 +31,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoIn
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
+import org.hibernate.proxy.HibernateProxy;
+import org.hibernate.proxy.LazyInitializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,10 +53,14 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 @ExtendWith(MockitoExtension.class)
 class ConsumoInsumoServicioImplTest {
@@ -128,6 +137,16 @@ class ConsumoInsumoServicioImplTest {
         verify(consumoInsumoRepository).filtrarConsumosInsumo(1L, null, null, EstadoTransaccion.ANULADO, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FCI-04: filtrarConsumosInsumo lanza ReglaNegocioException y no consulta nada cuando la etapa de lote es nula")
+    void filtrarConsumosInsumo_debeRechazarEtapaLoteNula() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.filtrarConsumosInsumo(null, null, null, null, PageRequest.of(0, 10)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa del lote es obligatoria");
+        verifyNoInteractions(consumoInsumoRepository);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -187,7 +206,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote debe estar en ejecución para registrar consumos de insumo");
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -203,7 +222,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa debe estar en curso para registrar consumos de insumo");
+                .hasMessage("La etapa debe estar en curso para poder registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -219,7 +238,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de tipo Envasado no permite registrar consumos de insumo");
+                .hasMessage("La etapa Envasado no admite el registro de consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -256,7 +275,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El insumo del lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
+                .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
         verify(loteInsumoRepository, never()).save(any());
     }
@@ -283,67 +302,42 @@ class ConsumoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-CR-08: registrarConsumoInsumoReservado lanza ReglaNegocioException si la cantidad consumida es nula")
+    @DisplayName("CP-CR-08: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si la cantidad consumida es nula")
     void registrarReservado_debeRechazarCantidadNula() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
-        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, null);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a cero");
-        verifyNoInteractions(consumoInsumoRepository);
-        verify(loteInsumoRepository, never()).save(any());
+                .hasMessage("La cantidad consumida es obligatoria");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
     @Test
-    @DisplayName("CP-CR-09: registrarConsumoInsumoReservado lanza ReglaNegocioException si la cantidad consumida es cero (límite)")
+    @DisplayName("CP-CR-09: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si la cantidad consumida es cero (límite)")
     void registrarReservado_debeRechazarCantidadEnCero() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
-        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 0.0);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a cero");
-        verify(loteInsumoRepository, never()).save(any());
+                .hasMessage("La cantidad consumida debe ser mayor a 0");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
     @Test
-    @DisplayName("CP-CR-10: registrarConsumoInsumoReservado lanza ReglaNegocioException si la cantidad consumida es negativa")
+    @DisplayName("CP-CR-10: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si la cantidad consumida es negativa")
     void registrarReservado_debeRechazarCantidadNegativa() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 6.0);
-        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
-        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, -3.0);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a cero");
-        verify(loteInsumoRepository, never()).save(any());
+                .hasMessage("La cantidad consumida debe ser mayor a 0");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
     @Test
@@ -363,7 +357,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar la cantidad reservada del lote de insumo");
+                .hasMessage("La cantidad consumida no puede superar la cantidad reservada del lote de insumo (6 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(consumoInsumoRepository);
     }
@@ -439,8 +433,139 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote debe estar en ejecución para registrar consumos de insumo");
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-15: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si no se informó el lote de insumo")
+    void registrarReservado_debeRechazarLoteInsumoNulo() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(null, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo es obligatorio");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-16: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si la cantidad consumida es NaN o infinita")
+    void registrarReservado_debeRechazarCantidadNoFinita() {
+        // === EJECUCION Y ASSERTS ===
+        for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, noFinita)))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("La cantidad consumida debe ser un número mayor a 0");
+        }
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-17: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si la cantidad consumida supera el máximo técnico")
+    void registrarReservado_debeRechazarCantidadQueSuperaElMaximoTecnico() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 1_000_000.5)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad consumida no puede superar 1.000.000 kg o g, según el insumo");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-18: registrarConsumoInsumoReservado lanza ReglaNegocioException sin consultar nada si la cantidad consumida redondeada a 4 decimales es cero")
+    void registrarReservado_debeRechazarCantidadQueSeRedondeaACero() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 0.00001)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad consumida debe ser mayor a 0");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-19: registrarConsumoInsumoReservado permite consumir una cantidad con residuo decimal igual a la reservada (0,1 + 0,2 contra 0,3) y deja la reserva y el lote de insumo en 0")
+    void registrarReservado_debePermitirCantidadConResiduoDecimalIgualALaReservada() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 0.3, 0.3);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 0.3);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        double cantidadConResiduo = 0.1 + 0.2;
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, cantidadConResiduo));
+
+        // === ASSERTS ===
+        assertThat(cantidadConResiduo).isNotEqualTo(0.3);
+        assertThat(resultado.getCantidadConsumida()).isEqualTo(0.3);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("CP-CR-20: registrarConsumoInsumoReservado muestra en el mensaje la cantidad reservada formateada, sin residuos decimales")
+    void registrarReservado_debeMostrarLaCantidadReservadaFormateada() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.30000000000000004);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 0.30000000000000004);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 0.5)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad consumida no puede superar la cantidad reservada del lote de insumo (0,3 kg)");
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CR-21: registrarConsumoInsumoReservado reconoce la malta requerida por ID cuando el insumo del lote de insumo es un proxy que no es instancia de MaltaEntity")
+    void registrarReservado_debeReconocerElInsumoPorIdCuandoEsUnProxy() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        InsumoEntity insumoProxy = insumoProxy(malta);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy, 10.0, 6.0);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 6.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(insumoProxy).isNotInstanceOf(MaltaEntity.class);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
+        verify(loteInsumoRepository).save(loteInsumo);
+    }
+
+    @Test
+    @DisplayName("CP-CR-22: registrarConsumoInsumoReservado rechaza el insumo cuando su ID no figura en los detalles de la receta, aunque el insumo sea un proxy")
+    void registrarReservado_debeRechazarElInsumoProxyCuyoIdNoEstaEnLaReceta() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy(maltaEntity(2L)), 10.0, 6.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
     }
 
     // ==================== registrarConsumoInsumoDirecto ====================
@@ -471,7 +596,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El lote debe estar en ejecución para registrar consumos de insumo");
+                .hasMessage("El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -487,7 +612,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa debe estar en curso para registrar consumos de insumo");
+                .hasMessage("La etapa debe estar en curso para poder registrar consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -503,7 +628,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La etapa de tipo Envasado no permite registrar consumos de insumo");
+                .hasMessage("La etapa Envasado no admite el registro de consumos de insumo");
         verifyNoInteractions(loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
@@ -539,66 +664,48 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El insumo del lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
+                .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
         verify(loteInsumoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-CD-07: registrarConsumoInsumoDirecto lanza ReglaNegocioException si la cantidad consumida es nula")
+    @DisplayName("CP-CD-07: registrarConsumoInsumoDirecto lanza ReglaNegocioException sin consultar nada si la cantidad consumida es nula")
     void registrarDirecto_debeRechazarCantidadNula() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, null);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a cero");
-        verify(loteInsumoRepository, never()).save(any());
+                .hasMessage("La cantidad consumida es obligatoria");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
     @Test
-    @DisplayName("CP-CD-08: registrarConsumoInsumoDirecto lanza ReglaNegocioException si la cantidad consumida es cero (límite)")
+    @DisplayName("CP-CD-08: registrarConsumoInsumoDirecto lanza ReglaNegocioException sin consultar nada si la cantidad consumida es cero (límite)")
     void registrarDirecto_debeRechazarCantidadEnCero() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 0.0);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a cero");
-        verify(loteInsumoRepository, never()).save(any());
+                .hasMessage("La cantidad consumida debe ser mayor a 0");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
     @Test
-    @DisplayName("CP-CD-09: registrarConsumoInsumoDirecto lanza ReglaNegocioException si la cantidad consumida es negativa")
+    @DisplayName("CP-CD-09: registrarConsumoInsumoDirecto lanza ReglaNegocioException sin consultar nada si la cantidad consumida es negativa")
     void registrarDirecto_debeRechazarCantidadNegativa() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
-        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
-        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 10.0, 0.0);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
         ConsumoInsumoFormDTO formDTO = formDTOBase(1L, -2.0);
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida debe ser mayor a cero");
-        verify(loteInsumoRepository, never()).save(any());
+                .hasMessage("La cantidad consumida debe ser mayor a 0");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
 
     @Test
@@ -616,7 +723,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad consumida no puede superar la cantidad disponible del lote de insumo");
+                .hasMessage("La cantidad consumida no puede superar la cantidad disponible del lote de insumo (10 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(consumoInsumoRepository);
     }
@@ -676,6 +783,127 @@ class ConsumoInsumoServicioImplTest {
         verifyNoInteractions(reservaInsumoRepository);
     }
 
+    @Test
+    @DisplayName("CP-CD-13: registrarConsumoInsumoDirecto lanza ReglaNegocioException sin consultar nada si no se informó el lote de insumo")
+    void registrarDirecto_debeRechazarLoteInsumoNulo() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(null, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo es obligatorio");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CD-14: registrarConsumoInsumoDirecto lanza ReglaNegocioException sin consultar nada si la cantidad consumida es NaN o infinita")
+    void registrarDirecto_debeRechazarCantidadNoFinita() {
+        // === EJECUCION Y ASSERTS ===
+        for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, noFinita)))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("La cantidad consumida debe ser un número mayor a 0");
+        }
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CD-15: registrarConsumoInsumoDirecto lanza ReglaNegocioException sin consultar nada si la cantidad consumida supera el máximo técnico")
+    void registrarDirecto_debeRechazarCantidadQueSuperaElMaximoTecnico() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 1_000_000.5)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad consumida no puede superar 1.000.000 kg o g, según el insumo");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CD-16: registrarConsumoInsumoDirecto con stock 0,3 permite tres consumos de 0,1 y deja el lote de insumo en 0")
+    void registrarDirecto_debePermitirTresConsumosDeUnDecimoSobreUnStockDeTresDecimos() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 0.3, 0.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 0.1));
+        consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 0.1));
+        ConsumoInsumoResponseDTO tercero = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 0.1));
+
+        // === ASSERTS ===
+        assertThat(tercero.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.0);
+        assertThat(loteInsumo.getCantidadDisponible()).isEqualTo(0.0);
+        verify(consumoInsumoRepository, times(3)).save(any(ConsumoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-CD-17: registrarConsumoInsumoDirecto muestra en el mensaje la cantidad disponible formateada, sin residuos decimales")
+    void registrarDirecto_debeMostrarLaCantidadDisponibleFormateada() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 0.7, 0.4);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(0.7 - 0.4).isNotEqualTo(0.3);
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 0.5)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad consumida no puede superar la cantidad disponible del lote de insumo (0,3 kg)");
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CD-18: registrarConsumoInsumoDirecto reconoce la levadura requerida por ID cuando el insumo del lote de insumo es un proxy que no es instancia de LevaduraEntity")
+    void registrarDirecto_debeReconocerLaLevaduraPorIdCuandoEsUnProxy() {
+        // === PREPARACION DE DATOS ===
+        LevaduraEntity levadura = levaduraEntity(5L);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .detallesLevadura(List.of(DetalleLevaduraEntity.builder().levadura(levadura).cantidad(10.0).build()))
+                .build();
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
+        EtapaLoteEntity etapaFermentacion = crearEtapaLote(1L, TipoEtapa.FERMENTACION, EstadoEtapaLote.EN_CURSO, lote);
+        InsumoEntity insumoProxy = insumoProxy(levadura);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy, 10.0, 0.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaFermentacion));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+
+        // === ASSERTS ===
+        assertThat(insumoProxy).isNotInstanceOf(LevaduraEntity.class);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
+    }
+
+    @Test
+    @DisplayName("CP-CD-19: registrarConsumoInsumoDirecto rechaza la levadura en una etapa distinta de Fermentación, aunque el insumo sea un proxy")
+    void registrarDirecto_debeRechazarLaLevaduraEnUnaEtapaDistintaDeFermentacion() {
+        // === PREPARACION DE DATOS ===
+        LevaduraEntity levadura = levaduraEntity(5L);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .detallesLevadura(List.of(DetalleLevaduraEntity.builder().levadura(levadura).cantidad(10.0).build()))
+                .build();
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
+        EtapaLoteEntity etapaMaceracion = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, insumoProxy(levadura), 10.0, 0.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaceracion));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
     // ==================== filtrarInsumosRequeridos ====================
 
     @Test
@@ -724,6 +952,16 @@ class ConsumoInsumoServicioImplTest {
         assertThat(dtoMalta.getCantidadConsumida()).isEqualTo(250.0);
         assertThat(dtoLevadura.getCantidadRequerida()).isEqualTo(10.0);
         assertThat(dtoLevadura.getCantidadConsumida()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("CP-FIR-03: filtrarInsumosRequeridos lanza ReglaNegocioException y no consulta nada cuando la etapa de lote es nula")
+    void filtrarInsumosRequeridos_debeRechazarEtapaLoteNula() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.filtrarInsumosRequeridos(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa del lote es obligatoria");
+        verifyNoInteractions(etapaLoteRepository, escaladoInsumoServicio, consumoInsumoRepository);
     }
 
     // ==================== anularConsumoInsumo ====================
@@ -932,6 +1170,31 @@ class ConsumoInsumoServicioImplTest {
         verifyNoInteractions(reservaInsumoRepository);
     }
 
+    @Test
+    @DisplayName("CP-AC-12: anularConsumoInsumo (RESERVADO) redondea a 4 decimales lo que devuelve a la reserva y al lote de insumo")
+    void anularConsumoInsumo_debeRedondearLoQueDevuelveALaReservaYAlLoteDeInsumo() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MACERACION, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 0.1, 0.1);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 0.1);
+        ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 0.2, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 10L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        consumoInsumoServicio.anularConsumoInsumo(1L, AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Registrado por error").build());
+
+        // === ASSERTS ===
+        assertThat(0.1 + 0.2).isNotEqualTo(0.3);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(0.3);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.3);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.3);
+    }
+
     // ==================== helpers de construcción ====================
 
     private static ConsumoInsumoFormDTO formDTOBase(Long idLoteInsumo, Double cantidadConsumida) {
@@ -942,11 +1205,27 @@ class ConsumoInsumoServicioImplTest {
     }
 
     private static MaltaEntity maltaEntity(Long id) {
-        return MaltaEntity.builder().id(id).nombre("Malta Pilsen").estado(Estado.ACTIVO).build();
+        return MaltaEntity.builder().id(id).nombre("Malta Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).estado(Estado.ACTIVO).build();
     }
 
     private static LevaduraEntity levaduraEntity(Long id) {
-        return LevaduraEntity.builder().id(id).nombre("Levadura Ale").estado(Estado.ACTIVO).build();
+        return LevaduraEntity.builder().id(id).nombre("Levadura Ale").unidadDeMedida(UnidadDeMedida.GRAMO).estado(Estado.ACTIVO).build();
+    }
+
+    /**
+     * Simula el proxy perezoso de Hibernate que llega desde {@code LoteInsumoEntity.getInsumo()}: una instancia
+     * de la clase abstracta {@code InsumoEntity} que no es instancia de ninguna subclase concreta, que responde su
+     * ID sin inicializarse y que delega el resto en el insumo real al desenvolverse.
+     */
+    private static InsumoEntity insumoProxy(InsumoEntity real) {
+        InsumoEntity proxy = mock(InsumoEntity.class, withSettings().extraInterfaces(HibernateProxy.class));
+        HibernateProxy proxyHibernate = (HibernateProxy) proxy;
+        LazyInitializer inicializador = mock(LazyInitializer.class);
+        lenient().when(proxy.getId()).thenReturn(real.getId());
+        lenient().when(proxyHibernate.asHibernateProxy()).thenReturn(proxyHibernate);
+        lenient().when(proxyHibernate.getHibernateLazyInitializer()).thenReturn(inicializador);
+        lenient().when(inicializador.getImplementation()).thenReturn(real);
+        return proxy;
     }
 
     private static ConsumoInsumoEntity consumoInsumoEntity(LoteInsumoEntity loteInsumo, double cantidadConsumida, EstadoTransaccion estado) {
@@ -964,7 +1243,7 @@ class ConsumoInsumoServicioImplTest {
                 .build();
     }
 
-    private static LoteInsumoEntity loteInsumoEntity(Long id, MaltaEntity insumo, double cantidadActual, double cantidadReservada) {
+    private static LoteInsumoEntity loteInsumoEntity(Long id, InsumoEntity insumo, double cantidadActual, double cantidadReservada) {
         return LoteInsumoEntity.builder()
                 .id(id)
                 .insumo(insumo)

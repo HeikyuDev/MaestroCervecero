@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -51,10 +52,11 @@ public class LoteInsumoEntity {
 
     // == METODOS DE DOMINIO ===
 
-    // Stock disponible para producción (no va a la base de datos)
+    // Stock disponible para producción (no va a la base de datos), redondeado a la escala de las cantidades para
+    // que un residuo de punto flotante (por ejemplo 1e-16) no cuente como stock
     public Double getCantidadDisponible() {
-        return (this.cantidadActual != null ? this.cantidadActual : 0.0)
-                - (this.cantidadReservada != null ? this.cantidadReservada : 0.0);
+        return Redondeo.redondear((this.cantidadActual != null ? this.cantidadActual : 0.0)
+                - (this.cantidadReservada != null ? this.cantidadReservada : 0.0));
     }
 
     // Suma cantidad al lote y actualiza el PPP (promedio ponderado por valor monetario total)
@@ -84,36 +86,38 @@ public class LoteInsumoEntity {
         }
     }
 
+    // Las cantidades de stock y de reserva se redondean a la escala de las cantidades en cada operación, tanto al
+    // comparar como al escribir, para que el error de representación de los decimales no se acumule
     public void reservar(double cantidad) {
-        if (cantidad > getCantidadDisponible()) {
+        if (Redondeo.redondear(cantidad) > getCantidadDisponible()) {
             throw new ReglaNegocioException("Stock disponible insuficiente para reservar");
         }
-        this.cantidadReservada += cantidad;
+        this.cantidadReservada = Redondeo.redondear(this.cantidadReservada + cantidad);
     }
 
     public void liberarReserva(double cantidad) {
-        this.cantidadReservada -= cantidad;
+        this.cantidadReservada = Redondeo.redondear(this.cantidadReservada - cantidad);
     }
 
     public void ejecutarConsumo(double cantidad) {
-        this.cantidadActual -= cantidad;
-        this.cantidadReservada -= cantidad;
+        this.cantidadActual = Redondeo.redondear(this.cantidadActual - cantidad);
+        this.cantidadReservada = Redondeo.redondear(this.cantidadReservada - cantidad);
     }
 
     public void consumirDirecto(double cantidad) {
-        this.cantidadActual -= cantidad;
+        this.cantidadActual = Redondeo.redondear(this.cantidadActual - cantidad);
     }
 
     // Reversa un consumo reservado anulado: devuelve la cantidad tanto a la actual como a la
     // reservada (inverso exacto de ejecutarConsumo)
     public void revertirConsumo(double cantidad) {
-        this.cantidadActual += cantidad;
-        this.cantidadReservada += cantidad;
+        this.cantidadActual = Redondeo.redondear(this.cantidadActual + cantidad);
+        this.cantidadReservada = Redondeo.redondear(this.cantidadReservada + cantidad);
     }
 
     // Reversa un consumo directo anulado: devuelve la cantidad solo a la actual (inverso exacto
     // de consumirDirecto)
     public void revertirConsumoDirecto(double cantidad) {
-        this.cantidadActual += cantidad;
+        this.cantidadActual = Redondeo.redondear(this.cantidadActual + cantidad);
     }
 }

@@ -40,6 +40,7 @@ public interface IConsumoInsumoServicio {
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de consumos en formato DTO que cumplen los criterios indicados.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     Page<ConsumoInsumoResponseDTO> filtrarConsumosInsumo(Long idEtapaLote, TipoConsumo tipoConsumo, Long idInsumo, EstadoTransaccion estado, Pageable pageable);
 
@@ -59,6 +60,10 @@ public interface IConsumoInsumoServicio {
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
      * @return El consumo registrado.
+     * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados no existen.
+     * @throws ReglaNegocioException Si el lote de insumo o la cantidad consumida no son válidos, si el lote no está en ejecución,
+     *                               si la etapa no está en curso o no admite consumos, si el insumo no corresponde a la etapa
+     *                               según la receta, si no existe la reserva, o si la cantidad supera la cantidad reservada.
      */
     ConsumoInsumoResponseDTO registrarConsumoInsumoReservado(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO);
 
@@ -74,6 +79,10 @@ public interface IConsumoInsumoServicio {
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el consumo (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param consumoInsumoFormDTO Los datos del consumo a registrar.
      * @return El consumo registrado.
+     * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados no existen.
+     * @throws ReglaNegocioException Si el lote de insumo o la cantidad consumida no son válidos, si el lote no está en ejecución,
+     *                               si la etapa no está en curso o no admite consumos, si el insumo no corresponde a la etapa
+     *                               según la receta, o si la cantidad supera la cantidad disponible del lote de insumo.
      */
     ConsumoInsumoResponseDTO registrarConsumoInsumoDirecto(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO);
 
@@ -91,6 +100,8 @@ public interface IConsumoInsumoServicio {
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan consumos (obligatorio).
      * @return Un DTO por cada insumo requerido en esa etapa, con su cantidad requerida y consumida.
+     * @throws RecursoNoEncontradoException Si no existe una etapa de lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     List<InsumoRequeridoResponseDTO> filtrarInsumosRequeridos(Long idEtapaLote);
 

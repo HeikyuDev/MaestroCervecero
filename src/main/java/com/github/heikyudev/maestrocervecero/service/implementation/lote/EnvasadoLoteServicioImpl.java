@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAudi
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EnvasadoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
@@ -25,8 +26,10 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoL
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEnvasadoLote;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -54,10 +57,14 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link EnvasadoLoteResponseDTO} correspondientes.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     @Override
     @Transactional(readOnly = true)
     public Page<EnvasadoLoteResponseDTO> filtrarEnvasadosLote(Long idEtapaLote, Long idBarril, EstadoTransaccion estado, Pageable pageable) {
+        if (idEtapaLote == null) {
+            throw new ReglaNegocioException("La etapa del lote es obligatoria");
+        }
         return envasadoLoteRepository.filtrarEnvasadosLote(idEtapaLote, idBarril, estado, pageable)
                 .map(MapperEnvasadoLote::toDTO);
     }
@@ -83,24 +90,39 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
      * El barril se busca bloqueado para escritura ({@code buscarPorIdParaCambiarEstadoOperativo}):
      * dos envasados registrados en simultáneo sobre el mismo barril no deben poder pasar ambos.
      * </p>
+     * <p>
+     * El único tope del envasado, además de la capacidad del barril, es la capacidad útil del
+     * fermentador del lote: el total envasado registrado de la etapa (lo ya registrado más esta
+     * cantidad) no puede superarla. Sí se puede envasar más que el volumen objetivo, porque la
+     * producción real puede superar lo planificado. Las cantidades se comparan redondeadas a 4 decimales.
+     * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el envasado (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param registrarEnvasadoLoteFormDTO Los datos del envasado a registrar.
      * @return El envasado registrado.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el barril referenciados no existen.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si la etapa
-     *                               no está EN_CURSO, si el tipo de etapa no admite registrar
-     *                               envasados, si el barril no se encuentra en estado operativo
-     *                               DISPONIBLE, si la cantidad a envasar no es mayor a cero, si
-     *                               supera la capacidad del barril seleccionado, o si el total
-     *                               envasado en la etapa (sumando esta cantidad) superaría el
-     *                               volumen objetivo del lote.
+     * @throws ReglaNegocioException Si no se informó el barril, si la cantidad a envasar no se informó,
+     *                               no es un número mayor a 0 o supera el máximo técnico (estas
+     *                               validaciones se hacen antes de consultar nada), si el lote no se
+     *                               encuentra en estado EN_EJECUCION, si la etapa no está EN_CURSO,
+     *                               si el tipo de etapa no admite registrar envasados, si el barril no
+     *                               se encuentra en estado operativo DISPONIBLE, si la cantidad a
+     *                               envasar supera la capacidad del barril seleccionado, o si el total
+     *                               envasado en la etapa (sumando esta cantidad) superaría la capacidad
+     *                               útil del fermentador del lote.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.ENVASADO_LOTE)
     public EnvasadoLoteResponseDTO registrarEnvasadoLote(Long idEtapaLote, RegistrarEnvasadoLoteFormDTO registrarEnvasadoLoteFormDTO) {
-        // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar. El lote
+        // 1. Validar los datos del formulario antes de consultar nada: el barril y la cantidad a envasar
+        Long idBarril = registrarEnvasadoLoteFormDTO.getIdBarril();
+        if (idBarril == null) {
+            throw new ReglaNegocioException("El barril es obligatorio");
+        }
+        double cantidad = validarCantidadAEnvasar(registrarEnvasadoLoteFormDTO.getCantidad());
+
+        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar. El lote
         //    se bloquea para escritura antes de validarlo: no puede intercalarse con otro envasado, con la
         //    anulación de un envasado, con la finalización del envasado ni con la cancelación del mismo lote
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
@@ -108,33 +130,30 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         LoteEntity lote = bloquearLote(etapaLote.getLote().getId());
         validarEtapaHabilitadaParaEnvasado(etapaLote, lote);
 
-        // 2. Validar que el barril esté registrado en el sistema, bloqueándolo para escritura
-        BarrilEntity barril = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(registrarEnvasadoLoteFormDTO.getIdBarril())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + registrarEnvasadoLoteFormDTO.getIdBarril()));
+        // 3. Validar que el barril esté registrado en el sistema, bloqueándolo para escritura
+        BarrilEntity barril = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(idBarril)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + idBarril));
 
-        // 3. Validar que el barril se encuentre en estado operativo DISPONIBLE
+        // 4. Validar que el barril se encuentre en estado operativo DISPONIBLE
         if (barril.getEstadoOperativo() != EstadoOperativoBarril.DISPONIBLE) {
             throw new ReglaNegocioException("El barril debe encontrarse en estado operativo Disponible para poder envasar en él");
         }
 
-        // 4. Validar que la cantidad a envasar sea mayor a cero
-        Double cantidad = registrarEnvasadoLoteFormDTO.getCantidad();
-        if (cantidad == null || cantidad <= 0) {
-            throw new ReglaNegocioException("La cantidad a envasar debe ser mayor a cero");
-        }
-
         // 5. Validar que la cantidad a envasar no supere la capacidad del barril seleccionado
-        if (cantidad > barril.getCapacidad()) {
-            throw new ReglaNegocioException("La cantidad a envasar no puede superar la capacidad del barril seleccionado");
+        double capacidadBarril = Redondeo.redondear(barril.getCapacidad());
+        if (cantidad > capacidadBarril) {
+            throw new ReglaNegocioException("La cantidad a envasar no puede superar la capacidad del barril seleccionado ("
+                    + ValidacionesNumericas.formatearNumero(capacidadBarril) + " L)");
         }
 
-        // 6. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no
-        //    supere el volumen objetivo del lote
-        double totalEnvasadoPrevio = envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote);
-        double volumenObjetivo = lote.getVolumenObjetivo();
-        if (totalEnvasadoPrevio + cantidad > volumenObjetivo) {
-            throw new ReglaNegocioException("La cantidad a envasar supera el volumen objetivo del lote (quedan "
-                    + (volumenObjetivo - totalEnvasadoPrevio) + " L disponibles para envasar)");
+        // 6. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no supere la
+        //    capacidad útil del fermentador del lote. Es el único tope: se puede envasar más que el volumen objetivo
+        double capacidadUtilFermentador = Redondeo.redondear(obtenerFermentador(etapaLote).getCapacidadUtil());
+        double totalEnvasadoPrevio = Redondeo.redondear(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote));
+        if (Redondeo.redondear(totalEnvasadoPrevio + cantidad) > capacidadUtilFermentador) {
+            double disponibleParaEnvasar = Math.max(0.0, Redondeo.redondear(capacidadUtilFermentador - totalEnvasadoPrevio));
+            throw new ReglaNegocioException("La cantidad a envasar supera la capacidad útil del fermentador (quedan "
+                    + ValidacionesNumericas.formatearNumero(disponibleParaEnvasar) + " L disponibles para envasar)");
         }
 
         // 7. El barril pasa a contener la cerveza envasada
@@ -220,6 +239,46 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     }
 
     /**
+     * Valida la cantidad a envasar y la devuelve redondeada a la escala de las cantidades
+     * ({@link LimitesTecnicos#ESCALA_CANTIDADES} decimales): debe informarse, ser un número finito
+     * mayor a 0 (una vez redondeada) y no superar el máximo técnico. No consulta nada.
+     *
+     * @return La cantidad a envasar redondeada.
+     * @throws ReglaNegocioException Si la cantidad es nula, no es un número mayor a 0 o supera el máximo técnico.
+     */
+    private double validarCantidadAEnvasar(Double cantidad) {
+        if (cantidad == null) {
+            throw new ReglaNegocioException("La cantidad a envasar es obligatoria");
+        }
+        double cantidadRedondeada = Redondeo.redondear(cantidad);
+        if (cantidadRedondeada <= 0) {
+            throw new ReglaNegocioException("La cantidad a envasar debe ser mayor a 0");
+        }
+        ValidacionesNumericas.validarMayorACeroConMaximo(cantidadRedondeada, LimitesTecnicos.CANTIDAD_ENVASADA_MAXIMA_LITROS,
+                "La cantidad a envasar", "litros");
+        return cantidadRedondeada;
+    }
+
+    /**
+     * Resuelve el fermentador del lote: el equipamiento de su etapa de Envasado, que es el mismo de
+     * Fermentación y Maduración. La relación de la etapa es perezosa, por lo que el equipamiento puede
+     * ser un proxy de Hibernate de la clase abstracta {@code EquipamientoEntity}, que no es instancia de
+     * {@code FermentadorEntity}: se desenvuelve ({@link Hibernate#unproxy(Object)}) antes de verificar su tipo.
+     *
+     * @param etapaEnvasado La etapa de Envasado del lote.
+     * @return El fermentador de la etapa.
+     * @throws ReglaNegocioException Si el equipamiento de la etapa no es un fermentador (dato corrupto:
+     *                               no debería ocurrir bajo el invariante del dominio).
+     */
+    private FermentadorEntity obtenerFermentador(EtapaLoteEntity etapaEnvasado) {
+        if (Hibernate.unproxy(etapaEnvasado.getEquipamiento()) instanceof FermentadorEntity fermentador) {
+            return fermentador;
+        }
+        throw new ReglaNegocioException("La etapa de Envasado del lote " + etapaEnvasado.getLote().getId()
+                + " no tiene un fermentador asociado como equipamiento");
+    }
+
+    /**
      * Recupera un lote bloqueándolo para escritura, para serializar las operaciones que modifican
      * su total envasado o su estado.
      *
@@ -247,7 +306,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         }
 
         if (etapaLote.getEstado() != EstadoEtapaLote.EN_CURSO) {
-            throw new ReglaNegocioException("Solo se pueden registrar envasados sobre la etapa actualmente en curso del lote");
+            throw new ReglaNegocioException("La etapa debe estar en curso para poder registrar un envasado");
         }
 
         TipoEtapa tipoEtapa = etapaLote.getEtapa();

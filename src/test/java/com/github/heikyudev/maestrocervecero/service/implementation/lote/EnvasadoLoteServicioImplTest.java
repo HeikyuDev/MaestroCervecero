@@ -2,6 +2,9 @@ package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EnvasadoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
@@ -19,6 +22,8 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.Registra
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
+import org.hibernate.proxy.HibernateProxy;
+import org.hibernate.proxy.LazyInitializer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,16 +44,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 @ExtendWith(MockitoExtension.class)
 class EnvasadoLoteServicioImplTest {
 
     private static final Integer USOS_MAXIMOS_ANTES_MANTENIMIENTO = 200;
+    private static final double CAPACIDAD_UTIL_FERMENTADOR = 100.0;
 
     @Mock
     private IEnvasadoLoteRepository envasadoLoteRepository;
@@ -128,6 +136,16 @@ class EnvasadoLoteServicioImplTest {
         verify(envasadoLoteRepository).filtrarEnvasadosLote(1L, null, EstadoTransaccion.ANULADO, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FEL-04: filtrarEnvasadosLote lanza ReglaNegocioException y no consulta nada cuando la etapa de lote es nula")
+    void filtrarEnvasadosLote_debeRechazarEtapaLoteNula() {
+        assertThatThrownBy(() -> envasadoLoteServicio.filtrarEnvasadosLote(null, null, null, PageRequest.of(0, 10)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa del lote es obligatoria");
+
+        verifyNoInteractions(envasadoLoteRepository);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -195,7 +213,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden registrar envasados sobre la etapa actualmente en curso del lote");
+                .hasMessage("La etapa debe estar en curso para poder registrar un envasado");
 
         verifyNoInteractions(barrilRepository, envasadoLoteRepository);
     }
@@ -247,51 +265,33 @@ class EnvasadoLoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-REL-07: registrarEnvasadoLote lanza ReglaNegocioException y no persiste cuando la cantidad a envasar es nula")
+    @DisplayName("CP-REL-07: registrarEnvasadoLote lanza ReglaNegocioException sin consultar nada cuando la cantidad a envasar es nula")
     void registrarEnvasadoLote_debeRechazarCantidadNula() {
-        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, null)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a envasar debe ser mayor a cero");
+                .hasMessage("La cantidad a envasar es obligatoria");
 
-        verify(barrilRepository, never()).save(any());
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
     }
 
     @Test
-    @DisplayName("CP-REL-08: registrarEnvasadoLote lanza ReglaNegocioException cuando la cantidad a envasar es igual a cero (valor límite)")
+    @DisplayName("CP-REL-08: registrarEnvasadoLote lanza ReglaNegocioException sin consultar nada cuando la cantidad a envasar es igual a cero (valor límite)")
     void registrarEnvasadoLote_debeRechazarCantidadIgualACero() {
-        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 0.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a envasar debe ser mayor a cero");
+                .hasMessage("La cantidad a envasar debe ser mayor a 0");
 
-        verify(barrilRepository, never()).save(any());
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
     }
 
     @Test
-    @DisplayName("CP-REL-09: registrarEnvasadoLote lanza ReglaNegocioException cuando la cantidad a envasar es negativa")
+    @DisplayName("CP-REL-09: registrarEnvasadoLote lanza ReglaNegocioException sin consultar nada cuando la cantidad a envasar es negativa")
     void registrarEnvasadoLote_debeRechazarCantidadNegativa() {
-        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, -5.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a envasar debe ser mayor a cero");
+                .hasMessage("La cantidad a envasar debe ser mayor a 0");
 
-        verify(barrilRepository, never()).save(any());
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
     }
 
     @Test
@@ -305,7 +305,7 @@ class EnvasadoLoteServicioImplTest {
 
         assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 60.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a envasar no puede superar la capacidad del barril seleccionado");
+                .hasMessage("La cantidad a envasar no puede superar la capacidad del barril seleccionado (50 L)");
 
         verify(barrilRepository, never()).save(any());
         verify(envasadoLoteRepository, never()).save(any());
@@ -375,64 +375,55 @@ class EnvasadoLoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-REL-13: registrarEnvasadoLote lanza ReglaNegocioException cuando la cantidad supera el volumen objetivo del lote")
-    void registrarEnvasadoLote_debeRechazarCantidadQueSuperaVolumenObjetivo() {
+    @DisplayName("CP-REL-13: registrarEnvasadoLote lanza ReglaNegocioException cuando la cantidad supera la capacidad útil del fermentador (sin envasados previos)")
+    void registrarEnvasadoLote_debeRechazarCantidadQueSuperaLaCapacidadUtilDelFermentador() {
         // === PREPARACION DE DATOS ===
-        LoteEntity lote = LoteEntity.builder().id(1L).estado(EstadoLote.EN_EJECUCION).volumenObjetivo(20.0).build();
-        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 300.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 25.0)))
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 120.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a envasar supera el volumen objetivo del lote (quedan 20.0 L disponibles para envasar)");
+                .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 100 L disponibles para envasar)");
 
         verify(barrilRepository, never()).save(any());
         verify(envasadoLoteRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-REL-14: registrarEnvasadoLote lanza ReglaNegocioException cuando lo ya envasado más esta cantidad supera el volumen objetivo del lote")
-    void registrarEnvasadoLote_debeRechazarCantidadQueSumadaALoYaEnvasadoSuperaVolumenObjetivo() {
+    @DisplayName("CP-REL-14: registrarEnvasadoLote lanza ReglaNegocioException cuando lo ya envasado más esta cantidad supera la capacidad útil del fermentador")
+    void registrarEnvasadoLote_debeRechazarCantidadQueSumadaALoYaEnvasadoSuperaLaCapacidadUtil() {
         // === PREPARACION DE DATOS ===
-        LoteEntity lote = LoteEntity.builder().id(1L).estado(EstadoLote.EN_EJECUCION).volumenObjetivo(20.0).build();
-        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(15.0);
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 300.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(80.0);
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 10.0)))
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a envasar supera el volumen objetivo del lote (quedan 5.0 L disponibles para envasar)");
+                .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 20 L disponibles para envasar)");
 
         verify(barrilRepository, never()).save(any());
         verify(envasadoLoteRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-REL-15: registrarEnvasadoLote persiste cuando lo ya envasado más esta cantidad es exactamente igual al volumen objetivo del lote (valor límite, permitido)")
-    void registrarEnvasadoLote_debePermitirCantidadQueCompletaExactoElVolumenObjetivo() {
+    @DisplayName("CP-REL-15: registrarEnvasadoLote persiste cuando lo ya envasado más esta cantidad es exactamente igual a la capacidad útil del fermentador (valor límite, permitido)")
+    void registrarEnvasadoLote_debePermitirCantidadQueCompletaExactoLaCapacidadUtil() {
         // === PREPARACION DE DATOS ===
-        LoteEntity lote = LoteEntity.builder().id(1L).estado(EstadoLote.EN_EJECUCION).volumenObjetivo(20.0).build();
-        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
-        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
-        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
-        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(etapaLote.getLote()));
-        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barril));
-        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(15.0);
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 300.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(70.0);
         when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
-        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 5.0));
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0));
 
         // === ASSERTS ===
-        assertThat(resultado.getCantidadEnvasada()).isEqualTo(5.0);
+        assertThat(resultado.getCantidadEnvasada()).isEqualTo(30.0);
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         verify(barrilRepository).save(barril);
         verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
@@ -488,6 +479,164 @@ class EnvasadoLoteServicioImplTest {
                 .hasMessage("El lote debe encontrarse en estado En ejecución para poder registrar un envasado");
 
         verifyNoInteractions(barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-19: registrarEnvasadoLote lanza ReglaNegocioException sin consultar nada cuando no se informó el barril")
+    void registrarEnvasadoLote_debeRechazarBarrilNulo() {
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(null, 30.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El barril es obligatorio");
+
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-20: registrarEnvasadoLote lanza ReglaNegocioException sin consultar nada cuando la cantidad a envasar es NaN o infinita")
+    void registrarEnvasadoLote_debeRechazarCantidadNoFinita() {
+        for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
+            assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, noFinita)))
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("La cantidad a envasar debe ser un número mayor a 0");
+        }
+
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-21: registrarEnvasadoLote lanza ReglaNegocioException sin consultar nada cuando la cantidad a envasar supera el máximo técnico (100.000 L)")
+    void registrarEnvasadoLote_debeRechazarCantidadQueSuperaElMaximoTecnico() {
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 100_000.5)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar no puede superar 100.000 litros");
+
+        verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-REL-22: registrarEnvasadoLote permite envasar por encima del volumen objetivo del lote mientras no supere la capacidad útil del fermentador")
+    void registrarEnvasadoLote_debePermitirEnvasarMasQueElVolumenObjetivo() {
+        // === PREPARACION DE DATOS ===
+        // Volumen objetivo 50 L, capacidad útil del fermentador 100 L: ya hay 45 L envasados y se envasan 20 L más (65 L)
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(45.0);
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 20.0));
+
+        // === ASSERTS ===
+        assertThat(etapaLote.getLote().getVolumenObjetivo()).isEqualTo(50.0);
+        assertThat(resultado.getCantidadEnvasada()).isEqualTo(20.0);
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        verify(barrilRepository).save(barril);
+    }
+
+    @Test
+    @DisplayName("CP-REL-23: registrarEnvasadoLote compara los acumulados decimales redondeados a 4 decimales (10,2 + 89,9 contra 100,1)")
+    void registrarEnvasadoLote_debePermitirAcumuladoDecimalIgualALaCapacidadUtil() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.1);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(10.2);
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 89.9));
+
+        // === ASSERTS ===
+        assertThat(10.2 + 89.9).isGreaterThan(100.1);
+        assertThat(resultado.getCantidadEnvasada()).isEqualTo(89.9);
+        verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-REL-24: registrarEnvasadoLote solo cuenta lo envasado REGISTRADO: un envasado anulado libera su capacidad")
+    void registrarEnvasadoLote_noDebeContarLosEnvasadosAnulados() {
+        // === PREPARACION DE DATOS ===
+        // El total previo lo informa solo la suma de los envasados REGISTRADO: un envasado anulado de 80 L ya no figura en ella
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(20.0);
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 80.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadEnvasada()).isEqualTo(80.0);
+        verify(envasadoLoteRepository).sumarCantidadEnvasadaRegistrada(1L);
+    }
+
+    @Test
+    @DisplayName("CP-REL-25: registrarEnvasadoLote informa 0 L disponibles (nunca negativo) cuando la capacidad útil del fermentador ya está agotada")
+    void registrarEnvasadoLote_debeInformarCeroDisponiblesSiLaCapacidadEstaAgotada() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(100.0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 1.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 0 L disponibles para envasar)");
+
+        verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-REL-26: registrarEnvasadoLote informa 0 L disponibles (nunca negativo) cuando lo ya envasado supera la capacidad útil del fermentador")
+    void registrarEnvasadoLote_debeInformarCeroDisponiblesSiLoEnvasadoSuperaLaCapacidad() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 100.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(105.0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 1.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 0 L disponibles para envasar)");
+    }
+
+    @Test
+    @DisplayName("CP-REL-27: registrarEnvasadoLote resuelve la capacidad útil del fermentador desenvolviendo el proxy de Hibernate del equipamiento de la etapa")
+    void registrarEnvasadoLote_debeResolverElFermentadorDesdeUnProxy() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        EquipamientoEntity proxy = proxyDe(crearFermentador(100.0));
+        etapaLote.setEquipamiento(proxy);
+        BarrilEntity barril = crearBarrilEntity(1L, 300.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(proxy).isNotInstanceOf(FermentadorEntity.class);
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 120.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 100 L disponibles para envasar)");
+    }
+
+    @Test
+    @DisplayName("CP-REL-28: registrarEnvasadoLote lanza ReglaNegocioException cuando el equipamiento de la etapa no es un fermentador")
+    void registrarEnvasadoLote_debeRechazarEquipamientoQueNoEsFermentador() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 100.0);
+        etapaLote.setEquipamiento(MolinoEntity.builder().id(9L).build());
+        BarrilEntity barril = crearBarrilEntity(1L, 50.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 30.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa de Envasado del lote 1 no tiene un fermentador asociado como equipamiento");
+
+        verify(barrilRepository, never()).save(any());
+        verify(envasadoLoteRepository, never()).save(any());
     }
 
     // ==================== anularEnvasadoLote ====================
@@ -702,12 +851,46 @@ class EnvasadoLoteServicioImplTest {
     }
 
     private static EtapaLoteEntity crearEtapaLoteEntity(Long id, LoteEntity lote, TipoEtapa etapa, EstadoEtapaLote estado) {
+        return crearEtapaLoteEntity(id, lote, etapa, estado, CAPACIDAD_UTIL_FERMENTADOR);
+    }
+
+    private static EtapaLoteEntity crearEtapaLoteEntity(Long id, LoteEntity lote, TipoEtapa etapa, EstadoEtapaLote estado, double capacidadUtilFermentador) {
         return EtapaLoteEntity.builder()
                 .id(id)
                 .lote(lote)
                 .etapa(etapa)
                 .estado(estado)
+                .equipamiento(crearFermentador(capacidadUtilFermentador))
                 .build();
+    }
+
+    private static FermentadorEntity crearFermentador(double capacidadUtil) {
+        return FermentadorEntity.builder()
+                .id(30L)
+                .identificadorInterno("FER-01")
+                .capacidadTotal(capacidadUtil + 10.0)
+                .capacidadUtil(capacidadUtil)
+                .build();
+    }
+
+    /**
+     * Simula el proxy perezoso de Hibernate que llega desde {@code EtapaLoteEntity.getEquipamiento()}: una instancia
+     * de la clase abstracta {@code EquipamientoEntity} (no de {@code FermentadorEntity}) que delega en el real.
+     */
+    private static EquipamientoEntity proxyDe(FermentadorEntity real) {
+        EquipamientoEntity proxy = mock(EquipamientoEntity.class, withSettings().extraInterfaces(HibernateProxy.class));
+        HibernateProxy proxyHibernate = (HibernateProxy) proxy;
+        LazyInitializer inicializador = mock(LazyInitializer.class);
+        when(proxyHibernate.asHibernateProxy()).thenReturn(proxyHibernate);
+        when(proxyHibernate.getHibernateLazyInitializer()).thenReturn(inicializador);
+        when(inicializador.getImplementation()).thenReturn(real);
+        return proxy;
+    }
+
+    private void prepararRegistro(EtapaLoteEntity etapaLote, BarrilEntity barril) {
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteRepository.buscarPorIdParaActualizar(etapaLote.getLote().getId())).thenReturn(Optional.of(etapaLote.getLote()));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(barril.getId())).thenReturn(Optional.of(barril));
     }
 
     private static BarrilEntity crearBarrilEntity(Long id, Double capacidad, Double contenidoActual, EstadoOperativoBarril estadoOperativo) {

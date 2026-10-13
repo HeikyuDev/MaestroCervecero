@@ -4,6 +4,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.RegistrarEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +34,7 @@ public interface IEnvasadoLoteServicio {
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de envasados en formato DTO que cumplen los criterios indicados.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     Page<EnvasadoLoteResponseDTO> filtrarEnvasadosLote(Long idEtapaLote, Long idBarril, EstadoTransaccion estado, Pageable pageable);
 
@@ -48,10 +50,20 @@ public interface IEnvasadoLoteServicio {
     /**
      * Registra el traspaso de cerveza desde el fermentador hacia el barril seleccionado, durante
      * la etapa de Envasado de un lote.
+     * <p>
+     * Además de la capacidad del barril, el único tope es la capacidad útil del fermentador del
+     * lote: el total envasado registrado (lo ya registrado más esta cantidad) no puede superarla.
+     * Se puede envasar más que el volumen objetivo del lote, porque la producción real puede superar
+     * lo planificado.
+     * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote sobre la que se registra el envasado (obligatorio; no lo tipea el usuario, lo resuelve el Controller a partir del contexto de la pantalla).
      * @param registrarEnvasadoLoteFormDTO Los datos del envasado a registrar.
      * @return El envasado registrado.
+     * @throws RecursoNoEncontradoException Si la etapa de lote o el barril referenciados no existen.
+     * @throws ReglaNegocioException Si el barril o la cantidad a envasar no son válidos, si el lote no está en ejecución, si la
+     *                               etapa no está en curso o no admite envasados, si el barril no está disponible, o si la
+     *                               cantidad supera la capacidad del barril o la capacidad útil del fermentador del lote.
      */
     EnvasadoLoteResponseDTO registrarEnvasadoLote(Long idEtapaLote, RegistrarEnvasadoLoteFormDTO registrarEnvasadoLoteFormDTO);
 

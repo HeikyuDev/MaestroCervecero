@@ -12,6 +12,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -198,6 +199,11 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
      * relación directa de la etapa (join de herencia {@code EquipamientoEntity} → {@code
      * MaceradorEntity}). Este cálculo es de solo lectura, así que no corresponde bloquearlo con el
      * mismo lock pesimista que usa el flujo transaccional de inicio de lote.
+     * <p>
+     * La relación de la etapa es perezosa, por lo que el equipamiento puede ser un proxy de Hibernate de
+     * la clase abstracta {@code EquipamientoEntity}, que no es instancia de {@code MaceradorEntity}: se
+     * desenvuelve ({@link Hibernate#unproxy(Object)}) antes de verificar su tipo.
+     * </p>
      *
      * @param etapaMaceracion La etapa de Maceración del lote.
      * @return El macerador asociado a esa etapa.
@@ -205,7 +211,7 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
      *                               corrupto: no debería ocurrir bajo el invariante del dominio).
      */
     private MaceradorEntity resolverMacerador(EtapaLoteEntity etapaMaceracion) {
-        if (etapaMaceracion.getEquipamiento() instanceof MaceradorEntity macerador) {
+        if (Hibernate.unproxy(etapaMaceracion.getEquipamiento()) instanceof MaceradorEntity macerador) {
             return macerador;
         }
         throw new ReglaNegocioException("La etapa de Maceración del lote " + etapaMaceracion.getLote().getId()

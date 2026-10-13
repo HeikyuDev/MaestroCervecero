@@ -11,9 +11,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
@@ -35,6 +32,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperInsumo;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperConsumoInsumo;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -69,10 +67,12 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ConsumoInsumoResponseDTO} correspondientes.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     @Override
     @Transactional(readOnly = true)
     public Page<ConsumoInsumoResponseDTO> filtrarConsumosInsumo(Long idEtapaLote, TipoConsumo tipoConsumo, Long idInsumo, EstadoTransaccion estado, Pageable pageable) {
+        validarEtapaLoteInformada(idEtapaLote);
         return consumoInsumoRepository.filtrarConsumosInsumo(idEtapaLote, tipoConsumo, idInsumo, estado, pageable)
                 .map(MapperConsumoInsumo::toDTO);
     }
@@ -100,47 +100,49 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * @return El consumo registrado.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados
      *                                      no existen.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si la etapa
-     *                               no está EN_CURSO, si el tipo de etapa no admite registrar
-     *                               consumos, si el insumo del lote de insumo no corresponde a un
-     *                               insumo utilizado en esta etapa según la receta, si no existe
-     *                               una reserva de ese lote de insumo para esa etapa, si la
-     *                               cantidad consumida no es mayor a cero, o si supera la cantidad
-     *                               reservada.
+     * @throws ReglaNegocioException Si no se informó el lote de insumo, si la cantidad consumida no se
+     *                               informó, no es un número mayor a 0 o supera el máximo técnico
+     *                               (estas validaciones se hacen antes de consultar nada), si el lote
+     *                               no se encuentra en estado EN_EJECUCION, si la etapa no está
+     *                               EN_CURSO, si el tipo de etapa no admite registrar consumos, si el
+     *                               insumo del lote de insumo no corresponde a un insumo utilizado en
+     *                               esta etapa según la receta, si no existe una reserva de ese lote
+     *                               de insumo para esa etapa, o si la cantidad consumida (redondeada
+     *                               a 4 decimales) supera la cantidad reservada.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.CONSUMO_INSUMO)
     public ConsumoInsumoResponseDTO registrarConsumoInsumoReservado(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO) {
-        // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
+        // 1. Validar los datos del formulario antes de consultar nada: el lote de insumo y la cantidad consumida
+        Long idLoteInsumo = validarLoteInsumoInformado(consumoInsumoFormDTO.getIdLoteInsumo());
+        double cantidadConsumida = validarCantidadConsumida(consumoInsumoFormDTO.getCantidadConsumida());
+
+        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaConsumo(etapaLote);
 
-        // 2. Validar que el lote de insumo esté registrado en el sistema
-        LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaConsumir(consumoInsumoFormDTO.getIdLoteInsumo())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + consumoInsumoFormDTO.getIdLoteInsumo()));
+        // 3. Validar que el lote de insumo esté registrado en el sistema
+        LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaConsumir(idLoteInsumo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + idLoteInsumo));
 
-        // 3. Validar que el insumo de ese lote de insumo se corresponda con un insumo utilizado en esta etapa según la receta
+        // 4. Validar que el insumo de ese lote de insumo se corresponda con un insumo utilizado en esta etapa según la receta
         validarInsumoRequeridoPorEtapa(etapaLote, loteInsumo.getInsumo());
 
-        // 4. Validar que exista una reserva de ese lote de insumo para esa etapa
+        // 5. Validar que exista una reserva de ese lote de insumo para esa etapa
         ReservaInsumoEntity reserva = reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(etapaLote.getId(), loteInsumo.getId())
                 .orElseThrow(() -> new ReglaNegocioException("No existe una reserva de este lote de insumo para esta etapa; utilice el registro de consumo directo"));
 
-        // 5. Validar que la cantidad consumida sea mayor a cero
-        Double cantidadConsumida = consumoInsumoFormDTO.getCantidadConsumida();
-        if (cantidadConsumida == null || cantidadConsumida <= 0) {
-            throw new ReglaNegocioException("La cantidad consumida debe ser mayor a cero");
-        }
-
         // 6. Validar que la cantidad consumida no supere la cantidad reservada
-        if (cantidadConsumida > reserva.getCantidadReservada()) {
-            throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad reservada del lote de insumo");
+        double cantidadReservada = Redondeo.redondear(reserva.getCantidadReservada());
+        if (cantidadConsumida > cantidadReservada) {
+            throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad reservada del lote de insumo ("
+                    + describirCantidad(cantidadReservada, loteInsumo) + ")");
         }
 
         // 7. Descontar la reserva y ejecutar el consumo sobre el lote de insumo
-        reserva.setCantidadReservada(reserva.getCantidadReservada() - cantidadConsumida);
+        reserva.setCantidadReservada(Redondeo.redondear(cantidadReservada - cantidadConsumida));
         reservaInsumoRepository.save(reserva);
 
         loteInsumo.ejecutarConsumo(cantidadConsumida);
@@ -171,38 +173,40 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * @return El consumo registrado.
      * @throws RecursoNoEncontradoException Si la etapa de lote o el lote de insumo referenciados
      *                                      no existen.
-     * @throws ReglaNegocioException Si el lote no se encuentra en estado EN_EJECUCION, si la etapa
-     *                               no está EN_CURSO, si el tipo de etapa no admite registrar
-     *                               consumos, si el insumo del lote de insumo no corresponde a un
-     *                               insumo utilizado en esta etapa según la receta, si la cantidad
-     *                               consumida no es mayor a cero, o si supera la cantidad
-     *                               disponible del lote de insumo.
+     * @throws ReglaNegocioException Si no se informó el lote de insumo, si la cantidad consumida no se
+     *                               informó, no es un número mayor a 0 o supera el máximo técnico
+     *                               (estas validaciones se hacen antes de consultar nada), si el lote
+     *                               no se encuentra en estado EN_EJECUCION, si la etapa no está
+     *                               EN_CURSO, si el tipo de etapa no admite registrar consumos, si el
+     *                               insumo del lote de insumo no corresponde a un insumo utilizado en
+     *                               esta etapa según la receta, o si la cantidad consumida (redondeada
+     *                               a 4 decimales) supera la cantidad disponible del lote de insumo.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.CONSUMO_INSUMO)
     public ConsumoInsumoResponseDTO registrarConsumoInsumoDirecto(Long idEtapaLote, ConsumoInsumoFormDTO consumoInsumoFormDTO) {
-        // 1. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
+        // 1. Validar los datos del formulario antes de consultar nada: el lote de insumo y la cantidad consumida
+        Long idLoteInsumo = validarLoteInsumoInformado(consumoInsumoFormDTO.getIdLoteInsumo());
+        double cantidadConsumida = validarCantidadConsumida(consumoInsumoFormDTO.getCantidadConsumida());
+
+        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaConsumo(etapaLote);
 
-        // 2. Validar que el lote de insumo esté registrado en el sistema
-        LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaConsumir(consumoInsumoFormDTO.getIdLoteInsumo())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + consumoInsumoFormDTO.getIdLoteInsumo()));
+        // 3. Validar que el lote de insumo esté registrado en el sistema
+        LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaConsumir(idLoteInsumo)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + idLoteInsumo));
 
-        // 3. Validar que el insumo de ese lote de insumo se corresponda con un insumo utilizado en esta etapa según la receta
+        // 4. Validar que el insumo de ese lote de insumo se corresponda con un insumo utilizado en esta etapa según la receta
         validarInsumoRequeridoPorEtapa(etapaLote, loteInsumo.getInsumo());
 
-        // 4. Validar que la cantidad consumida sea mayor a cero
-        Double cantidadConsumida = consumoInsumoFormDTO.getCantidadConsumida();
-        if (cantidadConsumida == null || cantidadConsumida <= 0) {
-            throw new ReglaNegocioException("La cantidad consumida debe ser mayor a cero");
-        }
-
         // 5. Validar que la cantidad consumida no supere la cantidad disponible del lote de insumo
-        if (cantidadConsumida > loteInsumo.getCantidadDisponible()) {
-            throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad disponible del lote de insumo");
+        double cantidadDisponible = loteInsumo.getCantidadDisponible();
+        if (cantidadConsumida > cantidadDisponible) {
+            throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad disponible del lote de insumo ("
+                    + describirCantidad(cantidadDisponible, loteInsumo) + ")");
         }
 
         // 6. Ejecutar el consumo directo sobre el lote de insumo (sin tocar la cantidad reservada)
@@ -229,10 +233,12 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * @param idEtapaLote El ID de la etapa de lote sobre la que se gestionan consumos.
      * @return Un DTO por cada insumo requerido en esa etapa, con su cantidad requerida y consumida.
      * @throws RecursoNoEncontradoException Si no existe una etapa de lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     @Override
     @Transactional(readOnly = true)
     public List<InsumoRequeridoResponseDTO> filtrarInsumosRequeridos(Long idEtapaLote) {
+        validarEtapaLoteInformada(idEtapaLote);
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
 
@@ -305,7 +311,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
             ReservaInsumoEntity reserva = reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(
                             consumoInsumo.getEtapaLote().getId(), loteInsumo.getId())
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la reserva de insumo de esta etapa para este lote de insumo"));
-            reserva.setCantidadReservada(reserva.getCantidadReservada() + consumoInsumo.getCantidadConsumida());
+            reserva.setCantidadReservada(Redondeo.redondear(reserva.getCantidadReservada() + consumoInsumo.getCantidadConsumida()));
             reservaInsumoRepository.save(reserva);
             loteInsumo.revertirConsumo(consumoInsumo.getCantidadConsumida());
         } else {
@@ -332,16 +338,16 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     private void validarEtapaHabilitadaParaConsumo(EtapaLoteEntity etapaLote) {
         LoteEntity lote = etapaLote.getLote();
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
-            throw new ReglaNegocioException("El lote debe estar en ejecución para registrar consumos de insumo");
+            throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder registrar consumos de insumo");
         }
 
         if (etapaLote.getEstado() != EstadoEtapaLote.EN_CURSO) {
-            throw new ReglaNegocioException("La etapa debe estar en curso para registrar consumos de insumo");
+            throw new ReglaNegocioException("La etapa debe estar en curso para poder registrar consumos de insumo");
         }
 
         TipoEtapa tipoEtapa = etapaLote.getEtapa();
         if (!tipoEtapa.isPermiteRegistrarConsumo()) {
-            throw new ReglaNegocioException("La etapa de tipo " + tipoEtapa.getEtiqueta() + " no permite registrar consumos de insumo");
+            throw new ReglaNegocioException("La etapa " + tipoEtapa.getEtiqueta() + " no admite el registro de consumos de insumo");
         }
     }
 
@@ -350,6 +356,13 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * requiere en esa etapa puntual: Malta solo en Maceración, Levadura solo en Fermentación, y
      * Lúpulo según la etapa de uso particular de cada línea de detalle (puede requerirse en una
      * etapa y no en otra, aunque el mismo lúpulo aparezca en ambas).
+     * <p>
+     * La comparación es por ID y no por el tipo de la entidad: el insumo de un lote de insumo es una
+     * relación perezosa, que llega como un proxy de Hibernate de la clase abstracta {@code InsumoEntity}
+     * y no es instancia de {@code MaltaEntity}, {@code LupuloEntity} ni {@code LevaduraEntity}. Los ID de
+     * los insumos son únicos entre todos los tipos (comparten la tabla raíz), así que el ID alcanza para
+     * identificar al insumo en los detalles de la receta.
+     * </p>
      *
      * @param etapaLote La etapa de lote sobre la que se quiere registrar el consumo.
      * @param insumo El insumo del lote de insumo que se pretende consumir.
@@ -359,21 +372,73 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     private void validarInsumoRequeridoPorEtapa(EtapaLoteEntity etapaLote, InsumoEntity insumo) {
         VersionRecetaEntity versionReceta = etapaLote.getLote().getPlanificacionProduccion().getVersionReceta();
         TipoEtapa etapaActual = etapaLote.getEtapa();
+        Long idInsumo = insumo.getId();
 
-        boolean esRequerido = switch (insumo) {
-            case MaltaEntity malta -> etapaActual == TipoEtapa.MACERACION
-                    && versionReceta.getDetallesMalta().stream()
-                    .anyMatch(detalle -> detalle.getMalta().getId().equals(malta.getId()));
-            case LupuloEntity lupulo -> versionReceta.getDetallesLupulo().stream()
-                    .anyMatch(detalle -> detalle.getLupulo().getId().equals(lupulo.getId()) && detalle.getEtapaDeUso() == etapaActual);
-            case LevaduraEntity levadura -> etapaActual == TipoEtapa.FERMENTACION
-                    && versionReceta.getDetallesLevadura().stream()
-                    .anyMatch(detalle -> detalle.getLevadura().getId().equals(levadura.getId()));
-            default -> false;
-        };
+        boolean esMaltaRequerida = etapaActual == TipoEtapa.MACERACION
+                && versionReceta.getDetallesMalta().stream()
+                .anyMatch(detalle -> idInsumo.equals(detalle.getMalta().getId()));
+        boolean esLupuloRequerido = versionReceta.getDetallesLupulo().stream()
+                .anyMatch(detalle -> idInsumo.equals(detalle.getLupulo().getId()) && detalle.getEtapaDeUso() == etapaActual);
+        boolean esLevaduraRequerida = etapaActual == TipoEtapa.FERMENTACION
+                && versionReceta.getDetallesLevadura().stream()
+                .anyMatch(detalle -> idInsumo.equals(detalle.getLevadura().getId()));
 
-        if (!esRequerido) {
-            throw new ReglaNegocioException("El insumo del lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
+        if (!esMaltaRequerida && !esLupuloRequerido && !esLevaduraRequerida) {
+            throw new ReglaNegocioException("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         }
+    }
+
+    /**
+     * Valida que se haya informado la etapa de lote, que los listados de consumos e insumos requeridos
+     * necesitan para no mezclar consumos de otras etapas.
+     *
+     * @throws ReglaNegocioException Si la etapa de lote es nula.
+     */
+    private void validarEtapaLoteInformada(Long idEtapaLote) {
+        if (idEtapaLote == null) {
+            throw new ReglaNegocioException("La etapa del lote es obligatoria");
+        }
+    }
+
+    /**
+     * Valida que se haya informado el lote de insumo del que se descuenta el consumo.
+     *
+     * @return El ID del lote de insumo.
+     * @throws ReglaNegocioException Si el ID es nulo.
+     */
+    private Long validarLoteInsumoInformado(Long idLoteInsumo) {
+        if (idLoteInsumo == null) {
+            throw new ReglaNegocioException("El lote de insumo es obligatorio");
+        }
+        return idLoteInsumo;
+    }
+
+    /**
+     * Valida la cantidad consumida y la devuelve redondeada a la escala de las cantidades
+     * ({@link LimitesTecnicos#ESCALA_CANTIDADES} decimales): debe informarse, ser un número finito
+     * mayor a 0 (una vez redondeada) y no superar el máximo técnico. No consulta nada.
+     *
+     * @return La cantidad consumida redondeada.
+     * @throws ReglaNegocioException Si la cantidad es nula, no es un número mayor a 0 o supera el máximo técnico.
+     */
+    private double validarCantidadConsumida(Double cantidadConsumida) {
+        if (cantidadConsumida == null) {
+            throw new ReglaNegocioException("La cantidad consumida es obligatoria");
+        }
+        double cantidadRedondeada = Redondeo.redondear(cantidadConsumida);
+        if (cantidadRedondeada <= 0) {
+            throw new ReglaNegocioException("La cantidad consumida debe ser mayor a 0");
+        }
+        ValidacionesNumericas.validarMayorACeroConMaximo(cantidadRedondeada, LimitesTecnicos.CANTIDAD_CONSUMIDA_MAXIMA,
+                "La cantidad consumida", "kg o g, según el insumo");
+        return cantidadRedondeada;
+    }
+
+    /**
+     * Describe una cantidad de un insumo con la unidad de medida del insumo del lote de insumo (por ejemplo
+     * {@code "12,35 kg"}).
+     */
+    private static String describirCantidad(double cantidad, LoteInsumoEntity loteInsumo) {
+        return ValidacionesNumericas.formatearNumero(cantidad) + " " + loteInsumo.getInsumo().getUnidadDeMedida().getSimbolo();
     }
 }

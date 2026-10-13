@@ -45,4 +45,13 @@ class LimitesTecnicosTest {
         assertThat(LimitesTecnicos.CAPACIDAD_LOTE_ESTANDAR_MAXIMA_LITROS).isEqualTo(100_000.0);
         assertThat(LimitesTecnicos.VELOCIDAD_ENVASADO_MAXIMA_L_POR_HORA).isEqualTo(100_000.0);
     }
+
+    @Test
+    @DisplayName("CP-LT-05: los límites de consumos y envasados y la escala de las cantidades tienen los valores aprobados")
+    void limitesDeConsumosYEnvasados_debenTenerLosValoresAprobados() {
+        // Act & Assert
+        assertThat(LimitesTecnicos.CANTIDAD_CONSUMIDA_MAXIMA).isEqualTo(1_000_000.0);
+        assertThat(LimitesTecnicos.CANTIDAD_ENVASADA_MAXIMA_LITROS).isEqualTo(100_000.0);
+        assertThat(LimitesTecnicos.ESCALA_CANTIDADES).isEqualTo(4);
+    }
 }

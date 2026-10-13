@@ -67,6 +67,16 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
     double sumarCantidadEnvasadaRegistrada(@Param("idEtapaLote") Long idEtapaLote);
 
     /**
+     * Indica si un lote tiene al menos un envasado en el estado transaccional indicado, en cualquiera de sus etapas.
+     * Se usa al cancelar un lote, que no se puede cancelar si tiene envasados {@code REGISTRADO}.
+     *
+     * @param idLote El ID del lote.
+     * @param estado El estado transaccional a buscar.
+     * @return {@code true} si el lote tiene al menos un envasado en ese estado.
+     */
+    boolean existsByEtapaLote_Lote_IdAndEstado(Long idLote, EstadoTransaccion estado);
+
+    /**
      * Suma, por planificación de producción, la cantidad envasada de los envasados {@code REGISTRADO}
      * (los anulados no cuentan) de los lotes {@code FINALIZADO} de la planificación (los lotes
      * pendientes, en ejecución o cancelados no cuentan). Es una única consulta para un conjunto de
