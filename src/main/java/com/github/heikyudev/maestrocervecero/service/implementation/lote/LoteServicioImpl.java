@@ -87,6 +87,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -630,7 +631,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 6. El molino utilizado pasa a estado EN_LIMPIEZA
         Long idMolino = etapaMolienda.getEquipamiento().getId();
-        MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolino)
+        MolinoEntity molino = desproxy(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolino), MolinoEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolino));
         molino.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         molinoRepository.save(molino);
@@ -678,7 +679,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 5. El macerador utilizado pasa a estado EN_LIMPIEZA
         Long idMacerador = etapaMaceracion.getEquipamiento().getId();
-        MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMacerador)
+        MaceradorEntity macerador = desproxy(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMacerador), MaceradorEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMacerador));
         macerador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         maceradorRepository.save(macerador);
@@ -729,7 +730,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 6. La olla de hervor utilizada pasa a estado EN_LIMPIEZA
         Long idOllaHervor = etapaHervido.getEquipamiento().getId();
-        OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervor)
+        OllaHervorEntity ollaHervor = desproxy(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervor), OllaHervorEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + idOllaHervor));
         ollaHervor.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         ollaHervorRepository.save(ollaHervor);
@@ -897,7 +898,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 5. El fermentador utilizado pasa a estado EN_LIMPIEZA (concluyen las tres etapas que lo comparten)
         Long idFermentador = etapaEnvasado.getEquipamiento().getId();
-        FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentador)
+        FermentadorEntity fermentador = desproxy(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentador), FermentadorEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentador));
         fermentador.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         fermentadorRepository.save(fermentador);
@@ -1229,7 +1230,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoMolino = resolverEstadoOperativoAlCancelar(estadoMolino);
         if (nuevoEstadoMolino != null) {
             Long idMolinoFinal = idMolino;
-            MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolinoFinal)
+            MolinoEntity molino = desproxy(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolinoFinal), MolinoEntity.class)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolinoFinal));
             molino.setEstadoOperativo(nuevoEstadoMolino);
             molinoRepository.save(molino);
@@ -1238,7 +1239,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoMacerador = resolverEstadoOperativoAlCancelar(estadoMacerador);
         if (nuevoEstadoMacerador != null) {
             Long idMaceradorFinal = idMacerador;
-            MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMaceradorFinal)
+            MaceradorEntity macerador = desproxy(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMaceradorFinal), MaceradorEntity.class)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMaceradorFinal));
             macerador.setEstadoOperativo(nuevoEstadoMacerador);
             maceradorRepository.save(macerador);
@@ -1247,7 +1248,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoOllaHervor = resolverEstadoOperativoAlCancelar(estadoOllaHervor);
         if (nuevoEstadoOllaHervor != null) {
             Long idOllaHervorFinal = idOllaHervor;
-            OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervorFinal)
+            OllaHervorEntity ollaHervor = desproxy(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervorFinal), OllaHervorEntity.class)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + idOllaHervorFinal));
             ollaHervor.setEstadoOperativo(nuevoEstadoOllaHervor);
             ollaHervorRepository.save(ollaHervor);
@@ -1256,7 +1257,7 @@ public class LoteServicioImpl implements ILoteServicio {
         EstadoOperativo nuevoEstadoFermentador = resolverEstadoOperativoAlCancelar(estadoFermentador);
         if (nuevoEstadoFermentador != null) {
             Long idFermentadorFinal = idFermentador;
-            FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentadorFinal)
+            FermentadorEntity fermentador = desproxy(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentadorFinal), FermentadorEntity.class)
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentadorFinal));
             fermentador.setEstadoOperativo(nuevoEstadoFermentador);
             fermentadorRepository.save(fermentador);
@@ -1499,13 +1500,13 @@ public class LoteServicioImpl implements ILoteServicio {
         final Long idOllaHervorFinal = idOllaHervor;
         final Long idFermentadorFinal = idFermentador;
 
-        MolinoEntity molino = molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolinoFinal)
+        MolinoEntity molino = desproxy(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(idMolinoFinal), MolinoEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + idMolinoFinal));
-        MaceradorEntity macerador = maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMaceradorFinal)
+        MaceradorEntity macerador = desproxy(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(idMaceradorFinal), MaceradorEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el macerador con ID: " + idMaceradorFinal));
-        OllaHervorEntity ollaHervor = ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervorFinal)
+        OllaHervorEntity ollaHervor = desproxy(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(idOllaHervorFinal), OllaHervorEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la olla de hervor con ID: " + idOllaHervorFinal));
-        FermentadorEntity fermentador = fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentadorFinal)
+        FermentadorEntity fermentador = desproxy(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(idFermentadorFinal), FermentadorEntity.class)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + idFermentadorFinal));
 
         validarDisponible(molino, "El molino");
@@ -1514,6 +1515,16 @@ public class LoteServicioImpl implements ILoteServicio {
         validarDisponible(fermentador, "El fermentador");
 
         return new EquipamientoDelLote(molino, macerador, ollaHervor, fermentador);
+    }
+
+    /**
+     * Devuelve la instancia real de una entidad: la consulta bloqueada del equipamiento devuelve el proxy de Hibernate
+     * ya cargado en el contexto de persistencia (por la asociación perezosa de la etapa), que no es instancia de la
+     * clase concreta y falla al asignarse a ella. Se lee como el tipo base para que el proxy no se convierta antes
+     * de desenvolverlo.
+     */
+    static <T extends EquipamientoEntity> Optional<T> desproxy(Optional<? extends EquipamientoEntity> equipamiento, Class<T> clase) {
+        return equipamiento.map(Hibernate::unproxy).map(clase::cast);
     }
 
     private void validarDisponible(EquipamientoEntity equipamiento, String etiqueta) {

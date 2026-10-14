@@ -1475,6 +1475,32 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-IL-31: iniciarLote — los equipamientos bloqueados que llegan como proxy de Hibernate se desenvuelven a su clase concreta")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void iniciarLote_debeDesenvolverLosEquipamientosBloqueadosQueLlegaronComoProxy() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteRegistradoBaseConEstadosEquipamiento(EstadoOperativo.EN_USO, EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE, EstadoOperativo.DISPONIBLE);
+        when(loteRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(lote));
+        EquipamientoEntity molino = findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento();
+        EquipamientoEntity macerador = findEtapa(lote, TipoEtapa.MACERACION).getEquipamiento();
+        EquipamientoEntity ollaHervor = findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento();
+        EquipamientoEntity fermentador = findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento();
+        EquipamientoEntity proxyMolino = proxyDe(molino);
+        EquipamientoEntity proxyMacerador = proxyDe(macerador);
+        EquipamientoEntity proxyOllahervor = proxyDe(ollaHervor);
+        EquipamientoEntity proxyFermentador = proxyDe(fermentador);
+        when(molinoRepository.buscarPorIdParaCambiarEstadoOperativo(molino.getId())).thenReturn((Optional) Optional.of(proxyMolino));
+        when(maceradorRepository.buscarPorIdParaCambiarEstadoOperativo(macerador.getId())).thenReturn((Optional) Optional.of(proxyMacerador));
+        when(ollaHervorRepository.buscarPorIdParaCambiarEstadoOperativo(ollaHervor.getId())).thenReturn((Optional) Optional.of(proxyOllahervor));
+        when(fermentadorRepository.buscarPorIdParaCambiarEstadoOperativo(fermentador.getId())).thenReturn((Optional) Optional.of(proxyFermentador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("El molino");
+    }
+
+    @Test
     @DisplayName("CP-IL-30: iniciarLote — las reservas de la malta quedan atadas a la etapa de Molienda, no a la de Maceración")
     void iniciarLote_debeAtarLasReservasDeLaMaltaALaEtapaDeMolienda() {
         // === PREPARACION DE DATOS ===
