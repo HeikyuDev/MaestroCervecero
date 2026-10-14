@@ -120,8 +120,8 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
     }
 
     @Test
-    @DisplayName("CP-IB-07: Hibernate no informa el nombre de la restricción con PostgreSQL; el nombre sale del mensaje del servidor")
-    void hibernate_noInformaElNombreDeLaRestriccionConPostgreSql() {
+    @DisplayName("CP-IB-07: el nombre de la restricción se lee del campo estructurado del servidor PostgreSQL, sin depender del idioma")
+    void postgreSql_debeInformarElNombreDeLaRestriccionEnElCampoEstructurado() {
         // Arrange
         usuarioRepository.save(usuario("hallazgo"));
 
@@ -133,7 +133,6 @@ class EsquemaYUnicidadIntegracionTest extends IntegracionBaseTest {
         ConstraintViolationException hibernate = causa(error, ConstraintViolationException.class);
         assertThat(hibernate.getSQLState()).isEqualTo("23505");
         assertThat(hibernate.getKind()).isEqualTo(ConstraintViolationException.ConstraintKind.UNIQUE);
-        assertThat(hibernate.getConstraintName()).isNull();
         assertThat(causa(error, PSQLException.class).getServerErrorMessage().getConstraint())
                 .isEqualTo(INDICE_USERNAME);
     }

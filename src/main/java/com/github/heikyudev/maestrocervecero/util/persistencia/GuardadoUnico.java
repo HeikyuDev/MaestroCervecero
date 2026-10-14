@@ -85,9 +85,9 @@ public final class GuardadoUnico {
     /**
      * Busca en la cadena de causas el nombre de la restricción violada y el código SQLSTATE.
      * <p>
-     * Con PostgreSQL, Hibernate 7.4 informa el SQLSTATE ({@code 23505}) pero deja en {@code null} el valor de
-     * {@link ConstraintViolationException#getConstraintName()}; el nombre del índice se lee del campo
-     * {@code constraint} del mensaje de error del servidor ({@link PSQLException#getServerErrorMessage()}), que no
+     * Con PostgreSQL, Hibernate 7.4 informa el SQLSTATE ({@code 23505}) pero el valor de
+     * {@link ConstraintViolationException#getConstraintName()} depende del idioma del servidor (puede ser {@code null}); el
+     * nombre del índice se lee también del campo {@code constraint} del mensaje de error del servidor ({@link PSQLException#getServerErrorMessage()}), que no
      * depende del idioma de la base de datos como sí lo hace el texto del mensaje.
      * </p>
      */
