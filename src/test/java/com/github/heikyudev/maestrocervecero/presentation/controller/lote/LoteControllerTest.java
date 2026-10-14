@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Permiso;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
@@ -1092,7 +1093,7 @@ class LoteControllerTest {
 
         // Assert
         assertThat(texto(guia)).contains("Volumen pre-hervor: 345 L", "Duración estimada: 90 minutos", "Olla de hervor: OH-01").doesNotContain("40 g");
-        assertThat(celdas(guia, "Cascade")).containsExactly("Cascade", "25 g", "60");
+        assertThat(celdas(guia, "Cascade")).containsExactly("Cascade", "25 g", "60 min");
         assertThat(celdas(guia, "Citra")).containsExactly("Citra", "15 g", "-");
     }
 
@@ -2359,7 +2360,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-131: sin JavaScript las acciones funcionan: iniciar y finalizar son formularios POST con action y CSRF, las pestañas son enlaces y los formularios son novalidate")
+    @DisplayName("CP-LCT-131: sin JavaScript las acciones funcionan: iniciar y finalizar son formularios POST con action y CSRF y data-un-solo-envio, las pestañas son enlaces y los formularios son novalidate")
     void transversal_funcionaSinJavaScript() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.PENDIENTE, TipoEtapa.MOLIENDA, etapas(EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE,
@@ -2375,7 +2376,11 @@ class LoteControllerTest {
         // Assert
         Matcher iniciar = Pattern.compile("(?s)<form[^>]*action=\"/lotes/12/iniciar\"[^>]*>(.*?)</form>").matcher(pendiente);
         assertThat(iniciar.find()).isTrue();
-        assertThat(iniciar.group()).contains("method=\"post\"").contains("action=\"/lotes/12/iniciar\"").contains("name=\"_csrf\"").contains("type=\"submit\"");
+        assertThat(iniciar.group()).contains("method=\"post\"").contains("action=\"/lotes/12/iniciar\"").contains("name=\"_csrf\"").contains("type=\"submit\"")
+                .contains("data-un-solo-envio");
+        Matcher finalizar = Pattern.compile("(?s)<form[^>]*action=\"/lotes/12/etapas/hervido/finalizar\"[^>]*>").matcher(enEjecucion);
+        assertThat(finalizar.find()).isTrue();
+        assertThat(finalizar.group()).contains("data-un-solo-envio");
         assertThat(cuenta(enEjecucion, "<a href=\"/lotes/12?etapa=")).isEqualTo(6);
         assertThat(enEjecucion).doesNotContain("data-tab-js");
         Matcher formularioAlta = Pattern.compile("<form[^>]*id=\"lote-form\"[^>]*>").matcher(alta);
@@ -2412,6 +2417,81 @@ class LoteControllerTest {
             assertThat(cantidad).isPositive();
             assertThat(emoji.matcher(html).find()).isFalse();
         }
+    }
+
+    @Test
+    @DisplayName("CP-LCT-134: un estado operativo que no existe en los cuatro buscadores de equipos y en el del filtro de fermentadores se ignora con un aviso dentro del fragmento y se buscan todos; el nombre se acepta sin distinguir mayúsculas")
+    void buscadores_estadoOperativoInvalido() throws Exception {
+        // Act + Assert: un valor inválido no rompe el modal
+        for (String ruta : List.of("/buscador/molinos", "/buscador/maceradores", "/buscador/ollas", "/buscador/fermentadores", "/filtros/fermentadores")) {
+            String html = mockMvc.perform(get(URL + ruta).with(como(Rol.GERENTE_DE_PRODUCCION)).param("estadoOperativo", "XYZ"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+            assertThat(texto(bloque(html, "data-aviso-buscador"))).isEqualTo("El estado operativo indicado no es válido, se muestran todos");
+            assertThat(html).contains("data-modal-buscar").doesNotContain("<html");
+        }
+        verify(molinoServicio).filtrarMolinos(isNull(), isNull(), any());
+        verify(maceradorServicio).filtrarMaceradores(isNull(), isNull(), any());
+        verify(ollaHervorServicio).filtrarOllasHervor(isNull(), isNull(), any());
+        verify(fermentadorServicio, times(2)).filtrarFermentadores(isNull(), isNull(), any());
+
+        // Act + Assert: el nombre válido se interpreta y no hay aviso
+        String html = mockMvc.perform(get(URL + "/buscador/molinos").with(como(Rol.GERENTE_DE_PRODUCCION)).param("estadoOperativo", "disponible"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(html).doesNotContain("data-aviso-buscador");
+        verify(molinoServicio).filtrarMolinos(isNull(), eq(EstadoOperativo.DISPONIBLE), any());
+    }
+
+    @Test
+    @DisplayName("CP-LCT-135: un valor de la URL que no se puede convertir (lote, página o casilla) en una pantalla redirige con la alerta amarilla El valor indicado no es válido y en un buscador responde 400 con el mensaje, sin error inesperado")
+    void transversal_valoresInvalidosEnLaUrl() throws Exception {
+        // Act + Assert: las pantallas y las acciones vuelven al origen con un aviso
+        List<org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder> pantallas = List.of(
+                get(URL + "/abc"),
+                get(URL).param("pagina", "xyz"),
+                post(URL + "/abc/iniciar").with(csrf()),
+                post(URL + "/abc/cancelar").with(csrf()).param("motivo", "Error de carga"),
+                post(URL + "/abc/etapas/hervido/finalizar").with(csrf()));
+        for (org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder pantalla : pantallas) {
+            assertAvisoDeValorInvalido(mockMvc.perform(pantalla.with(como(Rol.OPERARIO_DE_PRODUCCION)).header("Referer", "/lotes")));
+        }
+
+        // Act + Assert: un modal no puede recibir una página completa
+        for (String ruta : List.of("/buscador/planificaciones", "/buscador/molinos", "/filtros/planificaciones", "/filtros/fermentadores")) {
+            mockMvc.perform(get(URL + ruta).with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "xyz").header("Referer", "/lotes"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType("text/plain;charset=UTF-8"))
+                    .andExpect(content().string("El valor indicado no es válido"));
+        }
+        mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "xyz"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("El valor indicado no es válido"));
+    }
+
+    @Test
+    @DisplayName("CP-LCT-136: la guía de Hervido con un lúpulo repetido en la receta muestra la cantidad total de la etapa y todos sus tiempos de hervor, del mayor al menor; el whirlpool queda sin tiempo")
+    void detalle_guiaDeHervidoConUnLupuloRepetido() throws Exception {
+        // Arrange
+        VersionRecetaResponseDTO recetaConLupuloRepetido = VersionRecetaResponseDTO.builder().id(30L).nombre("Pale Ale").duracionHervido(90)
+                .detallesLupulo(List.of(
+                        DetalleLupuloResponseDTO.builder().cantidad(15.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(15.0).lupulo(cascade()).build(),
+                        DetalleLupuloResponseDTO.builder().cantidad(25.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(60.0).lupulo(cascade()).build(),
+                        DetalleLupuloResponseDTO.builder().cantidad(15.0).uso(UsoLupulo.WHIRLPOOL).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(0.0).lupulo(citra()).build(),
+                        DetalleLupuloResponseDTO.builder().cantidad(40.0).uso(UsoLupulo.DRY_HOP).etapaDeUso(TipoEtapa.MADURACION).tiempoDeHervor(0.0).lupulo(cascade()).build()))
+                .build();
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO))
+                .versionReceta(VersionRecetaDePlanificacionResponseDTO.builder().idPlanificacion(7L).idReceta(3L).numeroVersion(3).cantidadVersiones(3).version(recetaConLupuloRepetido).build())
+                .build());
+        when(loteServicio.calcularAguaDelLote(12L)).thenReturn(agua(60.0, List.of()));
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(
+                requerido(cascade(), UnidadDeMedida.GRAMO, 40.0, 40.0, 0.0), requerido(citra(), UnidadDeMedida.GRAMO, 15.0, 15.0, 0.0)));
+
+        // Act
+        String guia = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido"), "data-guia");
+
+        // Assert: una fila por insumo, con la cantidad total que calcula el service y los tiempos de la receta
+        assertThat(celdas(guia, "Cascade")).containsExactly("Cascade", "40 g", "60 min y 15 min");
+        assertThat(celdas(guia, "Citra")).containsExactly("Citra", "15 g", "-");
+        assertThat(cuenta(guia, "data-tiempos-hervor")).isEqualTo(2);
     }
 
     @Test
@@ -2499,6 +2579,13 @@ class LoteControllerTest {
     private void verifyNingunService() {
         verifyNoInteractions(loteServicio, consumoInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
                 ollaHervorServicio, fermentadorServicio);
+    }
+
+    private void assertAvisoDeValorInvalido(org.springframework.test.web.servlet.ResultActions resultado) throws Exception {
+        resultado.andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/lotes"))
+                .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
+                .andExpect(flash().attribute("tipo", "warning"));
     }
 
     private void stubDetalle(LoteDetalleResponseDTO detalle) {

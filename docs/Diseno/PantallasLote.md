@@ -15,7 +15,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | Cancelar un lote | `LOTE_ANULAR` | Sí | No |
 | Iniciar un lote | `LOTE_INICIAR` | No | Sí |
 | Finalizar una etapa (seis permisos, uno por etapa) | `LOTE_FINALIZAR_<ETAPA>` | No | Sí |
-| Ver la pantalla de consumos de una etapa | `CONSUMO_INSUMO_CONSULTAR` | No | Sí |
+| Ver la pantalla de consumos de una etapa | `CONSUMO_INSUMO_CONSULTAR` | No | Sí (el encargado de depósito también la ve, en solo lectura) |
 | Registrar un consumo (reservado o directo) | `CONSUMO_INSUMO_REGISTRAR` | No | Sí |
 | Anular un consumo | `CONSUMO_INSUMO_ANULAR` | No | Sí |
 | Ver la pantalla de envasados | `ENVASADO_CONSULTAR` | No | Sí |
@@ -28,6 +28,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 
 - Cada método del Controller lleva `@PreAuthorize("hasAuthority('<PERMISO>')")` con el permiso de la tabla (`LOTE_CONSULTAR`, `LOTE_REGISTRAR`, `LOTE_ANULAR`, `LOTE_INICIAR`, `LOTE_FINALIZAR_<ETAPA>`, `CONSUMO_INSUMO_*` y `ENVASADO_*`), y cada botón se oculta con `sec:authorize` por el mismo permiso. El servidor es quien rechaza: ocultar el botón es solo una ayuda visual.
 - El gerente de producción registra y cancela lotes y consulta la lista y el detalle, donde ve todo lo que ocurrió (consumos de cada etapa, fechas de inicio y fin de cada etapa y envasados) sin botones de operación. El operario de producción inicia lotes, finaliza las seis etapas, registra y anula consumos y envasados, consulta la lista y el detalle, y ve el cronograma en solo lectura. Las pantallas de consumos y de envasados son de operación: las abre el operario y el gerente no.
+- El encargado de depósito tiene `CONSUMO_INSUMO_CONSULTAR` y puede abrir la pantalla de consumos de una etapa en solo lectura (resumen y consumos registrados, sin formularios, selector ni botones "Anular") escribiendo la dirección. No llega por el menú ni tiene el link "Volver al lote" (que exige `LOTE_CONSULTAR`). Es una decisión aprobada.
 - Un acceso no autorizado no devuelve un 403: el `ControllerAdvices` traduce la excepción a un redirect con la alerta `danger` "No tiene permisos para realizar esta acción".
 
 ## 2. Inventario de pantallas y rutas
@@ -61,7 +62,8 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 ## 3. Reglas comunes de las pantallas
 
 - **Post-Redirect-Get.** Toda acción exitosa redirige y muestra una alerta de éxito en el layout; recargar la página no repite la acción. Registrar un lote lleva a la lista de lotes (el lote queda Pendiente y lo inicia el operario); iniciar, cancelar y finalizar vuelven al detalle (que abre la etapa actual en ejecución); registrar o anular un consumo o un envasado vuelve a la misma pantalla de consumos o de envasados, con la alerta de éxito.
-- **Errores.** El mensaje de un rechazo del service se muestra como alerta (amarilla si es una regla de negocio, roja si el recurso no existe): el `ControllerAdvices` redirige al origen (`Referer`) con ese mensaje. Los errores de validación del formulario (`@Valid`) y los números que no se pueden convertir vuelven a mostrar la misma pantalla con un resumen de errores y lo que el usuario había cargado. En los parámetros de la URL, un valor inválido se tolera: aviso amarillo y la pantalla se muestra sin ese filtro.
+- **Errores.** El mensaje de un rechazo del service se muestra como alerta (amarilla si es una regla de negocio, roja si el recurso no existe): el `ControllerAdvices` redirige al origen (`Referer`) con ese mensaje. Los errores de validación del formulario (`@Valid`) y los números que no se pueden convertir en las pantallas de consumos y de envasados también son un Post-Redirect-Get: redirigen a la misma pantalla y viajan en los atributos flash, de modo que ella muestra un resumen de errores y lo que el usuario había cargado, y el navegador nunca queda en la URL de un `POST` (que no tiene pantalla propia y daría un 405 si un rechazo posterior volviera a ella). En los parámetros de la URL, un valor inválido se tolera: aviso amarillo y la pantalla se muestra sin ese filtro; en un buscador en modal, el aviso va dentro del propio fragmento. Un valor que no se puede convertir al tipo del parámetro (`/lotes/abc`, `?pagina=xyz`) redirige al origen con la alerta amarilla "El valor indicado no es válido" y, en un buscador en modal, responde 400 con ese texto, que el modal muestra dentro de sí.
+- **Doble envío.** Los formularios de registrar un consumo o un envasado, el diálogo de motivo (anular y cancelar) y los de iniciar y finalizar una etapa llevan `data-un-solo-envio`: con JavaScript, al enviarlos se deshabilitan sus botones y un segundo envío se ignora; al volver a la página desde el historial del navegador se habilitan de nuevo. Sin JavaScript el formulario se envía igual.
 - **Advertencias.** Las advertencias de un consumo (lote de insumo vencido, total consumido mayor a lo requerido) no bloquean la operación: se muestran como alertas amarillas en la parte superior de la pantalla, debajo de la alerta de éxito.
 - **Formularios.** Son `novalidate`, el JavaScript no valida y el servidor es la fuente de verdad. Los campos obligatorios llevan asterisco rojo, todo campo lleva un placeholder de ejemplo ("Ej: 300") y las unidades van en la etiqueta o en la cabecera de la columna.
 - **Selector de entidad.** Elegir una entidad relacionada (planificación, equipo, lote de insumo, barril) abre un modal con criterios de filtro y resultados paginados de a 8; nunca es un desplegable con todos los registros. Es solo para elegir: no hay alta al vuelo en estas pantallas. Un criterio que identifica una instancia (el insumo en el buscador de lotes de insumo) es un campo de texto, nunca un desplegable; los desplegables se reservan para enums chicos (estado del lote, estado operativo).
@@ -74,7 +76,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 
 ```
 Control de Lotes                                                  [ + Registrar lote ]*
-Lotes registrados, con el último registrado arriba.
+Lotes registrados, con el último registrado arriba
 
 +- Criterios ---------------------------------------------------------------------------+
 | Planificación        Fermentador          Código             Estado                   |
@@ -213,10 +215,12 @@ Duración estimada: 60 minutos            Macerador: MA-01
 
 ```
 Volumen pre-hervor: 345 L          Duración estimada: 90 minutos          Olla de hervor: OH-01
-Lúpulos                      Cantidad (g)   Tiempo de hervor (min)
-Cascade                      25             60
+Lúpulos                      Cantidad (g)   Tiempo de hervor
+Cascade                      25             60 min
 Citra                        15             -
 ```
+
+Si la receta usa el mismo lúpulo más de una vez en el hervido, el service suma sus cantidades en una sola por insumo y la guía muestra esa cantidad total con todos los tiempos de hervor de la receta, del mayor al menor (por ejemplo, "Cascade   40   60 min y 15 min"). El whirlpool no tiene tiempo de hervor y se muestra con "-".
 
 **Fermentación**
 
@@ -285,7 +289,7 @@ CONSUMOS REGISTRADOS
 - Cada reserva es su propio formulario (lote de insumo oculto y cantidad), de modo que "Registrar" consume exactamente de ese lote reservado.
 - Las reservas con saldo van primero; las agotadas se muestran atenuadas. Un lote vencido se marca con "Vencido" y puede consumirse; al registrar, las advertencias (lote vencido, total consumido mayor a lo requerido) aparecen como alertas amarillas arriba de la pantalla.
 - En el consumo directo, "Seleccione lote de insumo" abre el buscador de lotes de insumo, que ofrece solo lotes de los insumos de la etapa con cantidad disponible y permite filtrar por "Insumo" (campo de texto con el nombre, placeholder "Ej: Cascade"; nunca un desplegable) y por "Identificación del lote". Los resultados van primero con los lotes vigentes por fecha de vencimiento ascendente (el que vence antes, primero; criterio FEFO), después los lotes sin fecha de vencimiento, y al final los vencidos, también por fecha de vencimiento, marcados con "Vencido".
-- Errores: un error de validación (`@Valid`) vuelve a mostrar esta pantalla con lo escrito; un rechazo del service redirige al origen con su mensaje. El Controller verifica que el consumo a anular pertenezca a la etapa y al lote de la ruta.
+- Errores: un error de validación (`@Valid`) redirige a esta misma pantalla, que muestra los errores y lo escrito; un rechazo del service redirige al origen con su mensaje. El Controller verifica que el consumo a anular pertenezca a la etapa y al lote de la ruta.
 - "Anular" abre el diálogo de motivo.
 - Si el lote no está En ejecución o la etapa no está En curso, se muestra el aviso "La etapa de Hervido no está en curso, solo se pueden consultar los consumos" y desaparecen los formularios y los botones "Anular".
 
@@ -317,7 +321,7 @@ ENVASADOS REGISTRADOS
 - El único tope del envasado es la capacidad útil del fermentador: se puede envasar más que el volumen objetivo, y superarlo solo muestra un aviso informativo.
 - "Seleccione barril" abre el buscador de barriles Disponibles (criterio "Identificador").
 - La pantalla no finaliza el envasado: eso se hace en el detalle del lote ("Finalizar envasado").
-- Errores: un error de validación (`@Valid`) vuelve a mostrar esta pantalla con lo escrito; un rechazo del service redirige al origen con su mensaje. El Controller verifica que el envasado a anular pertenezca al lote de la ruta.
+- Errores: un error de validación (`@Valid`) redirige a esta misma pantalla, que muestra los errores y lo escrito; un rechazo del service redirige al origen con su mensaje. El Controller verifica que el envasado a anular pertenezca al lote de la ruta.
 - Sin el Envasado en curso, la pantalla es de solo lectura (aviso, sin formulario ni "Anular").
 
 ## 9. Cronograma de producción para el operario (`/cronograma-produccion`)

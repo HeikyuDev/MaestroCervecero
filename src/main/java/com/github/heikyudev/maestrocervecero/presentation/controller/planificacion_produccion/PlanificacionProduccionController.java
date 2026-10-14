@@ -20,7 +20,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -68,12 +67,6 @@ public class PlanificacionProduccionController {
     private static final String VISTA_SUGERENCIA = "planificacion_produccion/sugerencia-fecha :: sugerencia";
     private static final String ATRIBUTO_FORMULARIO = "planificacionForm";
     private static final String URL_LISTA = "/planificaciones-produccion";
-
-    /**
-     * Listado transaccional: la última planificación registrada arriba. El id es autogenerado y creciente,
-     * así que ordenar por él equivale al orden de registro y desempata siempre.
-     */
-    static final Sort ORDEN_MAS_RECIENTE_PRIMERO = Sort.by(Sort.Order.desc("id"));
 
     private final IPlanificacionProduccionServicio planificacionServicio;
     private final IRecetaServicio recetaServicio;

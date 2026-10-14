@@ -43,6 +43,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -72,6 +73,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -405,13 +407,10 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-17: el formulario vacío vuelve a mostrar la pantalla completa con el resumen de errores y no invoca al service de registro")
+    @DisplayName("CP-LEN-17: el formulario vacío redirige a la pantalla (Post-Redirect-Get) que se muestra completa con el resumen de errores y no invoca al service de registro")
     void registrar_formularioVacio() throws Exception {
         // Act
-        String html = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null))
-                .andExpect(status().isOk())
-                .andExpect(view().name("lote/envasado-lista"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null));
 
         // Assert
         assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo registrar el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria");
@@ -425,9 +424,7 @@ class EnvasadoLoteControllerTest {
     @DisplayName("CP-LEN-18: una cantidad no numérica muestra Ingrese un número válido, conserva lo escrito y el barril elegido y no invoca al service de registro")
     void registrar_cantidadNoNumerica() throws Exception {
         // Act
-        String html = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc"));
         String registrar = bloque(html, "data-registrar-envasado");
 
         // Assert
@@ -444,9 +441,7 @@ class EnvasadoLoteControllerTest {
     @DisplayName("CP-LEN-19: sin barril muestra El barril es obligatorio debajo del selector y conserva la cantidad")
     void registrar_sinBarril() throws Exception {
         // Act
-        String registrar = bloque(mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, "50"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8), "data-registrar-envasado");
+        String registrar = bloque(enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, "50")), "data-registrar-envasado");
 
         // Assert
         assertThat(texto(registrar)).contains("El barril es obligatorio");
@@ -780,7 +775,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-46: sin JavaScript el registro es un formulario POST con action y CSRF, novalidate y sin required, min ni pattern; solo el selector del barril y el diálogo de motivo usan modales.js")
+    @DisplayName("CP-LEN-46: sin JavaScript el registro es un formulario POST con action y CSRF, novalidate, data-un-solo-envio y sin required, min ni pattern; solo el selector del barril y el diálogo de motivo usan modales.js")
     void transversal_sinJavaScript() throws Exception {
         // Act
         String html = html(Rol.OPERARIO_DE_PRODUCCION);
@@ -792,10 +787,61 @@ class EnvasadoLoteControllerTest {
             etiquetas.add(formularios.group());
         }
         assertThat(etiquetas).hasSize(2);
-        assertThat(etiquetas).allSatisfy(form -> assertThat(form).contains("method=\"post\"").contains("action=\"").contains("novalidate"));
+        assertThat(etiquetas).allSatisfy(form -> assertThat(form).contains("method=\"post\"").contains("action=\"").contains("novalidate").contains("data-un-solo-envio"));
         assertThat(cuenta(contenido(html), "name=\"_csrf\"")).isEqualTo(2);
         assertThat(html).doesNotContain(" required").doesNotContain(" min=").doesNotContain(" pattern=")
                 .contains("/js/modales.js").contains("/js/envasado-lista.js");
+    }
+
+    @Test
+    @DisplayName("CP-LEN-50: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en la pantalla de envasados, sin 405 ni bucle")
+    void transversal_errorDeValidacionYLuegoRechazoDelService() throws Exception {
+        // Arrange
+        when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenThrow(new ReglaNegocioException("El barril no está disponible"));
+
+        // Act: 1) el formulario es inválido y el navegador vuelve a la pantalla
+        MvcResult invalido = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", null).header("Referer", URL_PANTALLA))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        String ubicacion = invalido.getResponse().getRedirectedUrl();
+        mockMvc.perform(get(ubicacion).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(invalido.getFlashMap())).andExpect(status().isOk());
+
+        // Act: 2) desde esa ubicación, el service rechaza un envío con datos válidos
+        MvcResult rechazado = mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50").header("Referer", ubicacion))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        String destino = rechazado.getResponse().getRedirectedUrl();
+        String html = mockMvc.perform(get(destino).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(rechazado.getFlashMap()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(ubicacion).isEqualTo(URL_PANTALLA);
+        assertThat(destino).isEqualTo(URL_PANTALLA);
+        assertThat(texto(html)).contains("El barril no está disponible");
+    }
+
+    @Test
+    @DisplayName("CP-LEN-51: un valor de la URL que no se puede convertir (lote, envasado o página) en una pantalla redirige con la alerta amarilla El valor indicado no es válido y en el buscador responde 400 con el mensaje")
+    void transversal_valoresInvalidosEnLaUrl() throws Exception {
+        // Act + Assert: las pantallas vuelven al origen con un aviso, sin error inesperado
+        List<MockHttpServletRequestBuilder> pantallas = List.of(
+                get("/lotes/abc/envasados"),
+                get(URL_PANTALLA).param("pagina", "xyz"),
+                post(URL_PANTALLA + "/xyz/anular").with(csrf()).param("motivo", "Error de carga"));
+        for (MockHttpServletRequestBuilder pantalla : pantallas) {
+            mockMvc.perform(pantalla.with(como(Rol.OPERARIO_DE_PRODUCCION)).header("Referer", "/lotes/12"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/lotes/12"))
+                    .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
+                    .andExpect(flash().attribute("tipo", "warning"));
+        }
+
+        // Act + Assert: un modal no puede recibir una página completa
+        mockMvc.perform(get(URL_BUSCADOR).param("pagina", "xyz").with(como(Rol.OPERARIO_DE_PRODUCCION)).header("Referer", URL_PANTALLA))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType("text/plain;charset=UTF-8"))
+                .andExpect(content().string("El valor indicado no es válido"));
+        verifyNoInteractions(envasadoLoteServicio, barrilServicio);
     }
 
     @Test
@@ -807,7 +853,7 @@ class EnvasadoLoteControllerTest {
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
                                 .flashAttr("mensaje", "Envasado registrado correctamente").flashAttr("tipo", "success"))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
-                mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc")).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+                enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc")));
 
         // Assert
         String registrar = bloque(paginas.get(0), "data-registrar-envasado");
@@ -874,6 +920,18 @@ class EnvasadoLoteControllerTest {
 
     private String html(Rol rol) throws Exception {
         return mockMvc.perform(get(URL_PANTALLA).with(como(rol))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Envía un formulario inválido y sigue la redirección como lo hace el navegador: el Post-Redirect-Get vuelve a la
+     * pantalla de envasados con los errores y lo escrito en los atributos flash, y esa pantalla es la que se devuelve.
+     */
+    private String enviarConErroresYVolver(MockHttpServletRequestBuilder envio) throws Exception {
+        MvcResult enviado = mockMvc.perform(envio).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(URL_PANTALLA)).andReturn();
+        return mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(enviado.getFlashMap()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("lote/envasado-lista"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     private String buscador(Rol rol) throws Exception {

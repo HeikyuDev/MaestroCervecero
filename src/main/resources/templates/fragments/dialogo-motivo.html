@@ -19,7 +19,7 @@
 -->
 <dialog th:fragment="dialogo(id, titulo, resumen, etiquetaConfirmar, claseBoton, icono, ejemploMotivo)" th:id="${id}" data-dialogo-motivo
         class="m-auto w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
-    <form method="post" th:action="@{/}" novalidate class="p-6">
+    <form method="post" th:action="@{/}" novalidate data-un-solo-envio class="p-6">
         <div class="flex items-start gap-3">
             <span class="p-2 rounded-full bg-amber-50 text-amber-600"><i class="bi text-xl" th:classappend="${icono}"></i></span>
             <div class="min-w-0 flex-1">

@@ -21,7 +21,7 @@
             <div class="flex shrink-0 flex-wrap items-center justify-end gap-3">
                 <!-- Inicio del lote (operario, con el lote Pendiente) -->
                 <form th:if="${lote.estado.name() == 'PENDIENTE'}" sec:authorize="hasAuthority('LOTE_INICIAR')"
-                      th:action="@{/lotes/{id}/iniciar(id=${lote.id})}" method="post">
+                      th:action="@{/lotes/{id}/iniciar(id=${lote.id})}" method="post" data-un-solo-envio>
                     <button type="submit" data-confirmar-titulo="Iniciar lote" th:data-confirmar-mensaje="${mensajeIniciar}"
                             class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
                         <i class="bi bi-play-circle"></i> Iniciar lote
@@ -253,7 +253,7 @@
                         <i class="bi bi-database-add"></i> Registrar envasado
                     </a>
                     <form th:if="${#authorization.expression('hasAuthority(''LOTE_FINALIZAR_' + tipoEtapa.name() + ''')')}"
-                          th:action="@{/lotes/{id}/etapas/{etapa}/finalizar(id=${lote.id}, etapa=${slugEtapa})}" method="post">
+                          th:action="@{/lotes/{id}/etapas/{etapa}/finalizar(id=${lote.id}, etapa=${slugEtapa})}" method="post" data-un-solo-envio>
                         <button type="submit" th:data-confirmar-titulo="${tituloFinalizar}" th:data-confirmar-mensaje="${mensajeFinalizar}"
                                 class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
                             <i class="bi bi-check2-circle"></i> <th:block th:text="${tituloFinalizar}">Finalizar etapa</th:block>
@@ -268,7 +268,7 @@
     <th:block th:if="${lote.estado.name() == 'PENDIENTE' or lote.estado.name() == 'EN_EJECUCION'}">
         <th:block sec:authorize="hasAuthority('LOTE_ANULAR')">
             <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-cancelar', 'Cancelar lote',
-                    'Se cancela y queda registrado el motivo. No procede si tiene envasados registrados.',
+                    'Se cancela y queda registrado el motivo. No procede si tiene envasados registrados',
                     'Confirmar cancelación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                     'Se detectó una contaminación en el mosto')}"></div>
         </th:block>

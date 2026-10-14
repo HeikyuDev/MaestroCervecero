@@ -50,6 +50,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -81,6 +82,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -524,13 +526,10 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-24: sin cantidad vuelve a mostrar la pantalla completa con el resumen de errores y no invoca al service de registro")
+    @DisplayName("CP-LCO-24: sin cantidad redirige a la pantalla (Post-Redirect-Get) que se muestra completa con el resumen de errores y no invoca al service de registro")
     void reservado_sinCantidad() throws Exception {
         // Act
-        String html = mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", null))
-                .andExpect(status().isOk())
-                .andExpect(view().name("lote/consumo-lista"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", null));
 
         // Assert
         assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo registrar el consumo", "La cantidad consumida es obligatoria");
@@ -539,13 +538,10 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-25: sin lote de insumo vuelve a mostrar la pantalla con El lote de insumo es obligatorio y no invoca al service de registro")
+    @DisplayName("CP-LCO-25: sin lote de insumo redirige a la pantalla con El lote de insumo es obligatorio y no invoca al service de registro")
     void reservado_sinLoteDeInsumo() throws Exception {
         // Act
-        String html = mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), null, "10"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("lote/consumo-lista"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), null, "10"));
 
         // Assert
         assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo registrar el consumo", "El lote de insumo es obligatorio");
@@ -556,9 +552,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-26: una cantidad no numérica muestra Ingrese un número válido y la fila del lote de insumo conserva lo escrito")
     void reservado_cantidadNoNumerica() throws Exception {
         // Act
-        String html = mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc"));
         String fila = elementoConAtributo(bloque(html, "data-insumos-reservados"), "tr", "data-reserva=\"5\"");
 
         // Assert
@@ -572,8 +566,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-27: el error de una fila no borra lo escrito en ella y no pasa a las otras filas")
     void reservado_loEscritoSoloQuedaEnSuFila() throws Exception {
         // Act
-        String reservas = bloque(mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8), "data-insumos-reservados");
+        String reservas = bloque(enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc")), "data-insumos-reservados");
 
         // Assert
         assertThat(campo(elementoConAtributo(reservas, "tr", "data-reserva=\"5\""), "cantidadConsumida")).isEqualTo("abc");
@@ -718,13 +711,10 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-41: sin lote de insumo elegido vuelve a mostrar la pantalla con el error debajo del selector, conserva la cantidad y no invoca al service de registro")
+    @DisplayName("CP-LCO-41: sin lote de insumo elegido redirige a la pantalla con el error debajo del selector, conserva la cantidad y no invoca al service de registro")
     void directo_sinLoteDeInsumo() throws Exception {
         // Act
-        String html = mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), null, "5"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("lote/consumo-lista"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), null, "5"));
         String directo = bloque(html, "data-consumo-directo");
 
         // Assert
@@ -739,9 +729,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-42: un error de la cantidad conserva el lote de insumo elegido en el selector, con su insumo, vencimiento y saldo")
     void directo_elLoteElegidoSeConserva() throws Exception {
         // Act
-        String html = mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", null))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", null));
         String directo = bloque(html, "data-consumo-directo");
 
         // Assert
@@ -761,9 +749,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-43: una cantidad no numérica muestra Ingrese un número válido y conserva el lote elegido; los valores 0, -5, NaN e Infinity los rechaza el service")
     void directo_cantidadNoNumericaOInvalida() throws Exception {
         // Act: el formato es un error del campo
-        String html = mockMvc.perform(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "abc"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String html = enviarConErroresYVolver(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", "abc"));
         String directo = bloque(html, "data-consumo-directo");
 
         // Assert
@@ -1169,7 +1155,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-71: sin JavaScript las acciones funcionan: cada fila de reserva y el consumo directo son formularios POST con action y CSRF, novalidate y sin required, min ni pattern")
+    @DisplayName("CP-LCO-71: sin JavaScript las acciones funcionan: cada fila de reserva y el consumo directo son formularios POST con action y CSRF, novalidate, data-un-solo-envio y sin required, min ni pattern")
     void transversal_sinJavaScript() throws Exception {
         // Act
         String html = html(Rol.OPERARIO_DE_PRODUCCION);
@@ -1181,7 +1167,7 @@ class ConsumoInsumoControllerTest {
             etiquetas.add(formularios.group());
         }
         assertThat(etiquetas).hasSize(4);
-        assertThat(etiquetas).allSatisfy(form -> assertThat(form).contains("method=\"post\"").contains("action=\"").contains("novalidate"));
+        assertThat(etiquetas).allSatisfy(form -> assertThat(form).contains("method=\"post\"").contains("action=\"").contains("novalidate").contains("data-un-solo-envio"));
         assertThat(cuenta(contenido(html), "name=\"_csrf\"")).isEqualTo(4);
         assertThat(html).doesNotContain(" required").doesNotContain(" min=").doesNotContain(" pattern=")
                 .contains("/js/modales.js").contains("/js/consumo-lista.js");
@@ -1196,7 +1182,7 @@ class ConsumoInsumoControllerTest {
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
                                 .flashAttr("mensaje", "Consumo registrado correctamente").flashAttr("tipo", "success").flashAttr("advertencias", List.of(VENCIDO, EXCESO)))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
-                mockMvc.perform(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc")).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+                enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", "abc")));
 
         // Assert
         String directo = bloque(paginas.get(0), "data-consumo-directo");
@@ -1213,6 +1199,80 @@ class ConsumoInsumoControllerTest {
             }
             assertThat(emoji.matcher(pagina).find()).isFalse();
         }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"reservado", "directo"})
+    @DisplayName("CP-LCO-74: un error de validación y luego el rechazo del service no terminan en una ruta sin pantalla: el navegador queda siempre en la pantalla de consumos, sin 405 ni bucle")
+    void transversal_errorDeValidacionYLuegoRechazoDelService(String formulario) throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.registrarConsumoInsumoReservado(any(), any())).thenThrow(new ReglaNegocioException("La cantidad consumida debe ser mayor a 0"));
+        when(consumoInsumoServicio.registrarConsumoInsumoDirecto(any(), any())).thenThrow(new ReglaNegocioException("La cantidad consumida debe ser mayor a 0"));
+        String idLoteInsumo = formulario.equals("reservado") ? "5" : "8";
+
+        // Act: 1) el formulario es inválido y el navegador vuelve a la pantalla, no queda en la URL del POST
+        MvcResult invalido = mockMvc.perform(postConsumo(URL_PANTALLA + "/" + formulario, como(Rol.OPERARIO_DE_PRODUCCION), idLoteInsumo, null)
+                        .header("Referer", URL_PANTALLA))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        String ubicacion = invalido.getResponse().getRedirectedUrl();
+        mockMvc.perform(get(ubicacion).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(invalido.getFlashMap())).andExpect(status().isOk());
+
+        // Act: 2) desde esa ubicación, el service rechaza un envío con datos válidos
+        MvcResult rechazado = mockMvc.perform(postConsumo(URL_PANTALLA + "/" + formulario, como(Rol.OPERARIO_DE_PRODUCCION), idLoteInsumo, "0")
+                        .header("Referer", ubicacion))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        String destino = rechazado.getResponse().getRedirectedUrl();
+        String html = mockMvc.perform(get(destino).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(rechazado.getFlashMap()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert: las dos veces vuelve a la pantalla (que tiene GET) y el rechazo se muestra como alerta
+        assertThat(ubicacion).isEqualTo(URL_PANTALLA);
+        assertThat(destino).isEqualTo(URL_PANTALLA);
+        assertThat(texto(html)).contains("La cantidad consumida debe ser mayor a 0");
+    }
+
+    @Test
+    @DisplayName("CP-LCO-75: el buscador de un lote inexistente responde 200 con el mensaje dentro del fragmento, sin criterios ni filas")
+    void buscador_loteInexistente() throws Exception {
+        // Arrange
+        when(loteServicio.buscarDetallePorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el lote con ID: 99"));
+
+        // Act
+        String html = mockMvc.perform(get("/lotes/99/etapas/hervido/consumos/buscador/lotes-insumo").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("lote/buscador-lote-insumo :: buscador"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(texto(html)).contains("No se encontró el lote con ID: 99");
+        assertThat(html).doesNotContain("name=\"insumo\"").doesNotContain("data-elegir").doesNotContain("data-modal-buscar");
+        verifyNoInteractions(consumoInsumoServicio, reservaInsumoServicio, loteInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCO-76: un valor de la URL que no se puede convertir (lote, consumo o página) en una pantalla redirige con la alerta amarilla El valor indicado no es válido y en el buscador responde 400 con el mensaje")
+    void transversal_valoresInvalidosEnLaUrl() throws Exception {
+        // Act + Assert: las pantallas vuelven al origen con un aviso, sin error inesperado
+        List<MockHttpServletRequestBuilder> pantallas = List.of(
+                get("/lotes/abc/etapas/hervido/consumos"),
+                get(URL_PANTALLA).param("pagina", "xyz"),
+                post(URL_PANTALLA + "/xyz/anular").with(csrf()).param("motivo", "Error de carga"));
+        for (MockHttpServletRequestBuilder pantalla : pantallas) {
+            mockMvc.perform(pantalla.with(como(Rol.OPERARIO_DE_PRODUCCION)).header("Referer", "/lotes/12"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/lotes/12"))
+                    .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
+                    .andExpect(flash().attribute("tipo", "warning"));
+        }
+
+        // Act + Assert: un modal no puede recibir una página completa
+        mockMvc.perform(get(URL_BUSCADOR).param("pagina", "xyz").with(como(Rol.OPERARIO_DE_PRODUCCION)).header("Referer", URL_PANTALLA))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType("text/plain;charset=UTF-8"))
+                .andExpect(content().string("El valor indicado no es válido"));
+        verifyNoInteractions(consumoInsumoServicio, reservaInsumoServicio, loteInsumoServicio);
     }
 
     @Test
@@ -1270,6 +1330,18 @@ class ConsumoInsumoControllerTest {
 
     private String html(RequestPostProcessor usuario) throws Exception {
         return mockMvc.perform(get(URL_PANTALLA).with(usuario)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Envía un formulario inválido y sigue la redirección como lo hace el navegador: el Post-Redirect-Get vuelve a la
+     * pantalla de consumos con los errores y lo escrito en los atributos flash, y esa pantalla es la que se devuelve.
+     */
+    private String enviarConErroresYVolver(MockHttpServletRequestBuilder envio) throws Exception {
+        MvcResult enviado = mockMvc.perform(envio).andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(URL_PANTALLA)).andReturn();
+        return mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION)).flashAttrs(enviado.getFlashMap()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("lote/consumo-lista"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     private String buscador(Rol rol) throws Exception {

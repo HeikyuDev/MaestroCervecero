@@ -1,7 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
@@ -50,6 +49,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -68,7 +68,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * </p>
  * <p>
  * Los parámetros de la URL se interpretan con tolerancia: un valor inválido o un registro inexistente no rompe la
- * página, se ignora y se avisa. Las pantallas de consumos y de envasados tienen su propio Controller.
+ * página, se ignora y se avisa (en un buscador en modal, el aviso va dentro del fragmento). Las pantallas de consumos y
+ * de envasados tienen su propio Controller.
  * </p>
  */
 @Controller
@@ -85,9 +86,6 @@ public class LoteController {
     private static final String VISTA_FILTRO_FERMENTADOR = "lote/filtro-fermentador :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "loteForm";
     private static final String URL_LISTA = "/lotes";
-
-    /** Las listas se muestran con el último registro arriba: el id es autogenerado y creciente. */
-    static final Sort ORDEN_MAS_RECIENTE_PRIMERO = Sort.by(Sort.Order.desc("id"));
 
     private final ILoteServicio loteServicio;
     private final IConsumoInsumoServicio consumoInsumoServicio;
@@ -111,14 +109,15 @@ public class LoteController {
     }
 
     /**
-     * Lúpulo que se agrega en el hervido, con su tiempo de hervor según la receta (nulo si no lo tiene).
+     * Lúpulo que se agrega en el hervido, con la cantidad total de la etapa y los tiempos de hervor que la receta le
+     * asigna, del mayor al menor (vacío si no tiene ninguno, como el whirlpool).
      */
     @Value
     public static class LupuloDeHervido {
         String nombre;
         Double cantidad;
         UnidadDeMedida unidadDeMedida;
-        Double tiempoDeHervor;
+        List<Double> tiemposDeHervor;
     }
 
     // ==================== Lista ====================
@@ -270,7 +269,7 @@ public class LoteController {
                 .findFirst()
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa " + tipoMostrado.getEtiqueta() + " del lote con ID: " + id));
         VersionRecetaResponseDTO receta = lote.getVersionReceta() != null ? lote.getVersionReceta().getVersion() : null;
-        boolean operable = lote.getEstado() == EstadoLote.EN_EJECUCION && etapaMostrada.getEstado() == EstadoEtapaLote.EN_CURSO;
+        boolean operable = esOperable(lote.getEstado(), etapaMostrada.getEstado());
 
         model.addAttribute("lote", lote);
         model.addAttribute("receta", receta);
@@ -388,7 +387,7 @@ public class LoteController {
                 paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
         model.addAttribute("filtroReceta", receta);
         model.addAttribute("urlBuscador", "/lotes/buscador/planificaciones");
-        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación pendiente del lote.");
+        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación pendiente del lote");
         return VISTA_BUSCADOR_PLANIFICACION;
     }
 
@@ -396,56 +395,60 @@ public class LoteController {
     @GetMapping("/buscador/molinos")
     @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String buscarMolinos(@RequestParam(required = false) String identificador,
-                                @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                @RequestParam(required = false) String estadoOperativo,
                                 @RequestParam(defaultValue = "0") int pagina,
                                 Model model) {
+        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         Page<FilaEquipo> filas = molinoServicio
-                .filtrarMolinos(vacioANulo(identificador), estadoOperativo, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
+                .filtrarMolinos(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(m -> new FilaEquipo(m.getId(), m.getIdentificadorInterno(), m.getEstadoOperativo(), List.of(m.getRendimientoMolienda())));
         return cargarBuscadorDeEquipo(model, filas, "molino", "molinos", "M-01", "/lotes/buscador/molinos",
-                List.of("Rendimiento (kg/h)"), identificador, estadoOperativo);
+                List.of("Rendimiento (kg/h)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
     /** Devuelve el contenido del modal de búsqueda de maceradores activos, en orden alfabético por identificador. */
     @GetMapping("/buscador/maceradores")
     @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String buscarMaceradores(@RequestParam(required = false) String identificador,
-                                    @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                    @RequestParam(required = false) String estadoOperativo,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
+        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         Page<FilaEquipo> filas = maceradorServicio
-                .filtrarMaceradores(vacioANulo(identificador), estadoOperativo, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
+                .filtrarMaceradores(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(m -> new FilaEquipo(m.getId(), m.getIdentificadorInterno(), m.getEstadoOperativo(), List.of(m.getCapacidadUtil(), m.getEspacioMuerto())));
         return cargarBuscadorDeEquipo(model, filas, "macerador", "maceradores", "MA-01", "/lotes/buscador/maceradores",
-                List.of("Capacidad útil (L)", "Espacio muerto (L)"), identificador, estadoOperativo);
+                List.of("Capacidad útil (L)", "Espacio muerto (L)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
     /** Devuelve el contenido del modal de búsqueda de ollas de hervor activas, en orden alfabético por identificador. */
     @GetMapping("/buscador/ollas")
     @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String buscarOllasHervor(@RequestParam(required = false) String identificador,
-                                    @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                    @RequestParam(required = false) String estadoOperativo,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
+        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         Page<FilaEquipo> filas = ollaHervorServicio
-                .filtrarOllasHervor(vacioANulo(identificador), estadoOperativo, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
+                .filtrarOllasHervor(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(o -> new FilaEquipo(o.getId(), o.getIdentificadorInterno(), o.getEstadoOperativo(), List.of(o.getCapacidadUtil())));
         return cargarBuscadorDeEquipo(model, filas, "olla de hervor", "ollas de hervor", "OH-01", "/lotes/buscador/ollas",
-                List.of("Capacidad útil (L)"), identificador, estadoOperativo);
+                List.of("Capacidad útil (L)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
     /** Devuelve el contenido del modal de búsqueda de fermentadores activos, en orden alfabético por identificador. */
     @GetMapping("/buscador/fermentadores")
     @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String buscarFermentadores(@RequestParam(required = false) String identificador,
-                                      @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                      @RequestParam(required = false) String estadoOperativo,
                                       @RequestParam(defaultValue = "0") int pagina,
                                       Model model) {
+        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         Page<FilaEquipo> filas = fermentadorServicio
-                .filtrarFermentadores(vacioANulo(identificador), estadoOperativo, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
+                .filtrarFermentadores(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(f -> new FilaEquipo(f.getId(), f.getIdentificadorInterno(), f.getEstadoOperativo(), List.of(f.getCapacidadUtil())));
         return cargarBuscadorDeEquipo(model, filas, "fermentador", "fermentadores", "F-01", "/lotes/buscador/fermentadores",
-                List.of("Capacidad útil (L)"), identificador, estadoOperativo);
+                List.of("Capacidad útil (L)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
     // ==================== Buscadores de los filtros de la lista ====================
@@ -464,7 +467,7 @@ public class LoteController {
                 vacioANulo(receta), null, paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
         model.addAttribute("filtroReceta", receta);
         model.addAttribute("urlBuscador", "/lotes/filtros/planificaciones");
-        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación de los lotes.");
+        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación de los lotes");
         return VISTA_FILTRO_PLANIFICACION;
     }
 
@@ -477,20 +480,22 @@ public class LoteController {
     @GetMapping("/filtros/fermentadores")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String filtrarFermentadores(@RequestParam(required = false) String identificador,
-                                       @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                       @RequestParam(required = false) String estadoOperativo,
                                        @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
                                        @RequestParam(defaultValue = "0") int pagina,
                                        Model model) {
+        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         String identificadorBuscado = vacioANulo(identificador);
         Pageable pageable = paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR);
         Page<FermentadorResponseDTO> fermentadores = incluirDadosDeBaja
-                ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estadoOperativo, pageable)
-                : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estadoOperativo, pageable);
+                ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estado, pageable)
+                : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estado, pageable);
 
         model.addAttribute("fermentadores", fermentadores);
         model.addAttribute("estados", EstadoOperativo.values());
         model.addAttribute("filtroIdentificador", identificador);
-        model.addAttribute("filtroEstado", estadoOperativo);
+        model.addAttribute("filtroEstado", estado);
+        model.addAttribute("avisoBuscador", avisoDeEstadoOperativo(estadoOperativo, estado));
         model.addAttribute("filtroIncluirDadosDeBaja", incluirDadosDeBaja);
         return VISTA_FILTRO_FERMENTADOR;
     }
@@ -548,26 +553,30 @@ public class LoteController {
     }
 
     /**
-     * Los lúpulos que se agregan en el hervido son los insumos requeridos de la etapa; su tiempo de hervor sale de la
-     * receta, cruzando por el id del insumo (el que no lo tiene, como el whirlpool, queda sin tiempo).
+     * Los lúpulos que se agregan en el hervido son los insumos requeridos de la etapa, con su cantidad total (el service
+     * suma la de todos los detalles del mismo insumo en la etapa). Sus tiempos de hervor salen de la receta, cruzando
+     * por el id del insumo: si la receta repite el lúpulo con distintos tiempos, se listan todos; el que no tiene
+     * ninguno, como el whirlpool, queda sin tiempo.
      */
     private static List<LupuloDeHervido> lupulosDeHervido(List<InsumoRequeridoResponseDTO> requeridos, VersionRecetaResponseDTO receta) {
         return requeridos.stream()
                 .map(requerido -> new LupuloDeHervido(requerido.getInsumo().getNombre(), requerido.getCantidadRequerida(),
-                        requerido.getUnidadDeMedida(), tiempoDeHervor(receta, requerido.getInsumo().getId())))
+                        requerido.getUnidadDeMedida(), tiemposDeHervor(receta, requerido.getInsumo().getId())))
                 .toList();
     }
 
-    private static Double tiempoDeHervor(VersionRecetaResponseDTO receta, Long idInsumo) {
+    /** Los tiempos de hervor de la receta para ese insumo en el hervido, sin repetir y del mayor al menor. */
+    private static List<Double> tiemposDeHervor(VersionRecetaResponseDTO receta, Long idInsumo) {
         if (receta == null || receta.getDetallesLupulo() == null) {
-            return null;
+            return List.of();
         }
         return receta.getDetallesLupulo().stream()
                 .filter(detalle -> detalle.getEtapaDeUso() == TipoEtapa.HERVIDO && detalle.getTiempoDeHervor() != null
-                        && detalle.getLupulo() != null && Objects.equals(detalle.getLupulo().getId(), idInsumo))
+                        && detalle.getTiempoDeHervor() > 0 && detalle.getLupulo() != null && Objects.equals(detalle.getLupulo().getId(), idInsumo))
                 .map(DetalleLupuloResponseDTO::getTiempoDeHervor)
-                .findFirst()
-                .orElse(null);
+                .distinct()
+                .sorted(Comparator.reverseOrder())
+                .toList();
     }
 
     /**
@@ -629,7 +638,8 @@ public class LoteController {
      * cambian el nombre, el ejemplo del criterio, la URL y las columnas propias de cada uno.
      */
     private String cargarBuscadorDeEquipo(Model model, Page<FilaEquipo> filas, String nombre, String nombrePlural, String ejemplo,
-                                          String urlBuscador, List<String> columnas, String identificador, EstadoOperativo estadoOperativo) {
+                                          String urlBuscador, List<String> columnas, String identificador, EstadoOperativo estadoOperativo,
+                                          String aviso) {
         model.addAttribute("filas", filas);
         model.addAttribute("nombreEquipo", nombre);
         model.addAttribute("nombreEquipoPlural", nombrePlural);
@@ -639,6 +649,7 @@ public class LoteController {
         model.addAttribute("estados", EstadoOperativo.values());
         model.addAttribute("filtroIdentificador", identificador);
         model.addAttribute("filtroEstado", estadoOperativo);
+        model.addAttribute("avisoBuscador", aviso);
         return VISTA_BUSCADOR_EQUIPO;
     }
 

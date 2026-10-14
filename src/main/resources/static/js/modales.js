@@ -22,6 +22,10 @@
  *                                 botón de envío de un formulario que pide una confirmación antes de enviarlo
  *                                 (fragments/dialogo-confirmacion): el título y el mensaje del diálogo. Sin
  *                                 JavaScript el formulario se envía directamente.
+ *   data-un-solo-envio            formulario que se envía una sola vez: al enviarlo se deshabilitan sus botones de
+ *                                 envío y un segundo envío se ignora (marca data-enviando). Si el navegador vuelve a
+ *                                 la página desde su historial (pageshow), el formulario se habilita de nuevo. Sin
+ *                                 JavaScript el formulario se envía igual.
  *
  * Dentro del modal del buscador:
  *   data-cerrar-modal             cierra el modal.
@@ -38,9 +42,44 @@
 
     // ---------- Buscador (modal) ----------
 
+    var MENSAJE_BUSCADOR_NO_DISPONIBLE = 'No se pudo cargar la búsqueda, actualice la página e intente nuevamente';
+
+    /**
+     * Pide el fragmento de {url}. Resuelve {html} con el fragmento o {mensaje} con un texto para mostrar dentro del
+     * modal: una respuesta que no es correcta trae el motivo como texto, y una redirigida (la página completa de otro
+     * lugar) nunca se inyecta en el modal.
+     */
     function pedirHtml(url) {
         return fetch(url, {headers: {'X-Requested-With': 'fetch'}, credentials: 'same-origin'})
-            .then(function (respuesta) { return respuesta.text(); });
+            .then(function (respuesta) {
+                if (respuesta.redirected) { return {mensaje: MENSAJE_BUSCADOR_NO_DISPONIBLE}; }
+                return respuesta.text().then(function (texto) {
+                    if (respuesta.ok) { return {html: texto}; }
+                    var esTexto = (respuesta.headers.get('Content-Type') || '').indexOf('text/plain') === 0;
+                    return {mensaje: esTexto && texto ? texto : MENSAJE_BUSCADOR_NO_DISPONIBLE};
+                });
+            });
+    }
+
+    /** Muestra un mensaje dentro del modal, con el botón para cerrarlo. */
+    function mostrarMensajeEnModal(dialogo, mensaje) {
+        var contenedor = document.createElement('div');
+        contenedor.className = 'p-6';
+        var texto = document.createElement('p');
+        texto.className = 'text-sm text-slate-600';
+        texto.setAttribute('data-mensaje-buscador', '');
+        texto.textContent = mensaje;
+        var acciones = document.createElement('div');
+        acciones.className = 'mt-6 flex justify-end';
+        var cerrar = document.createElement('button');
+        cerrar.type = 'button';
+        cerrar.setAttribute('data-cerrar-modal', '');
+        cerrar.className = 'px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors';
+        cerrar.textContent = 'Cerrar';
+        acciones.appendChild(cerrar);
+        contenedor.appendChild(texto);
+        contenedor.appendChild(acciones);
+        dialogo.replaceChildren(contenedor);
     }
 
     /** Abre el buscador de {url} en un modal. alElegir recibe {id, texto} de la fila elegida. */
@@ -51,7 +90,13 @@
         dialogo.addEventListener('close', function () { dialogo.remove(); });
 
         function mostrar(destino) {
-            return pedirHtml(destino).then(function (html) { dialogo.innerHTML = html; });
+            return pedirHtml(destino).then(function (respuesta) {
+                if (respuesta.mensaje) {
+                    mostrarMensajeEnModal(dialogo, respuesta.mensaje);
+                } else {
+                    dialogo.innerHTML = respuesta.html;
+                }
+            });
         }
 
         dialogo.addEventListener('click', function (evento) {
@@ -178,8 +223,43 @@
         var formulario = formularioPorConfirmar;
         formularioPorConfirmar = null;
         dialogo.close();
-        if (formulario) { formulario.submit(); }
+        if (formulario && !formulario.hasAttribute('data-enviando')) {
+            marcarEnviando(formulario);
+            formulario.submit();
+        }
     }
+
+    // ---------- Un solo envío por formulario ----------
+
+    /** Marca el formulario como enviado y deshabilita sus botones de envío. */
+    function marcarEnviando(formulario) {
+        if (!formulario.hasAttribute('data-un-solo-envio')) { return; }
+        formulario.setAttribute('data-enviando', 'true');
+        // Se deshabilitan después del evento: un botón deshabilitado antes no viajaría con el formulario
+        setTimeout(function () {
+            formulario.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (boton) { boton.disabled = true; });
+        }, 0);
+    }
+
+    function permitirOtroEnvio(formulario) {
+        formulario.removeAttribute('data-enviando');
+        formulario.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (boton) { boton.disabled = false; });
+    }
+
+    document.addEventListener('submit', function (evento) {
+        var formulario = evento.target;
+        if (!formulario.hasAttribute || !formulario.hasAttribute('data-un-solo-envio')) { return; }
+        if (formulario.hasAttribute('data-enviando')) {
+            evento.preventDefault();
+            return;
+        }
+        marcarEnviando(formulario);
+    });
+
+    // Al volver a la página desde el historial del navegador (sin recargarla), los formularios se pueden enviar de nuevo
+    window.addEventListener('pageshow', function () {
+        document.querySelectorAll('form[data-enviando]').forEach(permitirOtroEnvio);
+    });
 
     function accionSelector(boton) {
         var selector = boton.closest('[data-selector]');

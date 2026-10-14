@@ -1783,7 +1783,7 @@ class PlanificacionProduccionControllerTest {
     }
 
     @Test
-    @DisplayName("CP-PPC-95: una planificación pendiente sin lotes muestra el mensaje de vacío, ningún link \"Ver\" y conserva el link \"Registrar lote\"")
+    @DisplayName("CP-PPC-95: una planificación pendiente sin lotes muestra el mensaje de vacío, ningún link \"Ver\" y conserva el link \"Registrar lote\"; la fila vacía abarca todas las columnas de la tabla")
     void detalle_sinLotesConservaRegistrarLote() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
@@ -1792,7 +1792,13 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(matchesMensajeVacioDosVeces())
                 .andExpect(content().string(not(containsString("aria-label=\"Ver lote\""))))
-                .andExpect(content().string(containsString("href=\"/lotes/nuevo?idPlanificacion=7\"")));
+                .andExpect(content().string(containsString("href=\"/lotes/nuevo?idPlanificacion=7\"")))
+                .andExpect(content().string(containsString("colspan=\"10\"")));
+
+        // Sin LOTE_CONSULTAR la tabla no tiene la columna Acciones
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("colspan=\"9\"")));
     }
 
     // ==================== Datos de prueba ====================

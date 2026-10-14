@@ -1,7 +1,5 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
@@ -24,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -53,7 +50,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * de etapa de la ruta, y verifica que el consumo a anular pertenezca a esa etapa. Las reglas del consumo son del
  * service; un rechazo lo muestra el {@code ControllerAdvices} volviendo al origen con el motivo. Después de registrar
  * o anular se vuelve a la misma pantalla (Post-Redirect-Get) y las advertencias del consumo viajan aparte para
- * mostrarse como alertas amarillas.
+ * mostrarse como alertas amarillas. Un formulario inválido también vuelve a la pantalla por Post-Redirect-Get, con los
+ * errores y lo escrito en los atributos flash: el navegador nunca queda en la URL de un POST.
  * </p>
  */
 @Controller
@@ -67,9 +65,6 @@ public class ConsumoInsumoController {
     private static final String FORMULARIO_RESERVADO = "reservado";
     private static final String FORMULARIO_DIRECTO = "directo";
     private static final String MENSAJE_ETAPA_INVALIDA = "La etapa indicada no es válida";
-
-    /** Los consumos se muestran con el último registrado arriba: el id es autogenerado y creciente. */
-    private static final Sort ORDEN_MAS_RECIENTE_PRIMERO = Sort.by(Sort.Order.desc("id"));
 
     private final ILoteServicio loteServicio;
     private final IConsumoInsumoServicio consumoInsumoServicio;
@@ -101,7 +96,7 @@ public class ConsumoInsumoController {
 
         /** Solo se registran y anulan consumos con el lote en ejecución y la etapa en curso. */
         boolean operable() {
-            return lote.getEstado() == EstadoLote.EN_EJECUCION && etapa.getEstado() == EstadoEtapaLote.EN_CURSO;
+            return esOperable(lote.getEstado(), etapa.getEstado());
         }
     }
 
@@ -110,7 +105,8 @@ public class ConsumoInsumoController {
     /**
      * Muestra la pantalla de consumos de la etapa, con los consumos registrados de a 20 y el último registrado arriba.
      * Una etapa que no admite consumos o inexistente vuelve al detalle del lote con un aviso. Con el lote fuera de
-     * ejecución o la etapa fuera de curso la pantalla es de solo lectura.
+     * ejecución o la etapa fuera de curso la pantalla es de solo lectura. Si llega de un formulario inválido, muestra
+     * sus errores y lo que el usuario había cargado.
      */
     @GetMapping
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_CONSULTAR')")
@@ -125,8 +121,14 @@ public class ConsumoInsumoController {
             return volverAlDetalle(idLote, rechazo, redirectAttributes);
         }
 
-        model.addAttribute(ATRIBUTO_FORMULARIO, new ConsumoInsumoFormDTO());
-        cargarPantalla(model, resolverContexto(idLote, tipo), pagina, null, null);
+        ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
+        if (model.containsAttribute(ATRIBUTO_FORMULARIO)) {
+            BindingResult errores = (BindingResult) model.asMap().get(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO);
+            cargarPantalla(model, contexto, pagina, errores, (String) model.asMap().get("formularioConError"));
+        } else {
+            model.addAttribute(ATRIBUTO_FORMULARIO, new ConsumoInsumoFormDTO());
+            cargarPantalla(model, contexto, pagina, null, null);
+        }
         return VISTA_PANTALLA;
     }
 
@@ -134,8 +136,8 @@ public class ConsumoInsumoController {
 
     /**
      * Registra el consumo de un lote de insumo reservado para la etapa (cada fila de reserva es su propio formulario) y
-     * vuelve a la pantalla. Si el formulario es inválido, se vuelve a mostrar la pantalla (sin redirigir) con lo que el
-     * usuario había cargado.
+     * vuelve a la pantalla. Si el formulario es inválido, vuelve a la pantalla con los errores y lo que el usuario había
+     * cargado.
      */
     @PostMapping("/reservado")
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
@@ -143,15 +145,13 @@ public class ConsumoInsumoController {
                                             @PathVariable String etapa,
                                             @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) ConsumoInsumoFormDTO consumoForm,
                                             BindingResult bindingResult,
-                                            Model model,
                                             RedirectAttributes redirectAttributes) {
-        return registrar(idLote, etapa, consumoForm, bindingResult, model, redirectAttributes, FORMULARIO_RESERVADO);
+        return registrar(idLote, etapa, consumoForm, bindingResult, redirectAttributes, FORMULARIO_RESERVADO);
     }
 
     /**
      * Registra el consumo directo de un lote de insumo elegido con el buscador y vuelve a la pantalla. Si el
-     * formulario es inválido, se vuelve a mostrar la pantalla (sin redirigir) con el lote elegido y la cantidad
-     * escrita.
+     * formulario es inválido, vuelve a la pantalla con los errores, el lote elegido y la cantidad escrita.
      */
     @PostMapping("/directo")
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
@@ -159,25 +159,27 @@ public class ConsumoInsumoController {
                                           @PathVariable String etapa,
                                           @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) ConsumoInsumoFormDTO consumoForm,
                                           BindingResult bindingResult,
-                                          Model model,
                                           RedirectAttributes redirectAttributes) {
-        return registrar(idLote, etapa, consumoForm, bindingResult, model, redirectAttributes, FORMULARIO_DIRECTO);
+        return registrar(idLote, etapa, consumoForm, bindingResult, redirectAttributes, FORMULARIO_DIRECTO);
     }
 
     private String registrar(Long idLote, String etapa, ConsumoInsumoFormDTO consumoForm, BindingResult bindingResult,
-                             Model model, RedirectAttributes redirectAttributes, String formulario) {
+                             RedirectAttributes redirectAttributes, String formulario) {
         TipoEtapa tipo = aEtapa(etapa);
         String rechazo = motivoDeRechazo(tipo);
         if (rechazo != null) {
             return volverAlDetalle(idLote, rechazo, redirectAttributes);
         }
 
-        ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
         if (bindingResult.hasErrors()) {
-            cargarPantalla(model, contexto, 0, bindingResult, formulario);
-            return VISTA_PANTALLA;
+            // Post-Redirect-Get: el navegador no queda en la URL del POST, que no tiene pantalla propia
+            redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
+            redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, consumoForm);
+            redirectAttributes.addFlashAttribute("formularioConError", formulario);
+            return volverALaPantalla(idLote, tipo);
         }
 
+        ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
         ConsumoInsumoResponseDTO consumo = FORMULARIO_RESERVADO.equals(formulario)
                 ? consumoInsumoServicio.registrarConsumoInsumoReservado(contexto.etapa().getId(), consumoForm)
                 : consumoInsumoServicio.registrarConsumoInsumoDirecto(contexto.etapa().getId(), consumoForm);
@@ -227,7 +229,8 @@ public class ConsumoInsumoController {
      * Devuelve el contenido del modal de búsqueda de lotes de insumo del consumo directo (criterios de insumo e
      * identificación del lote + resultados), de a 8. Solo se ofrecen lotes de los insumos que la etapa requiere, con
      * saldo disponible; el orden (vigentes por vencimiento, luego vencidos) lo da el service y no se reordena. Un modal
-     * no puede redirigir: una etapa que no admite consumos se informa dentro del propio fragmento.
+     * no puede redirigir: una etapa que no admite consumos o un lote inexistente se informan dentro del propio
+     * fragmento.
      */
     @GetMapping("/buscador/lotes-insumo")
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
@@ -244,7 +247,13 @@ public class ConsumoInsumoController {
             return VISTA_BUSCADOR;
         }
 
-        ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
+        ContextoDeEtapa contexto;
+        try {
+            contexto = resolverContexto(idLote, tipo);
+        } catch (RecursoNoEncontradoException e) {
+            model.addAttribute("mensajeBuscador", e.getMessage());
+            return VISTA_BUSCADOR;
+        }
         List<Long> idsInsumo = consumoInsumoServicio.filtrarInsumosRequeridos(contexto.etapa().getId()).stream()
                 .map(requerido -> requerido.getInsumo().getId())
                 .toList();
@@ -331,14 +340,6 @@ public class ConsumoInsumoController {
                 model.addAttribute("loteElegido", null);
             }
         }
-    }
-
-    /** Un número válido se devuelve sin ceros sobrantes ("10" y no "10.0"); un texto inválido, tal cual se escribió. */
-    private static String numeroEscrito(Double valido, Object escrito) {
-        if (valido == null) {
-            return escrito.toString();
-        }
-        return valido == valido.longValue() ? String.valueOf(valido.longValue()) : valido.toString();
     }
 
     private static List<ResumenDeInsumo> resumir(List<InsumoRequeridoResponseDTO> requeridos, AvanceEtapaResponseDTO avance) {

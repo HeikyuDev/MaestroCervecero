@@ -1,8 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.EstadoOperativoBarril;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.RegistrarEnvasadoLoteFormDTO;
@@ -47,7 +45,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * producción. El id de la etapa nunca viaja en un formulario: el Controller lo resuelve a partir del lote de la ruta
  * (su etapa de Envasado) y verifica que el envasado a anular pertenezca a esa etapa. Las reglas del envasado son del
  * service; un rechazo lo muestra el {@code ControllerAdvices} volviendo al origen con el motivo. Después de registrar
- * o anular se vuelve a la misma pantalla (Post-Redirect-Get).
+ * o anular se vuelve a la misma pantalla (Post-Redirect-Get). Un formulario inválido también vuelve a la pantalla por
+ * Post-Redirect-Get, con los errores y lo escrito en los atributos flash: el navegador nunca queda en la URL de un POST.
  * </p>
  */
 @Controller
@@ -58,9 +57,6 @@ public class EnvasadoLoteController {
     private static final String VISTA_PANTALLA = "lote/envasado-lista";
     private static final String VISTA_BUSCADOR = "lote/buscador-barril :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "envasadoForm";
-
-    /** Los envasados se muestran con el último registrado arriba: el id es autogenerado y creciente. */
-    private static final Sort ORDEN_MAS_RECIENTE_PRIMERO = Sort.by(Sort.Order.desc("id"));
 
     /**
      * Los barriles son maestros: el buscador los ofrece en orden alfabético ascendente por identificador (que se guarda
@@ -77,7 +73,7 @@ public class EnvasadoLoteController {
 
         /** Solo se registran y anulan envasados con el lote en ejecución y la etapa en curso. */
         boolean operable() {
-            return lote.getEstado() == EstadoLote.EN_EJECUCION && etapa.getEstado() == EstadoEtapaLote.EN_CURSO;
+            return esOperable(lote.getEstado(), etapa.getEstado());
         }
     }
 
@@ -86,7 +82,8 @@ public class EnvasadoLoteController {
     /**
      * Muestra la pantalla de envasados del lote, con los envasados de a 20 y el último registrado arriba. Con el lote
      * fuera de ejecución o la etapa de Envasado fuera de curso la pantalla es de solo lectura. Si el envasado no se
-     * puede resumir, vuelve al detalle del lote con el motivo.
+     * puede resumir, vuelve al detalle del lote con el motivo. Si llega de un formulario inválido, muestra sus errores y
+     * lo que el usuario había cargado.
      */
     @GetMapping
     @PreAuthorize("hasAuthority('ENVASADO_CONSULTAR')")
@@ -94,28 +91,35 @@ public class EnvasadoLoteController {
                                    @RequestParam(defaultValue = "0") int pagina,
                                    Model model,
                                    RedirectAttributes redirectAttributes) {
+        ContextoDeEnvasado contexto = resolverContexto(idLote);
+        if (model.containsAttribute(ATRIBUTO_FORMULARIO)) {
+            BindingResult errores = (BindingResult) model.asMap().get(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO);
+            return cargarPantalla(model, redirectAttributes, contexto, pagina, errores);
+        }
         model.addAttribute(ATRIBUTO_FORMULARIO, new RegistrarEnvasadoLoteFormDTO());
-        return cargarPantalla(model, redirectAttributes, resolverContexto(idLote), pagina, null);
+        return cargarPantalla(model, redirectAttributes, contexto, pagina, null);
     }
 
     // ==================== Registrar ====================
 
     /**
      * Registra un envasado en el barril elegido con el buscador y vuelve a la pantalla. Si el formulario es inválido,
-     * se vuelve a mostrar la pantalla (sin redirigir) con el barril elegido y la cantidad escrita.
+     * vuelve a la pantalla con los errores, el barril elegido y la cantidad escrita.
      */
     @PostMapping
     @PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")
     public String registrarEnvasado(@PathVariable Long idLote,
                                     @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) RegistrarEnvasadoLoteFormDTO envasadoForm,
                                     BindingResult bindingResult,
-                                    Model model,
                                     RedirectAttributes redirectAttributes) {
-        ContextoDeEnvasado contexto = resolverContexto(idLote);
         if (bindingResult.hasErrors()) {
-            return cargarPantalla(model, redirectAttributes, contexto, 0, bindingResult);
+            // Post-Redirect-Get: el navegador no queda en la URL del POST
+            redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
+            redirectAttributes.addFlashAttribute(ATRIBUTO_FORMULARIO, envasadoForm);
+            return volverALaPantalla(idLote);
         }
 
+        ContextoDeEnvasado contexto = resolverContexto(idLote);
         envasadoLoteServicio.registrarEnvasadoLote(contexto.etapa().getId(), envasadoForm);
         agregarMensaje(redirectAttributes, "Envasado registrado correctamente", TipoAlerta.SUCCESS);
         return volverALaPantalla(idLote);
@@ -245,14 +249,6 @@ public class EnvasadoLoteController {
                 model.addAttribute("barrilElegido", null);
             }
         }
-    }
-
-    /** Un número válido se devuelve sin ceros sobrantes ("10" y no "10.0"); un texto inválido, tal cual se escribió. */
-    private static String numeroEscrito(Double valido, Object escrito) {
-        if (valido == null) {
-            return escrito.toString();
-        }
-        return valido == valido.longValue() ? String.valueOf(valido.longValue()) : valido.toString();
     }
 
     /** El avance del envasado hacia la capacidad útil del fermentador, de 0 a 100 y redondeado hacia abajo. */

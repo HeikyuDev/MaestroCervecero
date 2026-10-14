@@ -257,14 +257,16 @@ class AuditLogControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-AC-12: una fecha con formato inválido o una acción inexistente se rechaza con una alerta, sin llegar al service")
+    @DisplayName("CP-AC-12: una fecha con formato inválido o una acción inexistente se rechaza con una alerta amarilla, sin llegar al service")
     void listado_debeRechazarParametrosInvalidos() throws Exception {
         mockMvc.perform(get("/auditoria").param("fechaDesde", "no-es-una-fecha"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("tipo", "danger"));
+                .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
+                .andExpect(flash().attribute("tipo", "warning"));
         mockMvc.perform(get("/auditoria").param("accion", "INVENTADA"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("tipo", "danger"));
+                .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
+                .andExpect(flash().attribute("tipo", "warning"));
 
         verify(auditLogService, never()).filtrarAuditLogs(any(), any(), any(), any(), any(), any());
     }

@@ -8,11 +8,16 @@ import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.nio.charset.StandardCharsets;
 
 /**
  * Manejo global de excepciones para controladores MVC ({@link Controller}).
@@ -27,6 +32,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class ControllerAdvices {
 
     private static final String MENSAJE_ERROR_INESPERADO = "Ocurrió un error inesperado. Intente nuevamente";
+    private static final String MENSAJE_VALOR_INVALIDO = "El valor indicado no es válido";
     private static final String MENSAJE_CONFLICTO_DE_DATOS =
             "No se pudo guardar porque los datos entran en conflicto con otro registro. Revise la información e intente nuevamente";
 
@@ -91,6 +97,25 @@ public class ControllerAdvices {
         return redirigirConMensaje(request, redirectAttributes, "No tiene permisos para realizar esta acción", TipoAlerta.DANGER);
     }
 
+    /**
+     * Un valor de la URL que no se puede convertir al tipo del parámetro (por ejemplo, {@code /lotes/abc}) es un
+     * error del pedido, no del sistema: no se registra como error. En una página se vuelve al origen con una alerta
+     * amarilla. Un buscador en modal ({@code /buscador} o {@code /filtros} en la ruta) no puede redirigir, porque el
+     * navegador recibiría una página completa: responde 400 con el mensaje como texto, que el modal muestra dentro de sí.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public Object handleTipoDeArgumentoInvalido(MethodArgumentTypeMismatchException ex,
+                                                HttpServletRequest request,
+                                                RedirectAttributes redirectAttributes) {
+        log.warn("Valor inválido para el parámetro {} en {}", ex.getName(), request.getRequestURI());
+        if (esBuscadorEnModal(request)) {
+            return ResponseEntity.badRequest()
+                    .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
+                    .body(MENSAJE_VALOR_INVALIDO);
+        }
+        return redirigirConMensaje(request, redirectAttributes, MENSAJE_VALOR_INVALIDO, TipoAlerta.WARNING);
+    }
+
     @ExceptionHandler(Exception.class)
     public String handleException(Exception ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
         log.error("Error inesperado procesando la petición a {}", request.getRequestURI(), ex);
@@ -104,6 +129,11 @@ public class ControllerAdvices {
         redirectAttributes.addFlashAttribute("mensaje", mensaje);
         redirectAttributes.addFlashAttribute("tipo", tipo.getCodigo());
         return "redirect:" + resolveRedirectPath(request);
+    }
+
+    private static boolean esBuscadorEnModal(HttpServletRequest request) {
+        String ruta = request.getRequestURI();
+        return ruta.contains("/buscador") || ruta.contains("/filtros");
     }
 
     private String resolveRedirectPath(HttpServletRequest request) {

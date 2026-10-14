@@ -19,7 +19,6 @@ import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -94,9 +93,6 @@ public class CronogramaController {
             + " días (5 años), se muestra el período por defecto";
     private static final String AVISO_PAGINA_INVALIDA = "La página indicada no es válida, se muestra la primera";
     private static final String AVISO_PAGINA_INEXISTENTE = "La página indicada no existe, se muestra la última";
-
-    /** Las planificaciones del buscador se listan con la última registrada arriba. */
-    static final Sort ORDEN_MAS_RECIENTE_PRIMERO = Sort.by(Sort.Order.desc("id"));
 
     private final ILoteServicio loteServicio;
     private final IFermentadorServicio fermentadorServicio;
@@ -299,20 +295,22 @@ public class CronogramaController {
     @GetMapping("/buscador/fermentadores")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String buscarFermentadores(@RequestParam(required = false) String identificador,
-                                      @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                      @RequestParam(required = false) String estadoOperativo,
                                       @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
                                       @RequestParam(defaultValue = "0") int pagina,
                                       Model model) {
+        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         String identificadorBuscado = vacioANulo(identificador);
         Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_POR_IDENTIFICADOR);
         Page<FermentadorResponseDTO> fermentadores = incluirDadosDeBaja
-                ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estadoOperativo, pageable)
-                : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estadoOperativo, pageable);
+                ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estado, pageable)
+                : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estado, pageable);
 
         model.addAttribute("fermentadores", fermentadores);
         model.addAttribute("estados", EstadoOperativo.values());
         model.addAttribute("filtroIdentificador", identificador);
-        model.addAttribute("filtroEstado", estadoOperativo);
+        model.addAttribute("filtroEstado", estado);
+        model.addAttribute("avisoBuscador", avisoDeEstadoOperativo(estadoOperativo, estado));
         model.addAttribute("filtroIncluirDadosDeBaja", incluirDadosDeBaja);
         return VISTA_BUSCADOR_FERMENTADOR;
     }

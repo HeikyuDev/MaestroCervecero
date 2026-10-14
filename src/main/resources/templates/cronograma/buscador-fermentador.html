@@ -20,6 +20,9 @@
         </button>
     </div>
 
+    <p th:if="${avisoBuscador != null}" data-aviso-buscador role="alert"
+       class="mx-6 mt-4 p-3 rounded-lg border bg-amber-50 border-amber-200 text-amber-800 text-sm" th:text="${avisoBuscador}">El estado operativo indicado no es válido, se muestran todos</p>
+
     <form th:action="@{/cronograma-produccion/buscador/fermentadores}" method="get" data-modal-buscar novalidate
           class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
         <div>

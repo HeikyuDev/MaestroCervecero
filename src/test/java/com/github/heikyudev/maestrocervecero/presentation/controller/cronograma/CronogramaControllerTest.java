@@ -2270,6 +2270,43 @@ class CronogramaControllerTest {
         assertThat(html).contains("href=\"/lotes/2\"").doesNotContain("data-mover");
     }
 
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-100: un estado operativo que no existe en el buscador de fermentadores se ignora con un aviso dentro del fragmento y se buscan todos; el nombre se acepta sin distinguir mayusculas")
+    void buscadorFermentadores_estadoOperativoInvalido() throws Exception {
+        // Arrange
+        when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        // Act
+        String invalido = mockMvc.perform(get(URL + "/buscador/fermentadores").param("estadoOperativo", "XYZ"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String valido = mockMvc.perform(get(URL + "/buscador/fermentadores").param("estadoOperativo", "en_uso"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(invalido).doesNotContain("<html").contains("data-modal-buscar").contains("data-aviso-buscador")
+                .contains("El estado operativo indicado no es válido, se muestran todos");
+        assertThat(valido).doesNotContain("data-aviso-buscador");
+        verify(fermentadorServicio).filtrarFermentadores(isNull(), isNull(), any());
+        verify(fermentadorServicio).filtrarFermentadores(isNull(), eq(EstadoOperativo.EN_USO), any());
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-101: un valor de la URL que no se puede convertir (página del buscador o casilla) en un buscador responde 400 con el mensaje El valor indicado no es válido, sin redirigir")
+    void buscadores_valorInvalidoEnLaUrl() throws Exception {
+        // Act + Assert
+        for (String ruta : List.of("/buscador/fermentadores", "/buscador/planificaciones")) {
+            mockMvc.perform(get(URL + ruta).param("pagina", "xyz").header("Referer", URL))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType("text/plain;charset=UTF-8"))
+                    .andExpect(content().string("El valor indicado no es válido"));
+        }
+        mockMvc.perform(get(URL + "/buscador/fermentadores").param("incluirDadosDeBaja", "xyz"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("El valor indicado no es válido"));
+    }
+
     // ==================== Datos de prueba ====================
 
     private static final String ALERTA_ADVERTENCIA = "bg-amber-50 border-amber-200 text-amber-800";

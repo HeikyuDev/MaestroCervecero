@@ -93,7 +93,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     }
 
     /**
-     * Recupera los fermentadores dados de baja que tienen lotes (sin contar los cancelados), en orden alfabético por
+     * Recupera los fermentadores dados de baja que tienen lotes en cualquier estado, en orden alfabético por
      * identificador interno. Los fermentadores dados de baja sin lotes no se incluyen.
      * <p>
      * Se usa para filtrar el cronograma de producción por un fermentador que ya no está activo y cuyos lotes
