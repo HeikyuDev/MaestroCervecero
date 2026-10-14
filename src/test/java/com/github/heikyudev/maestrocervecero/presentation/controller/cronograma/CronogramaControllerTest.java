@@ -1,7 +1,9 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.cronograma;
 
 import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConfig;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -39,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -98,7 +102,7 @@ class CronogramaControllerTest {
                 // Filtros
                 .andExpect(content().string(containsString("action=\"/cronograma-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
-                .andExpect(content().string(containsString(">Todos</option>")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/fermentadores\"")))
                 .andExpect(content().string(containsString(">Desde</label>")))
                 .andExpect(content().string(containsString(">Hasta</label>")))
                 .andExpect(content().string(containsString("Buscar")))
@@ -143,13 +147,13 @@ class CronogramaControllerTest {
         assertThat(html).contains("data-cronograma-sin-lotes").contains("No hay lotes para mostrar entre " + fmt(desdeDefecto()) + " y " + fmt(hastaDefecto()));
         assertThat(html).doesNotContain("data-gantt>").doesNotContain("data-cola-fermentador").doesNotContain("data-paginacion")
                 .doesNotContain("data-mover=");
-        assertThat(html).containsPattern("<option value=\"1\"[^>]*>F-01</option>").containsPattern("<option value=\"2\"[^>]*>F-02</option>");
+        assertThat(html).contains("data-buscador-url=\"/cronograma-produccion/buscador/fermentadores\"").doesNotContain("<option");
         assertThat(html).contains("data-periodo-anterior").contains("data-periodo-siguiente").contains("data-periodo-hoy");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-03: sin fermentadores activos ni lotes se muestra el mismo mensaje, el desplegable solo tiene \"Todos\" y no hay diagrama ni colas")
+    @DisplayName("CP-CGC-03: sin fermentadores activos ni lotes se muestra el mismo mensaje, el filtro de fermentador sigue siendo el buscador (sin opciones en la página) y no hay diagrama ni colas")
     void cronograma_sinFermentadoresNiLotes() throws Exception {
         // Arrange
         when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
@@ -161,13 +165,13 @@ class CronogramaControllerTest {
 
         // Assert
         assertThat(html).contains("No hay lotes para mostrar entre ");
-        assertThat(cuenta(html, "<option value=\"")).isEqualTo(1);
+        assertThat(html).contains("data-buscador-url=\"/cronograma-produccion/buscador/fermentadores\"").doesNotContain("<option");
         assertThat(html).doesNotContain("data-gantt>").doesNotContain("data-cola-fermentador");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-04: los fermentadores activos se piden todos, ordenados por identificador, y llenan el filtro; también se piden, una vez, los dados de baja con lotes")
+    @DisplayName("CP-CGC-04: los fermentadores activos se piden todos, ordenados por identificador, para validar el filtro (no se vuelcan a la página como opciones); también se piden, una vez, los dados de baja con lotes")
     void cronograma_pideTodosLosFermentadoresActivosOrdenados() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
@@ -183,9 +187,7 @@ class CronogramaControllerTest {
         assertThat(captor.getValue().getPageNumber()).isZero();
         assertThat(captor.getValue().getPageSize()).isEqualTo(Integer.MAX_VALUE);
         assertThat(captor.getValue().getSort().getOrderFor("identificadorInterno")).isNotNull();
-        assertThat(html).containsPattern("<option value=\"1\"[^>]*>F-01</option>");
-        assertThat(html).containsPattern("<option value=\"2\"[^>]*>F-02</option>");
-        assertThat(html.indexOf(">F-01</option>")).isLessThan(html.indexOf(">F-02</option>"));
+        assertThat(html).doesNotContain("<option").doesNotContain(">F-01<").doesNotContain(">F-02<");
         verify(fermentadorServicio, times(1)).listarDadosDeBajaConLotes();
     }
 
@@ -205,7 +207,8 @@ class CronogramaControllerTest {
 
         // Assert
         verify(loteServicio).listarLotesParaCronograma(2L, d(2018, 4, 21), d(2019, 1, 7));
-        assertThat(html).containsPattern("<option value=\"2\"[^>]*selected=\"selected\"[^>]*>F-02</option>");
+        assertThat(campo(html, "idFermentador")).isEqualTo("2");
+        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("F-02");
         assertThat(campo(html, "desde")).isEqualTo("2018-04-21");
         assertThat(campo(html, "hasta")).isEqualTo("2019-01-07");
         assertThat(cuenta(html, "data-cola-fermentador=")).isEqualTo(1);
@@ -661,7 +664,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-45: el filtro se rotula \"Fermentador\", envía el parámetro idFermentador y ofrece el identificador de cada fermentador como opción")
+    @DisplayName("CP-CGC-45: el filtro se rotula \"Fermentador\" y es un campo en blanco con ícono de lista que abre el buscador (no un combo), con el parámetro idFermentador, placeholder y botón para quitar")
     void cronograma_elFiltroSeRotulaFermentador() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
@@ -672,9 +675,12 @@ class CronogramaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(html).containsPattern("for=\"idFermentador\"[^>]*>Fermentador</label>");
-        assertThat(html).contains("<select id=\"idFermentador\" name=\"idFermentador\"");
-        assertThat(html).containsPattern("value=\"1\"[^>]*>F-01</option>");
+        assertThat(html).contains("mb-1\">Fermentador</span>");
+        assertThat(html).contains("data-buscador-url=\"/cronograma-produccion/buscador/fermentadores\"")
+                .contains("name=\"idFermentador\"").contains("data-selector-buscar").contains("bi-list-ul")
+                .contains("placeholder=\"Seleccione fermentador\"").contains("data-selector-limpiar")
+                .doesNotContain("id=\"idFermentador\"").doesNotContain("<select").doesNotContain("<option")
+                .doesNotContain("data-selector-menu");
     }
 
     @Test
@@ -1149,7 +1155,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-62: con 50 fermentadores el diagrama sigue acotado: la pagina 1 tiene 10 carriles y 10 colas (\"Pagina 1 de 5\", \"50 fermentadores\") y la 5 muestra F-41 a F-50; el filtro ofrece los 50")
+    @DisplayName("CP-CGC-62: con 50 fermentadores el diagrama sigue acotado: la pagina 1 tiene 10 carriles y 10 colas (\"Pagina 1 de 5\", \"50 fermentadores\") y la 5 muestra F-41 a F-50")
     void paginacion_cincuentaFermentadores() throws Exception {
         // Arrange
         fermentadoresActivos(50);
@@ -1163,13 +1169,13 @@ class CronogramaControllerTest {
         assertThat(carriles(pagina1)).isEqualTo(10);
         assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
         assertThat(pagina1).contains("Página 1 de 5").contains("50 fermentadores").doesNotContain("data-cola-fermentador=\"F-11\"").doesNotContain("data-cola-fermentador=\"F-50\"");
-        assertThat(cuenta(pagina1, "<option value=\"")).isEqualTo(51);
+        assertThat(pagina1).doesNotContain("<option");
         assertThat(colas(pagina5)).containsExactlyElementsOf(fermentadoresDe(41, 50));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-63: los fermentadores sin lotes en el periodo no ocupan carril: solo F-03, F-17 y F-42 (F-08 con un pendiente posterior al periodo no), y el filtro ofrece los 50")
+    @DisplayName("CP-CGC-63: los fermentadores sin lotes en el periodo no ocupan carril: solo F-03, F-17 y F-42 (F-08 con un pendiente posterior al periodo no)")
     void paginacion_losFermentadoresSinLotesNoOcupanCarril() throws Exception {
         // Arrange
         fermentadoresActivos(50);
@@ -1187,7 +1193,7 @@ class CronogramaControllerTest {
         assertThat(html).contains("Página 1 de 1").contains("3 fermentadores");
         assertThat(colas(html)).containsExactly("F-03", "F-17", "F-42");
         assertThat(carriles(html)).isEqualTo(3);
-        assertThat(cuenta(html, "<option value=\"")).isEqualTo(51);
+        assertThat(html).doesNotContain("<option");
     }
 
     @Test
@@ -1266,7 +1272,8 @@ class CronogramaControllerTest {
         assertThat(cuenta(html, "gantt-barra focus:outline-none")).isEqualTo(2);
         assertThat(cuenta(html, "gantt-barra--atenuada\"")).isEqualTo(1);
         assertThat(fila(html, 2L)).contains("opacity-50");
-        assertThat(html).contains("Plan #7 - Pale Ale").containsPattern("<option value=\"2\"[^>]*selected=\"selected\"");
+        assertThat(html).contains("Plan #7 - Pale Ale").contains("value=\"2\"");
+        assertThat(campo(html, "idFermentador")).isEqualTo("2");
         assertThat(campo(html, "desde")).isEqualTo("2027-06-25");
         for (String atributo : List.of("data-periodo-anterior", "data-periodo-siguiente", "data-periodo-hoy")) {
             assertThat(href(html, atributo)).contains("idFermentador=2").contains("idPlanificacion=7");
@@ -1414,8 +1421,8 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-74: los fermentadores dados de baja con lotes tienen carril y figuran en el filtro, marcados \"(dado de baja)\", en orden alfabetico con los activos")
-    void fermentadoresDadosDeBaja_tienenCarrilYFiguranEnElFiltro() throws Exception {
+    @DisplayName("CP-CGC-74: los fermentadores dados de baja con lotes tienen carril, en orden alfabetico con los activos")
+    void fermentadoresDadosDeBaja_tienenCarril() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 3L, "F-03");
         when(fermentadorServicio.listarDadosDeBajaConLotes()).thenReturn(List.of(
@@ -1433,9 +1440,7 @@ class CronogramaControllerTest {
         assertThat(carriles(html)).isEqualTo(2);
         assertThat(cuenta(html, "No hay lotes pendientes en este fermentador")).isEqualTo(2);
         assertThat(html).contains("Página 1 de 1").contains("2 fermentadores").doesNotContain(ALERTA_ADVERTENCIA);
-        assertThat(html).containsPattern("<option value=\"2\"[^>]*>F-02 \\(dado de baja\\)</option>");
-        assertThat(html.indexOf(">F-01</option>")).isLessThan(html.indexOf(">F-02 (dado de baja)</option>"));
-        assertThat(html.indexOf(">F-02 (dado de baja)</option>")).isLessThan(html.indexOf(">F-03</option>"));
+        assertThat(html).doesNotContain("<option");
     }
 
     @Test
@@ -1457,9 +1462,13 @@ class CronogramaControllerTest {
         // Assert
         verify(loteServicio).listarLotesParaCronograma(2L, d(2012, 1, 1), d(2012, 12, 31));
         verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
-        assertThat(valido).doesNotContain(ALERTA_ADVERTENCIA).containsPattern("<option value=\"2\"[^>]*selected=\"selected\"[^>]*>F-02 \\(dado de baja\\)</option>");
+        assertThat(valido).doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(campo(valido, "idFermentador")).isEqualTo("2");
+        assertThat(textoDelSelector(valido, "Seleccione fermentador")).isEqualTo("F-02 (dado de baja)");
         assertThat(colas(valido)).containsExactly("F-02");
         assertThat(sinLotes).contains("El fermentador indicado no existe o no está activo, se muestran todos");
+        assertThat(textoDelSelector(sinLotes, "Seleccione fermentador")).isEmpty();
+        assertThat(sinLotes).doesNotContain("name=\"idFermentador\" value=\"9\"");
     }
 
     // ==================== POST /cronograma-produccion/lotes/{id}/subir ====================
@@ -1725,6 +1734,201 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("data-id=\"7\"")));
     }
 
+    // ==================== GET /cronograma-produccion/buscador/fermentadores ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-88: el buscador de fermentadores devuelve un fragmento (sin layout) con los criterios de identificador, estado operativo e incluir dados de baja, las columnas y el boton Elegir con su id y texto")
+    void buscadorFermentadores_debeDevolverElFragmento() throws Exception {
+        // Arrange
+        when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                fermentadorDelBuscador(1L, "F-01", EstadoOperativo.DISPONIBLE, 330.0, Estado.ACTIVO),
+                fermentadorDelBuscador(2L, "F-02", EstadoOperativo.EN_USO, 400.5, Estado.ACTIVO))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/fermentadores"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("cronograma/buscador-fermentador :: buscador"))
+                .andExpect(content().string(not(containsString("<html"))))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("Buscar fermentador").contains("action=\"/cronograma-produccion/buscador/fermentadores\"")
+                .contains("data-modal-buscar").contains("placeholder=\"Ej: F-01\"")
+                .contains(">Identificador</label>").contains(">Estado operativo</label>").contains("Incluir dados de baja")
+                .contains("type=\"checkbox\"").contains("name=\"incluirDadosDeBaja\"")
+                .contains("Capacidad útil (L)").contains(">330<").contains(">400,5<")
+                .contains(">Disponible<").contains(">En uso<").contains("Elegir")
+                .contains("data-id=\"1\"").contains("data-texto=\"F-01\"").contains("data-id=\"2\"").contains("data-texto=\"F-02\"");
+        // El estado operativo es un enum chico: un desplegable con "Todos" y los cuatro estados
+        assertThat(html).contains("<select id=\"buscador-estado-operativo\" name=\"estadoOperativo\"");
+        assertThat(html).contains(">Todos</option>").contains(">Disponible</option>").contains(">En uso</option>")
+                .contains(">En limpieza</option>").contains(">En mantenimiento</option>");
+        assertThat(html).doesNotContain("data-fermentador-dado-de-baja");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-89: sin incluir dados de baja el buscador consulta solo los fermentadores activos, de a 8 y en orden alfabetico por identificador; el texto se recorta y el criterio de estado llega al service")
+    void buscadorFermentadores_consultaSoloLosActivos() throws Exception {
+        // Arrange
+        when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/fermentadores").param("identificador", " f-0 ").param("estadoOperativo", "EN_USO"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(fermentadorServicio).filtrarFermentadores(eq("f-0"), eq(EstadoOperativo.EN_USO), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captor.getValue().getSort().getOrderFor("identificadorInterno")).isNotNull();
+        verify(fermentadorServicio, never()).filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any());
+        verifyNoInteractions(loteServicio, planificacionServicio);
+        assertThat(html).contains("value=\" f-0 \"").containsPattern("<option value=\"EN_USO\"[^>]*selected=\"selected\"[^>]*>En uso</option>");
+        assertThat(html).doesNotContain("checked=\"checked\"");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-90: con incluir dados de baja el buscador consulta tambien los dados de baja con lotes, que se marcan \"Dado de baja\" y se eligen con el texto \"F-02 (dado de baja)\"; el criterio queda tildado")
+    void buscadorFermentadores_incluyeLosDadosDeBajaConLotes() throws Exception {
+        // Arrange
+        when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                fermentadorDelBuscador(1L, "F-01", EstadoOperativo.DISPONIBLE, 330.0, Estado.ACTIVO),
+                fermentadorDelBuscador(2L, "F-02", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/fermentadores").param("incluirDadosDeBaja", "true"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(fermentadorServicio).filtrarFermentadoresConDadosDeBajaConLotes(isNull(), isNull(), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captor.getValue().getSort().getOrderFor("identificadorInterno")).isNotNull();
+        verify(fermentadorServicio, never()).filtrarFermentadores(any(), any(), any());
+        assertThat(html).contains("checked=\"checked\"");
+        assertThat(cuenta(html, "data-fermentador-dado-de-baja")).isEqualTo(1);
+        assertThat(html).contains("data-texto=\"F-01\"").contains("data-texto=\"F-02 (dado de baja)\"");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-91: el buscador de fermentadores pagina de a 8; los enlaces de pagina conservan identificador, estado operativo e incluir dados de baja y se piden dentro del modal")
+    void buscadorFermentadores_paginaConservandoLosCriterios() throws Exception {
+        // Arrange: segunda pagina de tres
+        when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                fermentadorDelBuscador(9L, "F-09", EstadoOperativo.EN_USO, 330.0, Estado.ACTIVO)), PageRequest.of(1, 8), 17));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/fermentadores").param("identificador", "F")
+                        .param("estadoOperativo", "EN_USO").param("incluirDadosDeBaja", "true").param("pagina", "1"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(fermentadorServicio).filtrarFermentadoresConDadosDeBajaConLotes(eq("F"), eq(EstadoOperativo.EN_USO), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(html).contains("Página <span>2</span> de <span>3</span>").contains("data-modal-get=\"true\"");
+        List<String> enlaces = new ArrayList<>();
+        Matcher m = Pattern.compile("href=\"([^\"]*buscador/fermentadores[^\"]*)\"").matcher(html);
+        while (m.find()) {
+            enlaces.add(HtmlUtils.htmlUnescape(m.group(1)));
+        }
+        assertThat(enlaces).hasSize(2);
+        assertThat(enlaces.get(0)).contains("pagina=0");
+        assertThat(enlaces.get(1)).contains("pagina=2");
+        assertThat(enlaces).allSatisfy(enlace -> assertThat(enlace).contains("identificador=F").contains("estadoOperativo=EN_USO")
+                .contains("incluirDadosDeBaja=true"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-92: sin resultados el buscador de fermentadores muestra un mensaje claro, y una pagina negativa equivale a la primera")
+    void buscadorFermentadores_sinResultadosYPaginaNegativa() throws Exception {
+        // Arrange
+        when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/buscador/fermentadores").param("identificador", "zzz"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No se encontraron fermentadores con los criterios indicados")));
+        mockMvc.perform(get(URL + "/buscador/fermentadores").param("pagina", "-3")).andExpect(status().isOk());
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(fermentadorServicio, times(2)).filtrarFermentadores(any(), any(), captor.capture());
+        assertThat(captor.getAllValues()).extracting(Pageable::getPageNumber).containsExactly(0, 0);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-93: el fermentador elegido se muestra en el campo (con \"(dado de baja)\" si corresponde) y se conserva al navegar el periodo y en los botones de mover")
+    void filtroDeFermentador_elElegidoSeMuestraYSeConserva() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(fermentadorServicio.listarDadosDeBajaConLotes()).thenReturn(List.of(
+                FermentadorResponseDTO.builder().id(2L).identificadorInterno("F-02").build()));
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "A-1", EstadoLote.PENDIENTE, "F-02", 7L, "Pale Ale", 1),
+                lote(2L, "A-2", EstadoLote.PENDIENTE, "F-02", 7L, "Pale Ale", 2)));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idFermentador", "2")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(campo(html, "idFermentador")).isEqualTo("2");
+        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("F-02 (dado de baja)");
+        for (String atributo : List.of("data-periodo-anterior", "data-periodo-siguiente", "data-periodo-hoy")) {
+            assertThat(href(html, atributo)).contains("idFermentador=2");
+        }
+        assertThat(cuenta(html, "<input type=\"hidden\" name=\"idFermentador\" value=\"2\">")).isEqualTo(4);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-94: sin fermentador elegido el campo queda en blanco con su placeholder, el campo oculto va vacio y se ofrece el boton para quitar la seleccion; Limpiar vuelve al cronograma sin parametros")
+    void filtroDeFermentador_sinElegirQuedaEnBlanco() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEmpty();
+        assertThat(html).containsPattern("<input[^>]*data-selector-id[^>]*name=\"idFermentador\"[^>]*>");
+        assertThat(campo(html, "idFermentador")).isEmpty();
+        assertThat(html).contains("data-selector-limpiar");
+        assertThat(html).containsPattern("<a href=\"/cronograma-produccion\"[^>]*>Limpiar</a>");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-CGC-95: sin JavaScript el filtro sigue funcionando: el campo de texto es de solo lectura y el fermentador viaja en el campo oculto idFermentador del formulario GET de filtros, que se envia con el boton Buscar")
+    void filtroDeFermentador_sinJavaScript() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idFermentador", "1")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        Matcher formulario = Pattern.compile("(?s)<form[^>]*data-cronograma-filtros[^>]*>(.*?)</form>").matcher(html);
+        assertThat(formulario.find()).isTrue();
+        assertThat(formulario.group()).contains("method=\"get\"").contains("novalidate").contains("type=\"submit\"")
+                .contains("type=\"hidden\" data-selector-id name=\"idFermentador\" value=\"1\"").contains("readonly");
+    }
+
     // ==================== Roles ====================
 
     @ParameterizedTest(name = "{0}")
@@ -1755,6 +1959,18 @@ class CronogramaControllerTest {
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verifyNoInteractions(loteServicio);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-CGC-96: GERENTE_DE_COMPRAS, ENCARGADO_DE_DEPOSITO, GERENTE_COMERCIAL y ADMINISTRADOR no pueden usar el buscador de fermentadores: redirigen con alerta de error y no llegan a ningun service")
+    void roles_noAutorizadosNoPuedenUsarElBuscadorDeFermentadores(String rol) throws Exception {
+        // Act + Assert
+        mockMvc.perform(get(URL + "/buscador/fermentadores").with(user("x").roles(rol)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio);
     }
 
     // ==================== Datos de prueba ====================
@@ -1811,6 +2027,29 @@ class CronogramaControllerTest {
     private static LoteCronogramaResponseDTO finalizadoEn(Long id, String identificador, String fermentador, LocalDate inicioReal, LocalDate finReal) {
         return loteEn(id, identificador, EstadoLote.FINALIZADO, fermentador, 7L, "Pale Ale", inicioReal, finReal).toBuilder()
                 .fechaInicio(inicioReal.atTime(8, 0)).fechaFinalizacion(finReal.atTime(17, 0)).build();
+    }
+
+    /**
+     * Un fermentador como lo devuelve el service de fermentadores al buscador del cronograma.
+     */
+    private static FermentadorResponseDTO fermentadorDelBuscador(Long id, String identificador, EstadoOperativo estadoOperativo,
+                                                                 double capacidadUtil, Estado estado) {
+        return FermentadorResponseDTO.builder().id(id).identificadorInterno(identificador).estadoOperativo(estadoOperativo)
+                .capacidadUtil(capacidadUtil).estado(estado).build();
+    }
+
+    /**
+     * El texto que muestra el selector de entidad con ese placeholder (vacio si no hay nada elegido).
+     */
+    private static String textoDelSelector(String html, String placeholder) {
+        Matcher m = Pattern.compile("<input[^>]*data-selector-texto[^>]*>").matcher(html);
+        while (m.find()) {
+            if (m.group().contains("placeholder=\"" + placeholder + "\"")) {
+                Matcher valor = Pattern.compile("value=\"([^\"]*)\"").matcher(m.group());
+                return valor.find() ? HtmlUtils.htmlUnescape(valor.group(1)) : "";
+            }
+        }
+        throw new AssertionError("No hay selector con el placeholder " + placeholder);
     }
 
     /**

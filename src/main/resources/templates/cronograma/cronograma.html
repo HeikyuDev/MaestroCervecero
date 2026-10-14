@@ -19,17 +19,13 @@
         <p class="text-sm text-slate-500">Lotes de todas las planificaciones por fermentador y el orden de la cola de lotes pendientes.</p>
     </div>
 
-    <!-- Filtros: fermentador, planificación a destacar y período. Aplicar un filtro vuelve a la primera página -->
+    <!-- Filtros: fermentador y planificación a destacar (ambos con buscador en modal) y período. Aplicar un filtro vuelve a la primera página -->
     <form th:action="@{/cronograma-produccion}" method="get" novalidate data-cronograma-filtros
           class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
         <div>
-            <label for="idFermentador" class="block text-xs font-medium text-slate-500 mb-1">Fermentador</label>
-            <select id="idFermentador" name="idFermentador"
-                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
-                <option value="">Todos</option>
-                <option th:each="f : ${fermentadores}" th:value="${f.id}" th:selected="${f.id == filtroIdFermentador}"
-                        th:text="${f.deBaja} ? |${f.identificador} (dado de baja)| : ${f.identificador}">F-01</option>
-            </select>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Fermentador</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idFermentador', ${filtroIdFermentador}, ${filtroFermentadorTexto},
+                    @{/cronograma-produccion/buscador/fermentadores}, null, null, true, false, 'Seleccione fermentador')}"></div>
         </div>
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Planificación a destacar</span>

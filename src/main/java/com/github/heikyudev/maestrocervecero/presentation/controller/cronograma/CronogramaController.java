@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.cronograma;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.view.CronogramaProduccionBuilder;
 import com.github.heikyudev.maestrocervecero.presentation.view.CronogramaProduccionVista;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -67,6 +68,7 @@ public class CronogramaController {
 
     private static final String VISTA_CRONOGRAMA = "cronograma/cronograma";
     private static final String VISTA_BUSCADOR_PLANIFICACION = "cronograma/buscador-planificacion :: buscador";
+    private static final String VISTA_BUSCADOR_FERMENTADOR = "cronograma/buscador-fermentador :: buscador";
     private static final String URL_CRONOGRAMA = "/cronograma-produccion";
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -97,7 +99,7 @@ public class CronogramaController {
     private final IPlanificacionProduccionServicio planificacionServicio;
 
     /**
-     * Opción del filtro de fermentador: un fermentador activo o uno dado de baja que tiene lotes.
+     * Fermentador que se puede filtrar: uno activo o uno dado de baja que tiene lotes.
      */
     @Value
     public static class OpcionFermentador {
@@ -180,8 +182,8 @@ public class CronogramaController {
         model.addAttribute("cronograma", cronograma);
         model.addAttribute("gantt", cronograma.getGantt());
         model.addAttribute("colas", cronograma.getColas());
-        model.addAttribute("fermentadores", opciones);
         model.addAttribute("filtroIdFermentador", idFermentadorFiltro);
+        model.addAttribute("filtroFermentadorTexto", idFermentadorFiltro == null ? null : textoDeFermentador(buscar(opciones, idFermentadorFiltro)));
         model.addAttribute("filtroIdPlanificacion", idPlanificacionFiltro);
         model.addAttribute("filtroPlanificacionTexto", textoPlanificacion);
 
@@ -281,11 +283,39 @@ public class CronogramaController {
         return VISTA_BUSCADOR_PLANIFICACION;
     }
 
+    // ==================== Buscador de fermentadores ====================
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de fermentadores (criterios de identificador, estado operativo e
+     * "Incluir dados de baja" + resultados), de a 8 y en orden alfabético por identificador. Sin el último criterio
+     * solo se ofrecen los fermentadores activos; con él se suman los dados de baja que tienen lotes, para poder
+     * filtrar su historial.
+     */
+    @GetMapping("/buscador/fermentadores")
+    public String buscarFermentadores(@RequestParam(required = false) String identificador,
+                                      @RequestParam(required = false) EstadoOperativo estadoOperativo,
+                                      @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
+                                      @RequestParam(defaultValue = "0") int pagina,
+                                      Model model) {
+        String identificadorBuscado = vacioANulo(identificador);
+        Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_POR_IDENTIFICADOR);
+        Page<FermentadorResponseDTO> fermentadores = incluirDadosDeBaja
+                ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estadoOperativo, pageable)
+                : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estadoOperativo, pageable);
+
+        model.addAttribute("fermentadores", fermentadores);
+        model.addAttribute("estados", EstadoOperativo.values());
+        model.addAttribute("filtroIdentificador", identificador);
+        model.addAttribute("filtroEstado", estadoOperativo);
+        model.addAttribute("filtroIncluirDadosDeBaja", incluirDadosDeBaja);
+        return VISTA_BUSCADOR_FERMENTADOR;
+    }
+
     // ==================== Apoyo ====================
 
     /**
-     * Las opciones del filtro de fermentador: los fermentadores activos y los dados de baja que tienen lotes (estos
-     * últimos para poder filtrar el historial), en orden alfabético por identificador.
+     * Los fermentadores que se pueden filtrar: los activos y los dados de baja que tienen lotes (estos últimos para
+     * poder filtrar el historial), en orden alfabético por identificador.
      */
     private List<OpcionFermentador> listarOpcionesDeFermentador() {
         List<OpcionFermentador> opciones = new ArrayList<>();
@@ -298,6 +328,10 @@ public class CronogramaController {
 
     private static OpcionFermentador opcionDe(FermentadorResponseDTO fermentador, boolean deBaja) {
         return new OpcionFermentador(fermentador.getId(), fermentador.getIdentificadorInterno(), deBaja);
+    }
+
+    private static String textoDeFermentador(OpcionFermentador fermentador) {
+        return fermentador.isDeBaja() ? fermentador.getIdentificador() + " (dado de baja)" : fermentador.getIdentificador();
     }
 
     private static OpcionFermentador buscar(List<OpcionFermentador> opciones, Long id) {

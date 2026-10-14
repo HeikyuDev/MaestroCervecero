@@ -139,6 +139,76 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).filtrarFermentadores(null, null, pageable);
     }
 
+    // ==================== filtrarFermentadoresConDadosDeBajaConLotes ====================
+
+    @Test
+    @DisplayName("CP-FD-01: filtrarFermentadoresConDadosDeBajaConLotes retorna una página de fermentadores (activos y dados de baja con lotes) mapeada a DTO cuando se filtra por identificador interno y estado operativo")
+    void filtrarFermentadoresConDadosDeBajaConLotes_debeRetornarPaginaMapeadaFiltrandoPorIdentificadorYEstado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        FermentadorEntity activo = crearFermentadorEntity(1L, "F-01", 100.0, 80.0);
+        FermentadorEntity dadoDeBaja = crearFermentadorEntity(2L, "F-02", 120.0, 90.0);
+        dadoDeBaja.setEstado(Estado.BAJA);
+        when(fermentadorRepository.filtrarFermentadoresConDadosDeBajaConLotes("F-0", EstadoOperativo.DISPONIBLE, pageable))
+                .thenReturn(new PageImpl<>(List.of(activo, dadoDeBaja), pageable, 2));
+
+        // === EJECUCION ===
+        Page<FermentadorResponseDTO> resultado = fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes("F-0", EstadoOperativo.DISPONIBLE, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(2);
+        assertFermentadorDTO(activo, resultado.getContent().get(0));
+        assertFermentadorDTO(dadoDeBaja, resultado.getContent().get(1));
+        assertThat(resultado.getContent()).extracting(FermentadorResponseDTO::getEstado).containsExactly(Estado.ACTIVO, Estado.BAJA);
+        verify(fermentadorRepository).filtrarFermentadoresConDadosDeBajaConLotes("F-0", EstadoOperativo.DISPONIBLE, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FD-02: filtrarFermentadoresConDadosDeBajaConLotes propaga identificador interno y estado operativo nulos sin restringir esos criterios")
+    void filtrarFermentadoresConDadosDeBajaConLotes_debePropagarCriteriosNulos() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        when(fermentadorRepository.filtrarFermentadoresConDadosDeBajaConLotes(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<FermentadorResponseDTO> resultado = fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).isEmpty();
+        verify(fermentadorRepository).filtrarFermentadoresConDadosDeBajaConLotes(null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FD-03: filtrarFermentadoresConDadosDeBajaConLotes normaliza el identificador interno buscado (espacios y mayúsculas) antes de consultar")
+    void filtrarFermentadoresConDadosDeBajaConLotes_debeNormalizarElIdentificadorBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        when(fermentadorRepository.filtrarFermentadoresConDadosDeBajaConLotes("FERM 01", null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes("  ferm   01  ", null, pageable);
+
+        // === ASSERTS ===
+        verify(fermentadorRepository).filtrarFermentadoresConDadosDeBajaConLotes("FERM 01", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FD-04: filtrarFermentadoresConDadosDeBajaConLotes trata el identificador interno formado solo por espacios como ausencia de filtro")
+    void filtrarFermentadoresConDadosDeBajaConLotes_debeTratarIdentificadorEnBlancoComoSinFiltro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        when(fermentadorRepository.filtrarFermentadoresConDadosDeBajaConLotes(null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes("    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(fermentadorRepository).filtrarFermentadoresConDadosDeBajaConLotes(null, null, pageable);
+    }
+
     // ==================== listarDadosDeBajaConLotes ====================
 
     @Test

@@ -68,6 +68,31 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     }
 
     /**
+     * Recupera una página de Fermentadores activos y de fermentadores dados de baja que tienen lotes (sin contar los
+     * cancelados), filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
+     * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta).
+     * <p>
+     * Se usa para buscar, además de los fermentadores activos, los dados de baja cuyo historial de lotes sigue
+     * consultable. Los fermentadores dados de baja sin lotes no se incluyen.
+     * </p>
+     *
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param pageable Configuración de paginación y ordenamiento.
+     * @return {@link Page} que contiene los objetos {@link FermentadorResponseDTO} correspondientes.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<FermentadorResponseDTO> filtrarFermentadoresConDadosDeBajaConLotes(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable) {
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+        return fermentadorRepository.filtrarFermentadoresConDadosDeBajaConLotes(identificadorInternoNormalizado, estadoOperativo, pageable).map(MapperFermentador::toDTO);
+    }
+
+    /**
      * Recupera los fermentadores dados de baja que tienen lotes (sin contar los cancelados), en orden alfabético por
      * identificador interno. Los fermentadores dados de baja sin lotes no se incluyen.
      * <p>
