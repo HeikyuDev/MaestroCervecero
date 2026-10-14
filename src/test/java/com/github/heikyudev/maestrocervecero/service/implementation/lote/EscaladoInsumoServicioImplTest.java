@@ -28,6 +28,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -178,6 +179,36 @@ class EscaladoInsumoServicioImplTest {
         assertThat(resultado.get(0).etapa()).isEqualTo(etapaMolienda);
         assertThat(resultado.get(0).cantidadRequerida()).isEqualTo(3.5);
         assertThat(resultado.get(0).insumo()).isEqualTo(malta);
+    }
+
+    @Test
+    @DisplayName("CP-EI-AE-02: asociarEtapa conserva la cantidad requerida redondeada a 4 decimales, sin ruido de punto flotante")
+    void asociarEtapa_debeConservarLaCantidadRedondeadaA4Decimales() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(1L, "Pilsen", 80);
+        RequerimientoInsumo requerimientoConRuido = new RequerimientoInsumo(malta, null, 19.879134860050907);
+        EtapaLoteEntity etapaMolienda = crearLoteConEtapas().getEtapas().stream().filter(e -> e.getEtapa() == TipoEtapa.MOLIENDA).findFirst().orElseThrow();
+
+        // === EJECUCION ===
+        List<RequerimientoInsumo> resultado = escaladoInsumoServicio.asociarEtapa(List.of(requerimientoConRuido), etapaMolienda);
+
+        // === ASSERTS ===
+        assertThat(requerimientoConRuido.cantidadRequerida()).isEqualTo(19.8791);
+        assertThat(resultado.get(0).cantidadRequerida()).isEqualTo(19.8791);
+    }
+
+    @Test
+    @DisplayName("CP-EI-AE-03: consumir exactamente la cantidad requerida mostrada alcanza el 100% y no supera lo requerido")
+    void asociarEtapa_consumirLoMostradoDebeAlcanzarElCienPorCiento() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(1L, "Pilsen", 80);
+        RequerimientoInsumo requerimiento = new RequerimientoInsumo(malta, null, 430.8403177877895);
+        double cantidadMostrada = requerimiento.cantidadRequerida();
+
+        // === ASSERTS ===
+        assertThat(cantidadMostrada).isEqualTo(430.8403);
+        assertThat(Redondeo.redondear(cantidadMostrada / requerimiento.cantidadRequerida() * 100.0)).isEqualTo(100.0);
+        assertThat(Redondeo.redondear(cantidadMostrada)).isLessThanOrEqualTo(requerimiento.cantidadRequerida());
     }
 
     // ==================== calcularRequerimientosTotales ====================

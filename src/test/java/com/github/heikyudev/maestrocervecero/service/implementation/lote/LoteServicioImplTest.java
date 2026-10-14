@@ -3489,12 +3489,12 @@ class LoteServicioImplTest {
         AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
 
         // === ASSERTS ===
-        // M = 4,3952 kg; Vpre = 20 + 2 + 3 = 25; Vagua_mac = 4,3952*3 + 5 = 18,1857; Vmosto = 18,1857 - 5 - 4,3952 = 8,7904;
-        // Vlavado = 25 - 8,7904 = 16,2096; Vtotal = 18,1857 + 16,2096 = 34,3952
+        // M = 4,3952 kg; Vpre = 20 + 2 + 3 = 25; Vagua_mac = 4,3952*3 + 5 = 18,1856; Vmosto = 18,1856 - 5 - 4,3952 = 8,7904;
+        // Vlavado = 25 - 8,7904 = 16,2096; Vtotal = 18,1856 + 16,2096 = 34,3952
         assertThat(resultado.getVolumenObjetivo()).isEqualTo(20.0);
         assertThat(resultado.getMasaMalta()).isEqualTo(4.3952);
         assertThat(resultado.getVolumenPreHervor()).isEqualTo(25.0);
-        assertThat(resultado.getAguaMacerado()).isEqualTo(18.1857);
+        assertThat(resultado.getAguaMacerado()).isEqualTo(18.1856);
         assertThat(resultado.getAguaLavado()).isEqualTo(16.2096);
         assertThat(resultado.getAguaTotal()).isEqualTo(34.3952);
         assertThat(resultado.getAdvertencias()).isEmpty();
@@ -3513,10 +3513,10 @@ class LoteServicioImplTest {
         AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
 
         // === ASSERTS ===
-        // Vagua_mac = 4,3952*8 + 5 = 40,1617; Vmosto = 40,1617 - 5 - 4,3952 = 30,7665; Vlavado = 25 - 30,7665 < 0 → 0
-        assertThat(resultado.getAguaMacerado()).isEqualTo(40.1617);
+        // Vagua_mac = 4,3952*8 + 5 = 40,1616; Vmosto = 40,1616 - 5 - 4,3952 = 30,7664; Vlavado = 25 - 30,7664 < 0 → 0
+        assertThat(resultado.getAguaMacerado()).isEqualTo(40.1616);
         assertThat(resultado.getAguaLavado()).isEqualTo(0.0);
-        assertThat(resultado.getAguaTotal()).isEqualTo(40.1617);
+        assertThat(resultado.getAguaTotal()).isEqualTo(40.1616);
         assertThat(resultado.getAdvertencias()).containsExactly(
                 "El mosto extraído del macerador (30,77 L) supera el volumen pre-hervor (25 L), por lo que no se requiere agua de lavado");
     }
@@ -6216,9 +6216,9 @@ class LoteServicioImplTest {
         AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
 
         // === ASSERTS ===
-        // 3 L/kg x 4,3952 kg = 13,1857 L; + 5 L de espacio muerto = 18,1857 L (el agua de macerado); bagazo 4,3952 L; mosto 8,7904 L
+        // 3 L/kg x 4,3952 kg = 13,1856 L; + 5 L de espacio muerto = 18,1856 L (el agua de macerado); bagazo 4,3952 L; mosto 8,7904 L
         assertThat(resultado.getRelacionDeEmpaste()).isEqualTo(3.0);
-        assertThat(resultado.getAguaPorRelacionDeEmpaste()).isEqualTo(13.1857);
+        assertThat(resultado.getAguaPorRelacionDeEmpaste()).isEqualTo(13.1856);
         assertThat(resultado.getEspacioMuerto()).isEqualTo(5.0);
         assertThat(resultado.getAbsorcionPorKg()).isEqualTo(1.0);
         assertThat(resultado.getPerdidaPorBagazo()).isEqualTo(4.3952);
@@ -6239,8 +6239,8 @@ class LoteServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getRelacionDeEmpaste()).isEqualTo(8.0);
-        assertThat(resultado.getAguaPorRelacionDeEmpaste()).isEqualTo(35.1617);
-        assertThat(resultado.getMostoExtraido()).isEqualTo(30.7665);
+        assertThat(resultado.getAguaPorRelacionDeEmpaste()).isEqualTo(35.1616);
+        assertThat(resultado.getMostoExtraido()).isEqualTo(30.7664);
         assertThat(resultado.getAguaLavado()).isEqualTo(0.0);
     }
 }

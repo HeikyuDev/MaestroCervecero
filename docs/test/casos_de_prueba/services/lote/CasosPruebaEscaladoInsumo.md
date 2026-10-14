@@ -28,6 +28,8 @@ Ver docs/Dominio/Escalado/EscaladoDeLevadura.md.
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-EI-AE-01**|Copia cada requerimiento con la etapa indicada, sin alterar la cantidad requerida|1 requerimiento sin etapa (`cantidadRequerida: 3.5`), etapa de Molienda|Copia con la misma cantidad y el mismo insumo, etapa reemplazada|Retorna 1 requerimiento con `etapa` igual a la etapa indicada, `cantidadRequerida = 3.5` (sin cambios) e `insumo` sin cambios.|
+|**CP-EI-AE-02**|Conserva la cantidad requerida redondeada a 4 decimales, sin ruido de punto flotante|Requerimiento con `cantidadRequerida: 19.879134860050907`, etapa de Molienda|La cantidad se redondea al construir el requerimiento y se conserva al asociar la etapa|`cantidadRequerida = 19.8791` tanto en el requerimiento original como en la copia con etapa.|
+|**CP-EI-AE-03**|Consumir exactamente la cantidad requerida mostrada alcanza el 100% y no supera lo requerido|Requerimiento con `cantidadRequerida: 430.8403177877895`|El valor mostrado coincide con el valor usado en las comparaciones|`cantidadRequerida = 430.8403`; el porcentaje de consumir esa cantidad es `100.0` y no supera lo requerido.|
 
 ### 5. `calcularRequerimientosTotales(LoteEntity lote)`
 
