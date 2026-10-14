@@ -48,6 +48,30 @@ public class AguaLoteResponseDTO {
     private Double aguaTotal;
 
     /**
+     * Relación de empaste de la receta, en litros por kilogramo de malta.
+     */
+    private Double relacionDeEmpaste;
+    /**
+     * Parte del agua de macerado que sale de la relación de empaste (masa de malta por relación de empaste), en litros.
+     */
+    private Double aguaPorRelacionDeEmpaste;
+    /**
+     * Agua retenida en el espacio muerto del macerador, en litros.
+     */
+    private Double espacioMuerto;
+    /**
+     * Litros de mosto que retiene cada kilogramo de grano.
+     */
+    private Double absorcionPorKg;
+    /**
+     * Agua que retiene el grano (masa de malta por la absorción por kilogramo), en litros.
+     */
+    private Double perdidaPorBagazo;
+    /**
+     * Mosto que se extrae del macerador, en litros.
+     */
+    private Double mostoExtraido;
+    /**
      * Avisos del cálculo que no lo impiden; vacía si no hay ninguno.
      */
     @Builder.Default

@@ -7,8 +7,10 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteForm
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -461,4 +463,50 @@ public interface ILoteServicio {
      *                               o si es el último lote pendiente de la cola de su fermentador.
      */
     LoteCronogramaResponseDTO bajarLoteEnCola(Long idLote);
+
+    /**
+     * Filtra los lotes para el listado de lotes, con lo que la pantalla muestra de cada uno (etapa actual, fermentador,
+     * fechas, nombre de la receta y fecha de cancelación), del último registrado al primero (ID descendente; el orden
+     * del {@code pageable} se ignora para que sea siempre el mismo). Cada criterio nulo no restringe.
+     * <p>
+     * El filtro por fermentador incluye los lotes de fermentadores dados de baja. {@code identificadorInterno} se busca
+     * por coincidencia parcial, sin distinguir mayúsculas, y un texto en blanco equivale a no filtrar. Los lotes de la
+     * página se cargan con sus relaciones en una sola consulta. No calcula atrasos ni corrimientos.
+     * </p>
+     *
+     * @param idPlanificacion El ID de la planificación de producción, o {@code null} para no filtrar por ella.
+     * @param idFermentador El ID del fermentador (puede estar dado de baja), o {@code null} para no filtrar por él.
+     * @param identificadorInterno Texto a buscar dentro del código del lote, o {@code null} para no filtrar por él.
+     * @param estado El estado del lote, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación (solo se usa el tamaño y el número de página).
+     * @return Una página de lotes en formato {@link LoteCronogramaResponseDTO}.
+     */
+    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idFermentador, String identificadorInterno, EstadoLote estado, Pageable pageable);
+
+    /**
+     * Obtiene el detalle de un lote para su pantalla: la cabecera, las seis etapas en orden del proceso con su equipo y
+     * sus fechas, la versión de receta de su planificación ("versión N de M") y la etapa que se abre por defecto
+     * ({@link LoteDetalleResponseDTO#getEtapaPorDefecto()}).
+     *
+     * @param idLote El ID del lote.
+     * @return El detalle del lote.
+     * @throws RecursoNoEncontradoException Si no existe un lote con el ID especificado.
+     * @throws ReglaNegocioException Si no se informó el lote.
+     */
+    LoteDetalleResponseDTO buscarDetallePorId(Long idLote);
+
+    /**
+     * Calcula el avance de una etapa del lote hacia el porcentaje mínimo de consumo configurado, con la misma regla con
+     * la que se valida la finalización de la etapa: cada insumo requerido cumple si su cantidad consumida (a 4
+     * decimales) alcanza el porcentaje mínimo de su cantidad requerida. Con mínimo 0 todos cumplen (no se controla) y
+     * una etapa sin insumos cumple con la lista vacía. Es de solo lectura y sirve para un lote en cualquier estado.
+     *
+     * @param idLote El ID del lote.
+     * @param etapa El tipo de la etapa.
+     * @return El avance de la etapa.
+     * @throws RecursoNoEncontradoException Si no existe el lote, si el lote no tiene la etapa o si no se encuentra la
+     *                                      configuración de producción.
+     * @throws ReglaNegocioException Si no se informó el lote o la etapa.
+     */
+    AvanceEtapaResponseDTO calcularAvanceDeEtapa(Long idLote, TipoEtapa etapa);
 }

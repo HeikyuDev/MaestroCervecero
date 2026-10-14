@@ -2,6 +2,8 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_ins
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.LoteInsumoEntity;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -9,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -146,4 +149,36 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
      * @return {@code true} si existe al menos un lote de ese insumo con cantidad actual mayor a la indicada, {@code false} en caso contrario.
      */
     boolean existsByInsumo_IdAndCantidadActualGreaterThan(Long idInsumo, Double cantidadActual);
+
+    /**
+     * Filtra los lotes de insumo con saldo disponible (cantidad actual menos reservada, mayor a 0 al redondear a 4
+     * decimales) de los insumos indicados, para el consumo directo. Los criterios de texto nulos no restringen.
+     * <p>
+     * El orden es FEFO y lo define la consulta, para que la paginación sea estable: primero los vigentes por fecha de
+     * vencimiento ascendente (un lote que vence hoy es vigente), luego los que no tienen fecha de vencimiento y al
+     * final los vencidos (fecha anterior a {@code hoy}), también por fecha; ante igual fecha, por ID.
+     * </p>
+     *
+     * @param idsInsumo Los IDs de los insumos (no vacío).
+     * @param nombreInsumo Texto a buscar dentro del nombre del insumo (ya normalizado), o {@code null}.
+     * @param identificacion Texto a buscar dentro de la identificación del lote del proveedor (ya normalizado), o {@code null}.
+     * @param hoy La fecha contra la que se decide si un lote está vencido.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Una página de lotes de insumo con su insumo cargado.
+     */
+    @Query(value = "SELECT li FROM LoteInsumoEntity li JOIN FETCH li.insumo i WHERE i.id IN :idsInsumo "
+            + "AND (li.cantidadActual - li.cantidadReservada) > 0.00005 "
+            + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
+            + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
+            + "ORDER BY CASE WHEN li.fechaVencimiento IS NULL THEN 1 WHEN li.fechaVencimiento < :hoy THEN 2 ELSE 0 END ASC, "
+            + "li.fechaVencimiento ASC, li.id ASC",
+            countQuery = "SELECT COUNT(li) FROM LoteInsumoEntity li JOIN li.insumo i WHERE i.id IN :idsInsumo "
+                    + "AND (li.cantidadActual - li.cantidadReservada) > 0.00005 "
+                    + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
+                    + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
+    Page<LoteInsumoEntity> filtrarLotesInsumoDisponiblesParaConsumo(@Param("idsInsumo") Collection<Long> idsInsumo,
+                                                                     @Param("nombreInsumo") String nombreInsumo,
+                                                                     @Param("identificacion") String identificacion,
+                                                                     @Param("hoy") LocalDate hoy,
+                                                                     Pageable pageable);
 }

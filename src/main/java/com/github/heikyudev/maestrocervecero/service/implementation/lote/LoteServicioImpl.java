@@ -46,9 +46,17 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoIn
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.VolumenesAgua;
+import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEtapaLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
@@ -58,6 +66,8 @@ import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumeric
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -127,6 +137,7 @@ public class LoteServicioImpl implements ILoteServicio {
     private final IConsumoInsumoServicio consumoInsumoServicio;
     private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
+    private final IPlanificacionProduccionServicio planificacionProduccionServicio;
 
     /**
      * Filtra los lotes registrados, opcionalmente por receta, identificador interno, estado,
@@ -164,6 +175,132 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO buscarPorId(Long id) {
         return MapperLote.toDTO(loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id)));
+    }
+
+    /**
+     * Filtra los lotes para el listado de lotes, del último registrado al primero. Ver
+     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, Pageable)}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idFermentador, String identificadorInterno, EstadoLote estado, Pageable pageable) {
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
+        String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
+        if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
+            identificadorInternoNormalizado = null;
+        }
+
+        // 1. Paginar solo los IDs, ya ordenados por la consulta (el orden del pageable se ignora: siempre es el mismo)
+        Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idFermentador, identificadorInternoNormalizado, estado, pageableSinOrden);
+        if (idsDeLaPagina.isEmpty()) {
+            return new PageImpl<>(List.of(), pageableSinOrden, idsDeLaPagina.getTotalElements());
+        }
+
+        // 2. Cargar los lotes de la página con sus relaciones en una sola consulta y respetar el orden de los IDs
+        Map<Long, LoteEntity> lotesPorId = loteRepository.buscarParaListadoPorIds(idsDeLaPagina.getContent()).stream()
+                .collect(Collectors.toMap(LoteEntity::getId, lote -> lote));
+        List<LoteCronogramaResponseDTO> contenido = idsDeLaPagina.getContent().stream()
+                .map(lotesPorId::get)
+                .filter(Objects::nonNull)
+                .map(MapperLoteCronograma::toDTO)
+                .toList();
+        return new PageImpl<>(contenido, pageableSinOrden, idsDeLaPagina.getTotalElements());
+    }
+
+    /**
+     * Obtiene el detalle de un lote para su pantalla. Ver {@link ILoteServicio#buscarDetallePorId(Long)}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public LoteDetalleResponseDTO buscarDetallePorId(Long idLote) {
+        validarLoteInformado(idLote);
+        LoteEntity lote = loteRepository.buscarConEtapasParaDetalle(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+
+        // Las etapas siempre en el orden del proceso, sin depender del orden de la lista de la entidad
+        List<EtapaLoteEntity> etapas = lote.getEtapas().stream()
+                .sorted(Comparator.comparing(EtapaLoteEntity::getEtapa))
+                .toList();
+        EtapaLoteEntity etapaFermentacion = etapas.stream()
+                .filter(etapa -> etapa.getEtapa() == TipoEtapa.FERMENTACION)
+                .findFirst()
+                .orElse(null);
+        Long idPlanificacion = lote.getPlanificacionProduccion().getId();
+
+        return LoteDetalleResponseDTO.builder()
+                .id(lote.getId())
+                .identificadorInterno(lote.getIdentificadorInterno())
+                .estado(lote.getEstado())
+                .volumenObjetivo(lote.getVolumenObjetivo())
+                .fechaInicioEstimada(lote.getFechaInicioEstimada())
+                .fechaFinalizacionEstimada(lote.getFechaFinalizacionEstimada())
+                .fechaInicio(lote.getFechaInicio())
+                .fechaFinalizacion(lote.getFechaFinalizacion())
+                .fechaCancelacion(lote.getFechaCancelacion())
+                .motivoCancelacion(lote.getMotivoCancelacion())
+                .idPlanificacionProduccion(idPlanificacion)
+                .versionReceta(planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(idPlanificacion))
+                .idFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getId() : null)
+                .identificadorInternoFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getIdentificadorInterno() : null)
+                .etapas(etapas.stream().map(MapperEtapaLote::toDTO).toList())
+                .etapaPorDefecto(resolverEtapaPorDefecto(lote.getEstado(), etapas))
+                .build();
+    }
+
+    /**
+     * Resuelve la etapa que el detalle abre por defecto según el estado del lote: la etapa en curso si está En
+     * ejecución, Molienda si está Pendiente, Envasado si está Finalizado y, si está Cancelado, la primera etapa
+     * Cancelada (donde se interrumpió) o, si ninguna lo está, la última etapa iniciada (Molienda si no empezó).
+     *
+     * @param estado El estado del lote.
+     * @param etapasEnOrden Las etapas del lote en el orden del proceso.
+     */
+    private static TipoEtapa resolverEtapaPorDefecto(EstadoLote estado, List<EtapaLoteEntity> etapasEnOrden) {
+        return switch (estado) {
+            case PENDIENTE -> TipoEtapa.MOLIENDA;
+            case FINALIZADO -> TipoEtapa.ENVASADO;
+            case EN_EJECUCION -> etapasEnOrden.stream()
+                    .filter(etapa -> etapa.getEstado() == EstadoEtapaLote.EN_CURSO)
+                    .map(EtapaLoteEntity::getEtapa)
+                    .findFirst()
+                    .orElse(TipoEtapa.MOLIENDA);
+            case CANCELADO -> etapasEnOrden.stream()
+                    .filter(etapa -> etapa.getEstado() == EstadoEtapaLote.CANCELADA)
+                    .map(EtapaLoteEntity::getEtapa)
+                    .findFirst()
+                    .orElseGet(() -> etapasEnOrden.stream()
+                            .filter(etapa -> etapa.getFechaInicio() != null)
+                            .map(EtapaLoteEntity::getEtapa)
+                            .reduce((anterior, siguiente) -> siguiente)
+                            .orElse(TipoEtapa.MOLIENDA));
+        };
+    }
+
+    /**
+     * Calcula el avance de una etapa hacia el porcentaje mínimo de consumo. Ver
+     * {@link ILoteServicio#calcularAvanceDeEtapa(Long, TipoEtapa)}.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public AvanceEtapaResponseDTO calcularAvanceDeEtapa(Long idLote, TipoEtapa etapa) {
+        validarLoteInformado(idLote);
+        validarInformado(etapa, "La etapa es obligatoria");
+
+        LoteEntity lote = loteRepository.findById(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+        EtapaLoteEntity etapaLote = lote.obtenerEtapaPorTipo(etapa);
+        ConfiguracionProduccionEntity configuracion = configuracionProduccionRepository
+                .findById(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la configuración de producción"));
+        double porcentajeMinimo = configuracion.getPorcentajeMinimoConsumoParaAvanzarEtapa();
+
+        List<AvanceInsumoResponseDTO> insumos = evaluarAvance(consumoInsumoServicio.filtrarInsumosRequeridos(etapaLote.getId()), porcentajeMinimo);
+        return AvanceEtapaResponseDTO.builder()
+                .porcentajeMinimo(porcentajeMinimo)
+                .cumpleMinimo(insumos.stream().allMatch(AvanceInsumoResponseDTO::isCumple))
+                .insumos(insumos)
+                .build();
     }
 
     /**
@@ -830,6 +967,12 @@ public class LoteServicioImpl implements ILoteServicio {
                 .aguaMacerado(agua.aguaMacerado())
                 .aguaLavado(agua.aguaLavado())
                 .aguaTotal(agua.aguaTotal())
+                .relacionDeEmpaste(versionReceta.getRelacionDeEmpaste())
+                .aguaPorRelacionDeEmpaste(agua.aguaPorRelacionDeEmpaste())
+                .espacioMuerto(agua.espacioMuerto())
+                .absorcionPorKg(agua.absorcionPorKg())
+                .perdidaPorBagazo(agua.perdidaPorBagazo())
+                .mostoExtraido(agua.mostoExtraido())
                 .advertencias(agua.advertencias())
                 .build();
     }
@@ -941,16 +1084,35 @@ public class LoteServicioImpl implements ILoteServicio {
      * @throws ReglaNegocioException Si algún insumo requerido no alcanza el porcentaje mínimo.
      */
     private void validarPorcentajeMinimoConsumido(EtapaLoteEntity etapa, double porcentajeMinimo) {
-        List<String> insumosInsuficientes = consumoInsumoServicio.filtrarInsumosRequeridos(etapa.getId()).stream()
-                .filter(insumoRequerido -> Redondeo.redondear(insumoRequerido.getCantidadConsumida())
-                        < Redondeo.redondear(insumoRequerido.getCantidadRequerida() * (porcentajeMinimo / 100.0)))
-                .map(insumoRequerido -> insumoRequerido.getInsumo().getNombre())
+        List<String> insumosInsuficientes = evaluarAvance(consumoInsumoServicio.filtrarInsumosRequeridos(etapa.getId()), porcentajeMinimo).stream()
+                .filter(avance -> !avance.isCumple())
+                .map(AvanceInsumoResponseDTO::getNombreInsumo)
                 .toList();
 
         if (!insumosInsuficientes.isEmpty()) {
             throw new ReglaNegocioException("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el "
                     + ValidacionesNumericas.formatearNumero(porcentajeMinimo) + "% mínimo de consumo requerido: " + String.join(", ", insumosInsuficientes));
         }
+    }
+
+    /**
+     * Regla única del avance hacia el mínimo de consumo, compartida por la validación de la finalización de la etapa y por
+     * {@link #calcularAvanceDeEtapa(Long, TipoEtapa)}: un insumo cumple si su cantidad consumida alcanza el porcentaje
+     * mínimo de su cantidad requerida, comparando ambos lados redondeados a 4 decimales. Con mínimo 0 todos cumplen
+     * (no se controla el consumo).
+     */
+    private static List<AvanceInsumoResponseDTO> evaluarAvance(List<InsumoRequeridoResponseDTO> insumosRequeridos, double porcentajeMinimo) {
+        return insumosRequeridos.stream()
+                .map(insumoRequerido -> AvanceInsumoResponseDTO.builder()
+                        .nombreInsumo(insumoRequerido.getInsumo().getNombre())
+                        .unidadDeMedida(insumoRequerido.getInsumo().getUnidadDeMedida())
+                        .requerida(insumoRequerido.getCantidadRequerida())
+                        .consumida(insumoRequerido.getCantidadConsumida())
+                        .porcentaje(ConsumoInsumoServicioImpl.calcularPorcentajeConsumido(insumoRequerido.getCantidadConsumida(), insumoRequerido.getCantidadRequerida()))
+                        .cumple(Redondeo.redondear(insumoRequerido.getCantidadConsumida())
+                                >= Redondeo.redondear(insumoRequerido.getCantidadRequerida() * (porcentajeMinimo / 100.0)))
+                        .build())
+                .toList();
     }
 
     /**

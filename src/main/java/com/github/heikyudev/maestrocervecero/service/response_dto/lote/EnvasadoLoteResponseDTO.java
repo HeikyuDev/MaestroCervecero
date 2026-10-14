@@ -53,4 +53,8 @@ public class EnvasadoLoteResponseDTO {
      * Barril al que se traspasó la cerveza.
      */
     private BarrilResponseDTO barril;
+    /**
+     * Fecha y hora en que se registró (creó) el registro, según la auditoría.
+     */
+    private LocalDateTime fechaRegistro;
 }

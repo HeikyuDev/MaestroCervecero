@@ -147,3 +147,20 @@ Salvo que el caso indique otra cosa, el escenario base es: planificación `id: 1
 |**CP-VRP-12**|Una sola consulta, sin litros ni otros repositorios|Escenario base|La resolución es única y no calcula lo que la vista no muestra|La consulta de la planificación se invoca exactamente una vez. Nunca se invoca `IRecetaRepository`, `IVersionRecetaRepository` ni `IEnvasadoLoteRepository`, ni `save()` de ningún repositorio.|
 |**CP-VRP-13**|La consulta trae la versión y su receta en un solo paso|Anotación `@Query` del método del repositorio que usa el service (`IPlanificacionProduccionRepository.buscarConVersionReceta`)|Evitar una consulta por cada relación perezosa|La consulta filtra por `p.id = :id` y hace `JOIN FETCH` de `p.versionReceta` y de la receta de la versión. La cantidad real de sentencias SQL (sin una consulta por cada malta, lúpulo o levadura) se verifica manualmente con las estadísticas de Hibernate contra la base de datos: no depende de la cantidad de detalles de la versión.|
 |**CP-VRP-14**|Orden estable de los detalles definido por la entidad|Anotaciones de `VersionRecetaEntity.detallesMalta`, `detallesLupulo` y `detallesLevadura`|El orden de carga lo define el mapeo y no el motor|Las tres colecciones llevan `@OrderBy("id ASC")` (el orden en que se cargaron los detalles de la versión).|
+
+### 8. `filtrarPlanificacionesPorNombreDeReceta(String nombreReceta, EstadoSolicitud estado, Pageable pageable)`
+
+Alimenta el buscador de planificaciones del listado de lotes y del cronograma. Ofrece planificaciones de cualquier estado (el estado es un criterio opcional). `nombreReceta` se normaliza con `NormalizacionTexto.nombrePropio` (un texto en blanco equivale a no filtrar) y se busca por coincidencia parcial, sin distinguir mayúsculas, sobre el nombre de la versión de receta de la planificación. Si el `Pageable` no trae orden, la última planificación registrada va primero (`id` descendente). Cada planificación informa sus litros producidos con una sola consulta de agregación para toda la página.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FPR-01**|Normaliza el nombre, filtra por estado y mapea los litros producidos|`nombreReceta: "   Pale    Ale "`, `estado: FINALIZADA`, `pageable` ordenado por `id` descendente; 2 planificaciones, con `300.0` litros producidos en la `2`|El nombre llega normalizado ("Pale Ale") al repositorio|Retorna las planificaciones `2` y `1` con litros producidos `300.0` y `0.0`; `sumarLitrosProducidosPorPlanificacion` se invoca una sola vez.|
+|**CP-FPR-02**|Criterios nulos o en blanco no restringen|`nombreReceta: null` y `nombreReceta: "    "`, `estado: null`|El texto en blanco se reemplaza por `null`|En ambos casos consulta el repositorio con `nombreReceta: null` y `estado: null`.|
+|**CP-FPR-03**|Sin coincidencias|`nombreReceta: "Inexistente"`|La página no tiene elementos|Retorna una página vacía y no consulta los litros producidos.|
+|**CP-FPR-04**|Orden por defecto|(a) `PageRequest.of(1, 8)` sin orden; (b) un `Pageable` con orden por `fechaInicioEstimada`|Sin orden se aplica `id` descendente|(a) El repositorio recibe página `1`, tamaño `8` y orden `id` descendente; (b) recibe el mismo `Pageable` sin cambios.|
+
+**Consulta `filtrarPlanificacionesPorNombreDeReceta` (verificación manual contra la base de datos).** No puede ejercitarse con el repositorio mockeado; se verifica ejecutándola contra PostgreSQL con datos de prueba. El contexto de Spring la valida al arrancar.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-FPR-05**|Filtros y paginación|Planificaciones de las recetas "Pale Ale" (Pendiente, Finalizada) y "Stout" (Pendiente, Anulada); consultas con `"pale"`, con `"STOUT"` y `estado: ANULADA`, y con ambos `null`|`UPPER(v.nombre) LIKE` parcial y `estado` opcional|Con `"pale"` devuelve las dos de Pale Ale (de cualquier estado); con `"STOUT"` y `ANULADA` devuelve la anulada de Stout; con `null` devuelve las cuatro. El total de la página es el de la consulta de conteo.|

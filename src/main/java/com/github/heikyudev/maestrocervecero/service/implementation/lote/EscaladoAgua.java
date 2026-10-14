@@ -97,6 +97,9 @@ public final class EscaladoAgua {
         }
         double aguaTotal = Redondeo.redondear(aguaMacerado + Math.max(0.0, aguaLavadoSinLimite));
 
-        return new VolumenesAgua(volumenPreHervorRedondeado, aguaMaceradoRedondeada, aguaLavado, aguaTotal, List.copyOf(advertencias));
+        return new VolumenesAgua(volumenPreHervorRedondeado, aguaMaceradoRedondeada, aguaLavado, aguaTotal,
+                Redondeo.redondear(aguaMacerado - macerador.getEspacioMuerto()), Redondeo.redondear(macerador.getEspacioMuerto()),
+                ABSORCION_GRANO_L_POR_KG, Redondeo.redondear(perdidaPorBagazo), Redondeo.redondear(mostoExtraido),
+                List.copyOf(advertencias));
     }
 }

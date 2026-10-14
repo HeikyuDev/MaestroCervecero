@@ -121,4 +121,16 @@ public interface IPlanificacionProduccionServicio {
      * @throws RecursoNoEncontradoException Si no existe una planificación de producción con el ID especificado.
      */
     VersionRecetaDePlanificacionResponseDTO buscarVersionRecetaDePlanificacion(Long idPlanificacion);
+
+    /**
+     * Filtra las planificaciones de producción, de cualquier estado, por parte del nombre de su receta (coincidencia
+     * parcial, sin distinguir mayúsculas; un texto en blanco equivale a no filtrar) y opcionalmente por estado. Si el
+     * {@code pageable} no trae orden, las ordena con la última registrada arriba.
+     *
+     * @param nombreReceta Texto a buscar dentro del nombre de la receta, o {@code null} para no filtrar por él.
+     * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
+     * @param pageable Configuración de paginación y ordenamiento.
+     * @return Una página de planificaciones con sus litros producidos, como en {@link #filtrarPlanificacionesProduccion}.
+     */
+    Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesPorNombreDeReceta(String nombreReceta, EstadoSolicitud estado, Pageable pageable);
 }

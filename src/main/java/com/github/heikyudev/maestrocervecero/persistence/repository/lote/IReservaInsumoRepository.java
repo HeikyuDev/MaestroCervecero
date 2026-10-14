@@ -91,6 +91,18 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * @param idInsumo El ID del insumo.
      * @return Las reservas de insumo de esa etapa para ese insumo.
      */
-    @Query("SELECT r FROM ReservaInsumoEntity r WHERE r.etapaLote.id = :idEtapaLote AND r.loteInsumo.insumo.id = :idInsumo")
+    @Query("SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
+            + "WHERE r.etapaLote.id = :idEtapaLote AND (:idInsumo IS NULL OR i.id = :idInsumo) "
+            + "ORDER BY CASE WHEN r.cantidadReservada > 0.00005 THEN 0 ELSE 1 END ASC, i.nombre ASC, li.fechaVencimiento ASC, r.id ASC")
     List<ReservaInsumoEntity> filtrarLotesInsumoReservados(@Param("idEtapaLote") Long idEtapaLote, @Param("idInsumo") Long idInsumo);
+
+    /**
+     * Suma, por insumo, el saldo que todavía está reservado en las reservas de una etapa de lote, en una sola consulta.
+     *
+     * @param idEtapaLote El ID de la etapa de lote.
+     * @return Filas {@code [idInsumo, saldoReservado]}; los insumos sin reservas no figuran.
+     */
+    @Query("SELECT r.loteInsumo.insumo.id, SUM(r.cantidadReservada) FROM ReservaInsumoEntity r "
+            + "WHERE r.etapaLote.id = :idEtapaLote GROUP BY r.loteInsumo.insumo.id")
+    List<Object[]> sumarSaldoReservadoPorInsumoDeEtapa(@Param("idEtapaLote") Long idEtapaLote);
 }

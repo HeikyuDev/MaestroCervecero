@@ -146,4 +146,23 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
             + "JOIN p.versionReceta v JOIN v.detallesLevadura d "
             + "WHERE d.levadura.id = :idLevadura AND p.estado = 'PENDIENTE'")
     boolean existsByDetalleLevaduraEnPlanificacionPendiente(@Param("idLevadura") Long idLevadura);
+
+    /**
+     * Filtra las planificaciones de producción por parte del nombre de la versión de receta (sin distinguir
+     * mayúsculas) y por estado. Un criterio nulo no restringe.
+     *
+     * @param nombreReceta Texto a buscar dentro del nombre de la receta (ya normalizado), o {@code null}.
+     * @param estado Estado exacto, o {@code null} para no filtrar por él.
+     * @param pageable Paginación y ordenamiento.
+     * @return Una página de planificaciones con su versión de receta cargada.
+     */
+    @Query(value = "SELECT p FROM PlanificacionProduccionEntity p JOIN FETCH p.versionReceta v WHERE "
+            + "(:nombreReceta IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreReceta AS string), '%'))) "
+            + "AND (:estado IS NULL OR p.estado = :estado)",
+            countQuery = "SELECT COUNT(p) FROM PlanificacionProduccionEntity p JOIN p.versionReceta v WHERE "
+                    + "(:nombreReceta IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreReceta AS string), '%'))) "
+                    + "AND (:estado IS NULL OR p.estado = :estado)")
+    Page<PlanificacionProduccionEntity> filtrarPlanificacionesPorNombreDeReceta(@Param("nombreReceta") String nombreReceta,
+                                                                                 @Param("estado") EstadoSolicitud estado,
+                                                                                 Pageable pageable);
 }

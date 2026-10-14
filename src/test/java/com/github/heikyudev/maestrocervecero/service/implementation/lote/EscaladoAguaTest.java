@@ -169,6 +169,22 @@ class EscaladoAguaTest {
         return VersionRecetaEntity.builder().relacionDeEmpaste(relacionDeEmpaste).duracionHervido(duracionHervido).build();
     }
 
+    @Test
+    @DisplayName("CP-EA-11: calcular informa el desglose del agua de macerado: agua por relación de empaste, espacio muerto, absorción, pérdida por bagazo y mosto extraído")
+    void calcular_debeInformarElDesgloseDelAguaDeMacerado() {
+        // === EJECUCION ===
+        VolumenesAgua resultado = EscaladoAgua.calcular(20.0, 5.0, crearMacerador(1.5), crearOllaHervor(4.0, 1.0), crearVersionReceta(3.0, 60));
+
+        // === ASSERTS ===
+        // 5 kg x 3 L/kg = 15 L; + 1,5 L de espacio muerto = 16,5 L; bagazo = 5 kg x 1,0 L/kg = 5 L; mosto = 16,5 - 1,5 - 5 = 10 L
+        assertThat(resultado.aguaPorRelacionDeEmpaste()).isEqualTo(15.0);
+        assertThat(resultado.espacioMuerto()).isEqualTo(1.5);
+        assertThat(resultado.absorcionPorKg()).isEqualTo(1.0);
+        assertThat(resultado.perdidaPorBagazo()).isEqualTo(5.0);
+        assertThat(resultado.mostoExtraido()).isEqualTo(10.0);
+        assertThat(resultado.aguaPorRelacionDeEmpaste() + resultado.espacioMuerto()).isEqualTo(resultado.aguaMacerado());
+    }
+
     private static MaceradorEntity crearMacerador(double espacioMuerto) {
         return MaceradorEntity.builder()
                 .id(1L)

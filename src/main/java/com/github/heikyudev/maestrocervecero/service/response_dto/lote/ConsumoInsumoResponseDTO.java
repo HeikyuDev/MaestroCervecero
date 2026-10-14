@@ -75,4 +75,8 @@ public class ConsumoInsumoResponseDTO {
      */
     @Builder.Default
     private List<String> advertencias = List.of();
+    /**
+     * Fecha y hora en que se registró (creó) el registro, según la auditoría.
+     */
+    private LocalDateTime fechaRegistro;
 }

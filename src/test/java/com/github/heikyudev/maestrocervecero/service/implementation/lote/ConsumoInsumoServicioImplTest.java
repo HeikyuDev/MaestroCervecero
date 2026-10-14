@@ -1147,6 +1147,23 @@ class ConsumoInsumoServicioImplTest {
         assertThat(resultado.getAdvertencias()).isEmpty();
     }
 
+    @Test
+    @DisplayName("CP-FCI-05: filtrarConsumosInsumo informa la fecha de registro (fecha de creación de la auditoría) de cada consumo")
+    void filtrarConsumosInsumo_debeInformarLaFechaDeRegistro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        ConsumoInsumoEntity consumo = crearConsumoBase(1L, 5.0);
+        consumo.setCreatedDate(LocalDateTime.of(2027, 7, 1, 9, 15));
+        when(consumoInsumoRepository.filtrarConsumosInsumo(1L, null, null, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(consumo), pageable, 1));
+
+        // === EJECUCION ===
+        Page<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.filtrarConsumosInsumo(1L, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent().get(0).getFechaRegistro()).isEqualTo(LocalDateTime.of(2027, 7, 1, 9, 15));
+    }
+
     // ==================== filtrarInsumosRequeridos ====================
 
     @Test
@@ -1205,6 +1222,61 @@ class ConsumoInsumoServicioImplTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La etapa del lote es obligatoria");
         verifyNoInteractions(etapaLoteRepository, escaladoInsumoServicio, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-FIR-04: filtrarInsumosRequeridos informa por insumo el saldo reservado (una sola consulta agrupada), la unidad de medida y el porcentaje consumido")
+    void filtrarInsumosRequeridos_debeInformarReservadoUnidadYPorcentajeConsumido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LevaduraEntity levadura = levaduraEntity(2L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapa = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapa));
+        when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapa)).thenReturn(List.of(
+                new RequerimientoInsumo(malta, etapa, 500.0),
+                new RequerimientoInsumo(levadura, etapa, 10.0)));
+        LoteInsumoEntity loteInsumoMalta = loteInsumoEntity(10L, malta, 300.0, 0.0);
+        when(consumoInsumoRepository.findByEtapaLoteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(
+                consumoInsumoEntity(loteInsumoMalta, 200.0, EstadoTransaccion.REGISTRADO),
+                consumoInsumoEntity(loteInsumoMalta, 50.0, EstadoTransaccion.REGISTRADO)));
+        when(reservaInsumoRepository.sumarSaldoReservadoPorInsumoDeEtapa(1L)).thenReturn(List.<Object[]>of(new Object[]{1L, 250.00004}));
+
+        // === EJECUCION ===
+        List<InsumoRequeridoResponseDTO> resultado = consumoInsumoServicio.filtrarInsumosRequeridos(1L);
+
+        // === ASSERTS ===
+        InsumoRequeridoResponseDTO dtoMalta = resultado.stream().filter(dto -> dto.getInsumo().getId().equals(1L)).findFirst().orElseThrow();
+        InsumoRequeridoResponseDTO dtoLevadura = resultado.stream().filter(dto -> dto.getInsumo().getId().equals(2L)).findFirst().orElseThrow();
+        assertThat(dtoMalta.getCantidadReservada()).isEqualTo(250.0);
+        assertThat(dtoMalta.getUnidadDeMedida()).isEqualTo(malta.getUnidadDeMedida());
+        assertThat(dtoMalta.getPorcentajeConsumido()).isEqualTo(50.0);
+        assertThat(dtoLevadura.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(dtoLevadura.getPorcentajeConsumido()).isEqualTo(0.0);
+        verify(reservaInsumoRepository, times(1)).sumarSaldoReservadoPorInsumoDeEtapa(1L);
+    }
+
+    @Test
+    @DisplayName("CP-FIR-05: filtrarInsumosRequeridos redondea el porcentaje consumido a 4 decimales, no lo topa en 100 y devuelve 0 si lo requerido es 0")
+    void filtrarInsumosRequeridos_debeRedondearElPorcentajeSinTopeYManejarRequeridoCero() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LevaduraEntity levadura = levaduraEntity(2L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapa = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapa));
+        when(escaladoInsumoServicio.calcularRequerimientosEtapa(etapa)).thenReturn(List.of(
+                new RequerimientoInsumo(malta, etapa, 3.0),
+                new RequerimientoInsumo(levadura, etapa, 0.0)));
+        when(consumoInsumoRepository.findByEtapaLoteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(
+                consumoInsumoEntity(loteInsumoEntity(10L, malta, 300.0, 0.0), 4.0, EstadoTransaccion.REGISTRADO)));
+
+        // === EJECUCION ===
+        List<InsumoRequeridoResponseDTO> resultado = consumoInsumoServicio.filtrarInsumosRequeridos(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.get(0).getPorcentajeConsumido()).isEqualTo(133.3333);
+        assertThat(resultado.get(1).getPorcentajeConsumido()).isEqualTo(0.0);
     }
 
     // ==================== anularConsumoInsumo ====================

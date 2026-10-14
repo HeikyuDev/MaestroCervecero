@@ -290,4 +290,64 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
             + "AND d.levadura.id = :idLevadura) "
             + "ORDER BY l.id")
     List<String> buscarCodigosDeLotesVivosPorLevadura(@Param("idLevadura") Long idLevadura);
+
+    /**
+     * Obtiene una página con los IDs de los lotes que cumplen los criterios del listado de lotes, del último registrado
+     * al primero (ID descendente, que es un orden total y por eso estable entre páginas). Cada criterio nulo no
+     * restringe. El fermentador de un lote es el equipamiento de su etapa de Fermentación y puede estar dado de baja.
+     * Se pagina sobre los IDs, sin traer colecciones, para poder cargar después los lotes completos de la página en una
+     * sola consulta ({@link #buscarParaListadoPorIds(Collection)}).
+     *
+     * @param idPlanificacion El ID de la planificación de producción, o {@code null} para no filtrar por ella.
+     * @param idFermentador El ID del fermentador, o {@code null} para no filtrar por él.
+     * @param identificadorInterno Texto a buscar dentro del identificador interno (ya normalizado), o {@code null}.
+     * @param estado El estado del lote, o {@code null} para no filtrar por él.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Los IDs de la página.
+     */
+    @Query(value = "SELECT l.id FROM LoteEntity l WHERE "
+            + "(:idPlanificacion IS NULL OR l.planificacionProduccion.id = :idPlanificacion) "
+            + "AND (:idFermentador IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity ef WHERE ef.lote = l AND ef.etapa = 'FERMENTACION' AND ef.equipamiento.id = :idFermentador)) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:estado IS NULL OR l.estado = :estado) "
+            + "ORDER BY l.id DESC",
+            countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE "
+                    + "(:idPlanificacion IS NULL OR l.planificacionProduccion.id = :idPlanificacion) "
+                    + "AND (:idFermentador IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity ef WHERE ef.lote = l AND ef.etapa = 'FERMENTACION' AND ef.equipamiento.id = :idFermentador)) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+                    + "AND (:estado IS NULL OR l.estado = :estado)")
+    Page<Long> filtrarIdsDeLotesParaListado(@Param("idPlanificacion") Long idPlanificacion,
+                                            @Param("idFermentador") Long idFermentador,
+                                            @Param("identificadorInterno") String identificadorInterno,
+                                            @Param("estado") EstadoLote estado,
+                                            Pageable pageable);
+
+    /**
+     * Carga, en una sola consulta, los lotes del listado con la planificación, su versión de receta y las etapas con su
+     * equipamiento. No garantiza el orden de los resultados.
+     *
+     * @param ids Los IDs de los lotes a cargar.
+     * @return Los lotes con sus relaciones.
+     */
+    @Query("SELECT DISTINCT l FROM LoteEntity l " +
+            "JOIN FETCH l.planificacionProduccion p " +
+            "JOIN FETCH p.versionReceta " +
+            "LEFT JOIN FETCH l.etapas e " +
+            "LEFT JOIN FETCH e.equipamiento " +
+            "WHERE l.id IN :ids")
+    List<LoteEntity> buscarParaListadoPorIds(@Param("ids") Collection<Long> ids);
+
+    /**
+     * Busca un lote con su planificación, la versión de receta y las etapas con su equipamiento, para el detalle.
+     *
+     * @param id El ID del lote.
+     * @return El lote con sus relaciones, o vacío si no existe.
+     */
+    @Query("SELECT DISTINCT l FROM LoteEntity l " +
+            "JOIN FETCH l.planificacionProduccion p " +
+            "JOIN FETCH p.versionReceta " +
+            "LEFT JOIN FETCH l.etapas e " +
+            "LEFT JOIN FETCH e.equipamiento " +
+            "WHERE l.id = :id")
+    Optional<LoteEntity> buscarConEtapasParaDetalle(@Param("id") Long id);
 }

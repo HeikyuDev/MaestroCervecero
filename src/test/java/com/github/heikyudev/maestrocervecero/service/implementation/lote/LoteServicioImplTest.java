@@ -54,13 +54,17 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
 import org.junit.jupiter.api.DisplayName;
@@ -76,6 +80,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -136,6 +141,8 @@ class LoteServicioImplTest {
     private IEnvasadoLoteRepository envasadoLoteRepository;
     @Mock
     private ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
+    @Mock
+    private IPlanificacionProduccionServicio planificacionProduccionServicio;
     // Spy con la implementación real: el escalado de insumos ya se prueba de forma independiente
     // en EscaladoInsumoServicioImplTest, así que aquí no tiene sentido mockearlo — se necesita el
     // cálculo real para que estos tests sigan verificando el mismo comportamiento de extremo a
@@ -5742,5 +5749,472 @@ class LoteServicioImplTest {
         EstadoEtapaLote estado = enCurso ? EstadoEtapaLote.EN_CURSO : EstadoEtapaLote.PENDIENTE;
         LocalDateTime fechaInicio = enCurso ? LocalDateTime.now().minusDays(1) : null;
         return EtapaLoteEntity.builder().etapa(tipo).estado(estado).fechaInicio(fechaInicio).equipamiento(equipamiento).lote(lote).build();
+    }
+
+    // ==================== filtrarLotesParaListado ====================
+
+    @Test
+    @DisplayName("CP-FLL-01: filtrarLotesParaListado carga los lotes de la página en una sola consulta y conserva el orden de los IDs (el último registrado primero)")
+    void filtrarLotesParaListado_debeConservarElOrdenDeLosIdsYMapearAlDTODeCronograma() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        LoteEntity lote3 = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        lote3.setId(3L);
+        lote3.setIdentificadorInterno("PALE_ALE-R7-3");
+        LoteEntity lote1 = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        lote1.setId(1L);
+        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of(3L, 1L), pageable, 45));
+        when(loteRepository.buscarParaListadoPorIds(List.of(3L, 1L))).thenReturn(List.of(lote1, lote3));
+
+        // === EJECUCION ===
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(45);
+        assertThat(resultado.getContent()).extracting(LoteCronogramaResponseDTO::getId).containsExactly(3L, 1L);
+        LoteCronogramaResponseDTO primero = resultado.getContent().get(0);
+        assertThat(primero.getIdentificadorInterno()).isEqualTo("PALE_ALE-R7-3");
+        assertThat(primero.getEtapaActual()).isEqualTo(TipoEtapa.HERVIDO);
+        assertThat(primero.getIdFermentador()).isEqualTo(4L);
+        assertThat(primero.getIdentificadorInternoFermentador()).isEqualTo("Fermentador 4");
+        assertThat(primero.getNombreReceta()).isNotNull();
+        assertThat(resultado.getContent().get(1).getEtapaActual()).isNull();
+        verify(loteRepository, times(1)).buscarParaListadoPorIds(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-FLL-02: filtrarLotesParaListado propaga los cuatro criterios nulos sin restringir la búsqueda")
+    void filtrarLotesParaListado_debePropagarCriteriosNulos() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        LoteEntity lote = crearLoteMinimo(1L, "IPA-1");
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
+        when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(lote));
+
+        // === EJECUCION ===
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).hasSize(1);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FLL-03: filtrarLotesParaListado normaliza el código buscado (recorta, colapsa espacios y pasa a mayúsculas)")
+    void filtrarLotesParaListado_debeNormalizarElIdentificadorInterno() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "PALE_ALE-R7", null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   pale_ale-r7  ", null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).isEmpty();
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "PALE_ALE-R7", null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FLL-04: filtrarLotesParaListado trata un código en blanco como no filtrar")
+    void filtrarLotesParaListado_debeTratarElCodigoEnBlancoComoNulo() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        loteServicio.filtrarLotesParaListado(null, null, "    ", null, pageable);
+
+        // === ASSERTS ===
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FLL-05: filtrarLotesParaListado sin resultados devuelve una página vacía y no carga lotes")
+    void filtrarLotesParaListado_debeRetornarPaginaVaciaSinCargarLotes() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 20);
+        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).isEmpty();
+        assertThat(resultado.getTotalElements()).isZero();
+        verify(loteRepository, never()).buscarParaListadoPorIds(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-FLL-06: filtrarLotesParaListado ignora el orden del Pageable (el orden lo define la consulta) y conserva página y tamaño")
+    void filtrarLotesParaListado_debeIgnorarElOrdenDelPageable() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageableConOrden = PageRequest.of(2, 20, Sort.by(Sort.Direction.ASC, "volumenObjetivo"));
+        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(2, 20), 0));
+
+        // === EJECUCION ===
+        loteServicio.filtrarLotesParaListado(null, null, null, null, pageableConOrden);
+
+        // === ASSERTS ===
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), captor.capture());
+        assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
+        assertThat(captor.getValue().getPageSize()).isEqualTo(20);
+    }
+
+    // ==================== buscarDetallePorId ====================
+
+    @Test
+    @DisplayName("CP-BD-01: buscarDetallePorId lanza ReglaNegocioException si no se informó el lote")
+    void buscarDetallePorId_debeLanzarExcepcionSiNoSeInformaElLote() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.buscarDetallePorId(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote es obligatorio");
+        verifyNoInteractions(loteRepository, planificacionProduccionServicio);
+    }
+
+    @Test
+    @DisplayName("CP-BD-02: buscarDetallePorId lanza RecursoNoEncontradoException si el lote no existe")
+    void buscarDetallePorId_debeLanzarExcepcionSiElLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.buscarConEtapasParaDetalle(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.buscarDetallePorId(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el lote con ID: 99");
+        verifyNoInteractions(planificacionProduccionServicio);
+    }
+
+    @Test
+    @DisplayName("CP-BD-03: buscarDetallePorId devuelve la cabecera, las seis etapas en orden del proceso, la versión de receta, el fermentador y la etapa en curso como etapa por defecto")
+    void buscarDetallePorId_debeDevolverElDetalleCompletoDeUnLoteEnEjecucion() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        findEtapa(lote, TipoEtapa.MOLIENDA).setEstado(EstadoEtapaLote.FINALIZADA);
+        findEtapa(lote, TipoEtapa.MACERACION).setEstado(EstadoEtapaLote.FINALIZADA);
+        lote.setFechaInicio(LocalDateTime.of(2027, 7, 1, 8, 30));
+        Collections.reverse(lote.getEtapas()); // la lista de la entidad no garantiza el orden del proceso
+        VersionRecetaDePlanificacionResponseDTO versionReceta = VersionRecetaDePlanificacionResponseDTO.builder()
+                .idPlanificacion(1L).numeroVersion(3).cantidadVersiones(3).build();
+        when(loteRepository.buscarConEtapasParaDetalle(1L)).thenReturn(Optional.of(lote));
+        when(planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L)).thenReturn(versionReceta);
+
+        // === EJECUCION ===
+        LoteDetalleResponseDTO resultado = loteServicio.buscarDetallePorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getId()).isEqualTo(1L);
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("IPA Test-3");
+        assertThat(resultado.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
+        assertThat(resultado.getVolumenObjetivo()).isEqualTo(20.0);
+        assertThat(resultado.getFechaInicio()).isEqualTo(LocalDateTime.of(2027, 7, 1, 8, 30));
+        assertThat(resultado.getFechaCancelacion()).isNull();
+        assertThat(resultado.getMotivoCancelacion()).isNull();
+        assertThat(resultado.getIdPlanificacionProduccion()).isEqualTo(1L);
+        assertThat(resultado.getVersionReceta()).isSameAs(versionReceta);
+        assertThat(resultado.getIdFermentador()).isEqualTo(4L);
+        assertThat(resultado.getIdentificadorInternoFermentador()).isEqualTo("Fermentador 4");
+        assertThat(resultado.getEtapas()).extracting(e -> e.getEtapa()).containsExactly(TipoEtapa.values());
+        assertThat(resultado.getEtapas()).extracting(e -> e.getEstado()).containsExactly(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
+                EstadoEtapaLote.EN_CURSO, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE);
+        assertThat(resultado.getEtapas().get(0).getEquipamiento().getIdentificadorInterno()).isNotBlank();
+        assertThat(resultado.getEtapaPorDefecto()).isEqualTo(TipoEtapa.HERVIDO);
+        verify(planificacionProduccionServicio, times(1)).buscarVersionRecetaDePlanificacion(1L);
+    }
+
+    @Test
+    @DisplayName("CP-BD-04: buscarDetallePorId abre Molienda por defecto en un lote Pendiente")
+    void buscarDetallePorId_debeAbrirMoliendaEnUnLotePendiente() {
+        // === PREPARACION DE DATOS ===
+        mockearDetalle(crearLoteParaCancelar(EstadoLote.PENDIENTE, null));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.MOLIENDA);
+    }
+
+    @Test
+    @DisplayName("CP-BD-05: buscarDetallePorId abre Envasado por defecto en un lote Finalizado")
+    void buscarDetallePorId_debeAbrirEnvasadoEnUnLoteFinalizado() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.FINALIZADO, null);
+        lote.getEtapas().forEach(etapa -> etapa.setEstado(EstadoEtapaLote.FINALIZADA));
+        mockearDetalle(lote);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.ENVASADO);
+    }
+
+    @Test
+    @DisplayName("CP-BD-06: buscarDetallePorId abre en un lote Cancelado la primera etapa que quedó Cancelada y devuelve la fecha y el motivo de la cancelación")
+    void buscarDetallePorId_debeAbrirLaEtapaCanceladaEnUnLoteCancelado() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.CANCELADO, null);
+        findEtapa(lote, TipoEtapa.MOLIENDA).setEstado(EstadoEtapaLote.FINALIZADA);
+        findEtapa(lote, TipoEtapa.MACERACION).setEstado(EstadoEtapaLote.FINALIZADA);
+        for (TipoEtapa tipo : List.of(TipoEtapa.HERVIDO, TipoEtapa.FERMENTACION, TipoEtapa.MADURACION, TipoEtapa.ENVASADO)) {
+            findEtapa(lote, tipo).setEstado(EstadoEtapaLote.CANCELADA); // al cancelar pasan a Cancelada la en curso y las pendientes
+        }
+        lote.setFechaCancelacion(LocalDateTime.of(2027, 7, 3, 10, 15));
+        lote.setMotivoCancelacion("Se detectó una contaminación en el mosto");
+        mockearDetalle(lote);
+
+        // === EJECUCION ===
+        LoteDetalleResponseDTO resultado = loteServicio.buscarDetallePorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEtapaPorDefecto()).isEqualTo(TipoEtapa.HERVIDO);
+        assertThat(resultado.getFechaCancelacion()).isEqualTo(LocalDateTime.of(2027, 7, 3, 10, 15));
+        assertThat(resultado.getMotivoCancelacion()).isEqualTo("Se detectó una contaminación en el mosto");
+    }
+
+    @Test
+    @DisplayName("CP-BD-07: buscarDetallePorId abre en un lote Cancelado sin etapa Cancelada la última etapa iniciada")
+    void buscarDetallePorId_debeAbrirLaUltimaEtapaIniciadaSiNingunaQuedoCancelada() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.CANCELADO, null);
+        for (TipoEtapa tipo : List.of(TipoEtapa.MOLIENDA, TipoEtapa.MACERACION, TipoEtapa.HERVIDO)) {
+            EtapaLoteEntity etapa = findEtapa(lote, tipo);
+            etapa.setEstado(EstadoEtapaLote.FINALIZADA);
+            etapa.setFechaInicio(LocalDateTime.now().minusDays(2));
+        }
+        mockearDetalle(lote);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.HERVIDO);
+    }
+
+    @Test
+    @DisplayName("CP-BD-08: buscarDetallePorId abre Molienda en un lote Cancelado sin haber empezado, con las etapas Canceladas o sin ninguna Cancelada")
+    void buscarDetallePorId_debeAbrirMoliendaSiElLoteSeCanceloSinEmpezar() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity todasCanceladas = crearLoteParaCancelar(EstadoLote.CANCELADO, null);
+        todasCanceladas.getEtapas().forEach(etapa -> etapa.setEstado(EstadoEtapaLote.CANCELADA));
+        LoteEntity ningunaCancelada = crearLoteParaCancelar(EstadoLote.CANCELADO, null);
+        when(loteRepository.buscarConEtapasParaDetalle(1L)).thenReturn(Optional.of(todasCanceladas), Optional.of(ningunaCancelada));
+        lenient().when(planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L)).thenReturn(VersionRecetaDePlanificacionResponseDTO.builder().build());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.MOLIENDA);
+        assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.MOLIENDA);
+    }
+
+    @Test
+    @DisplayName("CP-BD-09: buscarDetallePorId abre Molienda si un lote En ejecución no tiene ninguna etapa En curso")
+    void buscarDetallePorId_debeAbrirMoliendaSiUnLoteEnEjecucionNoTieneEtapaEnCurso() {
+        // === PREPARACION DE DATOS ===
+        mockearDetalle(crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.MOLIENDA);
+    }
+
+    private void mockearDetalle(LoteEntity lote) {
+        when(loteRepository.buscarConEtapasParaDetalle(lote.getId())).thenReturn(Optional.of(lote));
+        when(planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(lote.getPlanificacionProduccion().getId()))
+                .thenReturn(VersionRecetaDePlanificacionResponseDTO.builder().build());
+    }
+
+    // ==================== calcularAvanceDeEtapa ====================
+
+    @Test
+    @DisplayName("CP-AV-01: calcularAvanceDeEtapa lanza ReglaNegocioException si no se informó el lote o la etapa")
+    void calcularAvanceDeEtapa_debeLanzarExcepcionSiFaltanDatos() {
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularAvanceDeEtapa(null, TipoEtapa.HERVIDO))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El lote es obligatorio");
+        assertThatThrownBy(() -> loteServicio.calcularAvanceDeEtapa(1L, null))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("La etapa es obligatoria");
+        verifyNoInteractions(loteRepository, consumoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-AV-02: calcularAvanceDeEtapa lanza RecursoNoEncontradoException si el lote no existe o no se encuentra la configuración de producción")
+    void calcularAvanceDeEtapa_debeLanzarExcepcionSiNoExisteElLoteOLaConfiguracion() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.findById(99L)).thenReturn(Optional.empty());
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO)));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.calcularAvanceDeEtapa(99L, TipoEtapa.HERVIDO))
+                .isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el lote con ID: 99");
+        assertThatThrownBy(() -> loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO))
+                .isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró la configuración de producción");
+    }
+
+    @Test
+    @DisplayName("CP-AV-03: calcularAvanceDeEtapa de una etapa sin insumos cumple el mínimo con la lista vacía")
+    void calcularAvanceDeEtapa_debeCumplirSiLaEtapaNoTieneInsumos() {
+        // === PREPARACION DE DATOS ===
+        prepararAvance(80.0, List.of());
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO resultado = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getPorcentajeMinimo()).isEqualTo(80.0);
+        assertThat(resultado.isCumpleMinimo()).isTrue();
+        assertThat(resultado.getInsumos()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-AV-04: calcularAvanceDeEtapa informa por insumo el porcentaje consumido y si cumple el mínimo, y no cumple si alguno no lo alcanza")
+    void calcularAvanceDeEtapa_debeInformarElAvanceDeCadaInsumo() {
+        // === PREPARACION DE DATOS ===
+        prepararAvance(80.0, List.of(insumoRequerido("Cascade", UnidadDeMedida.GRAMO, 20.0, 15.0), insumoRequerido("Citra", UnidadDeMedida.GRAMO, 15.0, 15.0)));
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO resultado = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(resultado.isCumpleMinimo()).isFalse();
+        assertThat(resultado.getInsumos()).hasSize(2);
+        assertThat(resultado.getInsumos().get(0).getNombreInsumo()).isEqualTo("Cascade");
+        assertThat(resultado.getInsumos().get(0).getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
+        assertThat(resultado.getInsumos().get(0).getRequerida()).isEqualTo(20.0);
+        assertThat(resultado.getInsumos().get(0).getConsumida()).isEqualTo(15.0);
+        assertThat(resultado.getInsumos().get(0).getPorcentaje()).isEqualTo(75.0);
+        assertThat(resultado.getInsumos().get(0).isCumple()).isFalse();
+        assertThat(resultado.getInsumos().get(1).getPorcentaje()).isEqualTo(100.0);
+        assertThat(resultado.getInsumos().get(1).isCumple()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-AV-05: calcularAvanceDeEtapa cumple justo en el borde del mínimo (80% de 25 es 20) y no cumple por debajo")
+    void calcularAvanceDeEtapa_debeCumplirEnElBordeDelMinimo() {
+        // === PREPARACION DE DATOS ===
+        prepararAvance(80.0, List.of(insumoRequerido("Cascade", UnidadDeMedida.GRAMO, 25.0, 20.0), insumoRequerido("Citra", UnidadDeMedida.GRAMO, 25.0, 19.9999)));
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO resultado = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getInsumos().get(0).isCumple()).isTrue();
+        assertThat(resultado.getInsumos().get(1).isCumple()).isFalse();
+        assertThat(resultado.isCumpleMinimo()).isFalse();
+    }
+
+    @Test
+    @DisplayName("CP-AV-06: calcularAvanceDeEtapa sin consumo (0%) no cumple un mínimo mayor a 0, y con el mínimo en 0 no controla")
+    void calcularAvanceDeEtapa_debeNoControlarConMinimoCeroYExigirConMinimoPositivo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        findEtapa(lote, TipoEtapa.HERVIDO).setId(11L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(
+                Optional.of(configuracionConMinimo(80.0)), Optional.of(configuracionConMinimo(0.0)));
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(11L)).thenReturn(List.of(insumoRequerido("Cascade", UnidadDeMedida.GRAMO, 25.0, 0.0)));
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO conMinimo = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+        AvanceEtapaResponseDTO sinMinimo = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(conMinimo.getInsumos().get(0).getPorcentaje()).isEqualTo(0.0);
+        assertThat(conMinimo.isCumpleMinimo()).isFalse();
+        assertThat(sinMinimo.getPorcentajeMinimo()).isEqualTo(0.0);
+        assertThat(sinMinimo.getInsumos().get(0).isCumple()).isTrue();
+        assertThat(sinMinimo.isCumpleMinimo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-AV-07: calcularAvanceDeEtapa informa el 100% y un consumo por encima de lo requerido sin tope")
+    void calcularAvanceDeEtapa_debeInformarElCienPorCientoYElExcesoSinTope() {
+        // === PREPARACION DE DATOS ===
+        prepararAvance(100.0, List.of(insumoRequerido("Cascade", UnidadDeMedida.GRAMO, 20.0, 20.0), insumoRequerido("Citra", UnidadDeMedida.GRAMO, 16.0, 20.0)));
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO resultado = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getInsumos().get(0).getPorcentaje()).isEqualTo(100.0);
+        assertThat(resultado.getInsumos().get(1).getPorcentaje()).isEqualTo(125.0);
+        assertThat(resultado.isCumpleMinimo()).isTrue();
+    }
+
+    @Test
+    @DisplayName("CP-AV-08: calcularAvanceDeEtapa aplica la misma regla que la validación de finalizar la etapa, comparando a 4 decimales")
+    void calcularAvanceDeEtapa_debeCompararALaMismaEscalaQueLaValidacion() {
+        // === PREPARACION DE DATOS ===
+        // 80% de 10,00001 es 8,000008, que a 4 decimales es 8: consumir 7,99999 (redondeado 8) alcanza el mínimo
+        prepararAvance(80.0, List.of(insumoRequerido("Cascade", UnidadDeMedida.GRAMO, 10.00001, 7.99999)));
+
+        // === EJECUCION ===
+        AvanceEtapaResponseDTO resultado = loteServicio.calcularAvanceDeEtapa(1L, TipoEtapa.HERVIDO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getInsumos().get(0).isCumple()).isTrue();
+    }
+
+    private void prepararAvance(double porcentajeMinimo, List<InsumoRequeridoResponseDTO> insumosRequeridos) {
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
+        findEtapa(lote, TipoEtapa.HERVIDO).setId(11L);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        when(configuracionProduccionRepository.findById(ConfiguracionProduccionEntity.SINGLETON_ID)).thenReturn(Optional.of(configuracionConMinimo(porcentajeMinimo)));
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(11L)).thenReturn(insumosRequeridos);
+    }
+
+    private static ConfiguracionProduccionEntity configuracionConMinimo(double porcentajeMinimo) {
+        return ConfiguracionProduccionEntity.builder()
+                .id(ConfiguracionProduccionEntity.SINGLETON_ID)
+                .velocidadEstandarEnvasado(10.0)
+                .capacidadLoteEstandar(20.0)
+                .porcentajeMinimoConsumoParaAvanzarEtapa(porcentajeMinimo)
+                .criterioSeleccionPlanSecuencial(CriterioSeleccionPlanSecuencial.FERMENTADOR_LIBERACION_MAS_TEMPRANA)
+                .criterioSeleccionPlanConcurrente(CriterioSeleccionPlanConcurrente.EQUIPOS_LIBERACION_MAS_TEMPRANA)
+                .build();
+    }
+
+    private static InsumoRequeridoResponseDTO insumoRequerido(String nombre, UnidadDeMedida unidad, double requerida, double consumida) {
+        return InsumoRequeridoResponseDTO.builder()
+                .insumo(LupuloResponseDTO.builder().id(1L).nombre(nombre).unidadDeMedida(unidad).build())
+                .cantidadRequerida(requerida)
+                .cantidadConsumida(consumida)
+                .build();
+    }
+
+    // ==================== calcularAguaDelLote: desglose ====================
+
+    @Test
+    @DisplayName("CP-CA-10: calcularAguaDelLote informa el desglose del ejemplo de EscaladoDelAgua.md: relación de empaste, agua por relación, espacio muerto, absorción, pérdida por bagazo y mosto extraído")
+    void calcularAguaDelLote_debeInformarElDesgloseDelEjemploDelDocumento() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        // 3 L/kg x 4,3952 kg = 13,1857 L; + 5 L de espacio muerto = 18,1857 L (el agua de macerado); bagazo 4,3952 L; mosto 8,7904 L
+        assertThat(resultado.getRelacionDeEmpaste()).isEqualTo(3.0);
+        assertThat(resultado.getAguaPorRelacionDeEmpaste()).isEqualTo(13.1857);
+        assertThat(resultado.getEspacioMuerto()).isEqualTo(5.0);
+        assertThat(resultado.getAbsorcionPorKg()).isEqualTo(1.0);
+        assertThat(resultado.getPerdidaPorBagazo()).isEqualTo(4.3952);
+        assertThat(resultado.getMostoExtraido()).isEqualTo(8.7904);
+        assertThat(resultado.getAguaPorRelacionDeEmpaste() + resultado.getEspacioMuerto()).isEqualTo(resultado.getAguaMacerado());
+    }
+
+    @Test
+    @DisplayName("CP-CA-11: calcularAguaDelLote informa el desglose también cuando el agua de lavado queda en 0 (relación de empaste 8)")
+    void calcularAguaDelLote_debeInformarElDesgloseConLavadoEnCero() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        lote.getPlanificacionProduccion().getVersionReceta().setRelacionDeEmpaste(8.0);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getRelacionDeEmpaste()).isEqualTo(8.0);
+        assertThat(resultado.getAguaPorRelacionDeEmpaste()).isEqualTo(35.1617);
+        assertThat(resultado.getMostoExtraido()).isEqualTo(30.7665);
+        assertThat(resultado.getAguaLavado()).isEqualTo(0.0);
     }
 }

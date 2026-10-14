@@ -10,6 +10,7 @@
 |**CP-FEL-02**|Estado nulo no asume REGISTRADO por defecto; se propaga tal cual junto con idBarril nulo (ninguno filtra)|`idEtapaLote: 1L`, `idBarril: null`, `estado: null`, `pageable: PageRequest.of(0, 10)`, BD con 1 envasado REGISTRADO y 1 ANULADO|El service propaga los 2 parámetros nulos tal cual al repositorio|Retorna `Page<EnvasadoLoteResponseDTO>` con los 2 envasados, sin excluir el ANULADO.|
 |**CP-FEL-03**|El usuario puede elegir explícitamente ver los envasados anulados|`idEtapaLote: 1L`, `idBarril: null`, `estado: ANULADO`, `pageable: PageRequest.of(0, 10)`, 1 envasado ANULADO en BD|`filtrarEnvasadosLote(1L, null, ANULADO, pageable)` contiene elementos|Retorna `Page<EnvasadoLoteResponseDTO>` con 1 elemento.|
 |**CP-FEL-04**|La etapa de lote es obligatoria|`idEtapaLote: null`|`idEtapaLote == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La etapa del lote es obligatoria"). `verifyNoInteractions(envasadoLoteRepository)`.|
+|**CP-FEL-05**|Fecha de registro del envasado|Un envasado con `createdDate: 05/07/2027 14:20`|La fecha de registro es la fecha de creación de la auditoría|El DTO informa `fechaRegistro: 05/07/2027 14:20`.|
 
 ### 2. `buscarPorId(Long id)`
 
@@ -79,3 +80,27 @@ El lote asociado se recupera bloqueado para escritura (`loteRepository.buscarPor
 |**CP-AEL-09**|Anulación exitosa _(Camino feliz)_|Envasado `REGISTRADO` con `cantidadEnvasada: 30.0`; barril con `estadoOperativo: CON_CERVEZA`, `contenidoActual: 30.0`|Todas las validaciones $\rightarrow$ **FALSE**|El barril se persiste con `estadoOperativo = DISPONIBLE` y `contenidoActual = 0.0`. El envasado queda `ANULADO`, con `fechaAnulacion` seteada (justo ahora) y `motivoAnulacion` guardado.|
 |**CP-AEL-10**|El lote asociado se recupera bloqueado antes de validarlo|Envasado `REGISTRADO` de un lote `EN_EJECUCION` (`id: 1L`) con `cantidadEnvasada: 30.0`; barril `CON_CERVEZA` con `contenidoActual: 30.0`|Anulación exitosa (misma entrada que CP-AEL-09)|`loteRepository.buscarPorIdParaActualizar(1L)` se invoca exactamente una vez, antes de `barrilRepository.buscarPorIdParaCambiarEstadoOperativo(...)`. El envasado queda `ANULADO`.|
 |**CP-AEL-11**|El lote a bloquear no existe|Envasado `REGISTRADO`; `loteRepository.buscarPorIdParaActualizar(7L)` $\rightarrow$ **Optional.empty()**|El lote del envasado no se encuentra|Lanza `RecursoNoEncontradoException` ("No se encontró el lote con ID: 7"). No consulta `barrilRepository`, ni ejecuta `save()`.|
+
+### 5. `resumirEnvasado(Long idEtapaLote)`
+
+Es de solo lectura y sirve para un lote en cualquier estado. Resume el envasado de una etapa de Envasado frente al único tope del envasado, la capacidad útil del fermentador de la etapa (que se desempaqueta si llega como proxy de Hibernate): `totalEnvasado` (suma de los envasados REGISTRADO), `capacidadUtilFermentador`, `restante` (nunca negativo), `excesoSobreVolumenObjetivo` (litros envasados por encima del volumen objetivo del lote; 0 si no lo superó; es solo informativo), `identificadorFermentador` y `volumenObjetivo`. Todo redondeado a 4 decimales.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-RSE-01**|La etapa de lote es obligatoria|`idEtapaLote: null`|`idEtapaLote == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La etapa del lote es obligatoria"). `verifyNoInteractions(etapaLoteRepository, envasadoLoteRepository)`.|
+|**CP-RSE-02**|Etapa de lote inexistente|`idEtapaLote: 99L`|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` ("No se encontró la etapa de lote con ID: 99").|
+|**CP-RSE-03**|La etapa no admite envasados|Etapa de Fermentación|`isPermiteRegistrarEnvasado()` $\rightarrow$ **FALSE**|Lanza `ReglaNegocioException` ("La etapa Fermentación no admite el registro de envasados"). No consulta los envasados.|
+|**CP-RSE-04**|Camino feliz|Etapa de Envasado; fermentador "FER-01" de capacidad útil `100.0`; volumen objetivo `50.0`; envasado registrado `30.0`|Resumen frente a la capacidad útil|`totalEnvasado = 30.0`, `capacidadUtilFermentador = 100.0`, `restante = 70.0`, `excesoSobreVolumenObjetivo = 0.0`, `identificadorFermentador = "FER-01"`, `volumenObjetivo = 50.0`.|
+|**CP-RSE-05**|Sin envasados registrados|El mismo escenario con `sumarCantidadEnvasadaRegistrada` en `0.0`|El fermentador está vacío|`totalEnvasado = 0.0`, `restante = 100.0`, `excesoSobreVolumenObjetivo = 0.0`.|
+|**CP-RSE-06**|Capacidad agotada y exceso sobre el objetivo _(Límite)_|Envasado registrado `100.0` (capacidad útil `100.0`, volumen objetivo `50.0`)|`capacidad - total = 0`|`restante = 0.0` y `excesoSobreVolumenObjetivo = 50.0`.|
+|**CP-RSE-07**|El restante nunca es negativo|Capacidad útil `40.0` y envasado registrado `45.5` (la capacidad se redujo después de envasar)|`capacidad - total < 0`|`restante = 0.0` y `capacidadUtilFermentador = 40.0`.|
+|**CP-RSE-08**|El fermentador llega como proxy de Hibernate|El equipamiento de la etapa es un proxy de `EquipamientoEntity` que delega en un `FermentadorEntity` de capacidad útil `80.0`|`Hibernate.unproxy(...)` $\rightarrow$ `FermentadorEntity`|Capacidad útil `80.0`, `restante = 60.0` (con `20.0` envasados) e identificador "FER-01", sin lanzar excepción.|
+
+### 6. `existenEnvasadosRegistrados(Long idLote)`
+
+Indica si el lote tiene al menos un envasado en estado REGISTRADO (los anulados no cuentan). La pantalla del lote lo usa para desactivar "Cancelar lote". Es de solo lectura.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-EER-01**|Lote no informado o inexistente|(a) `idLote: null`; (b) `idLote: 99L` que no existe|Datos obligatorios y lote registrado|(a) Lanza `ReglaNegocioException` ("El lote es obligatorio"); (b) Lanza `RecursoNoEncontradoException` ("No se encontró el lote con ID: 99"). No consulta los envasados.|
+|**CP-EER-02**|Con y sin envasados registrados|Lote existente; `existsByEtapaLote_Lote_IdAndEstado(1L, REGISTRADO)` devuelve `true` y luego `false`|Solo cuentan los envasados REGISTRADO|Devuelve `true` y luego `false`.|

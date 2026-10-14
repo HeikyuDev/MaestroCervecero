@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.Registra
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ResumenEnvasadoResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -80,4 +81,28 @@ public interface IEnvasadoLoteServicio {
      * @throws RecursoNoEncontradoException Si el envasado de lote con el ID especificado no existe.
      */
     EnvasadoLoteResponseDTO anularEnvasadoLote(Long id, AnularEnvasadoLoteFormDTO anularEnvasadoLoteFormDTO);
+
+    /**
+     * Resume el envasado de una etapa de Envasado: lo envasado hasta ahora (envasados en estado REGISTRADO), la capacidad
+     * útil del fermentador de la etapa (el único tope del envasado), lo que resta hasta ese tope (nunca negativo), el
+     * exceso sobre el volumen objetivo del lote (informativo) y el identificador del fermentador. Es de solo lectura y
+     * sirve para un lote en cualquier estado.
+     *
+     * @param idEtapaLote El ID de la etapa de Envasado.
+     * @return El resumen del envasado.
+     * @throws RecursoNoEncontradoException Si no existe la etapa de lote.
+     * @throws ReglaNegocioException Si no se informó la etapa, si no es una etapa que admita envasados o si no tiene un
+     *                               fermentador como equipamiento.
+     */
+    ResumenEnvasadoResponseDTO resumirEnvasado(Long idEtapaLote);
+
+    /**
+     * Indica si el lote tiene envasados en estado REGISTRADO (en cuyo caso no se puede cancelar).
+     *
+     * @param idLote El ID del lote.
+     * @return {@code true} si tiene al menos un envasado registrado.
+     * @throws RecursoNoEncontradoException Si no existe el lote.
+     * @throws ReglaNegocioException Si no se informó el lote.
+     */
+    boolean existenEnvasadosRegistrados(Long idLote);
 }

@@ -22,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.Registra
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ResumenEnvasadoResponseDTO;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
 import org.junit.jupiter.api.DisplayName;
@@ -838,6 +839,177 @@ class EnvasadoLoteServicioImplTest {
 
         verifyNoInteractions(barrilRepository);
         verify(envasadoLoteRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-FEL-05: filtrarEnvasadosLote informa la fecha de registro (fecha de creación de la auditoría) de cada envasado")
+    void filtrarEnvasadosLote_debeInformarLaFechaDeRegistro() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        EnvasadoLoteEntity envasadoLote = crearEnvasadoLoteEntity(1L, etapaLote, crearBarrilEntity(3L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA), 30.0, EstadoTransaccion.REGISTRADO);
+        envasadoLote.setCreatedDate(java.time.LocalDateTime.of(2027, 7, 5, 14, 20));
+        when(envasadoLoteRepository.filtrarEnvasadosLote(1L, null, null, pageable)).thenReturn(new PageImpl<>(List.of(envasadoLote), pageable, 1));
+
+        // === EJECUCION ===
+        Page<EnvasadoLoteResponseDTO> resultado = envasadoLoteServicio.filtrarEnvasadosLote(1L, null, null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent().get(0).getFechaRegistro()).isEqualTo(java.time.LocalDateTime.of(2027, 7, 5, 14, 20));
+    }
+
+    // ==================== resumirEnvasado ====================
+
+    @Test
+    @DisplayName("CP-RSE-01: resumirEnvasado lanza ReglaNegocioException y no consulta nada cuando la etapa de lote es nula")
+    void resumirEnvasado_debeRechazarEtapaLoteNula() {
+        assertThatThrownBy(() -> envasadoLoteServicio.resumirEnvasado(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa del lote es obligatoria");
+        verifyNoInteractions(etapaLoteRepository, envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-02: resumirEnvasado lanza RecursoNoEncontradoException si la etapa de lote no existe")
+    void resumirEnvasado_debeLanzarExcepcionSiLaEtapaNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.resumirEnvasado(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la etapa de lote con ID: 99");
+        verifyNoInteractions(envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-03: resumirEnvasado lanza ReglaNegocioException si la etapa no admite envasados")
+    void resumirEnvasado_debeRechazarUnaEtapaQueNoAdmiteEnvasados() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaFermentacion = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.FERMENTACION, EstadoEtapaLote.EN_CURSO);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaFermentacion));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.resumirEnvasado(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La etapa Fermentación no admite el registro de envasados");
+        verifyNoInteractions(envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-04: resumirEnvasado — camino feliz: total envasado, capacidad útil del fermentador, lo que resta, el fermentador y el volumen objetivo")
+    void resumirEnvasado_debeResumirLoEnvasadoFrenteALaCapacidadDelFermentador() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaEnvasado = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaEnvasado));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(30.0);
+
+        // === EJECUCION ===
+        ResumenEnvasadoResponseDTO resultado = envasadoLoteServicio.resumirEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalEnvasado()).isEqualTo(30.0);
+        assertThat(resultado.getCapacidadUtilFermentador()).isEqualTo(100.0);
+        assertThat(resultado.getRestante()).isEqualTo(70.0);
+        assertThat(resultado.getExcesoSobreVolumenObjetivo()).isEqualTo(0.0);
+        assertThat(resultado.getIdentificadorFermentador()).isEqualTo("FER-01");
+        assertThat(resultado.getVolumenObjetivo()).isEqualTo(50.0);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-05: resumirEnvasado sin envasados registrados informa total 0 y todo el fermentador por llenar")
+    void resumirEnvasado_debeInformarTotalCeroSinEnvasados() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaEnvasado = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaEnvasado));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(0.0);
+
+        // === EJECUCION ===
+        ResumenEnvasadoResponseDTO resultado = envasadoLoteServicio.resumirEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalEnvasado()).isEqualTo(0.0);
+        assertThat(resultado.getRestante()).isEqualTo(100.0);
+        assertThat(resultado.getExcesoSobreVolumenObjetivo()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-06: resumirEnvasado con la capacidad del fermentador agotada informa restante 0, y con envasado por encima del volumen objetivo informa el exceso")
+    void resumirEnvasado_debeInformarRestanteCeroConLaCapacidadAgotadaYElExceso() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaEnvasado = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaEnvasado));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(100.0);
+
+        // === EJECUCION ===
+        ResumenEnvasadoResponseDTO resultado = envasadoLoteServicio.resumirEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalEnvasado()).isEqualTo(100.0);
+        assertThat(resultado.getRestante()).isEqualTo(0.0);
+        assertThat(resultado.getExcesoSobreVolumenObjetivo()).isEqualTo(50.0);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-07: resumirEnvasado nunca informa un restante negativo aunque lo envasado supere la capacidad útil (por ejemplo, tras bajar la capacidad del fermentador)")
+    void resumirEnvasado_nuncaDebeInformarRestanteNegativo() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaEnvasado = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 40.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaEnvasado));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(45.5);
+
+        // === EJECUCION ===
+        ResumenEnvasadoResponseDTO resultado = envasadoLoteServicio.resumirEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getRestante()).isEqualTo(0.0);
+        assertThat(resultado.getCapacidadUtilFermentador()).isEqualTo(40.0);
+    }
+
+    @Test
+    @DisplayName("CP-RSE-08: resumirEnvasado resuelve el fermentador desde un proxy de Hibernate de EquipamientoEntity")
+    void resumirEnvasado_debeResolverElFermentadorDesdeUnProxyDeHibernate() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaEnvasado = crearEtapaLoteEntity(1L, crearLoteEntity(EstadoLote.EN_EJECUCION), TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO);
+        etapaEnvasado.setEquipamiento(proxyDe(crearFermentador(80.0)));
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaEnvasado));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(20.0);
+
+        // === EJECUCION ===
+        ResumenEnvasadoResponseDTO resultado = envasadoLoteServicio.resumirEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadUtilFermentador()).isEqualTo(80.0);
+        assertThat(resultado.getRestante()).isEqualTo(60.0);
+        assertThat(resultado.getIdentificadorFermentador()).isEqualTo("FER-01");
+    }
+
+    // ==================== existenEnvasadosRegistrados ====================
+
+    @Test
+    @DisplayName("CP-EER-01: existenEnvasadosRegistrados lanza ReglaNegocioException si no se informó el lote y RecursoNoEncontradoException si no existe")
+    void existenEnvasadosRegistrados_debeValidarElLote() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.existsById(99L)).thenReturn(false);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.existenEnvasadosRegistrados(null))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El lote es obligatorio");
+        assertThatThrownBy(() -> envasadoLoteServicio.existenEnvasadosRegistrados(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class).hasMessage("No se encontró el lote con ID: 99");
+        verifyNoInteractions(envasadoLoteRepository);
+    }
+
+    @Test
+    @DisplayName("CP-EER-02: existenEnvasadosRegistrados devuelve true con envasados registrados y false sin ninguno (solo cuentan los REGISTRADO)")
+    void existenEnvasadosRegistrados_debeConsultarSoloLosEnvasadosRegistrados() {
+        // === PREPARACION DE DATOS ===
+        when(loteRepository.existsById(1L)).thenReturn(true);
+        when(envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true, false);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(envasadoLoteServicio.existenEnvasadosRegistrados(1L)).isTrue();
+        assertThat(envasadoLoteServicio.existenEnvasadosRegistrados(1L)).isFalse();
     }
 
     // ==================== helpers ====================

@@ -43,6 +43,14 @@ public class LoteInsumoResponseDTO {
     private LocalDate fechaVencimiento;
 
     /**
+     * Cantidad disponible para producción: cantidad actual menos cantidad reservada, redondeada a 4 decimales.
+     */
+    private Double cantidadDisponible;
+    /**
+     * Indica si el lote está vencido, es decir, si su fecha de vencimiento es anterior a hoy (si vence hoy todavía es válido).
+     */
+    private boolean vencido;
+    /**
      * Insumo al que corresponde el lote. El tipo concreto (Malta, Lúpulo o Levadura) se resuelve
      * polimórficamente en tiempo de ejecución.
      */

@@ -23,6 +23,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EnvasadoLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ResumenEnvasadoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEnvasadoLote;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
@@ -313,5 +314,50 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         if (!tipoEtapa.isPermiteRegistrarEnvasado()) {
             throw new ReglaNegocioException("La etapa " + tipoEtapa.getEtiqueta() + " no admite el registro de envasados");
         }
+    }
+
+    /**
+     * Resume el envasado de una etapa de Envasado frente a la capacidad útil del fermentador y al volumen objetivo.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ResumenEnvasadoResponseDTO resumirEnvasado(Long idEtapaLote) {
+        if (idEtapaLote == null) {
+            throw new ReglaNegocioException("La etapa del lote es obligatoria");
+        }
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
+        if (!etapaLote.getEtapa().isPermiteRegistrarEnvasado()) {
+            throw new ReglaNegocioException("La etapa " + etapaLote.getEtapa().getEtiqueta() + " no admite el registro de envasados");
+        }
+
+        FermentadorEntity fermentador = obtenerFermentador(etapaLote);
+        double capacidadUtil = Redondeo.redondear(fermentador.getCapacidadUtil());
+        double totalEnvasado = Redondeo.redondear(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote));
+        double volumenObjetivo = Redondeo.redondear(etapaLote.getLote().getVolumenObjetivo());
+
+        return ResumenEnvasadoResponseDTO.builder()
+                .totalEnvasado(totalEnvasado)
+                .capacidadUtilFermentador(capacidadUtil)
+                .restante(Math.max(0.0, Redondeo.redondear(capacidadUtil - totalEnvasado)))
+                .excesoSobreVolumenObjetivo(Math.max(0.0, Redondeo.redondear(totalEnvasado - volumenObjetivo)))
+                .identificadorFermentador(fermentador.getIdentificadorInterno())
+                .volumenObjetivo(volumenObjetivo)
+                .build();
+    }
+
+    /**
+     * Indica si el lote tiene envasados en estado REGISTRADO.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existenEnvasadosRegistrados(Long idLote) {
+        if (idLote == null) {
+            throw new ReglaNegocioException("El lote es obligatorio");
+        }
+        if (!loteRepository.existsById(idLote)) {
+            throw new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote);
+        }
+        return envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(idLote, EstadoTransaccion.REGISTRADO);
     }
 }

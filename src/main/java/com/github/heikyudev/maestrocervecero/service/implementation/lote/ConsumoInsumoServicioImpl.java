@@ -44,6 +44,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -262,12 +263,24 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         Map<Long, Double> cantidadConsumidaPorInsumo = consumoInsumoRepository.findByEtapaLoteIdAndEstado(idEtapaLote, EstadoTransaccion.REGISTRADO).stream()
                 .collect(Collectors.groupingBy(consumo -> consumo.getLoteInsumo().getInsumo().getId(), Collectors.summingDouble(ConsumoInsumoEntity::getCantidadConsumida)));
 
+        // Saldo reservado por insumo: una sola consulta agrupada para toda la etapa (evita una consulta por insumo)
+        Map<Long, Double> saldoReservadoPorInsumo = new HashMap<>();
+        for (Object[] fila : reservaInsumoRepository.sumarSaldoReservadoPorInsumoDeEtapa(idEtapaLote)) {
+            saldoReservadoPorInsumo.put(((Number) fila[0]).longValue(), ((Number) fila[1]).doubleValue());
+        }
+
         return requerimientos.stream()
-                .map(requerimiento -> InsumoRequeridoResponseDTO.builder()
-                        .insumo(MapperInsumo.toDTO(requerimiento.insumo()))
-                        .cantidadRequerida(requerimiento.cantidadRequerida())
-                        .cantidadConsumida(cantidadConsumidaPorInsumo.getOrDefault(requerimiento.insumo().getId(), 0.0))
-                        .build())
+                .map(requerimiento -> {
+                    double cantidadConsumida = cantidadConsumidaPorInsumo.getOrDefault(requerimiento.insumo().getId(), 0.0);
+                    return InsumoRequeridoResponseDTO.builder()
+                            .insumo(MapperInsumo.toDTO(requerimiento.insumo()))
+                            .cantidadRequerida(requerimiento.cantidadRequerida())
+                            .cantidadConsumida(cantidadConsumida)
+                            .cantidadReservada(Redondeo.redondear(saldoReservadoPorInsumo.getOrDefault(requerimiento.insumo().getId(), 0.0)))
+                            .unidadDeMedida(requerimiento.insumo().getUnidadDeMedida())
+                            .porcentajeConsumido(calcularPorcentajeConsumido(cantidadConsumida, requerimiento.cantidadRequerida()))
+                            .build();
+                })
                 .toList();
     }
 
@@ -340,6 +353,17 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         consumoInsumo.setMotivoAnulacion(motivoAnulacion);
 
         return MapperConsumoInsumo.toDTO(consumoInsumoRepository.save(consumoInsumo));
+    }
+
+    /**
+     * Calcula el porcentaje consumido sobre lo requerido, redondeado a 4 decimales y sin tope. Es 0 si lo requerido es 0.
+     * Lo usa también el avance hacia el mínimo de consumo de la etapa.
+     */
+    static double calcularPorcentajeConsumido(double cantidadConsumida, double cantidadRequerida) {
+        if (cantidadRequerida <= 0) {
+            return 0.0;
+        }
+        return Redondeo.redondear(cantidadConsumida / cantidadRequerida * 100.0);
     }
 
     /**

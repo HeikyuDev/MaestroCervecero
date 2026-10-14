@@ -40,6 +40,7 @@ public class MapperConsumoInsumo {
                 .id(consumoInsumoEntity.getId())
                 .cantidadConsumida(consumoInsumoEntity.getCantidadConsumida())
                 .costoUnitarioPPP(consumoInsumoEntity.getCostoUnitarioPPP())
+                .fechaRegistro(consumoInsumoEntity.getCreatedDate())
                 .fechaAnulacion(consumoInsumoEntity.getFechaAnulacion())
                 .motivoAnulacion(consumoInsumoEntity.getMotivoAnulacion())
                 .estado(consumoInsumoEntity.getEstado())

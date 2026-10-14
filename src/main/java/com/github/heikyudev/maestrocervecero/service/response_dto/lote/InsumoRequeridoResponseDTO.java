@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.response_dto.lote;
 
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -31,4 +32,18 @@ public class InsumoRequeridoResponseDTO {
      * Cantidad ya consumida (registrada, no anulada) de este insumo en esta etapa.
      */
     private Double cantidadConsumida;
+    /**
+     * Saldo que todavía está reservado de este insumo para esta etapa (suma de las reservas de la etapa, que se
+     * descuentan a medida que se consumen). Es {@code 0.0} si no tiene reservas.
+     */
+    private Double cantidadReservada;
+    /**
+     * Unidad de medida del insumo.
+     */
+    private UnidadDeMedida unidadDeMedida;
+    /**
+     * Porcentaje consumido sobre lo requerido, redondeado a 4 decimales y sin tope (puede superar 100). Es {@code 0.0}
+     * si la cantidad requerida es 0.
+     */
+    private Double porcentajeConsumido;
 }
