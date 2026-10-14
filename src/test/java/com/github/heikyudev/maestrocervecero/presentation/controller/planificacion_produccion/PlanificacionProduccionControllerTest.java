@@ -1327,21 +1327,21 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-69: el bloque de limpieza lleva un icono de gota decorativo (data-gantt-limpieza-icono, bi-droplet-fill, aria-hidden)")
-    void detalle_elBloqueDeLimpiezaLlevaUnIconoDeGota() throws Exception {
+    @DisplayName("CP-PPC-69: el bloque de limpieza lleva un icono de destellos decorativo (data-gantt-limpieza-icono, bi-stars, aria-hidden)")
+    void detalle_elBloqueDeLimpiezaLlevaUnIconoDeDestellos() throws Exception {
         String html = detalleConUnaLimpieza();
 
         String bloque = bloqueDeLimpieza(html);
 
         assertThat(bloque.split("data-gantt-limpieza-icono", -1).length - 1).isEqualTo(1);
-        assertThat(bloque).containsPattern("<i[^>]*class=\"[^\"]*bi bi-droplet-fill[^\"]*\"[^>]*data-gantt-limpieza-icono[^>]*aria-hidden=\"true\"")
+        assertThat(bloque).containsPattern("<i[^>]*class=\"[^\"]*bi bi-stars[^\"]*\"[^>]*data-gantt-limpieza-icono[^>]*aria-hidden=\"true\"")
                 .contains("role=\"img\"").contains("Limpieza de equipamientos");
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-70: la leyenda muestra la limpieza con la misma muestra celeste y el icono de gota, aunque no haya limpiezas dibujadas")
-    void detalle_laLeyendaMuestraLaLimpiezaConElIconoDeGota() throws Exception {
+    @DisplayName("CP-PPC-70: la leyenda muestra la limpieza con la misma muestra celeste y el icono de destellos, aunque no haya limpiezas dibujadas")
+    void detalle_laLeyendaMuestraLaLimpiezaConElIconoDeDestellos() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
 
@@ -1350,7 +1350,7 @@ class PlanificacionProduccionControllerTest {
 
         Matcher m = Pattern.compile("(?s)aria-label=\"Leyenda del diagrama\">(.*?)</ul>").matcher(html);
         assertThat(m.find()).isTrue();
-        assertThat(m.group(1)).containsPattern("gantt-color--limpieza\"><i[^>]*bi bi-droplet-fill[^>]*data-gantt-leyenda-limpieza-icono[^>]*aria-hidden=\"true\"")
+        assertThat(m.group(1)).containsPattern("gantt-color--limpieza\"><i[^>]*bi bi-stars[^>]*data-gantt-leyenda-limpieza-icono[^>]*aria-hidden=\"true\"")
                 .contains("Limpieza de equipamientos");
     }
 

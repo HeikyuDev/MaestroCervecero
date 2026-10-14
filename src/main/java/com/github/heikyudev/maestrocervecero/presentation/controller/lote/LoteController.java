@@ -2,7 +2,10 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
@@ -109,8 +112,9 @@ public class LoteController {
     }
 
     /**
-     * Lúpulo que se agrega en el hervido, con la cantidad total de la etapa y los tiempos de hervor que la receta le
-     * asigna, del mayor al menor (vacío si no tiene ninguno, como el whirlpool).
+     * Lúpulo que se agrega en el hervido, con la cantidad total de la etapa, los tiempos de hervor que la receta le
+     * asigna, del mayor al menor (vacío si no tiene ninguno), y si además (o solo) se agrega en el whirlpool, que no
+     * tiene tiempo de hervor.
      */
     @Value
     public static class LupuloDeHervido {
@@ -118,6 +122,7 @@ public class LoteController {
         Double cantidad;
         UnidadDeMedida unidadDeMedida;
         List<Double> tiemposDeHervor;
+        boolean enWhirlpool;
     }
 
     // ==================== Lista ====================
@@ -503,8 +508,9 @@ public class LoteController {
     // ==================== Apoyo: detalle ====================
 
     /**
-     * Carga los insumos de la etapa (con su avance hacia el mínimo cuando se puede finalizar) y sus registros de solo
-     * lectura: los consumos o, en Envasado, los envasados. Las etapas que no consumen insumos no consultan nada.
+     * Carga los insumos de la etapa (con su avance hacia el mínimo cuando se puede finalizar) y, en Envasado, los
+     * envasados registrados. Los consumos tienen su propia pantalla. Las etapas que no consumen insumos no consultan
+     * insumos.
      *
      * @return Los insumos requeridos de la etapa (vacío si no consume insumos).
      */
@@ -513,7 +519,6 @@ public class LoteController {
         List<InsumoRequeridoResponseDTO> requeridos = List.of();
         if (tipoEtapa.isPermiteRegistrarConsumo()) {
             requeridos = consumoInsumoServicio.filtrarInsumosRequeridos(etapa.getId());
-            model.addAttribute("consumos", consumoInsumoServicio.filtrarConsumosInsumo(etapa.getId(), null, null, null, todos).getContent());
         }
         if (tipoEtapa.isPermiteRegistrarEnvasado()) {
             model.addAttribute("envasados", envasadoLoteServicio.filtrarEnvasadosLote(etapa.getId(), null, null, todos).getContent());
@@ -543,6 +548,12 @@ public class LoteController {
         if (tipoEtapa == TipoEtapa.HERVIDO) {
             model.addAttribute("lupulos", lupulosDeHervido(requeridos, receta));
         }
+        if (tipoEtapa == TipoEtapa.FERMENTACION) {
+            model.addAttribute("levaduras", requeridos.stream().filter(r -> r.getInsumo() instanceof LevaduraResponseDTO).toList());
+        }
+        if (tipoEtapa == TipoEtapa.FERMENTACION || tipoEtapa == TipoEtapa.MADURACION) {
+            model.addAttribute("lupulosEnSeco", requeridos.stream().filter(r -> r.getInsumo() instanceof LupuloResponseDTO).toList());
+        }
         if (tipoEtapa == TipoEtapa.ENVASADO) {
             try {
                 model.addAttribute("resumenEnvasado", envasadoLoteServicio.resumirEnvasado(etapa.getId()));
@@ -561,8 +572,19 @@ public class LoteController {
     private static List<LupuloDeHervido> lupulosDeHervido(List<InsumoRequeridoResponseDTO> requeridos, VersionRecetaResponseDTO receta) {
         return requeridos.stream()
                 .map(requerido -> new LupuloDeHervido(requerido.getInsumo().getNombre(), requerido.getCantidadRequerida(),
-                        requerido.getUnidadDeMedida(), tiemposDeHervor(receta, requerido.getInsumo().getId())))
+                        requerido.getUnidadDeMedida(), tiemposDeHervor(receta, requerido.getInsumo().getId()),
+                        usaWhirlpool(receta, requerido.getInsumo().getId())))
                 .toList();
+    }
+
+    /** Si la receta agrega ese insumo en el whirlpool del hervido (uso Whirlpool, que no tiene tiempo de hervor). */
+    private static boolean usaWhirlpool(VersionRecetaResponseDTO receta, Long idInsumo) {
+        if (receta == null || receta.getDetallesLupulo() == null) {
+            return false;
+        }
+        return receta.getDetallesLupulo().stream()
+                .anyMatch(detalle -> detalle.getUso() == UsoLupulo.WHIRLPOOL && detalle.getEtapaDeUso() == TipoEtapa.HERVIDO
+                        && detalle.getLupulo() != null && Objects.equals(detalle.getLupulo().getId(), idInsumo));
     }
 
     /** Los tiempos de hervor de la receta para ese insumo en el hervido, sin repetir y del mayor al menor. */

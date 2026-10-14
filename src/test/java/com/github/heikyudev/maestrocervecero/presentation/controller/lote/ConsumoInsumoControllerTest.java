@@ -290,7 +290,7 @@ class ConsumoInsumoControllerTest {
         // Assert
         assertThat(consumos.indexOf("data-consumo=\"7\"")).isLessThan(consumos.indexOf("data-consumo=\"6\""));
         assertThat(celdas(registrado, "L-123")).containsExactly("Cascade", "L-123", "Directo", "15 g", "01/07/2027 10:15", "Registrado", "Anular");
-        assertThat(celdas(anulado, "L-124")).containsExactly("Cascade", "L-124", "Reservado", "5 g", "01/07/2027 10:15", "Anulado Error de carga", "");
+        assertThat(celdas(anulado, "L-124")).containsExactly("Cascade", "L-124", "Reservado", "5 g", "01/07/2027 10:15", "Anulado Motivo: Error de carga", "");
         assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url");
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(consumoInsumoServicio).filtrarConsumosInsumo(eq(ETAPA_HERVIDO), isNull(), isNull(), isNull(), pageable.capture());
@@ -1161,7 +1161,7 @@ class ConsumoInsumoControllerTest {
         String html = html(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
-        Matcher formularios = Pattern.compile("<form[^>]*>").matcher(contenido(html));
+        Matcher formularios = Pattern.compile("<form[^>]*method=\"post\"[^>]*>").matcher(contenido(html));
         List<String> etiquetas = new ArrayList<>();
         while (formularios.find()) {
             etiquetas.add(formularios.group());
@@ -1249,6 +1249,87 @@ class ConsumoInsumoControllerTest {
         assertThat(texto(html)).contains("No se encontró el lote con ID: 99");
         assertThat(html).doesNotContain("name=\"insumo\"").doesNotContain("data-elegir").doesNotContain("data-modal-buscar");
         verifyNoInteractions(consumoInsumoServicio, reservaInsumoServicio, loteInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCO-77: los consumos registrados se pueden filtrar por estado con un desplegable (Todos, Registrado, Anulado) que por defecto muestra todos, sin pedirle estado al service")
+    void pantalla_filtroDeEstadoPorDefectoMuestraTodos() throws Exception {
+        // Act
+        String consumos = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-consumos-registrados");
+        String filtro = bloque(consumos, "data-filtro-consumos");
+
+        // Assert
+        assertThat(filtro).contains("method=\"get\"").contains("action=\"" + URL_PANTALLA + "\"").contains("name=\"estado\"");
+        assertThat(cuenta(filtro, "<option")).isEqualTo(3);
+        assertThat(texto(filtro)).contains("Estado", "Todos", "Registrado", "Anulado", "Filtrar");
+        assertThat(filtro).doesNotContain("selected");
+        verify(consumoInsumoServicio).filtrarConsumosInsumo(eq(ETAPA_HERVIDO), isNull(), isNull(), isNull(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("CP-LCO-78: con estado=ANULADO pide al service solo los anulados, deja elegida esa opción y conserva el estado en los links de paginación")
+    void pantalla_filtroDeEstadoAnulados() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), eq(EstadoTransaccion.ANULADO), any())).thenReturn(new PageImpl<>(
+                List.of(consumo(6L, ETAPA_HERVIDO, cascade(), "L-124", TipoConsumo.RESERVADO, 5, EstadoTransaccion.ANULADO, "Error de carga")), PageRequest.of(1, 20), 45));
+
+        // Act
+        String html = mockMvc.perform(get(URL_PANTALLA).param("estado", "ANULADO").param("pagina", "1").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(elementoConAtributo(html, "option", "value=\"ANULADO\"")).contains("selected");
+        assertThat(enlaceDe(html, "Anterior")).isEqualTo(URL_PANTALLA + "?pagina=0&estado=ANULADO");
+        assertThat(enlaceDe(html, "Siguiente")).isEqualTo(URL_PANTALLA + "?pagina=2&estado=ANULADO");
+        verify(consumoInsumoServicio).filtrarConsumosInsumo(eq(ETAPA_HERVIDO), isNull(), isNull(), eq(EstadoTransaccion.ANULADO), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("CP-LCO-79: un estado inválido en la URL se ignora con un aviso amarillo y se muestran los consumos de todos los estados")
+    void pantalla_filtroDeEstadoInvalido() throws Exception {
+        // Act
+        String html = mockMvc.perform(get(URL_PANTALLA).param("estado", "XYZ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(texto(html)).contains("El estado indicado no es válido, se muestran todos los consumos");
+        assertThat(html).contains(ALERTA_ADVERTENCIA);
+        verify(consumoInsumoServicio).filtrarConsumosInsumo(eq(ETAPA_HERVIDO), isNull(), isNull(), isNull(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("CP-LCO-80: un consumo anulado muestra el motivo, la fecha de anulación y el usuario que lo anuló; uno registrado no muestra detalle de anulación")
+    void pantalla_detalleDeLaAnulacion() throws Exception {
+        // Arrange
+        ConsumoInsumoResponseDTO anulado = ConsumoInsumoResponseDTO.builder().id(6L).cantidadConsumida(5.0).tipoConsumo(TipoConsumo.RESERVADO)
+                .estado(EstadoTransaccion.ANULADO).motivoAnulacion("Error de carga").fechaAnulacion(LocalDateTime.of(2027, 7, 2, 9, 30)).usuarioAnulacion("operario")
+                .fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(ETAPA_HERVIDO).build())
+                .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor("L-124").insumo(cascade()).build()).build();
+        ConsumoInsumoResponseDTO registrado = consumo(7L, ETAPA_HERVIDO, cascade(), "L-123", TipoConsumo.DIRECTO, 15, EstadoTransaccion.REGISTRADO, null);
+        when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(registrado, anulado)));
+
+        // Act
+        String consumos = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-consumos-registrados");
+
+        // Assert
+        assertThat(texto(elementoConAtributo(consumos, "tr", "data-consumo=\"6\""))).contains("Anulado Motivo: Error de carga Anulado el 02/07/2027 09:30 por operario");
+        assertThat(elementoConAtributo(consumos, "tr", "data-consumo=\"7\"")).doesNotContain("data-anulacion");
+    }
+
+    @Test
+    @DisplayName("CP-LCO-81: filtrar por un estado sin consumos muestra el mensaje del estado indicado en lugar de una tabla vacía")
+    void pantalla_filtroDeEstadoSinResultados() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), eq(EstadoTransaccion.ANULADO), any())).thenReturn(Page.empty());
+
+        // Act
+        String html = mockMvc.perform(get(URL_PANTALLA).param("estado", "ANULADO").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String consumos = bloque(html, "data-consumos-registrados");
+
+        // Assert
+        assertThat(texto(consumos)).contains("No hay consumos en el estado indicado");
+        assertThat(consumos).doesNotContain("<table");
     }
 
     @Test
@@ -1403,8 +1484,9 @@ class ConsumoInsumoControllerTest {
         assertThat(html).contains("data-resumen-consumo").contains("data-consumos-registrados")
                 .doesNotContain("data-insumos-reservados").doesNotContain("data-consumo-directo").doesNotContain("cantidadConsumida")
                 .doesNotContain("data-selector").doesNotContain("data-motivo-url");
-        assertThat(contenido(html)).doesNotContain("<form").doesNotContain("<button");
-        assertThat(texto(contenido(html))).doesNotContain("Anular").doesNotContain("Registrar");
+        // El único formulario es el filtro por estado (GET): ningún formulario de operación ni botón de anulación
+        assertThat(contenido(html)).doesNotContain("method=\"post\"").doesNotContain("data-motivo-dialogo");
+        assertThat(texto(contenido(html))).doesNotContain("Anular").doesNotContainPattern("Registrar\\b");
     }
 
     /**

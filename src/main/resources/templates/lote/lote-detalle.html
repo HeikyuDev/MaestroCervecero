@@ -51,7 +51,10 @@
             Motivo de la cancelación (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaCancelacion})}"></th:block>): <span th:text="${lote.motivoCancelacion}">Se detectó una contaminación en el mosto</span>
         </div>
 
-        <dl class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <dl class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm"
+            th:with="inicioReal=${lote.fechaInicio != null and lote.estado.name() != 'PENDIENTE'},
+                     finReal=${lote.estado.name() == 'FINALIZADO' or (lote.estado.name() == 'CANCELADO' and lote.fechaInicio != null)},
+                     fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
             <div>
                 <dt class="text-xs font-medium text-slate-500">Planificación</dt>
                 <dd class="text-slate-900">
@@ -73,21 +76,20 @@
                 <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
                 <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
             </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaInicioEstimada})}"></th:block></dd>
+            <!-- Fechas: estimadas mientras no ocurrieron, reales cuando ya ocurrieron -->
+            <div data-fecha-inicio>
+                <dt class="text-xs font-medium text-slate-500" th:text="${inicioReal} ? 'Inicio real' : 'Inicio estimado'">Inicio estimado</dt>
+                <dd class="text-slate-900">
+                    <th:block th:if="${inicioReal}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaInicio})}"></th:block></th:block>
+                    <th:block th:unless="${inicioReal}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaInicioEstimada})}"></th:block></th:block>
+                </dd>
             </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaFinalizacionEstimada})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Inicio real</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaInicio})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Fin real</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaFinalizacion})}"></th:block></dd>
+            <div data-fecha-fin>
+                <dt class="text-xs font-medium text-slate-500" th:text="${finReal} ? 'Fin real' : 'Fin estimado'">Fin estimado</dt>
+                <dd class="text-slate-900">
+                    <th:block th:if="${finReal}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${fechaFinReal})}"></th:block></th:block>
+                    <th:block th:unless="${finReal}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaFinalizacionEstimada})}"></th:block></th:block>
+                </dd>
             </div>
         </dl>
     </section>
@@ -107,15 +109,25 @@
         </ul>
     </nav>
 
-    <!-- Panel de la etapa mostrada: siempre las mismas cinco secciones, en este orden -->
+    <!-- Panel de la etapa mostrada: franja de estado con la acción principal, guía, insumos y, en Envasado, envasados -->
     <div th:attr="data-etapa-panel=${slugEtapa}" class="space-y-6">
 
-        <!-- 1. Franja de estado -->
-        <section data-franja-estado class="bg-white border border-slate-200 rounded-xl shadow-sm px-5 py-3 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm">
-            <div class="flex items-center gap-2"><span class="text-xs font-medium text-slate-500">Estado</span> <span th:replace="~{lote/formato :: estadoEtapa(${etapaMostrada.estado})}"></span></div>
-            <div><span class="text-xs font-medium text-slate-500">Equipo</span> <strong class="text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">M-01</strong></div>
-            <div><span class="text-xs font-medium text-slate-500">Inicio</span> <span class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${etapaMostrada.fechaInicio})}"></th:block></span></div>
-            <div><span class="text-xs font-medium text-slate-500">Fin</span> <span class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${etapaMostrada.fechaFinalizacion})}"></th:block></span></div>
+        <!-- 1. Franja de estado: título de la etapa, estado, equipo y fechas, con la acción principal de finalizar -->
+        <section data-franja-estado class="bg-white border border-slate-200 rounded-xl shadow-sm px-5 py-3 flex flex-wrap items-center justify-between gap-x-8 gap-y-3 text-sm">
+            <div class="flex flex-wrap items-center gap-x-8 gap-y-2">
+                <h2 class="text-base font-semibold text-slate-900" th:text="${tipoEtapa.etiqueta}">Molienda</h2>
+                <div class="flex items-center gap-2"><span class="text-xs font-medium text-slate-500">Estado</span> <span th:replace="~{lote/formato :: estadoEtapa(${etapaMostrada.estado})}"></span></div>
+                <div><span class="text-xs font-medium text-slate-500">Equipo</span> <strong class="text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">M-01</strong></div>
+                <div><span class="text-xs font-medium text-slate-500">Inicio</span> <span class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${etapaMostrada.fechaInicio})}"></th:block></span></div>
+                <div><span class="text-xs font-medium text-slate-500">Fin</span> <span class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${etapaMostrada.fechaFinalizacion})}"></th:block></span></div>
+            </div>
+            <form th:if="${etapaOperable and #authorization.expression('hasAuthority(''LOTE_FINALIZAR_' + tipoEtapa.name() + ''')')}" data-finalizar-etapa
+                  th:action="@{/lotes/{id}/etapas/{etapa}/finalizar(id=${lote.id}, etapa=${slugEtapa})}" method="post" data-un-solo-envio>
+                <button type="submit" th:data-confirmar-titulo="${tituloFinalizar}" th:data-confirmar-mensaje="${mensajeFinalizar}"
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-check2-circle"></i> <th:block th:text="${tituloFinalizar}">Finalizar etapa</th:block>
+                </button>
+            </form>
         </section>
 
         <!-- 2. Tarjeta guía -->
@@ -129,9 +141,16 @@
             <th:block th:case="'ENVASADO'"><div th:replace="~{lote/lote-guias :: envasado}"></div></th:block>
         </section>
 
-        <!-- 3. Insumos de la etapa -->
+        <!-- 3. Insumos de la etapa, con el acceso a la pantalla de consumos y el avance para finalizar -->
         <section data-insumos-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
+                <a th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')" data-ir-consumos
+                   th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-box-arrow-in-down"></i> Consumos de insumos
+                </a>
+            </div>
             <p th:if="${#lists.isEmpty(requeridos)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no consume insumos</p>
             <div th:unless="${#lists.isEmpty(requeridos)}" class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
@@ -155,114 +174,61 @@
                     </tbody>
                 </table>
             </div>
-        </section>
 
-        <!-- 4. Registros de la etapa (solo lectura): consumos o, en Envasado, envasados -->
-        <section data-registros-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <th:block th:if="${tipoEtapa.permiteRegistrarEnvasado}">
-                <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Envasados registrados</h2>
-                <p th:if="${#lists.isEmpty(envasados)}" class="px-5 py-6 text-sm text-slate-400">No hay envasados registrados</p>
-                <div th:unless="${#lists.isEmpty(envasados)}" class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        <tr>
-                            <th class="px-4 py-3 whitespace-nowrap">Barril</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                        </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                        <tr th:each="e : ${envasados}" class="hover:bg-slate-50">
-                            <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${e.barril.identificador}">B-001</td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${e.cantidadEnvasada}, 'L')}"></th:block></td>
-                            <td class="px-4 py-3 text-slate-700">
-                                <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
-                                <span th:if="${e.motivoAnulacion != null}" class="ml-2 text-xs text-slate-500" th:text="${e.motivoAnulacion}">Barril equivocado</span>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </th:block>
-            <th:block th:unless="${tipoEtapa.permiteRegistrarEnvasado}">
-                <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Consumos registrados</h2>
-                <p th:if="${consumos == null or #lists.isEmpty(consumos)}" class="px-5 py-6 text-sm text-slate-400">No hay consumos registrados en esta etapa</p>
-                <div th:unless="${consumos == null or #lists.isEmpty(consumos)}" class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        <tr>
-                            <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Lote de insumo</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Tipo</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                        </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                        <tr th:each="c : ${consumos}" class="hover:bg-slate-50">
-                            <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${c.loteInsumo.insumo.nombre}">Cascade</td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${c.tipoConsumo.etiqueta}">Directo</td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${c.cantidadConsumida}, ${c.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
-                            <td class="px-4 py-3 text-slate-700">
-                                <span th:replace="~{lote/formato :: estadoTransaccion(${c.estado})}"></span>
-                                <span th:if="${c.motivoAnulacion != null}" class="ml-2 text-xs text-slate-500" th:text="${c.motivoAnulacion}">Error de carga</span>
-                            </td>
-                        </tr>
-                        </tbody>
-                    </table>
+            <!-- Avance hacia el mínimo de consumo: informativo, no bloquea el botón de finalizar -->
+            <th:block th:if="${etapaOperable and avance != null}">
+                <p th:if="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" data-avance
+                   class="px-5 py-4 border-t border-slate-100 text-sm text-slate-500">Sin consumo mínimo requerido</p>
+                <div th:unless="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" data-avance
+                     class="px-5 py-4 border-t border-slate-100 text-sm">
+                    <p class="text-xs font-medium text-slate-500 mb-1">Avance para finalizar</p>
+                    <ul class="space-y-1">
+                        <li th:each="i : ${avance.insumos}" th:attr="data-cumple=${i.cumple}" class="flex items-center gap-2"
+                            th:classappend="${i.cumple} ? 'text-emerald-700' : 'text-amber-700'">
+                            <i class="bi" th:classappend="${i.cumple} ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
+                            <span><th:block th:text="${i.nombreInsumo}">Cascade</th:block>: <th:block th:replace="~{receta/formato :: numero(${i.porcentaje})}"></th:block>% de <th:block th:replace="~{receta/formato :: numero(${avance.porcentajeMinimo})}"></th:block>% requerido</span>
+                        </li>
+                    </ul>
                 </div>
             </th:block>
         </section>
 
-        <!-- 5. Acciones de la etapa -->
-        <section data-acciones-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
-            <h2 class="text-sm font-semibold text-slate-700">Acciones</h2>
-
-            <p th:unless="${etapaOperable}" class="text-sm text-slate-400"
-               th:text="${lote.estado.name() == 'EN_EJECUCION'} ? 'La etapa no está en curso, no hay acciones disponibles' : 'El lote no está en ejecución, no hay acciones disponibles'">La etapa no está en curso, no hay acciones disponibles</p>
-            <p th:if="${etapaOperable}"
-               sec:authorize="!hasAnyAuthority('LOTE_FINALIZAR_MOLIENDA', 'LOTE_FINALIZAR_MACERACION', 'LOTE_FINALIZAR_HERVIDO', 'LOTE_FINALIZAR_FERMENTACION', 'LOTE_FINALIZAR_MADURACION', 'LOTE_FINALIZAR_ENVASADO', 'CONSUMO_INSUMO_REGISTRAR', 'ENVASADO_REGISTRAR')"
-               class="text-sm text-slate-400">Las acciones de la etapa las realiza el operario de producción</p>
-
-            <th:block th:if="${etapaOperable}">
-                <!-- Avance hacia el mínimo de consumo: informativo, no bloquea el botón -->
-                <th:block th:if="${avance != null}">
-                    <p th:if="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" data-avance class="text-sm text-slate-500">Sin consumo mínimo requerido</p>
-                    <div th:unless="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" data-avance class="text-sm">
-                        <p class="text-xs font-medium text-slate-500 mb-1">Avance para finalizar</p>
-                        <ul class="space-y-1">
-                            <li th:each="i : ${avance.insumos}" th:attr="data-cumple=${i.cumple}" class="flex items-center gap-2"
-                                th:classappend="${i.cumple} ? 'text-emerald-700' : 'text-amber-700'">
-                                <i class="bi" th:classappend="${i.cumple} ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
-                                <span><th:block th:text="${i.nombreInsumo}">Cascade</th:block>: <th:block th:replace="~{receta/formato :: numero(${i.porcentaje})}"></th:block>% de <th:block th:replace="~{receta/formato :: numero(${avance.porcentajeMinimo})}"></th:block>% requerido</span>
-                            </li>
-                        </ul>
-                    </div>
-                </th:block>
-
-                <div class="flex flex-wrap items-center gap-3">
-                    <a th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_REGISTRAR')"
-                       th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
-                       class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                        <i class="bi bi-box-arrow-in-down"></i> Registrar consumo
-                    </a>
-                    <a th:if="${tipoEtapa.permiteRegistrarEnvasado}" sec:authorize="hasAuthority('ENVASADO_REGISTRAR')"
-                       th:href="@{/lotes/{id}/envasados(id=${lote.id})}"
-                       class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                        <i class="bi bi-database-add"></i> Registrar envasado
-                    </a>
-                    <form th:if="${#authorization.expression('hasAuthority(''LOTE_FINALIZAR_' + tipoEtapa.name() + ''')')}"
-                          th:action="@{/lotes/{id}/etapas/{etapa}/finalizar(id=${lote.id}, etapa=${slugEtapa})}" method="post" data-un-solo-envio>
-                        <button type="submit" th:data-confirmar-titulo="${tituloFinalizar}" th:data-confirmar-mensaje="${mensajeFinalizar}"
-                                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-                            <i class="bi bi-check2-circle"></i> <th:block th:text="${tituloFinalizar}">Finalizar etapa</th:block>
-                        </button>
-                    </form>
-                </div>
-            </th:block>
+        <!-- 4. Envasados registrados (solo Envasado), con el acceso a registrar un envasado -->
+        <section th:if="${tipoEtapa.permiteRegistrarEnvasado}" data-registros-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-slate-700">Envasados registrados</h2>
+                <a th:if="${etapaOperable}" sec:authorize="hasAuthority('ENVASADO_REGISTRAR')" data-ir-envasados
+                   th:href="@{/lotes/{id}/envasados(id=${lote.id})}"
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-database-add"></i> Registrar envasado
+                </a>
+            </div>
+            <p th:if="${#lists.isEmpty(envasados)}" class="px-5 py-6 text-sm text-slate-400">No hay envasados registrados</p>
+            <div th:unless="${#lists.isEmpty(envasados)}" class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Barril</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Estado</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="e : ${envasados}" class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${e.barril.identificador}">B-001</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${e.cantidadEnvasada}, 'L')}"></th:block></td>
+                        <td class="px-4 py-3 text-slate-700">
+                            <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
+                            <span th:if="${e.motivoAnulacion != null}" class="ml-2 text-xs text-slate-500" th:text="${e.motivoAnulacion}">Barril equivocado</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
     </div>
+
+    <script th:src="@{/js/lote-detalle.js}" defer></script>
 
     <!-- Diálogos: motivo de la cancelación y confirmación de iniciar y finalizar -->
     <th:block th:if="${lote.estado.name() == 'PENDIENTE' or lote.estado.name() == 'EN_EJECUCION'}">

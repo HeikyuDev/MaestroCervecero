@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th=${enlazar ? ' hover:brightness-110' : ''}|"http://www.thymeleaf.org">
 
 <!--
     Diagrama de Gantt de una planificación: HTML y CSS propios, sin librerías. No hace ninguna cuenta: dibuja
@@ -18,16 +18,19 @@
     verde para los finalizados. Los lotes cancelados no se dibujan. El lote en ejecución atrasado extiende su barra hasta hoy,
     toda en naranja, con la etiqueta "Atrasado N días"; los pendientes que su atraso corre se dibujan en azul en su
     posición corrida, sin marca propia. Entre dos lotes vivos de un fermentador se dibuja un bloque celeste de un día
-    para su limpieza, con una gota (bi-droplet-fill) que se oculta si el bloque es muy angosto.
+    para su limpieza, con un icono de destellos (bi-stars) que se oculta si el bloque es muy angosto.
 
     Lo usan el estado actual de una planificación y el cronograma global (cronograma/cronograma). El global
     puede traer carriles sin barras (se muestran con un aviso), barras atenuadas (lotes de otra planificación
     que la destacada), barras recortadas en el borde del período (extremo plano con un chevrón) y no tiene marcas
     de inicio y fin de planificación.
 
-    Uso: <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>
+    enlazar: si es verdadero, cada barra es un enlace al detalle del lote (/lotes/{id}) y la barra deja de ser una imagen
+    con tooltip para ser un enlace con el mismo texto; el cronograma lo activa para quien puede consultar lotes.
+
+    Uso: <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, false)}"></div>
 -->
-<div th:fragment="gantt(vista)">
+<div th:fragment="gantt(vista, enlazar)">
 
     <style>
         .gantt-color--pendiente { background: #2563eb; color: #ffffff; }
@@ -36,6 +39,7 @@
         .gantt-color--limpieza { background: #e0f2fe; color: #0284c7; box-shadow: inset 0 0 0 1px #7dd3fc; }
         .gantt-barra { position: absolute; top: 0.5rem; bottom: 0.5rem; display: flex; align-items: center; overflow: hidden; border-radius: 0.375rem; }
         .gantt-barra--atenuada { opacity: 0.3; }
+        .gantt-barra:has([data-gantt-barra-enlace]):hover { filter: brightness(1.12); }
         /* Barra recortada en el borde del período: extremo plano con un chevrón que indica que el lote continúa */
         .gantt-barra--continua-antes { border-top-left-radius: 0; border-bottom-left-radius: 0; }
         .gantt-barra--continua-despues { border-top-right-radius: 0; border-bottom-right-radius: 0; }
@@ -68,7 +72,7 @@
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente"></span> Pendiente</li>
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--en-ejecucion"></span> En ejecución</li>
         <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--finalizado"></span> Finalizado</li>
-        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--limpieza"><i class="bi bi-droplet-fill gantt-muestra-icono" data-gantt-leyenda-limpieza-icono aria-hidden="true"></i></span> Limpieza de equipamientos</li>
+        <li class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--limpieza"><i class="bi bi-stars gantt-muestra-icono" data-gantt-leyenda-limpieza-icono aria-hidden="true"></i></span> Limpieza de equipamientos</li>
         <li class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-rose-500"></span> Hoy</li>
         <li th:if="${vista.inicioPlanificacionPct != null or vista.finPlanificacionPct != null}" class="inline-flex items-center gap-2"><span class="inline-block h-3 border-l-2 border-dashed border-slate-500"></span> Inicio y fin estimados de la planificación</li>
         <li th:if="${vista.planificacionResaltada}" class="inline-flex items-center gap-2"><span class="gantt-muestra gantt-color--pendiente opacity-30"></span> Lote de otra planificación (atenuado)</li>
@@ -126,14 +130,16 @@
                          th:style="|left: ${l.izquierdaPct}%; width: ${l.anchoPct}%|"
                          th:classappend="${l.atenuada} ? 'gantt-limpieza--atenuada'"
                          class="gantt-limpieza gantt-color--limpieza">
-                        <i class="bi bi-droplet-fill gantt-limpieza-icono" data-gantt-limpieza-icono aria-hidden="true"></i>
+                        <i class="bi bi-stars gantt-limpieza-icono" data-gantt-limpieza-icono aria-hidden="true"></i>
                     </div>
-                    <div th:each="b : ${c.barras}" role="img" tabindex="0"
+                    <div th:each="b : ${c.barras}"
                          th:title="${b.tooltip}"
-                         th:attr="aria-label=${b.tooltip}, data-gantt-continua-antes=${b.continuaAntes ? 'true' : null}, data-gantt-continua-despues=${b.continuaDespues ? 'true' : null}"
+                         th:attr="role=${enlazar ? null : 'img'}, tabindex=${enlazar ? null : '0'}, aria-label=${enlazar ? null : b.tooltip}, data-gantt-continua-antes=${b.continuaAntes ? 'true' : null}, data-gantt-continua-despues=${b.continuaDespues ? 'true' : null}"
                          th:style="|left: ${b.izquierdaPct}%; width: ${b.anchoPct}%|"
                          th:classappend="|gantt-color--${b.estadoClave} gantt-barra--${b.estadoClave}${b.atenuada ? ' gantt-barra--atenuada' : ''}${b.continuaAntes ? ' gantt-barra--continua-antes' : ''}${b.continuaDespues ? ' gantt-barra--continua-despues' : ''}|"
                          class="gantt-barra focus:outline-none focus:ring-2 focus:ring-slate-800">
+                        <a th:if="${enlazar}" th:href="@{/lotes/{id}(id=${b.idLote})}" th:attr="aria-label=${b.tooltip}" data-gantt-barra-enlace
+                           class="absolute inset-0 z-10 rounded-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"></a>
                         <i th:if="${b.continuaAntes}" class="bi bi-chevron-left gantt-continua" aria-hidden="true"></i>
                         <span th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
                         <span th:if="${b.etiquetaAtraso != null}" th:text="${b.etiquetaAtraso}"

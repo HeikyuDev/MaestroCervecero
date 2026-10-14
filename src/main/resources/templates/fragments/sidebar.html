@@ -67,7 +67,7 @@
 
             <!-- GESTIÓN DE LOTES (Operario de Producción, Gerente de Producción: quien puede consultar lotes) -->
             <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
-                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-droplet-half', 'Gestión de Lotes')}"></a>
+                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-collection', 'Gestión de Lotes')}"></a>
             </th:block>
 
             <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->

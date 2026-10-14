@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ConsumoInsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperLoteInsumo;
 
@@ -43,6 +44,7 @@ public class MapperConsumoInsumo {
                 .fechaRegistro(consumoInsumoEntity.getCreatedDate())
                 .fechaAnulacion(consumoInsumoEntity.getFechaAnulacion())
                 .motivoAnulacion(consumoInsumoEntity.getMotivoAnulacion())
+                .usuarioAnulacion(consumoInsumoEntity.getEstado() == EstadoTransaccion.ANULADO ? consumoInsumoEntity.getLastModifiedBy() : null)
                 .estado(consumoInsumoEntity.getEstado())
                 .tipoConsumo(consumoInsumoEntity.getTipoConsumo())
                 .etapaLote(MapperEtapaLote.toDTO(consumoInsumoEntity.getEtapaLote()))

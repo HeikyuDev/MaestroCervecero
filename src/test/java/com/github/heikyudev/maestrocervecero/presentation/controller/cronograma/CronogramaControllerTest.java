@@ -304,7 +304,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-09: el lote en ejecucion se muestra arriba de la cola como \"En ejecucion (no se puede mover)\", sin botones, y los finalizados y cancelados no entran en la cola")
+    @DisplayName("CP-CGC-09: la cola lista solo los pendientes: el lote en ejecución no tiene fila aparte ni el texto \"no se puede mover\", y los finalizados y cancelados tampoco entran")
     void cronograma_elLoteEnEjecucionVaArribaDeLaColaSinBotones() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
@@ -319,8 +319,7 @@ class CronogramaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(html).contains("data-cola-en-ejecucion").contains("En ejecuci").contains("(no se puede mover)");
-        assertThat(html.indexOf("data-cola-en-ejecucion")).isLessThan(html.indexOf("data-cola-fila"));
+        assertThat(html).doesNotContain("data-cola-en-ejecucion").doesNotContain("no se puede mover");
         assertThat(cuenta(html, "data-cola-fila")).isEqualTo(1);
         assertThat(html).contains("lotes/3/subir").doesNotContain("lotes/1/subir").doesNotContain("lotes/2/subir")
                 .doesNotContain("lotes/4/subir");
@@ -469,7 +468,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-37: la cola marca el lote en ejecucion atrasado y los pendientes corridos por ese atraso, con la fecha planificada en el tooltip; sin atraso no se muestra ninguna marca")
+    @DisplayName("CP-CGC-37: el atraso del lote en ejecución se ve en su barra y la cola marca los pendientes corridos por ese atraso, con la fecha planificada en el tooltip; sin corrimiento no se muestra ninguna marca")
     void cronograma_colaMarcaAtrasoYDesplazamiento() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
@@ -488,7 +487,7 @@ class CronogramaControllerTest {
         // Assert
         assertThat(html).contains("Atrasado 2 d").contains("Corrido 2 d");
         assertThat(html).contains("Planificado para el 07/07, corrido 2 d");
-        assertThat(html.split("data-cola-atraso", -1)).hasSize(2);
+        assertThat(html).doesNotContain("data-cola-atraso");
         assertThat(html.split("data-cola-desplazado", -1)).hasSize(2);
     }
 
@@ -536,7 +535,7 @@ class CronogramaControllerTest {
         // Assert
         assertThat(html).contains("Pale Ale - Plan #7 - PALE_ALE-R7-1");
         assertThat(html).doesNotContain("Pale Ale - Plan #7 - PALE_ALE-R7-2").doesNotContain("gantt-color--cancelado");
-        assertThat(cuenta(html, "role=\"img\"")).isEqualTo(1);
+        assertThat(cuenta(html, "gantt-barra focus:outline-none")).isEqualTo(1);
         assertThat(cuenta(html, "data-cola-fila")).isEqualTo(1);
     }
 
@@ -625,8 +624,8 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-77: el bloque de limpieza lleva un icono de gota decorativo (data-gantt-limpieza-icono, bi-droplet-fill, aria-hidden)")
-    void cronograma_elBloqueDeLimpiezaLlevaUnIconoDeGota() throws Exception {
+    @DisplayName("CP-CGC-77: el bloque de limpieza lleva un icono de destellos decorativo (data-gantt-limpieza-icono, bi-stars, aria-hidden)")
+    void cronograma_elBloqueDeLimpiezaLlevaUnIconoDeDestellos() throws Exception {
         // Arrange
         String html = cronogramaConUnaLimpieza();
 
@@ -635,14 +634,14 @@ class CronogramaControllerTest {
 
         // Assert
         assertThat(cuenta(bloque, "data-gantt-limpieza-icono")).isEqualTo(1);
-        assertThat(bloque).containsPattern("<i[^>]*class=\"[^\"]*bi bi-droplet-fill[^\"]*\"[^>]*data-gantt-limpieza-icono[^>]*aria-hidden=\"true\"")
+        assertThat(bloque).containsPattern("<i[^>]*class=\"[^\"]*bi bi-stars[^\"]*\"[^>]*data-gantt-limpieza-icono[^>]*aria-hidden=\"true\"")
                 .contains("role=\"img\"").contains("Limpieza de equipamientos");
     }
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-78: la leyenda muestra la limpieza con la misma muestra celeste y el icono de gota, aunque no haya limpiezas dibujadas")
-    void cronograma_laLeyendaMuestraLaLimpiezaConElIconoDeGota() throws Exception {
+    @DisplayName("CP-CGC-78: la leyenda muestra la limpieza con la misma muestra celeste y el icono de destellos, aunque no haya limpiezas dibujadas")
+    void cronograma_laLeyendaMuestraLaLimpiezaConElIconoDeDestellos() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
@@ -652,7 +651,7 @@ class CronogramaControllerTest {
         String leyenda = leyenda(mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
         // Assert
-        assertThat(leyenda).containsPattern("gantt-color--limpieza\"><i[^>]*bi bi-droplet-fill[^>]*data-gantt-leyenda-limpieza-icono[^>]*aria-hidden=\"true\"")
+        assertThat(leyenda).containsPattern("gantt-color--limpieza\"><i[^>]*bi bi-stars[^>]*data-gantt-leyenda-limpieza-icono[^>]*aria-hidden=\"true\"")
                 .contains("Limpieza de equipamientos");
     }
 
@@ -727,7 +726,7 @@ class CronogramaControllerTest {
 
         // Assert
         assertThat(html).contains("Pilsen - Plan #7 - PILSEN_CLASICA-R4-3").contains("PILSEN_CLASICA-R4-3 - En ejecuci");
-        assertThat(html).containsPattern("(?s)data-cola-en-ejecucion.*?>PILSEN_CLASICA-R4-3<");
+        assertThat(html).doesNotContain("data-cola-en-ejecucion");
         assertThat(html).containsPattern("(?s)data-cola-fila.*?>PILSEN_CLASICA-R4-4<");
     }
 
@@ -752,7 +751,7 @@ class CronogramaControllerTest {
 
         // Assert
         assertThat(cuenta(html, "data-gantt-limpieza")).isZero();
-        assertThat(cuenta(html, "role=\"img\"")).isEqualTo(4);
+        assertThat(cuenta(html, "gantt-barra focus:outline-none")).isEqualTo(4);
     }
 
     @Test
@@ -2037,7 +2036,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CGC-80: las colas del operario listan los lotes pendientes y el lote en ejecucion sin acciones: ni Subir ni Bajar, ni formularios de mover ni token CSRF, ni columna de acciones")
+    @DisplayName("CP-CGC-80: las colas del operario listan los lotes pendientes sin acciones: ni Subir ni Bajar, ni formularios de mover ni token CSRF, ni columna de acciones")
     void operario_lasColasNoTienenAcciones() throws Exception {
         // Arrange
         escenarioDelOperario();
@@ -2048,11 +2047,11 @@ class CronogramaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         // Assert: las colas muestran lo mismo que ve el gerente
-        assertThat(html).contains("En ejecuci").contains("(no se puede mover)").contains("data-cola-fila")
+        assertThat(html).doesNotContain("no se puede mover").contains("data-cola-fila")
                 .contains("Volumen (L)").contains("Inicio").contains("Fin");
         assertThat(colas(html)).containsExactly("F-01", "F-02");
         assertThat(cuenta(html, "data-cola-fila")).isEqualTo(3);
-        assertThat(cuenta(html, "data-cola-en-ejecucion")).isEqualTo(1);
+        assertThat(cuenta(html, "data-cola-en-ejecucion")).isZero();
 
         // Assert: y ninguna accion de mover
         assertThat(html).doesNotContain("Subir").doesNotContain("Bajar").doesNotContain("bi-arrow-up").doesNotContain("bi-arrow-down")
@@ -2233,7 +2232,7 @@ class CronogramaControllerTest {
     // ==================== Enlaces al detalle del lote ====================
 
     @Test
-    @DisplayName("CP-CGC-98: quien tiene LOTE_CONSULTAR ve el codigo de cada lote de las colas, y del lote en ejecucion, como enlace Ver lote hacia /lotes/{id}; el gerente y el operario lo tienen")
+    @DisplayName("CP-CGC-98: quien tiene LOTE_CONSULTAR ve el código de cada lote pendiente de las colas como enlace Ver lote hacia /lotes/{id}; el gerente y el operario lo tienen")
     void colas_elCodigoDelLoteEsUnEnlaceAlDetalle() throws Exception {
         // Arrange
         escenarioDelOperario();
@@ -2247,8 +2246,8 @@ class CronogramaControllerTest {
             while (m.find()) {
                 enlaces.add(m.group());
             }
-            assertThat(enlaces).hasSize(4);
-            for (long id = 1; id <= 4; id++) {
+            assertThat(enlaces).hasSize(3);
+            for (long id = 2; id <= 4; id++) {
                 String destino = "href=\"/lotes/" + id + "\"";
                 assertThat(enlaces).anyMatch(enlace -> enlace.contains(destino));
             }
@@ -2289,6 +2288,32 @@ class CronogramaControllerTest {
         assertThat(valido).doesNotContain("data-aviso-buscador");
         verify(fermentadorServicio).filtrarFermentadores(isNull(), isNull(), any());
         verify(fermentadorServicio).filtrarFermentadores(isNull(), eq(EstadoOperativo.EN_USO), any());
+    }
+
+    @Test
+    @DisplayName("CP-CGC-102: quien tiene LOTE_CONSULTAR ve cada barra del diagrama como un enlace al detalle del lote (/lotes/{id}) que conserva el tooltip; la barra deja de ser una imagen")
+    void diagrama_lasBarrasSonEnlacesAlDetalleDelLote() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act + Assert
+        for (RequestPostProcessor usuario : List.of(como(Rol.OPERARIO_DE_PRODUCCION), como(Rol.GERENTE_DE_PRODUCCION))) {
+            String html = mockMvc.perform(get(URL).with(usuario)).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            List<String> enlaces = new ArrayList<>();
+            Matcher m = Pattern.compile("<a[^>]*data-gantt-barra-enlace[^>]*>").matcher(html);
+            while (m.find()) {
+                enlaces.add(m.group());
+            }
+            assertThat(enlaces).hasSize(4);
+            for (long id = 1; id <= 4; id++) {
+                String destino = "href=\"/lotes/" + id + "\"";
+                assertThat(enlaces).anyMatch(enlace -> enlace.contains(destino));
+            }
+            assertThat(enlaces).allSatisfy(enlace -> assertThat(enlace).containsPattern("aria-label=\"[^\"]*(Pendiente|En ejecuci)"));
+            String barra = barra(html, "PALE_ALE-R7-1 - En ejecuci");
+            assertThat(barra).contains("title=\"PALE_ALE-R7-1 - En ejecuci").doesNotContain("role=\"img\"").doesNotContain("tabindex");
+        }
     }
 
     @Test
@@ -2444,7 +2469,7 @@ class CronogramaControllerTest {
      * La apertura de la barra del diagrama cuyo tooltip contiene el texto.
      */
     private static String barra(String html, String texto) {
-        Matcher m = Pattern.compile("(?s)<div[^>]*role=\"img\"[^>]*>").matcher(html);
+        Matcher m = Pattern.compile("(?s)<div[^>]*gantt-barra[^>]*>").matcher(html);
         while (m.find()) {
             if (m.group().contains(texto)) {
                 return m.group();

@@ -48,6 +48,11 @@ public class ConsumoInsumoResponseDTO {
     private String motivoAnulacion;
 
     /**
+     * Usuario que anuló el consumo, según la auditoría de la última modificación. Nulo salvo que haya sido anulado.
+     */
+    private String usuarioAnulacion;
+
+    /**
      * Estado del consumo (REGISTRADO o ANULADO).
      */
     private EstadoTransaccion estado;

@@ -136,7 +136,7 @@
                 No hay lotes para mostrar en el diagrama (los lotes cancelados no se dibujan)
             </div>
             <th:block th:unless="${gantt.vacio}">
-                <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt})}"></div>
+                <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, false)}"></div>
             </th:block>
         </div>
     </section>
@@ -188,7 +188,7 @@
                 </tr>
                 <tr th:if="${#lists.isEmpty(lotes)}">
                     <td th:attr="colspan=${#authorization.expression('hasAuthority(''LOTE_CONSULTAR'')') ? 10 : 9}" class="px-4 py-10 text-center text-slate-400">
-                        <i class="bi bi-droplet-half block text-3xl mb-2"></i>
+                        <i class="bi bi-collection block text-3xl mb-2"></i>
                         No hay lotes registrados para esta planificación
                     </td>
                 </tr>

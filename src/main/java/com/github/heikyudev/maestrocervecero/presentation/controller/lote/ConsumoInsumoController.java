@@ -16,6 +16,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLote
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ReservaInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
@@ -103,7 +105,8 @@ public class ConsumoInsumoController {
     // ==================== Pantalla ====================
 
     /**
-     * Muestra la pantalla de consumos de la etapa, con los consumos registrados de a 20 y el último registrado arriba.
+     * Muestra la pantalla de consumos de la etapa, con los consumos registrados de a 20 y el último registrado arriba. El criterio opcional "estado" (Registrado o
+     * Anulado) filtra la lista; sin él, o con un valor inválido (se avisa), se muestran en todos los estados.
      * Una etapa que no admite consumos o inexistente vuelve al detalle del lote con un aviso. Con el lote fuera de
      * ejecución o la etapa fuera de curso la pantalla es de solo lectura. Si llega de un formulario inválido, muestra
      * sus errores y lo que el usuario había cargado.
@@ -112,6 +115,7 @@ public class ConsumoInsumoController {
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_CONSULTAR')")
     public String mostrarConsumos(@PathVariable Long idLote,
                                   @PathVariable String etapa,
+                                  @RequestParam(required = false) String estado,
                                   @RequestParam(defaultValue = "0") int pagina,
                                   Model model,
                                   RedirectAttributes redirectAttributes) {
@@ -121,13 +125,19 @@ public class ConsumoInsumoController {
             return volverAlDetalle(idLote, rechazo, redirectAttributes);
         }
 
+        EstadoTransaccion filtroEstado = aEstadoTransaccion(estado);
+        if (vacioANulo(estado) != null && filtroEstado == null) {
+            model.addAttribute("mensaje", "El estado indicado no es válido, se muestran todos los consumos");
+            model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
+        }
+
         ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
         if (model.containsAttribute(ATRIBUTO_FORMULARIO)) {
             BindingResult errores = (BindingResult) model.asMap().get(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO);
-            cargarPantalla(model, contexto, pagina, errores, (String) model.asMap().get("formularioConError"));
+            cargarPantalla(model, contexto, pagina, filtroEstado, errores, (String) model.asMap().get("formularioConError"));
         } else {
             model.addAttribute(ATRIBUTO_FORMULARIO, new ConsumoInsumoFormDTO());
-            cargarPantalla(model, contexto, pagina, null, null);
+            cargarPantalla(model, contexto, pagina, filtroEstado, null, null);
         }
         return VISTA_PANTALLA;
     }
@@ -294,13 +304,14 @@ public class ConsumoInsumoController {
      * @param bindingResult El resultado del enlace del formulario que falló, o {@code null} si no hubo envío.
      * @param formulario    {@code "reservado"} o {@code "directo"}: qué formulario falló, o {@code null}.
      */
-    private void cargarPantalla(Model model, ContextoDeEtapa contexto, int pagina, BindingResult bindingResult, String formulario) {
+    private void cargarPantalla(Model model, ContextoDeEtapa contexto, int pagina, EstadoTransaccion filtroEstado,
+                                BindingResult bindingResult, String formulario) {
         Long idEtapa = contexto.etapa().getId();
         boolean operable = contexto.operable();
 
         List<InsumoRequeridoResponseDTO> requeridos = consumoInsumoServicio.filtrarInsumosRequeridos(idEtapa);
         AvanceEtapaResponseDTO avance = loteServicio.calcularAvanceDeEtapa(contexto.lote().getId(), contexto.tipo());
-        Page<ConsumoInsumoResponseDTO> consumos = consumoInsumoServicio.filtrarConsumosInsumo(idEtapa, null, null, null,
+        Page<ConsumoInsumoResponseDTO> consumos = consumoInsumoServicio.filtrarConsumosInsumo(idEtapa, null, null, filtroEstado,
                 PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lote", contexto.lote());
@@ -312,6 +323,8 @@ public class ConsumoInsumoController {
         model.addAttribute("resumen", resumir(requeridos, avance));
         model.addAttribute("reservas", operable ? reservasDe(idEtapa, requeridos) : List.of());
         model.addAttribute("consumos", consumos);
+        model.addAttribute("estados", EstadoTransaccion.values());
+        model.addAttribute("filtroEstado", filtroEstado);
         model.addAttribute("urlPantalla", urlDeLaPantalla(contexto.lote().getId(), contexto.tipo()));
         model.addAttribute("urlBuscador", urlDeLaPantalla(contexto.lote().getId(), contexto.tipo()) + "/buscador/lotes-insumo");
 
@@ -352,6 +365,19 @@ public class ConsumoInsumoController {
                     ? new ResumenDeInsumo(requerido, avanceDelInsumo.getPorcentaje(), avanceDelInsumo.isCumple())
                     : new ResumenDeInsumo(requerido, requerido.getPorcentajeConsumido(), true);
         }).toList();
+    }
+
+    /** El estado con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno (se muestran todos). */
+    private static EstadoTransaccion aEstadoTransaccion(String texto) {
+        String limpio = vacioANulo(texto);
+        if (limpio == null) {
+            return null;
+        }
+        try {
+            return EstadoTransaccion.valueOf(limpio.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** Las reservas de cada insumo requerido, con las que tienen saldo primero y las agotadas al final. */
