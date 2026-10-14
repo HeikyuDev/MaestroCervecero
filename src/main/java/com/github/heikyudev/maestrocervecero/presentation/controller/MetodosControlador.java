@@ -1,8 +1,12 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * Constantes y utilidades compartidas por los controllers de las pantallas de listado.
@@ -60,5 +64,26 @@ public final class MetodosControlador {
     public static void agregarMensaje(RedirectAttributes redirectAttributes, String mensaje, TipoAlerta tipo) {
         redirectAttributes.addFlashAttribute("mensaje", mensaje);
         redirectAttributes.addFlashAttribute("tipo", tipo.getCodigo());
+    }
+
+    /**
+     * El nombre de la etapa tal como viaja en la URL (por ejemplo, "maceracion").
+     */
+    public static String slugDe(TipoEtapa tipoEtapa) {
+        return tipoEtapa.name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * La etapa cuyo nombre en la URL coincide con el texto, o {@code null} si el texto está vacío o ninguna coincide.
+     */
+    public static TipoEtapa aEtapa(String texto) {
+        String limpio = vacioANulo(texto);
+        if (limpio == null) {
+            return null;
+        }
+        return Arrays.stream(TipoEtapa.values())
+                .filter(tipo -> slugDe(tipo).equals(limpio.toLowerCase(Locale.ROOT)))
+                .findFirst()
+                .orElse(null);
     }
 }

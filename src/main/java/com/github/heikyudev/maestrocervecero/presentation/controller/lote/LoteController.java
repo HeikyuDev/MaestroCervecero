@@ -50,7 +50,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -672,18 +671,6 @@ public class LoteController {
     /** Vuelve al detalle sin fijar la pestaña: el detalle abre la etapa en curso. */
     private static String redirigirAlDetalle(Long id) {
         return "redirect:" + URL_LISTA + "/" + id;
-    }
-
-    private static String slugDe(TipoEtapa tipoEtapa) {
-        return tipoEtapa.name().toLowerCase(Locale.ROOT);
-    }
-
-    /** La etapa cuyo nombre en la URL (por ejemplo, "maceracion") coincide con el texto, o {@code null} si ninguna. */
-    private static TipoEtapa aEtapa(String texto) {
-        return Arrays.stream(TipoEtapa.values())
-                .filter(tipo -> slugDe(tipo).equals(texto.trim().toLowerCase(Locale.ROOT)))
-                .findFirst()
-                .orElse(null);
     }
 
     /** El estado del lote con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno. */
