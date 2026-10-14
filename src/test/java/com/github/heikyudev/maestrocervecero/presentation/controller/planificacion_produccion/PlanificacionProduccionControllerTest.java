@@ -343,7 +343,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR"})
-    @DisplayName("CP-PPC-13: en la sidebar \"Planificación de Producción\" está en la sección Operación, junto a Control de Lotes")
+    @DisplayName("CP-PPC-13: en la sidebar \"Planificación de Producción\" está en la sección Operación, junto a Gestión de Lotes")
     void sidebar_debeUbicarLaPlanificacionEnOperacion() throws Exception {
         when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
@@ -351,7 +351,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("bi-calendar-check")))
-                .andExpect(content().string(matchesPattern("(?s).*Operación.*Control de Lotes.*Planificación de Producción.*Administración.*")));
+                .andExpect(content().string(matchesPattern("(?s).*Operación.*Gestión de Lotes.*Planificación de Producción.*Administración.*")));
     }
 
     @Test
@@ -364,7 +364,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*Operación.*href=\"/planificaciones-produccion\".*Órdenes de Compra.*")))
-                .andExpect(content().string(not(containsString("Control de Lotes"))));
+                .andExpect(content().string(not(containsString("Gestión de Lotes"))));
     }
 
     // ==================== GET /planificaciones-produccion/nueva ====================

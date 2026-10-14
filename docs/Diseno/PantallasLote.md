@@ -1,6 +1,6 @@
 # Diseño de las pantallas del módulo de Lotes
 
-Este documento define las pantallas del Controller del módulo de Lotes (Control de Lotes): qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable de cada endpoint está en `docs/test/casos_de_prueba/controllers/lote/`; las reglas de negocio, en `docs/test/casos_de_prueba/services/lote/` y en `docs/Dominio/Escalado/`.
+Este documento define las pantallas del Controller del módulo de Lotes (Gestión de Lotes): qué pantallas existen, sus rutas, qué rol puede hacer qué, cómo está armada cada una y cuántos clics lleva cada objetivo del usuario. El comportamiento verificable de cada endpoint está en `docs/test/casos_de_prueba/controllers/lote/`; las reglas de negocio, en `docs/test/casos_de_prueba/services/lote/` y en `docs/Dominio/Escalado/`.
 
 La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas HTML y fragmentos HTML para los modales. Los textos están en español neutro, sin emojis y los mensajes no terminan en punto.
 
@@ -57,7 +57,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | C | Subir o bajar un lote en la cola | `/cronograma-produccion/lotes/{id}/{subir, bajar}` | POST | `LOTE_REGISTRAR` | redirige al cronograma |
 
 - `{etapa}` toma los valores `molienda`, `maceracion`, `hervido`, `fermentacion`, `maduracion` y `envasado`. La pantalla de consumos existe para las etapas que consumen insumos (Molienda, Hervido, Fermentación y Maduración); Maceración y Envasado no consumen insumos.
-- La sidebar (sección Operación) muestra "Control de Lotes" (`/lotes`) para el gerente y el operario de producción, y "Cronograma de Producción" para ambos.
+- La sidebar (sección Operación) muestra "Gestión de Lotes" (`/lotes`) para el gerente y el operario de producción, y "Cronograma de Producción" para ambos.
 
 ## 3. Reglas comunes de las pantallas
 
@@ -75,7 +75,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 ## 4. Pantalla 1: lista de lotes (`/lotes`)
 
 ```
-Control de Lotes                                                  [ + Registrar lote ]*
+Gestión de Lotes                                                  [ + Registrar lote ]*
 Lotes registrados, con el último registrado arriba
 
 +- Criterios ---------------------------------------------------------------------------+
@@ -367,20 +367,20 @@ Un clic es un clic de mouse o un toque. Escribir en un campo no se cuenta como c
 | Objetivo | Rol | Pasos | Clics |
 | --- | --- | --- | --- |
 | Ver el cronograma | Gerente / operario (solo lectura) | "Cronograma de Producción" | 1 |
-| Ver los lotes en ejecución | Ambos | "Control de Lotes"; elegir estado "En ejecución" (1 clic para abrir la lista y 1 para elegir) y "Buscar" | 4 |
-| Abrir un lote | Ambos | "Control de Lotes"; "Ver" en la fila | 2 |
-| Filtrar los lotes de una planificación | Ambos | "Control de Lotes"; abrir el selector de planificación; "Elegir"; "Buscar" | 4 |
-| Registrar un lote desde la lista | Gerente | "Control de Lotes"; "Registrar lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
+| Ver los lotes en ejecución | Ambos | "Gestión de Lotes"; elegir estado "En ejecución" (1 clic para abrir la lista y 1 para elegir) y "Buscar" | 4 |
+| Abrir un lote | Ambos | "Gestión de Lotes"; "Ver" en la fila | 2 |
+| Filtrar los lotes de una planificación | Ambos | "Gestión de Lotes"; abrir el selector de planificación; "Elegir"; "Buscar" | 4 |
+| Registrar un lote desde la lista | Gerente | "Gestión de Lotes"; "Registrar lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
 | Registrar un lote desde una planificación | Gerente | "Planificación de Producción"; "Ver estado actual"; "Registrar lote" (la planificación ya está elegida); los cuatro equipos (8 clics); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 12 y 1 escritura |
-| Iniciar un lote | Operario | lista ("Control de Lotes") -> "Ver" -> "Iniciar lote" -> confirmar | 4 |
-| Cancelar un lote | Gerente | "Control de Lotes"; "Ver"; "Cancelar lote"; escribir el motivo; confirmar | 4 y 1 escritura |
-| Registrar un consumo reservado (primero del día) | Operario | "Control de Lotes"; "Ver" (el detalle abre en la etapa actual); "Registrar consumo"; escribir la cantidad; "Registrar" | 4 y 1 escritura |
+| Iniciar un lote | Operario | lista ("Gestión de Lotes") -> "Ver" -> "Iniciar lote" -> confirmar | 4 |
+| Cancelar un lote | Gerente | "Gestión de Lotes"; "Ver"; "Cancelar lote"; escribir el motivo; confirmar | 4 y 1 escritura |
+| Registrar un consumo reservado (primero del día) | Operario | "Gestión de Lotes"; "Ver" (el detalle abre en la etapa actual); "Registrar consumo"; escribir la cantidad; "Registrar" | 4 y 1 escritura |
 | Registrar otro consumo reservado (ya en la pantalla) | Operario | escribir la cantidad; "Registrar" | 1 y 1 escritura |
-| Registrar un consumo directo | Operario | "Control de Lotes"; "Ver"; "Registrar consumo"; abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Registrar consumo directo" | 6 y 1 escritura |
-| Anular un consumo | Operario | "Control de Lotes"; "Ver"; "Registrar consumo"; "Anular" en la fila; escribir el motivo; confirmar | 5 y 1 escritura |
-| Finalizar la etapa en curso | Operario | "Control de Lotes"; "Ver"; "Finalizar etapa"; confirmar (vuelve al detalle, que abre la etapa siguiente) | 4 |
-| Registrar el primer envasado | Operario | "Control de Lotes"; "Ver"; "Registrar envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Registrar envasado" | 6 y 1 escritura |
+| Registrar un consumo directo | Operario | "Gestión de Lotes"; "Ver"; "Registrar consumo"; abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Registrar consumo directo" | 6 y 1 escritura |
+| Anular un consumo | Operario | "Gestión de Lotes"; "Ver"; "Registrar consumo"; "Anular" en la fila; escribir el motivo; confirmar | 5 y 1 escritura |
+| Finalizar la etapa en curso | Operario | "Gestión de Lotes"; "Ver"; "Finalizar etapa"; confirmar (vuelve al detalle, que abre la etapa siguiente) | 4 |
+| Registrar el primer envasado | Operario | "Gestión de Lotes"; "Ver"; "Registrar envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Registrar envasado" | 6 y 1 escritura |
 | Registrar otro envasado (ya en la pantalla) | Operario | abrir el selector del barril; "Elegir"; escribir la cantidad; "Registrar envasado" | 3 y 1 escritura |
-| Finalizar el envasado | Operario | "Volver al lote" (o "Control de Lotes" y "Ver"); "Finalizar envasado"; confirmar | 3 (4 desde la sidebar) |
-| Revisar qué se consumió en una etapa pasada | Gerente / operario | "Control de Lotes"; "Ver"; clic en la pestaña de la etapa | 3 |
-| Revisar los envasados de un lote | Gerente | "Control de Lotes"; "Ver"; pestaña "Envasado" | 3 |
+| Finalizar el envasado | Operario | "Volver al lote" (o "Gestión de Lotes" y "Ver"); "Finalizar envasado"; confirmar | 3 (4 desde la sidebar) |
+| Revisar qué se consumió en una etapa pasada | Gerente / operario | "Gestión de Lotes"; "Ver"; clic en la pestaña de la etapa | 3 |
+| Revisar los envasados de un lote | Gerente | "Gestión de Lotes"; "Ver"; pestaña "Envasado" | 3 |

@@ -38,8 +38,8 @@
 | **CP-PPC-10** | Gerente de compras solo consulta | Rol `GERENTE_DE_COMPRAS`, 1 planificación pendiente | El gerente de compras no gestiona planificaciones | Responde 200 con el listado y el link de estado actual, pero sin "Nueva planificación", sin `data-motivo-url` y sin los diálogos de finalizar ni anular. |
 | **CP-PPC-11** | Rol no autorizado | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 | **CP-PPC-12** | Administrador rechazado | Rol `ADMINISTRADOR` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
-| **CP-PPC-13** | Sidebar del gerente de producción | Rol `GERENTE_DE_PRODUCCION` | La planificación es operación diaria | "Planificación de Producción" (`bi-calendar-check`) aparece en la sección Operación, después de "Control de Lotes" y antes de Administración. |
-| **CP-PPC-14** | Sidebar del gerente de compras | Rol `GERENTE_DE_COMPRAS` | El gerente de compras la consulta | La opción (`/planificaciones-produccion`) aparece en Operación, antes de "Órdenes de Compra", y no aparece "Control de Lotes". |
+| **CP-PPC-13** | Sidebar del gerente de producción | Rol `GERENTE_DE_PRODUCCION` | La planificación es operación diaria | "Planificación de Producción" (`bi-calendar-check`) aparece en la sección Operación, después de "Gestión de Lotes" y antes de Administración. |
+| **CP-PPC-14** | Sidebar del gerente de compras | Rol `GERENTE_DE_COMPRAS` | El gerente de compras la consulta | La opción (`/planificaciones-produccion`) aparece en Operación, antes de "Órdenes de Compra", y no aparece "Gestión de Lotes". |
 | **CP-PPC-58** | Columna "Producido (L)" | Rol `GERENTE_DE_PRODUCCION`. El service devuelve 3 planificaciones con `litrosProducidos` de 2350.0, 250.5 y 0.0 | Los litros producidos usan el mismo formato de números que los litros a producir | La columna "Producido (L)" va justo después de "Cantidad (L)" (título "Cantidad a producir (L)"). Las celdas muestran "2.350" (separador de miles), "250,5" (coma decimal) y "0"; nunca `2350.0`. La fila vacía del listado ocupa las 7 columnas. |
 
 ---

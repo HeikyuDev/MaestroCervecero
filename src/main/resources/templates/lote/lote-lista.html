@@ -9,7 +9,7 @@
     <!-- Encabezado de la página -->
     <div class="flex items-start justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Control de Lotes</h1>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Lotes</h1>
             <p class="text-sm text-slate-500">Lotes registrados, con el último registrado arriba</p>
         </div>
         <a sec:authorize="hasAuthority('LOTE_REGISTRAR')" th:href="@{/lotes/nuevo}"

@@ -38,7 +38,7 @@
 | **CP-RCC-07** | Listado sin resultados | El service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron recetas con los criterios indicados" en lugar de una tabla vacía. |
 | **CP-RCC-08** | Diálogo de baja con CSRF | Rol `GERENTE_DE_PRODUCCION`, 1 receta | La baja envía un POST | Incluye el diálogo "Dar de baja receta" con el aviso "Si tiene una planificación de producción en estado Pendiente, el sistema no lo permitirá." y su formulario lleva el token CSRF (`_csrf`). |
 | **CP-RCC-09** | Rol no autorizado | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
-| **CP-RCC-10** | Ubicación en la sidebar | Rol `GERENTE_DE_PRODUCCION` | Las recetas se administran, no son operación diaria | "Gestión de Recetas" aparece dentro de la sección Administración (después de "Gestión de Insumos" y antes de "Gestión de Equipamiento") y no entre los botones de Operación; "Control de Lotes" sigue en Operación. |
+| **CP-RCC-10** | Ubicación en la sidebar | Rol `GERENTE_DE_PRODUCCION` | Las recetas se administran, no son operación diaria | "Gestión de Recetas" aparece dentro de la sección Administración (después de "Gestión de Insumos" y antes de "Gestión de Equipamiento") y no entre los botones de Operación; "Gestión de Lotes" sigue en Operación. |
 
 ---
 
