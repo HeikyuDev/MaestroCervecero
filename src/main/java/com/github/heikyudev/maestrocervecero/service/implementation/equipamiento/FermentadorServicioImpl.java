@@ -122,6 +122,24 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id)));
     }
 
+    /**
+     * Busca y retorna un fermentador activo, o dado de baja con lotes en cualquier estado, mediante su identificador.
+     * <p>
+     * Es de solo lectura y sirve para resolver el fermentador elegido en los filtros de consulta, que también
+     * ofrecen los fermentadores dados de baja con historial. {@link #buscarPorId(Long)} sigue rechazando los dados de baja.
+     * </p>
+     *
+     * @param id Identificador clave primaria del fermentador buscado.
+     * @return Objeto {@link FermentadorResponseDTO} con la información del fermentador encontrado.
+     * @throws RecursoNoEncontradoException Si no existe un fermentador activo ni dado de baja con lotes con el ID especificado.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public FermentadorResponseDTO buscarActivoODadoDeBajaConLotesPorId(Long id) {
+        return MapperFermentador.toDTO(fermentadorRepository.buscarActivoODadoDeBajaConLotesPorId(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id)));
+    }
+
 
     /**
      * Crea un nuevo fermentador en el sistema.

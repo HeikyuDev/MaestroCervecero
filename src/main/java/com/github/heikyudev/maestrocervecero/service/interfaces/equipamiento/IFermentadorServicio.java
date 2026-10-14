@@ -56,6 +56,16 @@ public interface IFermentadorServicio {
     FermentadorResponseDTO buscarPorId(Long id);
 
     /**
+     * Busca un fermentador activo, o dado de baja con lotes en cualquier estado, por su ID. Es de solo lectura: sirve
+     * para resolver el fermentador elegido en los filtros de consulta, no para seleccionar equipos de un lote nuevo.
+     *
+     * @param id ID del fermentador.
+     * @return Objeto FermentadorResponseDTO correspondiente al ID proporcionado.
+     * @throws RecursoNoEncontradoException Si no existe un fermentador activo ni dado de baja con lotes con ese ID.
+     */
+    FermentadorResponseDTO buscarActivoODadoDeBajaConLotesPorId(Long id);
+
+    /**
      * Da de alta un nuevo fermentador.
      *
      * @param fermentadorFormDTO Datos del fermentador a crear.

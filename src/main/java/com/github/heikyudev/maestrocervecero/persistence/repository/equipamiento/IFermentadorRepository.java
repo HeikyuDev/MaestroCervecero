@@ -79,6 +79,21 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
     List<FermentadorEntity> buscarDadosDeBajaConLotes();
 
     /**
+     * Busca un fermentador por su ID si está activo o si está dado de baja y tiene al menos un lote en cualquier
+     * estado (el fermentador de un lote es el equipamiento de su etapa de Fermentación).
+     * <p>
+     * Sirve para resolver el fermentador elegido en los filtros de la lista de lotes, que también ofrecen los
+     * fermentadores dados de baja con historial.
+     * </p>
+     *
+     * @param id El ID del fermentador.
+     * @return Un Optional con el fermentador activo o dado de baja con lotes, o vacío en caso contrario.
+     */
+    @Query("SELECT f FROM FermentadorEntity f WHERE f.id = :id AND (f.estado = 'ACTIVO' OR (f.estado = 'BAJA' AND EXISTS ("
+            + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION')))")
+    Optional<FermentadorEntity> buscarActivoODadoDeBajaConLotesPorId(@Param("id") Long id);
+
+    /**
      * Busca, bloqueándolo para escritura, un fermentador por su ID.
      * <p>
      * Se usa cada vez que una operación de lote necesita cambiar su estado operativo (al iniciar

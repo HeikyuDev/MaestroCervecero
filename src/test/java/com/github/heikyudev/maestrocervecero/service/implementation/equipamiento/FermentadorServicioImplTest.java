@@ -273,6 +273,37 @@ class FermentadorServicioImplTest {
         verify(fermentadorRepository).findById(99L);
     }
 
+    // ==================== buscarActivoODadoDeBajaConLotesPorId ====================
+
+    @Test
+    @DisplayName("CP-BB-01: buscarActivoODadoDeBajaConLotesPorId retorna el DTO de un fermentador dado de baja con lotes sin tocar findById")
+    void buscarActivoODadoDeBajaConLotesPorId_debeRetornarFermentadorDadoDeBaja() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity dadoDeBaja = crearFermentadorEntity(3L, "FERM-99", 100.0, 80.0);
+        dadoDeBaja.setEstado(Estado.BAJA);
+        when(fermentadorRepository.buscarActivoODadoDeBajaConLotesPorId(3L)).thenReturn(Optional.of(dadoDeBaja));
+
+        // === EJECUCION ===
+        FermentadorResponseDTO resultado = fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(3L);
+
+        // === VERIFICACION ===
+        assertFermentadorDTO(dadoDeBaja, resultado);
+        assertThat(resultado.getEstado()).isEqualTo(Estado.BAJA);
+        verify(fermentadorRepository).buscarActivoODadoDeBajaConLotesPorId(3L);
+        verify(fermentadorRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-BB-02: buscarActivoODadoDeBajaConLotesPorId lanza RecursoNoEncontradoException cuando el ID no existe o está dado de baja sin lotes")
+    void buscarActivoODadoDeBajaConLotesPorId_debeLanzarExcepcionSiNoExiste() {
+        when(fermentadorRepository.buscarActivoODadoDeBajaConLotesPorId(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el fermentador con ID: 99");
+        verify(fermentadorRepository).buscarActivoODadoDeBajaConLotesPorId(99L);
+    }
+
     // ==================== altaFermentador ====================
 
     @Test

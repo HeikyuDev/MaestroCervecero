@@ -186,7 +186,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("Control de Lotes").contains("action=\"/lotes\"").contains("novalidate");
+        assertThat(html).contains("Gestión de Lotes").contains("action=\"/lotes\"").contains("novalidate");
         assertThat(texto(html)).contains("Código", "Planificación", "Fermentador", "Estado", "Etapa actual", "Inicio estimado", "Fin real");
         assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "#7 - Pale Ale", "F-01", "En ejecución", "Hervido", "01/07/2027 05/07/2027", "01/07/2027 08:30 -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Registrar lote")
@@ -227,7 +227,7 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-04: los cuatro criterios llegan al service (el código recortado) y el listado los conserva en los selectores, el campo de código y el estado")
     void listar_debeAplicarYConservarLosFiltros() throws Exception {
         // Arrange
-        when(fermentadorServicio.buscarPorId(2L)).thenReturn(fermentador(2L, "F-02", EstadoOperativo.EN_USO, 400.0, Estado.ACTIVO));
+        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(2L)).thenReturn(fermentador(2L, "F-02", EstadoOperativo.EN_USO, 400.0, Estado.ACTIVO));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
@@ -269,7 +269,7 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-06: planificación y fermentador son selectores de entidad con buscador en modal y botón para quitar; el único desplegable de la página es el estado")
     void listar_losFiltrosSonSelectoresDeEntidad(Rol rol) throws Exception {
         // Arrange
-        when(fermentadorServicio.buscarPorId(3L)).thenReturn(fermentador(3L, "F-03", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA));
+        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(3L)).thenReturn(fermentador(3L, "F-03", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(rol)).param("idFermentador", "3"))
@@ -289,7 +289,27 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-07: los parámetros inválidos se ignoran con alertas amarillas y el listado se muestra sin esos filtros")
+    @DisplayName("CP-LCT-137: un fermentador dado de baja con lotes filtra el listado y se muestra como dado de baja en el selector, sin aviso")
+    void listar_debeFiltrarPorUnFermentadorDadoDeBaja() throws Exception {
+        // Arrange
+        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(3L))
+                .thenReturn(fermentador(3L, "FERM-99", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA));
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("idFermentador", "3"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        verify(loteServicio).filtrarLotesParaListado(isNull(), eq(3L), isNull(), isNull(), any());
+        verify(fermentadorServicio, never()).buscarPorId(any());
+        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("FERM-99 (dado de baja)");
+        assertThat(campo(html, "idFermentador")).isEqualTo("3");
+        assertThat(html).doesNotContain(ALERTA_ADVERTENCIA);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-07:los parámetros inválidos se ignoran con alertas amarillas y el listado se muestra sin esos filtros")
     void listar_debeIgnorarLosParametrosInvalidosYAvisar() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
@@ -309,7 +329,7 @@ class LoteControllerTest {
     void listar_debeIgnorarLosFiltrosInexistentes() throws Exception {
         // Arrange
         when(planificacionServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la planificación con ID: 99"));
-        when(fermentadorServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el fermentador con ID: 99"));
+        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el fermentador con ID: 99"));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("idPlanificacion", "99").param("idFermentador", "99"))
@@ -438,30 +458,30 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-16: la sidebar del GERENTE_DE_PRODUCCION tiene Control de Lotes como enlace activo en Operación, antes de Planificación de Producción, y el título de la pestaña lo nombra")
-    void sidebar_elGerenteVeControlDeLotes() throws Exception {
+    @DisplayName("CP-LCT-16: la sidebar del GERENTE_DE_PRODUCCION tiene Gestión de Lotes como enlace activo en Operación, antes de Planificación de Producción, y el título de la pestaña lo nombra")
+    void sidebar_elGerenteVeGestionDeLotes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("<title>Control de lotes - Maestro Cervecero</title>");
+        assertThat(html).contains("<title>Gestión de lotes - Maestro Cervecero</title>");
         Matcher enlace = Pattern.compile("(?s)<a href=\"/lotes\"[^>]*>(.*?)</a>").matcher(html);
         assertThat(enlace.find()).isTrue();
-        assertThat(enlace.group()).contains("bg-amber-500/10").contains("bi-droplet-half").contains("Control de Lotes");
-        assertThat(html.indexOf("Control de Lotes")).isLessThan(html.indexOf("Planificación de Producción"));
+        assertThat(enlace.group()).contains("bg-amber-500/10").contains("bi-droplet-half").contains("Gestión de Lotes");
+        assertThat(html.indexOf("Gestión de Lotes")).isLessThan(html.indexOf("Planificación de Producción"));
         assertThat(html).doesNotContain("Próximamente\">Control");
     }
 
     @Test
-    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Control de Lotes y Cronograma de Producción, y no Planificación de Producción ni la sección Administración")
-    void sidebar_elOperarioVeControlDeLotes() throws Exception {
+    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Gestión de Lotes y Cronograma de Producción, y no Planificación de Producción ni la sección Administración")
+    void sidebar_elOperarioVeGestionDeLotes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("href=\"/lotes\"").contains("Control de Lotes").contains("Operación")
+        assertThat(html).contains("href=\"/lotes\"").contains("Gestión de Lotes").contains("Operación")
                 .contains("href=\"/cronograma-produccion\"").contains("Cronograma de Producción")
                 .doesNotContain("Planificación de Producción").doesNotContain("Administración");
     }

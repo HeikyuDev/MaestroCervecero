@@ -105,3 +105,12 @@ Devuelve una página con los fermentadores activos y los fermentadores dados de 
 |**CP-FD-03**|El identificador buscado se normaliza|`identificadorInterno: "  ferm   01  "`|El service recorta, colapsa espacios y pasa a mayúsculas antes de consultar|El repositorio recibe `"FERM 01"`.|
 |**CP-FD-04**|Identificador formado solo por espacios|`identificadorInterno: "    "`|El texto normalizado queda vacío|El repositorio recibe `null` (sin filtro por identificador).|
 |**CP-FD-05**|Consulta: activos y dados de baja con lotes en cualquier estado _(verificación manual contra la base de datos)_|Fermentadores: "F-01" (`ACTIVO`); "F-02" (`BAJA`) con un lote `FINALIZADO` en su etapa de Fermentación; "F-03" (`BAJA`) sin lotes; "F-04" (`BAJA`) cuyos únicos lotes están `CANCELADO`|`f.estado = ACTIVO`, o `f.estado = BAJA` con una etapa `FERMENTACION` de un lote en cualquier estado; más los criterios opcionales de identificador y estado operativo|Devuelve "F-01", "F-02" y "F-04" (sus lotes cancelados siguen en el historial). No devuelve "F-03" (sin lotes). Un fermentador con varios lotes aparece una sola vez y el total de la página (`countQuery`) coincide.|
+
+### 8. `buscarActivoODadoDeBajaConLotesPorId(Long id)`
+
+Devuelve, solo para lectura, el fermentador activo o el fermentador dado de baja que tiene al menos un lote en cualquier estado (el fermentador de un lote es el equipamiento de su etapa de Fermentación). Sirve para resolver el fermentador elegido en el filtro de la lista de lotes, que también ofrece los fermentadores dados de baja con historial. `buscarPorId` no cambia y sigue rechazando los dados de baja. La consulta JPQL (`buscarActivoODadoDeBajaConLotesPorId`) se verifica manualmente contra la base de datos; con el repositorio mockeado, los tests verifican el mapeo y la excepción.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-BB-01**|Fermentador dado de baja con lotes|`id: 3L` ("FERM-99", `estado: BAJA`)|`buscarActivoODadoDeBajaConLotesPorId(3L)` $\rightarrow$ **Presente**|Retorna `FermentadorResponseDTO` con los datos de la entidad y `estado: BAJA`. No consulta `findById`.|
+|**CP-BB-02**|Fermentador inexistente o dado de baja sin lotes|`id: 99L`|`buscarActivoODadoDeBajaConLotesPorId(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró el fermentador con ID: 99".|
