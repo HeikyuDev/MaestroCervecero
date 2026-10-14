@@ -23,6 +23,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | Anular un envasado | `ENVASADO_ANULAR` | No | Sí |
 | Ver el cronograma de producción y buscar fermentadores en sus filtros | `LOTE_CONSULTAR` | Sí, con acciones | Sí, solo lectura |
 | Subir o bajar un lote en la cola | `LOTE_REGISTRAR` | Sí | No |
+| Destacar una planificación en el cronograma (filtro y su buscador) | `PLANIFICACION_PRODUCCION_CONSULTAR` | Sí | No |
 | Registrar un lote desde una planificación | `LOTE_REGISTRAR` y `PLANIFICACION_PRODUCCION_CONSULTAR` | Sí | No |
 
 - Cada método del Controller lleva `@PreAuthorize("hasAuthority('<PERMISO>')")` con el permiso de la tabla (`LOTE_CONSULTAR`, `LOTE_REGISTRAR`, `LOTE_ANULAR`, `LOTE_INICIAR`, `LOTE_FINALIZAR_<ETAPA>`, `CONSUMO_INSUMO_*` y `ENVASADO_*`), y cada botón se oculta con `sec:authorize` por el mismo permiso. El servidor es quien rechaza: ocultar el botón es solo una ayuda visual.
@@ -51,6 +52,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | M2 | Buscadores de los filtros de la lista (fragmentos) | `/lotes/filtros/{planificaciones, fermentadores}` | GET | `LOTE_CONSULTAR` | `lote/filtro-*` |
 | M3 | Buscadores de las pantallas de operación (fragmentos) | `/lotes/{id}/etapas/{etapa}/consumos/buscador/lotes-insumo`, `/lotes/{id}/envasados/buscador/barriles` | GET | `CONSUMO_INSUMO_REGISTRAR` y `ENVASADO_REGISTRAR` | `lote/buscador-*` |
 | C | Cronograma de producción (y su buscador de fermentadores) | `/cronograma-produccion`, `/cronograma-produccion/buscador/fermentadores` | GET | `LOTE_CONSULTAR` | `cronograma/cronograma` |
+| C | Buscador de planificaciones del filtro "Planificación a destacar" (fragmento) | `/cronograma-produccion/buscador/planificaciones` | GET | `PLANIFICACION_PRODUCCION_CONSULTAR` | `cronograma/buscador-planificacion` |
 | C | Subir o bajar un lote en la cola | `/cronograma-produccion/lotes/{id}/{subir, bajar}` | POST | `LOTE_REGISTRAR` | redirige al cronograma |
 
 - `{etapa}` toma los valores `molienda`, `maceracion`, `hervido`, `fermentacion`, `maduracion` y `envasado`. La pantalla de consumos existe para las etapas que consumen insumos (Molienda, Hervido, Fermentación y Maduración); Maceración y Envasado no consumen insumos.
@@ -199,7 +201,7 @@ La malta se consume en esta etapa. Se pueden moler varias maltas a la vez.
 ```
 Malta molida a agregar: 45 kg
 Agua de macerado: 139 L
-   3 L/kg x 45 kg + 4 L de espacio muerto = 139 L
+   3 L/kg × 45 kg + 4 L de espacio muerto = 139 L
    Incluye el espacio muerto del macerador
 Agua de lavado: 60 L            (o: "No se requiere agua de lavado")
 Agua total: 199 L
@@ -237,7 +239,7 @@ Insumos de la etapa: Citra 0 de 40 g   (dry hop)
 Volumen objetivo: 300 L
 Envasado hasta ahora: 120 L
 Máximo según la capacidad útil del fermentador F-01: 330 L (quedan 210 L)
-[Superó el volumen objetivo por 10 L]    (aviso informativo, solo si corresponde)
+[El total envasado supera el volumen objetivo del lote (300 L)]    (aviso informativo, solo si corresponde)
 
 Acciones:  [ Registrar envasado ]o    [ Finalizar envasado ]o
 ```
@@ -250,15 +252,16 @@ Página aparte (no es un modal), solo para etapas que consumen insumos. Todas su
 
 ```
 < Volver al lote
-Consumos de Hervido                                           Lote PALE_ALE-R7-3 - Etapa En curso
+Consumos de Hervido  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
 [ Consumo registrado correctamente ]                                                  (verde)
 [ Este lote de insumo se encuentra vencido (venció el 01/01/2020) ]                    (amarillo, arriba)
 [ El total consumido de Citra en esta etapa (20 g) supera la cantidad requerida (15 g) ] (amarillo, arriba)
 
 RESUMEN                       Porcentaje mínimo para avanzar de etapa: 80%
-  Cascade   15 de 25 g   reservado 10 g   60% de 80% requerido
-  Citra     0 de 15 g    reservado 15 g   0% de 80% requerido
+  Insumo    Consumido    Reservado   Avance
+  Cascade   15 de 25 g   10 g        60% de 80% requerido
+  Citra     0 de 15 g    15 g        0% de 80% requerido
 
 INSUMOS RESERVADOS
   Cascade
@@ -273,9 +276,9 @@ CONSUMO DIRECTO
                                                                        [ Registrar consumo directo ]
 
 CONSUMOS REGISTRADOS
-  Insumo   Lote de insumo   Tipo       Cantidad   Estado                      Acciones
-  Cascade  L-123            Directo    15 g       Registrado                  [ Anular ]
-  Cascade  L-124            Reservado  10 g       Anulado - Error de carga
+  Insumo   Lote de insumo   Tipo       Cantidad   Fecha de registro   Estado                      Acciones
+  Cascade  L-123            Directo    15 g       01/07/2027 09:10    Registrado                  [ Anular ]
+  Cascade  L-124            Reservado  10 g       01/07/2027 09:05    Anulado - Error de carga
   45 consumos · Página 1 de 3
 ```
 
@@ -292,7 +295,7 @@ Página aparte. Todas sus acciones vuelven a ella.
 
 ```
 < Volver al lote
-Envasados del lote PALE_ALE-R7-3                                       Etapa En curso
+Envasados  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
 [ Envasado registrado correctamente ]                                                 (verde)
 
@@ -304,11 +307,11 @@ REGISTRAR ENVASADO
                                                                 [ Registrar envasado ]
 
 ENVASADOS REGISTRADOS
-  Barril   Cantidad (L)   Estado                         Acciones
-  B-003    20             Registrado                     [ Anular ]
-  B-004    30             Anulado - Barril equivocado
-  B-002    50             Registrado                     [ Anular ]
-  B-001    50             Registrado                     [ Anular ]
+  Barril   Cantidad (L)   Fecha de registro   Estado                         Acciones
+  B-003    20             01/07/2027 10:30    Registrado                     [ Anular ]
+  B-004    30             01/07/2027 10:20    Anulado - Barril equivocado
+  B-002    50             01/07/2027 10:10    Registrado                     [ Anular ]
+  B-001    50             01/07/2027 10:00    Registrado                     [ Anular ]
 ```
 
 - El único tope del envasado es la capacidad útil del fermentador: se puede envasar más que el volumen objetivo, y superarlo solo muestra un aviso informativo.
@@ -324,13 +327,13 @@ El operario ve el mismo diagrama, los mismos filtros y las mismas colas que el g
 ```
 Cola pendiente de F-01
   En ejecución (no se puede mover)   PALE_ALE-R7-1     Fin estimado 05/07/2027
-  Pos.  Lote            Receta     Plan   Volumen (L)   Inicio       Fin
-  1     PALE_ALE-R7-2   Pale Ale   #7     300           07/07/2027   11/07/2027
-  2     PALE_ALE-R7-3   Pale Ale   #7     300           13/07/2027   17/07/2027
+  #     Lote            Receta     Planificación   Volumen (L)   Inicio       Fin
+  1     PALE_ALE-R7-2   Pale Ale   #7              300           07/07/2027   11/07/2027
+  2     PALE_ALE-R7-3   Pale Ale   #7              300           13/07/2027   17/07/2027
    (el gerente de producción ve además, por fila, los botones [ Subir ] y [ Bajar ])
 ```
 
-- Sin botones "Subir" ni "Bajar", sin formularios POST y sin columna de acciones.
+- Sin botones "Subir" ni "Bajar", sin formularios POST y sin columna de acciones. El código de cada lote de la cola, y el del lote en ejecución, es un enlace "Ver lote" al detalle (`/lotes/{id}`) para quien tiene `LOTE_CONSULTAR`.
 - El filtro "Planificación a destacar" se ofrece solo a quien puede consultar planificaciones (el gerente de producción): el operario no lo ve y el parámetro `idPlanificacion` se ignora. El filtro de fermentador (con su buscador, `LOTE_CONSULTAR`) y el período los tienen ambos roles. Subir y bajar (`POST`) son del gerente (`LOTE_REGISTRAR`).
 
 ## 10. Estado de planificación: enlaces al módulo de lotes

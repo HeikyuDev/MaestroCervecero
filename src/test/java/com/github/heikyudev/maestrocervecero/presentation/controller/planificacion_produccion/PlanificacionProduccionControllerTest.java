@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevad
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
@@ -33,6 +34,8 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaR
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -41,12 +44,16 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1688,7 +1695,114 @@ class PlanificacionProduccionControllerTest {
                         "(?s).*<a href=\"/planificaciones-produccion\"[^>]*class=\"[^\"]*bg-amber-500/10 text-amber-500[^\"]*\"[^>]*>\\s*<i class=\"bi text-lg bi-calendar-check\"></i>\\s*<span>Planificación de Producción</span>.*")));
     }
 
+    // ==================== Enlaces con el módulo de lotes ====================
+
+    @Test
+    @DisplayName("CP-PPC-90: una planificación Pendiente muestra a quien tiene LOTE_REGISTRAR el link \"Registrar lote\" hacia el formulario con la planificación elegida, junto a Ver receta, Finalizar y Anular")
+    void detalle_pendienteMuestraRegistrarLote() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/lotes/nuevo?idPlanificacion=7\"")))
+                .andExpect(content().string(containsString("Registrar lote")))
+                .andReturn().getResponse().getContentAsString();
+
+        Matcher enlace = Pattern.compile("(?s)<a[^>]*href=\"/lotes/nuevo\\?idPlanificacion=7\"[^>]*>(.*?)</a>").matcher(html);
+        assertThat(enlace.find()).isTrue();
+        assertThat(enlace.group()).contains("bi-plus-lg").contains("whitespace-nowrap");
+        assertThat(html).contains("Ver receta").contains("data-motivo-url=\"/planificaciones-produccion/7/finalizar\"")
+                .contains("data-motivo-url=\"/planificaciones-produccion/7/anular\"");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = EstadoSolicitud.class, names = {"FINALIZADA", "ANULADA"})
+    @DisplayName("CP-PPC-91: una planificación Finalizada o Anulada no muestra el link \"Registrar lote\"")
+    void detalle_cerradaNoMuestraRegistrarLote(EstadoSolicitud estado) throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", estado));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Registrar lote"))))
+                .andExpect(content().string(not(containsString("/lotes/nuevo"))));
+    }
+
+    @Test
+    @DisplayName("CP-PPC-92: el GERENTE_DE_COMPRAS (sin LOTE_REGISTRAR) ve el estado actual completo sin el link \"Registrar lote\"")
+    void detalle_soloElQueRegistraLotesVeRegistrarLote() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
+
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Estado actual de la planificación")))
+                .andExpect(content().string(containsString("PALE_ALE-R7-1")))
+                .andExpect(content().string(not(containsString("Registrar lote"))))
+                .andExpect(content().string(not(containsString("/lotes/nuevo"))));
+    }
+
+    @Test
+    @DisplayName("CP-PPC-93: la tabla de lotes lleva por fila el link \"Ver\" al detalle del lote para quien tiene LOTE_CONSULTAR")
+    void detalle_laTablaDeLotesEnlazaAlDetalle() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                lote(11L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01"),
+                lote(12L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01")));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        List<String> enlaces = new ArrayList<>();
+        Matcher m = Pattern.compile("(?s)<a[^>]*aria-label=\"Ver lote\"[^>]*>(.*?)</a>").matcher(html);
+        while (m.find()) {
+            enlaces.add(m.group());
+        }
+        assertThat(enlaces).hasSize(2);
+        assertThat(enlaces.get(0)).contains("href=\"/lotes/11\"").contains("title=\"Ver lote\"").contains("bi-eye").contains("Ver");
+        assertThat(enlaces.get(1)).contains("href=\"/lotes/12\"");
+    }
+
+    @Test
+    @DisplayName("CP-PPC-94: sin LOTE_CONSULTAR la tabla de lotes se ve completa pero sin links \"Ver\" ni columna de acciones")
+    void detalle_sinLoteConsultarNoHayLinksVer() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                lote(11L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01"),
+                lote(12L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01")));
+
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("PALE_ALE-R7-1")))
+                .andExpect(content().string(containsString("PALE_ALE-R7-2")))
+                .andExpect(content().string(not(containsString("aria-label=\"Ver lote\""))))
+                .andExpect(content().string(not(containsString("/lotes/"))))
+                .andExpect(content().string(not(containsString("Acciones</th>"))));
+    }
+
+    @Test
+    @DisplayName("CP-PPC-95: una planificación pendiente sin lotes muestra el mensaje de vacío, ningún link \"Ver\" y conserva el link \"Registrar lote\"")
+    void detalle_sinLotesConservaRegistrarLote() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(matchesMensajeVacioDosVeces())
+                .andExpect(content().string(not(containsString("aria-label=\"Ver lote\""))))
+                .andExpect(content().string(containsString("href=\"/lotes/nuevo?idPlanificacion=7\"")));
+    }
+
     // ==================== Datos de prueba ====================
+
+    private static RequestPostProcessor como(Rol rol) {
+        List<GrantedAuthority> autoridades = new ArrayList<>();
+        autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
+        rol.getPermisos().forEach(permiso -> autoridades.add(new SimpleGrantedAuthority(permiso.name())));
+        return user(rol.name()).authorities(autoridades);
+    }
 
     private static org.springframework.test.web.servlet.ResultMatcher matchesMensajeVacioDosVeces() {
         return result -> {

@@ -453,7 +453,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Control de Lotes y no Planificación de Producción ni la sección Administración")
+    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Control de Lotes y Cronograma de Producción, y no Planificación de Producción ni la sección Administración")
     void sidebar_elOperarioVeControlDeLotes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk())
@@ -461,6 +461,7 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains("href=\"/lotes\"").contains("Control de Lotes").contains("Operación")
+                .contains("href=\"/cronograma-produccion\"").contains("Cronograma de Producción")
                 .doesNotContain("Planificación de Producción").doesNotContain("Administración");
     }
 
@@ -1139,11 +1140,11 @@ class LoteControllerTest {
 
         // Assert
         assertThat(guia).contains("Volumen objetivo: 300 L", "Envasado hasta ahora: 120 L",
-                "Máximo según la capacidad útil del fermentador F-01: 330 L (quedan 210 L)").doesNotContain("Superó");
+                "Máximo según la capacidad útil del fermentador F-01: 330 L (quedan 210 L)").doesNotContain("supera el volumen objetivo");
     }
 
     @Test
-    @DisplayName("CP-LCT-55: superar el volumen objetivo no es un error: se informa el exceso y lo que queda hasta la capacidad, sin alerta")
+    @DisplayName("CP-LCT-55: superar el volumen objetivo no es un error: se informa que el total supera el volumen objetivo y lo que queda hasta la capacidad, sin alerta")
     void detalle_envasadoPorEncimaDelObjetivo() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
@@ -1153,7 +1154,7 @@ class LoteControllerTest {
         String guia = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-guia");
 
         // Assert
-        assertThat(texto(guia)).contains("Superó el volumen objetivo por 10 L", "quedan 20 L");
+        assertThat(texto(guia)).contains("El total envasado supera el volumen objetivo del lote (300 L)", "quedan 20 L");
         assertThat(guia).doesNotContain("bg-amber-50").doesNotContain("bg-rose-50");
     }
 

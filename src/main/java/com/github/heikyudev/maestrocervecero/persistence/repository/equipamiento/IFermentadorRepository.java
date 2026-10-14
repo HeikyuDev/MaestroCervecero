@@ -64,8 +64,8 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
     Page<FermentadorEntity> filtrarFermentadoresConDadosDeBajaConLotes(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
     /**
-     * Obtiene los fermentadores dados de baja que tienen al menos un lote que no fue cancelado (el fermentador de un
-     * lote es el equipamiento de su etapa de Fermentación), ordenados por identificador interno.
+     * Obtiene los fermentadores dados de baja que tienen al menos un lote en cualquier estado, incluso si todos fueron
+     * cancelados (el fermentador de un lote es el equipamiento de su etapa de Fermentación), ordenados por identificador interno.
      * <p>
      * Sirve para que el cronograma de producción pueda filtrar por un fermentador que ya no está activo y cuyos lotes
      * siguen en el historial.
@@ -74,8 +74,7 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
      * @return Los fermentadores dados de baja con lotes, o una lista vacía si no hay ninguno.
      */
     @Query("SELECT f FROM FermentadorEntity f WHERE f.estado = 'BAJA' AND EXISTS (" +
-            "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION' " +
-            "AND e.lote.estado <> 'CANCELADO') " +
+            "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION') " +
             "ORDER BY f.identificadorInterno ASC")
     List<FermentadorEntity> buscarDadosDeBajaConLotes();
 

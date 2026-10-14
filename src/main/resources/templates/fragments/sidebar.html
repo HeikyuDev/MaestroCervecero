@@ -75,8 +75,8 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar-check', 'Planificación de Producción')}"></a>
             </th:block>
 
-            <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+            <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción: lo gestiona; Operario de Producción: lo consulta) -->
+            <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
                 <a th:replace="~{fragments/sidebar ::enlace('/cronograma-produccion', ${opcionActiva}, 'cronograma', 'bi-bar-chart-steps', 'Cronograma de Producción')}"></a>
             </th:block>
 

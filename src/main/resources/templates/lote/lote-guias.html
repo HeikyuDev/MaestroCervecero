@@ -98,7 +98,7 @@
         <p>Envasado hasta ahora: <th:block th:replace="~{receta/formato :: medida(${resumenEnvasado.totalEnvasado}, 'L')}"></th:block></p>
         <p>Máximo según la capacidad útil del fermentador <th:block th:text="${resumenEnvasado.identificadorFermentador}">F-01</th:block>: <th:block th:replace="~{receta/formato :: medida(${resumenEnvasado.capacidadUtilFermentador}, 'L')}"></th:block> (quedan <th:block th:replace="~{receta/formato :: medida(${resumenEnvasado.restante}, 'L')}"></th:block>)</p>
         <p th:if="${resumenEnvasado.excesoSobreVolumenObjetivo != null and resumenEnvasado.excesoSobreVolumenObjetivo > 0}" data-exceso-envasado
-           class="text-xs text-slate-500">Superó el volumen objetivo por <th:block th:replace="~{receta/formato :: medida(${resumenEnvasado.excesoSobreVolumenObjetivo}, 'L')}"></th:block></p>
+           class="text-xs text-slate-500">El total envasado supera el volumen objetivo del lote (<th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block>)</p>
     </th:block>
 </div>
 

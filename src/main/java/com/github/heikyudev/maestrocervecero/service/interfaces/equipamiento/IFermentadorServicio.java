@@ -40,8 +40,8 @@ public interface IFermentadorServicio {
     Page<FermentadorResponseDTO> filtrarFermentadoresConDadosDeBajaConLotes(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable);
 
     /**
-     * Lista los fermentadores dados de baja que tienen lotes (sin contar los cancelados), ordenados por identificador
-     * interno. Los fermentadores dados de baja sin lotes no se incluyen.
+     * Lista los fermentadores dados de baja que tienen lotes en cualquier estado (incluso si todos fueron cancelados),
+     * ordenados por identificador interno. Los fermentadores dados de baja sin lotes no se incluyen.
      *
      * @return Lista de objetos FermentadorResponseDTO dados de baja con lotes, o una lista vacía si no hay ninguno.
      */

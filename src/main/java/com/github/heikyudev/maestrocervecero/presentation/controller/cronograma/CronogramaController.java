@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.cronograma;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Permiso;
 import com.github.heikyudev.maestrocervecero.presentation.view.CronogramaProduccionBuilder;
 import com.github.heikyudev.maestrocervecero.presentation.view.CronogramaProduccionVista;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -12,16 +13,15 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,20 +39,25 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.*;
 
 /**
- * Controller del cronograma de producción global ("Cronograma de Producción"), exclusivo del
- * GERENTE_DE_PRODUCCION.
+ * Controller del cronograma de producción global ("Cronograma de Producción").
  * <p>
  * Muestra, para todas las planificaciones a la vez, un diagrama de Gantt de un período con un carril por
  * fermentador, de a 10 fermentadores por página, y, debajo, la cola de lotes pendientes de cada
  * fermentador de la página, donde el gerente puede subir o bajar un lote una posición. Las reglas de la cola (qué
  * lotes se pueden mover y cómo se reencadenan las fechas) son del service; este controller solo traduce los
  * parámetros, arma la vista y vuelve a la pantalla conservando los filtros.
+ * </p>
+ * <p>
+ * Cada método se autoriza por permiso ({@code hasAuthority}), no por rol: quien tiene {@code LOTE_CONSULTAR} (el
+ * gerente y el operario de producción) ve el cronograma y busca fermentadores, y solo quien tiene
+ * {@code LOTE_REGISTRAR} (el gerente) sube y baja lotes; el operario ve las colas en solo lectura. El filtro
+ * "Planificación a destacar" y su buscador son de quien tiene {@code PLANIFICACION_PRODUCCION_CONSULTAR}: para los
+ * demás, el parámetro {@code idPlanificacion} se ignora sin aviso.
  * </p>
  * <p>
  * Los filtros son opcionales y tolerantes: un valor inválido o un registro inexistente no rompe la página,
@@ -63,7 +68,6 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 @Controller
 @RequestMapping("/cronograma-produccion")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
 public class CronogramaController {
 
     private static final String VISTA_CRONOGRAMA = "cronograma/cronograma";
@@ -126,15 +130,18 @@ public class CronogramaController {
      * <p>
      * Los parámetros llegan como texto para poder ignorar un valor mal escrito en vez de fallar el pedido. Un
      * fermentador que no existe (o está dado de baja y no tiene lotes), una planificación inexistente, un período
-     * inválido o una página inválida se ignoran con un aviso.
+     * inválido o una página inválida se ignoran con un aviso. Quien no puede consultar planificaciones no tiene el
+     * filtro de planificación: su parámetro se ignora sin aviso y sin consultar ninguna planificación.
      * </p>
      */
     @GetMapping
+    @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String mostrarCronograma(@RequestParam(required = false) String idFermentador,
                                     @RequestParam(required = false) String idPlanificacion,
                                     @RequestParam(required = false) String desde,
                                     @RequestParam(required = false) String hasta,
                                     @RequestParam(required = false) String pagina,
+                                    Authentication authentication,
                                     Model model) {
         LocalDate hoy = LocalDate.now();
         List<String> avisos = new ArrayList<>();
@@ -148,16 +155,21 @@ public class CronogramaController {
             idFermentadorFiltro = null;
         }
 
-        Long idPlanificacionFiltro = aId(idPlanificacion);
+        // El filtro de planificación es de quien consulta planificaciones: para los demás no existe y su parámetro no cuenta
+        boolean puedeDestacarPlanificacion = tienePermiso(authentication, Permiso.PLANIFICACION_PRODUCCION_CONSULTAR);
+        Long idPlanificacionFiltro = null;
         String textoPlanificacion = null;
-        if (vacioANulo(idPlanificacion) != null && idPlanificacionFiltro == null) {
-            avisos.add("La planificación indicada no es válida, no se destaca ninguna");
-        } else if (idPlanificacionFiltro != null) {
-            try {
-                textoPlanificacion = textoDePlanificacion(planificacionServicio.buscarPorId(idPlanificacionFiltro));
-            } catch (RecursoNoEncontradoException e) {
-                avisos.add("La planificación indicada no existe, no se destaca ninguna");
-                idPlanificacionFiltro = null;
+        if (puedeDestacarPlanificacion) {
+            idPlanificacionFiltro = aId(idPlanificacion);
+            if (vacioANulo(idPlanificacion) != null && idPlanificacionFiltro == null) {
+                avisos.add("La planificación indicada no es válida, no se destaca ninguna");
+            } else if (idPlanificacionFiltro != null) {
+                try {
+                    textoPlanificacion = textoDePlanificacion(planificacionServicio.buscarPorId(idPlanificacionFiltro));
+                } catch (RecursoNoEncontradoException e) {
+                    avisos.add("La planificación indicada no existe, no se destaca ninguna");
+                    idPlanificacionFiltro = null;
+                }
             }
         }
 
@@ -228,6 +240,7 @@ public class CronogramaController {
      * vuelve al origen con el motivo.
      */
     @PostMapping("/lotes/{id}/subir")
+    @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String subirLote(@PathVariable Long id,
                             @RequestParam(required = false) String idFermentador,
                             @RequestParam(required = false) String idPlanificacion,
@@ -242,6 +255,7 @@ public class CronogramaController {
      * Baja un lote pendiente una posición en la cola de su fermentador; ver {@link #subirLote}.
      */
     @PostMapping("/lotes/{id}/bajar")
+    @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
     public String bajarLote(@PathVariable Long id,
                             @RequestParam(required = false) String idFermentador,
                             @RequestParam(required = false) String idPlanificacion,
@@ -256,27 +270,18 @@ public class CronogramaController {
 
     /**
      * Devuelve el contenido del modal de búsqueda de planificaciones (criterio de receta + resultados), de a 8 y
-     * con la última registrada arriba. El criterio de receta (parte del nombre, sin distinguir mayúsculas) se
-     * aplica sobre las planificaciones ya obtenidas, porque el service filtra por id de receta y no por nombre.
+     * con la última registrada arriba. Ofrece las de cualquier estado y solo existe para quien tiene el filtro
+     * "Planificación a destacar" ({@code PLANIFICACION_PRODUCCION_CONSULTAR}). El service filtra por parte del nombre
+     * de la receta, sin distinguir mayúsculas.
      */
     @GetMapping("/buscador/planificaciones")
+    @PreAuthorize("hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')")
     public String buscarPlanificaciones(@RequestParam(required = false) String receta,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
-        // El texto buscado se normaliza igual que el nombre guardado: sin espacios de más
-        String nombre = vacioANulo(NormalizacionTexto.nombrePropio(receta));
-        List<PlanificacionProduccionResponseDTO> coincidentes = planificacionServicio.filtrarPlanificacionesProduccion(
-                        null, null, null, PageRequest.of(0, Integer.MAX_VALUE, ORDEN_MAS_RECIENTE_PRIMERO))
-                .getContent().stream()
-                .filter(p -> nombre == null || (p.getVersionReceta() != null && p.getVersionReceta().getNombre() != null
-                        && p.getVersionReceta().getNombre().toLowerCase(Locale.ROOT).contains(nombre.toLowerCase(Locale.ROOT))))
-                .toList();
-
-        Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR);
-        int desde = (int) Math.min(pageable.getOffset(), coincidentes.size());
-        int hasta = Math.min(desde + pageable.getPageSize(), coincidentes.size());
-        Page<PlanificacionProduccionResponseDTO> planificaciones = new PageImpl<>(
-                coincidentes.subList(desde, hasta), pageable, coincidentes.size());
+        Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_MAS_RECIENTE_PRIMERO);
+        Page<PlanificacionProduccionResponseDTO> planificaciones = planificacionServicio
+                .filtrarPlanificacionesPorNombreDeReceta(vacioANulo(receta), null, pageable);
 
         model.addAttribute("planificaciones", planificaciones);
         model.addAttribute("filtroReceta", receta);
@@ -292,6 +297,7 @@ public class CronogramaController {
      * filtrar su historial.
      */
     @GetMapping("/buscador/fermentadores")
+    @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String buscarFermentadores(@RequestParam(required = false) String identificador,
                                       @RequestParam(required = false) EstadoOperativo estadoOperativo,
                                       @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
@@ -324,6 +330,14 @@ public class CronogramaController {
         fermentadorServicio.listarDadosDeBajaConLotes().forEach(f -> opciones.add(opcionDe(f, true)));
         opciones.sort(Comparator.comparing(OpcionFermentador::getIdentificador, String.CASE_INSENSITIVE_ORDER));
         return opciones;
+    }
+
+    /**
+     * Si el usuario autenticado tiene el permiso como authority propia (los permisos se vuelcan sin prefijo).
+     */
+    private static boolean tienePermiso(Authentication authentication, Permiso permiso) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> permiso.name().equals(authority.getAuthority()));
     }
 
     private static OpcionFermentador opcionDe(FermentadorResponseDTO fermentador, boolean deBaja) {

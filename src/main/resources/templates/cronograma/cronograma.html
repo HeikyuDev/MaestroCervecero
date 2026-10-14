@@ -5,9 +5,11 @@
 <body>
 
 <!--
-    Cronograma de producción global (solo el Gerente de Producción): el diagrama de Gantt de un período con un carril por
-    fermentador (de a 10 por página) y, debajo, la cola de lotes pendientes de cada fermentador de la página, donde se
-    puede subir o bajar un lote.
+    Cronograma de producción global: el diagrama de Gantt de un período con un carril por fermentador (de a 10 por
+    página) y, debajo, la cola de lotes pendientes de cada fermentador de la página.
+    Lo ven el Gerente de Producción (LOTE_CONSULTAR y LOTE_REGISTRAR: puede subir o bajar un lote) y el Operario de
+    Producción (solo LOTE_CONSULTAR: las colas se muestran en solo lectura, sin formularios ni botones de mover).
+    El filtro "Planificación a destacar" es de quien tiene PLANIFICACION_PRODUCCION_CONSULTAR.
     El diagrama es el mismo fragmento del estado actual de una planificación (planificacion_produccion/gantt).
     No valida nada: las reglas de la cola las valida el servidor y su rechazo vuelve a esta página como alerta.
 -->
@@ -27,7 +29,7 @@
             <div th:replace="~{fragments/selector-entidad :: selector('idFermentador', ${filtroIdFermentador}, ${filtroFermentadorTexto},
                     @{/cronograma-produccion/buscador/fermentadores}, null, null, true, false, 'Seleccione fermentador')}"></div>
         </div>
-        <div>
+        <div sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')">
             <span class="block text-xs font-medium text-slate-500 mb-1">Planificación a destacar</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacion', ${filtroIdPlanificacion}, ${filtroPlanificacionTexto},
                     @{/cronograma-produccion/buscador/planificaciones}, null, null, true, false, 'Seleccione planificación')}"></div>
@@ -132,7 +134,10 @@
              th:classappend="${cola.enEjecucionAtenuado} ? 'opacity-50'"
              class="px-5 py-3 border-b border-slate-100 bg-amber-50/50 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
             <span class="text-xs font-semibold uppercase tracking-wider text-amber-700">En ejecución (no se puede mover)</span>
-            <span class="font-medium text-slate-900" th:text="${cola.enEjecucion.identificadorInterno}">PALE_ALE-1</span>
+            <a sec:authorize="hasAuthority('LOTE_CONSULTAR')" th:href="@{/lotes/{id}(id=${cola.enEjecucion.id})}"
+               title="Ver lote" aria-label="Ver lote"
+               class="font-medium text-slate-900 hover:text-amber-600 hover:underline" th:text="${cola.enEjecucion.identificadorInterno}">PALE_ALE-1</a>
+            <span sec:authorize="!hasAuthority('LOTE_CONSULTAR')" class="font-medium text-slate-900" th:text="${cola.enEjecucion.identificadorInterno}">PALE_ALE-1</span>
             <span class="text-slate-700" th:text="${cola.enEjecucion.nombreReceta}">Pale Ale</span>
             <span class="text-slate-700" th:if="${cola.enEjecucion.idPlanificacionProduccion != null}"
                   th:text="|Plan #${cola.enEjecucion.idPlanificacionProduccion}|">Plan #7</span>
@@ -161,7 +166,7 @@
                     <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Volumen (L)</th>
                     <th class="px-2 py-3 whitespace-nowrap">Inicio</th>
                     <th class="px-2 py-3 whitespace-nowrap">Fin</th>
-                    <th class="px-2 py-3 text-right whitespace-nowrap">Mover</th>
+                    <th sec:authorize="hasAuthority('LOTE_REGISTRAR')" class="px-2 py-3 text-right whitespace-nowrap">Mover</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -169,7 +174,12 @@
                     th:classappend="${item.atenuado} ? 'opacity-50'" class="hover:bg-slate-50">
                     <td class="px-2 py-3 font-semibold text-slate-700 whitespace-nowrap" th:text="${item.posicion}">1</td>
                     <td class="px-2 py-3 whitespace-nowrap">
-                        <div class="font-medium text-slate-900" th:text="${item.lote.identificadorInterno}">PALE_ALE-1</div>
+                        <div class="font-medium text-slate-900">
+                            <a sec:authorize="hasAuthority('LOTE_CONSULTAR')" th:href="@{/lotes/{id}(id=${item.lote.id})}"
+                               title="Ver lote" aria-label="Ver lote"
+                               class="hover:text-amber-600 hover:underline" th:text="${item.lote.identificadorInterno}">PALE_ALE-1</a>
+                            <span sec:authorize="!hasAuthority('LOTE_CONSULTAR')" th:text="${item.lote.identificadorInterno}">PALE_ALE-1</span>
+                        </div>
                         <!-- Debajo de xl, receta, planificación y volumen van como detalle del lote para que la fila entre sin desplazarse -->
                         <div class="xl:hidden text-xs text-slate-500" data-cola-detalle-compacto>
                             <span th:text="${item.lote.nombreReceta}">Pale Ale</span> ·
@@ -187,7 +197,7 @@
                     <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaInicioEstimada})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaFinalizacionEstimada})}"></th:block></td>
-                    <td class="px-2 py-3">
+                    <td sec:authorize="hasAuthority('LOTE_REGISTRAR')" class="px-2 py-3">
                         <div class="flex items-center justify-end gap-1">
                             <form th:action="@{/cronograma-produccion/lotes/{id}/subir(id=${item.lote.id})}" method="post" novalidate class="m-0">
                                 <input type="hidden" name="idFermentador" th:if="${filtroIdFermentador != null}" th:value="${filtroIdFermentador}">

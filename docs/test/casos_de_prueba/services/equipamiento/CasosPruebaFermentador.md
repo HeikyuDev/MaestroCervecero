@@ -86,13 +86,13 @@
 
 ### 6. `listarDadosDeBajaConLotes()`
 
-Devuelve los fermentadores dados de baja que tienen al menos un lote que no fue cancelado (el fermentador de un lote es el equipamiento de su etapa de Fermentación), ordenados por identificador interno. Sirve para que el filtro del cronograma de producción pueda elegir un fermentador que ya no está activo y cuyos lotes siguen en el historial. La consulta JPQL (`buscarDadosDeBajaConLotes`) se verifica manualmente contra la base de datos (CP-LB-03); con el repositorio mockeado, el test solo verifica el mapeo.
+Devuelve los fermentadores dados de baja que tienen al menos un lote en cualquier estado, incluso si todos fueron cancelados (el fermentador de un lote es el equipamiento de su etapa de Fermentación), ordenados por identificador interno. Sirve para que el filtro del cronograma de producción pueda elegir un fermentador que ya no está activo y cuyos lotes siguen en el historial. La consulta JPQL (`buscarDadosDeBajaConLotes`) se verifica manualmente contra la base de datos (CP-LB-03); con el repositorio mockeado, el test solo verifica el mapeo.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-LB-01**|Mapea a DTO los fermentadores dados de baja con lotes|`buscarDadosDeBajaConLotes()` devuelve 2 fermentadores con `estado = BAJA` ("F-02" y "F-05")|El repositorio devuelve fermentadores|Retorna 2 `FermentadorResponseDTO` con los datos de las entidades, en el mismo orden (`estado: BAJA`).|
 |**CP-LB-02**|Sin fermentadores dados de baja con lotes|`buscarDadosDeBajaConLotes()` devuelve una lista vacía|No hay fermentadores que cumplan|Retorna una lista vacía (no `null`). No lanza excepción.|
-|**CP-LB-03**|Consulta: solo dados de baja con lotes no cancelados _(verificación manual contra la base de datos)_|Fermentadores: "F-02" (`BAJA`) con un lote `FINALIZADO` en su etapa de Fermentación; "F-03" (`BAJA`) sin lotes; "F-04" (`BAJA`) cuyos únicos lotes están `CANCELADO`; "F-01" (`ACTIVO`) con lotes; "F-05" (`BAJA`) con un lote `FINALIZADO`|`f.estado = BAJA` y existe una etapa `FERMENTACION` de un lote distinto de `CANCELADO`|Devuelve "F-02" y "F-05", en ese orden. No devuelve "F-03" (sin lotes), "F-04" (solo cancelados) ni "F-01" (activo). Un fermentador con varios lotes aparece una sola vez.|
+|**CP-LB-03**|Consulta: solo dados de baja con lotes en cualquier estado _(verificación manual contra la base de datos)_|Fermentadores: "F-02" (`BAJA`) con un lote `FINALIZADO` en su etapa de Fermentación; "F-03" (`BAJA`) sin lotes; "F-04" (`BAJA`) cuyos únicos lotes están `CANCELADO`; "F-01" (`ACTIVO`) con lotes; "F-05" (`BAJA`) con un lote `FINALIZADO`|`f.estado = BAJA` y existe una etapa `FERMENTACION` de un lote en cualquier estado|Devuelve "F-02", "F-04" (sus lotes cancelados siguen en el historial) y "F-05", en ese orden. No devuelve "F-03" (sin lotes) ni "F-01" (activo). Un fermentador con varios lotes aparece una sola vez.|
 
 ### 7. `filtrarFermentadoresConDadosDeBajaConLotes(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable)`
 

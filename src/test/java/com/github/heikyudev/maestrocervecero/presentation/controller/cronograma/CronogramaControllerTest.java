@@ -4,6 +4,8 @@ import com.github.heikyudev.maestrocervecero.configuration.security.SecurityConf
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Permiso;
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.presentation.advice.ControllerAdvices;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -19,21 +21,28 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.receta.Version
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.util.HtmlUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -84,7 +93,7 @@ class CronogramaControllerTest {
     // ==================== GET /cronograma-produccion ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-01: el GERENTE_DE_PRODUCCION ve el cronograma con los filtros, el período, el diagrama (un carril por fermentador, barras con receta, plan y lote) y las colas")
     void cronograma_debeMostrarFiltrosDiagramaYColas() throws Exception {
         // Arrange
@@ -132,7 +141,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-02: sin lotes en el período no hay carriles: se muestra el mensaje con el período, sin diagrama, colas, paginador ni botones, y el filtro y la navegación siguen visibles")
     void cronograma_sinLotesEnElPeriodo() throws Exception {
         // Arrange
@@ -152,7 +161,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-03: sin fermentadores activos ni lotes se muestra el mismo mensaje, el filtro de fermentador sigue siendo el buscador (sin opciones en la página) y no hay diagrama ni colas")
     void cronograma_sinFermentadoresNiLotes() throws Exception {
         // Arrange
@@ -170,7 +179,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-04: los fermentadores activos se piden todos, ordenados por identificador, para validar el filtro (no se vuelcan a la página como opciones); también se piden, una vez, los dados de baja con lotes")
     void cronograma_pideTodosLosFermentadoresActivosOrdenados() throws Exception {
         // Arrange
@@ -192,7 +201,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-05: el fermentador y el período llegan al service; el filtro y los campos quedan con lo elegido, un solo carril y solo la cola de ese fermentador")
     void cronograma_pasaLosFiltrosAlService() throws Exception {
         // Arrange
@@ -216,7 +225,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-06: no hay casilla de historial: el formulario no la tiene y el parámetro incluirHistorial se ignora sin aviso")
     void cronograma_noHayCasillaDeHistorial() throws Exception {
         // Arrange
@@ -235,7 +244,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-07: la cola de cada fermentador sigue el orden de los carriles, numera los pendientes y deja desactivado Subir en el primero y Bajar en el ultimo")
     void cronograma_colasConBotonesSubirYBajar() throws Exception {
         // Arrange
@@ -268,7 +277,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-08: cada boton es un POST con token CSRF hacia /lotes/{id}/subir o /bajar, con ícono, texto compacto y sin cortarse")
     void cronograma_losBotonesSonFormulariosPostConCsrf() throws Exception {
         // Arrange
@@ -294,7 +303,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-09: el lote en ejecucion se muestra arriba de la cola como \"En ejecucion (no se puede mover)\", sin botones, y los finalizados y cancelados no entran en la cola")
     void cronograma_elLoteEnEjecucionVaArribaDeLaColaSinBotones() throws Exception {
         // Arrange
@@ -319,7 +328,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-10: la fila de la cola muestra posicion, lote, receta, planificacion, volumen sin ceros sobrantes y fechas estimadas dd/MM/yyyy")
     void cronograma_laFilaDeLaColaMuestraSusDatos() throws Exception {
         // Arrange
@@ -342,7 +351,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-11: el filtro de planificacion es un campo en blanco con ícono de lista que abre el buscador (no un combo), con placeholder y boton para quitar")
     void cronograma_elFiltroDePlanificacionEsUnSelectorConBuscador() throws Exception {
         // Arrange
@@ -362,7 +371,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-12: al destacar una planificacion no se quita ningun lote: se atenuan las barras y filas de cola de las demas y el selector muestra la elegida")
     void cronograma_destacarUnaPlanificacionAtenuaLasDemas() throws Exception {
         // Arrange
@@ -389,7 +398,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-13: sin planificacion destacada ninguna barra ni fila de cola se atenua y la leyenda no menciona el atenuado")
     void cronograma_sinDestacarNoAtenuaNada() throws Exception {
         // Arrange
@@ -409,7 +418,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-14: los botones de mover llevan filtros, período y página como campos ocultos para volver al cronograma con la misma vista")
     void cronograma_losBotonesConservanLosFiltros() throws Exception {
         // Arrange
@@ -439,7 +448,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-15: sin filtros activos los botones de mover no llevan campos ocultos de filtro")
     void cronograma_sinFiltrosLosBotonesNoLlevanCamposOcultos() throws Exception {
         // Arrange
@@ -459,7 +468,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-37: la cola marca el lote en ejecucion atrasado y los pendientes corridos por ese atraso, con la fecha planificada en el tooltip; sin atraso no se muestra ninguna marca")
     void cronograma_colaMarcaAtrasoYDesplazamiento() throws Exception {
         // Arrange
@@ -484,7 +493,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-38: la leyenda explica los tres colores y las marcas (Pendiente, En ejecución, Finalizado, Limpieza y Hoy) y suma el atenuado solo al destacar una planificación")
     void cronograma_laLeyendaExplicaLosTresColoresYLasMarcas() throws Exception {
         // Arrange
@@ -511,7 +520,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-39: los lotes cancelados no se dibujan en el diagrama ni entran en la cola")
     void cronograma_losLotesCanceladosNoSeDibujan() throws Exception {
         // Arrange
@@ -532,7 +541,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-40: el atraso del lote en ejecución se informa en su barra con la etiqueta \"Atrasado 2 días\", sin color ni tramo aparte")
     void cronograma_elAtrasoSeInformaEnLaBarra() throws Exception {
         // Arrange
@@ -555,7 +564,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-41: un pendiente corrido por atraso se dibuja azul en su posición corrida, sin marca propia: lo dice el tooltip y la fila de la cola")
     void cronograma_elPendienteCorridoNoLlevaMarcaEnLaBarra() throws Exception {
         // Arrange
@@ -576,7 +585,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-42: la limpieza se dibuja solo donde queda un día libre futuro entre lotes vivos (un único bloque, en el carril de F-01)")
     void cronograma_dibujaLaLimpiezaSoloDondeQuedaUnDiaLibre() throws Exception {
         // Arrange
@@ -599,7 +608,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-76: el bloque de limpieza es celeste (gantt-color--limpieza), distinto del azul de lo planificado, y se reduce a solo color si es muy angosto")
     void cronograma_elBloqueDeLimpiezaEsCelesteYSeReduceASoloColor() throws Exception {
         // Arrange
@@ -615,7 +624,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-77: el bloque de limpieza lleva un icono de gota decorativo (data-gantt-limpieza-icono, bi-droplet-fill, aria-hidden)")
     void cronograma_elBloqueDeLimpiezaLlevaUnIconoDeGota() throws Exception {
         // Arrange
@@ -631,7 +640,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-78: la leyenda muestra la limpieza con la misma muestra celeste y el icono de gota, aunque no haya limpiezas dibujadas")
     void cronograma_laLeyendaMuestraLaLimpiezaConElIconoDeGota() throws Exception {
         // Arrange
@@ -663,7 +672,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-45: el filtro se rotula \"Fermentador\" y es un campo en blanco con ícono de lista que abre el buscador (no un combo), con el parámetro idFermentador, placeholder y botón para quitar")
     void cronograma_elFiltroSeRotulaFermentador() throws Exception {
         // Arrange
@@ -684,7 +693,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-46: el carril se rotula \"F-01\", la columna del diagrama \"Fermentador\" y la cola \"Cola pendiente de F-01\"")
     void cronograma_rotulaLosCarrilesYLasColasConElFermentador() throws Exception {
         // Arrange
@@ -703,7 +712,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-43: el código completo del lote se muestra en la barra, su tooltip, el bloque \"En ejecución\" y la fila de la cola")
     void cronograma_muestraElCodigoCompletoDelLote() throws Exception {
         // Arrange
@@ -723,7 +732,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-44: no se dibuja la limpieza anterior a hoy ni la que sigue a un lote finalizado; las barras se dibujan igual")
     void cronograma_noDibujaLimpiezasEnElPasadoNiTrasFinalizados() throws Exception {
         // Arrange
@@ -747,7 +756,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-16: parametros invalidos no rompen la pagina: se ignoran, se avisa con una alerta de advertencia y el service se invoca sin filtros")
     void cronograma_parametrosInvalidosSeIgnoran() throws Exception {
         // Arrange
@@ -767,7 +776,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-17: un fermentador que no existe o no esta activo se ignora con un aviso y se listan todos; el service no recibe ese id")
     void cronograma_fermentadorInexistenteSeIgnora() throws Exception {
         // Arrange
@@ -785,7 +794,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-18: una planificacion inexistente se ignora con un aviso: no se destaca ninguna y ningun lote se atenua")
     void cronograma_planificacionInexistenteSeIgnora() throws Exception {
         // Arrange
@@ -807,7 +816,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-19: la alerta flash de un movimiento anterior se muestra en la pagina")
     void cronograma_muestraLaAlertaFlash() throws Exception {
         // Arrange
@@ -822,7 +831,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-20: la sidebar del gerente de produccion muestra \"Cronograma de Produccion\" (bi-bar-chart-steps) en Operacion, activa en esta pagina")
     void cronograma_laSidebarMuestraLaOpcionActiva() throws Exception {
         // Arrange
@@ -843,7 +852,7 @@ class CronogramaControllerTest {
     // ==================== Período ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-47: sin parametros el periodo es del hoy - 15 al hoy + 60 (76 dias): llega al service, llena los campos y el texto, sin alerta y con la linea de hoy")
     void periodo_porDefecto() throws Exception {
         // Arrange
@@ -864,7 +873,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-48: un periodo explicito se respeta: llega al service, el texto dice 262 dias, se dibuja la barra verde y no hay linea ni bandera de hoy")
     void periodo_explicito() throws Exception {
         // Arrange
@@ -886,7 +895,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-49: una fecha con formato invalido (o inexistente) invalida el periodo: alerta de advertencia y periodo por defecto completo, tambien cuando el otro extremo era valido")
     void periodo_fechaInvalida() throws Exception {
         // Arrange
@@ -907,7 +916,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-50: un hasta anterior al desde se rechaza con una alerta y se usa el periodo por defecto")
     void periodo_invertido() throws Exception {
         // Arrange
@@ -922,7 +931,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-51: el tope del periodo es de 1.826 dias contando ambos extremos (5 anios): 1826 se acepta y 1827 se rechaza con una alerta")
     void periodo_topeMaximo() throws Exception {
         // Arrange
@@ -942,7 +951,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-52: con un solo extremo el otro se completa a 75 dias de distancia; en blanco equivale a no informado; sin alerta")
     void periodo_unSoloExtremo() throws Exception {
         // Arrange
@@ -964,7 +973,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-53: un periodo de un solo dia es valido: el texto dice \"(1 día)\"")
     void periodo_unSoloDia() throws Exception {
         // Arrange
@@ -980,7 +989,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-54: el formulario envia por GET hacia el cronograma, novalidate, con los campos Desde y Hasta de tipo fecha con el periodo y sin campo pagina; Limpiar no lleva parametros")
     void periodo_formulario() throws Exception {
         // Arrange
@@ -1001,7 +1010,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-55: Anterior y Siguiente desplazan el periodo su misma longitud, sin solaparse ni dejar dias en medio, y no llevan pagina")
     void periodo_anteriorYSiguiente() throws Exception {
         // Arrange
@@ -1021,7 +1030,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-56: Hoy restaura el periodo por defecto: apunta al cronograma sin desde, hasta ni pagina, con o sin periodo explicito")
     void periodo_hoy() throws Exception {
         // Arrange
@@ -1038,7 +1047,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-57: la navegacion conserva los filtros y vuelve a la primera pagina: nunca lleva pagina")
     void periodo_laNavegacionConservaLosFiltrosYNoLaPagina() throws Exception {
         // Arrange
@@ -1065,7 +1074,7 @@ class CronogramaControllerTest {
     // ==================== Paginación, filtro de fermentador y vacío ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-58: hasta 10 fermentadores caben en una pagina: 3 carriles y 3 colas, \"Pagina 1 de 1\", \"3 fermentadores\" y ambos botones de pagina desactivados")
     void paginacion_unaSolaPagina() throws Exception {
         // Arrange
@@ -1084,7 +1093,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-59: los carriles se reparten de a 10: la pagina 1 muestra F-01 a F-10 y la 3 muestra F-21 a F-25, con los enlaces de pagina que corresponden")
     void paginacion_variasPaginas() throws Exception {
         // Arrange
@@ -1107,7 +1116,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-60: orden estable y paginas contiguas: aunque el service entregue los lotes en orden inverso, la pagina 1 es F-01 a F-10 y la 2 F-11 y F-12, sin repetir ni omitir, y pedir la misma pagina dos veces da lo mismo")
     void paginacion_ordenEstable() throws Exception {
         // Arrange
@@ -1128,7 +1137,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-61: una pagina invalida o fuera de rango se corrige y se avisa, salvo que no haya paginas")
     void paginacion_paginaInvalidaOFueraDeRango() throws Exception {
         // Arrange
@@ -1154,7 +1163,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-62: con 50 fermentadores el diagrama sigue acotado: la pagina 1 tiene 10 carriles y 10 colas (\"Pagina 1 de 5\", \"50 fermentadores\") y la 5 muestra F-41 a F-50")
     void paginacion_cincuentaFermentadores() throws Exception {
         // Arrange
@@ -1174,7 +1183,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-63: los fermentadores sin lotes en el periodo no ocupan carril: solo F-03, F-17 y F-42 (F-08 con un pendiente posterior al periodo no)")
     void paginacion_losFermentadoresSinLotesNoOcupanCarril() throws Exception {
         // Arrange
@@ -1197,7 +1206,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-64: el enlace de pagina conserva la planificacion y el periodo pedidos, no lleva el fermentador que no se pidio y suma la pagina")
     void paginacion_losEnlacesConservanElResto() throws Exception {
         // Arrange
@@ -1214,7 +1223,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-65: con el filtro de fermentador solo se ve ese fermentador: llega al service, un carril, su cola, \"Pagina 1 de 1\" y \"1 fermentador\"")
     void filtro_unFermentador() throws Exception {
         // Arrange
@@ -1233,7 +1242,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-66: el fermentador elegido conserva su carril aunque no tenga lotes en el periodo: carril vacio, mensaje de vacio y su cola sin pendientes")
     void filtro_fermentadorSinLotesEnElPeriodo() throws Exception {
         // Arrange: el service filtra por el fermentador, asi que no devuelve nada
@@ -1251,7 +1260,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-67: fermentador, planificacion y periodo se combinan sin quitarse entre si: un carril con las dos barras (la del otro plan atenuada) y los enlaces conservan ambos filtros")
     void filtro_combinado() throws Exception {
         // Arrange
@@ -1281,7 +1290,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-68: los lotes solo fuera del periodo no generan carril ni cola: mensaje de vacio, sin diagrama, paginador ni botones")
     void periodo_lotesSoloFueraDelPeriodo() throws Exception {
         // Arrange
@@ -1301,7 +1310,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-69: la cola no depende del periodo: el carril dibuja solo las barras del periodo y la cola lista los tres pendientes, con posiciones 1 a 3 y sus botones")
     void periodo_laColaListaTodosLosPendientes() throws Exception {
         // Arrange
@@ -1325,7 +1334,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-70: la marca de hoy solo existe si hoy cae dentro del periodo: con el periodo por defecto si, con un periodo pasado o futuro no")
     void periodo_hoyDentroOFuera() throws Exception {
         // Arrange
@@ -1347,7 +1356,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-71: las barras recortadas lo indican: chevron y atributo del lado que se recorta y la linea correspondiente en el tooltip; la barra que cabe entera no tiene ninguno")
     void periodo_barrasRecortadas() throws Exception {
         // Arrange
@@ -1375,7 +1384,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-72: armar la pagina no dispara consultas repetidas: una consulta de lotes, una de fermentadores y a lo sumo una de planificacion, sin otra interaccion con el service de lotes")
     void consultas_unaSolaDeLotes() throws Exception {
         // Arrange
@@ -1400,7 +1409,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-73: un periodo de cinco anios no rompe el diagrama: ancho de 3744 px, etiquetas del eje con anio y no mas de 150 marcas")
     void periodo_deCincoAnios() throws Exception {
         // Arrange
@@ -1420,7 +1429,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-74: los fermentadores dados de baja con lotes tienen carril, en orden alfabetico con los activos")
     void fermentadoresDadosDeBaja_tienenCarril() throws Exception {
         // Arrange
@@ -1444,7 +1453,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-75: un fermentador dado de baja con lotes es un filtro valido; uno dado de baja sin lotes (que no figura en la lista) se ignora con aviso")
     void fermentadoresDadosDeBaja_sonUnFiltroValido() throws Exception {
         // Arrange
@@ -1474,7 +1483,7 @@ class CronogramaControllerTest {
     // ==================== POST /cronograma-produccion/lotes/{id}/subir ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-21: subir correctamente delega en el service y redirige al cronograma con la alerta de exito que informa las nuevas fechas")
     void subir_debeRedirigirConAlertaYFechas() throws Exception {
         // Arrange
@@ -1492,7 +1501,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-22: subir conserva los filtros, el período y la página en la URL de redireccion")
     void subir_debeConservarLosFiltros() throws Exception {
         // Arrange
@@ -1508,7 +1517,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-23: solo viajan los parametros validos: un periodo invalido, invertido o que supera el tope no viaja en ninguno de sus extremos; con un solo extremo viaja solo ese")
     void subir_ignoraFiltrosInvalidos() throws Exception {
         // Arrange
@@ -1530,7 +1539,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-24: si el service rechaza subir (ya es el primero o no esta pendiente) vuelve al origen con la alerta de advertencia y el mensaje del service")
     void subir_debeMostrarElMotivoDelRechazo() throws Exception {
         // Arrange
@@ -1545,7 +1554,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-25: subir un lote inexistente vuelve al origen con la alerta de error del service")
     void subir_debeMostrarElErrorSiNoExiste() throws Exception {
         // Arrange
@@ -1562,7 +1571,7 @@ class CronogramaControllerTest {
     // ==================== POST /cronograma-produccion/lotes/{id}/bajar ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-26: bajar correctamente delega en el service y redirige al cronograma conservando los filtros, con la alerta de exito que informa las nuevas fechas")
     void bajar_debeRedirigirConAlertaFechasYFiltros() throws Exception {
         // Arrange
@@ -1580,7 +1589,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-27: si el service rechaza bajar (es el ultimo de la cola) vuelve al origen con la alerta de advertencia y el mensaje del service")
     void bajar_debeMostrarElMotivoDelRechazo() throws Exception {
         // Arrange
@@ -1595,7 +1604,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-28: bajar un lote inexistente vuelve al origen con la alerta de error del service")
     void bajar_debeMostrarElErrorSiNoExiste() throws Exception {
         // Arrange
@@ -1609,7 +1618,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-29: un POST sin token CSRF no mueve nada: es rechazado (redirige) y no llega al service")
     void mover_sinCsrfNoLlegaAlService() throws Exception {
         // Act + Assert
@@ -1622,11 +1631,11 @@ class CronogramaControllerTest {
     // ==================== GET /cronograma-produccion/buscador/planificaciones ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-30: el buscador devuelve un fragmento (sin layout) con el criterio de receta, el placeholder, las planificaciones y el boton Elegir con su id y texto")
     void buscador_debeDevolverElFragmentoConLasPlanificaciones() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(
                         planificacion(8L, "Stout", EstadoSolicitud.FINALIZADA),
                         planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE))));
@@ -1652,11 +1661,11 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-31: el buscador pide al service todas las planificaciones con la ultima registrada primero (id descendente), sin filtrar por receta, estado ni fecha")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-31: el buscador pide al service la primera pagina de 8 planificaciones de cualquier estado, con la ultima registrada primero (id descendente), sin filtrar por receta ni estado")
     void buscador_pideLasMasRecientesPrimero() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         // Act
@@ -1664,19 +1673,21 @@ class CronogramaControllerTest {
 
         // Assert
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), isNull(), captor.capture());
+        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(isNull(), isNull(), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
         assertThat(captor.getValue().getSort().getOrderFor("id").isDescending()).isTrue();
+        verifyNoMoreInteractions(planificacionServicio);
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-CGC-32: el criterio de receta filtra por parte del nombre sin distinguir mayusculas ni espacios sobrantes")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-32: el criterio de receta se pasa recortado al service, que filtra por parte del nombre; el buscador muestra lo que el service devuelve y conserva el criterio tipeado")
     void buscador_filtraPorNombreDeReceta() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("STOUT"), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(
                         planificacion(9L, "Stout", EstadoSolicitud.PENDIENTE),
-                        planificacion(8L, "Pale Ale", EstadoSolicitud.PENDIENTE),
                         planificacion(7L, "Imperial Stout", EstadoSolicitud.PENDIENTE))));
 
         // Act
@@ -1687,18 +1698,22 @@ class CronogramaControllerTest {
         // Assert
         assertThat(html).contains("data-id=\"9\"").contains("data-id=\"7\"").doesNotContain("data-id=\"8\"");
         assertThat(html).contains("value=\" STOUT \"");
+        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(eq("STOUT"), isNull(), any(Pageable.class));
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-33: el buscador pagina de a 8 con la ultima registrada arriba; la paginacion conserva el criterio, se pide dentro del modal y la segunda pagina trae el resto")
     void buscador_paginaDeA8ConservandoElCriterio() throws Exception {
-        // Arrange: 10 planificaciones de "Pale Ale" (ids 10 a 1, la mas reciente primero)
+        // Arrange: 10 planificaciones de "Pale Ale" (ids 10 a 1, la mas reciente primero), que el service reparte de a 8
         List<PlanificacionProduccionResponseDTO> todas = new ArrayList<>();
         for (long id = 10; id >= 1; id--) {
             todas.add(planificacion(id, "Pale Ale", EstadoSolicitud.PENDIENTE));
         }
-        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(todas));
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("pale"), any(), eq(PageRequest.of(0, 8, Sort.by(Sort.Order.desc("id"))))))
+                .thenReturn(new PageImpl<>(todas.subList(0, 8), PageRequest.of(0, 8), 10));
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("pale"), any(), eq(PageRequest.of(1, 8, Sort.by(Sort.Order.desc("id"))))))
+                .thenReturn(new PageImpl<>(todas.subList(8, 10), PageRequest.of(1, 8), 10));
 
         // Act
         String primera = mockMvc.perform(get(URL + "/buscador/planificaciones").param("receta", "pale"))
@@ -1718,11 +1733,12 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-34: sin resultados el buscador muestra un mensaje claro, y una pagina negativa equivale a la primera")
     void buscador_sinResultadosYPaginaNegativa() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("zzz"), any(), any())).thenReturn(Page.empty());
+        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(isNull(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE))));
 
         // Act + Assert
@@ -1732,12 +1748,15 @@ class CronogramaControllerTest {
         mockMvc.perform(get(URL + "/buscador/planificaciones").param("pagina", "-3"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-id=\"7\"")));
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(planificacionServicio, times(2)).filtrarPlanificacionesPorNombreDeReceta(any(), any(), captor.capture());
+        assertThat(captor.getAllValues()).extracting(Pageable::getPageNumber).containsOnly(0);
     }
 
     // ==================== GET /cronograma-produccion/buscador/fermentadores ====================
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-88: el buscador de fermentadores devuelve un fragmento (sin layout) con los criterios de identificador, estado operativo e incluir dados de baja, las columnas y el boton Elegir con su id y texto")
     void buscadorFermentadores_debeDevolverElFragmento() throws Exception {
         // Arrange
@@ -1768,7 +1787,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-89: sin incluir dados de baja el buscador consulta solo los fermentadores activos, de a 8 y en orden alfabetico por identificador; el texto se recorta y el criterio de estado llega al service")
     void buscadorFermentadores_consultaSoloLosActivos() throws Exception {
         // Arrange
@@ -1792,7 +1811,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-90: con incluir dados de baja el buscador consulta tambien los dados de baja con lotes, que se marcan \"Dado de baja\" y se eligen con el texto \"F-02 (dado de baja)\"; el criterio queda tildado")
     void buscadorFermentadores_incluyeLosDadosDeBajaConLotes() throws Exception {
         // Arrange
@@ -1817,7 +1836,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-91: el buscador de fermentadores pagina de a 8; los enlaces de pagina conservan identificador, estado operativo e incluir dados de baja y se piden dentro del modal")
     void buscadorFermentadores_paginaConservandoLosCriterios() throws Exception {
         // Arrange: segunda pagina de tres
@@ -1848,7 +1867,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-92: sin resultados el buscador de fermentadores muestra un mensaje claro, y una pagina negativa equivale a la primera")
     void buscadorFermentadores_sinResultadosYPaginaNegativa() throws Exception {
         // Arrange
@@ -1866,7 +1885,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-93: el fermentador elegido se muestra en el campo (con \"(dado de baja)\" si corresponde) y se conserva al navegar el periodo y en los botones de mover")
     void filtroDeFermentador_elElegidoSeMuestraYSeConserva() throws Exception {
         // Arrange
@@ -1891,7 +1910,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-94: sin fermentador elegido el campo queda en blanco con su placeholder, el campo oculto va vacio y se ofrece el boton para quitar la seleccion; Limpiar vuelve al cronograma sin parametros")
     void filtroDeFermentador_sinElegirQuedaEnBlanco() throws Exception {
         // Arrange
@@ -1911,7 +1930,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
     @DisplayName("CP-CGC-95: sin JavaScript el filtro sigue funcionando: el campo de texto es de solo lectura y el fermentador viaja en el campo oculto idFermentador del formulario GET de filtros, que se envia con el boton Buscar")
     void filtroDeFermentador_sinJavaScript() throws Exception {
         // Arrange
@@ -1932,14 +1951,11 @@ class CronogramaControllerTest {
     // ==================== Roles ====================
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"GERENTE_DE_COMPRAS", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR"})
-    @DisplayName("CP-CGC-35: GERENTE_DE_COMPRAS, OPERARIO_DE_PRODUCCION y ADMINISTRADOR no pueden ver el cronograma ni usar el buscador: redirigen con alerta de error y no llegan a ningun service")
-    void roles_noAutorizadosNoPuedenVer(String rol) throws Exception {
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-CGC-35: los roles sin LOTE_CONSULTAR no pueden ver el cronograma: redirigen con alerta de error y no llegan a ningun service")
+    void roles_sinLoteConsultarNoPuedenVerElCronograma(Rol rol) throws Exception {
         // Act + Assert
-        mockMvc.perform(get(URL).with(user("x").roles(rol)))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("tipo", "danger"));
-        mockMvc.perform(get(URL + "/buscador/planificaciones").with(user("x").roles(rol)))
+        mockMvc.perform(get(URL).with(como(rol)))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -1947,14 +1963,26 @@ class CronogramaControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"GERENTE_DE_COMPRAS", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR"})
-    @DisplayName("CP-CGC-36: GERENTE_DE_COMPRAS, OPERARIO_DE_PRODUCCION y ADMINISTRADOR no pueden subir ni bajar lotes: redirigen con alerta de error y el service no se invoca")
-    void roles_noAutorizadosNoPuedenMover(String rol) throws Exception {
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-CGC-35: los roles sin PLANIFICACION_PRODUCCION_CONSULTAR no pueden usar el buscador de planificaciones: redirigen con alerta de error y no llegan a ningun service")
+    void roles_sinPlanificacionConsultarNoPuedenUsarElBuscadorDePlanificaciones(Rol rol) throws Exception {
         // Act + Assert
-        mockMvc.perform(post(URL + "/lotes/3/subir").with(user("x").roles(rol)).with(csrf()))
+        mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(rol)))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
-        mockMvc.perform(post(URL + "/lotes/3/bajar").with(user("x").roles(rol)).with(csrf()))
+
+        verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-CGC-36: los roles sin LOTE_REGISTRAR (incluido el operario) no pueden subir ni bajar lotes: redirigen con alerta de error y el service no se invoca")
+    void roles_sinLoteRegistrarNoPuedenMover(Rol rol) throws Exception {
+        // Act + Assert
+        mockMvc.perform(post(URL + "/lotes/3/subir").with(como(rol)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        mockMvc.perform(post(URL + "/lotes/3/bajar").with(como(rol)).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
@@ -1962,20 +1990,321 @@ class CronogramaControllerTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
-    @DisplayName("CP-CGC-96: GERENTE_DE_COMPRAS, ENCARGADO_DE_DEPOSITO, GERENTE_COMERCIAL y ADMINISTRADOR no pueden usar el buscador de fermentadores: redirigen con alerta de error y no llegan a ningun service")
-    void roles_noAutorizadosNoPuedenUsarElBuscadorDeFermentadores(String rol) throws Exception {
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-CGC-96: los roles sin LOTE_CONSULTAR no pueden usar el buscador de fermentadores: redirigen con alerta de error y no llegan a ningun service")
+    void roles_sinLoteConsultarNoPuedenUsarElBuscadorDeFermentadores(Rol rol) throws Exception {
         // Act + Assert
-        mockMvc.perform(get(URL + "/buscador/fermentadores").with(user("x").roles(rol)))
+        mockMvc.perform(get(URL + "/buscador/fermentadores").with(como(rol)))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio);
     }
 
+    // ==================== Operario en solo lectura ====================
+
+    @Test
+    @DisplayName("CP-CGC-79: el OPERARIO_DE_PRODUCCION ve el cronograma con el diagrama, los filtros de fermentador y periodo, la paginacion y las colas de cada fermentador")
+    void operario_veElCronograma() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act + Assert
+        mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("cronograma/cronograma"))
+                .andExpect(content().string(containsString("Cronograma de Producci")))
+                .andExpect(content().string(containsString("action=\"/cronograma-produccion\"")))
+                .andExpect(content().string(containsString("novalidate")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/fermentadores\"")))
+                .andExpect(content().string(containsString(">Desde</label>")))
+                .andExpect(content().string(containsString(">Hasta</label>")))
+                .andExpect(content().string(containsString("Buscar")))
+                .andExpect(content().string(containsString("Limpiar")))
+                .andExpect(content().string(containsString("data-periodo-anterior")))
+                .andExpect(content().string(containsString("data-periodo-siguiente")))
+                .andExpect(content().string(containsString("data-periodo-hoy")))
+                .andExpect(content().string(containsString("data-gantt")))
+                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-1")))
+                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-2")))
+                .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-3")))
+                .andExpect(content().string(containsString("Stout - Plan #8 - STOUT-R8-1")))
+                .andExpect(content().string(containsString("data-paginacion")))
+                .andExpect(content().string(containsString("data-cola-fermentador=\"F-01\"")))
+                .andExpect(content().string(containsString("data-cola-fermentador=\"F-02\"")));
+
+        verify(loteServicio).listarLotesParaCronograma(null, desdeDefecto(), hastaDefecto());
+    }
+
+    @Test
+    @DisplayName("CP-CGC-80: las colas del operario listan los lotes pendientes y el lote en ejecucion sin acciones: ni Subir ni Bajar, ni formularios de mover ni token CSRF, ni columna de acciones")
+    void operario_lasColasNoTienenAcciones() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert: las colas muestran lo mismo que ve el gerente
+        assertThat(html).contains("En ejecuci").contains("(no se puede mover)").contains("data-cola-fila")
+                .contains("Volumen (L)").contains("Inicio").contains("Fin");
+        assertThat(colas(html)).containsExactly("F-01", "F-02");
+        assertThat(cuenta(html, "data-cola-fila")).isEqualTo(3);
+        assertThat(cuenta(html, "data-cola-en-ejecucion")).isEqualTo(1);
+
+        // Assert: y ninguna accion de mover
+        assertThat(html).doesNotContain("Subir").doesNotContain("Bajar").doesNotContain("bi-arrow-up").doesNotContain("bi-arrow-down")
+                .doesNotContain("/cronograma-produccion/lotes/2/subir").doesNotContain("/cronograma-produccion/lotes/2/bajar")
+                .doesNotContain("data-mover").doesNotContain(">Mover<");
+        Matcher contenido = Pattern.compile("(?s)<main.*?</main>").matcher(html);
+        assertThat(contenido.find()).isTrue();
+        assertThat(contenido.group()).doesNotContain("method=\"post\"").doesNotContain("_csrf");
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-81: el GERENTE_DE_PRODUCCION conserva los botones Subir y Bajar como formularios POST en cada fila de la cola, con la columna Mover")
+    void gerente_conservaLosBotonesDeMover() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains(">Mover</th>").contains("action=\"/cronograma-produccion/lotes/2/subir\"")
+                .contains("action=\"/cronograma-produccion/lotes/2/bajar\"").contains("name=\"_csrf\"");
+        assertThat(cuenta(html, "data-mover=\"subir\"")).isEqualTo(3);
+        assertThat(cuenta(html, "data-mover=\"bajar\"")).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("CP-CGC-82: el operario filtra por fermentador y periodo igual que el gerente: el service recibe los mismos criterios y los enlaces de periodo los conservan")
+    void operario_filtrosYPeriodoFuncionIgual() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                loteEn(4L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", d(2018, 5, 2), d(2018, 5, 6))));
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))
+                        .param("idFermentador", "2").param("desde", "2018-04-21").param("hasta", "2019-01-07"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        verify(loteServicio).listarLotesParaCronograma(2L, d(2018, 4, 21), d(2019, 1, 7));
+        assertThat(colas(html)).containsExactly("F-02");
+        assertThat(carriles(html)).isEqualTo(1);
+        assertThat(href(html, "data-periodo-anterior")).contains("idFermentador=2");
+        assertThat(href(html, "data-periodo-siguiente")).contains("idFermentador=2");
+        assertThat(href(html, "data-periodo-hoy")).contains("idFermentador=2");
+        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("F-02");
+    }
+
+    @Test
+    @DisplayName("CP-CGC-83: la sidebar del OPERARIO_DE_PRODUCCION muestra Cronograma de Producción en Operación, despues de Control de Lotes y resaltado, y no Planificación de Producción")
+    void operario_sidebarConElCronograma() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        Matcher enlace = Pattern.compile("(?s)<a href=\"/cronograma-produccion\"[^>]*>(.*?)</a>").matcher(html);
+        assertThat(enlace.find()).isTrue();
+        assertThat(enlace.group()).contains("bg-amber-500/10").contains("bi-bar-chart-steps").contains("Cronograma de Producción");
+        assertThat(html).matches("(?s).*Operación.*Control de Lotes.*Cronograma de Producción.*");
+        assertThat(html).doesNotContain("Planificación de Producción").doesNotContain("Administración");
+    }
+
+    @Test
+    @DisplayName("CP-CGC-84: el operario no tiene el filtro de planificacion: la pagina no ofrece el selector y el parametro idPlanificacion se ignora sin aviso, sin consultar la planificacion ni atenuar nada")
+    void operario_sinPlanificacionADestacar() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act
+        String sinParametro = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String conParametro = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idPlanificacion", "7"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String invalido = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idPlanificacion", "abc"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        for (String html : List.of(sinParametro, conParametro, invalido)) {
+            assertThat(html).doesNotContain("name=\"idPlanificacion\"").doesNotContain("Planificación a destacar")
+                    .doesNotContain("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")
+                    .doesNotContain("Seleccione planificación").doesNotContain(ALERTA_ADVERTENCIA);
+            assertThat(leyenda(html)).doesNotContain("atenuado");
+            assertThat(barra(html, "PALE_ALE-R7-1")).doesNotContain("gantt-barra--atenuada");
+            assertThat(barra(html, "STOUT-R8-1")).doesNotContain("gantt-barra--atenuada");
+            assertThat(fila(html, 4L)).doesNotContain("opacity-50");
+            assertThat(href(html, "data-periodo-siguiente")).doesNotContain("idPlanificacion");
+        }
+        verifyNoInteractions(planificacionServicio);
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-85: el GERENTE_DE_PRODUCCION conserva el selector de planificacion y la leyenda con el atenuado cuando hay una planificacion elegida")
+    void gerente_conservaElSelectorDePlanificacion() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("idPlanificacion", "7"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("Planificación a destacar")
+                .contains("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")
+                .contains("name=\"idPlanificacion\"");
+        assertThat(textoDelSelector(html, "Seleccione planificación")).isEqualTo("Plan #7 - Pale Ale");
+        assertThat(leyenda(html)).contains("Lote de otra planificaci");
+    }
+
+    @Test
+    @DisplayName("CP-CGC-86: el operario no puede subir ni bajar lotes: ambos POST redirigen con alerta de error y el service no se invoca")
+    void operario_noPuedeMoverLotes() throws Exception {
+        // Act + Assert
+        mockMvc.perform(post(URL + "/lotes/2/subir").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        mockMvc.perform(post(URL + "/lotes/2/bajar").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verifyNoInteractions(loteServicio);
+    }
+
+    @Test
+    @DisplayName("CP-CGC-87: sin lotes en el periodo el operario ve el mismo mensaje de vacio, sin diagrama, colas ni paginador")
+    void operario_cronogramaSinLotes() throws Exception {
+        // Arrange
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("data-cronograma-sin-lotes")
+                .contains("No hay lotes para mostrar entre " + fmt(desdeDefecto()) + " y " + fmt(hastaDefecto()))
+                .doesNotContain("data-gantt ").doesNotContain("data-cola ").doesNotContain("data-paginacion");
+    }
+
+    @Test
+    @DisplayName("CP-CGC-97: el buscador de fermentadores exige LOTE_CONSULTAR: lo usan el operario y quien solo tiene ese permiso; quien solo tiene LOTE_REGISTRAR es rechazado")
+    void operario_usaElBuscadorDeFermentadores() throws Exception {
+        // Arrange
+        when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                fermentadorDelBuscador(1L, "F-01", EstadoOperativo.DISPONIBLE, 330.0, Estado.ACTIVO))));
+
+        // Act + Assert
+        for (RequestPostProcessor usuario : List.of(como(Rol.OPERARIO_DE_PRODUCCION), conPermisos(Permiso.LOTE_CONSULTAR))) {
+            mockMvc.perform(get(URL + "/buscador/fermentadores").with(usuario))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("cronograma/buscador-fermentador :: buscador"))
+                    .andExpect(content().string(containsString("data-id=\"1\"")))
+                    .andExpect(content().string(containsString("data-texto=\"F-01\"")));
+        }
+        verify(fermentadorServicio, times(2)).filtrarFermentadores(isNull(), isNull(), any(Pageable.class));
+
+        mockMvc.perform(get(URL + "/buscador/fermentadores").with(conPermisos(Permiso.LOTE_REGISTRAR)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        verifyNoMoreInteractions(fermentadorServicio);
+    }
+
+    // ==================== Enlaces al detalle del lote ====================
+
+    @Test
+    @DisplayName("CP-CGC-98: quien tiene LOTE_CONSULTAR ve el codigo de cada lote de las colas, y del lote en ejecucion, como enlace Ver lote hacia /lotes/{id}; el gerente y el operario lo tienen")
+    void colas_elCodigoDelLoteEsUnEnlaceAlDetalle() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act + Assert
+        for (RequestPostProcessor usuario : List.of(como(Rol.OPERARIO_DE_PRODUCCION), como(Rol.GERENTE_DE_PRODUCCION))) {
+            String html = mockMvc.perform(get(URL).with(usuario)).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            List<String> enlaces = new ArrayList<>();
+            Matcher m = Pattern.compile("<a[^>]*aria-label=\"Ver lote\"[^>]*>").matcher(html);
+            while (m.find()) {
+                enlaces.add(m.group());
+            }
+            assertThat(enlaces).hasSize(4);
+            for (long id = 1; id <= 4; id++) {
+                String destino = "href=\"/lotes/" + id + "\"";
+                assertThat(enlaces).anyMatch(enlace -> enlace.contains(destino));
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("CP-CGC-99: quien tiene LOTE_REGISTRAR pero no LOTE_CONSULTAR no ve el cronograma; quien solo tiene LOTE_CONSULTAR ve los codigos como enlaces y ningun boton de mover")
+    void colas_elEnlaceDependeDeLoteConsultar() throws Exception {
+        // Arrange
+        escenarioDelOperario();
+
+        // Act + Assert
+        mockMvc.perform(get(URL).with(conPermisos(Permiso.LOTE_REGISTRAR)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+        String html = mockMvc.perform(get(URL).with(conPermisos(Permiso.LOTE_CONSULTAR))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(html).contains("href=\"/lotes/2\"").doesNotContain("data-mover");
+    }
+
     // ==================== Datos de prueba ====================
 
     private static final String ALERTA_ADVERTENCIA = "bg-amber-50 border-amber-200 text-amber-800";
+
+    /**
+     * Un usuario con las authorities que le da el login: ROLE_ del rol y cada uno de sus permisos.
+     */
+    private static RequestPostProcessor como(Rol rol) {
+        List<GrantedAuthority> autoridades = new ArrayList<>();
+        autoridades.add(new SimpleGrantedAuthority("ROLE_" + rol.name()));
+        rol.getPermisos().forEach(permiso -> autoridades.add(new SimpleGrantedAuthority(permiso.name())));
+        return user(rol.name()).authorities(autoridades);
+    }
+
+    /**
+     * Un usuario con solo esos permisos, sin ningún rol.
+     */
+    private static RequestPostProcessor conPermisos(Permiso... permisos) {
+        List<GrantedAuthority> autoridades = new ArrayList<>();
+        Arrays.stream(permisos).forEach(permiso -> autoridades.add(new SimpleGrantedAuthority(permiso.name())));
+        return user("usuario").authorities(autoridades);
+    }
+
+    /**
+     * "F-01" con un lote en ejecución (lote 1) y dos pendientes (2 y 3) del plan 7, y "F-02" con un pendiente (lote 4)
+     * del plan 8, todos dentro del período por defecto.
+     */
+    private void escenarioDelOperario() {
+        fermentadores(1L, "F-01", 2L, "F-02");
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
+                lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", 1),
+                lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 2),
+                lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 3),
+                lote(4L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", 1)));
+    }
 
     private static LocalDate desdeDefecto() {
         return LocalDate.now().minusDays(15);
