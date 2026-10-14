@@ -65,9 +65,9 @@
         <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
             <p th:replace="~{fragments/sidebar ::seccion('Operación')}"></p>
 
-            <!-- CONTROL DE LOTES (Operario de Producción, Gerente de Producción). Todavía no tiene controller: se muestra como "Próximamente" -->
-            <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION')">
-                <span th:replace="~{fragments/sidebar ::enlaceProximamente('bi-droplet-half', 'Control de Lotes')}"></span>
+            <!-- CONTROL DE LOTES (Operario de Producción, Gerente de Producción: quien puede consultar lotes) -->
+            <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
+                <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-droplet-half', 'Control de Lotes')}"></a>
             </th:block>
 
             <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->

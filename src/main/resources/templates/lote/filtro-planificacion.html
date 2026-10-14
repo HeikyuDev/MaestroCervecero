@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+    Contenido del modal de búsqueda de planificaciones del filtro de la lista de lotes: el mismo que el del formulario
+    de registro (criterio de receta + resultados con "Elegir"), pero con planificaciones de cualquier estado.
+-->
+<div th:fragment="buscador">
+    <div th:replace="~{lote/buscador-planificacion :: buscador}"></div>
+</div>
+
+</body>
+</html>

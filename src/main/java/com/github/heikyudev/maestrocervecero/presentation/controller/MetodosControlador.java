@@ -39,6 +39,22 @@ public final class MetodosControlador {
     }
 
     /**
+     * El texto como id, o {@code null} si está vacío, no es un número o no es positivo.
+     */
+    public static Long aId(String texto) {
+        String limpio = vacioANulo(texto);
+        if (limpio == null) {
+            return null;
+        }
+        try {
+            long valor = Long.parseLong(limpio);
+            return valor > 0 ? valor : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
      * Agrega la alerta (mensaje + tipo) que el layout muestra tras un Post-Redirect-Get.
      */
     public static void agregarMensaje(RedirectAttributes redirectAttributes, String mensaje, TipoAlerta tipo) {

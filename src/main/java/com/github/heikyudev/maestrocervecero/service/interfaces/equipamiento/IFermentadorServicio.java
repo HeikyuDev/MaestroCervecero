@@ -28,8 +28,8 @@ public interface IFermentadorServicio {
     Page<FermentadorResponseDTO> filtrarFermentadores(String identificadorInterno, EstadoOperativo estadoOperativo, Pageable pageable);
 
     /**
-     * Obtiene una página de fermentadores activos y de fermentadores dados de baja que tienen lotes (sin contar los
-     * cancelados), filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
+     * Obtiene una página de fermentadores activos y de fermentadores dados de baja que tienen lotes (en cualquier
+     * estado, incluso si todos fueron cancelados), filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
      * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.

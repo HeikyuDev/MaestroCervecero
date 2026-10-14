@@ -18,6 +18,10 @@
  *   data-motivo-dialogo / data-motivo-url / data-motivo-nombre
  *                                 botón que abre un diálogo que pide un motivo (fragments/dialogo-motivo): el id
  *                                 del diálogo, a dónde se envía y de qué es la acción.
+ *   data-confirmar-titulo / data-confirmar-mensaje
+ *                                 botón de envío de un formulario que pide una confirmación antes de enviarlo
+ *                                 (fragments/dialogo-confirmacion): el título y el mensaje del diálogo. Sin
+ *                                 JavaScript el formulario se envía directamente.
  *
  * Dentro del modal del buscador:
  *   data-cerrar-modal             cierra el modal.
@@ -158,6 +162,25 @@
         dialogo.showModal();
     }
 
+    // ---------- Confirmación antes de enviar un formulario ----------
+
+    var formularioPorConfirmar = null;
+
+    /** Abre el diálogo de confirmación con el título y el mensaje del botón; al aceptar, envía su formulario. */
+    function abrirDialogoDeConfirmacion(dialogo, boton) {
+        formularioPorConfirmar = boton.closest('form');
+        dialogo.querySelector('[data-confirmar-titulo-destino]').textContent = boton.getAttribute('data-confirmar-titulo');
+        dialogo.querySelector('[data-confirmar-mensaje-destino]').textContent = boton.getAttribute('data-confirmar-mensaje');
+        dialogo.showModal();
+    }
+
+    function aceptarConfirmacion(dialogo) {
+        var formulario = formularioPorConfirmar;
+        formularioPorConfirmar = null;
+        dialogo.close();
+        if (formulario) { formulario.submit(); }
+    }
+
     function accionSelector(boton) {
         var selector = boton.closest('[data-selector]');
         function asignar(entidad) {
@@ -208,7 +231,18 @@
                 motivo.getAttribute('data-motivo-url'), motivo.getAttribute('data-motivo-nombre'));
             return;
         }
-        var cierre = evento.target.closest('#dialogo-baja [data-cerrar-dialogo], dialog[data-dialogo-motivo] [data-cerrar-dialogo]');
+        var confirmar = evento.target.closest('[data-confirmar-mensaje]');
+        var dialogoConfirmacion = document.getElementById('dialogo-confirmacion');
+        if (confirmar && dialogoConfirmacion && confirmar.closest('form')) {
+            evento.preventDefault();
+            abrirDialogoDeConfirmacion(dialogoConfirmacion, confirmar);
+            return;
+        }
+        if (evento.target.closest('[data-confirmar-aceptar]')) {
+            aceptarConfirmacion(dialogoConfirmacion);
+            return;
+        }
+        var cierre = evento.target.closest('#dialogo-baja [data-cerrar-dialogo], dialog[data-dialogo-motivo] [data-cerrar-dialogo], dialog[data-dialogo-confirmacion] [data-cerrar-dialogo]');
         if (cierre) {
             cierre.closest('dialog').close();
             return;

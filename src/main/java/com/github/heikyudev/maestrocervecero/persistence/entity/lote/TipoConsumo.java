@@ -1,5 +1,8 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 /**
  * Distingue por qué camino se registró un {@link ConsumoInsumoEntity}: descontando de una reserva
  * de insumo puntual ya existente ({@code RESERVADO}), o directamente de la cantidad disponible de
@@ -11,8 +14,15 @@ package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
  * reserva puntual de esa etapa), mientras que uno {@code DIRECTO} solo devuelve a la cantidad
  * actual.
  * </p>
+ * <p>
+ * Cada valor trae su nombre legible ({@code etiqueta}), que es el que se muestra al usuario.
+ * </p>
  */
+@Getter
+@RequiredArgsConstructor
 public enum TipoConsumo {
-    RESERVADO,
-    DIRECTO
+    RESERVADO("Reservado"),
+    DIRECTO("Directo");
+
+    private final String etiqueta;
 }

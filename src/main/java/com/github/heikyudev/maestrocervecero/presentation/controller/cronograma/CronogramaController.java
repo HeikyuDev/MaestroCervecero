@@ -436,22 +436,6 @@ public class CronogramaController {
     }
 
     /**
-     * El texto como id, o {@code null} si está vacío, no es un número o no es positivo.
-     */
-    private static Long aId(String texto) {
-        String limpio = vacioANulo(texto);
-        if (limpio == null) {
-            return null;
-        }
-        try {
-            long valor = Long.parseLong(limpio);
-            return valor > 0 ? valor : null;
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    /**
      * El texto como página (un entero positivo), o {@code null} si está vacío, no es un número o no es positivo. Un
      * número demasiado grande se trata como el mayor entero: el builder lo ajusta a la última página.
      */

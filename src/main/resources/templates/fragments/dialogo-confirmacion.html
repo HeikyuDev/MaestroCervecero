@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Diálogo pequeño que pide una confirmación antes de enviar un formulario (iniciar un lote, finalizar una etapa).
+    Lo abre /js/modales.js desde el botón de envío del formulario, que lleva data-confirmar-titulo y
+    data-confirmar-mensaje (el título y la pregunta del diálogo). Al confirmar, el script envía el formulario del
+    botón; sin JavaScript no se abre nada y el formulario se envía directamente.
+
+    Va una sola vez por página, con el id "dialogo-confirmacion". No es un formulario: el POST es el del botón.
+
+    Uso: <div th:replace="~{fragments/dialogo-confirmacion :: dialogo}"></div>
+-->
+<dialog th:fragment="dialogo" id="dialogo-confirmacion" data-dialogo-confirmacion
+        class="m-auto w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+    <div class="p-6">
+        <div class="flex items-start gap-3">
+            <span class="p-2 rounded-full bg-amber-50 text-amber-600"><i class="bi bi-question-circle text-xl"></i></span>
+            <div class="min-w-0 flex-1">
+                <h3 class="text-lg font-semibold text-slate-900" data-confirmar-titulo-destino>Confirmar</h3>
+                <p class="mt-1 text-sm text-slate-600" data-confirmar-mensaje-destino></p>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+            <button type="button" data-cerrar-dialogo
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cancelar</button>
+            <button type="button" data-confirmar-aceptar
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Confirmar</button>
+        </div>
+    </div>
+</dialog>
+
+</html>

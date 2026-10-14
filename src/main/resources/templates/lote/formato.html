@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Formatos de presentación del módulo de lotes.
+
+    estadoEtapa(estado): etiqueta de color del estado de una etapa de lote (azul pendiente, ámbar en curso, verde
+    finalizada, gris cancelada), con su nombre legible.
+    estadoTransaccion(estado): etiqueta de color del estado de un consumo o de un envasado (verde registrado, gris
+    anulado), con su nombre legible.
+    duracion(valor, unidad, unidadPlural): una duración con su unidad en singular o plural ("1 día", "10 días"), o un
+    guion si no tiene valor.
+-->
+<span th:fragment="estadoEtapa(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'PENDIENTE'} ? 'bg-blue-50 text-blue-700'
+                    : (${estado.name() == 'EN_CURSO'} ? 'bg-amber-50 text-amber-700'
+                    : (${estado.name() == 'FINALIZADA'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'))"
+      th:text="${estado.etiqueta}">Pendiente</span>
+
+<span th:fragment="estadoTransaccion(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'REGISTRADO'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+      th:text="${estado.etiqueta}">Registrado</span>
+
+<th:block th:fragment="duracion(valor, unidad, unidadPlural)"><th:block th:text="${valor != null} ? |${valor} ${valor == 1 ? unidad : unidadPlural}| : '-'">60 minutos</th:block></th:block>
+
+</html>

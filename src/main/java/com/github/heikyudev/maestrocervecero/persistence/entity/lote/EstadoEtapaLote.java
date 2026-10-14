@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.lote;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Estado de una {@code EtapaLoteEntity} dentro del ciclo de vida de su lote.
@@ -10,11 +11,17 @@ import lombok.Getter;
  * llegó a usarse de verdad (no nulo, estaba {@code EN_CURSO}) o nunca se tocó (nulo, estaba
  * {@code PENDIENTE}).
  * </p>
+ * <p>
+ * Cada valor trae su nombre legible ({@code etiqueta}), que es el que se muestra al usuario.
+ * </p>
  */
 @Getter
+@RequiredArgsConstructor
 public enum EstadoEtapaLote {
-    PENDIENTE,
-    EN_CURSO,
-    FINALIZADA,
-    CANCELADA
+    PENDIENTE("Pendiente"),
+    EN_CURSO("En curso"),
+    FINALIZADA("Finalizada"),
+    CANCELADA("Cancelada");
+
+    private final String etiqueta;
 }

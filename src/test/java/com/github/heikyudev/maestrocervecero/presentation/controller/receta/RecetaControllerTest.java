@@ -235,7 +235,7 @@ class RecetaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR"})
     @DisplayName("CP-RCC-10: en la sidebar \"Gestión de Recetas\" está en la sección Administración, junto a insumos y equipamiento, y no en Operación")
     void sidebar_debeUbicarGestionDeRecetasEnAdministracion() throws Exception {
         when(recetaServicio.filtrarRecetas(any(), any()))

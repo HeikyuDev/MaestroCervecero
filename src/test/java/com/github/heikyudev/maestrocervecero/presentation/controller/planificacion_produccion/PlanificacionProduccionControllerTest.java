@@ -335,7 +335,7 @@ class PlanificacionProduccionControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR"})
     @DisplayName("CP-PPC-13: en la sidebar \"Planificación de Producción\" está en la sección Operación, junto a Control de Lotes")
     void sidebar_debeUbicarLaPlanificacionEnOperacion() throws Exception {
         when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))

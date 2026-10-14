@@ -68,8 +68,8 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     }
 
     /**
-     * Recupera una página de Fermentadores activos y de fermentadores dados de baja que tienen lotes (sin contar los
-     * cancelados), filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
+     * Recupera una página de Fermentadores activos y de fermentadores dados de baja que tienen lotes (en cualquier
+     * estado, incluso si todos fueron cancelados), filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
      * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta).
      * <p>
      * Se usa para buscar, además de los fermentadores activos, los dados de baja cuyo historial de lotes sigue

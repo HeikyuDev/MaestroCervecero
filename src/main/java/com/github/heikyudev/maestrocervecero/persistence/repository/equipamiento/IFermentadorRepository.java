@@ -43,23 +43,22 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
     Page<FermentadorEntity> filtrarFermentadores(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
 
     /**
-     * Obtiene una página de fermentadores activos y de fermentadores dados de baja que tienen al menos un lote que no
-     * fue cancelado, filtrados opcionalmente por identificador interno (coincidencia parcial, sin distinguir
-     * mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     * Obtiene una página de fermentadores activos y de fermentadores dados de baja que tienen al menos un lote (en
+     * cualquier estado, incluso si todos fueron cancelados), filtrados opcionalmente por identificador interno
+     * (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta). Un
+     * parámetro nulo no restringe por ese criterio.
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
-     * @return Una página de fermentadores activos y dados de baja con lotes que cumplen los criterios indicados.
+     * @return Una página de fermentadores activos y dados de baja con lotes (cancelados o no) que cumplen los criterios indicados.
      */
     @Query(value = "SELECT f FROM FermentadorEntity f WHERE (f.estado = 'ACTIVO' OR (f.estado = 'BAJA' AND EXISTS ("
-            + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION' "
-            + "AND e.lote.estado <> 'CANCELADO'))) "
+            + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION'))) "
             + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)",
             countQuery = "SELECT COUNT(f) FROM FermentadorEntity f WHERE (f.estado = 'ACTIVO' OR (f.estado = 'BAJA' AND EXISTS ("
-                    + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION' "
-                    + "AND e.lote.estado <> 'CANCELADO'))) "
+                    + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION'))) "
                     + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)")
     Page<FermentadorEntity> filtrarFermentadoresConDadosDeBajaConLotes(@Param("identificadorInterno") String identificadorInterno, @Param("estadoOperativo") EstadoOperativo estadoOperativo, Pageable pageable);
