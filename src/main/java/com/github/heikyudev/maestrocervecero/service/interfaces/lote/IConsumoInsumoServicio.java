@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularCo
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import org.springframework.data.domain.Page;
@@ -108,6 +109,18 @@ public interface IConsumoInsumoServicio {
      * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
     List<InsumoRequeridoResponseDTO> filtrarInsumosRequeridos(Long idEtapaLote);
+
+    /**
+     * Obtiene las adiciones de lúpulo de una etapa de lote, cada una con su propia cantidad y su tiempo de hervor (o su
+     * uso, si es whirlpool o dry hop), sin fusionar las del mismo lúpulo. Sirve para indicar al operario cuándo agregar
+     * cada cantidad; los requerimientos totales de la etapa no cambian.
+     *
+     * @param idEtapaLote El ID de la etapa de lote (obligatorio).
+     * @return Las adiciones de lúpulo de la etapa; vacía si no usa lúpulo.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
+     * @throws RecursoNoEncontradoException Si la etapa de lote no existe.
+     */
+    List<AdicionLupuloResponseDTO> filtrarAdicionesLupulo(Long idEtapaLote);
 
     /**
      * Anula un consumo de insumo existente, devolviendo el stock que había descontado.

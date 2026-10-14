@@ -4,7 +4,7 @@
 <!--
     Tarjeta guía de cada etapa del detalle del lote: lo que el operario necesita saber para trabajar la etapa. Cada
     dato es una etiqueta gris chica con su valor destacado debajo, como en la cabecera del lote. Cada fragmento usa
-    las variables del detalle (lote, receta, etapaMostrada, requeridos, agua, aguaError, lupulos, levaduras,
+    las variables del detalle (lote, receta, etapaMostrada, requeridos, agua, aguaError, adiciones, levaduras,
     lupulosEnSeco, resumenEnvasado) y se inserta dentro del panel de la etapa. El avance del consumo frente a lo
     requerido no va en la guía: está en la tabla "Insumos de la etapa".
 
@@ -106,19 +106,13 @@
             <dt class="text-xs font-medium text-slate-500">Olla de hervor</dt>
             <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">OH-01</dd>
         </div>
-        <div th:unless="${#lists.isEmpty(lupulos)}" class="sm:col-span-2 xl:col-span-4" data-lupulos-a-agregar>
+        <div th:unless="${#lists.isEmpty(adiciones)}" class="sm:col-span-2 xl:col-span-4" data-lupulos-a-agregar>
             <dt class="text-xs font-medium text-slate-500">Lúpulos a agregar</dt>
             <dd class="text-slate-900">
                 <ul data-lupulos-hervido class="space-y-1">
-                    <li th:each="l : ${lupulos}" data-lupulo>
-                        <span class="font-semibold" th:text="${l.nombre}">Saaz</span>:
-                        <th:block th:replace="~{receta/formato :: medida(${l.cantidad}, ${l.unidadDeMedida.simbolo})}"></th:block><th:block
-                            th:if="${!#lists.isEmpty(l.tiemposDeHervor) or l.enWhirlpool}">, </th:block><span data-momento-lupulo><th:block
-                            th:unless="${#lists.isEmpty(l.tiemposDeHervor)}">a los <th:block th:each="t, estado : ${l.tiemposDeHervor}"><th:block
-                                th:unless="${estado.first}"><th:block th:text="${estado.last} ? ' y ' : ', '"></th:block></th:block><th:block
-                                th:replace="~{receta/formato :: numero(${t})}"></th:block> min</th:block> de hervor</th:block><th:block
-                            th:if="${l.enWhirlpool and !#lists.isEmpty(l.tiemposDeHervor)}"> y </th:block><th:block
-                            th:if="${l.enWhirlpool}">en el whirlpool</th:block></span>
+                    <li th:each="a : ${adiciones}" data-lupulo>
+                        <span class="font-semibold" th:text="${a.nombre}">Saaz</span>:
+                        <th:block th:replace="~{receta/formato :: medida(${a.cantidad}, ${a.unidadDeMedida.simbolo})}"></th:block>, agregar <span data-momento-lupulo th:text="${a.momento}">cuando falten 60 min para terminar el hervor</span>
                     </li>
                 </ul>
             </dd>

@@ -10,6 +10,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.AdicionLupulo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import org.hibernate.Hibernate;
@@ -62,8 +63,33 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
 
     @Override
     public List<RequerimientoInsumo> calcularRequerimientosLupulo(VersionRecetaEntity versionReceta, double volumenObjetivo, LoteEntity lote) {
+        return calcularAdiciones(versionReceta, volumenObjetivo).stream()
+                .map(adicion -> new RequerimientoInsumo(adicion.detalle().getLupulo(), lote.obtenerEtapaPorTipo(adicion.detalle().getEtapaDeUso()), adicion.cantidad()))
+                .toList();
+    }
+
+    @Override
+    public List<AdicionLupulo> calcularAdicionesLupulo(EtapaLoteEntity etapaLote) {
+        LoteEntity lote = etapaLote.getLote();
+        VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
+        return calcularAdiciones(versionReceta, lote.getVolumenObjetivo()).stream()
+                .filter(adicion -> lote.obtenerEtapaPorTipo(adicion.detalle().getEtapaDeUso()).getId().equals(etapaLote.getId()))
+                .map(adicion -> new AdicionLupulo(adicion.detalle().getLupulo(), adicion.detalle().getUso(),
+                        adicion.detalle().getUso() == UsoLupulo.HERVOR ? adicion.detalle().getTiempoDeHervor() : 0.0, adicion.cantidad()))
+                .toList();
+    }
+
+    /** Un detalle de lúpulo de la receta con la cantidad que le toca al lote, sin fusionar con los demás detalles del mismo lúpulo. */
+    private record AdicionDeDetalle(DetalleLupuloEntity detalle, double cantidad) {
+    }
+
+    /**
+     * La cantidad de cada detalle de lúpulo de la receta para el volumen del lote: los de HERVOR primero (Tinseth) y
+     * después los de WHIRLPOOL y DRY_HOP (escalado lineal).
+     */
+    private List<AdicionDeDetalle> calcularAdiciones(VersionRecetaEntity versionReceta, double volumenObjetivo) {
         List<DetalleLupuloEntity> detallesLupulo = versionReceta.getDetallesLupulo();
-        List<RequerimientoInsumo> requerimientos = new ArrayList<>();
+        List<AdicionDeDetalle> requerimientos = new ArrayList<>();
 
         List<DetalleLupuloEntity> detallesHervor = detallesLupulo.stream()
                 .filter(detalle -> detalle.getUso() == UsoLupulo.HERVOR)
@@ -93,7 +119,7 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
             // Paso 6: reparto del total entre los lúpulos de HERVOR, manteniendo su proporción.
             for (DetalleLupuloEntity detalle : detallesHervor) {
                 double proporcion = detalle.getCantidad() / cantidadTotalBaseHervor;
-                requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), lote.obtenerEtapaPorTipo(detalle.getEtapaDeUso()), gramosTotalHervor * proporcion));
+                requerimientos.add(new AdicionDeDetalle(detalle, gramosTotalHervor * proporcion));
             }
         }
 
@@ -101,8 +127,7 @@ public class EscaladoInsumoServicioImpl implements IEscaladoInsumoServicio {
         // que no usan Tinseth — escalan linealmente respecto al volumen base de la receta.
         detallesLupulo.stream()
                 .filter(detalle -> detalle.getUso() != UsoLupulo.HERVOR)
-                .forEach(detalle -> requerimientos.add(new RequerimientoInsumo(detalle.getLupulo(), lote.obtenerEtapaPorTipo(detalle.getEtapaDeUso()),
-                        detalle.getCantidad() * (volumenObjetivo / versionReceta.getVolumenBase()))));
+                .forEach(detalle -> requerimientos.add(new AdicionDeDetalle(detalle, detalle.getCantidad() * (volumenObjetivo / versionReceta.getVolumenBase()))));
 
         return requerimientos;
     }

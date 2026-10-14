@@ -141,16 +141,9 @@
             <th:block th:case="'ENVASADO'"><div th:replace="~{lote/lote-guias :: envasado}"></div></th:block>
         </section>
 
-        <!-- 3. Insumos de la etapa, con el acceso a la pantalla de consumos y el avance para finalizar -->
+        <!-- 3. Insumos de la etapa, con el avance para finalizar y, al pie, el acceso a la pantalla de consumos -->
         <section data-insumos-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                <h2 class="text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
-                <a th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')" data-ir-consumos
-                   th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
-                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                    <i class="bi bi-box-arrow-in-down"></i> Consumos de insumos
-                </a>
-            </div>
+            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
             <p th:if="${#lists.isEmpty(requeridos)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no consume insumos</p>
             <div th:unless="${#lists.isEmpty(requeridos)}" class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
@@ -191,6 +184,15 @@
                     </ul>
                 </div>
             </th:block>
+
+            <!-- Cierre de la tabla de insumos: acceso a la pantalla de consumos de la etapa -->
+            <div th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')"
+                 class="px-5 py-3 border-t border-slate-100 flex justify-end">
+                <a data-ir-consumos th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-box-arrow-in-down"></i> Consumos de insumos
+                </a>
+            </div>
         </section>
 
         <!-- 4. Envasados registrados (solo Envasado), con el acceso a registrar un envasado -->

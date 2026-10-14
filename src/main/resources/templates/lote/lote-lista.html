@@ -71,15 +71,12 @@
                 <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Fin estimado</th>
                 <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Inicio real</th>
                 <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Fin real</th>
+                <th class="px-2 py-3 text-right whitespace-nowrap">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="l : ${lotes.content}" data-fila-lote th:attr="data-href=@{/lotes/{id}(id=${l.id})}"
-                class="cursor-pointer hover:bg-amber-50/60">
-                <td class="px-2 py-3 whitespace-nowrap">
-                    <a th:href="@{/lotes/{id}(id=${l.id})}" data-lote-codigo title="Abrir lote"
-                       class="font-semibold text-amber-700 hover:text-amber-800 hover:underline focus:outline-none focus:ring-2 focus:ring-amber-500/40 rounded" th:text="${l.identificadorInterno}">PALE_ALE-R7-3</a>
-                </td>
+            <tr th:each="l : ${lotes.content}" class="hover:bg-slate-50">
+                <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.identificadorInterno}">PALE_ALE-R7-3</td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="|#${l.idPlanificacionProduccion} - ${l.nombreReceta}|">#7 - Pale Ale</td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${l.identificadorInternoFermentador != null} ? ${l.identificadorInternoFermentador} : '-'">F-01</td>
                 <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoLote(${l.estado})}"></span></td>
@@ -96,9 +93,17 @@
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacionEstimada})}"></th:block></td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${l.fechaInicio})}"></th:block></td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${l.fechaFinalizacion})}"></th:block></td>
+                <td class="px-2 py-3">
+                    <div class="flex items-center justify-end gap-0.5">
+                        <a th:href="@{/lotes/{id}(id=${l.id})}" data-gestionar-lote title="Gestionar lote" aria-label="Gestionar lote"
+                           class="inline-flex items-center gap-1 whitespace-nowrap px-2 py-1.5 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-gear text-base"></i> Gestionar lote
+                        </a>
+                    </div>
+                </td>
             </tr>
             <tr th:if="${lotes.empty}">
-                <td colspan="11" class="px-4 py-10 text-center text-slate-400">
+                <td colspan="12" class="px-4 py-10 text-center text-slate-400">
                     <i class="bi bi-collection block text-3xl mb-2"></i>
                     No se encontraron lotes con los criterios indicados
                 </td>
@@ -112,7 +117,6 @@
                 ${lotes.hasNext()} ? @{/lotes(pagina=${lotes.number + 1}, idPlanificacion=${filtroIdPlanificacion}, idFermentador=${filtroIdFermentador}, codigo=${filtroCodigo}, estado=${filtroEstado})} : null,
                 false)}"></div>
     </div>
-    <script th:src="@{/js/lote-lista.js}" defer></script>
 </div>
 
 </body>

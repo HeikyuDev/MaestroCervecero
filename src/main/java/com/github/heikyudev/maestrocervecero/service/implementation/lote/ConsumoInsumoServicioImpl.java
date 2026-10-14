@@ -26,6 +26,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperInsumo;
@@ -251,6 +252,33 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      * @throws RecursoNoEncontradoException Si no existe una etapa de lote con el ID especificado.
      * @throws ReglaNegocioException Si no se informó la etapa de lote.
      */
+    /**
+     * Obtiene las adiciones de lúpulo de una etapa, cada una con su cantidad y su tiempo de hervor, sin fusionar las del
+     * mismo lúpulo.
+     *
+     * @param idEtapaLote El ID de la etapa de lote (obligatorio).
+     * @return Las adiciones de lúpulo de la etapa; vacía si no usa lúpulo.
+     * @throws ReglaNegocioException Si no se informó la etapa de lote.
+     * @throws RecursoNoEncontradoException Si la etapa de lote no existe.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdicionLupuloResponseDTO> filtrarAdicionesLupulo(Long idEtapaLote) {
+        validarEtapaLoteInformada(idEtapaLote);
+        EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
+
+        return escaladoInsumoServicio.calcularAdicionesLupulo(etapaLote).stream()
+                .map(adicion -> AdicionLupuloResponseDTO.builder()
+                        .nombreInsumo(adicion.insumo().getNombre())
+                        .unidadDeMedida(adicion.insumo().getUnidadDeMedida())
+                        .uso(adicion.uso())
+                        .tiempoDeHervor(adicion.tiempoDeHervor())
+                        .cantidad(adicion.cantidad())
+                        .build())
+                .toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<InsumoRequeridoResponseDTO> filtrarInsumosRequeridos(Long idEtapaLote) {

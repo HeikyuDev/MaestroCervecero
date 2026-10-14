@@ -128,3 +128,12 @@ Qué se revierte depende de `ConsumoInsumoEntity.tipoConsumo` (`RESERVADO`/`DIRE
 |**CP-AC-09**|Anulación exitosa de un consumo RESERVADO _(Camino feliz)_|Lote de insumo con `cantidadActual: 6.0`, `cantidadReservada: 2.0`; reserva de `2.0`; consumo `RESERVADO` de `4.0`|Todas las validaciones $\rightarrow$ **FALSE**|La reserva queda en `cantidadReservada = 6.0`; el lote de insumo queda con `cantidadActual = 10.0` y `cantidadReservada = 6.0`. El consumo queda `ANULADO`, con `fechaAnulacion` seteada (justo ahora) y `motivoAnulacion` guardado.|
 |**CP-AC-10**|Anulación exitosa de un consumo DIRECTO _(Camino feliz)_|Lote de insumo con `cantidadActual: 6.0`, `cantidadReservada: 0.0`; consumo `DIRECTO` de `4.0`|Todas las validaciones $\rightarrow$ **FALSE**|El lote de insumo queda con `cantidadActual = 10.0` y `cantidadReservada` sin cambios (`0.0`). El consumo queda `ANULADO`. No interactúa con `reservaInsumoRepository`.|
 |**CP-AC-12**|Anular un consumo RESERVADO redondea lo que devuelve _(Redondeo)_|Lote de insumo con `cantidadActual: 0.1`, `cantidadReservada: 0.1`; reserva de `0.1`; consumo `RESERVADO` de `0.2`|`redondear(0.1 + 0.2)` $\rightarrow$ `0.3`|La reserva, `loteInsumo.cantidadActual` y `loteInsumo.cantidadReservada` quedan en `0.3` (sin el residuo `0.30000000000000004`).|
+
+### 7. `filtrarAdicionesLupulo(Long idEtapaLote)`
+
+Devuelve las adiciones de lúpulo de la etapa (cantidad, uso y tiempo de hervor de cada una), tal como las calcula `IEscaladoInsumoServicio.calcularAdicionesLupulo`, sin fusionar las del mismo lúpulo. La guía de Hervido las muestra una por línea. Los requerimientos totales de la etapa (`filtrarInsumosRequeridos`) no cambian.
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+|**CP-FAL-01**|La etapa no existe|`idEtapaLote: 99` sin etapa en el repositorio|`findById` $\rightarrow$ vacío|Lanza `RecursoNoEncontradoException` con el mensaje "No se encontró la etapa de lote con ID: 99" y no invoca al servicio de escalado.|
+|**CP-FAL-02**|Mapea cada adición|El servicio de escalado devuelve tres adiciones del mismo lúpulo: HERVOR `215` a los 60 min, HERVOR `25.5` a los 15 min y WHIRLPOOL `10`|Cada adición es un elemento del resultado|3 DTO, en el mismo orden, con las cantidades `215.0`, `25.5` y `10.0`, los tiempos `60.0`, `15.0` y `0.0`, los usos HERVOR, HERVOR y WHIRLPOOL y el nombre del lúpulo.|

@@ -29,7 +29,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
-import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
@@ -112,17 +112,15 @@ public class LoteController {
     }
 
     /**
-     * Lúpulo que se agrega en el hervido, con la cantidad total de la etapa, los tiempos de hervor que la receta le
-     * asigna, del mayor al menor (vacío si no tiene ninguno), y si además (o solo) se agrega en el whirlpool, que no
-     * tiene tiempo de hervor.
+     * Una adición de lúpulo del hervido: su propia cantidad y el momento en que se agrega, ya redactado ("al inicio del
+     * hervor", "cuando falten 15 min para terminar el hervor" o "en el whirlpool").
      */
     @Value
-    public static class LupuloDeHervido {
+    public static class AdicionDeHervido {
         String nombre;
         Double cantidad;
         UnidadDeMedida unidadDeMedida;
-        List<Double> tiemposDeHervor;
-        boolean enWhirlpool;
+        String momento;
     }
 
     // ==================== Lista ====================
@@ -546,7 +544,7 @@ public class LoteController {
             }
         }
         if (tipoEtapa == TipoEtapa.HERVIDO) {
-            model.addAttribute("lupulos", lupulosDeHervido(requeridos, receta));
+            model.addAttribute("adiciones", adicionesDeHervido(consumoInsumoServicio.filtrarAdicionesLupulo(etapa.getId()), receta));
         }
         if (tipoEtapa == TipoEtapa.FERMENTACION) {
             model.addAttribute("levaduras", requeridos.stream().filter(r -> r.getInsumo() instanceof LevaduraResponseDTO).toList());
@@ -564,41 +562,33 @@ public class LoteController {
     }
 
     /**
-     * Los lúpulos que se agregan en el hervido son los insumos requeridos de la etapa, con su cantidad total (el service
-     * suma la de todos los detalles del mismo insumo en la etapa). Sus tiempos de hervor salen de la receta, cruzando
-     * por el id del insumo: si la receta repite el lúpulo con distintos tiempos, se listan todos; el que no tiene
-     * ninguno, como el whirlpool, queda sin tiempo.
+     * Las adiciones de lúpulo del hervido, una línea por adición con su propia cantidad (no la suma del lúpulo): primero
+     * las de hervor, de la que se agrega antes a la que se agrega después, y al final las del whirlpool. Un lúpulo que
+     * hierve toda la duración del hervido se agrega "al inicio del hervor"; si no, "cuando falten N min para terminar el
+     * hervor".
      */
-    private static List<LupuloDeHervido> lupulosDeHervido(List<InsumoRequeridoResponseDTO> requeridos, VersionRecetaResponseDTO receta) {
-        return requeridos.stream()
-                .map(requerido -> new LupuloDeHervido(requerido.getInsumo().getNombre(), requerido.getCantidadRequerida(),
-                        requerido.getUnidadDeMedida(), tiemposDeHervor(receta, requerido.getInsumo().getId()),
-                        usaWhirlpool(receta, requerido.getInsumo().getId())))
+    private static List<AdicionDeHervido> adicionesDeHervido(List<AdicionLupuloResponseDTO> adiciones, VersionRecetaResponseDTO receta) {
+        Integer duracionHervido = receta != null ? receta.getDuracionHervido() : null;
+        return adiciones.stream()
+                .filter(adicion -> adicion.getUso() == UsoLupulo.HERVOR || adicion.getUso() == UsoLupulo.WHIRLPOOL)
+                .sorted(Comparator.comparing((AdicionLupuloResponseDTO adicion) -> adicion.getUso() == UsoLupulo.WHIRLPOOL)
+                        .thenComparing(Comparator.comparing(AdicionLupuloResponseDTO::getTiempoDeHervor).reversed())
+                        .thenComparing(AdicionLupuloResponseDTO::getNombreInsumo))
+                .map(adicion -> new AdicionDeHervido(adicion.getNombreInsumo(), adicion.getCantidad(), adicion.getUnidadDeMedida(),
+                        momentoDeLaAdicion(adicion, duracionHervido)))
                 .toList();
     }
 
-    /** Si la receta agrega ese insumo en el whirlpool del hervido (uso Whirlpool, que no tiene tiempo de hervor). */
-    private static boolean usaWhirlpool(VersionRecetaResponseDTO receta, Long idInsumo) {
-        if (receta == null || receta.getDetallesLupulo() == null) {
-            return false;
+    private static String momentoDeLaAdicion(AdicionLupuloResponseDTO adicion, Integer duracionHervido) {
+        if (adicion.getUso() == UsoLupulo.WHIRLPOOL) {
+            return "en el whirlpool";
         }
-        return receta.getDetallesLupulo().stream()
-                .anyMatch(detalle -> detalle.getUso() == UsoLupulo.WHIRLPOOL && detalle.getEtapaDeUso() == TipoEtapa.HERVIDO
-                        && detalle.getLupulo() != null && Objects.equals(detalle.getLupulo().getId(), idInsumo));
-    }
-
-    /** Los tiempos de hervor de la receta para ese insumo en el hervido, sin repetir y del mayor al menor. */
-    private static List<Double> tiemposDeHervor(VersionRecetaResponseDTO receta, Long idInsumo) {
-        if (receta == null || receta.getDetallesLupulo() == null) {
-            return List.of();
+        double minutos = adicion.getTiempoDeHervor();
+        if (duracionHervido != null && minutos >= duracionHervido) {
+            return "al inicio del hervor";
         }
-        return receta.getDetallesLupulo().stream()
-                .filter(detalle -> detalle.getEtapaDeUso() == TipoEtapa.HERVIDO && detalle.getTiempoDeHervor() != null
-                        && detalle.getTiempoDeHervor() > 0 && detalle.getLupulo() != null && Objects.equals(detalle.getLupulo().getId(), idInsumo))
-                .map(DetalleLupuloResponseDTO::getTiempoDeHervor)
-                .distinct()
-                .sorted(Comparator.reverseOrder())
-                .toList();
+        String texto = minutos == Math.rint(minutos) ? String.valueOf((long) minutos) : String.valueOf(minutos).replace('.', ',');
+        return "cuando falten " + texto + " min para terminar el hervor";
     }
 
     /**

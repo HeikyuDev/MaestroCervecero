@@ -350,7 +350,7 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("bi-calendar-check")))
+                .andExpect(content().string(containsString("bi-calendar3")))
                 .andExpect(content().string(matchesPattern("(?s).*Operación.*Gestión de Lotes.*Planificación de Producción.*Administración.*")));
     }
 
@@ -1692,7 +1692,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern(
-                        "(?s).*<a href=\"/planificaciones-produccion\"[^>]*class=\"[^\"]*bg-amber-500/10 text-amber-500[^\"]*\"[^>]*>\\s*<i class=\"bi text-lg bi-calendar-check\"></i>\\s*<span>Planificación de Producción</span>.*")));
+                        "(?s).*<a href=\"/planificaciones-produccion\"[^>]*class=\"[^\"]*bg-amber-500/10 text-amber-500[^\"]*\"[^>]*>\\s*<i class=\"bi text-lg bi-calendar3\"></i>\\s*<span>Planificación de Producción</span>.*")));
     }
 
     // ==================== Enlaces con el módulo de lotes ====================

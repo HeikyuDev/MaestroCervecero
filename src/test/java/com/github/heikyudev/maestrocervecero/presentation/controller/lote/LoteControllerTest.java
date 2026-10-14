@@ -39,6 +39,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.Levadur
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
@@ -172,7 +173,7 @@ class LoteControllerTest {
     // ==================== GET /lotes ====================
 
     @Test
-    @DisplayName("CP-LCT-01: el GERENTE_DE_PRODUCCION ve el listado con las columnas, los valores legibles, el botón Registrar lote y el código de cada fila como link al detalle, sin columna de acciones")
+    @DisplayName("CP-LCT-01: el GERENTE_DE_PRODUCCION ve el listado con las columnas, los valores legibles, el botón Registrar lote y, al final de cada fila, el botón Gestionar lote en la columna Acciones")
     void listar_debeMostrarElListadoAlGerente() throws Exception {
         // Arrange
         LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01").toBuilder()
@@ -191,8 +192,8 @@ class LoteControllerTest {
         assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "#7 - Pale Ale", "F-01", "En ejecución", "Hervido", "01/07/2027 05/07/2027", "01/07/2027 08:30 -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Registrar lote")
                 .contains("href=\"/lotes/12\"").contains("overflow-x-auto").contains("whitespace-nowrap");
-        assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<");
-        assertThat(texto(html)).doesNotContain("Acciones");
+        assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
+        assertThat(texto(html)).contains("Acciones", "Gestionar lote");
     }
 
     @Test
@@ -1109,12 +1110,12 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-51: la guía de Hervido muestra el volumen pre-hervor, la duración, la olla y los lúpulos a agregar como líneas de texto, sin tabla: cantidad y tiempo de hervor, o en el whirlpool; el dry hop de Maduración no aparece")
+    @DisplayName("CP-LCT-51: la guía de Hervido muestra el volumen pre-hervor, la duración, la olla y los lúpulos a agregar como líneas de texto, sin tabla, una por adición con su cantidad y cuándo agregarla; el dry hop de Maduración no aparece")
     void detalle_guiaDeHervido() throws Exception {
         // Arrange
         when(loteServicio.calcularAguaDelLote(12L)).thenReturn(agua(60.0, List.of()));
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(
-                requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0), requerido(citra(), UnidadDeMedida.GRAMO, 15.0, 15.0, 0.0)));
+        when(consumoInsumoServicio.filtrarAdicionesLupulo(1003L)).thenReturn(List.of(
+                adicion("Cascade", UsoLupulo.HERVOR, 60.0, 25.0), adicion("Citra", UsoLupulo.WHIRLPOOL, 0.0, 15.0)));
 
         // Act
         String guia = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido"), "data-guia");
@@ -1122,8 +1123,8 @@ class LoteControllerTest {
         // Assert
         assertThat(texto(guia)).contains("Volumen pre-hervor 345 L", "Duración estimada 90 minutos", "Olla de hervor OH-01", "Lúpulos a agregar").doesNotContain("40 g");
         assertThat(guia).doesNotContain("<table");
-        assertThat(texto(elementoConTexto(guia, "li", "Cascade"))).isEqualTo("Cascade: 25 g, a los 60 min de hervor");
-        assertThat(texto(elementoConTexto(guia, "li", "Citra"))).isEqualTo("Citra: 15 g, en el whirlpool");
+        assertThat(texto(elementoConTexto(guia, "li", "Cascade"))).isEqualTo("Cascade: 25 g, agregar cuando falten 60 min para terminar el hervor");
+        assertThat(texto(elementoConTexto(guia, "li", "Citra"))).isEqualTo("Citra: 15 g, agregar en el whirlpool");
         assertThat(cuenta(guia, "data-lupulo>") + cuenta(guia, "data-lupulo ")).isEqualTo(2);
     }
 
@@ -1243,14 +1244,14 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-59: el botón Consumos de insumos está en la cabecera de la sección Insumos de la etapa y lleva a la pantalla de consumos de la etapa")
+    @DisplayName("CP-LCT-59: el botón Consumos de insumos cierra, al pie y a la derecha, la sección Insumos de la etapa y lleva a la pantalla de consumos de la etapa")
     void detalle_botonRegistrarConsumo() throws Exception {
         // Act
         String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
 
         // Assert
         String insumos = bloque(html, "data-insumos-etapa");
-        assertThat(texto(insumos)).startsWith("Insumos de la etapa Consumos de insumos");
+        assertThat(texto(insumos)).endsWith("Consumos de insumos");
         assertThat(insumos).contains("data-ir-consumos").contains("href=\"/lotes/12/etapas/hervido/consumos\"").contains("bi-box-arrow-in-down");
         assertThat(html).doesNotContain("Registrar consumo");
     }
@@ -1579,6 +1580,7 @@ class LoteControllerTest {
         // Assert
         verify(loteServicio, times(1)).buscarDetallePorId(12L);
         verify(consumoInsumoServicio, times(1)).filtrarInsumosRequeridos(1003L);
+        verify(consumoInsumoServicio, times(1)).filtrarAdicionesLupulo(1003L);
         verifyNoMoreInteractions(consumoInsumoServicio);
         verify(envasadoLoteServicio).existenEnvasadosRegistrados(12L);
         verifyNoMoreInteractions(envasadoLoteServicio);
@@ -2499,41 +2501,36 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-136: la guía de Hervido con un lúpulo repetido en la receta muestra una sola línea con la cantidad total de la etapa y todos sus tiempos de hervor, del mayor al menor; el whirlpool se indica como tal, solo o junto al hervor")
-    void detalle_guiaDeHervidoConUnLupuloRepetido() throws Exception {
+    @DisplayName("CP-LCT-136: la guía de Hervido muestra una línea por adición con su propia cantidad (un lúpulo usado dos veces aparece dos veces, sin sumar): al inicio del hervor si hierve toda la duración, cuando faltan N minutos si no, y en el whirlpool; primero las de hervor de la más temprana a la más tardía y al final el whirlpool")
+    void detalle_guiaDeHervidoUnaLineaPorAdicion() throws Exception {
         // Arrange
-        VersionRecetaResponseDTO recetaConLupuloRepetido = VersionRecetaResponseDTO.builder().id(30L).nombre("Pale Ale").duracionHervido(90)
-                .detallesLupulo(List.of(
-                        DetalleLupuloResponseDTO.builder().cantidad(15.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(15.0).lupulo(cascade()).build(),
-                        DetalleLupuloResponseDTO.builder().cantidad(25.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(60.0).lupulo(cascade()).build(),
-                        DetalleLupuloResponseDTO.builder().cantidad(15.0).uso(UsoLupulo.WHIRLPOOL).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(0.0).lupulo(citra()).build(),
-                        DetalleLupuloResponseDTO.builder().cantidad(10.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(30.0).lupulo(cascade()).build(),
-                        DetalleLupuloResponseDTO.builder().cantidad(5.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(10.0).lupulo(mosaic()).build(),
-                        DetalleLupuloResponseDTO.builder().cantidad(7.0).uso(UsoLupulo.WHIRLPOOL).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(0.0).lupulo(mosaic()).build(),
-                        DetalleLupuloResponseDTO.builder().cantidad(40.0).uso(UsoLupulo.DRY_HOP).etapaDeUso(TipoEtapa.MADURACION).tiempoDeHervor(0.0).lupulo(cascade()).build()))
-                .build();
-        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO))
-                .versionReceta(VersionRecetaDePlanificacionResponseDTO.builder().idPlanificacion(7L).idReceta(3L).numeroVersion(3).cantidadVersiones(3).version(recetaConLupuloRepetido).build())
-                .build());
         when(loteServicio.calcularAguaDelLote(12L)).thenReturn(agua(60.0, List.of()));
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(
-                requerido(cascade(), UnidadDeMedida.GRAMO, 50.0, 50.0, 0.0), requerido(citra(), UnidadDeMedida.GRAMO, 15.0, 15.0, 0.0),
-                requerido(mosaic(), UnidadDeMedida.GRAMO, 12.0, 12.0, 0.0)));
+        when(consumoInsumoServicio.filtrarAdicionesLupulo(1003L)).thenReturn(List.of(
+                adicion("Mosaic", UsoLupulo.WHIRLPOOL, 0.0, 7.0), adicion("Cascade", UsoLupulo.HERVOR, 15.0, 15.5),
+                adicion("Saaz", UsoLupulo.HERVOR, 90.0, 215.0), adicion("Cascade", UsoLupulo.HERVOR, 60.0, 25.0),
+                adicion("Mosaic", UsoLupulo.HERVOR, 10.0, 5.0), adicion("Citra", UsoLupulo.DRY_HOP, 0.0, 40.0)));
 
         // Act
         String guia = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido"), "data-guia");
 
-        // Assert: una línea por insumo, con la cantidad total que calcula el service y los tiempos de la receta
-        assertThat(texto(elementoConTexto(guia, "li", "Cascade"))).isEqualTo("Cascade: 50 g, a los 60 min, 30 min y 15 min de hervor");
-        assertThat(texto(elementoConTexto(guia, "li", "Citra"))).isEqualTo("Citra: 15 g, en el whirlpool");
-        assertThat(texto(elementoConTexto(guia, "li", "Mosaic"))).isEqualTo("Mosaic: 12 g, a los 10 min de hervor y en el whirlpool");
-        assertThat(cuenta(guia, "data-lupulo>") + cuenta(guia, "data-lupulo ")).isEqualTo(3);
-        assertThat(guia).doesNotContain("<table");
+        // Assert
+        List<String> lineas = new ArrayList<>();
+        Matcher m = Pattern.compile("(?s)<li[^>]*data-lupulo[^>]*>.*?</li>").matcher(guia);
+        while (m.find()) {
+            lineas.add(texto(m.group()));
+        }
+        assertThat(lineas).containsExactly(
+                "Saaz: 215 g, agregar al inicio del hervor",
+                "Cascade: 25 g, agregar cuando falten 60 min para terminar el hervor",
+                "Cascade: 15,5 g, agregar cuando falten 15 min para terminar el hervor",
+                "Mosaic: 5 g, agregar cuando falten 10 min para terminar el hervor",
+                "Mosaic: 7 g, agregar en el whirlpool");
+        assertThat(guia).doesNotContain("<table").doesNotContain("Citra");
     }
 
     @Test
-    @DisplayName("CP-LCT-138: en la lista toda la fila abre el lote (data-href y script) y el código es un enlace real al detalle; no hay columna de acciones ni el link Ver con el ojo")
-    void listar_laFilaEsClickeableYElCodigoEsUnEnlace() throws Exception {
+    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón Gestionar lote (ícono bi-gear) hacia el detalle; la fila no es clickeable y el código es texto")
+    void listar_cadaFilaTieneElBotonGestionarLote() throws Exception {
         // Arrange
         LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
         when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
@@ -2543,13 +2540,14 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        String fila = bloque(html, "data-fila-lote");
-        assertThat(fila).contains("data-href=\"/lotes/12\"").contains("cursor-pointer");
-        Matcher enlace = Pattern.compile("<a[^>]*data-lote-codigo[^>]*>[^<]*</a>").matcher(fila);
-        assertThat(enlace.find()).isTrue();
-        assertThat(enlace.group()).contains("href=\"/lotes/12\"").contains("PALE_ALE-R7-3");
-        assertThat(html).contains("/js/lote-lista.js");
-        assertThat(texto(html)).doesNotContain("Acciones");
+        Matcher boton = Pattern.compile("<a[^>]*data-gestionar-lote[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
+        assertThat(boton.find()).isTrue();
+        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear");
+        assertThat(texto(boton.group())).isEqualTo("Gestionar lote");
+        assertThat(boton.find()).isFalse();
+        assertThat(celdas(html, "PALE_ALE-R7-3").get(0)).isEqualTo("PALE_ALE-R7-3");
+        assertThat(texto(html.substring(html.indexOf("<thead"), html.indexOf("</thead>")))).endsWith("Acciones");
+        assertThat(html).doesNotContain("data-fila-lote").doesNotContain("data-href").doesNotContain("data-lote-codigo").doesNotContain("/js/lote-lista.js");
         assertThat(html).doesNotContain("bi-eye").doesNotContain("aria-label=\"Ver lote\"");
     }
 
@@ -2858,6 +2856,11 @@ class LoteControllerTest {
 
     private static LupuloResponseDTO cascade() {
         return LupuloResponseDTO.builder().id(31L).nombre("Cascade").unidadDeMedida(UnidadDeMedida.GRAMO).build();
+    }
+
+    private static AdicionLupuloResponseDTO adicion(String nombre, UsoLupulo uso, double tiempoDeHervor, double cantidad) {
+        return AdicionLupuloResponseDTO.builder().nombreInsumo(nombre).unidadDeMedida(UnidadDeMedida.GRAMO).uso(uso)
+                .tiempoDeHervor(tiempoDeHervor).cantidad(cantidad).build();
     }
 
     private static LupuloResponseDTO mosaic() {

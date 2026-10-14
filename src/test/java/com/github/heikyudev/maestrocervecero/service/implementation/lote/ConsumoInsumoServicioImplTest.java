@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMa
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
@@ -28,7 +29,9 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoI
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.AdicionLupulo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import org.hibernate.proxy.HibernateProxy;
@@ -1162,6 +1165,45 @@ class ConsumoInsumoServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getContent().get(0).getFechaRegistro()).isEqualTo(LocalDateTime.of(2027, 7, 1, 9, 15));
+    }
+
+    // ==================== filtrarAdicionesLupulo ====================
+
+    @Test
+    @DisplayName("CP-FAL-01: filtrarAdicionesLupulo lanza RecursoNoEncontradoException si la etapa de lote no existe")
+    void filtrarAdicionesLupulo_debeLanzarExcepcionSiEtapaLoteNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.filtrarAdicionesLupulo(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la etapa de lote con ID: 99");
+        verifyNoInteractions(escaladoInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-FAL-02: filtrarAdicionesLupulo mapea cada adición del servicio de escalado, sin fusionar las del mismo lúpulo")
+    void filtrarAdicionesLupulo_debeMapearCadaAdicion() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity insumo = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaHervido = crearEtapaLote(3L, TipoEtapa.HERVIDO, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(3L)).thenReturn(Optional.of(etapaHervido));
+        when(escaladoInsumoServicio.calcularAdicionesLupulo(etapaHervido)).thenReturn(List.of(
+                new AdicionLupulo(insumo, UsoLupulo.HERVOR, 60.0, 215.0),
+                new AdicionLupulo(insumo, UsoLupulo.HERVOR, 15.0, 25.5),
+                new AdicionLupulo(insumo, UsoLupulo.WHIRLPOOL, 0.0, 10.0)));
+
+        // === EJECUCION ===
+        List<AdicionLupuloResponseDTO> resultado = consumoInsumoServicio.filtrarAdicionesLupulo(3L);
+
+        // === ASSERTS ===
+        assertThat(resultado).hasSize(3);
+        assertThat(resultado).extracting(AdicionLupuloResponseDTO::getCantidad).containsExactly(215.0, 25.5, 10.0);
+        assertThat(resultado).extracting(AdicionLupuloResponseDTO::getTiempoDeHervor).containsExactly(60.0, 15.0, 0.0);
+        assertThat(resultado).extracting(AdicionLupuloResponseDTO::getUso).containsExactly(UsoLupulo.HERVOR, UsoLupulo.HERVOR, UsoLupulo.WHIRLPOOL);
+        assertThat(resultado.get(0).getNombreInsumo()).isEqualTo(insumo.getNombre());
     }
 
     // ==================== filtrarInsumosRequeridos ====================

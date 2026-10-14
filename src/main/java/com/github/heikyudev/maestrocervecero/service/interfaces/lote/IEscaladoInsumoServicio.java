@@ -117,4 +117,15 @@ public interface IEscaladoInsumoServicio {
      * @return Los requerimientos de esa etapa puntual, cada uno asociado a ella.
      */
     List<RequerimientoInsumo> calcularRequerimientosEtapa(EtapaLoteEntity etapaLote);
+
+    /**
+     * Calcula las adiciones de lúpulo de una etapa de lote, una por cada detalle de lúpulo de la receta que apunta a esa
+     * etapa, con la cantidad que le toca a cada una. Es la misma cuenta que usan los requerimientos de la etapa, pero
+     * sin fusionar las adiciones del mismo lúpulo: la suma de las cantidades de un lúpulo coincide con su requerimiento
+     * (salvo el redondeo de cada adición). Es de solo lectura.
+     *
+     * @param etapaLote La etapa de lote sobre la que calcular las adiciones.
+     * @return Las adiciones de lúpulo de esa etapa; vacía si la receta no usa lúpulo en ella.
+     */
+    List<AdicionLupulo> calcularAdicionesLupulo(EtapaLoteEntity etapaLote);
 }

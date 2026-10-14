@@ -72,7 +72,7 @@
 
             <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->
             <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
-                <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar-check', 'Planificación de Producción')}"></a>
+                <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar3', 'Planificación de Producción')}"></a>
             </th:block>
 
             <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción: lo gestiona; Operario de Producción: lo consulta) -->

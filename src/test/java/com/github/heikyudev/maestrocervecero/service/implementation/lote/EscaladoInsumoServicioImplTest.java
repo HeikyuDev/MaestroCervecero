@@ -25,6 +25,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.AdicionLupulo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
@@ -359,6 +360,78 @@ class EscaladoInsumoServicioImplTest {
         assertThat(reqCentennial.cantidadRequerida()).isCloseTo(64.27, within(0.01));
         assertThat(reqCascade.etapa()).isEqualTo(etapaHervido);
         assertThat(reqCentennial.etapa()).isEqualTo(etapaHervido);
+    }
+
+    @Test
+    @DisplayName("CP-EI-CA-01: calcularAdicionesLupulo devuelve una adición por detalle de HERVOR de la etapa, con su tiempo de hervor, y las cantidades de un mismo lúpulo suman su requerimiento fusionado")
+    void calcularAdicionesLupulo_debeDevolverUnaAdicionPorDetalleQueSumaElRequerimiento() {
+        // === PREPARACION DE DATOS ===
+        LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
+        LupuloEntity centennial = crearLupulo(4L, "Centennial", 10.0, FormatoLupulo.PELLET);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of()).detallesLevadura(List.of())
+                .detallesLupulo(List.of(
+                        detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade),
+                        detalleLupulo(10.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 15.0, cascade),
+                        detalleLupulo(10.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 15.0, centennial)))
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 100.0);
+        EtapaLoteEntity etapaHervido = lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO);
+
+        // === EJECUCION ===
+        List<AdicionLupulo> adiciones = escaladoInsumoServicio.calcularAdicionesLupulo(etapaHervido);
+        List<RequerimientoInsumo> requerimientos = escaladoInsumoServicio.calcularRequerimientosEtapa(etapaHervido);
+
+        // === ASSERTS ===
+        assertThat(adiciones).hasSize(3);
+        assertThat(adiciones).extracting(AdicionLupulo::tiempoDeHervor).containsExactly(60.0, 15.0, 15.0);
+        assertThat(adiciones).allSatisfy(adicion -> assertThat(adicion.uso()).isEqualTo(UsoLupulo.HERVOR));
+        double sumaCascade = adiciones.stream().filter(a -> a.insumo().equals(cascade)).mapToDouble(AdicionLupulo::cantidad).sum();
+        double requeridoCascade = requerimientos.stream().filter(r -> r.insumo().equals(cascade)).findFirst().orElseThrow().cantidadRequerida();
+        assertThat(sumaCascade).isCloseTo(requeridoCascade, within(0.001));
+        assertThat(adiciones.get(0).cantidad()).isGreaterThan(adiciones.get(1).cantidad());
+    }
+
+    @Test
+    @DisplayName("CP-EI-CA-02: calcularAdicionesLupulo informa el whirlpool y el hervor del mismo lúpulo por separado, con tiempo 0 en el whirlpool, y no incluye los detalles de otra etapa")
+    void calcularAdicionesLupulo_debeSepararHervorYWhirlpoolDelMismoLupulo() {
+        // === PREPARACION DE DATOS ===
+        LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of()).detallesLevadura(List.of())
+                .detallesLupulo(List.of(
+                        detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade),
+                        detalleLupulo(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, 0.0, cascade),
+                        detalleLupulo(5.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, cascade)))
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+
+        // === EJECUCION ===
+        List<AdicionLupulo> adiciones = escaladoInsumoServicio.calcularAdicionesLupulo(lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO));
+
+        // === ASSERTS ===
+        assertThat(adiciones).hasSize(2);
+        assertThat(adiciones.get(0).uso()).isEqualTo(UsoLupulo.HERVOR);
+        assertThat(adiciones.get(0).tiempoDeHervor()).isEqualTo(60.0);
+        assertThat(adiciones.get(1).uso()).isEqualTo(UsoLupulo.WHIRLPOOL);
+        assertThat(adiciones.get(1).tiempoDeHervor()).isZero();
+        assertThat(adiciones.get(1).cantidad()).isCloseTo(10.0, within(0.001));
+    }
+
+    @Test
+    @DisplayName("CP-EI-CA-03: calcularAdicionesLupulo retorna una lista vacía cuando ningún detalle de lúpulo apunta a la etapa")
+    void calcularAdicionesLupulo_debeRetornarListaVaciaSinLupulosEnLaEtapa() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of()).detallesLevadura(List.of()).detallesLupulo(List.of())
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+
+        // === EJECUCION + ASSERTS ===
+        assertThat(escaladoInsumoServicio.calcularAdicionesLupulo(lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO))).isEmpty();
     }
 
     @Test

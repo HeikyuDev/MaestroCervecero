@@ -85,17 +85,17 @@ Lotes registrados, con el último registrado arriba
 +----------------------------------------------------------------------------------------+
 
 +- Resultados --------------------------------------------------------------------------+
-| Código            Planificación     Fermentador  Estado        Etapa actual  Estimado   Real          |
-| PALE_ALE-R7-3     #7 - Pale Ale     F-01         En ejecución  Hervido       01/07/2027  01/07/2027 08:30       |
+| Código            Planificación     Fermentador  Estado        Etapa actual  Estimado   Real                    Acciones |
+| PALE_ALE-R7-3     #7 - Pale Ale     F-01         En ejecución  Hervido       01/07/2027  01/07/2027 08:30  [Gestionar lote] |
 |                                                                               05/07/2027  -                    |
-| STOUT-R8-1        #8 - Stout        F-02         Pendiente     -             12/07/2027  -       |
+| STOUT-R8-1        #8 - Stout        F-02         Pendiente     -             12/07/2027  -                  [Gestionar lote] |
 |                                                                               20/07/2027  -                    |
 | 45 lotes · Página 1 de 3                                          [< Anterior] [Siguiente >]  |
 +----------------------------------------------------------------------------------------+
 * "Registrar lote" solo lo ve el gerente de producción.
 ```
 
-- Abrir un lote es lo principal de la lista: el código de cada fila es un link (`<a>`, ámbar y en negrita) al detalle y toda la fila es clickeable (`data-fila-lote` con `data-href`; el comportamiento está en `/js/lote-lista.js`). Un clic sobre un link o un botón de la fila no se duplica, seleccionar texto no navega, y con Ctrl o Cmd se abre en otra pestaña. Desde el teclado se usa el link del código. No hay columna de acciones.
+- Abrir un lote se hace con el botón "Gestionar lote" (ícono `bi-gear` y texto) que cierra cada fila, en la última columna, "Acciones", con el mismo patrón de botones de acción que las demás listas del sistema. La fila no es clickeable y el código es texto.
 
 - Criterios opcionales y combinables; "Planificación" y "Fermentador" son selectores de entidad (campo en blanco con ícono de lista que abre un buscador en modal, nunca un desplegable) con botón para quitar la selección. Los buscadores requieren `LOTE_CONSULTAR`: los usan el gerente y el operario. El buscador de planificaciones filtra por "Receta" y ofrece planificaciones de cualquier estado; el de fermentadores, por "Identificador", "Estado operativo" (desplegable del enum) e "Incluir dados de baja" (casilla desmarcada por defecto, que suma los fermentadores dados de baja que tienen lotes para poder filtrar su historial); el elegido se muestra en el campo, con "(dado de baja)" si corresponde. Solo "Estado" es un desplegable, porque es un enum chico. Un parámetro inválido o inexistente en la URL se ignora con un aviso amarillo y la lista se muestra sin ese filtro.
 - Páginas de 20. Desde el breakpoint `xl` las cuatro fechas (inicio y fin, estimados y reales) pasan a columnas propias.
@@ -169,20 +169,21 @@ Las seis pestañas tienen las mismas secciones, en este orden. Lo que cambia es 
 |                                                              [ Finalizar etapa ]o        |
 +- 2. TARJETA GUÍA (según la etapa) -----------------------------------------------------+
 | ...                                                                                      |
-+- 3. INSUMOS DE LA ETAPA ----------------------------------- [ Consumos de insumos ]c ---+
++- 3. INSUMOS DE LA ETAPA ---------------------------------------------------------------+
 | Insumo     Requerido (g)   Reservado (g)   Consumido (g)   Avance                       |
 | Cascade    25              10              15              15 de 25 g                   |
 | Citra      15              15              0               0 de 15 g                    |
 |   (o "Esta etapa no consume insumos")                                                    |
 | Avance para finalizar:  Cascade 60% de 80% requerido (!)                                 |
 |                         Citra 0% de 80% requerido (!)                                   |
+|                                                         [ Consumos de insumos ]c        |
 +------------------------------------------------------------------------------------------+
 o = solo el operario, con el lote En ejecución y esta etapa En curso.
 c = quien tiene CONSUMO_INSUMO_CONSULTAR (el operario), en las etapas que consumen insumos y con cualquier estado.
 ```
 
 - La franja de estado lleva el nombre de la etapa y, a la derecha, "Finalizar etapa" (en Envasado, "Finalizar envasado"), la acción principal: es un formulario POST con confirmación cuando hay JavaScript. No hay una tarjeta de acciones aparte.
-- "Consumos de insumos" está en la cabecera de la sección de insumos y lleva a la pantalla 4. Los consumos registrados no se listan en la pestaña: se consultan en esa pantalla.
+- "Consumos de insumos" cierra la sección de insumos, debajo de la tabla y alineado a la derecha, y lleva a la pantalla 4. Los consumos registrados no se listan en la pestaña: se consultan en esa pantalla.
 - El avance, bajo la tabla, muestra por insumo el porcentaje consumido frente al mínimo exigido ("75% de 80% requerido"). Con mínimo 0 dice "Sin consumo mínimo requerido". Solo aparece con la etapa en curso. El botón siempre está habilitado: el avance es informativo y, si no se alcanza el mínimo, el service rechaza y su mensaje se muestra en una alerta.
 - En Envasado, una cuarta sección lista los envasados registrados (barril, cantidad, estado y motivo si fue anulado) y en su cabecera lleva "Registrar envasado" para el operario con el envasado en curso (lleva a la pantalla 5).
 - Lo consumido frente a lo requerido se muestra solo en la tabla de insumos; la guía no lo repite.
@@ -218,12 +219,12 @@ Duración estimada        Macerador
 Volumen pre-hervor   Duración estimada   Olla de hervor
 345 L                90 minutos          OH-01
 Lúpulos a agregar
-  Saaz: 430,8403 g, a los 60 min y 15 min de hervor
-  Cascade: 125 g, en el whirlpool
-  Mosaic: 12 g, a los 10 min de hervor y en el whirlpool
+  Saaz: 215 g, agregar al inicio del hervor
+  Saaz: 25 g, agregar cuando falten 15 min para terminar el hervor
+  Cascade: 125 g, agregar en el whirlpool
 ```
 
-Los lúpulos son líneas de texto, sin tabla, una por lúpulo. El service suma las cantidades del mismo lúpulo en la etapa y la línea muestra esa cantidad total junto con todos los momentos de la receta: los tiempos de hervor del mayor al menor (unidos con coma y "y") y, si la receta lo usa en el whirlpool (uso Whirlpool, sin tiempo de hervor), "en el whirlpool", solo o a continuación del hervor.
+Los lúpulos son líneas de texto, sin tabla, una por adición. Cada línea lleva la cantidad propia de esa adición (un lúpulo usado dos veces aparece dos veces, sin sumar; la suma de sus adiciones es lo requerido en la tabla de insumos). Un lúpulo que hierve toda la duración del hervido se agrega "al inicio del hervor"; si no, "cuando falten N min para terminar el hervor", donde N es el tiempo de hervor de la receta. Las de whirlpool dicen "agregar en el whirlpool" y van al final. Se ordenan de la que se agrega antes a la que se agrega después.
 
 **Fermentación**
 
@@ -371,7 +372,7 @@ Un clic es un clic de mouse o un toque. Escribir en un campo no se cuenta como c
 | --- | --- | --- | --- |
 | Ver el cronograma | Gerente / operario (solo lectura) | "Cronograma de Producción" | 1 |
 | Ver los lotes en ejecución | Ambos | "Gestión de Lotes"; elegir estado "En ejecución" (1 clic para abrir la lista y 1 para elegir) y "Buscar" | 4 |
-| Abrir un lote | Ambos | "Gestión de Lotes"; clic en la fila (o en el código del lote) | 2 |
+| Abrir un lote | Ambos | "Gestión de Lotes"; "Gestionar lote" en la fila | 2 |
 | Filtrar los lotes de una planificación | Ambos | "Gestión de Lotes"; abrir el selector de planificación; "Elegir"; "Buscar" | 4 |
 | Registrar un lote desde la lista | Gerente | "Gestión de Lotes"; "Registrar lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
 | Registrar un lote desde una planificación | Gerente | "Planificación de Producción"; "Ver estado actual"; "Registrar lote" (la planificación ya está elegida); los cuatro equipos (8 clics); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 12 y 1 escritura |
