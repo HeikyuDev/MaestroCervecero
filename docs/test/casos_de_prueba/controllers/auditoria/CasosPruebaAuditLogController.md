@@ -28,3 +28,4 @@
 | **CP-AC-10** | Rol no autorizado | Rol `GERENTE_COMERCIAL` | `@PreAuthorize("hasRole('ADMINISTRADOR')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 | **CP-AC-11** | Visitante sin sesión | Sin autenticación | La URL exige estar autenticado | Redirige al login. No invoca al service. |
 | **CP-AC-12** | Parámetros inválidos | `fechaDesde: "no-es-una-fecha"`; y por separado `accion: "INVENTADA"` | El parámetro no se puede convertir | Redirige con la alerta de tipo `warning` "El valor indicado no es válido" en ambos casos. No invoca al service. |
+| **CP-AC-13** | Layout con recursos locales | Rol `ADMINISTRADOR`, `GET /auditoria` (el layout es el mismo de todas las pantallas autenticadas) | Los estilos y los íconos se sirven desde la aplicación | La página referencia `/css/tailwind.css` y `/vendor/bootstrap-icons/bootstrap-icons.min.css`, y no contiene `cdn.tailwindcss.com` ni `cdn.jsdelivr.net`. |

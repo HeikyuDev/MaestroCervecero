@@ -43,6 +43,21 @@ class LoginControllerTest {
     }
 
     @Test
+    @DisplayName("CP-LGC-08: la pantalla de login carga los estilos y los íconos locales, sin CDN, y esos recursos son públicos")
+    void login_cargaRecursosLocalesPublicosSinCdn() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/css/tailwind.css\"")))
+                .andExpect(content().string(containsString("href=\"/vendor/bootstrap-icons/bootstrap-icons.min.css\"")))
+                .andExpect(content().string(not(containsString("cdn.tailwindcss.com"))))
+                .andExpect(content().string(not(containsString("cdn.jsdelivr.net"))));
+
+        mockMvc.perform(get("/css/tailwind.css")).andExpect(status().isOk());
+        mockMvc.perform(get("/vendor/bootstrap-icons/bootstrap-icons.min.css")).andExpect(status().isOk());
+        mockMvc.perform(get("/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2")).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("CP-LGC-02: con el parámetro error muestra \"Usuario o contraseña incorrectos\"")
     void login_conErrorMuestraCredencialesIncorrectas() throws Exception {
         mockMvc.perform(get("/login").param("error", ""))

@@ -43,7 +43,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Recursos estáticos (CSS/JS/imágenes): no requieren login,
                         // si no, ni siquiera se vería bien la pantalla de login
-                        .requestMatchers("/css/**", "/js/**", "/img/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/img/**", "/vendor/**", "/favicon.ico").permitAll()
 
                         // La página de login y la de error deben ser públicas,
                         // si no se genera un loop infinito (pide login para ver el login)

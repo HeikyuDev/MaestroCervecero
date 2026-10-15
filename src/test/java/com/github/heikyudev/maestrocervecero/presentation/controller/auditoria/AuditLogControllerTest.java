@@ -81,6 +81,21 @@ class AuditLogControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-AC-13: el layout carga los estilos y los íconos desde recursos locales y no referencia ningún CDN")
+    void layout_cargaEstilosEIconosLocalesSinCdn() throws Exception {
+        when(auditLogService.filtrarAuditLogs(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        mockMvc.perform(get("/auditoria"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/css/tailwind.css\"")))
+                .andExpect(content().string(containsString("href=\"/vendor/bootstrap-icons/bootstrap-icons.min.css\"")))
+                .andExpect(content().string(not(containsString("cdn.tailwindcss.com"))))
+                .andExpect(content().string(not(containsString("cdn.jsdelivr.net"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-AC-02: sin filtros pide páginas de 20 ordenadas con la entrada más reciente primero, con todos los criterios en null")
     void listado_debePedirPaginasDe20ConLaMasRecientePrimero() throws Exception {
         when(auditLogService.filtrarAuditLogs(any(), any(), any(), any(), any(), any()))

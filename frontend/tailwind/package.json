@@ -1,0 +1,11 @@
+{
+  "name": "maestrocervecero-estilos",
+  "private": true,
+  "description": "Build of the static Tailwind CSS served by the application",
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i input.css -o ../../src/main/resources/static/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

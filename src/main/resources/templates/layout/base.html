@@ -9,11 +9,11 @@
            th:text="${titulos.get(opcionActiva) != null} ? ${titulos.get(opcionActiva)} + ' - Maestro Cervecero' : 'Maestro Cervecero'">Maestro Cervecero</title>
     <link rel="icon" type="image/x-icon" th:href="@{/img/logo-32x32.ico}" />
 
-    <!-- CDN Tailwind CSS (Motor JIT en desarrollo) -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS local (se reconstruye con frontend/tailwind) -->
+    <link rel="stylesheet" th:href="@{/css/tailwind.css}">
 
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap-icons/bootstrap-icons.min.css}">
 
     <!-- Modales y selectores de entidad (comportamiento compartido por todas las pantallas) -->
     <script th:src="@{/js/modales.js}" defer></script>
