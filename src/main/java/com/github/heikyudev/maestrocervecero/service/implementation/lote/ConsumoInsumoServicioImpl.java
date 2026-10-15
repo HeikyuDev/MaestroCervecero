@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IConsumoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
@@ -59,6 +60,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
 
     private final IConsumoInsumoRepository consumoInsumoRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
+    private final ILoteRepository loteRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
     private final IReservaInsumoRepository reservaInsumoRepository;
     private final IEscaladoInsumoServicio escaladoInsumoServicio;
@@ -129,7 +131,10 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         Long idLoteInsumo = validarLoteInsumoInformado(consumoInsumoFormDTO.getIdLoteInsumo());
         double cantidadConsumida = validarCantidadConsumida(consumoInsumoFormDTO.getCantidadConsumida());
 
-        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
+        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir. El lote se bloquea
+        //    antes de leer la etapa: el consumo no puede intercalarse con la finalización de la etapa ni con la
+        //    cancelación del lote
+        bloquearLoteDeLaEtapa(idEtapaLote);
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaConsumo(etapaLote);
@@ -210,7 +215,10 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         Long idLoteInsumo = validarLoteInsumoInformado(consumoInsumoFormDTO.getIdLoteInsumo());
         double cantidadConsumida = validarCantidadConsumida(consumoInsumoFormDTO.getCantidadConsumida());
 
-        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir
+        // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para consumir. El lote se bloquea
+        //    antes de leer la etapa: el consumo no puede intercalarse con la finalización de la etapa ni con la
+        //    cancelación del lote
+        bloquearLoteDeLaEtapa(idEtapaLote);
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
         validarEtapaHabilitadaParaConsumo(etapaLote);
@@ -344,7 +352,12 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
-        // 2. Validar que el consumo de insumo esté registrado en el sistema
+        // 2. Validar que el consumo de insumo esté registrado en el sistema, bloqueando antes su lote para que la
+        //    anulación no se intercale con la finalización de la etapa ni con la cancelación del lote
+        Long idLote = consumoInsumoRepository.buscarIdLoteDelConsumo(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el consumo de insumo con ID: " + id));
+        loteRepository.buscarPorIdParaActualizar(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
         ConsumoInsumoEntity consumoInsumo = consumoInsumoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el consumo de insumo con ID: " + id));
 
@@ -599,5 +612,20 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
      */
     private static String describirCantidad(double cantidad, LoteInsumoEntity loteInsumo) {
         return ValidacionesNumericas.formatearNumero(cantidad) + " " + loteInsumo.getInsumo().getUnidadDeMedida().getSimbolo();
+    }
+
+    /**
+     * Bloquea para escritura el lote de una etapa, antes de leer la etapa o cualquier lote de insumo (el lote precede a
+     * los lotes de insumo en el orden de bloqueo). Serializa el consumo con la finalización de la etapa, la cancelación
+     * del lote y los demás consumos del mismo lote.
+     *
+     * @param idEtapaLote El ID de la etapa de lote.
+     * @throws RecursoNoEncontradoException Si no existe la etapa o su lote.
+     */
+    private void bloquearLoteDeLaEtapa(Long idEtapaLote) {
+        Long idLote = etapaLoteRepository.buscarIdLoteDeLaEtapa(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
+        loteRepository.buscarPorIdParaActualizar(idLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
     }
 }

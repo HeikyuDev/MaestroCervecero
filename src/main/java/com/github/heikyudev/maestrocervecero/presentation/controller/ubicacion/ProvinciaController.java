@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -189,7 +190,7 @@ public class ProvinciaController {
         Long idPaisVigente = paisTexto == null ? null : idPais;
 
         Page<ProvinciaResponseDTO> provincias = provinciaServicio.filtrarProvincias(
-                vacioANulo(nombre), idPaisVigente, PageRequest.of(Math.max(pagina, 0), tamanio, ORDEN_ALFABETICO));
+                vacioANulo(nombre), idPaisVigente, PageRequest.of(Paginacion.numeroDePagina(pagina), tamanio, ORDEN_ALFABETICO));
 
         model.addAttribute("provincias", provincias);
         model.addAttribute("filtroNombre", nombre);

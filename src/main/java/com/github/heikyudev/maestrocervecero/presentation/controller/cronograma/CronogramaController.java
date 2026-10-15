@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -275,7 +276,7 @@ public class CronogramaController {
     public String buscarPlanificaciones(@RequestParam(required = false) String receta,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
-        Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_MAS_RECIENTE_PRIMERO);
+        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_MAS_RECIENTE_PRIMERO);
         Page<PlanificacionProduccionResponseDTO> planificaciones = planificacionServicio
                 .filtrarPlanificacionesPorNombreDeReceta(vacioANulo(receta), null, pageable);
 
@@ -301,7 +302,7 @@ public class CronogramaController {
                                       Model model) {
         EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
         String identificadorBuscado = vacioANulo(identificador);
-        Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_POR_IDENTIFICADOR);
+        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_POR_IDENTIFICADOR);
         Page<FermentadorResponseDTO> fermentadores = incluirDadosDeBaja
                 ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estado, pageable)
                 : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estado, pageable);

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -56,7 +57,7 @@ public class PaisController {
                                @RequestParam(defaultValue = "0") int pagina,
                                Model model) {
         Page<PaisResponseDTO> paises = paisServicio.filtrarPaises(
-                vacioANulo(nombre), PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_ALFABETICO));
+                vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_ALFABETICO));
 
         model.addAttribute("paises", paises);
         model.addAttribute("filtroNombre", nombre);
@@ -72,7 +73,7 @@ public class PaisController {
                                @RequestParam(defaultValue = "0") int pagina,
                                Model model) {
         Page<PaisResponseDTO> paises = paisServicio.filtrarPaises(
-                vacioANulo(nombre), PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+                vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
 
         model.addAttribute("paises", paises);
         model.addAttribute("filtroNombre", nombre);

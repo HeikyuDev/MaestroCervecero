@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.servlet.view.RedirectView;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -25,7 +28,7 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * Cada handler traduce la excepción en un par {@code mensaje}/{@code tipo} vía Flash
  * Attributes -el mismo contrato que ya consume {@code login.html}- y redirige de vuelta
- * al origen de la petición (header {@code Referer}), con un fallback a la raíz del sitio. Un buscador en modal no
+ * al origen de la petición (header {@code Referer}) solo si es del mismo sitio, con un fallback a la raíz. Un buscador en modal no
  * puede redirigir: responde con el estado HTTP del rechazo y el motivo como texto.
  * </p>
  */
@@ -99,7 +102,7 @@ public class ControllerAdvices {
         // Un rechazo de permisos siempre vuelve al origen con la alerta, también desde un buscador en modal
         redirectAttributes.addFlashAttribute("mensaje", "No tiene permisos para realizar esta acción");
         redirectAttributes.addFlashAttribute("tipo", TipoAlerta.DANGER.getCodigo());
-        return "redirect:" + resolveRedirectPath(request);
+        return volverAlOrigen(request);
     }
 
     /**
@@ -140,7 +143,7 @@ public class ControllerAdvices {
         }
         redirectAttributes.addFlashAttribute("mensaje", mensaje);
         redirectAttributes.addFlashAttribute("tipo", tipo.getCodigo());
-        return "redirect:" + resolveRedirectPath(request);
+        return volverAlOrigen(request);
     }
 
     private static boolean esBuscadorEnModal(HttpServletRequest request) {
@@ -148,8 +151,58 @@ public class ControllerAdvices {
         return ruta.contains("/buscador") || ruta.contains("/filtros");
     }
 
-    private String resolveRedirectPath(HttpServletRequest request) {
+    /**
+     * Vuelve al origen del pedido. La vista no expande llaves como variables de plantilla: una ruta con llaves en la
+     * cabecera {@code Referer} se redirige tal cual, sin evaluarse.
+     */
+    private static RedirectView volverAlOrigen(HttpServletRequest request) {
+        String ruta = resolverRutaRelativaDelReferer(request);
+        RedirectView vista = new RedirectView(ruta == null ? "/" : ruta, ruta == null);
+        vista.setExpandUriTemplateVariables(false);
+        return vista;
+    }
+
+    /**
+     * Convierte la cabecera {@code Referer} en una ruta relativa (ruta y consulta, sin fragmento), solo si apunta al
+     * mismo origen (esquema, servidor y puerto) que el pedido actual. Cualquier otro valor -ausente, mal formado, de
+     * otro sitio o con credenciales- devuelve {@code null}, y se vuelve a la raíz: la cabecera la controla el cliente
+     * y no puede usarse para redirigir a otro sitio.
+     */
+    static String resolverRutaRelativaDelReferer(HttpServletRequest request) {
         String referer = request.getHeader("Referer");
-        return (referer != null && !referer.isBlank()) ? referer : "/";
+        if (referer == null || referer.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = new URI(referer.trim());
+            if (uri.getScheme() == null && uri.getHost() == null && uri.getAuthority() == null) {
+                // Una ruta relativa ("/lotes?pagina=1") ya es del mismo sitio
+                return rutaConConsultaSiEsSegura(uri);
+            }
+            if (uri.getScheme() == null || uri.getHost() == null || uri.getUserInfo() != null
+                    || !uri.getScheme().equalsIgnoreCase(request.getScheme())
+                    || !uri.getHost().equalsIgnoreCase(request.getServerName())
+                    || puertoEfectivo(uri.getPort(), uri.getScheme()) != puertoEfectivo(request.getServerPort(), request.getScheme())) {
+                return null;
+            }
+            return rutaConConsultaSiEsSegura(uri);
+        } catch (URISyntaxException ex) {
+            return null;
+        }
+    }
+
+    private static String rutaConConsultaSiEsSegura(URI uri) {
+        String ruta = uri.getRawPath();
+        if (ruta == null || !ruta.startsWith("/") || ruta.startsWith("//") || ruta.contains("\\")) {
+            return null;
+        }
+        return uri.getRawQuery() == null ? ruta : ruta + "?" + uri.getRawQuery();
+    }
+
+    private static int puertoEfectivo(int puerto, String esquema) {
+        if (puerto != -1) {
+            return puerto;
+        }
+        return "https".equalsIgnoreCase(esquema) ? 443 : 80;
     }
 }

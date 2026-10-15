@@ -63,6 +63,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
@@ -82,6 +83,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -98,6 +100,24 @@ import java.util.stream.Collectors;
  * {@link EscaladoAgua}: al registrar el lote se usan los Pasos 2 y 3 para validar la capacidad de la olla de hervor
  * y del macerador, y {@link #calcularAguaDelLote(Long)} informa el agua de macerado, el agua de lavado y el agua
  * total (Pasos 3 a 5).
+ * </p>
+ * <h3>Orden canónico de bloqueo</h3>
+ * <p>
+ * Toda operación que bloquea filas para escritura lo hace en este único orden global (se pueden omitir niveles, pero
+ * nunca volver a uno anterior), de modo que dos transacciones nunca se esperen mutuamente:
+ * </p>
+ * <ol>
+ *     <li>planificación de producción;</li>
+ *     <li>fermentador, que actúa como exclusión mutua de su cola de lotes pendientes;</li>
+ *     <li>cola de lotes pendientes del fermentador, por fecha de inicio estimada e ID;</li>
+ *     <li>el lote (por ID);</li>
+ *     <li>los equipos del lote: molino, macerador, olla de hervor y fermentador;</li>
+ *     <li>los lotes de insumo, siempre por ID ascendente.</li>
+ * </ol>
+ * <p>
+ * {@link OrdenCanonicoDeBloqueo} cubre los cuatro primeros niveles. Como la entidad se lee recién después de
+ * bloquear, nunca se opera con datos anteriores al bloqueo; los lotes de insumo, que otras operaciones pueden haber
+ * cargado antes en la misma transacción, se vuelven a leer tras bloquearlos ({@code liberarReservas}).
  * </p>
  */
 @Service
@@ -139,6 +159,8 @@ public class LoteServicioImpl implements ILoteServicio {
     private final IEnvasadoLoteRepository envasadoLoteRepository;
     private final ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
     private final IPlanificacionProduccionServicio planificacionProduccionServicio;
+    private final EntityManager entityManager;
+    private final OrdenCanonicoDeBloqueo ordenCanonicoDeBloqueo;
 
     /**
      * Filtra los lotes registrados, opcionalmente por receta, identificador interno, estado,
@@ -424,9 +446,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO iniciarLote(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
-        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura en el orden canónico
+        //    (fermentador, cola pendiente y lote)
+        LoteEntity lote = ordenCanonicoDeBloqueo.bloquearLote(id, false);
 
         // 2. Validar que el lote se encuentre en estado PENDIENTE
         if (lote.getEstado() != EstadoLote.PENDIENTE) {
@@ -529,9 +551,9 @@ public class LoteServicioImpl implements ILoteServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoCancelacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de cancelación");
 
-        // 2. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
-        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+        // 2. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura en el orden canónico
+        //    (planificación, fermentador, cola pendiente y lote)
+        LoteEntity lote = ordenCanonicoDeBloqueo.bloquearLote(id, true);
 
         // 3. Validar que el lote se encuentre en un estado que permita cancelarlo
         if (lote.getEstado() != EstadoLote.PENDIENTE && lote.getEstado() != EstadoLote.EN_EJECUCION) {
@@ -575,9 +597,7 @@ public class LoteServicioImpl implements ILoteServicio {
         loteRepository.flush();
 
         // 9. Reencadenar los lotes pendientes del fermentador del lote cancelado (si el fermentador quedó
-        //    en ejecución, la cola arranca como mínimo mañana por el día de limpieza). Va antes que la
-        //    planificación para respetar el orden de bloqueo lote -> fermentador -> cola pendiente ->
-        //    planificación.
+        //    en ejecución, la cola arranca como mínimo mañana por el día de limpieza)
         reencadenarColaPendienteDeFermentador(obtenerIdFermentador(lote), estabaEnEjecucion);
 
         // 10. Si la planificación ya había cubierto su cantidad y este era su último lote vivo, se finaliza
@@ -607,8 +627,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO finalizarMolienda(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura: serializa la finalización
+        //    con los consumos, con la cancelación y con un segundo envío del mismo pedido
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
@@ -662,8 +683,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO finalizarMaceracion(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura: serializa la finalización
+        //    con los consumos, con la cancelación y con un segundo envío del mismo pedido
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
@@ -706,8 +728,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO finalizarHervido(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura: serializa la finalización
+        //    con los consumos, con la cancelación y con un segundo envío del mismo pedido
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
@@ -765,8 +788,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO finalizarFermentacion(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura: serializa la finalización
+        //    con los consumos, con la cancelación y con un segundo envío del mismo pedido
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
@@ -820,8 +844,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO finalizarMaduracion(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(id)
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura: serializa la finalización
+        //    con los consumos, con la cancelación y con un segundo envío del mismo pedido
+        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
@@ -879,9 +904,9 @@ public class LoteServicioImpl implements ILoteServicio {
     public LoteResponseDTO finalizarEnvasado(Long id) {
         validarLoteInformado(id);
 
-        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura
-        LoteEntity lote = loteRepository.buscarPorIdParaActualizar(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
+        // 1. Validar que el lote esté registrado en el sistema, bloqueándolo para escritura en el orden canónico
+        //    (planificación, fermentador, cola pendiente y lote)
+        LoteEntity lote = ordenCanonicoDeBloqueo.bloquearLote(id, true);
 
         // 2. Validar que el lote se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
@@ -920,8 +945,7 @@ public class LoteServicioImpl implements ILoteServicio {
         loteRepository.flush();
 
         // 9. Reencadenar los lotes pendientes del fermentador: el lote estaba en ejecución y dejó sus equipos
-        //    sucios, así que la cola arranca como mínimo mañana. Va antes que la planificación para respetar el orden
-        //    de bloqueo lote -> fermentador -> cola pendiente -> planificación.
+        //    sucios, así que la cola arranca como mínimo mañana
         reencadenarColaPendienteDeFermentador(idFermentador, true);
 
         // 10. Si con este lote la planificación alcanzó su cantidad y no le quedan lotes vivos, se finaliza
@@ -1020,8 +1044,8 @@ public class LoteServicioImpl implements ILoteServicio {
      * y no le quedan lotes pendientes ni en ejecución.
      * <p>
      * Debe invocarse con el lote que originó el cambio ya persistido y volcado ({@code flush}), para
-     * que las consultas lo vean. La planificación se bloquea para escritura; el orden de bloqueo es
-     * siempre lote y luego planificación.
+     * que las consultas lo vean. La planificación se bloquea para escritura (ya lo está si el llamador bloqueó el
+     * lote con su planificación).
      * </p>
      */
     private void finalizarPlanificacionSiCorresponde(Long idPlanificacionProduccion) {
@@ -1166,14 +1190,27 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Libera un conjunto de reservas de insumo: por cada una, revierte la cantidad reservada
-     * sobre su {@link LoteInsumoEntity} (bloqueándolo para escritura, para evitar que otra
-     * operación concurrente lo modifique al mismo tiempo) y elimina la reserva — una reserva
-     * liberada deja de existir, no se conserva con algún indicador de "liberada".
+     * sobre su {@link LoteInsumoEntity} y elimina la reserva — una reserva liberada deja de existir, no se
+     * conserva con algún indicador de "liberada".
+     * <p>
+     * Las reservas se procesan por ID de lote de insumo ascendente (orden canónico de bloqueo). Cada lote de insumo se
+     * bloquea para escritura y se vuelve a leer ya bloqueado: la transacción pudo haberlo cargado antes (por ejemplo, al
+     * validar el consumo mínimo) y, de no releerlo, se escribirían de vuelta cantidades anteriores al bloqueo,
+     * pisando lo que otra operación confirmó mientras tanto.
+     * </p>
      */
     private void liberarReservas(List<ReservaInsumoEntity> reservas) {
-        for (ReservaInsumoEntity reserva : reservas) {
-            LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaLiberarReserva(reserva.getLoteInsumo().getId())
-                    .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + reserva.getLoteInsumo().getId()));
+        List<ReservaInsumoEntity> reservasPorLoteInsumo = reservas.stream()
+                .sorted(Comparator.comparing(reserva -> reserva.getLoteInsumo().getId()))
+                .toList();
+        Set<Long> lotesInsumoReleidos = new HashSet<>();
+        for (ReservaInsumoEntity reserva : reservasPorLoteInsumo) {
+            Long idLoteInsumo = reserva.getLoteInsumo().getId();
+            LoteInsumoEntity loteInsumo = loteInsumoRepository.buscarPorIdParaLiberarReserva(idLoteInsumo)
+                    .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote de insumo con ID: " + idLoteInsumo));
+            if (lotesInsumoReleidos.add(idLoteInsumo)) {
+                entityManager.refresh(loteInsumo);
+            }
             loteInsumo.liberarReserva(reserva.getCantidadReservada());
             loteInsumoRepository.save(loteInsumo);
         }
@@ -1410,15 +1447,21 @@ public class LoteServicioImpl implements ILoteServicio {
                     (acumulada, nueva) -> Redondeo.redondear(acumulada + nueva));
         }
 
+        // Una sola consulta bloquea las filas de todos los insumos en orden de ID (orden canónico de bloqueo); el orden
+        // FEFO (vencimiento ascendente) se aplica después en memoria
+        Map<Long, List<LoteInsumoEntity>> candidatosPorInsumo = loteInsumoRepository
+                .buscarNoVencidosPorInsumosIdsParaReservar(cantidadRequeridaPorInsumo.keySet(), LocalDate.now()).stream()
+                .collect(Collectors.groupingBy(loteInsumo -> loteInsumo.getInsumo().getId()));
+
         Map<Long, List<LoteInsumoEntity>> stockPorInsumo = new LinkedHashMap<>();
         List<String> faltantes = new ArrayList<>();
-        LocalDate hoy = LocalDate.now();
 
         for (Map.Entry<Long, Double> entry : cantidadRequeridaPorInsumo.entrySet()) {
             Long idInsumo = entry.getKey();
             double cantidadRequeridaTotal = entry.getValue();
-            List<LoteInsumoEntity> lotesDisponibles = loteInsumoRepository
-                    .buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(idInsumo, hoy);
+            List<LoteInsumoEntity> lotesDisponibles = candidatosPorInsumo.getOrDefault(idInsumo, List.of()).stream()
+                    .sorted(Comparator.comparing(LoteInsumoEntity::getFechaVencimiento).thenComparing(LoteInsumoEntity::getId))
+                    .toList();
 
             double totalDisponible = Redondeo.redondear(lotesDisponibles.stream().mapToDouble(LoteInsumoEntity::getCantidadDisponible).sum());
             if (totalDisponible < cantidadRequeridaTotal) {
@@ -1869,16 +1912,16 @@ public class LoteServicioImpl implements ILoteServicio {
     private LoteCronogramaResponseDTO moverLoteEnCola(Long idLote, int desplazamiento) {
         validarLoteInformado(idLote);
 
-        // 1. Validar que el lote esté registrado en el sistema
-        LoteEntity lote = loteRepository.findById(idLote)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote));
+        // 1. Validar que el lote esté registrado en el sistema, bloqueando su fermentador, la cola pendiente de ese
+        //    fermentador y el lote en el orden canónico
+        LoteEntity lote = ordenCanonicoDeBloqueo.bloquearLote(idLote, false);
 
         // 2. Validar que el lote se encuentre en estado PENDIENTE
         if (lote.getEstado() != EstadoLote.PENDIENTE) {
             throw new ReglaNegocioException(MENSAJE_SOLO_MOVER_PENDIENTES);
         }
 
-        // 3. Resolver su fermentador y bloquear toda la cola pendiente de ese fermentador
+        // 3. Recuperar la cola pendiente del fermentador, ya bloqueada
         Long idFermentador = obtenerIdFermentador(lote);
         List<LoteEntity> colaPendiente = new ArrayList<>(loteRepository.buscarPendientesDeFermentadorParaReordenar(idFermentador));
 

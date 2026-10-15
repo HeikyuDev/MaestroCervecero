@@ -23,6 +23,7 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IConsumoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularConsumoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.ConsumoInsumoFormDTO;
@@ -36,9 +37,11 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoIn
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -57,6 +60,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -74,6 +79,8 @@ class ConsumoInsumoServicioImplTest {
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
     @Mock
+    private ILoteRepository loteRepository;
+    @Mock
     private ILoteInsumoRepository loteInsumoRepository;
     @Mock
     private IReservaInsumoRepository reservaInsumoRepository;
@@ -82,6 +89,88 @@ class ConsumoInsumoServicioImplTest {
 
     @InjectMocks
     private ConsumoInsumoServicioImpl consumoInsumoServicio;
+
+    private static final Long ID_LOTE_BLOQUEADO = 500L;
+
+    /** Todo consumo bloquea primero el lote de su etapa: por defecto existe y se puede bloquear. */
+    @BeforeEach
+    void bloquearElLoteDeLaEtapaPorDefecto() {
+        lenient().when(etapaLoteRepository.buscarIdLoteDeLaEtapa(anyLong())).thenReturn(Optional.of(ID_LOTE_BLOQUEADO));
+        lenient().when(consumoInsumoRepository.buscarIdLoteDelConsumo(anyLong())).thenReturn(Optional.of(ID_LOTE_BLOQUEADO));
+        lenient().when(loteRepository.buscarPorIdParaActualizar(ID_LOTE_BLOQUEADO)).thenReturn(Optional.of(new LoteEntity()));
+    }
+
+    // ==================== bloqueo del lote ====================
+
+    @Test
+    @DisplayName("CP-BLC-01: registrarConsumoInsumoReservado bloquea el lote de la etapa antes de leer la etapa y el lote de insumo")
+    void registrarReservado_debeBloquearElLoteAntesDeLeerLaEtapa() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.empty());
+        ConsumoInsumoFormDTO formDTO = ConsumoInsumoFormDTO.builder().idInsumo(1L).idLoteInsumo(10L).cantidadConsumida(1.0).build();
+
+        // === EJECUCION ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(etapaLoteRepository, loteRepository);
+        orden.verify(etapaLoteRepository).buscarIdLoteDeLaEtapa(1L);
+        orden.verify(loteRepository).buscarPorIdParaActualizar(ID_LOTE_BLOQUEADO);
+        orden.verify(etapaLoteRepository).findById(1L);
+        verifyNoInteractions(loteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-BLC-02: registrarConsumoInsumoDirecto bloquea el lote de la etapa antes de leer la etapa y el lote de insumo")
+    void registrarDirecto_debeBloquearElLoteAntesDeLeerLaEtapa() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.empty());
+        ConsumoInsumoFormDTO formDTO = ConsumoInsumoFormDTO.builder().idInsumo(1L).idLoteInsumo(10L).cantidadConsumida(1.0).build();
+
+        // === EJECUCION ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(etapaLoteRepository, loteRepository);
+        orden.verify(etapaLoteRepository).buscarIdLoteDeLaEtapa(1L);
+        orden.verify(loteRepository).buscarPorIdParaActualizar(ID_LOTE_BLOQUEADO);
+        orden.verify(etapaLoteRepository).findById(1L);
+        verifyNoInteractions(loteInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-BLC-03: anularConsumoInsumo bloquea el lote del consumo antes de leer el consumo")
+    void anularConsumoInsumo_debeBloquearElLoteAntesDeLeerElConsumo() {
+        // === PREPARACION DE DATOS ===
+        when(consumoInsumoRepository.findById(7L)).thenReturn(Optional.empty());
+        AnularConsumoInsumoFormDTO formDTO = AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Error de tipeo").build();
+
+        // === EJECUCION ===
+        assertThatThrownBy(() -> consumoInsumoServicio.anularConsumoInsumo(7L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(consumoInsumoRepository, loteRepository);
+        orden.verify(consumoInsumoRepository).buscarIdLoteDelConsumo(7L);
+        orden.verify(loteRepository).buscarPorIdParaActualizar(ID_LOTE_BLOQUEADO);
+        orden.verify(consumoInsumoRepository).findById(7L);
+    }
+
+    @Test
+    @DisplayName("CP-BLC-04: registrarConsumoInsumoReservado lanza RecursoNoEncontradoException sin bloquear nada cuando la etapa no existe")
+    void registrarReservado_debeRechazarEtapaInexistenteSinBloquear() {
+        // === PREPARACION DE DATOS ===
+        when(etapaLoteRepository.buscarIdLoteDeLaEtapa(99L)).thenReturn(Optional.empty());
+        ConsumoInsumoFormDTO formDTO = ConsumoInsumoFormDTO.builder().idInsumo(1L).idLoteInsumo(10L).cantidadConsumida(1.0).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(99L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la etapa de lote con ID: 99");
+        verifyNoInteractions(loteRepository, loteInsumoRepository);
+    }
 
     // ==================== filtrarConsumosInsumo ====================
 

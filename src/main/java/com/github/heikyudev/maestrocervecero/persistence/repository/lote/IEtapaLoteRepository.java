@@ -69,4 +69,13 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
             "WHERE e.equipamiento.id = :idEquipamiento " +
             "AND (e.estado = 'FINALIZADA' OR (e.estado = 'CANCELADA' AND e.fechaInicio IS NOT NULL))")
     Optional<LocalDateTime> buscarFechaUltimaParticipacionRegistrada(@Param("idEquipamiento") Long idEquipamiento);
+
+    /**
+     * Resuelve, sin cargar la etapa, el ID del lote al que pertenece. Permite bloquear el lote antes de leer la etapa.
+     *
+     * @param idEtapaLote El ID de la etapa de lote.
+     * @return El ID del lote, o vacío si la etapa no existe.
+     */
+    @Query("SELECT e.lote.id FROM EtapaLoteEntity e WHERE e.id = :idEtapaLote")
+    Optional<Long> buscarIdLoteDeLaEtapa(@Param("idEtapaLote") Long idEtapaLote);
 }

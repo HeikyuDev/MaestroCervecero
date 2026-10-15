@@ -193,8 +193,8 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      * de Fermentación), ordenados por fecha de inicio estimada y, ante igual fecha, por ID.
      * <p>
      * Se usa para reordenar la cola de un fermentador sin que otra operación concurrente la
-     * modifique al mismo tiempo. Carga la planificación de cada lote, que el reencadenado de fechas
-     * necesita, para evitar una consulta por lote.
+     * modifique al mismo tiempo. No carga con la consulta la planificación de cada lote: el bloqueo alcanzaría también
+     * a las filas de las planificaciones, que en el orden canónico de bloqueo van antes que la cola.
      * </p>
      *
      * @param idFermentador El ID del fermentador cuya cola pendiente se quiere recuperar.
@@ -202,7 +202,6 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT l FROM LoteEntity l " +
-            "JOIN FETCH l.planificacionProduccion " +
             "JOIN l.etapas e " +
             "WHERE l.estado = 'PENDIENTE' AND e.etapa = 'FERMENTACION' AND e.equipamiento.id = :idFermentador " +
             "ORDER BY l.fechaInicioEstimada ASC, l.id ASC")
@@ -222,6 +221,25 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT l FROM LoteEntity l WHERE l.id = :id")
     Optional<LoteEntity> buscarPorIdParaActualizar(@Param("id") Long id);
+
+    /**
+     * Resuelve, sin cargar el lote ni bloquear nada, el ID del fermentador (equipamiento de su etapa de Fermentación)
+     * de un lote. Permite bloquear el fermentador y su cola antes que el lote, según el orden canónico de bloqueo.
+     *
+     * @param id El ID del lote.
+     * @return El ID del fermentador, o vacío si el lote no existe.
+     */
+    @Query("SELECT e.equipamiento.id FROM EtapaLoteEntity e WHERE e.lote.id = :id AND e.etapa = 'FERMENTACION'")
+    Optional<Long> buscarIdFermentadorDelLote(@Param("id") Long id);
+
+    /**
+     * Resuelve, sin cargar el lote ni bloquear nada, el ID de la planificación de producción de un lote.
+     *
+     * @param id El ID del lote.
+     * @return El ID de la planificación, o vacío si el lote no existe.
+     */
+    @Query("SELECT l.planificacionProduccion.id FROM LoteEntity l WHERE l.id = :id")
+    Optional<Long> buscarIdPlanificacionDelLote(@Param("id") Long id);
 
     /**
      * Suma el volumen objetivo de los lotes vivos (PENDIENTE o EN_EJECUCION) de una planificación de

@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repositorio JPA de los consumos de insumo ({@link ConsumoInsumoEntity}).
@@ -52,4 +53,13 @@ public interface IConsumoInsumoRepository extends JpaRepository<ConsumoInsumoEnt
                                                      @Param("idInsumo") Long idInsumo,
                                                      @Param("estado") EstadoTransaccion estado,
                                                      Pageable pageable);
+
+    /**
+     * Resuelve, sin cargar el consumo, el ID del lote de su etapa. Permite bloquear el lote antes de leer el consumo.
+     *
+     * @param id El ID del consumo de insumo.
+     * @return El ID del lote, o vacío si el consumo no existe.
+     */
+    @Query("SELECT c.etapaLote.lote.id FROM ConsumoInsumoEntity c WHERE c.id = :id")
+    Optional<Long> buscarIdLoteDelConsumo(@Param("id") Long id);
 }

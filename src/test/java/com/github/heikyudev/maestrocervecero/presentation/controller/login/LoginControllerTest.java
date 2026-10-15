@@ -83,12 +83,22 @@ class LoginControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LGC-06: un mensaje explícito recibido por parámetro tiene prioridad sobre los avisos de timeout y expired")
-    void login_conMensajeExplicitoNoLoPisanTimeoutNiExpired() throws Exception {
-        mockMvc.perform(get("/login").param("timeout", "").param("mensaje", "Mantenimiento programado").param("tipo", "info"))
+    @DisplayName("CP-LGC-06: los parámetros mensaje y tipo de la URL se ignoran y nunca se muestran en la pantalla pública")
+    void login_ignoraMensajeYTipoRecibidosPorParametro() throws Exception {
+        mockMvc.perform(get("/login").param("mensaje", "Comuniquese al 0800-FALSO").param("tipo", "danger"))
                 .andExpect(status().isOk())
-                .andExpect(model().attribute("mensaje", "Mantenimiento programado"))
-                .andExpect(content().string(containsString("Mantenimiento programado")))
+                .andExpect(model().attributeDoesNotExist("mensaje"))
+                .andExpect(model().attributeDoesNotExist("tipo"))
+                .andExpect(content().string(not(containsString("Comuniquese al 0800-FALSO"))));
+    }
+
+    @Test
+    @DisplayName("CP-LGC-07: un aviso enviado como atributo flash por otra pantalla se muestra y prevalece sobre el aviso de timeout")
+    void login_muestraElAvisoFlashDeOtraPantalla() throws Exception {
+        mockMvc.perform(get("/login").param("timeout", "").flashAttr("mensaje", "Cambió su nombre de usuario: inicie sesión nuevamente").flashAttr("tipo", "info"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("mensaje", "Cambió su nombre de usuario: inicie sesión nuevamente"))
+                .andExpect(content().string(containsString("Cambió su nombre de usuario: inicie sesión nuevamente")))
                 .andExpect(content().string(not(containsString("Su sesión venció por inactividad"))));
     }
 }

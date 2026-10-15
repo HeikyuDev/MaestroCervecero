@@ -112,4 +112,13 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
             + "AND e.estado = com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion.REGISTRADO "
             + "AND l.estado = com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.FINALIZADO")
     double sumarLitrosProducidosDePlanificacion(@Param("idPlanificacion") Long idPlanificacion);
+
+    /**
+     * Resuelve, sin cargar el envasado, el ID del lote de su etapa. Permite bloquear el lote antes de leer el envasado.
+     *
+     * @param id El ID del envasado de lote.
+     * @return El ID del lote, o vacío si el envasado no existe.
+     */
+    @Query("SELECT e.etapaLote.lote.id FROM EnvasadoLoteEntity e WHERE e.id = :id")
+    Optional<Long> buscarIdLoteDelEnvasado(@Param("id") Long id);
 }

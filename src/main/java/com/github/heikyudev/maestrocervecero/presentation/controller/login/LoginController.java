@@ -19,21 +19,20 @@ public class LoginController {
                             @RequestParam(value = "logout", required = false) String logout,
                             @RequestParam(value = "timeout", required = false) String timeout,
                             @RequestParam(value = "expired", required = false) String expired,
-                            @RequestParam(value = "mensaje", required = false) String mensaje,
-                            @RequestParam(value = "tipo", required = false) String tipo,
                             @RequestParam(value = "redirect", required = false) String redirect,
                             Model model) {
         if (error != null) model.addAttribute("error", true);
         if (logout != null) model.addAttribute("logout", true);
-        if (mensaje != null) {
-            model.addAttribute("mensaje", mensaje);
-            model.addAttribute("tipo", tipo);
-        } else if (timeout != null) {
-            model.addAttribute("mensaje", "Su sesión venció por inactividad, inicie sesión nuevamente");
-            model.addAttribute("tipo", "warning");
-        } else if (expired != null) {
-            model.addAttribute("mensaje", "Su sesión se cerró porque se inició en otro dispositivo");
-            model.addAttribute("tipo", "warning");
+        // Los avisos solo salen de códigos fijos (timeout, expired) o de un aviso de otra pantalla enviado como atributo
+        // flash: la pantalla pública nunca muestra texto recibido por parámetro
+        if (!model.containsAttribute("mensaje")) {
+            if (timeout != null) {
+                model.addAttribute("mensaje", "Su sesión venció por inactividad, inicie sesión nuevamente");
+                model.addAttribute("tipo", "warning");
+            } else if (expired != null) {
+                model.addAttribute("mensaje", "Su sesión se cerró porque se inició en otro dispositivo");
+                model.addAttribute("tipo", "warning");
+            }
         }
         if (redirect != null && !redirect.isBlank()) {
             model.addAttribute("redirect", redirect);

@@ -40,7 +40,7 @@ class ControllerAdvicesTest {
     void violacionDeIntegridad_debeRedirigirConAlertaDeConflicto() throws Exception {
         mockMvc.perform(get("/falla-integridad").header("Referer", "http://localhost/clientes/nuevo"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("http://localhost/clientes/nuevo"))
+                .andExpect(redirectedUrl("/clientes/nuevo"))
                 .andExpect(flash().attribute("mensaje", MENSAJE_CONFLICTO))
                 .andExpect(flash().attribute("tipo", "danger"));
     }
@@ -67,7 +67,7 @@ class ControllerAdvicesTest {
     void valorInvalidoEnUnaPagina_debeRedirigirConAlertaAmarilla() throws Exception {
         mockMvc.perform(get("/pagina/abc").header("Referer", "http://localhost/lotes"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("http://localhost/lotes"))
+                .andExpect(redirectedUrl("/lotes"))
                 .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
                 .andExpect(flash().attribute("tipo", "warning"));
         mockMvc.perform(get("/pagina/abc"))
@@ -100,6 +100,43 @@ class ControllerAdvicesTest {
                     .andExpect(content().contentType("text/plain;charset=UTF-8"))
                     .andExpect(content().string(caso[2]));
         }
+    }
+
+    @Test
+    @DisplayName("CP-CA-07: un Referer de otro sitio no se usa para redirigir: se vuelve a la raíz con la alerta")
+    void refererDeOtroSitio_debeRedirigirALaRaiz() throws Exception {
+        for (String referer : new String[]{"http://sitio-malicioso.example/robo", "https://localhost/clientes",
+                "http://localhost:9999/clientes", "http://usuario@localhost/clientes", "//sitio-malicioso.example/robo",
+                "javascript:alert(1)", "no es una url"}) {
+            mockMvc.perform(get("/falla-integridad").header("Referer", referer))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/"))
+                    .andExpect(flash().attribute("mensaje", MENSAJE_CONFLICTO));
+        }
+    }
+
+    @Test
+    @DisplayName("CP-CA-08: un Referer del mismo sitio se convierte en ruta relativa conservando la consulta y descartando el fragmento")
+    void refererDelMismoSitio_debeConservarRutaYConsulta() throws Exception {
+        mockMvc.perform(get("/falla-integridad").header("Referer", "http://localhost/lotes?pagina=2&estado=PENDIENTE#fin"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/lotes?pagina=2&estado=PENDIENTE"));
+        mockMvc.perform(get("/falla-integridad").header("Referer", "http://localhost:80/clientes"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clientes"));
+        mockMvc.perform(get("/falla-integridad").header("Referer", "/lotes?pagina=1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/lotes?pagina=1"));
+    }
+
+    @Test
+    @DisplayName("CP-CA-09: las llaves de la ruta del Referer no se expanden como variables de plantilla")
+    void refererConLlaves_noDebeExpandirseComoVariableDePlantilla() throws Exception {
+        mockMvc.perform(get("/falla-integridad").header("Referer", "http://localhost/lotes/%7Bid%7D?filtro=%7Bx%7D"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/lotes/%7Bid%7D?filtro=%7Bx%7D"));
+        mockMvc.perform(get("/falla-integridad").header("Referer", "http://localhost/lotes/{id}"))
+                .andExpect(status().is3xxRedirection());
     }
 
     @Controller

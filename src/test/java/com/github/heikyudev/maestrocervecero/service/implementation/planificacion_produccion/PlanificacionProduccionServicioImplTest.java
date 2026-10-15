@@ -589,7 +589,7 @@ class PlanificacionProduccionServicioImplTest {
     @DisplayName("CP-APP-03: anularPlanificacionProduccion lanza RecursoNoEncontradoException cuando la planificación no existe")
     void anular_debeLanzarExcepcionSiNoExiste() {
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(planificacionProduccionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -603,7 +603,7 @@ class PlanificacionProduccionServicioImplTest {
     void anular_debeRechazarPlanificacionNoPendiente() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.FINALIZADA, LocalDate.of(2026, 3, 1));
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
 
         assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -618,7 +618,7 @@ class PlanificacionProduccionServicioImplTest {
     void anular_debeRechazarConLoteEnCursoAsociado() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(true);
 
         assertThatThrownBy(() -> planificacionProduccionServicio.anularPlanificacionProduccion(1L, formDTO))
@@ -633,7 +633,7 @@ class PlanificacionProduccionServicioImplTest {
     void anular_debeRechazarConLoteFinalizadoAsociado() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
 
@@ -650,7 +650,7 @@ class PlanificacionProduccionServicioImplTest {
         // === PREPARACION DE DATOS ===
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(false);
         when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
@@ -664,6 +664,22 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(planificacion.getMotivoAnulacion()).isEqualTo("Error de carga");
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.ANULADA);
         verify(planificacionProduccionRepository).save(planificacion);
+    }
+
+    @Test
+    @DisplayName("CP-APP-11: anularPlanificacionProduccion lee la planificación con el bloqueo de escritura (nunca sin bloqueo) para que no se registre un lote mientras se anula")
+    void anular_debeLeerLaPlanificacionBloqueada() {
+        // === PREPARACION DE DATOS ===
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
+
+        // === EJECUCION ===
+        planificacionProduccionServicio.anularPlanificacionProduccion(1L, anulacionFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
+        verify(planificacionProduccionRepository, never()).findById(any());
     }
 
     @Test
@@ -683,7 +699,7 @@ class PlanificacionProduccionServicioImplTest {
     void anular_debeAceptarMotivoDe255Caracteres() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("a".repeat(255));
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(false);
         when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
@@ -699,7 +715,7 @@ class PlanificacionProduccionServicioImplTest {
     void anular_debeNormalizarElMotivo() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         AnulacionPlanificacionProduccionFormDTO formDTO = anulacionFormDTO("   Error   de  carga  ");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(false);
         when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
@@ -740,7 +756,7 @@ class PlanificacionProduccionServicioImplTest {
     @DisplayName("CP-FZPP-03: finalizarPlanificacionProduccion lanza RecursoNoEncontradoException cuando la planificación no existe")
     void finalizar_debeLanzarExcepcionSiNoExiste() {
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("Cantidad producida insuficiente");
-        when(planificacionProduccionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -754,7 +770,7 @@ class PlanificacionProduccionServicioImplTest {
     void finalizar_debeRechazarPlanificacionNoPendiente() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.ANULADA, LocalDate.of(2026, 3, 1));
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("Cantidad producida insuficiente");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -769,7 +785,7 @@ class PlanificacionProduccionServicioImplTest {
     void finalizar_debeRechazarConLoteEnCursoAsociado() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("Cantidad producida insuficiente");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(true);
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
@@ -784,7 +800,7 @@ class PlanificacionProduccionServicioImplTest {
     void finalizar_debeRechazarSinLoteFinalizadoAsociado() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("Cantidad producida insuficiente");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(false);
 
@@ -801,7 +817,7 @@ class PlanificacionProduccionServicioImplTest {
         // === PREPARACION DE DATOS ===
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("Cantidad producida insuficiente");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
         when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
@@ -834,7 +850,7 @@ class PlanificacionProduccionServicioImplTest {
     void finalizar_debeAceptarMotivoDe255Caracteres() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("a".repeat(255));
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
         when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
@@ -850,7 +866,7 @@ class PlanificacionProduccionServicioImplTest {
     void finalizar_debeNormalizarElMotivo() {
         PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
         FinalizacionForzadaPlanificacionProduccionFormDTO formDTO = finalizacionFormDTO("   Se cubrió   la demanda  ");
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstadoIn(1L, List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION))).thenReturn(false);
         when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
         when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
@@ -859,6 +875,20 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThat(planificacion.getMotivoFinalizacion()).isEqualTo("Se cubrió la demanda");
         assertThat(formDTO.getMotivoFinalizacion()).isEqualTo("   Se cubrió   la demanda  ");
+    }
+
+    @Test
+    @DisplayName("CP-FZPP-11: finalizarPlanificacionProduccion lee la planificación con el bloqueo de escritura (nunca sin bloqueo) para que no se registre un lote mientras se finaliza")
+    void finalizar_debeLeerLaPlanificacionBloqueada() {
+        PlanificacionProduccionEntity planificacion = crearPlanificacionEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.of(2026, 3, 1));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(loteRepository.existsByPlanificacionProduccion_IdAndEstado(1L, EstadoLote.FINALIZADO)).thenReturn(true);
+        when(planificacionProduccionRepository.save(planificacion)).thenReturn(planificacion);
+
+        planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, finalizacionFormDTO("Se cubrió la demanda"));
+
+        verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
+        verify(planificacionProduccionRepository, never()).findById(any());
     }
 
     // ==================== sugerirFechaFinalizacion ====================

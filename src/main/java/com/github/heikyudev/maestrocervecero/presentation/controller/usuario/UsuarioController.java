@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -74,7 +75,7 @@ public class UsuarioController {
                                  @RequestParam(defaultValue = "0") int pagina,
                                  Authentication authentication,
                                  Model model) {
-        Pageable pageable = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_ALFABETICO);
+        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_ALFABETICO);
         Page<UsuarioResponseDTO> usuarios = usuarioServicio.filtrarUsuarios(
                 vacioANulo(nombre), vacioANulo(apellido), vacioANulo(correo), vacioANulo(username), rol, pageable);
 

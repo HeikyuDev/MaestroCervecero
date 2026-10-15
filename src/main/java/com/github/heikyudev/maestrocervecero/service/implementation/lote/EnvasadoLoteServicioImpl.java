@@ -126,9 +126,11 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         // 2. Validar que la etapa de lote esté registrada en el sistema y habilitada para envasar. El lote
         //    se bloquea para escritura antes de validarlo: no puede intercalarse con otro envasado, con la
         //    anulación de un envasado, con la finalización del envasado ni con la cancelación del mismo lote
+        Long idLote = etapaLoteRepository.buscarIdLoteDeLaEtapa(idEtapaLote)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
+        LoteEntity lote = bloquearLote(idLote);
         EtapaLoteEntity etapaLote = etapaLoteRepository.findById(idEtapaLote)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la etapa de lote con ID: " + idEtapaLote));
-        LoteEntity lote = bloquearLote(etapaLote.getLote().getId());
         validarEtapaHabilitadaParaEnvasado(etapaLote, lote);
 
         // 3. Validar que el barril esté registrado en el sistema, bloqueándolo para escritura
@@ -202,7 +204,11 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
-        // 2. Validar que el envasado de lote esté registrado en el sistema
+        // 2. Validar que el envasado de lote esté registrado en el sistema, bloqueando antes su lote para que la anulación
+        //    no se intercale con otro envasado, con la finalización del envasado ni con la cancelación del lote
+        Long idLote = envasadoLoteRepository.buscarIdLoteDelEnvasado(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el envasado de lote con ID: " + id));
+        LoteEntity lote = bloquearLote(idLote);
         EnvasadoLoteEntity envasadoLote = envasadoLoteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el envasado de lote con ID: " + id));
 
@@ -211,8 +217,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
             throw new ReglaNegocioException("Solo se pueden anular envasados en estado Registrado");
         }
 
-        // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION, bloqueándolo para escritura
-        LoteEntity lote = bloquearLote(envasadoLote.getEtapaLote().getLote().getId());
+        // 4. Validar que el lote asociado se encuentre en estado EN_EJECUCION
         if (lote.getEstado() != EstadoLote.EN_EJECUCION) {
             throw new ReglaNegocioException("El lote debe encontrarse en estado En ejecución para poder anular un envasado");
         }

@@ -37,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -173,7 +174,7 @@ public class LoteController {
 
         String codigoFiltro = vacioANulo(codigo);
         Page<LoteCronogramaResponseDTO> lotes = loteServicio.filtrarLotesParaListado(idPlanificacionFiltro, idFermentadorFiltro,
-                codigoFiltro, estadoFiltro, PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+                codigoFiltro, estadoFiltro, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lotes", lotes);
         model.addAttribute("estados", EstadoLote.values());
@@ -642,7 +643,7 @@ public class LoteController {
     // ==================== Apoyo: buscadores ====================
 
     private static Pageable paginaDeBuscador(int pagina, Sort orden) {
-        return PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, orden);
+        return PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, orden);
     }
 
     /**

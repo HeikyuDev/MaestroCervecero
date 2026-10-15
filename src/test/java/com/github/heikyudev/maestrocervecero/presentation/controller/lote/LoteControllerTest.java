@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -224,6 +225,22 @@ class LoteControllerTest {
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(20);
         assertThat(pageable.getValue().getSort().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-141: un número de página desmedido en el listado y en el buscador en modal se acota al máximo en lugar de romper la consulta")
+    void listar_unaPaginaDesmedidaSeAcota() throws Exception {
+        // Act
+        mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "2147483647")).andExpect(status().isOk());
+        mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "107000000")).andExpect(status().isOk());
+
+        // Assert
+        ArgumentCaptor<Pageable> listado = ArgumentCaptor.forClass(Pageable.class);
+        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), listado.capture());
+        assertThat(listado.getValue().getPageNumber()).isEqualTo(Paginacion.PAGINA_MAXIMA);
+        ArgumentCaptor<Pageable> buscador = ArgumentCaptor.forClass(Pageable.class);
+        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(any(), any(), buscador.capture());
+        assertThat(buscador.getValue().getPageNumber()).isEqualTo(Paginacion.PAGINA_MAXIMA);
     }
 
     @Test

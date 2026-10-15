@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -202,7 +203,7 @@ public class LocalidadController {
 
         Page<LocalidadResponseDTO> localidades = localidadServicio.filtrarLocalidades(
                 vacioANulo(nombre), vacioANulo(codigoPostal), idProvinciaVigente, idPaisVigente,
-                PageRequest.of(Math.max(pagina, 0), tamanio, ORDEN_ALFABETICO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), tamanio, ORDEN_ALFABETICO));
 
         model.addAttribute("localidades", localidades);
         model.addAttribute("filtroNombre", nombre);

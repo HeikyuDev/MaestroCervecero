@@ -14,16 +14,17 @@
     'use strict';
 
     var MENSAJE_FALLO = 'No se pudo obtener la sugerencia. Intente nuevamente';
+    var MENSAJE_SESION_FINALIZADA = 'Su sesión finalizó, inicie sesión nuevamente';
 
     function valorDe(selector) {
         var campo = document.querySelector(selector);
         return campo ? campo.value : '';
     }
 
-    function mostrarFallo(destino) {
+    function mostrarFallo(destino, mensaje) {
         var aviso = document.createElement('p');
         aviso.className = 'text-xs text-rose-600';
-        aviso.textContent = MENSAJE_FALLO;
+        aviso.textContent = mensaje || MENSAJE_FALLO;
         destino.replaceChildren(aviso);
     }
 
@@ -64,8 +65,21 @@
 
         fetch(boton.getAttribute('data-sugerencia-url') + '?' + parametros,
             {headers: {'X-Requested-With': 'fetch'}, credentials: 'same-origin'})
-            .then(function (respuesta) { return respuesta.text(); })
+            .then(function (respuesta) {
+                // Una respuesta redirigida (la página de inicio de sesión de una sesión vencida) o con error nunca
+                // se inyecta en la pantalla
+                if (respuesta.redirected) {
+                    mostrarFallo(destino, respuesta.url.indexOf('/login') !== -1 ? MENSAJE_SESION_FINALIZADA : MENSAJE_FALLO);
+                    return null;
+                }
+                if (!respuesta.ok) {
+                    mostrarFallo(destino);
+                    return null;
+                }
+                return respuesta.text();
+            })
             .then(function (html) {
+                if (html === null) { return; }
                 destino.innerHTML = html;
                 aplicarSugerencia(destino, campoFin);
             })

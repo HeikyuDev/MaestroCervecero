@@ -245,8 +245,9 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
-        // 2. Localizar la planificación de producción. Si no existe, se dispara RecursoNoEncontradoException
-        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(id)
+        // 2. Localizar la planificación de producción, bloqueándola para escritura (un lote no puede registrarse sobre ella mientras
+        //    se anula o finaliza). Si no existe, se dispara RecursoNoEncontradoException
+        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + id));
 
         // 3. Validar que la planificación se encuentre en estado PENDIENTE
@@ -300,8 +301,9 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoFinalizacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de finalización");
 
-        // 2. Localizar la planificación de producción. Si no existe, se dispara RecursoNoEncontradoException
-        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(id)
+        // 2. Localizar la planificación de producción, bloqueándola para escritura (un lote no puede registrarse sobre ella mientras
+        //    se anula o finaliza). Si no existe, se dispara RecursoNoEncontradoException
+        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.buscarPorIdParaActualizar(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + id));
 
         // 3. Validar que la planificación se encuentre en estado PENDIENTE

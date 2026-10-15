@@ -25,6 +25,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -103,7 +104,7 @@ public class RecetaController {
                                 @RequestParam(defaultValue = "0") int pagina,
                                 Model model) {
         Page<RecetaResponseDTO> recetas = recetaServicio.filtrarRecetas(
-                vacioANulo(nombre), PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA));
+                vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA));
 
         model.addAttribute("recetas", recetas);
         model.addAttribute("filtroNombre", nombre);
@@ -228,7 +229,7 @@ public class RecetaController {
                                @RequestParam(defaultValue = "0") int pagina,
                                Model model) {
         Page<MaltaResponseDTO> maltas = maltaServicio.filtrarMaltas(vacioANulo(nombre), tipo,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
 
         model.addAttribute("maltas", maltas);
         model.addAttribute("tipos", TipoMalta.values());
@@ -248,7 +249,7 @@ public class RecetaController {
                                 @RequestParam(defaultValue = "0") int pagina,
                                 Model model) {
         Page<LupuloResponseDTO> lupulos = lupuloServicio.filtrarLupulos(vacioANulo(nombre), formato,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
 
         model.addAttribute("lupulos", lupulos);
         model.addAttribute("formatos", FormatoLupulo.values());
@@ -268,7 +269,7 @@ public class RecetaController {
                                   @RequestParam(defaultValue = "0") int pagina,
                                   Model model) {
         Page<LevaduraResponseDTO> levaduras = levaduraServicio.filtrarLevaduras(vacioANulo(nombre), tipo,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_ALFABETICO));
 
         model.addAttribute("levaduras", levaduras);
         model.addAttribute("tipos", TipoLevadura.values());

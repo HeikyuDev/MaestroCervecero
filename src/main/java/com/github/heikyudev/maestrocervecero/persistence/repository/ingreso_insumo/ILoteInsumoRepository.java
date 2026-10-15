@@ -62,6 +62,22 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
     List<LoteInsumoEntity> buscarNoVencidosPorInsumoIdOrdenadoPorVencimientoParaReservar(@Param("idInsumo") Long idInsumo, @Param("hoy") LocalDate hoy);
 
     /**
+     * Busca, bloqueándolos para escritura, los lotes de insumo no vencidos de varios insumos a la vez, ordenados por ID.
+     * <p>
+     * Se usa al iniciar un lote de producción: las filas se bloquean siempre en orden ascendente de ID, el mismo orden con
+     * el que cualquier otra operación bloquea varios lotes de insumo, de modo que dos operaciones nunca se esperen
+     * mutuamente. El orden FEFO lo aplica luego quien llama.
+     * </p>
+     *
+     * @param idsInsumo Los IDs de los insumos cuyo stock se quiere reservar.
+     * @param hoy La fecha de referencia: se excluyen los lotes que vencieron antes de ella.
+     * @return Los lotes de insumo no vencidos de esos insumos, ordenados por ID ascendente.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT li FROM LoteInsumoEntity li WHERE li.insumo.id IN :idsInsumo AND li.fechaVencimiento >= :hoy ORDER BY li.id ASC")
+    List<LoteInsumoEntity> buscarNoVencidosPorInsumosIdsParaReservar(@Param("idsInsumo") Collection<Long> idsInsumo, @Param("hoy") LocalDate hoy);
+
+    /**
      * Busca, bloqueándolo para escritura, un lote de insumo por su ID.
      * <p>
      * Se usa al cancelar un lote, para liberar de forma segura la cantidad reservada sobre el

@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -171,7 +172,7 @@ public class EnvasadoLoteController {
         }
 
         Page<BarrilResponseDTO> barriles = barrilServicio.filtrarBarriles(vacioANulo(identificador), null, EstadoOperativoBarril.DISPONIBLE, null,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR, ORDEN_BARRILES));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_BARRILES));
 
         model.addAttribute("barriles", barriles);
         model.addAttribute("filtroIdentificador", identificador);
@@ -211,7 +212,7 @@ public class EnvasadoLoteController {
             return "redirect:/lotes/" + idLote;
         }
         Page<EnvasadoLoteResponseDTO> envasados = envasadoLoteServicio.filtrarEnvasadosLote(idEtapa, null, null,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lote", contexto.lote());
         model.addAttribute("etapaMostrada", contexto.etapa());

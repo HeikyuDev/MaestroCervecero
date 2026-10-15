@@ -20,6 +20,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -86,7 +87,7 @@ public class PlanificacionProduccionController {
                                         Model model) {
         Page<PlanificacionProduccionResponseDTO> planificaciones = planificacionServicio.filtrarPlanificacionesProduccion(
                 idReceta, estado, fechaInicio,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("planificaciones", planificaciones);
         model.addAttribute("estados", EstadoSolicitud.values());
@@ -251,7 +252,7 @@ public class PlanificacionProduccionController {
                                 @RequestParam(defaultValue = "0") int pagina,
                                 Model model) {
         Page<RecetaResponseDTO> recetas = recetaServicio.filtrarRecetas(
-                vacioANulo(nombre), PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR));
+                vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR));
 
         model.addAttribute("recetas", recetas);
         model.addAttribute("filtroNombre", nombre);

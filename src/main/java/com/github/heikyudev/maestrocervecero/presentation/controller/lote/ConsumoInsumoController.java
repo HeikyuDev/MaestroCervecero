@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -158,7 +159,7 @@ public class ConsumoInsumoController {
         }
         AvanceEtapaResponseDTO avance = loteServicio.calcularAvanceDeEtapa(contexto.lote().getId(), tipoEtapa);
         Page<ConsumoInsumoResponseDTO> consumos = consumoInsumoServicio.filtrarConsumosInsumo(idEtapa, tipoConsumo, null, filtroEstado,
-                PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+                PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lote", contexto.lote());
         model.addAttribute("tipoEtapa", tipoEtapa);
@@ -447,7 +448,7 @@ public class ConsumoInsumoController {
             return VISTA_BUSCADOR;
         }
 
-        PageRequest paginaPedida = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR);
+        PageRequest paginaPedida = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR);
         Page<FilaDeBuscador> filas;
         if (tipoConsumo == TipoConsumo.RESERVADO) {
             filas = reservaInsumoServicio.filtrarReservasConSaldo(contexto.etapa().getId(), idInsumo, vacioANulo(identificacion), paginaPedida)
