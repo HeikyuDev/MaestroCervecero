@@ -66,6 +66,11 @@ public final class EscaladoAgua {
         return calcularAguaMacerado(masaMalta, macerador, versionReceta) + (masaMalta * DESPLAZAMIENTO_GRANO_L_POR_KG);
     }
 
+    /** Igual que {@link #calcularVolumenMezclaMacerador(double, MaceradorEntity, VersionRecetaEntity)}, con el espacio muerto como valor. */
+    public static double calcularVolumenMezcla(double masaMalta, double espacioMuerto, VersionRecetaEntity versionReceta) {
+        return calcularAguaMacerado(masaMalta, espacioMuerto, versionReceta) + (masaMalta * DESPLAZAMIENTO_GRANO_L_POR_KG);
+    }
+
     /**
      * Calcula los volúmenes de agua de un lote (Pasos 2 a 5), redondeados a la escala de las cantidades.
      * <p>

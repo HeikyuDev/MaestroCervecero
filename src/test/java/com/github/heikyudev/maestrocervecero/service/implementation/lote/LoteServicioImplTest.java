@@ -3649,6 +3649,71 @@ class LoteServicioImplTest {
     }
 
     @Test
+    @DisplayName("CP-CA-12: calcularAguaDelLote usa la malta realmente molida (suma de los consumos registrados de malta en la Molienda) en vez de la planificada")
+    void calcularAguaDelLote_debeUsarLaMaltaMolida() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        findEtapa(lote, TipoEtapa.MOLIENDA).setId(11L);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(11L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder().insumo(MaltaResponseDTO.builder().id(1L).nombre("Pilsen").build()).cantidadRequerida(3.5).cantidadConsumida(2.0).build(),
+                InsumoRequeridoResponseDTO.builder().insumo(MaltaResponseDTO.builder().id(2L).nombre("Caramelo").build()).cantidadRequerida(0.8952).cantidadConsumida(1.0).build()));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        // Molida M = 3; Vpre = 25; Vagua_mac = 3*3 + 5 = 14; Vmosto = 14 - 5 - 3 = 6; Vlavado = 25 - 6 = 19; Vtotal = 33
+        assertThat(resultado.isMaltaMolida()).isTrue();
+        assertThat(resultado.getMasaMalta()).isEqualTo(3.0);
+        assertThat(resultado.getMasaMaltaPlanificada()).isEqualTo(4.3952);
+        assertThat(resultado.getVolumenPreHervor()).isEqualTo(25.0);
+        assertThat(resultado.getAguaMacerado()).isEqualTo(14.0);
+        assertThat(resultado.getAguaLavado()).isEqualTo(19.0);
+        assertThat(resultado.getAguaTotal()).isEqualTo(33.0);
+    }
+
+    @Test
+    @DisplayName("CP-CA-13: calcularAguaDelLote sin consumos de malta registrados en la Molienda mantiene la masa planificada")
+    void calcularAguaDelLote_sinMaltaMolidaUsaLaPlanificada() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        findEtapa(lote, TipoEtapa.MOLIENDA).setId(11L);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(11L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder().insumo(MaltaResponseDTO.builder().id(1L).nombre("Pilsen").build()).cantidadRequerida(4.3952).cantidadConsumida(0.0).build()));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.isMaltaMolida()).isFalse();
+        assertThat(resultado.getMasaMalta()).isEqualTo(4.3952);
+        assertThat(resultado.getAguaTotal()).isEqualTo(34.3952);
+        assertThat(resultado.getAdvertencias()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-CA-14: calcularAguaDelLote con la malta molida advierte, sin bloquear, si la mezcla de agua y malta molida supera la capacidad útil del macerador")
+    void calcularAguaDelLote_debeAdvertirSiLaMezclaConLaMaltaMolidaDesbordaElMacerador() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        ((MaceradorEntity) findEtapa(lote, TipoEtapa.MACERACION).getEquipamiento()).setCapacidadUtil(10.0);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        findEtapa(lote, TipoEtapa.MOLIENDA).setId(11L);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(11L)).thenReturn(List.of(
+                InsumoRequeridoResponseDTO.builder().insumo(MaltaResponseDTO.builder().id(1L).nombre("Pilsen").build()).cantidadRequerida(4.3952).cantidadConsumida(3.0).build()));
+
+        // === EJECUCION ===
+        AguaLoteResponseDTO resultado = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        // Vmezcla = 14 + 3*0,7 = 16,1 L > 10 L
+        assertThat(resultado.getAguaMacerado()).isEqualTo(14.0);
+        assertThat(resultado.getAdvertencias()).containsExactly("La mezcla de agua y malta molida (16,1 L) desbordará el macerador (capacidad útil: 10 L)");
+    }
+
+    @Test
     @DisplayName("CP-CA-05: calcularAguaDelLote calcula el agua de un lote en cualquier estado (FINALIZADO)")
     void calcularAguaDelLote_debeCalcularParaUnLoteFinalizado() {
         // === PREPARACION DE DATOS ===

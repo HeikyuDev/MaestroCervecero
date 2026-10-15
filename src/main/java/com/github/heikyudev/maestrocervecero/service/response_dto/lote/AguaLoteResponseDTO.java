@@ -27,6 +27,16 @@ public class AguaLoteResponseDTO {
     private Double masaMalta;
 
     /**
+     * Masa de malta planificada (la requerida por la receta, según el escalado del lote), en kilogramos.
+     */
+    private Double masaMaltaPlanificada;
+
+    /**
+     * {@code true} si {@code masaMalta} es la malta realmente molida (consumos registrados en la Molienda) y no la planificada.
+     */
+    private boolean maltaMolida;
+
+    /**
      * Volumen que debe reunirse en la olla antes de empezar a hervir, en litros.
      */
     private Double volumenPreHervor;

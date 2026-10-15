@@ -69,7 +69,7 @@
                 <!-- Contenido del tooltip (/js/tooltips.js): el cálculo con los números reales; no ocupa lugar en la página -->
                 <div id="info-agua-macerado" data-info-panel hidden>
                     <p class="font-semibold text-white">Cómo se calcula el agua de macerado</p>
-                    <p class="mt-1">Relación de empaste × malta requerida por la receta + espacio muerto del macerador</p>
+                    <p class="mt-1" th:text="${agua.maltaMolida} ? 'Relación de empaste × malta molida + espacio muerto del macerador' : 'Relación de empaste × malta requerida por la receta + espacio muerto del macerador'">Relación de empaste × malta molida + espacio muerto del macerador</p>
                     <p class="mt-1 font-semibold text-amber-300"><th:block th:replace="~{receta/formato :: numero(${agua.relacionDeEmpaste})}"></th:block> L/kg × <th:block th:replace="~{receta/formato :: numero(${agua.masaMalta})}"></th:block> kg + <th:block th:replace="~{receta/formato :: numero(${agua.espacioMuerto})}"></th:block> L de espacio muerto = <th:block th:replace="~{receta/formato :: medida(${agua.aguaMacerado}, 'L')}"></th:block></p>
                     <p class="mt-1 text-slate-300">El espacio muerto es el agua que queda retenida en el fondo del macerador y no se puede recuperar, por eso se suma al agua del macerado</p>
                 </div>

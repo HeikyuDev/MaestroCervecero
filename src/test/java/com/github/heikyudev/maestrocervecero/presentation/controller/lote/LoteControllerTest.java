@@ -1251,6 +1251,28 @@ class LoteControllerTest {
     }
 
     @Test
+    @DisplayName("CP-LCT-148: con la malta molida el agua de la guía sale de ella: el tooltip de Agua de macerado muestra los kilos molidos y dice \"malta molida\", y la advertencia de desborde del macerador se muestra en una alerta amarilla")
+    void detalle_guiaDeMaceracionConElAguaDeLaMaltaMolida() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION, etapasEnCurso(TipoEtapa.MACERACION)).build());
+        String advertencia = "La mezcla de agua y malta molida (16,1 L) desbordará el macerador (capacidad útil: 10 L)";
+        when(loteServicio.calcularAguaDelLote(12L)).thenReturn(AguaLoteResponseDTO.builder().volumenObjetivo(300.0).masaMalta(3.0).masaMaltaPlanificada(45.0)
+                .maltaMolida(true).volumenPreHervor(25.0).aguaMacerado(14.0).aguaLavado(19.0).aguaTotal(33.0).relacionDeEmpaste(3.0).espacioMuerto(5.0)
+                .advertencias(List.of(advertencia)).build());
+
+        // Act
+        String guiaHtml = bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "maceracion"), "data-guia");
+        String panel = elementoConAtributo(guiaHtml, "div", "id=\"info-agua-macerado\"");
+        String guia = texto(guiaHtml.replace(panel, ""));
+
+        // Assert
+        assertThat(guia).contains("Agua de macerado 14 L", "Agua de lavado 19 L", "Agua total 33 L", advertencia);
+        assertThat(texto(panel)).contains("Relación de empaste × malta molida + espacio muerto del macerador", "3 L/kg × 3 kg + 5 L de espacio muerto = 14 L")
+                .doesNotContain("requerida por la receta");
+        assertThat(guiaHtml).contains(ALERTA_ADVERTENCIA);
+    }
+
+    @Test
     @DisplayName("CP-LCT-51: la guía de Hervido muestra el volumen pre-hervor, la duración, la olla y los lúpulos a agregar como líneas de texto, sin tabla, una por adición con su cantidad y cuándo agregarla; el dry hop de Maduración no aparece")
     void detalle_guiaDeHervido() throws Exception {
         // Arrange

@@ -53,6 +53,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AguaLoteR
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
@@ -991,30 +992,47 @@ public class LoteServicioImpl implements ILoteServicio {
         double espacioMuerto;
         double perdidaPorTrub;
         double evaporacion;
+        double capacidadUtilMacerador;
         if (escalado != null) {
             espacioMuerto = escalado.getEspacioMuertoMacerador();
             perdidaPorTrub = escalado.getPerdidaPorTrubOlla();
             evaporacion = escalado.getEvaporacionOlla();
+            capacidadUtilMacerador = escalado.getCapacidadUtilMacerador();
         } else {
             MaceradorEntity macerador = obtenerEquipamientoDeEtapa(lote, TipoEtapa.MACERACION, MaceradorEntity.class, "un macerador asociado");
             OllaHervorEntity ollaHervor = obtenerEquipamientoDeEtapa(lote, TipoEtapa.HERVIDO, OllaHervorEntity.class, "una olla de hervor asociada");
             espacioMuerto = macerador.getEspacioMuerto();
             perdidaPorTrub = ollaHervor.getPerdidaPorTrub();
             evaporacion = ollaHervor.getEvaporacion();
+            capacidadUtilMacerador = macerador.getCapacidadUtil();
         }
-        double masaMalta = escaladoInsumoServicio.calcularRequerimientosMalta(lote).stream()
+        double masaMaltaPlanificada = escaladoInsumoServicio.calcularRequerimientosMalta(lote).stream()
                 .mapToDouble(RequerimientoInsumo::cantidadRequerida)
                 .sum();
+        // Si la Molienda tiene consumos registrados (no anulados) de malta, el agua se calcula con la malta realmente molida
+        double masaMaltaMolida = masaMaltaMolida(lote);
+        boolean maltaMolida = masaMaltaMolida > 0;
+        double masaMalta = maltaMolida ? masaMaltaMolida : masaMaltaPlanificada;
         if (!Double.isFinite(masaMalta)) {
             throw new ReglaNegocioException("No se puede calcular el agua del lote porque los datos de la receta o de los equipos producen un valor no válido");
         }
 
         // 3. Calcular los volúmenes de agua
         VolumenesAgua agua = EscaladoAgua.calcular(lote.getVolumenObjetivo(), masaMalta, espacioMuerto, perdidaPorTrub, evaporacion, versionReceta);
+        List<String> advertencias = new ArrayList<>(agua.advertencias());
+        if (maltaMolida) {
+            double volumenMezcla = Redondeo.redondear(EscaladoAgua.calcularVolumenMezcla(masaMalta, espacioMuerto, versionReceta));
+            if (volumenMezcla > Redondeo.redondear(capacidadUtilMacerador)) {
+                advertencias.add("La mezcla de agua y malta molida (" + ValidacionesNumericas.formatearNumero(volumenMezcla)
+                        + " L) desbordará el macerador (capacidad útil: " + ValidacionesNumericas.formatearNumero(capacidadUtilMacerador) + " L)");
+            }
+        }
 
         return AguaLoteResponseDTO.builder()
                 .volumenObjetivo(lote.getVolumenObjetivo())
                 .masaMalta(Redondeo.redondear(masaMalta))
+                .masaMaltaPlanificada(Redondeo.redondear(masaMaltaPlanificada))
+                .maltaMolida(maltaMolida)
                 .volumenPreHervor(agua.volumenPreHervor())
                 .aguaMacerado(agua.aguaMacerado())
                 .aguaLavado(agua.aguaLavado())
@@ -1025,8 +1043,24 @@ public class LoteServicioImpl implements ILoteServicio {
                 .absorcionPorKg(agua.absorcionPorKg())
                 .perdidaPorBagazo(agua.perdidaPorBagazo())
                 .mostoExtraido(agua.mostoExtraido())
-                .advertencias(agua.advertencias())
+                .advertencias(List.copyOf(advertencias))
                 .build();
+    }
+
+    /**
+     * La masa de malta realmente molida: la suma, en kilogramos, de los consumos registrados (no anulados) de malta en
+     * la etapa de Molienda del lote. Es 0 si no hay ninguno.
+     */
+    private double masaMaltaMolida(LoteEntity lote) {
+        EtapaLoteEntity molienda = lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA);
+        if (molienda == null || molienda.getId() == null) {
+            return 0.0;
+        }
+        double total = consumoInsumoServicio.filtrarInsumosRequeridos(molienda.getId()).stream()
+                .filter(r -> r.getInsumo() instanceof MaltaResponseDTO)
+                .mapToDouble(r -> r.getCantidadConsumida() != null ? r.getCantidadConsumida() : 0.0)
+                .sum();
+        return Redondeo.redondear(total);
     }
 
     /**

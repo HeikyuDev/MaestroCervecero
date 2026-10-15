@@ -11,7 +11,7 @@ La lógica parte de una particularidad del proceso: en la planta, el agua se va 
 | Dato | Descripción | Origen |
 | :---- | :---- | :---- |
 | Volumen Objetivo del Lote | Cantidad de litros de cerveza que se desea obtener en el fermentador. | Ingresado por el usuario al registrar el lote. |
-| Masa de Malta Escalada | Kilos totales de malta que se van a utilizar, ya calculados en función del volumen objetivo del lote. | Resultado del  escalado de malta. |
+| Masa de Malta Escalada | Kilos totales de malta que se van a utilizar. Es la malta realmente molida del lote cuando su etapa de Molienda tiene consumos registrados de malta; si no, la calculada en función del volumen objetivo del lote. | Suma de los consumos registrados (no anulados) de malta en la Molienda, o resultado del escalado de malta. |
 | Relación de Empaste | Litros de agua recomendados por cada kilo de malta utilizada. | Definida en la versión vigente de la receta. |
 | Duración estimada del hervor | Tiempo que va a durar el hervido del mosto, expresado en minutos. | Definida en la versión vigente de la receta. |
 
@@ -181,3 +181,12 @@ El agua de lavado no puede ser negativa: si ${V}_{pre-hervor}-{V}_{most{o}_{}ext
 Al registrar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan el espacio muerto del macerador, la pérdida por trub y la evaporación de la olla de hervor, y la masa de malta escalada (con los datos de la malta y del macerador). Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
 
 Todo cálculo del lote, desde su registro, usa la instantánea: también el de un lote Pendiente. Un lote registrado sin instantánea se calcula con los valores vigentes.
+
+## Malta molida
+
+El agua que informa el lote (agua de macerado, agua de lavado y agua total; Pasos 3 a 5) se calcula con la malta realmente molida: la suma, en kilogramos, de los consumos registrados (no anulados) de malta del lote en su etapa de Molienda. Si la Molienda todavía no tiene consumos de malta registrados, se usa la masa de malta escalada con la instantánea del lote.
+
+- El volumen pre-hervor (Paso 2) no depende de la malta: es el mismo con cualquiera de las dos masas.
+- El agua de lavado nunca es negativa: si el mosto extraído supera el volumen pre-hervor vale 0 y se informa una advertencia.
+- Con la malta molida, si el volumen de la mezcla de agua y malta (Paso 3, mezcla) supera la capacidad útil del macerador, el cálculo se informa igualmente con una advertencia que no bloquea. La validación de capacidad al registrar el lote usa la masa escalada y no cambia.
+- La tarjeta guía de la etapa de Maceración muestra la masa usada y la fórmula del agua de macerado con esos kilos.
