@@ -52,9 +52,7 @@
         </div>
 
         <dl class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm"
-            th:with="inicioReal=${lote.fechaInicio != null and lote.estado.name() != 'PENDIENTE'},
-                     finReal=${lote.estado.name() == 'FINALIZADO' or (lote.estado.name() == 'CANCELADO' and lote.fechaInicio != null)},
-                     fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
+            th:with="fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
             <div>
                 <dt class="text-xs font-medium text-slate-500">Planificación</dt>
                 <dd class="text-slate-900">
@@ -76,19 +74,27 @@
                 <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
                 <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
             </div>
-            <!-- Fechas: estimadas mientras no ocurrieron, reales cuando ya ocurrieron -->
-            <div data-fecha-inicio>
-                <dt class="text-xs font-medium text-slate-500" th:text="${inicioReal} ? 'Inicio real' : 'Inicio estimado'">Inicio estimado</dt>
+            <!-- Fechas: las estimadas son las vigentes en el cronograma; las reales se muestran cuando ocurrieron -->
+            <div data-fecha-inicio-estimada>
+                <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
+                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaInicioEstimada})}"></th:block></dd>
+            </div>
+            <div data-fecha-fin-estimado>
+                <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
+                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaFinalizacionEstimada})}"></th:block></dd>
+            </div>
+            <div data-fecha-inicio-real>
+                <dt class="text-xs font-medium text-slate-500">Inicio real</dt>
                 <dd class="text-slate-900">
-                    <th:block th:if="${inicioReal}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaInicio})}"></th:block></th:block>
-                    <th:block th:unless="${inicioReal}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaInicioEstimada})}"></th:block></th:block>
+                    <th:block th:if="${lote.fechaInicio != null}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaInicio})}"></th:block></th:block>
+                    <th:block th:unless="${lote.fechaInicio != null}">-</th:block>
                 </dd>
             </div>
-            <div data-fecha-fin>
-                <dt class="text-xs font-medium text-slate-500" th:text="${finReal} ? 'Fin real' : 'Fin estimado'">Fin estimado</dt>
+            <div data-fecha-fin-real>
+                <dt class="text-xs font-medium text-slate-500">Fin real</dt>
                 <dd class="text-slate-900">
-                    <th:block th:if="${finReal}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${fechaFinReal})}"></th:block></th:block>
-                    <th:block th:unless="${finReal}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaFinalizacionEstimada})}"></th:block></th:block>
+                    <th:block th:if="${fechaFinReal != null}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${fechaFinReal})}"></th:block></th:block>
+                    <th:block th:unless="${fechaFinReal != null}">-</th:block>
                 </dd>
             </div>
         </dl>
@@ -185,12 +191,13 @@
                 </div>
             </th:block>
 
-            <!-- Cierre de la tabla de insumos: acceso a la pantalla de consumos de la etapa -->
+            <!-- Pie de la tarjeta: acceso a la pantalla de consumos de la etapa -->
             <div th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')"
-                 class="px-5 py-3 border-t border-slate-100 flex justify-end">
+                 class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+                <p class="text-sm text-slate-500">Registre y consulte los consumos de esta etapa</p>
                 <a data-ir-consumos th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
-                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                    <i class="bi bi-box-arrow-in-down"></i> Consumos de insumos
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-list-check"></i> Gestionar consumos
                 </a>
             </div>
         </section>

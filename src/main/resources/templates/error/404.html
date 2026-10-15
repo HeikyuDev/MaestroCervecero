@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(~{::#error-content}, null)}">
+<body>
+
+<!-- Página de error 404: misma estructura que el resto del sistema, sin detalles técnicos -->
+<div id="error-content" class="max-w-xl mx-auto mt-16 text-center space-y-4">
+    <i class="bi bi-compass block text-5xl text-amber-500"></i>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">No se encontró la página</h1>
+    <p class="text-sm text-slate-500">La dirección no existe o ya no está disponible. Vuelva al inicio e intente nuevamente</p>
+    <div class="flex items-center justify-center gap-3 pt-2">
+        <a th:href="@{/home}"
+           class="inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+            <i class="bi bi-house"></i> Ir al inicio
+        </a>
+        <a th:href="@{/lotes}"
+           class="inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
+            <i class="bi bi-collection"></i> Ir a los lotes
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

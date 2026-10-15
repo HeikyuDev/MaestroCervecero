@@ -5,11 +5,13 @@
 <body>
 
 <!--
-    Pantalla de consumos de una etapa del lote. No es un modal: es una página aparte y todas sus acciones vuelven a
-    ella (Post-Redirect-Get). Los formularios de registro solo existen con el lote en ejecución y la etapa en curso.
-    Cada fila de reserva es su propio formulario; el consumo directo elige el lote de insumo con el selector de entidad.
+    Pantalla de consumos de una etapa del lote. No es un modal: es una página aparte. Arriba, el resumen de los insumos
+    de la etapa; abajo, dos pestañas (enlaces, funcionan sin JavaScript): "Reservados" y "Directos", cada una con los
+    consumos de su tipo y el botón que lleva a su pantalla de formulario. Los registros y las anulaciones vuelven a la
+    pestaña correspondiente (Post-Redirect-Get). Los botones de registro y anulación solo existen con el lote en
+    ejecución y la etapa en curso.
 -->
-<div id="consumo-lista-content" th:object="${consumoForm}" class="space-y-6">
+<div id="consumo-lista-content" class="space-y-6">
 
     <!-- Encabezado de la página -->
     <div>
@@ -33,18 +35,6 @@
         <span class="text-sm font-medium" th:text="${advertencia}">Este lote de insumo se encuentra vencido</span>
     </div>
 
-    <!-- Resumen de errores del formulario que se envió -->
-    <div th:if="${#fields.hasErrors('*')}" data-errores-formulario role="alert"
-         class="p-4 rounded-xl border bg-rose-50 border-rose-200 text-rose-800">
-        <p class="flex items-center gap-2 text-sm font-semibold">
-            <i class="bi bi-x-circle-fill text-xl text-rose-500"></i>
-            <span>No se pudo registrar el consumo</span>
-        </p>
-        <ul class="mt-2 ml-8 list-disc text-sm">
-            <li th:each="err : ${#fields.detailedErrors()}" th:text="${err.message}">Error</li>
-        </ul>
-    </div>
-
     <p th:unless="${operable}" data-aviso-solo-lectura
        class="p-4 rounded-xl border bg-slate-100 border-slate-200 text-sm text-slate-600"
        th:text="|La etapa de ${tipoEtapa.etiqueta} no está en curso, solo se pueden consultar los consumos|">La etapa de Hervido no está en curso, solo se pueden consultar los consumos</p>
@@ -52,10 +42,10 @@
     <!-- 1. Resumen de la etapa -->
     <section data-resumen-consumo class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-sm font-semibold text-slate-700">Resumen</h2>
+            <h2 class="text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
             <p th:if="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" class="text-sm text-slate-500">Sin consumo mínimo requerido</p>
             <p th:unless="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" class="text-sm text-slate-500">
-                Porcentaje mínimo para avanzar de etapa: <th:block th:replace="~{receta/formato :: numero(${avance.porcentajeMinimo})}"></th:block>%
+                Avance para finalizar: <th:block th:replace="~{receta/formato :: numero(${avance.porcentajeMinimo})}"></th:block>% como mínimo de cada insumo
             </p>
         </div>
         <p th:if="${#lists.isEmpty(resumen)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no requiere insumos</p>
@@ -64,20 +54,22 @@
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                     <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Consumido</th>
+                    <th class="px-4 py-3 whitespace-nowrap">Requerido</th>
                     <th class="px-4 py-3 whitespace-nowrap" title="Saldo reservado que todavía no se consumió">Reservado</th>
-                    <th th:unless="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" class="px-4 py-3 whitespace-nowrap">Avance</th>
+                    <th class="px-4 py-3 whitespace-nowrap">Consumido</th>
+                    <th class="px-4 py-3 whitespace-nowrap">Avance</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="r : ${resumen}" class="hover:bg-slate-50">
                     <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${r.requerido.insumo.nombre}">Cascade</td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${r.requerido.cantidadConsumida})}"></th:block> de <th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadRequerida}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadRequerida}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadReservada}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
-                    <td th:unless="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" th:attr="data-cumple=${r.cumple}"
-                        class="px-4 py-3 whitespace-nowrap" th:classappend="${r.cumple} ? 'text-emerald-700' : 'text-amber-700'">
+                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadConsumida}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td th:attr="data-cumple=${r.cumple}" class="px-4 py-3 whitespace-nowrap"
+                        th:classappend="${r.cumple} ? 'text-emerald-700' : 'text-amber-700'">
                         <i class="bi" th:classappend="${r.cumple} ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
-                        <th:block th:replace="~{receta/formato :: numero(${r.porcentaje})}"></th:block>% de <th:block th:replace="~{receta/formato :: numero(${avance.porcentajeMinimo})}"></th:block>% requerido
+                        <th:block th:replace="~{receta/formato :: numero(${r.porcentaje})}"></th:block>%
                     </td>
                 </tr>
                 </tbody>
@@ -85,154 +77,89 @@
         </div>
     </section>
 
-    <!-- 2. Insumos reservados: cada reserva se consume desde su propia fila -->
-    <section th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_REGISTRAR')" data-insumos-reservados
-             class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Insumos reservados</h2>
-        <p th:if="${#lists.isEmpty(reservas)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no requiere insumos</p>
-        <div th:each="g : ${reservas}" th:attr="data-insumo-reservado=${g.requerido.insumo.id}" class="border-b border-slate-100 last:border-b-0">
-            <h3 class="px-5 pt-4 text-sm font-semibold text-slate-900" th:text="${g.requerido.insumo.nombre}">Cascade</h3>
-            <p th:if="${#lists.isEmpty(g.reservas)}" class="px-5 py-4 text-sm text-slate-400">No hay lotes reservados para este insumo, use el consumo directo</p>
-            <div th:unless="${#lists.isEmpty(g.reservas)}" class="overflow-x-auto">
+    <!-- 2. Consumos de la etapa, una pestaña por tipo -->
+    <section data-consumos-registrados th:attr="data-pestana=${pestana}" class="space-y-4">
+        <nav aria-label="Tipo de consumo" data-pestanas-consumo>
+            <ul class="inline-flex gap-2">
+                <li>
+                    <a th:href="@{${urlPantalla}(tipo='reservado')}" data-pestana-reservado
+                       th:attr="aria-current=${pestana == 'reservado'} ? 'page'"
+                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
+                       th:classappend="${pestana == 'reservado'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Reservados</a>
+                </li>
+                <li>
+                    <a th:href="@{${urlPantalla}(tipo='directo')}" data-pestana-directo
+                       th:attr="aria-current=${pestana == 'directo'} ? 'page'"
+                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
+                       th:classappend="${pestana == 'directo'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Directos</a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <form th:action="@{${urlPantalla}}" method="get" novalidate data-filtro-consumos class="flex items-center gap-2">
+                    <input type="hidden" name="tipo" th:value="${pestana}">
+                    <label for="estado" class="text-xs font-medium text-slate-500">Estado</label>
+                    <select id="estado" name="estado"
+                            class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                        <option value="">Todos</option>
+                        <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Registrado</option>
+                    </select>
+                    <button type="submit"
+                            class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                        <i class="bi bi-funnel"></i> Filtrar
+                    </button>
+                </form>
+                <a th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_REGISTRAR')" th:href="@{${urlNuevo}}" data-nuevo-consumo
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i>
+                    <span th:text="${pestana == 'reservado'} ? 'Nuevo consumo reservado' : 'Nuevo consumo directo'">Nuevo consumo reservado</span>
+                </a>
+            </div>
+            <p th:if="${consumos.empty}" class="px-5 py-6 text-sm text-slate-400"
+               th:text="${filtroEstado != null} ? 'No hay consumos en el estado indicado' : (${pestana == 'reservado'} ? 'No hay consumos reservados registrados en esta etapa' : 'No hay consumos directos registrados en esta etapa')">No hay consumos registrados en esta etapa</p>
+            <div th:unless="${consumos.empty}" class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
-                    <thead class="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
                         <th class="px-4 py-3 whitespace-nowrap">Lote de insumo</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Vencimiento</th>
-                        <th class="px-4 py-3 whitespace-nowrap" th:text="|Saldo reservado (${g.requerido.unidadDeMedida.simbolo})|">Saldo reservado (g)</th>
-                        <th class="px-4 py-3 whitespace-nowrap" th:text="|Cantidad (${g.requerido.unidadDeMedida.simbolo}) *|">Cantidad (g) *</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Fecha de registro</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Estado</th>
+                        <th th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right"></th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
-                    <tr th:each="r : ${g.reservas}" th:attr="data-reserva=${r.loteInsumo.id}" class="hover:bg-slate-50"
-                        th:classappend="${r.cantidadReservada == null or r.cantidadReservada le 0} ? 'opacity-50'">
-                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
-                            <span th:text="${r.loteInsumo.identificacionLoteProveedor}">L-123</span>
-                            <span th:if="${r.loteInsumo.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>
+                    <tr th:each="c : ${consumos.content}" th:attr="data-consumo=${c.id}" class="hover:bg-slate-50"
+                        th:classappend="${c.estado.name() == 'ANULADO'} ? 'opacity-60'">
+                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${c.loteInsumo.insumo.nombre}">Cascade</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${c.cantidadConsumida}, ${c.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaRegistro})}"></th:block></td>
+                        <td class="px-4 py-3 text-slate-700">
+                            <span th:replace="~{lote/formato :: estadoTransaccion(${c.estado})}"></span>
+                            <div th:if="${c.estado.name() == 'ANULADO'}" data-anulacion class="mt-1 space-y-0.5 text-xs text-slate-500">
+                                <div th:if="${c.motivoAnulacion != null}">Motivo: <span class="text-slate-700" data-anulacion-motivo th:text="${c.motivoAnulacion}">Error de carga</span></div>
+                                <div th:if="${c.fechaAnulacion != null or c.usuarioAnulacion != null}">Anulado<th:block th:if="${c.fechaAnulacion != null}"> el <span class="text-slate-700" data-anulacion-fecha><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaAnulacion})}"></th:block></span></th:block><th:block th:if="${c.usuarioAnulacion != null}"> por <span class="text-slate-700" data-anulacion-usuario th:text="${c.usuarioAnulacion}">operario</span></th:block></div>
+                            </div>
                         </td>
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${r.loteInsumo.fechaVencimiento})}"></th:block></td>
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
-                            <th:block th:replace="~{receta/formato :: numero(${r.cantidadReservada})}"></th:block>
-                            <span th:if="${r.cantidadReservada == null or r.cantidadReservada le 0}" class="ml-1 text-xs text-slate-500">Agotada</span>
-                        </td>
-                        <td class="px-4 py-3">
-                            <form th:if="${r.cantidadReservada != null and r.cantidadReservada gt 0}"
-                                  th:action="@{/lotes/{id}/etapas/{etapa}/consumos/reservado(id=${lote.id}, etapa=${slugEtapa})}" method="post" novalidate data-un-solo-envio
-                                  class="flex items-start gap-2">
-                                <input type="hidden" name="idLoteInsumo" th:value="${r.loteInsumo.id}">
-                                <div>
-                                    <input type="number" name="cantidadConsumida" step="any" autocomplete="off" placeholder="Ej: 10"
-                                           th:aria-label="|Cantidad a consumir del lote ${r.loteInsumo.identificacionLoteProveedor}|"
-                                           th:value="${(formularioConError == 'reservado' and consumoForm.idLoteInsumo == r.loteInsumo.id) ? cantidadEscrita : null}"
-                                           class="w-32 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                                           th:classappend="${formularioConError == 'reservado' and consumoForm.idLoteInsumo == r.loteInsumo.id and #fields.hasErrors('cantidadConsumida')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                                    <p th:if="${formularioConError == 'reservado' and consumoForm.idLoteInsumo == r.loteInsumo.id and #fields.hasErrors('cantidadConsumida')}"
-                                       th:errors="*{cantidadConsumida}" class="mt-1 text-xs text-rose-600"></p>
-                                </div>
-                                <button type="submit"
-                                        class="shrink-0 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Registrar</button>
-                            </form>
+                        <td th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right">
+                            <button type="button" th:if="${c.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
+                                    th:data-motivo-url="@{/lotes/{id}/etapas/{etapa}/consumos/{idConsumo}/anular(id=${lote.id}, etapa=${slugEtapa}, idConsumo=${c.id})}"
+                                    th:data-motivo-nombre="${c.loteInsumo.insumo.nombre}"
+                                    class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
                         </td>
                     </tr>
                     </tbody>
                 </table>
             </div>
+            <div th:replace="~{fragments/paginacion :: paginacion(${consumos}, 'consumos',
+                    ${consumos.hasPrevious()} ? (${filtroEstado != null} ? @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number - 1}, estado=${filtroEstado})} : @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number - 1})}) : null,
+                    ${consumos.hasNext()} ? (${filtroEstado != null} ? @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number + 1}, estado=${filtroEstado})} : @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number + 1})}) : null,
+                    false)}"></div>
         </div>
-    </section>
-
-    <!-- 3. Consumo directo: el lote de insumo se elige con el buscador en modal -->
-    <section th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_REGISTRAR')" data-consumo-directo
-             class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Consumo directo</h2>
-        <form th:action="@{/lotes/{id}/etapas/{etapa}/consumos/directo(id=${lote.id}, etapa=${slugEtapa})}" method="post" novalidate data-un-solo-envio
-              class="p-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div>
-                <span class="block text-sm font-medium text-slate-700 mb-1">Lote de insumo <span class="text-rose-600" title="Obligatorio">*</span></span>
-                <div th:replace="~{fragments/selector-entidad :: selector('idLoteInsumo', ${idLoteElegido}, ${loteElegidoTexto},
-                        ${urlBuscador}, null, null, false, ${formularioConError == 'directo' and #fields.hasErrors('idLoteInsumo')}, 'Seleccione lote de insumo')}"></div>
-                <p th:if="${formularioConError == 'directo' and #fields.hasErrors('idLoteInsumo')}" th:errors="*{idLoteInsumo}" class="mt-1 text-xs text-rose-600"></p>
-                <p data-lote-elegido th:hidden="${loteElegido == null}" class="mt-2 text-xs text-slate-500">
-                    Vencimiento: <span data-lote-vencimiento><th:block th:if="${loteElegido != null}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${loteElegido.fechaVencimiento})}"></th:block></th:block></span>
-                    <span data-lote-vencido th:hidden="${loteElegido == null or !loteElegido.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>
-                    &middot; Disponible: <span data-lote-disponible><th:block th:if="${loteElegido != null}"><th:block th:replace="~{receta/formato :: medida(${loteElegido.cantidadDisponible}, ${loteElegido.insumo.unidadDeMedida.simbolo})}"></th:block></th:block></span>
-                </p>
-            </div>
-            <div>
-                <label for="cantidad-directo" class="block text-sm font-medium text-slate-700 mb-1">Cantidad (g o kg, según el insumo) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                <input type="number" id="cantidad-directo" name="cantidadConsumida" step="any" autocomplete="off" placeholder="Ej: 10"
-                       th:value="${formularioConError == 'directo'} ? ${cantidadEscrita}"
-                       class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                       th:classappend="${formularioConError == 'directo' and #fields.hasErrors('cantidadConsumida')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                <p th:if="${formularioConError == 'directo' and #fields.hasErrors('cantidadConsumida')}" th:errors="*{cantidadConsumida}" class="mt-1 text-xs text-rose-600"></p>
-            </div>
-            <div class="lg:col-span-2 flex justify-end">
-                <button type="submit"
-                        class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Registrar consumo directo</button>
-            </div>
-        </form>
-    </section>
-
-    <!-- 4. Consumos registrados de la etapa -->
-    <section data-consumos-registrados class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="text-sm font-semibold text-slate-700">Consumos registrados</h2>
-            <form th:action="@{${urlPantalla}}" method="get" novalidate data-filtro-consumos class="flex items-center gap-2">
-                <label for="estado" class="text-xs font-medium text-slate-500">Estado</label>
-                <select id="estado" name="estado"
-                        class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
-                    <option value="">Todos</option>
-                    <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Registrado</option>
-                </select>
-                <button type="submit"
-                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                    <i class="bi bi-funnel"></i> Filtrar
-                </button>
-            </form>
-        </div>
-        <p th:if="${consumos.empty}" class="px-5 py-6 text-sm text-slate-400"
-           th:text="${filtroEstado == null} ? 'No hay consumos registrados en esta etapa' : 'No hay consumos en el estado indicado'">No hay consumos registrados en esta etapa</p>
-        <div th:unless="${consumos.empty}" class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <tr>
-                    <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Lote de insumo</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Tipo</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Fecha de registro</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                    <th th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right"></th>
-                </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                <tr th:each="c : ${consumos.content}" th:attr="data-consumo=${c.id}" class="hover:bg-slate-50"
-                    th:classappend="${c.estado.name() == 'ANULADO'} ? 'opacity-60'">
-                    <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${c.loteInsumo.insumo.nombre}">Cascade</td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${c.tipoConsumo.etiqueta}">Directo</td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${c.cantidadConsumida}, ${c.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaRegistro})}"></th:block></td>
-                    <td class="px-4 py-3 text-slate-700">
-                        <span th:replace="~{lote/formato :: estadoTransaccion(${c.estado})}"></span>
-                        <div th:if="${c.estado.name() == 'ANULADO'}" data-anulacion class="mt-1 space-y-0.5 text-xs text-slate-500">
-                            <div th:if="${c.motivoAnulacion != null}">Motivo: <span class="text-slate-700" data-anulacion-motivo th:text="${c.motivoAnulacion}">Error de carga</span></div>
-                            <div th:if="${c.fechaAnulacion != null or c.usuarioAnulacion != null}">Anulado<th:block th:if="${c.fechaAnulacion != null}"> el <span class="text-slate-700" data-anulacion-fecha><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaAnulacion})}"></th:block></span></th:block><th:block th:if="${c.usuarioAnulacion != null}"> por <span class="text-slate-700" data-anulacion-usuario th:text="${c.usuarioAnulacion}">operario</span></th:block></div>
-                        </div>
-                    </td>
-                    <td th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right">
-                        <button type="button" th:if="${c.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
-                                th:data-motivo-url="@{/lotes/{id}/etapas/{etapa}/consumos/{idConsumo}/anular(id=${lote.id}, etapa=${slugEtapa}, idConsumo=${c.id})}"
-                                th:data-motivo-nombre="${c.loteInsumo.insumo.nombre}"
-                                class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
-                    </td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-        <div th:replace="~{fragments/paginacion :: paginacion(${consumos}, 'consumos',
-                ${consumos.hasPrevious()} ? (${filtroEstado != null} ? @{${urlPantalla}(pagina=${consumos.number - 1}, estado=${filtroEstado})} : @{${urlPantalla}(pagina=${consumos.number - 1})}) : null,
-                ${consumos.hasNext()} ? (${filtroEstado != null} ? @{${urlPantalla}(pagina=${consumos.number + 1}, estado=${filtroEstado})} : @{${urlPantalla}(pagina=${consumos.number + 1})}) : null,
-                false)}"></div>
     </section>
 
     <!-- Diálogo del motivo de la anulación -->
@@ -242,8 +169,6 @@
                 'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                 'Se cargó el lote de insumo equivocado')}"></div>
     </th:block>
-
-    <script th:src="@{/js/consumo-lista.js}" defer></script>
 </div>
 
 </body>

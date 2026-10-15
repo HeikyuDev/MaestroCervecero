@@ -43,16 +43,20 @@
     // ---------- Buscador (modal) ----------
 
     var MENSAJE_BUSCADOR_NO_DISPONIBLE = 'No se pudo cargar la búsqueda, actualice la página e intente nuevamente';
+    var MENSAJE_SESION_FINALIZADA = 'Su sesión finalizó, inicie sesión nuevamente';
 
     /**
      * Pide el fragmento de {url}. Resuelve {html} con el fragmento o {mensaje} con un texto para mostrar dentro del
      * modal: una respuesta que no es correcta trae el motivo como texto, y una redirigida (la página completa de otro
-     * lugar) nunca se inyecta en el modal.
+     * lugar) nunca se inyecta en el modal. Una redirigida al inicio de sesión es una sesión que ya no está vigente (venció
+     * o se inició en otro lugar).
      */
     function pedirHtml(url) {
         return fetch(url, {headers: {'X-Requested-With': 'fetch'}, credentials: 'same-origin'})
             .then(function (respuesta) {
-                if (respuesta.redirected) { return {mensaje: MENSAJE_BUSCADOR_NO_DISPONIBLE}; }
+                if (respuesta.redirected) {
+                    return {mensaje: respuesta.url.indexOf('/login') !== -1 ? MENSAJE_SESION_FINALIZADA : MENSAJE_BUSCADOR_NO_DISPONIBLE};
+                }
                 return respuesta.text().then(function (texto) {
                     if (respuesta.ok) { return {html: texto}; }
                     var esTexto = (respuesta.headers.get('Content-Type') || '').indexOf('text/plain') === 0;

@@ -3,12 +3,14 @@
 <body>
 
 <!--
-    Contenido del modal de búsqueda de un lote de insumo del consumo directo: criterios de insumo (texto con el
-    nombre, nunca un desplegable) e identificación del lote + resultados con "Elegir". El controller ofrece solo lotes
-    de los insumos que la etapa requiere, con saldo disponible, en el orden del service (vigentes por vencimiento,
-    luego vencidos). El botón "Elegir" lleva, además del id y el texto, los datos que la pantalla muestra del lote
-    elegido (vencimiento, disponible y si está vencido). Si la etapa no admite consumos, el controller informa el
-    motivo en mensajeBuscador y el fragmento no muestra criterios ni filas.
+    Contenido del modal de búsqueda de un lote de insumo de un consumo: criterios de insumo (texto con el nombre, nunca
+    un desplegable) e identificación del lote + resultados con "Elegir". El controller ofrece, según el tipo de consumo,
+    los lotes con saldo reservado para la etapa (reservado) o todos los lotes con saldo disponible de los insumos que la
+    etapa requiere (directo), en orden FEFO: vigentes por vencimiento y los vencidos al final, marcados. Cada fila trae el
+    lote y la cantidad que se ofrece (tituloCantidad: Reservado o Disponible). El botón "Elegir" lleva, además del id y el
+    texto, los datos que la pantalla muestra del lote elegido (vencimiento, cantidad, unidad y si está vencido). Si la
+    etapa no admite consumos, el controller informa el motivo en mensajeBuscador y el fragmento no muestra criterios ni
+    filas.
 -->
 <div th:fragment="buscador">
 
@@ -53,36 +55,38 @@
                     <th class="px-3 py-3 whitespace-nowrap">Insumo</th>
                     <th class="px-3 py-3 whitespace-nowrap">Lote</th>
                     <th class="px-3 py-3 whitespace-nowrap">Vencimiento</th>
-                    <th class="px-3 py-3 whitespace-nowrap">Disponible</th>
+                    <th class="px-3 py-3 whitespace-nowrap" th:text="${tituloCantidad}">Disponible</th>
                     <th class="px-3 py-3 text-right"></th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
-                <tr th:each="l : ${lotesInsumo.content}" class="hover:bg-slate-50">
+                <tr th:each="f : ${filas.content}" th:with="l=${f.lote}" class="hover:bg-slate-50"
+                    th:classappend="${l.vencido} ? 'bg-amber-50/40'">
                     <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.insumo.nombre}">Cascade</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${l.identificacionLoteProveedor}">L-125</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
                         <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaVencimiento})}"></th:block>
                         <span th:if="${l.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>
                     </td>
-                    <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${l.cantidadDisponible}, ${l.insumo.unidadDeMedida.simbolo})}"></th:block></td>
+                    <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.cantidad}, ${l.insumo.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-3 py-3 text-right">
                         <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="|${l.insumo.nombre} - ${l.identificacionLoteProveedor}|"
                                 th:data-vencimiento="${l.fechaVencimiento != null} ? ${#temporals.format(l.fechaVencimiento, 'dd/MM/yyyy')} : '-'"
-                                th:data-disponible="${(l.cantidadDisponible == l.cantidadDisponible.intValue() ? #numbers.formatInteger(l.cantidadDisponible.intValue(), 1, 'POINT') : #strings.replace(l.cantidadDisponible, '.', ',')) + ' ' + l.insumo.unidadDeMedida.simbolo}"
+                                th:data-cantidad="${(f.cantidad == f.cantidad.intValue() ? #numbers.formatInteger(f.cantidad.intValue(), 1, 'POINT') : #strings.replace(f.cantidad, '.', ',')) + ' ' + l.insumo.unidadDeMedida.simbolo}"
+                                th:data-unidad="${l.insumo.unidadDeMedida.simbolo}"
                                 th:data-vencido="${l.vencido} ? 'true'"
                                 class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                     </td>
                 </tr>
-                <tr th:if="${lotesInsumo.empty}">
+                <tr th:if="${filas.empty}">
                     <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron lotes de insumo con los criterios indicados</td>
                 </tr>
                 </tbody>
             </table>
 
-            <div th:replace="~{fragments/paginacion :: paginacion(${lotesInsumo}, 'lotes de insumo',
-                    ${lotesInsumo.hasPrevious()} ? @{${urlBuscador}(pagina=${lotesInsumo.number - 1}, insumo=${filtroInsumo}, identificacion=${filtroIdentificacion})} : null,
-                    ${lotesInsumo.hasNext()} ? @{${urlBuscador}(pagina=${lotesInsumo.number + 1}, insumo=${filtroInsumo}, identificacion=${filtroIdentificacion})} : null,
+            <div th:replace="~{fragments/paginacion :: paginacion(${filas}, 'lotes de insumo',
+                    ${filas.hasPrevious()} ? @{${urlBuscador}(pagina=${filas.number - 1}, insumo=${filtroInsumo}, identificacion=${filtroIdentificacion})} : null,
+                    ${filas.hasNext()} ? @{${urlBuscador}(pagina=${filas.number + 1}, insumo=${filtroInsumo}, identificacion=${filtroIdentificacion})} : null,
                     true)}"></div>
         </div>
     </th:block>

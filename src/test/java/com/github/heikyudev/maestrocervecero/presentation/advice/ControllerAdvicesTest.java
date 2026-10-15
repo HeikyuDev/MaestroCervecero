@@ -3,7 +3,10 @@ package com.github.heikyudev.maestrocervecero.presentation.advice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Controller;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -84,6 +87,21 @@ class ControllerAdvicesTest {
         }
     }
 
+    @Test
+    @DisplayName("CP-CA-06: en un buscador en modal cualquier rechazo (recurso inexistente, regla de negocio, error inesperado) responde con su estado HTTP y el motivo como texto, sin redirigir al origen; el rechazo de permisos sí redirige")
+    void rechazoEnUnBuscador_debeResponderElMotivoSinRedirigir() throws Exception {
+        String[][] casos = {
+                                {"/lotes/buscador/inexistente", "404", "No se encontró el lote con ID: 9"},
+                {"/lotes/buscador/regla", "422", "La etapa no admite consumos"},
+                {"/lotes/buscador/falla", "500", "Ocurrió un error inesperado. Intente nuevamente"}};
+        for (String[] caso : casos) {
+            mockMvc.perform(get(caso[0]).header("Referer", "http://localhost/lotes/12/etapas/molienda/consumos"))
+                    .andExpect(status().is(Integer.parseInt(caso[1])))
+                    .andExpect(content().contentType("text/plain;charset=UTF-8"))
+                    .andExpect(content().string(caso[2]));
+        }
+    }
+
     @Controller
     static class ControladorQueFalla {
 
@@ -96,6 +114,26 @@ class ControllerAdvicesTest {
         @ResponseBody
         String buscador(@RequestParam(defaultValue = "0") int pagina) {
             return "buscador";
+        }
+
+        @GetMapping("/lotes/buscador/sin-permiso")
+        String sinPermiso() {
+            throw new AccessDeniedException("Access Denied");
+        }
+
+        @GetMapping("/lotes/buscador/inexistente")
+        String inexistente() {
+            throw new RecursoNoEncontradoException("No se encontró el lote con ID: 9");
+        }
+
+        @GetMapping("/lotes/buscador/regla")
+        String regla() {
+            throw new ReglaNegocioException("La etapa no admite consumos");
+        }
+
+        @GetMapping("/lotes/buscador/falla")
+        String falla() {
+            throw new IllegalStateException("falla cualquiera");
         }
 
         @GetMapping("/falla-integridad")

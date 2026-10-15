@@ -2,12 +2,15 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -105,4 +108,36 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
     @Query("SELECT r.loteInsumo.insumo.id, SUM(r.cantidadReservada) FROM ReservaInsumoEntity r "
             + "WHERE r.etapaLote.id = :idEtapaLote GROUP BY r.loteInsumo.insumo.id")
     List<Object[]> sumarSaldoReservadoPorInsumoDeEtapa(@Param("idEtapaLote") Long idEtapaLote);
+
+    /**
+     * Filtra las reservas de una etapa de lote que todavía tienen saldo reservado, para elegir el lote de insumo de un
+     * consumo reservado. Los criterios de texto nulos no restringen.
+     * <p>
+     * El orden es FEFO y lo define la consulta, para que la paginación sea estable: primero los lotes de insumo
+     * vigentes por fecha de vencimiento ascendente (uno que vence hoy es vigente), luego los que no tienen fecha de
+     * vencimiento y al final los vencidos (fecha anterior a {@code hoy}), también por fecha; ante igual fecha, por ID.
+     * </p>
+     *
+     * @param idEtapaLote El ID de la etapa de lote.
+     * @param nombreInsumo Texto a buscar dentro del nombre del insumo (ya normalizado), o {@code null}.
+     * @param identificacion Texto a buscar dentro de la identificación del lote del proveedor (ya normalizado), o {@code null}.
+     * @param hoy La fecha contra la que se decide si un lote está vencido.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Una página de reservas con su lote de insumo y su insumo cargados.
+     */
+    @Query(value = "SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
+            + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadReservada > 0.00005 "
+            + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
+            + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
+            + "ORDER BY CASE WHEN li.fechaVencimiento IS NULL THEN 1 WHEN li.fechaVencimiento < :hoy THEN 2 ELSE 0 END ASC, "
+            + "li.fechaVencimiento ASC, li.id ASC",
+            countQuery = "SELECT COUNT(r) FROM ReservaInsumoEntity r JOIN r.loteInsumo li JOIN li.insumo i "
+                    + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadReservada > 0.00005 "
+                    + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
+                    + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
+    Page<ReservaInsumoEntity> filtrarReservasConSaldo(@Param("idEtapaLote") Long idEtapaLote,
+                                                      @Param("nombreInsumo") String nombreInsumo,
+                                                      @Param("identificacion") String identificacion,
+                                                      @Param("hoy") LocalDate hoy,
+                                                      Pageable pageable);
 }

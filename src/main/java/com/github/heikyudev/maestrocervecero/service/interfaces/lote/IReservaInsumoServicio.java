@@ -2,6 +2,9 @@ package com.github.heikyudev.maestrocervecero.service.interfaces.lote;
 
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ReservaInsumoResponseDTO;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 
 /**
@@ -29,4 +32,17 @@ public interface IReservaInsumoServicio {
      * @return Las reservas correspondientes, en formato DTO.
      */
     List<ReservaInsumoResponseDTO> filtrarLotesInsumoReservados(Long idEtapaLote, Long idInsumo);
+
+    /**
+     * Filtra las reservas de una etapa de lote que todavía tienen saldo reservado, para elegir el lote de insumo de un
+     * consumo reservado, en orden FEFO (vigentes por vencimiento, luego sin fecha de vencimiento y al final los
+     * vencidos, que se marcan). Las reservas agotadas no se ofrecen.
+     *
+     * @param idEtapaLote El ID de la etapa de lote (obligatorio; lo resuelve el Controller).
+     * @param nombreInsumo Texto a buscar dentro del nombre del insumo, o {@code null}/vacío para no restringir.
+     * @param identificacion Texto a buscar dentro de la identificación del lote de insumo, o {@code null}/vacío para no restringir.
+     * @param pageable La configuración de paginación; el orden lo define el service.
+     * @return Una página de reservas en formato DTO.
+     */
+    Page<ReservaInsumoResponseDTO> filtrarReservasConSaldo(Long idEtapaLote, String nombreInsumo, String identificacion, Pageable pageable);
 }

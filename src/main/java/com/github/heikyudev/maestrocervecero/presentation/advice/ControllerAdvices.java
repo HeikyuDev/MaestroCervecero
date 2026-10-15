@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -24,7 +25,8 @@ import java.nio.charset.StandardCharsets;
  * <p>
  * Cada handler traduce la excepción en un par {@code mensaje}/{@code tipo} vía Flash
  * Attributes -el mismo contrato que ya consume {@code login.html}- y redirige de vuelta
- * al origen de la petición (header {@code Referer}), con un fallback a la raíz del sitio.
+ * al origen de la petición (header {@code Referer}), con un fallback a la raíz del sitio. Un buscador en modal no
+ * puede redirigir: responde con el estado HTTP del rechazo y el motivo como texto.
  * </p>
  */
 @Slf4j
@@ -37,27 +39,27 @@ public class ControllerAdvices {
             "No se pudo guardar porque los datos entran en conflicto con otro registro. Revise la información e intente nuevamente";
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
-    public String handleRecursoNoEncontrado(RecursoNoEncontradoException ex,
+    public Object handleRecursoNoEncontrado(RecursoNoEncontradoException ex,
                                              HttpServletRequest request,
                                              RedirectAttributes redirectAttributes) {
         log.warn("Recurso no encontrado: {}", ex.getMessage());
-        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER);
+        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(RecursoDuplicadoException.class)
-    public String handleRecursoDuplicado(RecursoDuplicadoException ex,
+    public Object handleRecursoDuplicado(RecursoDuplicadoException ex,
                                           HttpServletRequest request,
                                           RedirectAttributes redirectAttributes) {
         log.warn("Recurso duplicado: {}", ex.getMessage());
-        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER);
+        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER, HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(ReglaNegocioException.class)
-    public String handleReglaNegocio(ReglaNegocioException ex,
+    public Object handleReglaNegocio(ReglaNegocioException ex,
                                       HttpServletRequest request,
                                       RedirectAttributes redirectAttributes) {
         log.warn("Regla de negocio incumplida: {}", ex.getMessage());
-        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.WARNING);
+        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.WARNING, HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     /**
@@ -65,11 +67,11 @@ public class ControllerAdvices {
      * específico propio.
      */
     @ExceptionHandler(BaseException.class)
-    public String handleBaseException(BaseException ex,
+    public Object handleBaseException(BaseException ex,
                                        HttpServletRequest request,
                                        RedirectAttributes redirectAttributes) {
         log.warn("Excepción de dominio sin handler específico: {}", ex.getMessage());
-        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER);
+        return redirigirConMensaje(request, redirectAttributes, ex.getMessage(), TipoAlerta.DANGER, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     /**
@@ -78,11 +80,11 @@ public class ControllerAdvices {
      * handler, el catch-all de abajo la mostraría como un error inesperado.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public String handleDataIntegrityViolation(DataIntegrityViolationException ex,
+    public Object handleDataIntegrityViolation(DataIntegrityViolationException ex,
                                                HttpServletRequest request,
                                                RedirectAttributes redirectAttributes) {
         log.warn("Violación de integridad de datos en {}: {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
-        return redirigirConMensaje(request, redirectAttributes, MENSAJE_CONFLICTO_DE_DATOS, TipoAlerta.DANGER);
+        return redirigirConMensaje(request, redirectAttributes, MENSAJE_CONFLICTO_DE_DATOS, TipoAlerta.DANGER, HttpStatus.CONFLICT);
     }
 
     /**
@@ -90,11 +92,14 @@ public class ControllerAdvices {
      * y le mostraría al usuario un "error inesperado" en vez de un mensaje de permisos.
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public String handleAccessDenied(AccessDeniedException ex,
+    public Object handleAccessDenied(AccessDeniedException ex,
                                      HttpServletRequest request,
                                      RedirectAttributes redirectAttributes) {
         log.warn("Acceso denegado a {}", request.getRequestURI());
-        return redirigirConMensaje(request, redirectAttributes, "No tiene permisos para realizar esta acción", TipoAlerta.DANGER);
+        // Un rechazo de permisos siempre vuelve al origen con la alerta, también desde un buscador en modal
+        redirectAttributes.addFlashAttribute("mensaje", "No tiene permisos para realizar esta acción");
+        redirectAttributes.addFlashAttribute("tipo", TipoAlerta.DANGER.getCodigo());
+        return "redirect:" + resolveRedirectPath(request);
     }
 
     /**
@@ -108,24 +113,31 @@ public class ControllerAdvices {
                                                 HttpServletRequest request,
                                                 RedirectAttributes redirectAttributes) {
         log.warn("Valor inválido para el parámetro {} en {}", ex.getName(), request.getRequestURI());
-        if (esBuscadorEnModal(request)) {
-            return ResponseEntity.badRequest()
-                    .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
-                    .body(MENSAJE_VALOR_INVALIDO);
-        }
-        return redirigirConMensaje(request, redirectAttributes, MENSAJE_VALOR_INVALIDO, TipoAlerta.WARNING);
+        return redirigirConMensaje(request, redirectAttributes, MENSAJE_VALOR_INVALIDO, TipoAlerta.WARNING, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
-    public String handleException(Exception ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
+    public Object handleException(Exception ex, HttpServletRequest request, RedirectAttributes redirectAttributes) {
         log.error("Error inesperado procesando la petición a {}", request.getRequestURI(), ex);
-        return redirigirConMensaje(request, redirectAttributes, MENSAJE_ERROR_INESPERADO, TipoAlerta.DANGER);
+        return redirigirConMensaje(request, redirectAttributes, MENSAJE_ERROR_INESPERADO, TipoAlerta.DANGER, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    private String redirigirConMensaje(HttpServletRequest request,
-                                        RedirectAttributes redirectAttributes,
-                                        String mensaje,
-                                        TipoAlerta tipo) {
+    /**
+     * Traduce el rechazo según quién lo pidió. Una página vuelve al origen con la alerta (Post-Redirect-Get). Un buscador
+     * en modal ({@code /buscador} o {@code /filtros} en la ruta) no puede redirigir: el navegador recibiría una página
+     * completa de otro lugar y el modal solo podría decir que no se pudo cargar. Por eso responde con el estado HTTP del
+     * rechazo y el motivo como texto, que el modal muestra dentro de sí.
+     */
+    private Object redirigirConMensaje(HttpServletRequest request,
+                                       RedirectAttributes redirectAttributes,
+                                       String mensaje,
+                                       TipoAlerta tipo,
+                                       HttpStatus estado) {
+        if (esBuscadorEnModal(request)) {
+            return ResponseEntity.status(estado)
+                    .contentType(new MediaType(MediaType.TEXT_PLAIN, StandardCharsets.UTF_8))
+                    .body(mensaje);
+        }
         redirectAttributes.addFlashAttribute("mensaje", mensaje);
         redirectAttributes.addFlashAttribute("tipo", tipo.getCodigo());
         return "redirect:" + resolveRedirectPath(request);

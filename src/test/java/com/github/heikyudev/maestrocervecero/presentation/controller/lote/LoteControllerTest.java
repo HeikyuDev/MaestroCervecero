@@ -188,10 +188,10 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains("Gestión de Lotes").contains("action=\"/lotes\"").contains("novalidate");
-        assertThat(texto(html)).contains("Código", "Planificación", "Fermentador", "Estado", "Etapa actual", "Inicio estimado", "Fin real");
-        assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "#7 - Pale Ale", "F-01", "En ejecución", "Hervido", "01/07/2027 05/07/2027", "01/07/2027 08:30 -");
+        assertThat(texto(html)).contains("Código", "Planificación", "Fermentador", "Estado", "Etapa actual", "Estimado", "Real");
+        assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "#7 - Pale Ale", "F-01", "En ejecución", "Hervido", "Inicio 01/07/2027 Fin 05/07/2027", "Inicio 01/07/2027 Fin -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Registrar lote")
-                .contains("href=\"/lotes/12\"").contains("overflow-x-auto").contains("whitespace-nowrap");
+                .contains("href=\"/lotes/12\"").contains("overflow-x-auto");
         assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
         assertThat(texto(html)).contains("Acciones", "Gestionar lote");
     }
@@ -382,20 +382,18 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-11: debajo de xl las fechas van juntas en las celdas Estimado y Real; desde xl, en cuatro columnas propias, con un guion si falta la fecha real")
+    @DisplayName("CP-LCT-11: las fechas van siempre juntas en las celdas Estimado y Real (inicio y fin de cada una, con un guion si falta la fecha real), sin columnas que dependan del ancho de la pantalla")
     void listar_debeMostrarLasFechasCompactasYCompletas() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains(">Estimado</th>").contains(">Real</th>").contains("xl:hidden")
-                .contains("hidden xl:table-cell").contains(">Inicio estimado</th>").contains(">Fin estimado</th>")
-                .contains(">Inicio real</th>").contains(">Fin real</th>");
+        assertThat(html).contains(">Estimado</th>").contains(">Real</th>").doesNotContain("xl:hidden").doesNotContain("xl:table-cell");
         List<String> celdas = celdas(html, "PALE_ALE-R7-3");
-        assertThat(celdas.get(5)).isEqualTo("01/07/2027 05/07/2027");
-        assertThat(celdas.get(6)).isEqualTo("- -");
-        assertThat(celdas.subList(7, 11)).containsExactly("01/07/2027", "05/07/2027", "-", "-");
+        assertThat(celdas.get(5)).isEqualTo("Inicio 01/07/2027 Fin 05/07/2027");
+        assertThat(celdas.get(6)).isEqualTo("Inicio - Fin -");
+        assertThat(html).contains("data-fecha-inicio-estimada").contains("data-fecha-fin-estimado").contains("data-fecha-inicio-real").contains("data-fecha-fin-real");
     }
 
     @Test
@@ -862,8 +860,7 @@ class LoteControllerTest {
         // Assert
         String cabecera = texto(bloque(html, "data-lote-cabecera"));
         assertThat(cabecera).contains("PALE_ALE-R7-3", "En ejecución", "Plan #7 - Pale Ale", "Pale Ale - versión 3 de 3", "Fermentador F-01",
-                "Volumen objetivo 300 L", "Inicio real 01/07/2027 08:30", "Fin estimado 05/07/2027", "Volver a lotes");
-        assertThat(cabecera).doesNotContain("Inicio estimado").doesNotContain("Fin real");
+                "Volumen objetivo 300 L", "Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real 01/07/2027 08:30", "Fin real -", "Volver a lotes");
         assertThat(html).contains("href=\"/planificaciones-produccion/7\"").contains("href=\"/lotes\"");
     }
 
@@ -1210,7 +1207,7 @@ class LoteControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"maceracion", "envasado"})
-    @DisplayName("CP-LCT-57: las etapas que no consumen insumos lo informan, sin tabla de insumos, sin el botón Consumos de insumos y sin avance, con las demás secciones presentes")
+    @DisplayName("CP-LCT-57: las etapas que no consumen insumos lo informan, sin tabla de insumos, sin el botón Gestionar consumos y sin avance, con las demás secciones presentes")
     void detalle_etapasSinConsumos(String etapa) throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.EN_CURSO,
@@ -1223,7 +1220,7 @@ class LoteControllerTest {
         String insumos = bloque(html, "data-insumos-etapa");
         assertThat(texto(insumos)).contains("Esta etapa no consume insumos");
         assertThat(insumos).doesNotContain("<table");
-        assertThat(html).doesNotContain("Consumos de insumos").doesNotContain("data-ir-consumos").doesNotContain("data-avance")
+        assertThat(html).doesNotContain("Gestionar consumos").doesNotContain("data-ir-consumos").doesNotContain("data-avance")
                 .contains("data-franja-estado").contains("data-guia").doesNotContain("data-acciones-etapa");
         verify(consumoInsumoServicio, never()).filtrarInsumosRequeridos(any());
     }
@@ -1244,20 +1241,21 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-59: el botón Consumos de insumos cierra, al pie y a la derecha, la sección Insumos de la etapa y lleva a la pantalla de consumos de la etapa")
+    @DisplayName("CP-LCT-59: el pie de la sección Insumos de la etapa tiene el texto de ayuda a la izquierda y el botón Gestionar consumos a la derecha, con el ícono bi-list-check, hacia la pantalla de consumos de la etapa")
     void detalle_botonRegistrarConsumo() throws Exception {
         // Act
         String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
 
         // Assert
         String insumos = bloque(html, "data-insumos-etapa");
-        assertThat(texto(insumos)).endsWith("Consumos de insumos");
-        assertThat(insumos).contains("data-ir-consumos").contains("href=\"/lotes/12/etapas/hervido/consumos\"").contains("bi-box-arrow-in-down");
+        assertThat(texto(insumos)).endsWith("Registre y consulte los consumos de esta etapa Gestionar consumos");
+        assertThat(insumos).contains("data-ir-consumos").contains("href=\"/lotes/12/etapas/hervido/consumos\"").contains("bi-list-check")
+                .contains("bg-amber-500").doesNotContain("bi-box-arrow-in-down");
         assertThat(html).doesNotContain("Registrar consumo");
     }
 
     @Test
-    @DisplayName("CP-LCT-60: Consumos de insumos aparece para quien tiene CONSUMO_INSUMO_CONSULTAR aunque la etapa esté pendiente o finalizada o el lote cancelado, y no para el gerente, que no tiene ese permiso")
+    @DisplayName("CP-LCT-60: Gestionar consumos aparece para quien tiene CONSUMO_INSUMO_CONSULTAR aunque la etapa esté pendiente o finalizada o el lote cancelado, y no para el gerente, que no tiene ese permiso")
     void detalle_registrarConsumoSegunEstadoYRol() throws Exception {
         // Arrange
         List<EtapaLoteResponseDTO> pendiente = etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.PENDIENTE,
@@ -1275,9 +1273,9 @@ class LoteControllerTest {
         String loteCancelado = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
 
         // Assert
-        assertThat(gerente).doesNotContain("Consumos de insumos").doesNotContain("/consumos");
+        assertThat(gerente).doesNotContain("Gestionar consumos").doesNotContain("/consumos");
         for (String html : List.of(etapaPendiente, etapaFinalizada, loteCancelado)) {
-            assertThat(html).contains("Consumos de insumos").contains("href=\"/lotes/12/etapas/hervido/consumos\"").doesNotContain("Registrar consumo");
+            assertThat(html).contains("Gestionar consumos").contains("href=\"/lotes/12/etapas/hervido/consumos\"").doesNotContain("Registrar consumo");
         }
     }
 
@@ -1367,7 +1365,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-65: la pestaña de Envasado ofrece Finalizar envasado en la franja de estado y Registrar envasado en la cabecera de los envasados registrados al operario, sin Consumos de insumos, y ninguno de los dos al gerente")
+    @DisplayName("CP-LCT-65: la pestaña de Envasado ofrece Finalizar envasado en la franja de estado y Registrar envasado en la cabecera de los envasados registrados al operario, sin Gestionar consumos, y ninguno de los dos al gerente")
     void detalle_pestaniaDeEnvasadoConSusAcciones() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
@@ -1379,7 +1377,7 @@ class LoteControllerTest {
         // Assert
         assertThat(texto(bloque(operario, "data-franja-estado"))).contains("Finalizar envasado");
         assertThat(texto(bloque(operario, "data-registros-etapa"))).startsWith("Envasados registrados Registrar envasado");
-        assertThat(operario).doesNotContain("Registrar consumo").doesNotContain("Consumos de insumos");
+        assertThat(operario).doesNotContain("Registrar consumo").doesNotContain("Gestionar consumos");
         assertThat(operario).contains("href=\"/lotes/12/envasados\"");
         Matcher formulario = Pattern.compile("(?s)<form[^>]*action=\"/lotes/12/etapas/envasado/finalizar\"[^>]*>(.*?)</form>").matcher(operario);
         assertThat(formulario.find()).isTrue();
@@ -1426,7 +1424,7 @@ class LoteControllerTest {
 
             // Assert
             assertThat(html).as(etapa).contains("data-franja-estado").contains("data-guia").contains("data-insumos-etapa")
-                    .doesNotContain("Registrar consumo").doesNotContain("Consumos de insumos").doesNotContain("Registrar envasado").doesNotContain("Finalizar")
+                    .doesNotContain("Registrar consumo").doesNotContain("Gestionar consumos").doesNotContain("Registrar envasado").doesNotContain("Finalizar")
                     .doesNotContain("/finalizar").doesNotContain("/consumos").doesNotContain("/envasados").doesNotContain("/iniciar")
                     .contains("Cancelar lote");
             assertThat(texto(bloque(html, "data-franja-estado"))).as(etapa).contains("Inicio").contains("Fin");
@@ -2529,7 +2527,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón Gestionar lote (ícono bi-gear) hacia el detalle; la fila no es clickeable y el código es texto")
+    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón Gestionar lote (sólido ámbar, ícono bi-gear, sin hover como único indicio) hacia el detalle, y la columna queda fija a la derecha; la fila no es clickeable y el código es texto")
     void listar_cadaFilaTieneElBotonGestionarLote() throws Exception {
         // Arrange
         LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
@@ -2542,7 +2540,8 @@ class LoteControllerTest {
         // Assert
         Matcher boton = Pattern.compile("<a[^>]*data-gestionar-lote[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
         assertThat(boton.find()).isTrue();
-        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear");
+        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear").contains("bg-amber-500").contains("text-white");
+        assertThat(html).contains("sticky right-0");
         assertThat(texto(boton.group())).isEqualTo("Gestionar lote");
         assertThat(boton.find()).isFalse();
         assertThat(celdas(html, "PALE_ALE-R7-3").get(0)).isEqualTo("PALE_ALE-R7-3");
@@ -2552,7 +2551,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-139: las fechas de la cabecera muestran lo estimado mientras no ocurrió y lo real cuando ocurrió: Pendiente y Cancelado sin empezar, inicio y fin estimados; En ejecución, inicio real y fin estimado; Finalizado y Cancelado que empezó, inicio y fin reales")
+    @DisplayName("CP-LCT-139: la cabecera muestra siempre las cuatro fechas (inicio y fin estimados, inicio y fin reales) en cualquier estado del lote, con un guion en las reales que todavía no existen y la fecha de cancelación como fin real del lote cancelado")
     void detalle_fechasDeLaCabeceraSegunElEstado() throws Exception {
         // Arrange + Act
         stubDetalle(detalle(EstadoLote.PENDIENTE, TipoEtapa.MOLIENDA, etapas(EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE,
@@ -2574,11 +2573,11 @@ class LoteControllerTest {
         String canceladoQueEmpezo = texto(bloque(detalleHtml(Rol.GERENTE_DE_PRODUCCION, null), "data-lote-cabecera"));
 
         // Assert
-        assertThat(pendiente).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027").doesNotContain("Inicio real").doesNotContain("Fin real");
-        assertThat(canceladoSinEmpezar).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027").doesNotContain("Inicio real").doesNotContain("Fin real");
-        assertThat(enEjecucion).contains("Inicio real 01/07/2027 08:30", "Fin estimado 05/07/2027").doesNotContain("Inicio estimado").doesNotContain("Fin real");
-        assertThat(finalizado).contains("Inicio real 01/07/2027 08:30", "Fin real 05/07/2027 17:00").doesNotContain("estimado");
-        assertThat(canceladoQueEmpezo).contains("Inicio real 01/07/2027 08:30", "Fin real 03/07/2027 10:15").doesNotContain("Inicio estimado").doesNotContain("Fin estimado");
+        assertThat(pendiente).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real -", "Fin real -");
+        assertThat(canceladoSinEmpezar).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real -", "Fin real 30/06/2027 09:00");
+        assertThat(enEjecucion).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real 01/07/2027 08:30", "Fin real -");
+        assertThat(finalizado).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real 01/07/2027 08:30", "Fin real 05/07/2027 17:00");
+        assertThat(canceladoQueEmpezo).contains("Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real 01/07/2027 08:30", "Fin real 03/07/2027 10:15");
     }
 
     @Test
