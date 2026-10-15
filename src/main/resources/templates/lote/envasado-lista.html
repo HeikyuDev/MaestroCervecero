@@ -121,7 +121,7 @@
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaRegistro})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700">
                         <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
-                        <span th:if="${e.motivoAnulacion != null}" class="ml-2 text-xs text-slate-500" th:text="${e.motivoAnulacion}">Barril equivocado</span>
+                        <th:block th:if="${e.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${e.motivoAnulacion}, ${e.usuarioAnulacion}, ${e.fechaAnulacion})}"></th:block></th:block>
                     </td>
                     <td th:if="${operable}" sec:authorize="hasAuthority('ENVASADO_ANULAR')" class="px-4 py-3 text-right">
                         <button type="button" th:if="${e.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"

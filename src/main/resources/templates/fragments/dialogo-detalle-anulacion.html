@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Diálogo con el detalle de una anulación o cancelación (motivo, usuario y fecha y hora). Está una sola vez en el
+    layout (layout/base) y lo abre /js/modales.js desde el botón de fragments/detalle-anulacion, que le entrega los
+    datos con atributos data-detalle-*. Solo muestra información: no envía nada al servidor.
+-->
+<dialog th:fragment="dialogo" id="dialogo-detalle-anulacion" data-dialogo-detalle aria-labelledby="dialogo-detalle-anulacion-titulo"
+        class="m-auto w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+    <div class="p-6">
+        <div class="flex items-start gap-3">
+            <span class="p-2 rounded-full bg-slate-100 text-slate-600"><i class="bi bi-info-circle text-xl"></i></span>
+            <div class="min-w-0 flex-1">
+                <h3 id="dialogo-detalle-anulacion-titulo" data-detalle-titulo-destino class="text-lg font-semibold text-slate-900">Detalle de la anulación</h3>
+                <dl class="mt-4 space-y-3 text-sm">
+                    <div>
+                        <dt class="text-xs font-medium text-slate-500">Motivo</dt>
+                        <dd data-detalle-motivo-destino class="text-slate-900 break-words"></dd>
+                    </div>
+                    <div>
+                        <dt data-detalle-etiqueta-usuario-destino class="text-xs font-medium text-slate-500">Anulado por</dt>
+                        <dd data-detalle-usuario-destino class="text-slate-900"></dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium text-slate-500">Fecha y hora</dt>
+                        <dd data-detalle-fecha-destino class="text-slate-900"></dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+            <button type="button" data-cerrar-dialogo
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cerrar</button>
+        </div>
+    </div>
+</dialog>
+
+</html>

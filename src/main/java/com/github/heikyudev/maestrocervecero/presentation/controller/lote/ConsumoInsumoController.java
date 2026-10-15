@@ -11,6 +11,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoIns
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IReservaInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.LoteInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ConsumoInsumoResponseDTO;
@@ -68,6 +71,9 @@ public class ConsumoInsumoController {
     private static final String ATRIBUTO_FORMULARIO = "consumoForm";
     private static final String MENSAJE_ETAPA_INVALIDA = "La etapa indicada no es válida";
     private static final String MENSAJE_NO_OPERABLE = "Solo se pueden registrar consumos con el lote en ejecución y la etapa en curso";
+    private static final String MENSAJE_SIN_INSUMOS = "Esta etapa no consume insumos";
+    private static final String MENSAJE_ELEGIR_INSUMO = "Elija primero un insumo de la etapa";
+    private static final String VISTA_BUSCADOR_INSUMO = "lote/buscador-insumo-consumo :: buscador";
 
     private final ILoteServicio loteServicio;
     private final IConsumoInsumoServicio consumoInsumoServicio;
@@ -92,6 +98,16 @@ public class ConsumoInsumoController {
     public static class FilaDeBuscador {
         LoteInsumoResponseDTO lote;
         Double cantidad;
+    }
+
+    /**
+     * Una fila del buscador de insumos de un consumo: lo requerido, reservado y consumido del insumo en la etapa y su
+     * tipo (Malta, Lúpulo o Levadura).
+     */
+    @Value
+    public static class FilaDeInsumo {
+        InsumoRequeridoResponseDTO requerido;
+        String tipo;
     }
 
     /** La etapa de la ruta ya resuelta a partir del lote. */
@@ -137,6 +153,9 @@ public class ConsumoInsumoController {
         TipoConsumo tipoConsumo = aTipoConsumo(tipo);
         Long idEtapa = contexto.etapa().getId();
         List<InsumoRequeridoResponseDTO> requeridos = consumoInsumoServicio.filtrarInsumosRequeridos(idEtapa);
+        if (requeridos.isEmpty()) {
+            return volverAlDetalle(idLote, MENSAJE_SIN_INSUMOS, redirectAttributes);
+        }
         AvanceEtapaResponseDTO avance = loteServicio.calcularAvanceDeEtapa(contexto.lote().getId(), tipoEtapa);
         Page<ConsumoInsumoResponseDTO> consumos = consumoInsumoServicio.filtrarConsumosInsumo(idEtapa, tipoConsumo, null, filtroEstado,
                 PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
@@ -188,6 +207,10 @@ public class ConsumoInsumoController {
         }
 
         ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
+        List<InsumoRequeridoResponseDTO> requeridos = consumoInsumoServicio.filtrarInsumosRequeridos(contexto.etapa().getId());
+        if (requeridos.isEmpty()) {
+            return volverAlDetalle(idLote, MENSAJE_SIN_INSUMOS, redirectAttributes);
+        }
         if (!contexto.operable()) {
             agregarMensaje(redirectAttributes, MENSAJE_NO_OPERABLE, TipoAlerta.WARNING);
             return volverALaPestana(idLote, tipo, tipoConsumo);
@@ -196,7 +219,7 @@ public class ConsumoInsumoController {
         if (model.containsAttribute(ATRIBUTO_FORMULARIO)) {
             BindingResult errores = (BindingResult) model.asMap().get(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO);
             if (errores != null) {
-                cargarLoEscrito(model, errores);
+                cargarLoEscrito(model, errores, requeridos);
             }
         } else {
             model.addAttribute(ATRIBUTO_FORMULARIO, new ConsumoInsumoFormDTO());
@@ -211,6 +234,7 @@ public class ConsumoInsumoController {
         model.addAttribute("reservado", tipoConsumo == TipoConsumo.RESERVADO);
         model.addAttribute("urlAccion", urlPantalla + "/" + slugDeConsumo(tipoConsumo));
         model.addAttribute("urlCancelar", urlPantalla + "?tipo=" + slugDeConsumo(tipoConsumo));
+        model.addAttribute("urlBuscadorInsumos", urlPantalla + "/" + slugDeConsumo(tipoConsumo) + "/buscador/insumos");
         model.addAttribute("urlBuscador", urlPantalla + "/" + slugDeConsumo(tipoConsumo) + "/buscador/lotes-insumo");
         return VISTA_FORMULARIO;
     }
@@ -253,6 +277,11 @@ public class ConsumoInsumoController {
             return volverAlDetalle(idLote, rechazo, redirectAttributes);
         }
 
+        ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
+        if (consumoInsumoServicio.filtrarInsumosRequeridos(contexto.etapa().getId()).isEmpty()) {
+            return volverAlDetalle(idLote, MENSAJE_SIN_INSUMOS, redirectAttributes);
+        }
+
         if (bindingResult.hasErrors()) {
             // Post-Redirect-Get: el navegador no queda en la URL del POST, que no tiene pantalla propia
             redirectAttributes.addFlashAttribute(BindingResult.MODEL_KEY_PREFIX + ATRIBUTO_FORMULARIO, bindingResult);
@@ -260,7 +289,6 @@ public class ConsumoInsumoController {
             return "redirect:" + urlDeLaPantalla(idLote, tipo) + "/" + slugDeConsumo(tipoConsumo) + "/nuevo";
         }
 
-        ContextoDeEtapa contexto = resolverContexto(idLote, tipo);
         ConsumoInsumoResponseDTO consumo = tipoConsumo == TipoConsumo.RESERVADO
                 ? consumoInsumoServicio.registrarConsumoInsumoReservado(contexto.etapa().getId(), consumoForm)
                 : consumoInsumoServicio.registrarConsumoInsumoDirecto(contexto.etapa().getId(), consumoForm);
@@ -307,38 +335,96 @@ public class ConsumoInsumoController {
     // ==================== Buscadores ====================
 
     /**
-     * Devuelve el contenido del modal de búsqueda de lotes de insumo del consumo reservado (criterios de insumo e
-     * identificación del lote + resultados), de a 8. Solo se ofrecen los lotes con saldo reservado para la etapa; el
-     * orden (FEFO: vigentes por vencimiento, luego vencidos) lo da el service y no se reordena. Un modal no puede
+     * Devuelve el contenido del modal de búsqueda de insumos del consumo reservado, de los insumos de la etapa que
+     * tienen saldo reservado. El criterio opcional "nombre" filtra por el nombre del insumo. Un modal no puede
      * redirigir: una etapa que no admite consumos o un lote inexistente se informan dentro del propio fragmento.
+     */
+    @GetMapping("/reservado/buscador/insumos")
+    @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
+    public String buscarInsumosReservados(@PathVariable Long idLote,
+                                          @PathVariable String etapa,
+                                          @RequestParam(required = false) String nombre,
+                                          Model model) {
+        return buscarInsumos(idLote, etapa, TipoConsumo.RESERVADO, nombre, model);
+    }
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de insumos del consumo directo, de los insumos que la etapa requiere.
+     * El criterio opcional "nombre" filtra por el nombre del insumo.
+     */
+    @GetMapping("/directo/buscador/insumos")
+    @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
+    public String buscarInsumosDirectos(@PathVariable Long idLote,
+                                        @PathVariable String etapa,
+                                        @RequestParam(required = false) String nombre,
+                                        Model model) {
+        return buscarInsumos(idLote, etapa, TipoConsumo.DIRECTO, nombre, model);
+    }
+
+    private String buscarInsumos(Long idLote, String etapa, TipoConsumo tipoConsumo, String nombre, Model model) {
+        TipoEtapa tipo = aEtapa(etapa);
+        String rechazo = motivoDeRechazo(tipo);
+        if (rechazo != null) {
+            model.addAttribute("mensajeBuscador", rechazo);
+            return VISTA_BUSCADOR_INSUMO;
+        }
+
+        List<InsumoRequeridoResponseDTO> ofrecidos;
+        try {
+            ofrecidos = insumosOfrecidos(resolverContexto(idLote, tipo), tipoConsumo);
+        } catch (RecursoNoEncontradoException e) {
+            model.addAttribute("mensajeBuscador", e.getMessage());
+            return VISTA_BUSCADOR_INSUMO;
+        }
+
+        String criterio = vacioANulo(nombre);
+        List<FilaDeInsumo> filas = ofrecidos.stream()
+                .filter(requerido -> criterio == null
+                        || requerido.getInsumo().getNombre().toLowerCase(Locale.ROOT).contains(criterio.toLowerCase(Locale.ROOT)))
+                .map(requerido -> new FilaDeInsumo(requerido, tipoDeInsumo(requerido.getInsumo())))
+                .toList();
+
+        model.addAttribute("filas", filas);
+        model.addAttribute("reservado", tipoConsumo == TipoConsumo.RESERVADO);
+        model.addAttribute("filtroNombre", nombre);
+        model.addAttribute("urlBuscador", urlDeLaPantalla(idLote, tipo) + "/" + slugDeConsumo(tipoConsumo) + "/buscador/insumos");
+        return VISTA_BUSCADOR_INSUMO;
+    }
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de lotes de insumo del consumo reservado (criterio de identificación
+     * del lote + resultados), de a 8. Solo se ofrecen los lotes del insumo elegido ({@code idInsumo}) con saldo
+     * reservado para la etapa; el orden (FEFO: vigentes por vencimiento, luego vencidos) lo da el service y no se
+     * reordena. Un modal no puede redirigir: una etapa que no admite consumos, un lote inexistente o un insumo que no
+     * se eligió (o que la etapa no ofrece) se informan dentro del propio fragmento.
      */
     @GetMapping("/reservado/buscador/lotes-insumo")
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
     public String buscarLotesInsumoReservados(@PathVariable Long idLote,
                                               @PathVariable String etapa,
-                                              @RequestParam(required = false) String insumo,
+                                              @RequestParam(required = false) Long idInsumo,
                                               @RequestParam(required = false) String identificacion,
                                               @RequestParam(defaultValue = "0") int pagina,
                                               Model model) {
-        return buscarLotesInsumo(idLote, etapa, TipoConsumo.RESERVADO, insumo, identificacion, pagina, model);
+        return buscarLotesInsumo(idLote, etapa, TipoConsumo.RESERVADO, idInsumo, identificacion, pagina, model);
     }
 
     /**
      * Devuelve el contenido del modal de búsqueda de lotes de insumo del consumo directo, de a 8. Se ofrecen todos los
-     * lotes con saldo disponible de los insumos que la etapa requiere, en orden FEFO con los vencidos al final.
+     * lotes con saldo disponible del insumo elegido, en orden FEFO con los vencidos al final.
      */
     @GetMapping("/directo/buscador/lotes-insumo")
     @PreAuthorize("hasAuthority('CONSUMO_INSUMO_REGISTRAR')")
     public String buscarLotesInsumoDirectos(@PathVariable Long idLote,
                                             @PathVariable String etapa,
-                                            @RequestParam(required = false) String insumo,
+                                            @RequestParam(required = false) Long idInsumo,
                                             @RequestParam(required = false) String identificacion,
                                             @RequestParam(defaultValue = "0") int pagina,
                                             Model model) {
-        return buscarLotesInsumo(idLote, etapa, TipoConsumo.DIRECTO, insumo, identificacion, pagina, model);
+        return buscarLotesInsumo(idLote, etapa, TipoConsumo.DIRECTO, idInsumo, identificacion, pagina, model);
     }
 
-    private String buscarLotesInsumo(Long idLote, String etapa, TipoConsumo tipoConsumo, String insumo, String identificacion,
+    private String buscarLotesInsumo(Long idLote, String etapa, TipoConsumo tipoConsumo, Long idInsumo, String identificacion,
                                      int pagina, Model model) {
         TipoEtapa tipo = aEtapa(etapa);
         String rechazo = motivoDeRechazo(tipo);
@@ -348,29 +434,32 @@ public class ConsumoInsumoController {
         }
 
         ContextoDeEtapa contexto;
+        List<InsumoRequeridoResponseDTO> ofrecidos;
         try {
             contexto = resolverContexto(idLote, tipo);
+            ofrecidos = insumosOfrecidos(contexto, tipoConsumo);
         } catch (RecursoNoEncontradoException e) {
             model.addAttribute("mensajeBuscador", e.getMessage());
+            return VISTA_BUSCADOR;
+        }
+        if (idInsumo == null || ofrecidos.stream().noneMatch(requerido -> idInsumo.equals(requerido.getInsumo().getId()))) {
+            model.addAttribute("mensajeBuscador", MENSAJE_ELEGIR_INSUMO);
             return VISTA_BUSCADOR;
         }
 
         PageRequest paginaPedida = PageRequest.of(Math.max(pagina, 0), TAMANIO_PAGINA_BUSCADOR);
         Page<FilaDeBuscador> filas;
         if (tipoConsumo == TipoConsumo.RESERVADO) {
-            filas = reservaInsumoServicio.filtrarReservasConSaldo(contexto.etapa().getId(), vacioANulo(insumo), vacioANulo(identificacion), paginaPedida)
+            filas = reservaInsumoServicio.filtrarReservasConSaldo(contexto.etapa().getId(), idInsumo, vacioANulo(identificacion), paginaPedida)
                     .map(reserva -> new FilaDeBuscador(reserva.getLoteInsumo(), reserva.getCantidadReservada()));
         } else {
-            List<Long> idsInsumo = consumoInsumoServicio.filtrarInsumosRequeridos(contexto.etapa().getId()).stream()
-                    .map(requerido -> requerido.getInsumo().getId())
-                    .toList();
-            filas = loteInsumoServicio.filtrarLotesInsumoDisponibles(idsInsumo, vacioANulo(insumo), vacioANulo(identificacion), paginaPedida)
+            filas = loteInsumoServicio.filtrarLotesInsumoDisponibles(List.of(idInsumo), null, vacioANulo(identificacion), paginaPedida)
                     .map(lote -> new FilaDeBuscador(lote, lote.getCantidadDisponible()));
         }
 
         model.addAttribute("filas", filas);
         model.addAttribute("tituloCantidad", tipoConsumo == TipoConsumo.RESERVADO ? "Reservado" : "Disponible");
-        model.addAttribute("filtroInsumo", insumo);
+        model.addAttribute("idInsumo", idInsumo);
         model.addAttribute("filtroIdentificacion", identificacion);
         model.addAttribute("urlBuscador", urlDeLaPantalla(idLote, tipo) + "/" + slugDeConsumo(tipoConsumo) + "/buscador/lotes-insumo");
         return VISTA_BUSCADOR;
@@ -386,6 +475,28 @@ public class ConsumoInsumoController {
         return tipo.isPermiteRegistrarConsumo() ? null : "La etapa de " + tipo.getEtiqueta() + " no admite consumos de insumo";
     }
 
+    /**
+     * Los insumos de la etapa que ofrece el consumo: los que tienen saldo reservado en el consumo reservado y todos los
+     * que la etapa requiere en el consumo directo.
+     */
+    private List<InsumoRequeridoResponseDTO> insumosOfrecidos(ContextoDeEtapa contexto, TipoConsumo tipoConsumo) {
+        List<InsumoRequeridoResponseDTO> requeridos = consumoInsumoServicio.filtrarInsumosRequeridos(contexto.etapa().getId());
+        if (tipoConsumo == TipoConsumo.DIRECTO) {
+            return requeridos;
+        }
+        return requeridos.stream()
+                .filter(requerido -> requerido.getCantidadReservada() != null && requerido.getCantidadReservada() > 0)
+                .toList();
+    }
+
+    /** El tipo de insumo para mostrar: Malta, Lúpulo o Levadura. */
+    private static String tipoDeInsumo(InsumoResponseDTO insumo) {
+        if (insumo instanceof MaltaResponseDTO) {
+            return "Malta";
+        }
+        return insumo instanceof LupuloResponseDTO ? "Lúpulo" : "Levadura";
+    }
+
     /** Busca el lote (si no existe lo resuelve el {@code ControllerAdvices}) y toma de él la etapa del tipo pedido. */
     private ContextoDeEtapa resolverContexto(Long idLote, TipoEtapa tipo) {
         LoteDetalleResponseDTO lote = loteServicio.buscarDetallePorId(idLote);
@@ -398,19 +509,30 @@ public class ConsumoInsumoController {
 
     /**
      * Lo que el usuario había cargado en el formulario que falló: la cantidad tal como la escribió (aunque no fuera un
-     * número) y el lote de insumo elegido. Un lote de insumo que ya no existe deja el selector vacío.
+     * número), el insumo elegido (si la etapa lo ofrece) y el lote de insumo elegido. Un lote de insumo que ya no existe deja el selector vacío.
      */
-    private void cargarLoEscrito(Model model, BindingResult bindingResult) {
+    private void cargarLoEscrito(Model model, BindingResult bindingResult, List<InsumoRequeridoResponseDTO> requeridos) {
         ConsumoInsumoFormDTO consumoForm = (ConsumoInsumoFormDTO) bindingResult.getTarget();
         Object escrito = bindingResult.getFieldValue("cantidadConsumida");
         model.addAttribute("cantidadEscrita", escrito == null ? null : numeroEscrito(consumoForm.getCantidadConsumida(), escrito));
+
+        if (consumoForm.getIdInsumo() != null) {
+            requeridos.stream()
+                    .filter(requerido -> consumoForm.getIdInsumo().equals(requerido.getInsumo().getId()))
+                    .findFirst()
+                    .ifPresent(requerido -> {
+                        model.addAttribute("idInsumoElegido", requerido.getInsumo().getId());
+                        model.addAttribute("insumoElegidoTexto", requerido.getInsumo().getNombre());
+                        model.addAttribute("unidadInsumoElegido", requerido.getUnidadDeMedida().getSimbolo());
+                    });
+        }
 
         if (consumoForm.getIdLoteInsumo() != null) {
             model.addAttribute("idLoteElegido", consumoForm.getIdLoteInsumo());
             try {
                 LoteInsumoResponseDTO loteElegido = loteInsumoServicio.buscarPorId(consumoForm.getIdLoteInsumo());
                 model.addAttribute("loteElegido", loteElegido);
-                model.addAttribute("loteElegidoTexto", loteElegido.getInsumo().getNombre() + " - " + loteElegido.getIdentificacionLoteProveedor());
+                model.addAttribute("loteElegidoTexto", loteElegido.getIdentificacionLoteProveedor());
             } catch (RecursoNoEncontradoException e) {
                 model.addAttribute("loteElegido", null);
             }

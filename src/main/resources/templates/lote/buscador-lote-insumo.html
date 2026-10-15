@@ -3,10 +3,10 @@
 <body>
 
 <!--
-    Contenido del modal de búsqueda de un lote de insumo de un consumo: criterios de insumo (texto con el nombre, nunca
-    un desplegable) e identificación del lote + resultados con "Elegir". El controller ofrece, según el tipo de consumo,
-    los lotes con saldo reservado para la etapa (reservado) o todos los lotes con saldo disponible de los insumos que la
-    etapa requiere (directo), en orden FEFO: vigentes por vencimiento y los vencidos al final, marcados. Cada fila trae el
+    Contenido del modal de búsqueda de un lote de insumo de un consumo: el criterio de identificación del lote + resultados
+    con "Elegir". Solo ofrece los lotes del insumo ya elegido en el formulario (idInsumo, que viaja en un campo oculto
+    del filtro y en los enlaces de paginación). El controller ofrece, según el tipo de consumo, los lotes de ese insumo
+    con saldo reservado para la etapa (reservado) o todos los lotes con saldo disponible (directo), en orden FEFO: vigentes por vencimiento y los vencidos al final, marcados. Cada fila trae el
     lote y la cantidad que se ofrece (tituloCantidad: Reservado o Disponible). El botón "Elegir" lleva, además del id y el
     texto, los datos que la pantalla muestra del lote elegido (vencimiento, cantidad, unidad y si está vencido). Si la
     etapa no admite consumos, el controller informa el motivo en mensajeBuscador y el fragmento no muestra criterios ni
@@ -29,18 +29,14 @@
 
     <th:block th:if="${mensajeBuscador == null}">
         <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
-              class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-            <div>
-                <label for="buscador-insumo" class="block text-xs font-medium text-slate-500 mb-1">Insumo</label>
-                <input type="text" id="buscador-insumo" name="insumo" th:value="${filtroInsumo}" autofocus autocomplete="off" placeholder="Ej: Cascade"
-                       class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
-            </div>
+              class="p-6 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
+            <input type="hidden" name="idInsumo" th:value="${idInsumo}">
             <div>
                 <label for="buscador-identificacion" class="block text-xs font-medium text-slate-500 mb-1">Identificación del lote</label>
                 <input type="text" id="buscador-identificacion" name="identificacion" th:value="${filtroIdentificacion}" autocomplete="off" placeholder="Ej: L-125"
                        class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
             </div>
-            <div class="sm:col-span-2 flex justify-end">
+            <div class="flex justify-end">
                 <button type="submit"
                         class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
                     <i class="bi bi-search"></i> Buscar
@@ -52,7 +48,6 @@
             <table class="w-full text-sm text-left">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-3 py-3 whitespace-nowrap">Insumo</th>
                     <th class="px-3 py-3 whitespace-nowrap">Lote</th>
                     <th class="px-3 py-3 whitespace-nowrap">Vencimiento</th>
                     <th class="px-3 py-3 whitespace-nowrap" th:text="${tituloCantidad}">Disponible</th>
@@ -62,15 +57,14 @@
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="f : ${filas.content}" th:with="l=${f.lote}" class="hover:bg-slate-50"
                     th:classappend="${l.vencido} ? 'bg-amber-50/40'">
-                    <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.insumo.nombre}">Cascade</td>
-                    <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${l.identificacionLoteProveedor}">L-125</td>
+                    <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.identificacionLoteProveedor}">L-125</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
                         <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaVencimiento})}"></th:block>
                         <span th:if="${l.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>
                     </td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.cantidad}, ${l.insumo.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-3 py-3 text-right">
-                        <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="|${l.insumo.nombre} - ${l.identificacionLoteProveedor}|"
+                        <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.identificacionLoteProveedor}"
                                 th:data-vencimiento="${l.fechaVencimiento != null} ? ${#temporals.format(l.fechaVencimiento, 'dd/MM/yyyy')} : '-'"
                                 th:data-cantidad="${(f.cantidad == f.cantidad.intValue() ? #numbers.formatInteger(f.cantidad.intValue(), 1, 'POINT') : #strings.replace(f.cantidad, '.', ',')) + ' ' + l.insumo.unidadDeMedida.simbolo}"
                                 th:data-unidad="${l.insumo.unidadDeMedida.simbolo}"
@@ -79,14 +73,14 @@
                     </td>
                 </tr>
                 <tr th:if="${filas.empty}">
-                    <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron lotes de insumo con los criterios indicados</td>
+                    <td colspan="4" class="px-4 py-8 text-center text-slate-400">No se encontraron lotes de insumo con los criterios indicados</td>
                 </tr>
                 </tbody>
             </table>
 
             <div th:replace="~{fragments/paginacion :: paginacion(${filas}, 'lotes de insumo',
-                    ${filas.hasPrevious()} ? @{${urlBuscador}(pagina=${filas.number - 1}, insumo=${filtroInsumo}, identificacion=${filtroIdentificacion})} : null,
-                    ${filas.hasNext()} ? @{${urlBuscador}(pagina=${filas.number + 1}, insumo=${filtroInsumo}, identificacion=${filtroIdentificacion})} : null,
+                    ${filas.hasPrevious()} ? @{${urlBuscador}(pagina=${filas.number - 1}, idInsumo=${idInsumo}, identificacion=${filtroIdentificacion})} : null,
+                    ${filas.hasNext()} ? @{${urlBuscador}(pagina=${filas.number + 1}, idInsumo=${idInsumo}, identificacion=${filtroIdentificacion})} : null,
                     true)}"></div>
         </div>
     </th:block>

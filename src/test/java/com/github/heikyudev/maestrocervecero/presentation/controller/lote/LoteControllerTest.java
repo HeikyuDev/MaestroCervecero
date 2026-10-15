@@ -959,12 +959,12 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-44: un lote cancelado informa la fecha y el motivo de la cancelación, abre la etapa Cancelada y no tiene botones")
+    @DisplayName("CP-LCT-44: un lote cancelado no muestra el motivo en la cabecera: junto al estado tiene un botón que abre el diálogo con el motivo, el usuario y la fecha y hora de la cancelación; abre la etapa Cancelada y no tiene botones de operación")
     void detalle_loteCancelado() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.CANCELADO, TipoEtapa.HERVIDO, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
                 EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA))
-                .fechaCancelacion(LocalDateTime.of(2027, 7, 3, 10, 15)).motivoCancelacion("Se detectó una contaminación en el mosto").build());
+                .fechaCancelacion(LocalDateTime.of(2027, 7, 3, 10, 15)).motivoCancelacion("Se detectó una contaminación en el mosto").usuarioCancelacion("gerente").build());
 
         // Act
         String html = mockMvc.perform(get(URL + "/12").with(como(Rol.GERENTE_DE_PRODUCCION)))
@@ -972,8 +972,15 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(bloque(html, "data-lote-cabecera"))).contains("Cancelado",
-                "Motivo de la cancelación (03/07/2027 10:15): Se detectó una contaminación en el mosto");
+        String cabecera = bloque(html, "data-lote-cabecera");
+        assertThat(texto(cabecera)).contains("Cancelado").doesNotContain("Motivo de la cancelación").doesNotContain("contaminación");
+        Matcher detalle = Pattern.compile("<button[^>]*data-detalle-anulacion[^>]*>").matcher(cabecera);
+        assertThat(detalle.find()).isTrue();
+        assertThat(detalle.group()).contains("type=\"button\"").contains("data-detalle-titulo=\"Detalle de la cancelación\"").contains("data-detalle-etiqueta-usuario=\"Cancelado por\"")
+                .contains("data-detalle-motivo=\"Se detectó una contaminación en el mosto\"").contains("data-detalle-usuario=\"gerente\"")
+                .contains("data-detalle-fecha=\"03/07/2027 10:15\"").contains("aria-label=\"Ver detalle de la cancelación\"");
+        assertThat(cabecera.indexOf("Cancelado")).isLessThan(cabecera.indexOf("data-detalle-anulacion"));
+        assertThat(html).contains("id=\"dialogo-detalle-anulacion\"");
         assertThat(html).contains("data-etapa-panel=\"hervido\"").doesNotContain("Cancelar lote");
         assertThat(pestanas(html)).contains("Hervido Cancelada");
         assertThat(texto(bloque(html, "data-franja-estado"))).startsWith("Hervido Estado Cancelada");
@@ -1022,13 +1029,15 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-47: las seis pestañas tienen la misma estructura: franja de estado (con la acción de finalizar), guía e insumos, en ese orden y solo del panel de esa etapa; Envasado suma la sección de envasados registrados y no existe una tarjeta de acciones aparte")
+    @DisplayName("CP-LCT-47: las seis pestañas tienen la misma estructura: franja de estado (con la acción de finalizar), guía e insumos (solo las etapas que consumen insumos), en ese orden y solo del panel de esa etapa; Envasado suma la sección de envasados registrados y no existe una tarjeta de acciones aparte")
     void detalle_estructuraIdenticaEnLasSeisPestanias() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).build());
-        List<String> marcas = List.of("data-franja-estado", "data-guia", "data-insumos-etapa");
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(any())).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0)));
 
         for (String etapa : List.of("molienda", "maceracion", "hervido", "fermentacion", "maduracion", "envasado")) {
+            boolean consumeInsumos = !etapa.equals("maceracion") && !etapa.equals("envasado");
+            List<String> marcas = consumeInsumos ? List.of("data-franja-estado", "data-guia", "data-insumos-etapa") : List.of("data-franja-estado", "data-guia");
             // Act
             String html = mockMvc.perform(get(URL + "/12").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("etapa", etapa))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -1043,6 +1052,7 @@ class LoteControllerTest {
                 posicion = siguiente;
             }
             assertThat(cuenta(html, "data-etapa-panel=")).isEqualTo(1);
+            assertThat(html.contains("data-insumos-etapa")).as("tarjeta de insumos en %s", etapa).isEqualTo(consumeInsumos);
             assertThat(html).as(etapa).doesNotContain("data-acciones-etapa").doesNotContain(">Acciones<");
             assertThat(cuenta(html, "data-registros-etapa")).as(etapa).isEqualTo(etapa.equals("envasado") ? 1 : 0);
         }
@@ -1141,7 +1151,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-53: la guía de Maduración muestra la duración, el fermentador y los lúpulos a agregar en seco; sin requerimientos la tabla de insumos dice que la etapa no consume insumos")
+    @DisplayName("CP-LCT-53: la guía de Maduración muestra la duración, el fermentador y los lúpulos a agregar en seco; sin requerimientos no se muestra la tarjeta de insumos")
     void detalle_guiaDeMaduracion() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION, etapasEnCurso(TipoEtapa.MADURACION)).build());
@@ -1155,7 +1165,7 @@ class LoteControllerTest {
         // Assert
         assertThat(texto(bloque(conInsumos, "data-guia"))).contains("Duración estimada 4 días", "Fermentador F-01", "Lúpulos a agregar en seco Citra: 40 g");
         assertThat(texto(bloque(conInsumos, "data-insumos-etapa"))).contains("Citra");
-        assertThat(texto(bloque(sinInsumos, "data-insumos-etapa"))).contains("Esta etapa no consume insumos");
+        assertThat(sinInsumos).doesNotContain("data-insumos-etapa").doesNotContain("Esta etapa no consume insumos").doesNotContain("Gestionar consumos").doesNotContain("data-ir-consumos");
     }
 
     @Test
@@ -1207,7 +1217,7 @@ class LoteControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"maceracion", "envasado"})
-    @DisplayName("CP-LCT-57: las etapas que no consumen insumos lo informan, sin tabla de insumos, sin el botón Gestionar consumos y sin avance, con las demás secciones presentes")
+    @DisplayName("CP-LCT-57: las etapas que no consumen insumos no muestran la tarjeta de insumos (ni el mensaje, ni la tabla, ni el botón Gestionar consumos ni el avance), con las demás secciones presentes")
     void detalle_etapasSinConsumos(String etapa) throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.EN_CURSO,
@@ -1217,10 +1227,7 @@ class LoteControllerTest {
         String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, etapa);
 
         // Assert
-        String insumos = bloque(html, "data-insumos-etapa");
-        assertThat(texto(insumos)).contains("Esta etapa no consume insumos");
-        assertThat(insumos).doesNotContain("<table");
-        assertThat(html).doesNotContain("Gestionar consumos").doesNotContain("data-ir-consumos").doesNotContain("data-avance")
+        assertThat(html).doesNotContain("data-insumos-etapa").doesNotContain("Esta etapa no consume insumos").doesNotContain("Gestionar consumos").doesNotContain("data-ir-consumos").doesNotContain("data-avance")
                 .contains("data-franja-estado").contains("data-guia").doesNotContain("data-acciones-etapa");
         verify(consumoInsumoServicio, never()).filtrarInsumosRequeridos(any());
     }
@@ -1243,6 +1250,9 @@ class LoteControllerTest {
     @Test
     @DisplayName("CP-LCT-59: el pie de la sección Insumos de la etapa tiene el texto de ayuda a la izquierda y el botón Gestionar consumos a la derecha, con el ícono bi-list-check, hacia la pantalla de consumos de la etapa")
     void detalle_botonRegistrarConsumo() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0)));
+
         // Act
         String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
 
@@ -1262,6 +1272,7 @@ class LoteControllerTest {
                 EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE);
         List<EtapaLoteResponseDTO> finalizada = etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
                 EstadoEtapaLote.EN_CURSO, EstadoEtapaLote.PENDIENTE, EstadoEtapaLote.PENDIENTE);
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0)));
 
         // Act
         String gerente = detalleHtml(Rol.GERENTE_DE_PRODUCCION, "hervido");
@@ -1387,7 +1398,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-66: los envasados registrados de la etapa se ven en solo lectura, con el motivo de los anulados, y sin envasados se informa")
+    @DisplayName("CP-LCT-66: los envasados registrados de la etapa se ven en solo lectura, los anulados con el botón de detalle de la anulación, y sin envasados se informa")
     void detalle_envasadosRegistradosDeLaEtapa() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
@@ -1399,8 +1410,10 @@ class LoteControllerTest {
 
         // Assert
         assertThat(celdas(registros, "B-001")).containsExactly("B-001", "100 L", "Registrado");
-        assertThat(celdas(registros, "B-002")).containsExactly("B-002", "20 L", "Anulado Barril equivocado");
-        assertThat(registros).doesNotContain("<form").doesNotContain("<button");
+        assertThat(celdas(registros, "B-002")).containsExactly("B-002", "20 L", "Anulado");
+        assertThat(registros).doesNotContain("<form").doesNotContain("Barril equivocado</").doesNotContain("data-motivo-url");
+        assertThat(cuenta(registros, "<button")).isEqualTo(1);
+        assertThat(registros).contains("data-detalle-anulacion").contains("data-detalle-motivo=\"Barril equivocado\"").contains("data-detalle-titulo=\"Detalle de la anulación\"");
         when(envasadoLoteServicio.filtrarEnvasadosLote(eq(1006L), any(), any(), any())).thenReturn(Page.empty());
         assertThat(texto(bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado"), "data-registros-etapa"))).contains("No hay envasados registrados");
     }
@@ -1423,11 +1436,16 @@ class LoteControllerTest {
             String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, etapa);
 
             // Assert
-            assertThat(html).as(etapa).contains("data-franja-estado").contains("data-guia").contains("data-insumos-etapa")
+            assertThat(html).as(etapa).contains("data-franja-estado").contains("data-guia")
                     .doesNotContain("Registrar consumo").doesNotContain("Gestionar consumos").doesNotContain("Registrar envasado").doesNotContain("Finalizar")
                     .doesNotContain("/finalizar").doesNotContain("/consumos").doesNotContain("/envasados").doesNotContain("/iniciar")
                     .contains("Cancelar lote");
             assertThat(texto(bloque(html, "data-franja-estado"))).as(etapa).contains("Inicio").contains("Fin");
+            if (etapa.equals("maceracion") || etapa.equals("envasado")) {
+                assertThat(html).as(etapa).doesNotContain("data-insumos-etapa");
+            } else {
+                assertThat(html).as(etapa).contains("data-insumos-etapa");
+            }
         }
     }
 
@@ -2581,8 +2599,8 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-140: junto a Agua de macerado hay un botón de información (bi-info-circle, aria-label, aria-expanded cerrado) que controla el panel con el cálculo, oculto por defecto; las demás etapas no lo tienen")
-    void detalle_botonDeInformacionDelAguaDeMacerado() throws Exception {
+    @DisplayName("CP-LCT-140: junto a Agua de macerado hay un botón de información (bi-info-circle, aria-label) que muestra como tooltip flotante el cálculo, contenido en un elemento oculto que no ocupa lugar en el diseño; las demás etapas no lo tienen")
+    void detalle_tooltipDelAguaDeMacerado() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.MACERACION, etapasEnCurso(TipoEtapa.MACERACION)).build());
         when(loteServicio.calcularAguaDelLote(12L)).thenReturn(agua(60.0, List.of()));
@@ -2592,18 +2610,18 @@ class LoteControllerTest {
 
         // Assert
         String aguaMacerado = bloque(html, "data-agua-macerado");
-        Matcher boton = Pattern.compile("<button[^>]*data-info-toggle[^>]*>").matcher(aguaMacerado);
+        Matcher boton = Pattern.compile("<button[^>]*data-tooltip-contenido[^>]*>").matcher(aguaMacerado);
         assertThat(boton.find()).isTrue();
-        assertThat(boton.group()).contains("type=\"button\"").contains("aria-controls=\"info-agua-macerado\"").contains("aria-expanded=\"false\"")
-                .containsPattern("aria-label=\"[^\"]+\"");
+        assertThat(boton.group()).contains("type=\"button\"").contains("data-tooltip-contenido=\"info-agua-macerado\"").containsPattern("aria-label=\"[^\"]+\"")
+                .doesNotContain("aria-expanded").doesNotContain("aria-controls");
         assertThat(aguaMacerado).contains("bi-info-circle");
-        assertThat(cuenta(html, "data-info-toggle")).isEqualTo(1);
+        assertThat(cuenta(html, "data-tooltip-contenido")).isEqualTo(1);
         String panel = elementoConAtributo(html, "div", "id=\"info-agua-macerado\"");
         assertThat(panel).contains("data-info-panel").contains("hidden");
         assertThat(texto(panel)).contains("Cómo se calcula el agua de macerado", "3 L/kg × 45 kg + 4 L de espacio muerto = 139 L", "El espacio muerto es el agua que queda retenida");
-        assertThat(html).contains("/js/lote-detalle.js");
+        assertThat(html).doesNotContain("/js/lote-detalle.js").doesNotContain("data-info-toggle").doesNotContain("aria-expanded");
         for (String otra : List.of("molienda", "hervido")) {
-            assertThat(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, otra)).doesNotContain("data-info-toggle").doesNotContain("info-agua-macerado");
+            assertThat(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, otra)).doesNotContain("data-tooltip-contenido").doesNotContain("info-agua-macerado");
         }
     }
 

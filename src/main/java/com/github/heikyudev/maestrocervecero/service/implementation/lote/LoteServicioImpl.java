@@ -240,6 +240,7 @@ public class LoteServicioImpl implements ILoteServicio {
                 .fechaFinalizacion(lote.getFechaFinalizacion())
                 .fechaCancelacion(lote.getFechaCancelacion())
                 .motivoCancelacion(lote.getMotivoCancelacion())
+                .usuarioCancelacion(lote.getEstado() == EstadoLote.CANCELADO ? lote.getLastModifiedBy() : null)
                 .idPlanificacionProduccion(idPlanificacion)
                 .versionReceta(planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(idPlanificacion))
                 .idFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getId() : null)

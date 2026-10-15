@@ -103,24 +103,24 @@ class ReservaInsumoServicioImplTest {
     // ==================== filtrarReservasConSaldo ====================
 
     @Test
-    @DisplayName("CP-FRS-01: filtrarReservasConSaldo normaliza los criterios, ignora el orden del pageable y retorna las reservas mapeadas con el vencido marcado")
-    void filtrarReservasConSaldo_debeNormalizarCriteriosYMapear() {
+    @DisplayName("CP-FRS-01: filtrarReservasConSaldo restringe por el insumo, normaliza la identificación, ignora el orden del pageable y retorna las reservas mapeadas con el vencido marcado")
+    void filtrarReservasConSaldo_debeRestringirPorInsumoYMapear() {
         // === PREPARACION DE DATOS ===
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, crearLote());
         LoteInsumoEntity vencido = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
         vencido.setFechaVencimiento(LocalDate.now().minusDays(1));
-        when(reservaInsumoRepository.filtrarReservasConSaldo(eq(1L), eq("malta pilsen"), eq("L-125"), any(LocalDate.class), any()))
+        when(reservaInsumoRepository.filtrarReservasConSaldo(eq(1L), eq(7L), eq("L-125"), any(LocalDate.class), any()))
                 .thenReturn(new PageImpl<>(List.of(reservaInsumoEntity(100L, etapaLote, vencido, 8.0))));
 
         // === EJECUCION ===
         Page<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.filtrarReservasConSaldo(
-                1L, "  malta   pilsen ", " l-125 ", PageRequest.of(2, 8, Sort.by("id").descending()));
+                1L, 7L, " l-125 ", PageRequest.of(2, 8, Sort.by("id").descending()));
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
         assertThat(resultado.getContent().get(0).getCantidadReservada()).isEqualTo(8.0);
         assertThat(resultado.getContent().get(0).getLoteInsumo().isVencido()).isTrue();
-        verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq("malta pilsen"), eq("L-125"), any(LocalDate.class), eq(PageRequest.of(2, 8)));
+        verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq(7L), eq("L-125"), any(LocalDate.class), eq(PageRequest.of(2, 8)));
     }
 
     @Test
@@ -131,7 +131,7 @@ class ReservaInsumoServicioImplTest {
                 .thenReturn(Page.empty());
 
         // === EJECUCION ===
-        Page<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.filtrarReservasConSaldo(1L, "   ", null, PageRequest.of(0, 8));
+        Page<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.filtrarReservasConSaldo(1L, null, "   ", PageRequest.of(0, 8));
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();

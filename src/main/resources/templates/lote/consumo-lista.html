@@ -135,15 +135,16 @@
                     <tr th:each="c : ${consumos.content}" th:attr="data-consumo=${c.id}" class="hover:bg-slate-50"
                         th:classappend="${c.estado.name() == 'ANULADO'} ? 'opacity-60'">
                         <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${c.loteInsumo.insumo.nombre}">Cascade</td>
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
+                            <span th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</span>
+                            <span th:if="${c.vencidoAlRegistrar}" data-vencido tabindex="0" th:data-tooltip="${'Venció el ' + #temporals.format(c.loteInsumo.fechaVencimiento, 'dd/MM/yyyy')}"
+                                  class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 cursor-help focus:outline-none focus:ring-2 focus:ring-amber-500/40">Vencido</span>
+                        </td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${c.cantidadConsumida}, ${c.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaRegistro})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${c.estado})}"></span>
-                            <div th:if="${c.estado.name() == 'ANULADO'}" data-anulacion class="mt-1 space-y-0.5 text-xs text-slate-500">
-                                <div th:if="${c.motivoAnulacion != null}">Motivo: <span class="text-slate-700" data-anulacion-motivo th:text="${c.motivoAnulacion}">Error de carga</span></div>
-                                <div th:if="${c.fechaAnulacion != null or c.usuarioAnulacion != null}">Anulado<th:block th:if="${c.fechaAnulacion != null}"> el <span class="text-slate-700" data-anulacion-fecha><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaAnulacion})}"></th:block></span></th:block><th:block th:if="${c.usuarioAnulacion != null}"> por <span class="text-slate-700" data-anulacion-usuario th:text="${c.usuarioAnulacion}">operario</span></th:block></div>
-                            </div>
+                            <th:block th:if="${c.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${c.motivoAnulacion}, ${c.usuarioAnulacion}, ${c.fechaAnulacion})}"></th:block></th:block>
                         </td>
                         <td th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right">
                             <button type="button" th:if="${c.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"

@@ -17,6 +17,9 @@
 
     <!-- Modales y selectores de entidad (comportamiento compartido por todas las pantallas) -->
     <script th:src="@{/js/modales.js}" defer></script>
+
+    <!-- Tooltips flotantes (ayudas y marcas con explicación, sin modificar el diseño de la página) -->
+    <script th:src="@{/js/tooltips.js}" defer></script>
 </head>
 <body class="bg-slate-50 text-slate-800 flex flex-col h-screen overflow-hidden font-sans antialiased">
 
@@ -67,6 +70,9 @@
         <div th:replace="${contenido}"></div>
     </main>
 </div>
+
+<!-- Diálogo del detalle de una anulación o cancelación, compartido por todas las pantallas -->
+<div th:replace="~{fragments/dialogo-detalle-anulacion :: dialogo}"></div>
 
 </body>
 </html>

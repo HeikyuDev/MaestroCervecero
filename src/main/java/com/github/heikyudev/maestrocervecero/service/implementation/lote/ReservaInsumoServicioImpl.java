@@ -40,11 +40,11 @@ public class ReservaInsumoServicioImpl implements IReservaInsumoServicio {
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ReservaInsumoResponseDTO> filtrarReservasConSaldo(Long idEtapaLote, String nombreInsumo, String identificacion, Pageable pageable) {
+    public Page<ReservaInsumoResponseDTO> filtrarReservasConSaldo(Long idEtapaLote, Long idInsumo, String identificacion, Pageable pageable) {
         LocalDate hoy = LocalDate.now();
         // El orden lo define la consulta: el del pageable se ignora para que la paginación sea siempre estable
         Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        return reservaInsumoRepository.filtrarReservasConSaldo(idEtapaLote, textoONulo(NormalizacionTexto.nombrePropio(nombreInsumo)),
+        return reservaInsumoRepository.filtrarReservasConSaldo(idEtapaLote, idInsumo,
                         textoONulo(NormalizacionTexto.codigo(identificacion)), hoy, pageableSinOrden)
                 .map(MapperReservaInsumo::toDTO);
     }

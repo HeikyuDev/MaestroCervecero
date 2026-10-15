@@ -5975,7 +5975,7 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BD-06: buscarDetallePorId abre en un lote Cancelado la primera etapa que quedó Cancelada y devuelve la fecha y el motivo de la cancelación")
+    @DisplayName("CP-BD-06: buscarDetallePorId abre en un lote Cancelado la primera etapa que quedó Cancelada y devuelve la fecha , el motivo y el usuario de la cancelación")
     void buscarDetallePorId_debeAbrirLaEtapaCanceladaEnUnLoteCancelado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.CANCELADO, null);
@@ -5986,6 +5986,7 @@ class LoteServicioImplTest {
         }
         lote.setFechaCancelacion(LocalDateTime.of(2027, 7, 3, 10, 15));
         lote.setMotivoCancelacion("Se detectó una contaminación en el mosto");
+        lote.setLastModifiedBy("gerente");
         mockearDetalle(lote);
 
         // === EJECUCION ===
@@ -5995,6 +5996,7 @@ class LoteServicioImplTest {
         assertThat(resultado.getEtapaPorDefecto()).isEqualTo(TipoEtapa.HERVIDO);
         assertThat(resultado.getFechaCancelacion()).isEqualTo(LocalDateTime.of(2027, 7, 3, 10, 15));
         assertThat(resultado.getMotivoCancelacion()).isEqualTo("Se detectó una contaminación en el mosto");
+        assertThat(resultado.getUsuarioCancelacion()).isEqualTo("gerente");
     }
 
     @Test
@@ -6036,6 +6038,18 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThat(loteServicio.buscarDetallePorId(1L).getEtapaPorDefecto()).isEqualTo(TipoEtapa.MOLIENDA);
+    }
+
+    @Test
+    @DisplayName("CP-BD-10: buscarDetallePorId no informa usuario de cancelación en un lote que no está Cancelado aunque tenga un último modificador")
+    void buscarDetallePorId_noDebeInformarUsuarioDeCancelacionEnUnLoteNoCancelado() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        lote.setLastModifiedBy("operario");
+        mockearDetalle(lote);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThat(loteServicio.buscarDetallePorId(1L).getUsuarioCancelacion()).isNull();
     }
 
     private void mockearDetalle(LoteEntity lote) {

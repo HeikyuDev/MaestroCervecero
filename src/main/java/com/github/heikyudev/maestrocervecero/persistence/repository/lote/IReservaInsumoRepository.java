@@ -119,7 +119,7 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote.
-     * @param nombreInsumo Texto a buscar dentro del nombre del insumo (ya normalizado), o {@code null}.
+     * @param idInsumo El ID del insumo del que se ofrecen los lotes reservados, o {@code null} para no restringir.
      * @param identificacion Texto a buscar dentro de la identificación del lote del proveedor (ya normalizado), o {@code null}.
      * @param hoy La fecha contra la que se decide si un lote está vencido.
      * @param pageable Paginación; el orden lo define la consulta.
@@ -127,16 +127,16 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      */
     @Query(value = "SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
             + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadReservada > 0.00005 "
-            + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
+            + "AND (:idInsumo IS NULL OR i.id = :idInsumo) "
             + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
             + "ORDER BY CASE WHEN li.fechaVencimiento IS NULL THEN 1 WHEN li.fechaVencimiento < :hoy THEN 2 ELSE 0 END ASC, "
             + "li.fechaVencimiento ASC, li.id ASC",
             countQuery = "SELECT COUNT(r) FROM ReservaInsumoEntity r JOIN r.loteInsumo li JOIN li.insumo i "
                     + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadReservada > 0.00005 "
-                    + "AND (:nombreInsumo IS NULL OR UPPER(i.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreInsumo AS string), '%'))) "
+                    + "AND (:idInsumo IS NULL OR i.id = :idInsumo) "
                     + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
     Page<ReservaInsumoEntity> filtrarReservasConSaldo(@Param("idEtapaLote") Long idEtapaLote,
-                                                      @Param("nombreInsumo") String nombreInsumo,
+                                                      @Param("idInsumo") Long idInsumo,
                                                       @Param("identificacion") String identificacion,
                                                       @Param("hoy") LocalDate hoy,
                                                       Pageable pageable);

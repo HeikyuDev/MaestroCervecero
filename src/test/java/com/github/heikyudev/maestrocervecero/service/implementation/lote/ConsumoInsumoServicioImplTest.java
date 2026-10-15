@@ -270,7 +270,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         // La receta no tiene ningún detalle de malta que use esta malta en esta etapa
         MaltaEntity maltaNoUsada = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, VersionRecetaEntity.builder().build());
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(maltaEntity(2L)));
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, maltaNoUsada, 10.0, 6.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
@@ -567,7 +567,7 @@ class ConsumoInsumoServicioImplTest {
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 4.0)))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOConInsumo(2L, 1L, 4.0)))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
@@ -791,7 +791,7 @@ class ConsumoInsumoServicioImplTest {
     void registrarDirecto_debeRechazarInsumoNoRequeridoPorLaEtapa() {
         // === PREPARACION DE DATOS ===
         MaltaEntity maltaNoUsada = maltaEntity(1L);
-        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, VersionRecetaEntity.builder().build());
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(maltaEntity(2L)));
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, maltaNoUsada, 10.0, 0.0);
         when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
@@ -1012,7 +1012,7 @@ class ConsumoInsumoServicioImplTest {
         when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // === EJECUCION ===
-        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0));
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOConInsumo(5L, 1L, 4.0));
 
         // === ASSERTS ===
         assertThat(insumoProxy).isNotInstanceOf(LevaduraEntity.class);
@@ -1026,6 +1026,7 @@ class ConsumoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         LevaduraEntity levadura = levaduraEntity(5L);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .detallesMalta(List.of(DetalleMaltaEntity.builder().malta(maltaEntity(1L)).cantidad(10.0).build()))
                 .detallesLevadura(List.of(DetalleLevaduraEntity.builder().levadura(levadura).cantidad(10.0).build()))
                 .build();
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, versionReceta);
@@ -1035,7 +1036,7 @@ class ConsumoInsumoServicioImplTest {
         when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
 
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 4.0)))
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOConInsumo(5L, 1L, 4.0)))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
         verify(loteInsumoRepository, never()).save(any());
@@ -1321,6 +1322,125 @@ class ConsumoInsumoServicioImplTest {
         assertThat(resultado.get(1).getPorcentajeConsumido()).isEqualTo(0.0);
     }
 
+    // ==================== insumo elegido y etapa sin insumos ====================
+
+    @Test
+    @DisplayName("CP-CR-30: registrarConsumoInsumoReservado lanza ReglaNegocioException y no consulta nada si no se informó el insumo")
+    void registrarReservado_debeRechazarSinInsumoElegido() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoFormDTO formDTO = ConsumoInsumoFormDTO.builder().idLoteInsumo(1L).cantidadConsumida(5.0).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El insumo es obligatorio");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CR-31: registrarConsumoInsumoReservado lanza ReglaNegocioException si la etapa no consume insumos según la receta (Maduración sin lúpulo de maduración)")
+    void registrarReservado_debeRechazarUnaEtapaSinInsumos() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaMaduracion = crearEtapaLote(1L, TipoEtapa.MADURACION, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaduracion));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, malta, 10.0, 6.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Esta etapa no consume insumos");
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CR-32: registrarConsumoInsumoReservado lanza ReglaNegocioException si el lote de insumo no es del insumo elegido")
+    void registrarReservado_debeRechazarUnLoteQueNoEsDelInsumoElegido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, malta, 10.0, 6.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOConInsumo(2L, 1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo no corresponde al insumo elegido");
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CD-26: registrarConsumoInsumoDirecto lanza ReglaNegocioException y no consulta nada si no se informó el insumo")
+    void registrarDirecto_debeRechazarSinInsumoElegido() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoFormDTO formDTO = ConsumoInsumoFormDTO.builder().idLoteInsumo(1L).cantidadConsumida(5.0).build();
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El insumo es obligatorio");
+        verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-CD-27: registrarConsumoInsumoDirecto lanza ReglaNegocioException si la etapa no consume insumos según la receta (Maduración sin lúpulo de maduración)")
+    void registrarDirecto_debeRechazarUnaEtapaSinInsumos() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaMaduracion = crearEtapaLote(1L, TipoEtapa.MADURACION, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaMaduracion));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, malta, 10.0, 0.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Esta etapa no consume insumos");
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CD-28: registrarConsumoInsumoDirecto lanza ReglaNegocioException si el lote de insumo no es del insumo elegido")
+    void registrarDirecto_debeRechazarUnLoteQueNoEsDelInsumoElegido() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, malta, 10.0, 0.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOConInsumo(2L, 1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo no corresponde al insumo elegido");
+        verifyNoInteractions(reservaInsumoRepository, consumoInsumoRepository);
+        verify(loteInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CD-29: registrarConsumoInsumoDirecto lanza ReglaNegocioException si el insumo elegido, aunque sea el del lote, no lo requiere la etapa según la receta")
+    void registrarDirecto_debeRechazarUnInsumoElegidoQueLaEtapaNoRequiere() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity maltaRequerida = maltaEntity(1L);
+        MaltaEntity maltaElegida = maltaEntity(2L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(maltaRequerida));
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumoEntity(1L, maltaElegida, 10.0, 0.0)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOConInsumo(2L, 1L, 5.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El lote de insumo no corresponde a un insumo utilizado en esta etapa según la receta");
+        verify(loteInsumoRepository, never()).save(any());
+        verifyNoInteractions(consumoInsumoRepository);
+    }
+
     // ==================== anularConsumoInsumo ====================
 
     @Test
@@ -1590,6 +1710,15 @@ class ConsumoInsumoServicioImplTest {
 
     private static ConsumoInsumoFormDTO formDTOBase(Long idLoteInsumo, Double cantidadConsumida) {
         return ConsumoInsumoFormDTO.builder()
+                .idInsumo(1L)
+                .idLoteInsumo(idLoteInsumo)
+                .cantidadConsumida(cantidadConsumida)
+                .build();
+    }
+
+    private static ConsumoInsumoFormDTO formDTOConInsumo(Long idInsumo, Long idLoteInsumo, Double cantidadConsumida) {
+        return ConsumoInsumoFormDTO.builder()
+                .idInsumo(idInsumo)
                 .idLoteInsumo(idLoteInsumo)
                 .cantidadConsumida(cantidadConsumida)
                 .build();

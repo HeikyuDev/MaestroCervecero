@@ -73,6 +73,12 @@ public class PlanificacionProduccionResponseDTO {
     private String motivoAnulacion;
 
     /**
+     * Usuario que anuló la planificación de producción, según la auditoría de la última modificación.
+     * Queda en {@code null} si la planificación nunca fue anulada.
+     */
+    private String usuarioAnulacion;
+
+    /**
      * Estado actual de la planificación de producción (PENDIENTE, FINALIZADA, ANULADA).
      */
     private EstadoSolicitud estado;

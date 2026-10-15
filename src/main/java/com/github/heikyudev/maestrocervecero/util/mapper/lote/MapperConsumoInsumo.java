@@ -49,7 +49,16 @@ public class MapperConsumoInsumo {
                 .tipoConsumo(consumoInsumoEntity.getTipoConsumo())
                 .etapaLote(MapperEtapaLote.toDTO(consumoInsumoEntity.getEtapaLote()))
                 .loteInsumo(MapperLoteInsumo.toDTO(consumoInsumoEntity.getLoteInsumo()))
+                .vencidoAlRegistrar(estabaVencidoAlRegistrar(consumoInsumoEntity))
                 .advertencias(advertencias == null ? List.of() : List.copyOf(advertencias))
                 .build();
+    }
+
+    /** Si el lote de insumo ya estaba vencido el día en que se registró el consumo. */
+    private static boolean estabaVencidoAlRegistrar(ConsumoInsumoEntity consumo) {
+        return consumo.getCreatedDate() != null
+                && consumo.getLoteInsumo() != null
+                && consumo.getLoteInsumo().getFechaVencimiento() != null
+                && consumo.getLoteInsumo().getFechaVencimiento().isBefore(consumo.getCreatedDate().toLocalDate());
     }
 }

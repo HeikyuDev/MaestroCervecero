@@ -133,6 +133,8 @@ class ConsumoInsumoControllerTest {
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, etapasEnCurso(TipoEtapa.HERVIDO)));
         when(loteServicio.calcularAvanceDeEtapa(12L, TipoEtapa.HERVIDO)).thenReturn(AvanceEtapaResponseDTO.builder().porcentajeMinimo(80.0).cumpleMinimo(false)
                 .insumos(List.of(avance("Cascade", 25, 15, 60, false), avance("Citra", 15, 0, 0, false))).build());
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(any())).thenReturn(List.of(
+                requerido(cascade(), 25, 10, 15), requerido(citra(), 15, 15, 0)));
         when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of(
                 requerido(cascade(), 25, 10, 15), requerido(citra(), 15, 15, 0)));
         when(reservaInsumoServicio.filtrarReservasConSaldo(eq(ETAPA_HERVIDO), any(), any(), any())).thenReturn(Page.empty());
@@ -166,7 +168,7 @@ class ConsumoInsumoControllerTest {
         assertThat(enlaceDe(html, "Volver al lote")).isEqualTo("/lotes/12?etapa=hervido");
         assertThat(html).contains("data-resumen-consumo").contains("data-pestanas-consumo").contains("data-consumos-registrados")
                 .doesNotContain("data-insumos-reservados").doesNotContain("data-consumo-directo").doesNotContain("name=\"cantidadConsumida\"");
-        assertThat(cuenta(html, "<dialog")).isEqualTo(1);
+        assertThat(cuenta(html, "<dialog")).isEqualTo(2);
         assertThat(html).contains("id=\"dialogo-anular\"");
     }
 
@@ -277,7 +279,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-09: los consumos del tipo de la pestaña se listan con el último arriba, y el anulado atenuado con su motivo y sin botón Anular; se piden de a 20 por id descendente sin filtrar el estado")
+    @DisplayName("CP-LCO-09: los consumos del tipo de la pestaña se listan con el último arriba, y el anulado atenuado, con el botón de detalle de la anulación y sin botón Anular; se piden de a 20 por id descendente sin filtrar el estado")
     void pantalla_consumosRegistrados() throws Exception {
         // Act
         String consumos = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-consumos-registrados");
@@ -288,8 +290,8 @@ class ConsumoInsumoControllerTest {
         assertThat(consumos.indexOf("data-consumo=\"7\"")).isLessThan(consumos.indexOf("data-consumo=\"6\""));
         assertThat(texto(consumos)).contains("Insumo", "Lote de insumo", "Cantidad", "Fecha de registro", "Estado");
         assertThat(celdas(registrado, "L-123")).containsExactly("Cascade", "L-123", "15 g", "01/07/2027 10:15", "Registrado", "Anular");
-        assertThat(celdas(anulado, "L-124")).containsExactly("Cascade", "L-124", "5 g", "01/07/2027 10:15", "Anulado Motivo: Error de carga", "");
-        assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url");
+        assertThat(celdas(anulado, "L-124")).containsExactly("Cascade", "L-124", "5 g", "01/07/2027 10:15", "Anulado", "");
+        assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url").doesNotContain("Motivo:").contains("data-detalle-anulacion");
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(consumoInsumoServicio).filtrarConsumosInsumo(eq(ETAPA_HERVIDO), eq(TipoConsumo.RESERVADO), isNull(), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
@@ -558,14 +560,17 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-27: un error de la cantidad en un consumo reservado conserva el lote de insumo elegido en el selector, con su insumo y vencimiento y sin el saldo")
+    @DisplayName("CP-LCO-27: un error de la cantidad en un consumo reservado conserva el lote de insumo elegido en el selector, con su vencimiento y sin el saldo, y conserva el insumo elegido")
     void reservado_elLoteElegidoSeConserva() throws Exception {
         // Act
         String html = enviarConErroresYVolver(postReservado(como(Rol.OPERARIO_DE_PRODUCCION), "5", null), "reservado");
 
         // Assert
-        assertThat(textoDelSelector(html, "Seleccione lote de insumo")).isEqualTo("Cascade - L-123");
+        assertThat(textoDelSelector(html, "Seleccione lote de insumo")).isEqualTo("L-123");
+        assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Cascade");
+        assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "idLoteInsumo")).isEqualTo("5");
+        assertThat(html).contains("data-buscador-url=\"" + URL_PANTALLA + "/reservado/buscador/lotes-insumo?idInsumo=31\"");
         assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad (g) *");
         assertThat(Pattern.compile("<p[^>]*data-lote-elegido[^>]*>").matcher(html).results().findFirst().orElseThrow().group()).doesNotContain("hidden");
         assertThat(texto(elementoConAtributo(html, "p", "data-lote-elegido"))).contains("Vencimiento: 12/03/2028");
@@ -621,7 +626,7 @@ class ConsumoInsumoControllerTest {
     void reservado_etapaQueNoAdmiteConsumosOInexistente(String etapa) throws Exception {
         // Act + Assert
         mockMvc.perform(post("/lotes/12/etapas/" + etapa + "/consumos/reservado").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf())
-                        .param("idLoteInsumo", "5").param("cantidadConsumida", "10"))
+                        .param("idInsumo", "31").param("idLoteInsumo", "5").param("cantidadConsumida", "10"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/lotes/12"))
                 .andExpect(flash().attribute("mensaje", etapa.equals("xyz") ? "La etapa indicada no es válida" : "La etapa de Maceración no admite consumos de insumo"))
@@ -633,7 +638,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-35: un consumo reservado sin token CSRF es rechazado (redirige) y no llega al service")
     void reservado_sinCsrf() throws Exception {
         // Act + Assert
-        mockMvc.perform(post(URL_PANTALLA + "/reservado").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idLoteInsumo", "5").param("cantidadConsumida", "10"))
+        mockMvc.perform(post(URL_PANTALLA + "/reservado").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idInsumo", "31").param("idLoteInsumo", "5").param("cantidadConsumida", "10"))
                 .andExpect(status().is3xxRedirection());
         verifyNingunService();
     }
@@ -721,13 +726,15 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-42: un error de la cantidad en un consumo directo conserva el lote de insumo elegido en el selector, con su insumo, vencimiento y saldo")
+    @DisplayName("CP-LCO-42: un error de la cantidad en un consumo directo conserva el lote de insumo elegido en el selector, con su vencimiento y saldo, y conserva el insumo elegido")
     void directo_elLoteElegidoSeConserva() throws Exception {
         // Act
         String html = enviarConErroresYVolver(postDirecto(como(Rol.OPERARIO_DE_PRODUCCION), "8", null), "directo");
 
         // Assert
-        assertThat(textoDelSelector(html, "Seleccione lote de insumo")).isEqualTo("Cascade - L-125");
+        assertThat(textoDelSelector(html, "Seleccione lote de insumo")).isEqualTo("L-125");
+        assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Cascade");
+        assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "idLoteInsumo")).isEqualTo("8");
         assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad (g) *");
         Matcher elegido = Pattern.compile("<p[^>]*data-lote-elegido[^>]*>").matcher(html);
@@ -748,7 +755,7 @@ class ConsumoInsumoControllerTest {
         // Assert
         assertThat(texto(html)).contains("Ingrese un número válido");
         assertThat(campo(html, "cantidadConsumida")).isEqualTo("abc");
-        assertThat(textoDelSelector(html, "Seleccione lote de insumo")).isEqualTo("Cascade - L-125");
+        assertThat(textoDelSelector(html, "Seleccione lote de insumo")).isEqualTo("L-125");
         verify(consumoInsumoServicio, never()).registrarConsumoInsumoDirecto(any(), any());
 
         // Act + Assert: el valor es una regla del service
@@ -801,7 +808,7 @@ class ConsumoInsumoControllerTest {
     void directo_etapaQueNoAdmiteConsumosOInexistente(String etapa) throws Exception {
         // Act + Assert
         mockMvc.perform(post("/lotes/12/etapas/" + etapa + "/consumos/directo").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf())
-                        .param("idLoteInsumo", "8").param("cantidadConsumida", "5"))
+                        .param("idInsumo", "31").param("idLoteInsumo", "8").param("cantidadConsumida", "5"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/lotes/12"))
                 .andExpect(flash().attribute("mensaje", etapa.equals("xyz") ? "La etapa indicada no es válida" : "La etapa de Envasado no admite consumos de insumo"))
@@ -813,7 +820,7 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-48: un consumo directo sin token CSRF es rechazado (redirige) y no llega al service")
     void directo_sinCsrf() throws Exception {
         // Act + Assert
-        mockMvc.perform(post(URL_PANTALLA + "/directo").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idLoteInsumo", "8").param("cantidadConsumida", "5"))
+        mockMvc.perform(post(URL_PANTALLA + "/directo").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idInsumo", "31").param("idLoteInsumo", "8").param("cantidadConsumida", "5"))
                 .andExpect(status().is3xxRedirection());
         verifyNingunService();
     }
@@ -916,10 +923,208 @@ class ConsumoInsumoControllerTest {
         verifyNingunService();
     }
 
+    // ==================== GET .../consumos/{reservado|directo}/buscador/insumos ====================
+
+    @Test
+    @DisplayName("CP-LCO-92: el buscador de insumos del consumo directo ofrece todos los insumos que la etapa requiere, con su tipo y lo requerido, reservado y consumido, un criterio de nombre y un botón Elegir con el id, el nombre y la unidad")
+    void buscadorDeInsumos_directoOfreceLosInsumosDeLaEtapa() throws Exception {
+        // Act
+        String html = buscadorDeInsumos("directo", null);
+
+        // Assert
+        assertThat(html).doesNotContain("<html").doesNotContain("<select").doesNotContain("<option");
+        Matcher formulario = Pattern.compile("<form[^>]*>").matcher(html);
+        assertThat(formulario.find()).isTrue();
+        assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_PANTALLA + "/directo/buscador/insumos\"").contains("method=\"get\"");
+        assertThat(Pattern.compile("<input[^>]*name=\"nombre\"[^>]*>").matcher(html).results().findFirst().orElseThrow().group())
+                .contains("type=\"text\"").contains("placeholder=\"Ej: Cascade\"");
+        assertThat(texto(html)).contains("Buscar insumo", "Nombre", "Insumo", "Tipo", "Requerido", "Reservado", "Consumido");
+        assertThat(celdas(html, "Cascade")).containsExactly("Cascade", "Lúpulo", "25 g", "10 g", "15 g", "Elegir");
+        assertThat(celdas(html, "Citra")).containsExactly("Citra", "Lúpulo", "15 g", "15 g", "0 g", "Elegir");
+        assertThat(botonElegir(html, 31)).contains("data-texto=\"Cascade\"").contains("data-unidad=\"g\"");
+        assertThat(IntStream.of(31, 32).map(id -> html.indexOf("data-id=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
+        verify(consumoInsumoServicio).filtrarInsumosRequeridos(ETAPA_HERVIDO);
+        verifyNoInteractions(reservaInsumoServicio, loteInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCO-93: el buscador de insumos del consumo reservado ofrece solo los insumos de la etapa con saldo reservado")
+    void buscadorDeInsumos_reservadoOfreceSoloLosInsumosConSaldoReservado() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of(
+                requerido(cascade(), 25, 10, 15), requerido(citra(), 15, 0, 15)));
+
+        // Act
+        String html = buscadorDeInsumos("reservado", null);
+
+        // Assert
+        assertThat(botonElegir(html, 31)).contains("data-texto=\"Cascade\"");
+        assertThat(html).doesNotContain("data-id=\"32\"").doesNotContain("Citra");
+        assertThat(cuenta(html, "data-elegir")).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("CP-LCO-94: el criterio de nombre del buscador de insumos filtra sin distinguir mayúsculas, conserva lo escrito y, sin coincidencias, muestra un mensaje claro")
+    void buscadorDeInsumos_filtraPorNombre() throws Exception {
+        // Act
+        String filtrado = buscadorDeInsumos("directo", " casc ");
+        String sinCoincidencias = buscadorDeInsumos("directo", "zzz");
+        String reservadoVacio = buscadorDeInsumos("reservado", "zzz");
+
+        // Assert
+        assertThat(cuenta(filtrado, "data-elegir")).isEqualTo(1);
+        assertThat(filtrado).contains("data-id=\"31\"");
+        assertThat(campo(filtrado, "nombre")).isEqualTo(" casc ");
+        assertThat(sinCoincidencias).doesNotContain("data-elegir");
+        assertThat(texto(sinCoincidencias)).contains("No se encontraron insumos con los criterios indicados");
+        assertThat(texto(reservadoVacio)).contains("No se encontraron insumos con saldo reservado para esta etapa con los criterios indicados");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"reservado", "directo"})
+    @DisplayName("CP-LCO-95: con una etapa que no admite consumos, inexistente o sin insumos el buscador de insumos responde 200 con el mensaje dentro del fragmento, sin criterios ni filas")
+    void buscadorDeInsumos_etapaQueNoAdmiteConsumos(String tipo) throws Exception {
+        // Act
+        String noAdmite = mockMvc.perform(get("/lotes/12/etapas/maceracion/consumos/" + tipo + "/buscador/insumos").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("lote/buscador-insumo-consumo :: buscador"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String inexistente = mockMvc.perform(get("/lotes/12/etapas/xyz/consumos/" + tipo + "/buscador/insumos").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(texto(noAdmite)).contains("La etapa de Maceración no admite consumos de insumo");
+        assertThat(texto(inexistente)).contains("La etapa indicada no es válida");
+        assertThat(noAdmite + inexistente).doesNotContain("data-elegir").doesNotContain("data-modal-buscar");
+        verifyNoInteractions(consumoInsumoServicio, reservaInsumoServicio, loteInsumoServicio);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_DE_COMPRAS", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-LCO-96: los roles sin CONSUMO_INSUMO_REGISTRAR no abren los buscadores de insumos: responden 403 con el motivo como texto y no se invoca ningún service")
+    void buscadorDeInsumos_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
+        // Act + Assert
+        assertBuscadorRechazado(mockMvc.perform(get(URL_PANTALLA + "/reservado/buscador/insumos").with(como(rol))));
+        assertBuscadorRechazado(mockMvc.perform(get(URL_PANTALLA + "/directo/buscador/insumos").with(como(rol))));
+        verifyNingunService();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"reservado", "directo"})
+    @DisplayName("CP-LCO-97: el buscador de lotes sin insumo elegido, o con un insumo que la etapa no ofrece, responde 200 con el mensaje Elija primero un insumo de la etapa y no consulta lotes")
+    void buscadorDeLotes_exigeUnInsumoDeLaEtapa(String tipo) throws Exception {
+        // Act
+        String sinInsumo = mockMvc.perform(get(URL_PANTALLA + "/" + tipo + "/buscador/lotes-insumo").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String insumoAjeno = mockMvc.perform(get(URL_PANTALLA + "/" + tipo + "/buscador/lotes-insumo").param("idInsumo", "999").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(texto(sinInsumo)).contains("Elija primero un insumo de la etapa");
+        assertThat(texto(insumoAjeno)).contains("Elija primero un insumo de la etapa");
+        assertThat(sinInsumo + insumoAjeno).doesNotContain("data-elegir").doesNotContain("data-modal-buscar");
+        verifyNoInteractions(reservaInsumoServicio, loteInsumoServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCO-98: el buscador de lotes del consumo reservado rechaza un insumo sin saldo reservado en la etapa: solo se ofrecen lotes de los insumos con reserva")
+    void buscadorDeLotes_reservadoRechazaUnInsumoSinSaldoReservado() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of(
+                requerido(cascade(), 25, 10, 15), requerido(citra(), 15, 0, 15)));
+
+        // Act
+        String html = mockMvc.perform(get(URL_BUSCADOR_RESERVADO).param("idInsumo", "32").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(texto(html)).contains("Elija primero un insumo de la etapa");
+        verifyNoInteractions(reservaInsumoServicio);
+    }
+
+    // ==================== Etapa sin insumos ====================
+
+    @Test
+    @DisplayName("CP-LCO-99: una etapa que no requiere insumos no abre la pantalla de consumos ni los formularios: redirige al detalle del lote con el aviso Esta etapa no consume insumos y no consulta consumos")
+    void etapaSinInsumos_noAbreLasPantallas() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of());
+
+        // Act + Assert
+        for (String url : List.of(URL_PANTALLA, URL_FORMULARIO_RESERVADO, URL_FORMULARIO_DIRECTO)) {
+            mockMvc.perform(get(url).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/lotes/12"))
+                    .andExpect(flash().attribute("mensaje", "Esta etapa no consume insumos"))
+                    .andExpect(flash().attribute("tipo", "warning"));
+        }
+        verify(consumoInsumoServicio, never()).filtrarConsumosInsumo(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-LCO-100: registrar un consumo (reservado o directo) en una etapa que no requiere insumos se rechaza con el aviso Esta etapa no consume insumos y no llega al service de registro")
+    void etapaSinInsumos_noRegistra() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of());
+
+        // Act + Assert
+        for (String tipo : List.of("reservado", "directo")) {
+            mockMvc.perform(postConsumo(URL_PANTALLA + "/" + tipo, como(Rol.OPERARIO_DE_PRODUCCION), "5", "10"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/lotes/12"))
+                    .andExpect(flash().attribute("mensaje", "Esta etapa no consume insumos"))
+                    .andExpect(flash().attribute("tipo", "warning"));
+        }
+        verify(consumoInsumoServicio, never()).registrarConsumoInsumoReservado(any(), any());
+        verify(consumoInsumoServicio, never()).registrarConsumoInsumoDirecto(any(), any());
+    }
+
+    @Test
+    @DisplayName("CP-LCO-101: el buscador de insumos de una etapa sin insumos no ofrece filas")
+    void etapaSinInsumos_elBuscadorNoOfreceFilas() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(ETAPA_HERVIDO)).thenReturn(List.of());
+
+        // Act
+        String html = buscadorDeInsumos("directo", null);
+
+        // Assert
+        assertThat(html).doesNotContain("data-elegir");
+        assertThat(texto(html)).contains("No se encontraron insumos con los criterios indicados");
+    }
+
+    // ==================== Lote de insumo vencido al registrar ====================
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"reservado", "directo"})
+    @DisplayName("CP-LCO-102: un consumo registrado con un lote de insumo vencido muestra la marca Vencido junto a la identificación del lote, con el tooltip Venció el dd/MM/yyyy, en las dos pestañas; uno registrado con un lote vigente no la muestra")
+    void pantalla_marcaElLoteVencidoAlRegistrar(String tipo) throws Exception {
+        // Arrange
+        ConsumoInsumoResponseDTO vencido = ConsumoInsumoResponseDTO.builder().id(9L).cantidadConsumida(5.0).tipoConsumo(TipoConsumo.RESERVADO)
+                .estado(EstadoTransaccion.REGISTRADO).vencidoAlRegistrar(true)
+                .fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(ETAPA_HERVIDO).build())
+                .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor("C-900").fechaVencimiento(LocalDate.of(2020, 1, 1)).insumo(citra()).build()).build();
+        ConsumoInsumoResponseDTO vigente = consumo(7L, ETAPA_HERVIDO, cascade(), "L-123", TipoConsumo.DIRECTO, 15, EstadoTransaccion.REGISTRADO, null);
+        when(consumoInsumoServicio.filtrarConsumosInsumo(eq(ETAPA_HERVIDO), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(vencido, vigente)));
+
+        // Act
+        String consumos = bloque(mockMvc.perform(get(URL_PANTALLA).param("tipo", tipo).with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8), "data-consumos-registrados");
+
+        // Assert
+        String filaVencida = elementoConAtributo(consumos, "tr", "data-consumo=\"9\"");
+        assertThat(celdas(filaVencida, "C-900").get(1)).isEqualTo("C-900 Vencido");
+        Matcher marca = Pattern.compile("<span[^>]*data-vencido[^>]*>").matcher(filaVencida);
+        assertThat(marca.find()).isTrue();
+        assertThat(marca.group()).contains("data-tooltip=\"Venció el 01/01/2020\"").contains("tabindex=\"0\"");
+        assertThat(elementoConAtributo(consumos, "tr", "data-consumo=\"7\"")).doesNotContain("data-vencido");
+        assertThat(cuenta(consumos, "data-vencido")).isEqualTo(1);
+    }
+
     // ==================== GET .../consumos/{reservado|directo}/buscador/lotes-insumo ====================
 
     @Test
-    @DisplayName("CP-LCO-58: el buscador del consumo directo devuelve un fragmento con los criterios Insumo e Identificación del lote, las columnas y un botón Elegir por fila con el id, el texto, la cantidad disponible y la unidad")
+    @DisplayName("CP-LCO-58: el buscador del consumo directo devuelve un fragmento con los criterio Identificación del lote (sin criterio de insumo, que ya está elegido), las columnas y un botón Elegir por fila con el id, el texto, la cantidad disponible y la unidad")
     void buscador_debeDevolverElFragmento() throws Exception {
         // Arrange
         stubLotesInsumo(new PageImpl<>(List.of(
@@ -931,18 +1136,18 @@ class ConsumoInsumoControllerTest {
 
         // Assert
         assertThat(html).doesNotContain("<html").doesNotContain("<select");
-        assertThat(texto(html)).contains("Buscar lote de insumo", "Insumo", "Identificación del lote", "Lote", "Vencimiento", "Disponible");
+        assertThat(texto(html)).contains("Buscar lote de insumo", "Identificación del lote", "Lote", "Vencimiento", "Disponible");
         Matcher formulario = Pattern.compile("<form[^>]*>").matcher(html);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_BUSCADOR_DIRECTO + "\"").contains("method=\"get\"");
-        assertThat(html).contains("name=\"insumo\"").contains("placeholder=\"Ej: Cascade\"").contains("name=\"identificacion\"").contains("placeholder=\"Ej: L-125\"");
+        assertThat(html).doesNotContain("name=\"insumo\"").doesNotContain("Ej: Cascade").contains("type=\"hidden\" name=\"idInsumo\" value=\"31\"").contains("name=\"identificacion\"").contains("placeholder=\"Ej: L-125\"");
         Matcher elegir = Pattern.compile("<button[^>]*data-elegir[^>]*>").matcher(html);
         assertThat(elegir.find()).isTrue();
-        assertThat(elegir.group()).contains("data-id=\"8\"").contains("data-texto=\"Cascade - L-125\"").contains("data-cantidad=\"40 g\"").contains("data-unidad=\"g\"")
+        assertThat(elegir.group()).contains("data-id=\"8\"").contains("data-texto=\"L-125\"").contains("data-cantidad=\"40 g\"").contains("data-unidad=\"g\"")
                 .contains("data-vencimiento=\"12/03/2028\"");
         assertThat(elegir.find()).isTrue();
-        assertThat(elegir.group()).contains("data-id=\"7\"").contains("data-texto=\"Citra - C-900\"").contains("data-cantidad=\"15 g\"");
-        assertThat(celdas(html, "L-125")).containsExactly("Cascade", "L-125", "12/03/2028", "40 g", "Elegir");
+        assertThat(elegir.group()).contains("data-id=\"7\"").contains("data-texto=\"C-900\"").contains("data-cantidad=\"15 g\"");
+        assertThat(celdas(html, "L-125")).containsExactly("L-125", "12/03/2028", "40 g", "Elegir");
     }
 
     @Test
@@ -953,7 +1158,7 @@ class ConsumoInsumoControllerTest {
 
         // Assert
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L, 32L)), isNull(), isNull(), pageable.capture());
+        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L)), isNull(), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(8);
         assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
@@ -974,9 +1179,9 @@ class ConsumoInsumoControllerTest {
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
-        assertThat(celdas(html, "C-900")).containsExactly("Citra", "C-900", "01/01/2020 Vencido", "15 g", "Elegir");
-        assertThat(celdas(html, "L-125").get(2)).isEqualTo("12/03/2028");
-        assertThat(celdas(html, "L-130").get(2)).doesNotContain("Vencido");
+        assertThat(celdas(html, "C-900")).containsExactly("C-900", "01/01/2020 Vencido", "15 g", "Elegir");
+        assertThat(celdas(html, "L-125").get(1)).isEqualTo("12/03/2028");
+        assertThat(celdas(html, "L-130").get(1)).doesNotContain("Vencido");
         assertThat(botonElegir(html, 7)).contains("data-vencido=\"true\"");
         assertThat(botonElegir(html, 8)).doesNotContain("data-vencido");
         assertThat(botonElegir(html, 9)).doesNotContain("data-vencido");
@@ -1001,22 +1206,22 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-62: los criterios llegan recortados al service y los en blanco equivalen a no filtrar; los campos conservan lo escrito y un insumo sin coincidencias muestra la página vacía")
-    void buscador_criteriosDeInsumoEIdentificacion() throws Exception {
+    @DisplayName("CP-LCO-62: la identificación llega recortada al service junto con el insumo elegido y en blanco equivale a no filtrar; el campo conserva lo escrito, el insumo viaja en el campo oculto y una identificación sin coincidencias muestra la página vacía")
+    void buscador_criterioDeIdentificacion() throws Exception {
         // Act
-        String escrito = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("insumo", " cascade ").param("identificacion", " l-125 ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String escrito = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").param("identificacion", " l-125 ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("insumo", "  ").param("identificacion", "  ").with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk());
-        String sinCoincidencias = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("insumo", "zzz").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").param("identificacion", "  ").with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk());
+        String sinCoincidencias = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").param("identificacion", "zzz").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L, 32L)), eq("cascade"), eq("l-125"), any());
-        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L, 32L)), isNull(), isNull(), any());
-        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L, 32L)), eq("zzz"), isNull(), any());
-        assertThat(campo(escrito, "insumo")).isEqualTo(" cascade ");
+        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L)), isNull(), eq("l-125"), any());
+        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L)), isNull(), isNull(), any());
+        verify(loteInsumoServicio).filtrarLotesInsumoDisponibles(eq(List.of(31L)), isNull(), eq("zzz"), any());
+        assertThat(campo(escrito, "idInsumo")).isEqualTo("31");
         assertThat(campo(escrito, "identificacion")).isEqualTo(" l-125 ");
-        assertThat(campo(sinCoincidencias, "insumo")).isEqualTo("zzz");
+        assertThat(campo(sinCoincidencias, "identificacion")).isEqualTo("zzz");
         assertThat(texto(sinCoincidencias)).contains("No se encontraron lotes de insumo con los criterios indicados");
     }
 
@@ -1027,25 +1232,25 @@ class ConsumoInsumoControllerTest {
         List<LoteInsumoResponseDTO> lotes = IntStream.rangeClosed(1, 10)
                 .mapToObj(i -> loteInsumo(100L + i, cascade(), "L-" + i, LocalDate.of(2028, 1, i), 10, false)).toList();
         stubLotesInsumo(new PageImpl<>(lotes.subList(0, 8), PageRequest.of(0, 8), 10));
-        String primera = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("insumo", "casc").param("identificacion", "L-").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String primera = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").param("identificacion", "L-").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         stubLotesInsumo(new PageImpl<>(lotes.subList(8, 10), PageRequest.of(1, 8), 10));
 
         // Act
-        String segunda = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("pagina", "1").param("insumo", "casc").param("identificacion", "L-").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String segunda = mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("pagina", "1").param("idInsumo", "31").param("identificacion", "L-").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(cuenta(primera, "data-elegir")).isEqualTo(8);
         assertThat(texto(primera)).contains("10 lotes de insumo", "Página 1 de 2");
         assertThat(primera).contains("data-modal-get=\"true\"");
-        assertThat(enlaceDe(primera, "Siguiente")).startsWith(URL_BUSCADOR_DIRECTO + "?pagina=1").contains("insumo=casc").contains("identificacion=L-");
+        assertThat(enlaceDe(primera, "Siguiente")).startsWith(URL_BUSCADOR_DIRECTO + "?pagina=1").contains("idInsumo=31").contains("identificacion=L-");
         assertThat(primera).doesNotContain("Anterior");
         assertThat(cuenta(segunda, "data-elegir")).isEqualTo(2);
         assertThat(texto(segunda)).contains("Página 2 de 2");
-        assertThat(enlaceDe(segunda, "Anterior")).startsWith(URL_BUSCADOR_DIRECTO + "?pagina=0").contains("insumo=casc").contains("identificacion=L-");
+        assertThat(enlaceDe(segunda, "Anterior")).startsWith(URL_BUSCADOR_DIRECTO + "?pagina=0").contains("idInsumo=31").contains("identificacion=L-");
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteInsumoServicio, times(2)).filtrarLotesInsumoDisponibles(any(Collection.class), eq("casc"), eq("L-"), pageable.capture());
+        verify(loteInsumoServicio, times(2)).filtrarLotesInsumoDisponibles(any(Collection.class), isNull(), eq("L-"), pageable.capture());
         assertThat(pageable.getAllValues()).extracting(Pageable::getPageNumber).containsExactly(0, 1);
     }
 
@@ -1084,21 +1289,22 @@ class ConsumoInsumoControllerTest {
     @DisplayName("CP-LCO-66: los roles sin CONSUMO_INSUMO_REGISTRAR no abren ninguno de los dos buscadores: responden 403 con el motivo como texto, sin redirigir, y no se invoca ningún service")
     void buscador_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
-        assertBuscadorRechazado(mockMvc.perform(get(URL_BUSCADOR_DIRECTO).with(como(rol))));
-        assertBuscadorRechazado(mockMvc.perform(get(URL_BUSCADOR_RESERVADO).with(como(rol))));
+        assertBuscadorRechazado(mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").with(como(rol))));
+        assertBuscadorRechazado(mockMvc.perform(get(URL_BUSCADOR_RESERVADO).param("idInsumo", "31").with(como(rol))));
         verifyNingunService();
     }
 
     @Test
-    @DisplayName("CP-LCO-67: el criterio Insumo es un campo de texto con el placeholder Ej: Cascade y el fragmento no tiene ningún desplegable")
-    void buscador_elCriterioInsumoEsUnCampoDeTexto() throws Exception {
+    @DisplayName("CP-LCO-67: el buscador de lotes no tiene criterio de insumo ni desplegables: el único criterio es la identificación del lote, un campo de texto con el placeholder Ej: L-125")
+    void buscador_elUnicoCriterioEsLaIdentificacion() throws Exception {
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
-        assertThat(Pattern.compile("<input[^>]*name=\"insumo\"[^>]*>").matcher(html).results().findFirst().orElseThrow().group())
-                .contains("type=\"text\"").contains("placeholder=\"Ej: Cascade\"");
-        assertThat(html).doesNotContain("<select").doesNotContain("<option");
+        assertThat(Pattern.compile("<input[^>]*name=\"identificacion\"[^>]*>").matcher(html).results().findFirst().orElseThrow().group())
+                .contains("type=\"text\"").contains("placeholder=\"Ej: L-125\"");
+        assertThat(html).doesNotContain("name=\"insumo\"").doesNotContain("<select").doesNotContain("<option");
+        assertThat(cuenta(html, "<input")).isEqualTo(2);
     }
 
     @Test
@@ -1115,7 +1321,7 @@ class ConsumoInsumoControllerTest {
 
         // Assert
         assertThat(IntStream.of(8, 10, 7).map(id -> html.indexOf("data-id=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
-        assertThat(celdas(html, "L-127")).containsExactly("Cascade", "L-127", "-", "25 g", "Elegir");
+        assertThat(celdas(html, "L-127")).containsExactly("L-127", "-", "25 g", "Elegir");
         assertThat(botonElegir(html, 10)).doesNotContain("data-vencido").contains("data-vencimiento=\"-\"");
     }
 
@@ -1134,10 +1340,10 @@ class ConsumoInsumoControllerTest {
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_BUSCADOR_RESERVADO + "\"").contains("method=\"get\"");
         assertThat(texto(html)).contains("Buscar lote de insumo", "Reservado").doesNotContain("Disponible");
-        assertThat(celdas(html, "L-123")).containsExactly("Cascade", "L-123", "12/03/2028", "10 g", "Elegir");
-        assertThat(botonElegir(html, 5)).contains("data-texto=\"Cascade - L-123\"").contains("data-cantidad=\"10 g\"").contains("data-unidad=\"g\"").contains("data-vencimiento=\"12/03/2028\"");
+        assertThat(celdas(html, "L-123")).containsExactly("L-123", "12/03/2028", "10 g", "Elegir");
+        assertThat(botonElegir(html, 5)).contains("data-texto=\"L-123\"").contains("data-cantidad=\"10 g\"").contains("data-unidad=\"g\"").contains("data-vencimiento=\"12/03/2028\"");
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(reservaInsumoServicio).filtrarReservasConSaldo(eq(ETAPA_HERVIDO), isNull(), isNull(), pageable.capture());
+        verify(reservaInsumoServicio).filtrarReservasConSaldo(eq(ETAPA_HERVIDO), eq(31L), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(8);
         assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
@@ -1158,15 +1364,15 @@ class ConsumoInsumoControllerTest {
 
         // Assert
         assertThat(IntStream.of(5, 6, 7).map(id -> html.indexOf("data-id=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
-        assertThat(celdas(html, "C-900")).containsExactly("Citra", "C-900", "01/01/2020 Vencido", "15 g", "Elegir");
-        assertThat(celdas(html, "L-124")).containsExactly("Cascade", "L-124", "-", "4 g", "Elegir");
+        assertThat(celdas(html, "C-900")).containsExactly("C-900", "01/01/2020 Vencido", "15 g", "Elegir");
+        assertThat(celdas(html, "L-124")).containsExactly("L-124", "-", "4 g", "Elegir");
         assertThat(botonElegir(html, 7)).contains("data-vencido=\"true\"");
         assertThat(botonElegir(html, 5)).doesNotContain("data-vencido");
         assertThat(cuenta(html, "Vencido")).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("CP-LCO-84: los criterios del buscador del consumo reservado llegan recortados al service, los campos conservan lo escrito y los links de paginación conservan los criterios")
+    @DisplayName("CP-LCO-84: el insumo elegido y la identificación del buscador del consumo reservado llegan recortados al service, el campo conserva lo escrito y los links de paginación conservan el insumo y la identificación")
     void buscadorReservado_criteriosYPaginacion() throws Exception {
         // Arrange
         List<ReservaInsumoResponseDTO> reservas = IntStream.rangeClosed(1, 10)
@@ -1174,22 +1380,22 @@ class ConsumoInsumoControllerTest {
         stubReservas(new PageImpl<>(reservas.subList(0, 8), PageRequest.of(0, 8), 10));
 
         // Act
-        String html = mockMvc.perform(get(URL_BUSCADOR_RESERVADO).param("insumo", " casc ").param("identificacion", " L- ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String html = mockMvc.perform(get(URL_BUSCADOR_RESERVADO).param("idInsumo", "31").param("identificacion", " L- ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        verify(reservaInsumoServicio).filtrarReservasConSaldo(eq(ETAPA_HERVIDO), eq("casc"), eq("L-"), any());
-        assertThat(campo(html, "insumo")).isEqualTo(" casc ");
+        verify(reservaInsumoServicio).filtrarReservasConSaldo(eq(ETAPA_HERVIDO), eq(31L), eq("L-"), any());
+        assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "identificacion")).isEqualTo(" L- ");
         assertThat(cuenta(html, "data-elegir")).isEqualTo(8);
         assertThat(texto(html)).contains("10 lotes de insumo", "Página 1 de 2");
-        assertThat(enlaceDe(html, "Siguiente")).startsWith(URL_BUSCADOR_RESERVADO + "?pagina=1").contains("insumo=").contains("casc").contains("identificacion=");
+        assertThat(enlaceDe(html, "Siguiente")).startsWith(URL_BUSCADOR_RESERVADO + "?pagina=1").contains("idInsumo=31").contains("identificacion=");
     }
 
     // ==================== GET .../consumos/{reservado|directo}/nuevo ====================
 
     @Test
-    @DisplayName("CP-LCO-85: la pantalla del consumo reservado es una página con el título, el link Volver a los consumos, el selector de lote de insumo con el buscador reservado, la cantidad con su unidad, asteriscos rojos, placeholders y novalidate")
+    @DisplayName("CP-LCO-85: la pantalla del consumo reservado es una página con el título, el link Volver a los consumos, el selector de insumo y el selector de lote de insumo (deshabilitado hasta elegir el insumo) con sus buscadores reservados, la cantidad con su unidad, asteriscos rojos, placeholders y novalidate")
     void formularioReservado_debeMostrarElFormulario() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_FORMULARIO_RESERVADO).with(como(Rol.OPERARIO_DE_PRODUCCION)))
@@ -1205,11 +1411,13 @@ class ConsumoInsumoControllerTest {
         assertThat(formulario).contains("method=\"post\"").contains("action=\"" + URL_PANTALLA + "/reservado\"").contains("novalidate").contains("data-un-solo-envio")
                 .contains("name=\"_csrf\"").contains("data-selector-buscar").contains("bi-list-ul")
                 .contains("data-buscador-url=\"" + URL_BUSCADOR_RESERVADO + "\"").contains("placeholder=\"Seleccione lote de insumo\"")
-                .contains("name=\"idLoteInsumo\"").contains("name=\"cantidadConsumida\"").contains("placeholder=\"Ej: 10\"")
+                .contains("data-buscador-url=\"" + URL_PANTALLA + "/reservado/buscador/insumos\"").contains("placeholder=\"Seleccione insumo\"").contains("name=\"idInsumo\"")
+                .contains("data-deshabilitado").contains("data-buscador-base=\"" + URL_BUSCADOR_RESERVADO + "\"").contains("name=\"idLoteInsumo\"").contains("name=\"cantidadConsumida\"").contains("placeholder=\"Ej: 10\"")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta").doesNotContain("data-selector-limpiar").doesNotContain("<select")
                 .doesNotContain(" required").doesNotContain(" min=").doesNotContain(" pattern=");
-        assertThat(texto(formulario)).contains("Datos del consumo reservado", "Lote de insumo *", "Cantidad (g o kg, según el insumo) *", "Registrar consumo reservado");
-        assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(2);
+        assertThat(texto(formulario)).contains("Datos del consumo reservado", "Insumo *", "Lote de insumo *", "Elija primero el insumo", "Cantidad (g o kg, según el insumo) *", "Registrar consumo reservado");
+        assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(3);
+        assertThat(textoDelSelector(formulario, "Seleccione insumo")).isEmpty();
         assertThat(textoDelSelector(formulario, "Seleccione lote de insumo")).isEmpty();
         assertThat(elementoConAtributo(formulario, "span", "data-unidad")).contains("g o kg, según el insumo");
         assertThat(html).contains("/js/modales.js").contains("/js/consumo-lista.js");
@@ -1217,7 +1425,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-86: la pantalla del consumo directo es una página con el título, el selector de lote de insumo con el buscador directo, la cantidad con su unidad y el botón Registrar consumo directo")
+    @DisplayName("CP-LCO-86: la pantalla del consumo directo es una página con el título, el selector de insumo, el selector de lote de insumo con el buscador directo, la cantidad con su unidad y el botón Registrar consumo directo")
     void formularioDirecto_debeMostrarElFormulario() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_FORMULARIO_DIRECTO).with(como(Rol.OPERARIO_DE_PRODUCCION)))
@@ -1231,9 +1439,9 @@ class ConsumoInsumoControllerTest {
         assertThat(enlaceDe(html, "Volver a los consumos")).isEqualTo(URL_PANTALLA + "?tipo=directo");
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL_PANTALLA + "?tipo=directo");
         assertThat(formulario).contains("method=\"post\"").contains("action=\"" + URL_PANTALLA + "/directo\"").contains("novalidate").contains("name=\"_csrf\"")
-                .contains("data-buscador-url=\"" + URL_BUSCADOR_DIRECTO + "\"").contains("placeholder=\"Seleccione lote de insumo\"").contains("placeholder=\"Ej: 10\"");
-        assertThat(texto(formulario)).contains("Lote de insumo *", "Cantidad (g o kg, según el insumo) *", "Registrar consumo directo");
-        assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(2);
+                .contains("data-buscador-url=\"" + URL_BUSCADOR_DIRECTO + "\"").contains("placeholder=\"Seleccione lote de insumo\"").contains("data-buscador-url=\"" + URL_PANTALLA + "/directo/buscador/insumos\"").contains("placeholder=\"Seleccione insumo\"").contains("data-deshabilitado").contains("placeholder=\"Ej: 10\"");
+        assertThat(texto(formulario)).contains("Insumo *", "Lote de insumo *", "Cantidad (g o kg, según el insumo) *", "Registrar consumo directo");
+        assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(3);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -1325,7 +1533,7 @@ class ConsumoInsumoControllerTest {
                 .andExpect(status().is3xxRedirection()).andExpect(redirectedUrl(URL_PANTALLA + "?tipo=reservado")).andExpect(flash().attribute("tipo", "success"));
         when(consumoInsumoServicio.registrarConsumoInsumoReservado(eq(34L), any())).thenReturn(respuestaDeConsumo());
         mockMvc.perform(post("/lotes/12/etapas/fermentacion/consumos/reservado").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf())
-                        .param("idLoteInsumo", "5").param("cantidadConsumida", "10"))
+                        .param("idInsumo", "31").param("idLoteInsumo", "5").param("cantidadConsumida", "10"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/lotes/12/etapas/fermentacion/consumos?tipo=reservado"))
                 .andExpect(flash().attribute("tipo", "success"));
@@ -1390,9 +1598,9 @@ class ConsumoInsumoControllerTest {
 
         // Assert
         String formulario = bloque(paginas.get(2), "data-formulario-consumo");
-        assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(2);
-        assertThat(formulario).contains("placeholder=\"Seleccione lote de insumo\"").contains("placeholder=\"Ej: 10\"");
-        assertThat(texto(formulario)).contains("Lote de insumo *", "Cantidad (g o kg, según el insumo) *");
+        assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(3);
+        assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Seleccione lote de insumo\"").contains("placeholder=\"Ej: 10\"");
+        assertThat(texto(formulario)).contains("Insumo *", "Lote de insumo *", "Cantidad (g o kg, según el insumo) *");
         Pattern alerta = Pattern.compile("(?s)role=\"alert\"[^>]*>(.*?)</div>");
         Pattern emoji = Pattern.compile("[\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}]");
         for (String pagina : paginas) {
@@ -1503,7 +1711,7 @@ class ConsumoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCO-80: un consumo anulado muestra el motivo, la fecha de anulación y el usuario que lo anuló; uno registrado no muestra detalle de anulación")
+    @DisplayName("CP-LCO-80: un consumo anulado no muestra el motivo en la fila: tiene un botón que abre el diálogo de detalle con el motivo, el usuario y la fecha y hora de la anulación; uno registrado no tiene el botón")
     void pantalla_detalleDeLaAnulacion() throws Exception {
         // Arrange
         ConsumoInsumoResponseDTO anulado = ConsumoInsumoResponseDTO.builder().id(6L).cantidadConsumida(5.0).tipoConsumo(TipoConsumo.RESERVADO)
@@ -1517,8 +1725,15 @@ class ConsumoInsumoControllerTest {
         String consumos = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-consumos-registrados");
 
         // Assert
-        assertThat(texto(elementoConAtributo(consumos, "tr", "data-consumo=\"6\""))).contains("Anulado Motivo: Error de carga Anulado el 02/07/2027 09:30 por operario");
-        assertThat(elementoConAtributo(consumos, "tr", "data-consumo=\"7\"")).doesNotContain("data-anulacion");
+        String fila = elementoConAtributo(consumos, "tr", "data-consumo=\"6\"");
+        assertThat(texto(fila)).contains("Anulado").doesNotContain("Error de carga").doesNotContain("operario");
+        Matcher boton = Pattern.compile("<button[^>]*data-detalle-anulacion[^>]*>").matcher(fila);
+        assertThat(boton.find()).isTrue();
+        assertThat(boton.group()).contains("type=\"button\"").contains("data-detalle-titulo=\"Detalle de la anulación\"").contains("data-detalle-motivo=\"Error de carga\"")
+                .contains("data-detalle-usuario=\"operario\"").contains("data-detalle-fecha=\"02/07/2027 09:30\"").contains("aria-label=\"Ver detalle de la anulación\"");
+        assertThat(fila).contains("bi-info-circle");
+        assertThat(elementoConAtributo(consumos, "tr", "data-consumo=\"7\"")).doesNotContain("data-detalle-anulacion");
+        assertThat(cuenta(html(Rol.OPERARIO_DE_PRODUCCION), "id=\"dialogo-detalle-anulacion\"")).isEqualTo(1);
     }
 
     @Test
@@ -1572,12 +1787,14 @@ class ConsumoInsumoControllerTest {
                 new EndpointDeConsumo("GET formulario reservado", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_FORMULARIO_RESERVADO)),
                 new EndpointDeConsumo("GET formulario directo", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_FORMULARIO_DIRECTO)),
                 new EndpointDeConsumo("POST reservado", Permiso.CONSUMO_INSUMO_REGISTRAR,
-                        () -> post(URL_PANTALLA + "/reservado").param("idLoteInsumo", "5").param("cantidadConsumida", "10")),
+                        () -> post(URL_PANTALLA + "/reservado").param("idInsumo", "31").param("idLoteInsumo", "5").param("cantidadConsumida", "10")),
                 new EndpointDeConsumo("POST directo", Permiso.CONSUMO_INSUMO_REGISTRAR,
-                        () -> post(URL_PANTALLA + "/directo").param("idLoteInsumo", "8").param("cantidadConsumida", "5")),
+                        () -> post(URL_PANTALLA + "/directo").param("idInsumo", "31").param("idLoteInsumo", "8").param("cantidadConsumida", "5")),
                 new EndpointDeConsumo("POST anular", Permiso.CONSUMO_INSUMO_ANULAR, () -> post(URL_PANTALLA + "/7/anular").param("motivo", "Error de carga")),
                 new EndpointDeConsumo("GET buscador reservado", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_RESERVADO)),
-                new EndpointDeConsumo("GET buscador directo", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_DIRECTO)));
+                new EndpointDeConsumo("GET buscador directo", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_DIRECTO)),
+                new EndpointDeConsumo("GET buscador de insumos reservado", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_PANTALLA + "/reservado/buscador/insumos")),
+                new EndpointDeConsumo("GET buscador de insumos directo", Permiso.CONSUMO_INSUMO_REGISTRAR, () -> get(URL_PANTALLA + "/directo/buscador/insumos")));
         List<Permiso> permisosRelacionados = Arrays.stream(Permiso.values())
                 .filter(p -> p.name().startsWith("LOTE_") || p.name().startsWith("CONSUMO_INSUMO_") || p.name().startsWith("ENVASADO_")).toList();
 
@@ -1643,14 +1860,25 @@ class ConsumoInsumoControllerTest {
     }
 
     private String buscador(Rol rol) throws Exception {
-        return mockMvc.perform(get(URL_BUSCADOR_DIRECTO).with(como(rol)))
+        return mockMvc.perform(get(URL_BUSCADOR_DIRECTO).param("idInsumo", "31").with(como(rol)))
                 .andExpect(status().isOk())
                 .andExpect(view().name("lote/buscador-lote-insumo :: buscador"))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
+    private String buscadorDeInsumos(String tipo, String nombre) throws Exception {
+        MockHttpServletRequestBuilder peticion = get(URL_PANTALLA + "/" + tipo + "/buscador/insumos").with(como(Rol.OPERARIO_DE_PRODUCCION));
+        if (nombre != null) {
+            peticion.param("nombre", nombre);
+        }
+        return mockMvc.perform(peticion)
+                .andExpect(status().isOk())
+                .andExpect(view().name("lote/buscador-insumo-consumo :: buscador"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
     private String buscadorReservado(Rol rol) throws Exception {
-        return mockMvc.perform(get(URL_BUSCADOR_RESERVADO).with(como(rol)))
+        return mockMvc.perform(get(URL_BUSCADOR_RESERVADO).param("idInsumo", "31").with(como(rol)))
                 .andExpect(status().isOk())
                 .andExpect(view().name("lote/buscador-lote-insumo :: buscador"))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -1666,6 +1894,7 @@ class ConsumoInsumoControllerTest {
 
     private static MockHttpServletRequestBuilder postConsumo(String url, RequestPostProcessor usuario, String idLoteInsumo, String cantidad) {
         MockHttpServletRequestBuilder peticion = post(url).with(usuario).with(csrf());
+        peticion.param("idInsumo", "31");
         if (idLoteInsumo != null) {
             peticion.param("idLoteInsumo", idLoteInsumo);
         }

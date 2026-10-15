@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Botón que abre el detalle de una anulación o cancelación (motivo, usuario y fecha y hora) en un diálogo. Es el único
+    modo de mostrar un motivo de anulación o cancelación: nunca va dentro de la fila ni en línea en la página. El diálogo
+    (fragments/dialogo-detalle-anulacion) está en el layout y lo abre /js/modales.js.
+
+    Parámetros: cancelacion (true para una cancelación, false para una anulación), motivo, usuario y fecha (LocalDateTime).
+    Si el registro no tiene motivo, no se muestra el botón.
+
+    Uso: <th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${c.motivoAnulacion}, ${c.usuarioAnulacion}, ${c.fechaAnulacion})}"></th:block>
+-->
+<button th:fragment="boton(cancelacion, motivo, usuario, fecha)" type="button" th:if="${motivo != null}" data-detalle-anulacion
+        th:data-detalle-titulo="${cancelacion} ? 'Detalle de la cancelación' : 'Detalle de la anulación'"
+        th:data-detalle-etiqueta-usuario="${cancelacion} ? 'Cancelado por' : 'Anulado por'"
+        th:data-detalle-motivo="${motivo}" th:data-detalle-usuario="${usuario}"
+        th:data-detalle-fecha="${fecha != null} ? ${#temporals.format(fecha, 'dd/MM/yyyy HH:mm')}"
+        th:aria-label="${cancelacion} ? 'Ver detalle de la cancelación' : 'Ver detalle de la anulación'"
+        th:title="${cancelacion} ? 'Ver detalle de la cancelación' : 'Ver detalle de la anulación'"
+        class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+</button>
+
+</html>

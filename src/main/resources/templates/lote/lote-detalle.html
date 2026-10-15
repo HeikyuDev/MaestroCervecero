@@ -16,6 +16,7 @@
             <div class="flex flex-wrap items-center gap-3">
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight" th:text="${lote.identificadorInterno}">PALE_ALE-R7-3</h1>
                 <span th:replace="~{planificacion_produccion/formato :: estadoLote(${lote.estado})}"></span>
+                <th:block th:if="${lote.estado.name() == 'CANCELADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(true, ${lote.motivoCancelacion}, ${lote.usuarioCancelacion}, ${lote.fechaCancelacion})}"></th:block></th:block>
             </div>
 
             <div class="flex shrink-0 flex-wrap items-center justify-end gap-3">
@@ -45,11 +46,6 @@
 
         <p th:if="${tieneEnvasados}" sec:authorize="hasAuthority('LOTE_ANULAR')" data-aviso-cancelacion
            class="text-sm text-slate-500">Anule los envasados registrados para poder cancelar el lote</p>
-
-        <div th:if="${lote.estado.name() == 'CANCELADO'}" data-motivo-cancelacion
-             class="p-3 rounded-lg border bg-slate-100 border-slate-200 text-slate-700 text-sm">
-            Motivo de la cancelación (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaCancelacion})}"></th:block>): <span th:text="${lote.motivoCancelacion}">Se detectó una contaminación en el mosto</span>
-        </div>
 
         <dl class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm"
             th:with="fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
@@ -148,10 +144,10 @@
         </section>
 
         <!-- 3. Insumos de la etapa, con el avance para finalizar y, al pie, el acceso a la pantalla de consumos -->
-        <section data-insumos-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <section th:unless="${#lists.isEmpty(requeridos)}" data-insumos-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
             <p th:if="${#lists.isEmpty(requeridos)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no consume insumos</p>
-            <div th:unless="${#lists.isEmpty(requeridos)}" class="overflow-x-auto">
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
                     <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
@@ -228,7 +224,7 @@
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${e.cantidadEnvasada}, 'L')}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
-                            <span th:if="${e.motivoAnulacion != null}" class="ml-2 text-xs text-slate-500" th:text="${e.motivoAnulacion}">Barril equivocado</span>
+                            <th:block th:if="${e.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${e.motivoAnulacion}, ${e.usuarioAnulacion}, ${e.fechaAnulacion})}"></th:block></th:block>
                         </td>
                     </tr>
                     </tbody>
@@ -236,8 +232,6 @@
             </div>
         </section>
     </div>
-
-    <script th:src="@{/js/lote-detalle.js}" defer></script>
 
     <!-- Diálogos: motivo de la cancelación y confirmación de iniciar y finalizar -->
     <th:block th:if="${lote.estado.name() == 'PENDIENTE' or lote.estado.name() == 'EN_EJECUCION'}">

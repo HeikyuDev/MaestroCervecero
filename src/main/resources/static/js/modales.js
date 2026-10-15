@@ -11,6 +11,7 @@
  *     data-selector-alta          opción del menú: lleva al alta de esa entidad y, al guardar, vuelve a esta
  *                                 página con lo tipeado recuperado y la entidad nueva elegida (alta contextual).
  *     data-selector-limpiar       quita la selección.
+ *     data-deshabilitado          atributo de un contenedor del selector: mientras está presente, el selector no abre el buscador.
  *     Al elegir o quitar, el selector emite el evento 'selector:cambio' (con detail = {id, texto, datos}, donde
  *     datos son los data-* del botón "Elegir" elegido) para que la página reaccione a la selección.
  *   data-baja-url / data-baja-nombre
@@ -18,6 +19,10 @@
  *   data-motivo-dialogo / data-motivo-url / data-motivo-nombre
  *                                 botón que abre un diálogo que pide un motivo (fragments/dialogo-motivo): el id
  *                                 del diálogo, a dónde se envía y de qué es la acción.
+ *   data-detalle-anulacion / data-detalle-titulo / data-detalle-motivo / data-detalle-etiqueta-usuario / data-detalle-usuario / data-detalle-fecha
+ *                                 botón que abre el diálogo de detalle de una anulación o cancelación
+ *                                 (fragments/dialogo-detalle-anulacion, incluido en el layout): el título del
+ *                                 diálogo, el motivo, el usuario y la fecha y hora.
  *   data-confirmar-titulo / data-confirmar-mensaje
  *                                 botón de envío de un formulario que pide una confirmación antes de enviarlo
  *                                 (fragments/dialogo-confirmacion): el título y el mensaje del diálogo. Sin
@@ -211,6 +216,20 @@
         dialogo.showModal();
     }
 
+    /** Abre el diálogo de detalle de una anulación o cancelación con los datos que trae el botón. */
+    function abrirDetalleDeAnulacion(dialogo, boton) {
+        if (!dialogo) { return; }
+        function asignar(destino, atributo) {
+            dialogo.querySelector(destino).textContent = boton.getAttribute(atributo) || '-';
+        }
+        asignar('[data-detalle-titulo-destino]', 'data-detalle-titulo');
+        asignar('[data-detalle-motivo-destino]', 'data-detalle-motivo');
+        asignar('[data-detalle-etiqueta-usuario-destino]', 'data-detalle-etiqueta-usuario');
+        asignar('[data-detalle-usuario-destino]', 'data-detalle-usuario');
+        asignar('[data-detalle-fecha-destino]', 'data-detalle-fecha');
+        dialogo.showModal();
+    }
+
     // ---------- Confirmación antes de enviar un formulario ----------
 
     var formularioPorConfirmar = null;
@@ -267,6 +286,8 @@
 
     function accionSelector(boton) {
         var selector = boton.closest('[data-selector]');
+        // Un selector deshabilitado (data-deshabilitado en él o en su contenedor) no abre nada hasta que la página lo habilite
+        if (selector.closest('[data-deshabilitado]')) { return; }
         function asignar(entidad) {
             selector.querySelector('[data-selector-id]').value = entidad.id;
             selector.querySelector('[data-selector-texto]').value = entidad.texto;
@@ -309,6 +330,11 @@
                 baja.getAttribute('data-baja-url'), baja.getAttribute('data-baja-nombre'));
             return;
         }
+        var detalle = evento.target.closest('[data-detalle-anulacion]');
+        if (detalle) {
+            abrirDetalleDeAnulacion(document.getElementById('dialogo-detalle-anulacion'), detalle);
+            return;
+        }
         var motivo = evento.target.closest('[data-motivo-url]');
         if (motivo) {
             abrirDialogoDeAccion(document.getElementById(motivo.getAttribute('data-motivo-dialogo')),
@@ -326,7 +352,7 @@
             aceptarConfirmacion(dialogoConfirmacion);
             return;
         }
-        var cierre = evento.target.closest('#dialogo-baja [data-cerrar-dialogo], dialog[data-dialogo-motivo] [data-cerrar-dialogo], dialog[data-dialogo-confirmacion] [data-cerrar-dialogo]');
+        var cierre = evento.target.closest('#dialogo-baja [data-cerrar-dialogo], dialog[data-dialogo-motivo] [data-cerrar-dialogo], dialog[data-dialogo-detalle] [data-cerrar-dialogo], dialog[data-dialogo-confirmacion] [data-cerrar-dialogo]');
         if (cierre) {
             cierre.closest('dialog').close();
             return;

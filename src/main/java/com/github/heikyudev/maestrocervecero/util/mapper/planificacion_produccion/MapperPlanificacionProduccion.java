@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion;
 
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.receta.MapperReceta;
@@ -43,6 +44,7 @@ public class MapperPlanificacionProduccion {
                 .fechaAnulacion(planificacionProduccionEntity.getFechaAnulacion())
                 .motivoFinalizacion(planificacionProduccionEntity.getMotivoFinalizacion())
                 .motivoAnulacion(planificacionProduccionEntity.getMotivoAnulacion())
+                .usuarioAnulacion(planificacionProduccionEntity.getEstado() == EstadoSolicitud.ANULADA ? planificacionProduccionEntity.getLastModifiedBy() : null)
                 .estado(planificacionProduccionEntity.getEstado())
                 .versionReceta(MapperReceta.toDTO(planificacionProduccionEntity.getVersionReceta()))
                 .build();

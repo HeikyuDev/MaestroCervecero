@@ -40,6 +40,11 @@ public class EnvasadoLoteResponseDTO {
     private String motivoAnulacion;
 
     /**
+     * Usuario que anuló el envasado, según la auditoría de la última modificación. Nulo salvo que haya sido anulado.
+     */
+    private String usuarioAnulacion;
+
+    /**
      * Estado del envasado (REGISTRADO o ANULADO).
      */
     private EstadoTransaccion estado;

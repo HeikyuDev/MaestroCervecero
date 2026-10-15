@@ -6,9 +6,11 @@
 <!--
     Formulario de un consumo de la etapa (reservado o directo). Es una página aparte: al registrar vuelve a la pestaña
     del tipo de consumo en la pantalla de consumos (Post-Redirect-Get) y un formulario inválido vuelve acá con sus
-    errores. El lote de insumo se elige con el buscador en modal; en el consumo reservado solo ofrece los lotes con saldo
-    reservado para la etapa y en el directo todos los lotes disponibles de los insumos de la etapa. La unidad de la
-    cantidad se completa al elegir el lote de insumo (comportamiento de /js/consumo-lista.js).
+    errores. El insumo y el lote de insumo se eligen con el buscador en modal. El insumo es el primer paso: en el consumo
+    reservado solo se ofrecen los insumos de la etapa con saldo reservado y en el directo los que la etapa requiere. El
+    lote de insumo queda deshabilitado hasta elegir el insumo y solo ofrece los lotes de ese insumo (con saldo reservado
+    para la etapa en el reservado, disponibles en FEFO en el directo). Al cambiar el insumo se quita el lote elegido. La
+    unidad de la cantidad se completa al elegir el insumo (comportamiento de /js/consumo-lista.js).
 -->
 <div id="consumo-form-content" class="space-y-6">
 
@@ -39,9 +41,20 @@
 
             <div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div>
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Insumo <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idInsumo', ${idInsumoElegido}, ${insumoElegidoTexto},
+                            ${urlBuscadorInsumos}, null, null, false, ${#fields.hasErrors('idInsumo')}, 'Seleccione insumo')}"></div>
+                    <p th:if="${#fields.hasErrors('idInsumo')}" th:errors="*{idInsumo}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
                     <span class="block text-sm font-medium text-slate-700 mb-1">Lote de insumo <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div data-selector-lote th:data-buscador-base="${urlBuscador}" th:data-deshabilitado="${idInsumoElegido == null} ? 'true'"
+                         th:classappend="${idInsumoElegido == null} ? 'opacity-50'">
                     <div th:replace="~{fragments/selector-entidad :: selector('idLoteInsumo', ${idLoteElegido}, ${loteElegidoTexto},
-                            ${urlBuscador}, null, null, false, ${#fields.hasErrors('idLoteInsumo')}, 'Seleccione lote de insumo')}"></div>
+                            ${idInsumoElegido != null} ? ${urlBuscador + '?idInsumo=' + idInsumoElegido} : ${urlBuscador}, null, null, false, ${#fields.hasErrors('idLoteInsumo')}, 'Seleccione lote de insumo')}"></div>
+                    </div>
+                    <p data-ayuda-lote th:hidden="${idInsumoElegido != null}" class="mt-1 text-xs text-slate-500">Elija primero el insumo</p>
                     <p th:if="${#fields.hasErrors('idLoteInsumo')}" th:errors="*{idLoteInsumo}" class="mt-1 text-xs text-rose-600"></p>
                     <p data-lote-elegido th:hidden="${loteElegido == null}" class="mt-2 text-xs text-slate-500">
                         Vencimiento: <span data-lote-vencimiento><th:block th:if="${loteElegido != null}"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${loteElegido.fechaVencimiento})}"></th:block></th:block></span>
@@ -51,7 +64,7 @@
                 </div>
 
                 <div>
-                    <label for="cantidadConsumida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad (<span data-unidad th:text="${loteElegido != null} ? ${loteElegido.insumo.unidadDeMedida.simbolo} : 'g o kg, según el insumo'">g o kg, según el insumo</span>) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <label for="cantidadConsumida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad (<span data-unidad th:text="${loteElegido != null} ? ${loteElegido.insumo.unidadDeMedida.simbolo} : (${unidadInsumoElegido != null} ? ${unidadInsumoElegido} : 'g o kg, según el insumo')">g o kg, según el insumo</span>) <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="number" id="cantidadConsumida" name="cantidadConsumida" step="any" autocomplete="off" placeholder="Ej: 10"
                            th:value="${cantidadEscrita}"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"

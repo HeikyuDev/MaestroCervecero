@@ -143,8 +143,8 @@ class EnvasadoLoteControllerTest {
         assertThat(texto(html)).contains("Envasados", "PALE_ALE-R7-3", "En curso");
         assertThat(enlaceDe(html, "Volver al lote")).isEqualTo("/lotes/12?etapa=envasado");
         assertThat(html).contains("data-indicador-envasado").contains("data-registrar-envasado").contains("data-envasados-registrados");
-        assertThat(cuenta(html, "<dialog")).isEqualTo(1);
-        assertThat(html).contains("id=\"dialogo-anular\"");
+        assertThat(cuenta(html, "<dialog")).isEqualTo(2);
+        assertThat(html).contains("id=\"dialogo-anular\"").contains("id=\"dialogo-detalle-anulacion\"");
     }
 
     @Test
@@ -232,7 +232,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-07: la tabla lista del más reciente al más antiguo, con el anulado atenuado con su motivo y sin botón Anular; se piden de a 20 por id descendente sin filtrar por barril ni por estado")
+    @DisplayName("CP-LEN-07: la tabla lista del más reciente al más antiguo, con el anulado atenuado, con el botón de detalle de la anulación y sin botón Anular; se piden de a 20 por id descendente sin filtrar por barril ni por estado")
     void pantalla_tablaDeEnvasados() throws Exception {
         // Act
         String registrados = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-envasados-registrados");
@@ -241,8 +241,9 @@ class EnvasadoLoteControllerTest {
         // Assert
         assertThat(IntStream.of(10, 9, 8, 7).map(id -> registrados.indexOf("data-envasado=\"" + id + "\"")).boxed().toList()).isSorted().doesNotContain(-1);
         assertThat(texto(registrados)).contains("Barril", "Cantidad (L)", "Fecha de registro", "Estado");
-        assertThat(celdas(anulado, "B-004")).containsExactly("B-004", "30", "01/07/2027 10:15", "Anulado Barril equivocado", "");
-        assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url");
+        assertThat(celdas(anulado, "B-004")).containsExactly("B-004", "30", "01/07/2027 10:15", "Anulado", "");
+        assertThat(anulado).contains("opacity-60").doesNotContain("data-motivo-url").doesNotContain("Barril equivocado</").contains("data-detalle-anulacion")
+                .contains("data-detalle-titulo=\"Detalle de la anulación\"").contains("data-detalle-motivo=\"Barril equivocado\"").contains("data-detalle-usuario=\"operario\"").contains("data-detalle-fecha=\"02/07/2027 09:30\"").contains("aria-label=\"Ver detalle de la anulación\"");
         assertThat(celdas(registrados, "B-003")).containsExactly("B-003", "20", "01/07/2027 10:15", "Registrado", "Anular");
         assertThat(celdas(registrados, "B-002")).containsExactly("B-002", "50", "01/07/2027 10:15", "Registrado", "Anular");
         assertThat(celdas(registrados, "B-001")).containsExactly("B-001", "50", "01/07/2027 10:15", "Registrado", "Anular");
@@ -993,7 +994,10 @@ class EnvasadoLoteControllerTest {
      * Lo que muestra la pantalla dentro del layout, sin el encabezado (que tiene su propio formulario de cierre de sesión).
      */
     private static String contenido(String html) {
-        return html.substring(html.indexOf("<main"));
+        // Sin el diálogo compartido del detalle de una anulación ni sus botones (solo informan, no operan)
+        return html.substring(html.indexOf("<main"))
+                .replaceAll("(?s)<dialog id=\"dialogo-detalle-anulacion\".*?</dialog>", "")
+                .replaceAll("(?s)<button[^>]*data-detalle-anulacion[^>]*>.*?</button>", "");
     }
 
     private void stubDetalle(LoteDetalleResponseDTO detalle) {
@@ -1073,6 +1077,7 @@ class EnvasadoLoteControllerTest {
 
     private static EnvasadoLoteResponseDTO envasado(Long id, Long idEtapa, String barril, double cantidad, EstadoTransaccion estado, String motivo) {
         return EnvasadoLoteResponseDTO.builder().id(id).cantidadEnvasada(cantidad).estado(estado).motivoAnulacion(motivo)
+                .usuarioAnulacion(motivo != null ? "operario" : null).fechaAnulacion(motivo != null ? LocalDateTime.of(2027, 7, 2, 9, 30) : null)
                 .fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(idEtapa).build())
                 .barril(BarrilResponseDTO.builder().id(id + 100).identificador(barril).build()).build();
     }

@@ -82,19 +82,15 @@
             </div>
             <div>
                 <dt class="text-xs font-medium text-slate-500">Estado</dt>
-                <dd class="mt-1"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${planificacion.estado})}"></span></dd>
+                <dd class="mt-1 flex items-center gap-2"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${planificacion.estado})}"></span>
+                    <th:block th:if="${planificacion.estado.name() == 'ANULADA'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${planificacion.motivoAnulacion}, ${planificacion.usuarioAnulacion}, ${planificacion.fechaAnulacion})}"></th:block></th:block>
+                </dd>
             </div>
             <div th:if="${planificacion.motivoFinalizacion != null}" class="sm:col-span-2 lg:col-span-5">
                 <dt class="text-xs font-medium text-slate-500">
                     Motivo de la finalización (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${planificacion.fechaFinalizacion})}"></th:block>)
                 </dt>
                 <dd class="mt-1 text-slate-900" th:text="${planificacion.motivoFinalizacion}">Motivo</dd>
-            </div>
-            <div th:if="${planificacion.motivoAnulacion != null}" class="sm:col-span-2 lg:col-span-5">
-                <dt class="text-xs font-medium text-slate-500">
-                    Motivo de la anulación (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${planificacion.fechaAnulacion})}"></th:block>)
-                </dt>
-                <dd class="mt-1 text-slate-900" th:text="${planificacion.motivoAnulacion}">Motivo</dd>
             </div>
         </dl>
     </section>

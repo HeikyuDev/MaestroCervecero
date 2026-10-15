@@ -84,4 +84,10 @@ public class ConsumoInsumoResponseDTO {
      * Fecha y hora en que se registró (creó) el registro, según la auditoría.
      */
     private LocalDateTime fechaRegistro;
+
+    /**
+     * Indica si el lote de insumo estaba vencido cuando se registró el consumo: su fecha de vencimiento es anterior a la
+     * fecha de registro (si vencía ese mismo día todavía era válido).
+     */
+    private boolean vencidoAlRegistrar;
 }

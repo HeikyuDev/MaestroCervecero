@@ -683,19 +683,26 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-31: una planificación Anulada muestra el motivo de la anulación con su fecha y no ofrece botones de cierre")
+    @DisplayName("CP-PPC-31: una planificación Anulada no muestra el motivo en la página: junto al estado Anulada hay un botón que abre el diálogo con el motivo, el usuario y la fecha y hora de la anulación, y no ofrece botones de cierre")
     void detalle_anuladaMuestraElMotivoSinBotones() throws Exception {
         PlanificacionProduccionResponseDTO anulada = planificacionBuilder(7L, "Pale Ale", EstadoSolicitud.ANULADA)
                 .motivoAnulacion("Se canceló el pedido del cliente")
-                .fechaAnulacion(LocalDateTime.of(2027, 6, 15, 9, 5)).build();
+                .usuarioAnulacion("gerente").fechaAnulacion(LocalDateTime.of(2027, 6, 15, 9, 5)).build();
         when(planificacionServicio.buscarPorId(7L)).thenReturn(anulada);
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
 
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(">Anulada<")))
-                .andExpect(content().string(containsString("Motivo de la anulación (15/06/2027 09:05)")))
-                .andExpect(content().string(containsString("Se canceló el pedido del cliente")))
+                .andExpect(content().string(not(containsString("Motivo de la anulación"))))
+                .andExpect(content().string(not(containsString(">Se canceló el pedido del cliente<"))))
+                .andExpect(content().string(containsString("data-detalle-anulacion")))
+                .andExpect(content().string(containsString("data-detalle-titulo=\"Detalle de la anulación\"")))
+                .andExpect(content().string(containsString("data-detalle-motivo=\"Se canceló el pedido del cliente\"")))
+                .andExpect(content().string(containsString("data-detalle-usuario=\"gerente\"")))
+                .andExpect(content().string(containsString("data-detalle-fecha=\"15/06/2027 09:05\"")))
+                .andExpect(content().string(containsString("aria-label=\"Ver detalle de la anulación\"")))
+                .andExpect(content().string(containsString("id=\"dialogo-detalle-anulacion\"")))
                 .andExpect(content().string(not(containsString("data-motivo-url"))));
     }
 

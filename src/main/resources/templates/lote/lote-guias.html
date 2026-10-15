@@ -45,13 +45,16 @@
             <div data-agua-macerado>
                 <dt class="flex items-center gap-1 text-xs font-medium text-slate-500">
                     Agua de macerado
-                    <button type="button" data-info-toggle aria-controls="info-agua-macerado" aria-expanded="false"
-                            aria-label="Ver cómo se calcula el agua de macerado" title="Ver cómo se calcula"
-                            class="inline-flex items-center rounded text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
+                    <th:block th:replace="~{fragments/tooltip :: ayuda('Ver cómo se calcula el agua de macerado', 'info-agua-macerado')}"></th:block>
                 </dt>
                 <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: medida(${agua.aguaMacerado}, 'L')}"></th:block></dd>
+                <!-- Contenido del tooltip (/js/tooltips.js): el cálculo con los números reales; no ocupa lugar en la página -->
+                <div id="info-agua-macerado" data-info-panel hidden>
+                    <p class="font-semibold text-white">Cómo se calcula el agua de macerado</p>
+                    <p class="mt-1">Relación de empaste × malta molida + espacio muerto del macerador</p>
+                    <p class="mt-1 font-semibold text-amber-300"><th:block th:replace="~{receta/formato :: numero(${agua.relacionDeEmpaste})}"></th:block> L/kg × <th:block th:replace="~{receta/formato :: numero(${agua.masaMalta})}"></th:block> kg + <th:block th:replace="~{receta/formato :: numero(${agua.espacioMuerto})}"></th:block> L de espacio muerto = <th:block th:replace="~{receta/formato :: medida(${agua.aguaMacerado}, 'L')}"></th:block></p>
+                    <p class="mt-1 text-slate-300">El espacio muerto es el agua que queda retenida en el fondo del macerador y no se puede recuperar, por eso se suma al agua del macerado</p>
+                </div>
             </div>
             <div data-agua-lavado>
                 <dt class="text-xs font-medium text-slate-500">Agua de lavado</dt>
@@ -74,15 +77,6 @@
             <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">MA-01</dd>
         </div>
     </dl>
-
-    <!-- Explicación del agua de macerado: la abre el botón de información, con el cálculo y los números reales -->
-    <div th:if="${agua != null}" id="info-agua-macerado" data-info-panel hidden
-         class="p-3 rounded-lg border bg-slate-50 border-slate-200 text-sm text-slate-700 space-y-1">
-        <p class="font-medium text-slate-900">Cómo se calcula el agua de macerado</p>
-        <p>Relación de empaste × malta molida + espacio muerto del macerador</p>
-        <p class="font-medium text-slate-900"><th:block th:replace="~{receta/formato :: numero(${agua.relacionDeEmpaste})}"></th:block> L/kg × <th:block th:replace="~{receta/formato :: numero(${agua.masaMalta})}"></th:block> kg + <th:block th:replace="~{receta/formato :: numero(${agua.espacioMuerto})}"></th:block> L de espacio muerto = <th:block th:replace="~{receta/formato :: medida(${agua.aguaMacerado}, 'L')}"></th:block></p>
-        <p class="text-xs text-slate-500">El espacio muerto es el agua que queda retenida en el fondo del macerador y no se puede recuperar, por eso se suma al agua del macerado</p>
-    </div>
 
     <th:block th:if="${agua != null}">
         <div th:each="advertencia : ${agua.advertencias}" data-advertencia-agua

@@ -63,12 +63,13 @@ class FormDTOsLoteValidacionTest {
     // ==================== ConsumoInsumoFormDTO / RegistrarEnvasadoLoteFormDTO ====================
 
     @Test
-    @DisplayName("CP-FDL-03: ConsumoInsumoFormDTO sin datos informa el lote de insumo y la cantidad consumida como obligatorios")
+    @DisplayName("CP-FDL-03: ConsumoInsumoFormDTO sin datos informa el insumo, el lote de insumo y la cantidad consumida como obligatorios")
     void consumoInsumoFormDTO_debeInformarLosCamposObligatorios() {
         assertThat(mensajes(new ConsumoInsumoFormDTO())).containsExactlyInAnyOrder(
+                "El insumo es obligatorio",
                 "El lote de insumo es obligatorio",
                 "La cantidad consumida es obligatoria");
-        assertThat(validator.validate(ConsumoInsumoFormDTO.builder().idLoteInsumo(1L).cantidadConsumida(2.5).build())).isEmpty();
+        assertThat(validator.validate(ConsumoInsumoFormDTO.builder().idInsumo(1L).idLoteInsumo(1L).cantidadConsumida(2.5).build())).isEmpty();
     }
 
     @Test

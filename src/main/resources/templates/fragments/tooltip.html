@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Tooltip flotante (/js/tooltips.js): una tarjeta que aparece sobre el contenido, sin modificar el diseño de la página.
+    Se abre con el mouse encima, con el foco del teclado y con un clic o toque, y se cierra al sacar el mouse, al perder
+    el foco, con Escape y con un clic fuera.
+
+    Hay dos formas de usarlo:
+      - Texto simple: cualquier elemento enfocable con data-tooltip="texto" (ej. la marca "Vencido" de una fila).
+      - Contenido con formato: el fragmento ayuda(etiqueta, idContenido), un botón con ícono de información que muestra
+        el elemento oculto con ese id (el contenido va en un elemento con hidden, junto al botón).
+
+    Uso: <th:block th:replace="~{fragments/tooltip :: ayuda('Ver cómo se calcula el agua de macerado', 'info-agua')}"></th:block>
+         <div id="info-agua" hidden>Texto de la ayuda</div>
+-->
+<button th:fragment="ayuda(etiqueta, idContenido)" type="button" th:data-tooltip-contenido="${idContenido}" th:aria-label="${etiqueta}"
+        class="inline-flex items-center rounded text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+</button>
+
+</html>

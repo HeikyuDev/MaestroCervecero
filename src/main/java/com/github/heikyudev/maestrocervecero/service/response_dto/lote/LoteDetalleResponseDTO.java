@@ -62,6 +62,10 @@ public class LoteDetalleResponseDTO {
      */
     private String motivoCancelacion;
     /**
+     * Usuario que canceló el lote, según la auditoría de la última modificación. Nulo salvo que haya sido cancelado.
+     */
+    private String usuarioCancelacion;
+    /**
      * ID de la planificación de producción del lote.
      */
     private Long idPlanificacionProduccion;

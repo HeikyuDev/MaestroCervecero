@@ -24,6 +24,13 @@ import lombok.Setter;
 public class ConsumoInsumoFormDTO {
 
     /**
+     * ID del insumo elegido (el primer paso del formulario): el lote de insumo debe ser de este insumo y este insumo debe
+     * ser uno de los que la etapa requiere.
+     */
+    @NotNull(message = "El insumo es obligatorio")
+    private Long idInsumo;
+
+    /**
      * ID del lote de insumo físico del que se descuenta el consumo.
      */
     @NotNull(message = "El lote de insumo es obligatorio")

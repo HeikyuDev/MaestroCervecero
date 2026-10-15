@@ -39,10 +39,10 @@ public interface IReservaInsumoServicio {
      * vencidos, que se marcan). Las reservas agotadas no se ofrecen.
      *
      * @param idEtapaLote El ID de la etapa de lote (obligatorio; lo resuelve el Controller).
-     * @param nombreInsumo Texto a buscar dentro del nombre del insumo, o {@code null}/vacío para no restringir.
+     * @param idInsumo El ID del insumo elegido, o {@code null} para no restringir.
      * @param identificacion Texto a buscar dentro de la identificación del lote de insumo, o {@code null}/vacío para no restringir.
      * @param pageable La configuración de paginación; el orden lo define el service.
      * @return Una página de reservas en formato DTO.
      */
-    Page<ReservaInsumoResponseDTO> filtrarReservasConSaldo(Long idEtapaLote, String nombreInsumo, String identificacion, Pageable pageable);
+    Page<ReservaInsumoResponseDTO> filtrarReservasConSaldo(Long idEtapaLote, Long idInsumo, String identificacion, Pageable pageable);
 }
