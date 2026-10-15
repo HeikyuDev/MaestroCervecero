@@ -388,9 +388,9 @@ class OllaHervorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-OHC-19: si el service rechaza la modificación porque la olla de hervor está en uso, el motivo se muestra en el formulario")
+    @DisplayName("CP-OHC-19: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_ohc_19() throws Exception {
-        when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso"));
+        when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new ReglaNegocioException("Los datos del equipo no son válidos"));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
                         .param("identificadorInterno", "OLLA-01")
@@ -401,7 +401,7 @@ class OllaHervorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la olla de hervor")))
-                .andExpect(content().string(containsString("No se puede modificar la olla de hervor porque se encuentra en uso")));
+                .andExpect(content().string(containsString("Los datos del equipo no son válidos")));
     }
 
     @Test

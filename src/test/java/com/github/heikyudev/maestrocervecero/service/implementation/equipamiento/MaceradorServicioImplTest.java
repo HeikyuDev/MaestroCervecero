@@ -426,7 +426,6 @@ class MaceradorServicioImplTest {
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-NUEVO", 100.0, 80.0, 5.0, 85.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-NUEVO", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         // === EJECUCION ===
@@ -441,7 +440,6 @@ class MaceradorServicioImplTest {
         assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(maceradorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-NUEVO", 1L);
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(maceradorRepository).save(maceradorEntity);
     }
 
@@ -453,7 +451,6 @@ class MaceradorServicioImplTest {
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("mac-01", 100.0, 80.0, 5.0, 85.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
         MaceradorResponseDTO resultado = maceradorServicio.modificarMacerador(1L, maceradorFormDTO);
@@ -480,36 +477,33 @@ class MaceradorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-07: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador tiene comprometida una etapa en estado Pendiente de un lote")
-    void modificarMacerador_debeRechazarAsociacionALotePendiente() {
+    @DisplayName("CP-MM-07: modificarMacerador permite modificar macerador aunque tenga comprometida una etapa en estado Pendiente de un lote (su escalado queda guardado en la instantánea del lote)")
+    void modificarMacerador_debePermitirModificarConLotePendiente() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 85.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
-        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
+        org.assertj.core.api.Assertions.assertThatCode(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO)).doesNotThrowAnyException();
 
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
-        verify(maceradorRepository, never()).save(any());
+        verify(maceradorRepository).save(maceradorEntity);
+        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
     }
 
     @Test
-    @DisplayName("CP-MM-08: modificarMacerador lanza ReglaNegocioException y no persiste cuando el macerador se encuentra en uso")
-    void modificarMacerador_debeRechazarSiEstaEnUso() {
+    @DisplayName("CP-MM-08: modificarMacerador permite modificar macerador aunque se encuentre en uso (su escalado queda guardado en la instantánea de cada lote)")
+    void modificarMacerador_debePermitirModificarEnUso() {
         MaceradorEntity maceradorEntity = crearMaceradorEntity(1L, "MAC-01", 90.0, 70.0, 4.0, 60.0, EstadoOperativo.EN_USO);
         MaceradorFormDTO maceradorFormDTO = maceradorFormDTO("MAC-01", 100.0, 80.0, 5.0, 85.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-01", 1L)).thenReturn(false);
         when(maceradorRepository.findById(1L)).thenReturn(Optional.of(maceradorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(maceradorRepository.save(maceradorEntity)).thenReturn(maceradorEntity);
 
-        assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el macerador porque se encuentra en uso");
+        org.assertj.core.api.Assertions.assertThatCode(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO)).doesNotThrowAnyException();
 
-        verify(maceradorRepository, never()).save(any());
+        verify(maceradorRepository).save(maceradorEntity);
+        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
     }
 
     // ==================== bajaMacerador ====================

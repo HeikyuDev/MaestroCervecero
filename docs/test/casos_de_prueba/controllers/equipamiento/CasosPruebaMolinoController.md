@@ -63,7 +63,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-MOC-17** | La modificación correcta delega en el service y redirige al listado con alerta de éxito | Rol `GERENTE_DE_PRODUCCION`, `id: 4`, datos válidos | Formulario válido | Llama a `modificarMolino(4, ...)`. Redirige a `/equipamiento/molinos` con la alerta "Molino modificado correctamente" de tipo `success`. |
 | **CP-MOC-18** | Modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service | El service lanza `RecursoDuplicadoException` | El service rechaza el identificador | Vuelve al formulario de edición (`action="/equipamiento/molinos/4"`) con el panel "No se pudo modificar el molino" y el mensaje del service. |
-| **CP-MOC-19** | Si el service rechaza la modificación porque el molino está en uso, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("No se puede modificar el molino porque se encuentra en uso")` | Molino en uso o con una etapa pendiente | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado. |
+| **CP-MOC-19** | Si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("Los datos del equipo no son válidos")` | Regla de negocio incumplida | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado. |
 | **CP-MOC-20** | Un rol distinto de GERENTE_DE_PRODUCCION no puede modificar | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

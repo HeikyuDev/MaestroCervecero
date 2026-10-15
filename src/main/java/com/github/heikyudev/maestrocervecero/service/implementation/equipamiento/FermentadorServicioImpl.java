@@ -191,7 +191,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id                 Identificador único del fermentador a modificar.
      * @param fermentadorFormDTO DTO que contiene los nuevos datos del fermentador.
      * @return Objeto {@link FermentadorResponseDTO} con la información actualizada del fermentador.
-     * @throws ReglaNegocioException        Si el identificador interno falta o supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException        Si el identificador interno falta o supera los 100 caracteres, si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, si la capacidad útil es mayor o igual a la capacidad total, si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      * @throws RecursoNoEncontradoException Si no existe ningún fermentador activo con el ID especificado.
      * @throws RecursoDuplicadoException    Si otro equipamiento ya tiene el mismo identificador interno que se intenta asignar.
      */
@@ -220,23 +220,13 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
             throw identificadorDuplicadoEnModificacion(identificadorInterno);
         }
 
-        // 7. Validar que el fermentador no tenga comprometida una etapa en estado Pendiente de un lote.
-        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
-        }
-
-        // 8. Validar que el fermentador no se encuentre actualmente en uso.
-        if (fermentadorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede modificar el fermentador porque se encuentra en uso");
-        }
-
-        // 9. Actualizar los campos del fermentador con los datos del DTO de formulario.
+        // 7. Actualizar los campos del fermentador con los datos del DTO de formulario.
         fermentadorEntity.setIdentificadorInterno(identificadorInterno);
         fermentadorEntity.setCapacidadTotal(fermentadorFormDTO.getCapacidadTotal());
         fermentadorEntity.setCapacidadUtil(fermentadorFormDTO.getCapacidadUtil());
         fermentadorEntity.setUsosMaximosAntesMantenimiento(fermentadorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 10. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente.
+        // 8. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente.
         return MapperFermentador.toDTO(GuardadoUnico.guardar(fermentadorRepository, fermentadorEntity,
                 Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }

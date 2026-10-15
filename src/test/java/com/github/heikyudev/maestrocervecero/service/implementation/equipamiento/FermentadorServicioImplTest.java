@@ -481,7 +481,6 @@ class FermentadorServicioImplTest {
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-NUEVO", 100.0, 80.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-NUEVO", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         // === EJECUCION ===
@@ -501,7 +500,6 @@ class FermentadorServicioImplTest {
         assertThat(resultado.getCapacidadUtil()).isEqualTo(80.0);
         verify(fermentadorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-NUEVO", 1L);
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
     }
 
     @Test
@@ -512,7 +510,6 @@ class FermentadorServicioImplTest {
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("ferm-01", 100.0, 80.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         FermentadorResponseDTO resultado = fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO);
@@ -540,36 +537,33 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MF-07: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa en estado Pendiente de un lote")
-    void modificarFermentador_debeRechazarAsociacionALotePendiente() {
+    @DisplayName("CP-MF-07: modificarFermentador permite modificar fermentador aunque tenga comprometida una etapa en estado Pendiente de un lote (su escalado queda guardado en la instantánea del lote)")
+    void modificarFermentador_debePermitirModificarConLotePendiente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
-        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
+        org.assertj.core.api.Assertions.assertThatCode(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO)).doesNotThrowAnyException();
 
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
-        verify(fermentadorRepository, never()).save(any());
+        verify(fermentadorRepository).save(fermentadorEntity);
+        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
     }
 
     @Test
-    @DisplayName("CP-MF-08: modificarFermentador lanza ReglaNegocioException y no persiste cuando el fermentador se encuentra en uso")
-    void modificarFermentador_debeRechazarSiEstaEnUso() {
+    @DisplayName("CP-MF-08: modificarFermentador permite modificar fermentador aunque se encuentre en uso (su escalado queda guardado en la instantánea de cada lote)")
+    void modificarFermentador_debePermitirModificarEnUso() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 90.0, 70.0, EstadoOperativo.EN_USO);
         FermentadorFormDTO fermentadorFormDTO = fermentadorFormDTO("FERM-01", 100.0, 80.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-01", 1L)).thenReturn(false);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
-        assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el fermentador porque se encuentra en uso");
+        org.assertj.core.api.Assertions.assertThatCode(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO)).doesNotThrowAnyException();
 
-        verify(fermentadorRepository, never()).save(any());
+        verify(fermentadorRepository).save(fermentadorEntity);
+        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
     }
 
     // ==================== bajaFermentador ====================

@@ -155,7 +155,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
      * @throws ReglaNegocioException      Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException      Si la evaporación no es un número mayor a 0 o supera la capacidad útil.
      * @throws ReglaNegocioException      Si la pérdida por trub no es un número mayor a 0 o supera la capacidad útil.
-     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException      Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      * @throws RecursoDuplicadoException  Si el identificador provisto ya pertenece a una olla de hervor activa distinta a la que se está modificando.
      * @throws RecursoNoEncontradoException Si no existe ninguna olla de hervor activa con el ID especificado.
      */
@@ -190,17 +190,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
             throw identificadorDuplicadoEnModificacion(identificadorInterno);
         }
 
-        // 9. Validar que la olla de hervor no tenga comprometida una etapa en estado Pendiente de un lote.
-        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
-        }
-
-        // 10. Validar que la olla de hervor no se encuentre actualmente en uso.
-        if (ollaHervorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede modificar la olla de hervor porque se encuentra en uso");
-        }
-
-        // 11. Actualizar los campos de la entidad con los valores del DTO de formulario
+        // 9. Actualizar los campos de la entidad con los valores del DTO de formulario
         ollaHervorEntity.setIdentificadorInterno(identificadorInterno);
         ollaHervorEntity.setCapacidadTotal(ollaHervorFormDTO.getCapacidadTotal());
         ollaHervorEntity.setCapacidadUtil(ollaHervorFormDTO.getCapacidadUtil());
@@ -208,7 +198,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         ollaHervorEntity.setPerdidaPorTrub(ollaHervorFormDTO.getPerdidaPorTrub());
         ollaHervorEntity.setUsosMaximosAntesMantenimiento(ollaHervorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 12. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
+        // 10. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(GuardadoUnico.guardar(ollaHervorRepository, ollaHervorEntity,
                 Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }

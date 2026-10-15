@@ -63,7 +63,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-MCC-17** | La modificación correcta delega en el service y redirige al listado con alerta de éxito | Rol `GERENTE_DE_PRODUCCION`, `id: 4`, datos válidos | Formulario válido | Llama a `modificarMacerador(4, ...)`. Redirige a `/equipamiento/maceradores` con la alerta "Macerador modificado correctamente" de tipo `success`. |
 | **CP-MCC-18** | Modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service | El service lanza `RecursoDuplicadoException` | El service rechaza el identificador | Vuelve al formulario de edición (`action="/equipamiento/maceradores/4"`) con el panel "No se pudo modificar el macerador" y el mensaje del service. |
-| **CP-MCC-19** | Si el service rechaza la modificación porque el macerador está en uso, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso")` | Macerador en uso o con una etapa pendiente | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado. |
+| **CP-MCC-19** | Si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("Los datos del equipo no son válidos")` | Regla de negocio incumplida | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado. |
 | **CP-MCC-20** | Un rol distinto de GERENTE_DE_PRODUCCION no puede modificar | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

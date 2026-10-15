@@ -156,7 +156,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
      * @throws ReglaNegocioException Si alguna capacidad no es un número mayor a 0 o supera 100.000 litros, o si la capacidad útil es mayor o igual a la capacidad total.
      * @throws ReglaNegocioException Si el espacio muerto no es un número mayor o igual a 0, supera 100.000 litros o no es menor a la capacidad útil.
      * @throws ReglaNegocioException Si la eficiencia de maceracion no es un número entre 40 y 100 inclusive.
-     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000, si el macerador tiene comprometida una etapa en estado Pendiente de un lote, o si se encuentra en uso.
+     * @throws ReglaNegocioException Si los usos máximos antes de mantenimiento no son un entero mayor a 0 o superan 100.000.
      * @throws RecursoDuplicadoException Si el identificador provisto ya pertenece a un macerador activo.
      */
     @Override
@@ -190,17 +190,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
             throw identificadorDuplicadoEnModificacion(identificadorInterno);
         }
 
-        // 9. Validar que el macerador no tenga comprometida una etapa en estado Pendiente de un lote.
-        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede modificar el macerador porque tiene comprometida una etapa en estado Pendiente de un lote");
-        }
-
-        // 10. Validar que el macerador no se encuentre actualmente en uso.
-        if (maceradorEntity.getEstadoOperativo() == EstadoOperativo.EN_USO) {
-            throw new ReglaNegocioException("No se puede modificar el macerador porque se encuentra en uso");
-        }
-
-        // 11. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 9. Aplico los cambios sobre la entidad administrada por persistencia.
         maceradorEntity.setIdentificadorInterno(identificadorInterno);
         maceradorEntity.setCapacidadTotal(maceradorFormDTO.getCapacidadTotal());
         maceradorEntity.setCapacidadUtil(maceradorFormDTO.getCapacidadUtil());
@@ -208,7 +198,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         maceradorEntity.setEficienciaMaceracion(maceradorFormDTO.getEficienciaMaceracion());
         maceradorEntity.setUsosMaximosAntesMantenimiento(maceradorFormDTO.getUsosMaximosAntesMantenimiento());
 
-        // 12. Persisto la entidad actualizada y devuelvo el DTO correspondiente
+        // 10. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperMacerador.toDTO(GuardadoUnico.guardar(maceradorRepository, maceradorEntity,
                 Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
     }

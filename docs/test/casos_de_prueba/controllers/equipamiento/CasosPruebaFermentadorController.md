@@ -63,7 +63,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-FEC-17** | La modificación correcta delega en el service y redirige al listado con alerta de éxito | Rol `GERENTE_DE_PRODUCCION`, `id: 4`, datos válidos | Formulario válido | Llama a `modificarFermentador(4, ...)`. Redirige a `/equipamiento/fermentadores` con la alerta "Fermentador modificado correctamente" de tipo `success`. |
 | **CP-FEC-18** | Modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service | El service lanza `RecursoDuplicadoException` | El service rechaza el identificador | Vuelve al formulario de edición (`action="/equipamiento/fermentadores/4"`) con el panel "No se pudo modificar el fermentador" y el mensaje del service. |
-| **CP-FEC-19** | Si el service rechaza la modificación porque el fermentador está en uso, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("No se puede modificar el fermentador porque se encuentra en uso")` | Fermentador en uso o con una etapa pendiente | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado. |
+| **CP-FEC-19** | Si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("Los datos del equipo no son válidos")` | Regla de negocio incumplida | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado. |
 | **CP-FEC-20** | Un rol distinto de GERENTE_DE_PRODUCCION no puede modificar | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

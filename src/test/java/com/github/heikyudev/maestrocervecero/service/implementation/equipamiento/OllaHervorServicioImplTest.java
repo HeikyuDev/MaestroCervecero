@@ -517,7 +517,6 @@ class OllaHervorServicioImplTest {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-NUEVA", 100.0, 80.0, 10.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-NUEVA", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         // === EJECUCION ===
@@ -532,7 +531,6 @@ class OllaHervorServicioImplTest {
         assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(ollaHervorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-NUEVA", 1L);
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
         verify(ollaHervorRepository).save(ollaHervorEntity);
     }
 
@@ -544,7 +542,6 @@ class OllaHervorServicioImplTest {
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("olla-01", 100.0, 80.0, 10.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO);
@@ -571,36 +568,33 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MO-09: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote")
-    void modificarOllaHervor_debeRechazarAsociacionALotePendiente() {
+    @DisplayName("CP-MO-09: modificarOllaHervor permite modificar olla de hervor aunque tenga comprometida una etapa en estado Pendiente de un lote (su escalado queda guardado en la instantánea del lote)")
+    void modificarOllaHervor_debePermitirModificarConLotePendiente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
-        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
+        org.assertj.core.api.Assertions.assertThatCode(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO)).doesNotThrowAnyException();
 
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
-        verify(ollaHervorRepository, never()).save(any());
+        verify(ollaHervorRepository).save(ollaHervorEntity);
+        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
     }
 
     @Test
-    @DisplayName("CP-MO-10: modificarOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor se encuentra en uso")
-    void modificarOllaHervor_debeRechazarSiEstaEnUso() {
+    @DisplayName("CP-MO-10: modificarOllaHervor permite modificar olla de hervor aunque se encuentre en uso (su escalado queda guardado en la instantánea de cada lote)")
+    void modificarOllaHervor_debePermitirModificarEnUso() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 90.0, 70.0, 8.0, 2.0, EstadoOperativo.EN_USO);
         OllaHervorFormDTO ollaHervorFormDTO = ollaHervorFormDTO("OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-01", 1L)).thenReturn(false);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
-        assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la olla de hervor porque se encuentra en uso");
+        org.assertj.core.api.Assertions.assertThatCode(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO)).doesNotThrowAnyException();
 
-        verify(ollaHervorRepository, never()).save(any());
+        verify(ollaHervorRepository).save(ollaHervorEntity);
+        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
     }
 
     // ==================== bajaOllaHervor ====================
