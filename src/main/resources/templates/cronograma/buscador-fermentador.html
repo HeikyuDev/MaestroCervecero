@@ -44,7 +44,7 @@
                        class="rounded border-slate-300 text-amber-500 focus:ring-amber-500/40">
                 Incluir dados de baja
             </label>
-            <p class="text-xs text-slate-400">Suma los fermentadores dados de baja que tienen lotes.</p>
+            <p class="text-xs text-slate-400">Suma los fermentadores dados de baja que tuvieron lotes.</p>
         </div>
         <div class="sm:col-span-2 flex justify-end">
             <button type="submit"
@@ -85,7 +85,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${fermentadores}, 'fermentadores',
+        <div th:replace="~{fragments/paginacion :: paginacion(${fermentadores}, 'fermentador|fermentadores',
                 ${fermentadores.hasPrevious()} ? @{/cronograma-produccion/buscador/fermentadores(pagina=${fermentadores.number - 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado}, incluirDadosDeBaja=${filtroIncluirDadosDeBaja ? true : null})} : null,
                 ${fermentadores.hasNext()} ? @{/cronograma-produccion/buscador/fermentadores(pagina=${fermentadores.number + 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado}, incluirDadosDeBaja=${filtroIncluirDadosDeBaja ? true : null})} : null,
                 true)}"></div>

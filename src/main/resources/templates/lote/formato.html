@@ -21,6 +21,6 @@
       th:classappend="${estado.name() == 'REGISTRADO'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
       th:text="${estado.etiqueta}">Registrado</span>
 
-<th:block th:fragment="duracion(valor, unidad, unidadPlural)"><th:block th:text="${valor != null} ? |${valor} ${valor == 1 ? unidad : unidadPlural}| : '-'">60 minutos</th:block></th:block>
+<th:block th:fragment="duracion(valor, unidad, unidadPlural)"><th:block th:text="${valor != null} ? |${valor} ${valor == 1 ? unidad : unidadPlural}| : '-'">60 min</th:block></th:block>
 
 </html>

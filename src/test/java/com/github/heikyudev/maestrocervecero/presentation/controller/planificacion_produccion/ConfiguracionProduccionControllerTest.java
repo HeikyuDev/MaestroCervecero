@@ -106,7 +106,7 @@ class ConfiguracionProduccionControllerTest {
                 .andExpect(content().string(containsString("Se usa para estimar la duración del envasado al calcular las fechas de cada lote.")))
                 .andExpect(content().string(containsString("Porcentaje de la cantidad requerida que debe estar consumido en cada insumo de la etapa")))
                 .andExpect(content().string(containsString("Un número entre 0 y 100.")))
-                .andExpect(content().string(containsString("Criterio con el que se elegirán los equipos al generar planes de producción automáticos")));
+                .andExpect(content().string(containsString("Criterio con el que se elegirán los equipos al generar planes secuenciales.")));
     }
 
     @Test

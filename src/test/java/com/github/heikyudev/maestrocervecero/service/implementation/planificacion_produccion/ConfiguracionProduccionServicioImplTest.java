@@ -169,7 +169,7 @@ class ConfiguracionProduccionServicioImplTest {
 
             assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La velocidad de envasado debe ser un número mayor a 0");
+                    .hasMessage("La velocidad de envasado debe ser mayor a 0");
         }
 
         verify(configuracionProduccionRepository, never()).save(any());
@@ -184,7 +184,7 @@ class ConfiguracionProduccionServicioImplTest {
 
             assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La capacidad de lote estándar debe ser un número mayor a 0");
+                    .hasMessage("La capacidad de lote estándar debe ser mayor a 0");
         }
 
         verify(configuracionProduccionRepository, never()).save(any());
@@ -198,7 +198,7 @@ class ConfiguracionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> configuracionProduccionServicio.actualizarConfiguracion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El porcentaje mínimo de consumo debe ser un número mayor o igual a 0");
+                .hasMessage("El porcentaje mínimo de consumo debe ser mayor o igual a 0");
 
         verify(configuracionProduccionRepository, never()).save(any());
     }

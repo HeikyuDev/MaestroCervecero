@@ -121,4 +121,11 @@ public class LoteCronogramaResponseDTO {
      * un reencadenado virtual de la cola (sin guardar fechas).
      */
     private int diasDeDesplazamiento;
+
+    /**
+     * The label of the plan this lote belongs to, as shown on every screen ("Plan #7 - Pale Ale").
+     */
+    public String getEtiquetaPlanificacion() {
+        return com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion.de(idPlanificacionProduccion, nombreReceta);
+    }
 }

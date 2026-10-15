@@ -27,7 +27,7 @@ public class LoginController {
         // flash: la pantalla pública nunca muestra texto recibido por parámetro
         if (!model.containsAttribute("mensaje")) {
             if (timeout != null) {
-                model.addAttribute("mensaje", "Su sesión venció por inactividad, inicie sesión nuevamente");
+                model.addAttribute("mensaje", "Su sesión venció por inactividad: inicie sesión nuevamente");
                 model.addAttribute("tipo", "warning");
             } else if (expired != null) {
                 model.addAttribute("mensaje", "Su sesión se cerró porque se inició en otro dispositivo");

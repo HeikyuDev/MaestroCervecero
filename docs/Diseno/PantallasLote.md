@@ -36,8 +36,8 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | N.º | Pantalla | Ruta | Método | Permiso | Vista |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Lista de lotes | `/lotes` | GET | `LOTE_CONSULTAR` | `lote/lote-lista` |
-| 2 | Registrar lote | `/lotes/nuevo` (`?idPlanificacion=`) | GET | `LOTE_REGISTRAR` | `lote/lote-form` |
-| 2 | Registrar lote (envío) | `/lotes` | POST | `LOTE_REGISTRAR` | redirige a `/lotes` (la lista) |
+| 2 | Nuevo lote | `/lotes/nuevo` (`?idPlanificacion=`) | GET | `LOTE_REGISTRAR` | `lote/lote-form` |
+| 2 | Crear lote (envío) | `/lotes` | POST | `LOTE_REGISTRAR` | redirige a `/lotes` (la lista) |
 | 3 | Detalle del lote | `/lotes/{id}` (`?etapa=`) | GET | `LOTE_CONSULTAR` | `lote/lote-detalle` |
 | 3 | Iniciar lote | `/lotes/{id}/iniciar` | POST | `LOTE_INICIAR` | redirige a `/lotes/{id}` |
 | 3 | Cancelar lote | `/lotes/{id}/cancelar` | POST | `LOTE_ANULAR` | redirige a `/lotes/{id}` |
@@ -45,11 +45,11 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | 4 | Consumos de una etapa | `/lotes/{id}/etapas/{etapa}/consumos` (`?tipo=`, `?estado=`, `?pagina=`) | GET | `CONSUMO_INSUMO_CONSULTAR` | `lote/consumo-lista` |
 | 4 | Nuevo consumo reservado | `/lotes/{id}/etapas/{etapa}/consumos/reservado/nuevo` | GET | `CONSUMO_INSUMO_REGISTRAR` | `lote/consumo-form` |
 | 4 | Nuevo consumo directo | `/lotes/{id}/etapas/{etapa}/consumos/directo/nuevo` | GET | `CONSUMO_INSUMO_REGISTRAR` | `lote/consumo-form` |
-| 4 | Registrar consumo reservado | `/lotes/{id}/etapas/{etapa}/consumos/reservado` | POST | `CONSUMO_INSUMO_REGISTRAR` | redirige a la pestaña "Reservados" |
-| 4 | Registrar consumo directo | `/lotes/{id}/etapas/{etapa}/consumos/directo` | POST | `CONSUMO_INSUMO_REGISTRAR` | redirige a la pestaña "Directos" |
+| 4 | Crear consumo reservado (envío) | `/lotes/{id}/etapas/{etapa}/consumos/reservado` | POST | `CONSUMO_INSUMO_REGISTRAR` | redirige a la pestaña "Reservados" |
+| 4 | Crear consumo directo (envío) | `/lotes/{id}/etapas/{etapa}/consumos/directo` | POST | `CONSUMO_INSUMO_REGISTRAR` | redirige a la pestaña "Directos" |
 | 4 | Anular consumo | `/lotes/{id}/etapas/{etapa}/consumos/{idConsumo}/anular` | POST | `CONSUMO_INSUMO_ANULAR` | redirige a la pestaña del tipo del consumo |
 | 5 | Envasados del lote | `/lotes/{id}/envasados` | GET | `ENVASADO_CONSULTAR` | `lote/envasado-lista` |
-| 5 | Registrar envasado | `/lotes/{id}/envasados` | POST | `ENVASADO_REGISTRAR` | redirige a la misma pantalla |
+| 5 | Crear envasado (envío) | `/lotes/{id}/envasados` | POST | `ENVASADO_REGISTRAR` | redirige a la misma pantalla |
 | 5 | Anular envasado | `/lotes/{id}/envasados/{idEnvasado}/anular` | POST | `ENVASADO_ANULAR` | redirige a la misma pantalla |
 | M1 | Buscadores del formulario de registro (fragmentos) | `/lotes/buscador/{planificaciones, molinos, maceradores, ollas, fermentadores}` | GET | `LOTE_REGISTRAR` | `lote/buscador-*` |
 | M2 | Buscadores de los filtros de la lista (fragmentos) | `/lotes/filtros/{planificaciones, fermentadores}` | GET | `LOTE_CONSULTAR` | `lote/filtro-*` |
@@ -64,21 +64,42 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 ## 3. Reglas comunes de las pantallas
 
 - **Post-Redirect-Get.** Toda acción exitosa redirige y muestra una alerta de éxito en el layout; recargar la página no repite la acción. Registrar un lote lleva a la lista de lotes (el lote queda Pendiente y lo inicia el operario); iniciar, cancelar y finalizar vuelven al detalle (que abre la etapa actual en ejecución); registrar o anular un consumo vuelve a la pestaña del tipo de consumo de la pantalla de consumos, y registrar o anular un envasado, a la pantalla de envasados, con la alerta de éxito.
-- **Errores.** El mensaje de un rechazo del service se muestra como alerta (amarilla si es una regla de negocio, roja si el recurso no existe): el `ControllerAdvices` redirige al origen (`Referer`) con ese mensaje. Los errores de validación del formulario (`@Valid`) y los números que no se pueden convertir en las pantallas de consumos y de envasados también son un Post-Redirect-Get: redirigen a la pantalla del formulario (en los consumos, la de "Nuevo consumo") y viajan en los atributos flash, de modo que ella muestra un resumen de errores y lo que el usuario había cargado, y el navegador nunca queda en la URL de un `POST` (que no tiene pantalla propia y daría un 405 si un rechazo posterior volviera a ella). En los parámetros de la URL, un valor inválido se tolera: aviso amarillo y la pantalla se muestra sin ese filtro; en un buscador en modal, el aviso va dentro del propio fragmento. Un valor que no se puede convertir al tipo del parámetro (`/lotes/abc`, `?pagina=xyz`) redirige al origen con la alerta amarilla "El valor indicado no es válido" y, en un buscador en modal, responde 400 con ese texto, que el modal muestra dentro de sí. Un buscador en modal nunca redirige: cualquier rechazo (recurso inexistente, regla de negocio o error inesperado) responde con su estado HTTP (404, 422 o 500) y el motivo como texto, que el modal muestra dentro de sí (el rechazo de permisos redirige al origen con la alerta); una sesión que ya no está vigente (venció o se inició en otro lugar) se informa como "Su sesión finalizó, inicie sesión nuevamente".
+- **Errores.** El mensaje de un rechazo del service se muestra como alerta (amarilla si es una regla de negocio, roja si el recurso no existe): el `ControllerAdvices` redirige al origen (`Referer`) con ese mensaje. Los errores de validación del formulario (`@Valid`) y los números que no se pueden convertir en las pantallas de consumos y de envasados también son un Post-Redirect-Get: redirigen a la pantalla del formulario (en los consumos, la de "Nuevo consumo") y viajan en los atributos flash, de modo que ella muestra un resumen de errores y lo que el usuario había cargado, y el navegador nunca queda en la URL de un `POST` (que no tiene pantalla propia y daría un 405 si un rechazo posterior volviera a ella). En los parámetros de la URL, un valor inválido se tolera: aviso amarillo y la pantalla se muestra sin ese filtro; en un buscador en modal, el aviso va dentro del propio fragmento. Un valor que no se puede convertir al tipo del parámetro (`/lotes/abc`, `?pagina=xyz`) redirige al origen con la alerta amarilla "El valor indicado no es válido" y, en un buscador en modal, responde 400 con ese texto, que el modal muestra dentro de sí. Un buscador en modal nunca redirige: cualquier rechazo (recurso inexistente, regla de negocio o error inesperado) responde con su estado HTTP (404, 422 o 500) y el motivo como texto, que el modal muestra dentro de sí (el rechazo de permisos redirige al origen con la alerta); una sesión que ya no está vigente (venció o se inició en otro lugar) se informa como "Su sesión finalizó: inicie sesión nuevamente".
 - **Doble envío.** Los formularios de registrar un consumo o un envasado, el diálogo de motivo (anular y cancelar) y los de iniciar y finalizar una etapa llevan `data-un-solo-envio`: con JavaScript, al enviarlos se deshabilitan sus botones y un segundo envío se ignora; al volver a la página desde el historial del navegador se habilitan de nuevo. Sin JavaScript el formulario se envía igual.
 - **Advertencias.** Las advertencias de un consumo (lote de insumo vencido, total consumido mayor a lo requerido) no bloquean la operación: se muestran como alertas amarillas en la parte superior de la pantalla, debajo de la alerta de éxito.
 - **Formularios.** Son `novalidate`, el JavaScript no valida y el servidor es la fuente de verdad. Los campos obligatorios llevan asterisco rojo, todo campo lleva un placeholder de ejemplo ("Ej: 300") y las unidades van en la etiqueta o en la cabecera de la columna.
 - **Selector de entidad.** Elegir una entidad relacionada (planificación, equipo, lote de insumo, barril) abre un modal con criterios de filtro y resultados paginados de a 8; nunca es un desplegable con todos los registros. Es solo para elegir: no hay alta al vuelo en estas pantallas. Un criterio que identifica una instancia es un campo de texto, nunca un desplegable, y elegir una instancia (insumo, lote de insumo, barril, equipo) siempre es con el buscador en modal; los desplegables se reservan para enums chicos (estado del lote, estado operativo).
 - **Confirmaciones.** Iniciar un lote y finalizar una etapa se envían con un formulario POST y token CSRF; con JavaScript piden antes una confirmación en un diálogo ("¿Finalizar la etapa Molienda? El molino pasará a En limpieza", "¿Iniciar el lote PALE_ALE-R7-3? Se reservarán los insumos y los equipos pasarán a En uso"), y sin JavaScript se envían directamente. "Finalizar etapa" siempre está habilitado: el avance hacia el mínimo es informativo y el rechazo lo hace el service con su mensaje. Cancelar un lote y anular un consumo o un envasado piden un motivo obligatorio en un diálogo.
 - **Pestañas.** Las seis pestañas del detalle (una por etapa) son enlaces (`?etapa=<etapa>`), de modo que funcionan sin JavaScript y se pueden guardar en favoritos. Se ve una etapa por vez, y se pueden ver todas, incluidas las anteriores a la actual.
-- **Páginas de error.** Una dirección que no existe y un error inesperado muestran una página con el diseño del sistema (`error/404` y `error/500`, y `error` para los demás casos), con los links "Ir al inicio" e "Ir a los lotes", sin detalles técnicos.
+- **Páginas de error.** Una dirección que no existe y un error inesperado muestran una página con el diseño del sistema (`error/404` y `error/500`, y `error` para los demás casos), con el link "Ir al inicio" (el único destino que todos los roles pueden abrir), sin detalles técnicos.
 - **Orden de los listados.** Los registros transaccionales (lotes, consumos, envasados) muestran el último registrado arriba; los maestros (equipos, barriles) van en orden alfabético ascendente por identificador.
 - **Estados.** Siempre con su nombre legible: lote (Pendiente, En ejecución, Finalizado, Cancelado) y etapa (Pendiente, En curso, Finalizada, Cancelada).
+
+### 3.1 Convenciones de textos y formato de la interfaz (todo el sistema)
+
+Valen para todas las pantallas, no solo para las de lotes.
+
+- **Alta.** El botón de la lista y el título de la página dicen "Nuevo X" o "Nueva X" (también lotes, planificaciones, consumos y envasados); el botón de envío dice "Crear X"; la alerta de éxito dice "X creado correctamente" o "X creada correctamente". La edición usa el título "Editar X", el botón "Guardar cambios" y la alerta "X modificado correctamente". La baja usa "Dar de baja X" y la alerta "X dado de baja correctamente".
+- **Motivos.** Los diálogos que piden un motivo confirman con "Confirmar anulación", "Confirmar cancelación" o "Confirmar finalización"; el diálogo de baja confirma con "Dar de baja".
+- **Puntuación.** Los textos descriptivos (subtítulos de página y de modal, ayudas de campo, descripciones de diálogos) terminan con punto. No llevan punto final las alertas, los mensajes de error y de validación, las etiquetas, los títulos, las cabeceras, los botones y los textos de estado vacío.
+- **Tono.** Español neutro, con el imperativo de usted ("Seleccione", "Ingrese", "Vuelva"); sin voseo, sin emojis.
+- **Estados vacíos.** Una lista con criterios de búsqueda dice "No se encontraron X con los criterios indicados"; una sección sin criterios dice "No hay X registrados".
+- **Selectores.** El selector de una entidad usa el texto "Seleccione <entidad>" sin artículo; el de un valor de lista cerrada usa "Seleccione <valor>" ("Seleccione tipo"). La opción de los filtros que no restringe dice "Todos".
+- **Volver.** "Volver a <plural>" sin artículo cuando el destino es una lista ("Volver a lotes"); "Volver al lote" cuando es un registro.
+- **Planificación.** Siempre se nombra "Plan #N - Nombre" (por ejemplo "Plan #7 - Pale Ale"); lo arma un único componente (`EtiquetaPlanificacion`) que usan los controllers y las plantillas.
+- **Números.** Coma decimal, miles con punto y sin ceros sobrantes ("100", "4,5"). Las unidades van entre paréntesis en la cabecera de la columna y en la etiqueta del campo ("Capacidad total (L)", "Rendimiento (kg/h)", "Eficiencia de maceración (%)") y la celda lleva solo el número; cuando la unidad cambia de una fila a otra (consumos de insumos) la unidad va en la celda. El porcentaje se escribe pegado al número ("90%"). La unidad de tiempo es "min" y la de volumen "L".
+- **Fechas.** `dd/MM/yyyy` y `dd/MM/yyyy HH:mm`, y "-" cuando no hay valor. Los campos de fecha llevan un placeholder de ejemplo ("Ej: 01/07/2027").
+- **Paginación.** Pie común de las listas: "N registro(s) · Página X de Y" con "Anterior" y "Siguiente" (íconos `bi-chevron-left` y `bi-chevron-right`); la etiqueta se escribe en singular cuando hay un solo registro ("1 consumo"). El cronograma pagina de a 5 fermentadores; las demás tablas, de a 10 (los lotes, de a 20).
+- **Textos largos.** Un texto que escribe el usuario (nombre de receta, identificador, código) se acorta con puntos suspensivos dentro de un ancho máximo y se completa en un tooltip flotante; nunca ensancha la tabla.
+- **Títulos.** Los títulos de pantalla y las opciones del menú van en mayúscula inicial en cada palabra significativa ("Panel de Control", "Gestión de Lotes"); las etiquetas y los datos, en oración ("Estado del sistema").
+- **Obligatorios.** Todo formulario, incluidos los diálogos, lleva la nota "Los campos marcados con * son obligatorios." y el asterisco rojo.
+- **Botones.** Buscar usa `bi-search` y va acompañado del enlace "Limpiar"; la acción de ver, editar y dar de baja en las listas usa solo ícono (`bi-eye`, `bi-pencil-square`, `bi-trash`, tamaño `text-lg` con `p-2`) con `title` y `aria-label`.
+- **Mensajes.** Los motivos que acompañan a una indicación se separan con dos puntos ("... porque tiene envasados registrados: anule los envasados para poder cancelarlo"); un número fuera de rango se informa como "X debe ser mayor a 0"; el nombre obligatorio, como "El nombre es obligatorio".
 
 ## 4. Pantalla 1: lista de lotes (`/lotes`)
 
 ```
-Gestión de Lotes                                                  [ + Registrar lote ]*
+Gestión de Lotes                                                  [ + Nuevo lote ]*
 Lotes registrados, con el último registrado arriba
 
 +- Criterios ---------------------------------------------------------------------------+
@@ -87,34 +108,34 @@ Lotes registrados, con el último registrado arriba
 |                                                                [Limpiar] [ Buscar ]   |
 +----------------------------------------------------------------------------------------+
 
-+- Resultados --------------------------------------------------------------------------+
-| Código         Planificación  Fermentador  Estado        Etapa     Estimado         Real           Acciones          |
-| PALE_ALE-R7-3  #7 - Pale Ale  F-01         En ejecución  Hervido   Inicio 01/07/27  Inicio 01/07/27 [Gestionar lote] |
-|                                                                    Fin    05/07/27  Fin    -                         |
-| STOUT-R8-1     #8 - Stout     F-02         Pendiente     -         Inicio 12/07/27  Inicio -       [Gestionar lote] |
-|                                                                    Fin    20/07/27  Fin    -                         |
-| 45 lotes · Página 1 de 3                                          [< Anterior] [Siguiente >]  |
-+----------------------------------------------------------------------------------------+
-* "Registrar lote" solo lo ve el gerente de producción.
++- Resultados --------------------------------------------------------------------------------------------------+
+| Código         Planificación         Fermentador  Estado        Etapa    Inicio              Fin                 Acciones          |
+| PALE_ALE-R7-3  Plan #7 - Pale Ale    F-01         En ejecución  Hervido  Estimado 01/07/2027  Estimado 05/07/2027  [Gestionar lote] |
+|                                                                          Real     01/07/2027  Real     -                           |
+| STOUT-R8-1     Plan #8 - Stout       F-02         Pendiente     -        Estimado 12/07/2027  Estimado 20/07/2027  [Gestionar lote] |
+|                                                                          Real     -           Real     -                           |
+| 45 lotes · Página 1 de 3                                                          [< Anterior] [Siguiente >]  |
++---------------------------------------------------------------------------------------------------------------+
+* "Nuevo lote" solo lo ve el gerente de producción.
 ```
 
-- Abrir un lote se hace con el botón "Gestionar lote" (sólido ámbar, ícono `bi-gear` y texto) que cierra cada fila, en la última columna, "Acciones", que queda fija a la derecha para verse sin desplazar la tabla. La fila no es clickeable y el código es texto.
+- Abrir un lote se hace con el botón "Gestionar lote" (sólido ámbar, ícono `bi-gear` y texto), que cierra cada fila en la última columna, "Acciones". La cabecera y la celda de esa columna se alinean a la derecha y el botón queda dentro de la columna. La fila no es clickeable y el código es texto.
 
 - Criterios opcionales y combinables; "Planificación" y "Fermentador" son selectores de entidad (campo en blanco con ícono de lista que abre un buscador en modal, nunca un desplegable) con botón para quitar la selección. Los buscadores requieren `LOTE_CONSULTAR`: los usan el gerente y el operario. El buscador de planificaciones filtra por "Receta" y ofrece planificaciones de cualquier estado; el de fermentadores, por "Identificador", "Estado operativo" (desplegable del enum) e "Incluir dados de baja" (casilla desmarcada por defecto, que suma los fermentadores dados de baja que tienen lotes para poder filtrar su historial); el elegido se muestra en el campo, con "(dado de baja)" si corresponde. Solo "Estado" es un desplegable, porque es un enum chico. Un parámetro inválido o inexistente en la URL se ignora con un aviso amarillo y la lista se muestra sin ese filtro.
-- Páginas de 20. Las cuatro fechas (inicio y fin, estimados y reales) van agrupadas en dos columnas, "Estimado" y "Real", de a dos líneas; la fecha real que todavía no existe se muestra como "-". La tabla cabe en un ancho de 1280 px sin desplazamiento horizontal y en pantallas más angostas se desplaza con la columna "Acciones" fija.
+- Páginas de 20. Las cuatro fechas van en dos columnas, "Inicio" y "Fin"; cada celda tiene dos líneas, "Estimado" y "Real", con la etiqueta en gris chico; la fecha real que todavía no existe se muestra como "-". La tabla cabe en un ancho de 1280 px sin desplazamiento horizontal. La planificación se muestra como "Plan #N - Nombre". Los textos largos (código, planificación, fermentador) se acortan con puntos suspensivos dentro de un ancho máximo y su texto completo se ve en un tooltip flotante al apuntarlos o enfocarlos.
 - Sin resultados: "No se encontraron lotes con los criterios indicados".
 
 ## 5. Pantalla 2: registrar lote (`/lotes/nuevo`)
 
-Página aparte. La abre el gerente de producción desde "Registrar lote" de la lista o desde el estado actual de una planificación Pendiente (con la planificación ya cargada).
+Página aparte. La abre el gerente de producción desde "Nuevo lote" de la lista o desde el estado actual de una planificación Pendiente (con la planificación ya cargada).
 
 ```
 < Volver a lotes
-Registrar lote
+Nuevo lote
 Los campos marcados con * son obligatorios.
 
 +- Resumen de errores (solo si hay) ------------------------------------------------------+
-| No se pudo registrar el lote                                                              |
+| No se pudo crear el lote                                                              |
 |  - El fermentador es obligatorio                                                          |
 +-------------------------------------------------------------------------------------------+
 PLANIFICACIÓN
@@ -124,12 +145,12 @@ EQUIPAMIENTO
   Olla de hervor *    [ Seleccione olla de hervor    [=] ]   Fermentador * [ Seleccione fermentador [=] ]
 PRODUCCIÓN
   Volumen objetivo (L) *   [ Ej: 300 ]
-                                                              [Cancelar]  [ Registrar lote ]
+                                                              [Cancelar]  [ Crear lote ]
 ```
 
 - Cada `[=]` abre el buscador en modal del campo: planificaciones pendientes (criterio "Receta"), molinos, maceradores, ollas de hervor y fermentadores (criterio "Identificador"). Los buscadores de equipos muestran todos los equipos activos con su estado operativo y su capacidad útil para ayudar a elegir.
 - El registro no valida la disponibilidad de los equipos ni el stock (eso lo hace el inicio del lote); sí valida capacidades y la cobertura de la planificación, y esos mensajes se muestran en el resumen de errores.
-- Éxito: la lista de lotes, con la alerta "Lote PALE_ALE-R7-3 registrado correctamente". El lote queda Pendiente y lo inicia el operario, por eso el gerente no pasa por el detalle.
+- Éxito: la lista de lotes, con la alerta "Lote PALE_ALE-R7-3 creado correctamente". El lote queda Pendiente y lo inicia el operario, por eso el gerente no pasa por el detalle.
 
 ## 6. Pantalla 3: detalle del lote (`/lotes/{id}`)
 
@@ -187,7 +208,7 @@ c = quien tiene CONSUMO_INSUMO_CONSULTAR (el operario), en las etapas que consum
 - El pie de la sección de insumos tiene, a la izquierda, el texto de ayuda "Registre y consulte los consumos de esta etapa" y, a la derecha, el botón sólido ámbar "Gestionar consumos" (ícono `bi-list-check`), que lleva a la pantalla 4. Los consumos registrados no se listan en la pestaña: se consultan en esa pantalla.
 - El avance, bajo la tabla, muestra por insumo el porcentaje consumido frente al mínimo exigido ("75% de 80% requerido"). Con mínimo 0 dice "Sin consumo mínimo requerido". Solo aparece con la etapa en curso. El botón siempre está habilitado: el avance es informativo y, si no se alcanza el mínimo, el service rechaza y su mensaje se muestra en una alerta.
 - La tarjeta de insumos solo existe en las etapas que consumen insumos: en una etapa sin insumos (Maceración, Envasado, o una etapa que la receta no usa) no se muestra la tarjeta ni el botón "Gestionar consumos".
-- En Envasado, una sección lista los envasados registrados (barril, cantidad y estado; los anulados llevan el botón "Ver detalle de la anulación") y en su cabecera lleva "Registrar envasado" para el operario con el envasado en curso (lleva a la pantalla 5).
+- En Envasado, una sección lista los envasados registrados (barril, cantidad y estado; los anulados llevan el botón "Ver detalle de la anulación") y en su cabecera lleva "Nuevo envasado" para el operario con el envasado en curso (lleva a la pantalla 5).
 - Lo consumido frente a lo requerido se muestra solo en la tabla de insumos; la guía no lo repite.
 
 ### 6.4 Tarjeta guía de cada etapa
@@ -206,11 +227,18 @@ M-01              Pilsen: 40 kg
 
 ```
 Malta molida a agregar   Agua de macerado (i)   Agua de lavado   Agua total
-45 kg                    139 L                  60 L             199 L
+Pilsen: 16,7131 kg       139 L                  60 L             199 L
+Caramelo 60: 2,0892 kg
+Total: 18,8023 kg
+Requerida por la receta: 20,8914 kg
 Duración estimada        Macerador
-60 minutos               MA-01
+60 min                   MA-01
 [alertas amarillas con las advertencias del cálculo, si las hay]
 ```
+
+- "Malta molida a agregar" muestra lo que el operario realmente molió: por cada malta, la suma de los consumos registrados (no anulados) de ese lote en la etapa de Molienda, más el total cuando hay más de una malta y, en gris, la cantidad requerida por la receta para comparar. Una malta sin consumos registrados no aparece en la lista.
+- Si la Molienda todavía no tiene consumos registrados, la tarjeta muestra "Malta a agregar (requerida por la receta)" con la cantidad requerida y una nota que explica que todavía no hay malta molida registrada.
+- El cálculo del agua no usa la malta molida: usa la masa de malta requerida por la receta (el escalado del lote). Por eso el tooltip dice "Relación de empaste × malta requerida por la receta + espacio muerto del macerador".
 
 - Sin agua de lavado, "Agua de lavado" dice "No se requiere".
 - (i) es un botón de información (`bi-info-circle`, con `aria-label`) junto a "Agua de macerado". Muestra un tooltip flotante (`/js/tooltips.js`, tarjeta oscura con flecha, que no modifica el diseño de la página) con el cálculo y los números reales ("3 L/kg × 45 kg + 4 L de espacio muerto = 139 L") y qué es el espacio muerto: el agua que queda retenida en el fondo del macerador y no se recupera, por eso se suma. Se abre al pasar el mouse, al enfocar el botón con el teclado y con un clic o toque, y se cierra al sacar el mouse, al perder el foco, con Escape y con un clic fuera.
@@ -219,7 +247,7 @@ Duración estimada        Macerador
 
 ```
 Volumen pre-hervor   Duración estimada   Olla de hervor
-345 L                90 minutos          OH-01
+345 L                90 min             OH-01
 Lúpulos a agregar
   Saaz: 215 g, agregar al inicio del hervor
   Saaz: 25 g, agregar cuando falten 15 min para terminar el hervor
@@ -260,7 +288,7 @@ Página aparte (no es un modal), solo para etapas que consumen insumos. Arriba, 
 < Volver al lote
 Consumos de Hervido  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
-[ Consumo registrado correctamente ]                                                  (verde)
+[ Consumo creado correctamente ]                                                  (verde)
 [ Este lote de insumo se encuentra vencido (venció el 01/01/2020) ]                    (amarillo, arriba)
 [ El total consumido de Citra en esta etapa (20 g) supera la cantidad requerida (15 g) ] (amarillo, arriba)
 
@@ -297,7 +325,7 @@ Los campos marcados con * son obligatorios.
 |  [ Seleccione insumo [=] ]  [ Seleccione lote de insumo [=] ]  [ Ej: 10 ]           |
 |                      Vencimiento: 12/03/2028 · Reservado: 10 g                      |
 +--------------------------------------------------------------------------------------+
-                                         [ Cancelar ] [ Registrar consumo reservado ]
+                                         [ Cancelar ] [ Crear consumo reservado ]
 ```
 
 - Es un formulario como los demás del sistema: una tarjeta con su cabecera de sección, campos de ancho normal en una grilla responsive (una, dos o tres columnas según el ancho), asterisco rojo en los obligatorios, placeholder de ejemplo en cada campo, el aviso "Los campos marcados con * son obligatorios." y, al pie, "Cancelar" y el botón principal.
@@ -315,14 +343,14 @@ Página aparte. Todas sus acciones vuelven a ella.
 < Volver al lote
 Envasados  ·  Lote PALE_ALE-R7-3  ·  Etapa En curso
 
-[ Envasado registrado correctamente ]                                                 (verde)
+[ Envasado creado correctamente ]                                                 (verde)
 
 120 L de 330 L (capacidad útil del fermentador F-01)
 [#######-------------]    Volumen objetivo: 300 L    Quedan 210 L
 
 REGISTRAR ENVASADO
   Barril *  [ Seleccione barril          [=] ]     Cantidad a envasar (L) * [ Ej: 50 ]
-                                                                [ Registrar envasado ]
+                                                                [ Crear envasado ]
 
 ENVASADOS REGISTRADOS
   Barril   Cantidad (L)   Fecha de registro   Estado                         Acciones
@@ -355,21 +383,21 @@ Cola pendiente de F-01
 
 ## 10. Estado de planificación: enlaces al módulo de lotes
 
-- En el estado actual de una planificación Pendiente, solo el gerente de producción (`LOTE_REGISTRAR`) ve el botón "Registrar lote", que abre el formulario con la planificación ya elegida. Una planificación Finalizada o Anulada no lo muestra.
+- En el estado actual de una planificación Pendiente, solo el gerente de producción (`LOTE_REGISTRAR`) ve el botón "Nuevo lote", que abre el formulario con la planificación ya elegida. Una planificación Finalizada o Anulada no lo muestra.
 - En la tabla de lotes de la planificación, cada fila tiene el link "Ver" al detalle del lote para quien puede consultar lotes.
 
 ## 11. Qué botón se ve en cada situación
 
 | Botón | Permiso | Lote | Etapa |
 | --- | --- | --- | --- |
-| Registrar lote (lista) | `LOTE_REGISTRAR` | - | - |
-| Registrar lote (estado de la planificación) | `LOTE_REGISTRAR` | - (planificación Pendiente) | - |
+| Nuevo lote (lista) | `LOTE_REGISTRAR` | - | - |
+| Nuevo lote (estado de la planificación) | `LOTE_REGISTRAR` | - (planificación Pendiente) | - |
 | Iniciar lote (con confirmación) | `LOTE_INICIAR` | Pendiente | - |
 | Cancelar lote | `LOTE_ANULAR` | Pendiente o En ejecución (desactivado con envasados registrados) | - |
 | Gestionar consumos (pie de los insumos) | `CONSUMO_INSUMO_CONSULTAR` | Cualquiera | Cualquiera, de una etapa que consume insumos |
 | Nuevo consumo / Anular consumo (pantalla 4) | `CONSUMO_INSUMO_REGISTRAR` / `CONSUMO_INSUMO_ANULAR` | En ejecución | En curso |
-| Registrar envasado (cabecera de los envasados) | `ENVASADO_REGISTRAR` | En ejecución | Envasado en curso |
-| Registrar / Anular envasado (pantalla 5) | `ENVASADO_REGISTRAR` / `ENVASADO_ANULAR` | En ejecución | Envasado en curso |
+| Nuevo envasado (cabecera de los envasados) | `ENVASADO_REGISTRAR` | En ejecución | Envasado en curso |
+| Crear / Anular envasado (pantalla 5) | `ENVASADO_REGISTRAR` / `ENVASADO_ANULAR` | En ejecución | Envasado en curso |
 | Finalizar etapa (seis, con confirmación; siempre habilitado) | `LOTE_FINALIZAR_<ETAPA>` | En ejecución | Esa etapa en curso |
 | Subir / Bajar (cronograma) | `LOTE_REGISTRAR` | Pendiente | - |
 
@@ -383,17 +411,17 @@ Un clic es un clic de mouse o un toque. Escribir en un campo no se cuenta como c
 | Ver los lotes en ejecución | Ambos | "Gestión de Lotes"; elegir estado "En ejecución" (1 clic para abrir la lista y 1 para elegir) y "Buscar" | 4 |
 | Abrir un lote | Ambos | "Gestión de Lotes"; "Gestionar lote" en la fila | 2 |
 | Filtrar los lotes de una planificación | Ambos | "Gestión de Lotes"; abrir el selector de planificación; "Elegir"; "Buscar" | 4 |
-| Registrar un lote desde la lista | Gerente | "Gestión de Lotes"; "Registrar lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
-| Registrar un lote desde una planificación | Gerente | "Planificación de Producción"; "Ver estado actual"; "Registrar lote" (la planificación ya está elegida); los cuatro equipos (8 clics); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 12 y 1 escritura |
+| Registrar un lote desde la lista | Gerente | "Gestión de Lotes"; "Nuevo lote"; planificación (abrir el selector y "Elegir"); los cuatro equipos (abrir y "Elegir", 2 clics cada uno); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 13 y 1 escritura |
+| Registrar un lote desde una planificación | Gerente | "Planificación de Producción"; "Ver estado actual"; "Nuevo lote" (la planificación ya está elegida); los cuatro equipos (8 clics); escribir el volumen; "Registrar lote" (vuelve a la lista con el mensaje de éxito) | 12 y 1 escritura |
 | Iniciar un lote | Operario | lista ("Gestión de Lotes") -> abrir el lote -> "Iniciar lote" -> confirmar | 4 |
 | Cancelar un lote | Gerente | "Gestión de Lotes"; abrir el lote; "Cancelar lote"; escribir el motivo; confirmar | 4 y 1 escritura |
-| Registrar un consumo reservado (primero del día) | Operario | "Gestión de Lotes"; abrir el lote (el detalle abre en la etapa actual); "Gestionar consumos"; "Nuevo consumo reservado"; elegir el insumo y el lote de insumo con los buscadores; escribir la cantidad; "Registrar consumo reservado" | 9 y 1 escritura |
-| Registrar otro consumo reservado (ya en la pestaña) | Operario | "Nuevo consumo reservado"; elegir el insumo; elegir el lote de insumo; escribir la cantidad; "Registrar consumo reservado" | 6 y 1 escritura |
-| Registrar un consumo directo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; pestaña "Directos"; "Nuevo consumo directo"; elegir el insumo ("Elegir"); abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Registrar consumo directo" | 10 y 1 escritura |
+| Registrar un consumo reservado (primero del día) | Operario | "Gestión de Lotes"; abrir el lote (el detalle abre en la etapa actual); "Gestionar consumos"; "Nuevo consumo reservado"; elegir el insumo y el lote de insumo con los buscadores; escribir la cantidad; "Crear consumo reservado" | 9 y 1 escritura |
+| Registrar otro consumo reservado (ya en la pestaña) | Operario | "Nuevo consumo reservado"; elegir el insumo; elegir el lote de insumo; escribir la cantidad; "Crear consumo reservado" | 6 y 1 escritura |
+| Registrar un consumo directo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; pestaña "Directos"; "Nuevo consumo directo"; elegir el insumo ("Elegir"); abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Crear consumo directo" | 10 y 1 escritura |
 | Anular un consumo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; "Anular" en la fila; escribir el motivo; confirmar | 5 y 1 escritura |
 | Finalizar la etapa en curso | Operario | "Gestión de Lotes"; abrir el lote; "Finalizar etapa"; confirmar (vuelve al detalle, que abre la etapa siguiente) | 4 |
-| Registrar el primer envasado | Operario | "Gestión de Lotes"; abrir el lote; "Registrar envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Registrar envasado" | 6 y 1 escritura |
-| Registrar otro envasado (ya en la pantalla) | Operario | abrir el selector del barril; "Elegir"; escribir la cantidad; "Registrar envasado" | 3 y 1 escritura |
+| Registrar el primer envasado | Operario | "Gestión de Lotes"; abrir el lote; "Nuevo envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 6 y 1 escritura |
+| Registrar otro envasado (ya en la pantalla) | Operario | abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 3 y 1 escritura |
 | Finalizar el envasado | Operario | "Volver al lote" (o "Gestión de Lotes" y abrir el lote); "Finalizar envasado"; confirmar | 3 (4 desde la sidebar) |
 | Revisar qué se consumió en una etapa pasada | Operario | abrir el lote; clic en la pestaña de la etapa; "Gestionar consumos" | 4 |
 | Revisar los envasados de un lote | Gerente | "Gestión de Lotes"; abrir el lote; pestaña "Envasado" | 3 |

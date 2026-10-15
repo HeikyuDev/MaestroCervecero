@@ -20,7 +20,7 @@
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
-        <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar la planificación')}"></div>
+        <div th:replace="~{fragments/form-errors :: resumen('No se pudo crear la planificación')}"></div>
 
         <!-- DATOS DE LA PLANIFICACIÓN -->
         <section class="p-6">
@@ -77,7 +77,7 @@
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
             <button type="submit"
                     class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-                Registrar planificación
+                Crear planificación
             </button>
         </div>
     </form>

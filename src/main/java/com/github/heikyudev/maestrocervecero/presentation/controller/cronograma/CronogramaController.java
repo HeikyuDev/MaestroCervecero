@@ -47,7 +47,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * Controller del cronograma de producción global ("Cronograma de Producción").
  * <p>
  * Muestra, para todas las planificaciones a la vez, un diagrama de Gantt de un período con un carril por
- * fermentador, de a 10 fermentadores por página, y, debajo, la cola de lotes pendientes de cada
+ * fermentador, de a 5 fermentadores por página, y, debajo, la cola de lotes pendientes de cada
  * fermentador de la página, donde el gerente puede subir o bajar un lote una posición. Las reglas de la cola (qué
  * lotes se pueden mover y cómo se reencadenan las fechas) son del service; este controller solo traduce los
  * parámetros, arma la vista y vuelve a la pantalla conservando los filtros.
@@ -77,7 +77,7 @@ public class CronogramaController {
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** Fermentadores (carriles y colas) que muestra cada página del cronograma. */
-    static final int TAMANIO_PAGINA_CRONOGRAMA = 10;
+    static final int TAMANIO_PAGINA_CRONOGRAMA = 5;
 
     // Período por defecto: 15 días atrás y 60 hacia adelante de hoy; con un solo extremo informado, el otro se completa a 75 días
     private static final int DIAS_ANTERIORES_POR_DEFECTO = 15;
@@ -444,8 +444,7 @@ public class CronogramaController {
     }
 
     private static String textoDePlanificacion(PlanificacionProduccionResponseDTO planificacion) {
-        String receta = planificacion.getVersionReceta() != null ? planificacion.getVersionReceta().getNombre() : null;
-        return "Plan #" + planificacion.getId() + (receta != null ? " - " + receta : "");
+        return planificacion.getEtiqueta();
     }
 
     /**

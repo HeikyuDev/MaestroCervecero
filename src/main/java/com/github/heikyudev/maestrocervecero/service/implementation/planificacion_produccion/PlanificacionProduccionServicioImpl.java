@@ -320,7 +320,7 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
         //    planificación que sí llegó a producir algo pero no completó la cantidad solicitada;
         //    si no produjo nada, corresponde anularla en lugar de finalizarla
         if (!loteRepository.existsByPlanificacionProduccion_IdAndEstado(id, EstadoLote.FINALIZADO)) {
-            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado; corresponde anularla en su lugar");
+            throw new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado: corresponde anularla en su lugar");
         }
 
         // 6. Aplicar la finalización forzada sobre la entidad administrada por persistencia

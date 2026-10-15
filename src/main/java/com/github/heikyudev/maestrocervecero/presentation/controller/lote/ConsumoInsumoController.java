@@ -294,7 +294,7 @@ public class ConsumoInsumoController {
                 ? consumoInsumoServicio.registrarConsumoInsumoReservado(contexto.etapa().getId(), consumoForm)
                 : consumoInsumoServicio.registrarConsumoInsumoDirecto(contexto.etapa().getId(), consumoForm);
 
-        agregarMensaje(redirectAttributes, "Consumo registrado correctamente", TipoAlerta.SUCCESS);
+        agregarMensaje(redirectAttributes, "Consumo creado correctamente", TipoAlerta.SUCCESS);
         if (consumo.getAdvertencias() != null && !consumo.getAdvertencias().isEmpty()) {
             redirectAttributes.addFlashAttribute("advertencias", consumo.getAdvertencias());
         }

@@ -21,7 +21,7 @@ public class ProvinciaFormDTO {
     /**
      * Nombre de la provincia. Debe ser único entre las provincias activas (case-insensitive).
      */
-    @NotBlank(message = "El nombre de la provincia es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
     /**

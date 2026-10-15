@@ -126,7 +126,7 @@ public class PlanificacionProduccionController {
         if (!bindingResult.hasErrors()) {
             try {
                 planificacionServicio.registrarPlanificacionProduccion(planificacionForm);
-                agregarMensaje(redirectAttributes, "Planificación de producción registrada correctamente", TipoAlerta.SUCCESS);
+                agregarMensaje(redirectAttributes, "Planificación de producción creada correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
             } catch (RecursoNoEncontradoException | ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());

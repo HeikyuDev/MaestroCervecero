@@ -10,7 +10,7 @@
         <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
             <i class="bi bi-arrow-left"></i> Volver a lotes
         </a>
-        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Registrar lote</h1>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Nuevo lote</h1>
         <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
     </div>
 
@@ -18,7 +18,7 @@
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
-        <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar el lote')}"></div>
+        <div th:replace="~{fragments/form-errors :: resumen('No se pudo crear el lote')}"></div>
 
         <!-- PLANIFICACIÓN -->
         <section class="p-6">
@@ -92,7 +92,7 @@
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
             <button type="submit"
                     class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-                Registrar lote
+                Crear lote
             </button>
         </div>
     </form>

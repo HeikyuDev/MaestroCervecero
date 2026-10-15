@@ -114,7 +114,10 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-lista"))
                 .andExpect(content().string(containsString("Planificación de Producción")))
-                .andExpect(content().string(containsString("Receta</th>")))
+                .andExpect(content().string(containsString("Planificación</th>")))
+                .andExpect(content().string(containsString("data-planificacion-etiqueta")))
+                .andExpect(content().string(containsString(">Plan #7 - Pale Ale<")))
+                .andExpect(content().string(containsString("data-tooltip=\"Plan #7 - Pale Ale\"")))
                 .andExpect(content().string(containsString("Cantidad a producir (L)")))
                 .andExpect(content().string(containsString("Inicio estimado")))
                 .andExpect(content().string(containsString("Fin estimado")))
@@ -137,7 +140,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("bi-check2-circle")))
                 .andExpect(content().string(containsString("data-motivo-dialogo=\"dialogo-anular\"")))
                 .andExpect(content().string(containsString("data-motivo-url=\"/planificaciones-produccion/7/anular\"")))
-                .andExpect(content().string(containsString("data-motivo-nombre=\"Pale Ale\"")))
+                .andExpect(content().string(containsString("data-motivo-nombre=\"Plan #7 - Pale Ale\"")))
                 .andExpect(content().string(containsString("bi-x-circle")))
                 // La tabla se desplaza horizontalmente dentro de su tarjeta y las celdas no se parten
                 .andExpect(content().string(containsString("overflow-x-auto")))
@@ -277,7 +280,7 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron planificaciones de producción con los criterios indicados")));
+                .andExpect(content().string(containsString("No se encontraron planificaciones con los criterios indicados")));
     }
 
     @Test
@@ -296,6 +299,8 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("name=\"motivo\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Se completó la producción prevista con menos lotes\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Se canceló el pedido del cliente\"")))
+                .andExpect(content().string(containsString(">Confirmar finalización<")))
+                .andExpect(content().string(containsString(">Confirmar anulación<")))
                 .andExpect(content().string(containsString("<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>")))
                 .andExpect(content().string(containsString("data-cerrar-dialogo")))
                 .andExpect(content().string(matchesPattern("(?s).*<dialog id=\"dialogo-anular\".*name=\"_csrf\".*</dialog>.*")));
@@ -390,7 +395,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("type=\"date\"")))
                 .andExpect(content().string(containsString("min=\"" + LocalDate.now() + "\"")))
                 .andExpect(content().string(containsString("<span class=\"text-rose-600\" title=\"Obligatorio\">*</span>")))
-                .andExpect(content().string(containsString("Registrar planificación")))
+                .andExpect(content().string(containsString("Crear planificación")))
                 .andExpect(content().string(containsString("href=\"/planificaciones-produccion\"")))
                 .andExpect(content().string(containsString("name=\"_csrf\"")));
     }
@@ -450,7 +455,7 @@ class PlanificacionProduccionControllerTest {
                         .param("fechaInicioEstimada", "2027-07-01").param("fechaFinalizacionEstimada", "2027-07-25"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/planificaciones-produccion"))
-                .andExpect(flash().attribute("mensaje", "Planificación de producción registrada correctamente"))
+                .andExpect(flash().attribute("mensaje", "Planificación de producción creada correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         ArgumentCaptor<PlanificacionProduccionFormDTO> captor = ArgumentCaptor.forClass(PlanificacionProduccionFormDTO.class);
@@ -468,7 +473,7 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(post("/planificaciones-produccion").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
-                .andExpect(content().string(containsString("No se pudo registrar la planificación")))
+                .andExpect(content().string(containsString("No se pudo crear la planificación")))
                 .andExpect(content().string(containsString("La receta es obligatoria")))
                 .andExpect(content().string(containsString("La cantidad a producir es obligatoria")))
                 .andExpect(content().string(containsString("La fecha de inicio estimada es obligatoria")))
@@ -526,7 +531,7 @@ class PlanificacionProduccionControllerTest {
                         .param("fechaInicioEstimada", "2027-07-25").param("fechaFinalizacionEstimada", "2027-07-01"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-form"))
-                .andExpect(content().string(containsString("No se pudo registrar la planificación")))
+                .andExpect(content().string(containsString("No se pudo crear la planificación")))
                 .andExpect(content().string(containsString("La fecha de finalización estimada no puede ser anterior a la fecha de inicio estimada")))
                 .andExpect(content().string(containsString("value=\"Pale Ale\"")))
                 .andExpect(content().string(containsString("value=\"600\"")))
@@ -595,6 +600,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("planificacion_produccion/planificacion-detalle"))
                 .andExpect(content().string(containsString("Estado actual de la planificación")))
+                .andExpect(content().string(containsString(">Plan #7 - Pale Ale<")))
                 .andExpect(content().string(containsString("Pale Ale")))
                 .andExpect(content().string(containsString("Cantidad a producir (L)")))
                 .andExpect(content().string(containsString("01/07/2027")))
@@ -849,14 +855,14 @@ class PlanificacionProduccionControllerTest {
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-PPC-41: si el service rechaza la finalización (sin lotes finalizados) vuelve al origen con la alerta de advertencia y el mensaje del service")
     void finalizar_debeMostrarElMotivoDelRechazo() throws Exception {
-        doThrow(new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado; corresponde anularla en su lugar"))
+        doThrow(new ReglaNegocioException("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado: corresponde anularla en su lugar"))
                 .when(planificacionServicio).finalizarPlanificacionProduccion(eq(7L), any());
 
         mockMvc.perform(post("/planificaciones-produccion/7/finalizar").with(csrf()).param("motivo", "x")
                         .header("Referer", "/planificaciones-produccion"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/planificaciones-produccion"))
-                .andExpect(flash().attribute("mensaje", "No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado; corresponde anularla en su lugar"))
+                .andExpect(flash().attribute("mensaje", "No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado: corresponde anularla en su lugar"))
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 
@@ -1451,7 +1457,7 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString("Datos de la receta")))
                 .andExpect(content().string(containsString(">R3<")))
                 .andExpect(content().string(containsString("Volumen base (L)")))
                 .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
@@ -1465,7 +1471,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString(">35<")))
                 .andExpect(content().string(not(containsString("20.0"))))
                 .andExpect(content().string(containsString("Duraciones estimadas")))
-                .andExpect(content().string(matchesPattern("(?s).*Maceración \\(minutos\\).*?>\\s*60\\s*<.*Hervido \\(minutos\\).*?>\\s*90\\s*<.*"
+                .andExpect(content().string(matchesPattern("(?s).*Maceración \\(min\\).*?>\\s*60\\s*<.*Hervido \\(min\\).*?>\\s*90\\s*<.*"
                         + "Fermentación \\(días\\).*?>\\s*10\\s*<.*Maduración \\(días\\).*?>\\s*4\\s*<.*")))
                 .andExpect(content().string(not(containsString("Duración total"))));
     }
@@ -1497,10 +1503,10 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Receta dada de baja")))
                 .andExpect(content().string(containsString("La receta fue dada de baja; se muestra la versión que usa la planificación")))
-                .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString("Datos de la receta")))
                 .andExpect(content().string(containsString("Duraciones estimadas")))
                 .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
-                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
+                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en min)")))
                 .andExpect(content().string(containsString("Levaduras (cantidad en g)")));
     }
 
@@ -1544,7 +1550,7 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
+                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en min)")))
                 .andExpect(content().string(containsString("Tiempo de hervor")))
                 .andExpect(content().string(matchesPattern(
                         "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*"
@@ -1705,7 +1711,7 @@ class PlanificacionProduccionControllerTest {
     // ==================== Enlaces con el módulo de lotes ====================
 
     @Test
-    @DisplayName("CP-PPC-90: una planificación Pendiente muestra a quien tiene LOTE_REGISTRAR el link \"Registrar lote\" hacia el formulario con la planificación elegida, junto a Ver receta, Finalizar y Anular")
+    @DisplayName("CP-PPC-90: una planificación Pendiente muestra a quien tiene LOTE_REGISTRAR el link \"Nuevo lote\" hacia el formulario con la planificación elegida, junto a Ver receta, Finalizar y Anular")
     void detalle_pendienteMuestraRegistrarLote() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
@@ -1713,7 +1719,7 @@ class PlanificacionProduccionControllerTest {
         String html = mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/lotes/nuevo?idPlanificacion=7\"")))
-                .andExpect(content().string(containsString("Registrar lote")))
+                .andExpect(content().string(containsString("Nuevo lote")))
                 .andReturn().getResponse().getContentAsString();
 
         Matcher enlace = Pattern.compile("(?s)<a[^>]*href=\"/lotes/nuevo\\?idPlanificacion=7\"[^>]*>(.*?)</a>").matcher(html);
@@ -1725,19 +1731,19 @@ class PlanificacionProduccionControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = EstadoSolicitud.class, names = {"FINALIZADA", "ANULADA"})
-    @DisplayName("CP-PPC-91: una planificación Finalizada o Anulada no muestra el link \"Registrar lote\"")
+    @DisplayName("CP-PPC-91: una planificación Finalizada o Anulada no muestra el link \"Nuevo lote\"")
     void detalle_cerradaNoMuestraRegistrarLote(EstadoSolicitud estado) throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", estado));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
 
         mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Registrar lote"))))
+                .andExpect(content().string(not(containsString("Nuevo lote"))))
                 .andExpect(content().string(not(containsString("/lotes/nuevo"))));
     }
 
     @Test
-    @DisplayName("CP-PPC-92: el GERENTE_DE_COMPRAS (sin LOTE_REGISTRAR) ve el estado actual completo sin el link \"Registrar lote\"")
+    @DisplayName("CP-PPC-92: el GERENTE_DE_COMPRAS (sin LOTE_REGISTRAR) ve el estado actual completo sin el link \"Nuevo lote\"")
     void detalle_soloElQueRegistraLotesVeRegistrarLote() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01")));
@@ -1746,7 +1752,7 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Estado actual de la planificación")))
                 .andExpect(content().string(containsString("PALE_ALE-R7-1")))
-                .andExpect(content().string(not(containsString("Registrar lote"))))
+                .andExpect(content().string(not(containsString("Nuevo lote"))))
                 .andExpect(content().string(not(containsString("/lotes/nuevo"))));
     }
 
@@ -1790,7 +1796,7 @@ class PlanificacionProduccionControllerTest {
     }
 
     @Test
-    @DisplayName("CP-PPC-95: una planificación pendiente sin lotes muestra el mensaje de vacío, ningún link \"Ver\" y conserva el link \"Registrar lote\"; la fila vacía abarca todas las columnas de la tabla")
+    @DisplayName("CP-PPC-95: una planificación pendiente sin lotes muestra el mensaje de vacío, ningún link \"Ver\" y conserva el link \"Nuevo lote\"; la fila vacía abarca todas las columnas de la tabla")
     void detalle_sinLotesConservaRegistrarLote() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());

@@ -290,7 +290,7 @@ class LocalidadControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("ubicacion/localidad-form"))
                 .andExpect(content().string(containsString("No se pudo crear la localidad")))
-                .andExpect(content().string(containsString("El nombre de la localidad es obligatorio")))
+                .andExpect(content().string(containsString("El nombre es obligatorio")))
                 .andExpect(content().string(containsString("El código postal es obligatorio")))
                 .andExpect(content().string(containsString("La provincia es obligatoria")));
 

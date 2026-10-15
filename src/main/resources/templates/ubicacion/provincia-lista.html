@@ -55,7 +55,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="p : ${provincias.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${p.nombre}">Córdoba</td>
+                <td class="px-4 py-3 font-medium text-slate-900"><div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${p.nombre}" th:text="${p.nombre}">Córdoba</div></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${p.pais.nombre}">Argentina</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
@@ -82,7 +82,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${provincias}, 'provincias',
+        <div th:replace="~{fragments/paginacion :: paginacion(${provincias}, 'provincia|provincias',
                 ${provincias.hasPrevious()} ? @{/ubicaciones/provincias(pagina=${provincias.number - 1}, nombre=${filtroNombre}, idPais=${filtroIdPais})} : null,
                 ${provincias.hasNext()} ? @{/ubicaciones/provincias(pagina=${provincias.number + 1}, nombre=${filtroNombre}, idPais=${filtroIdPais})} : null,
                 false)}"></div>

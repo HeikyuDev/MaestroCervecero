@@ -48,7 +48,7 @@
     // ---------- Buscador (modal) ----------
 
     var MENSAJE_BUSCADOR_NO_DISPONIBLE = 'No se pudo cargar la búsqueda, actualice la página e intente nuevamente';
-    var MENSAJE_SESION_FINALIZADA = 'Su sesión finalizó, inicie sesión nuevamente';
+    var MENSAJE_SESION_FINALIZADA = 'Su sesión finalizó: inicie sesión nuevamente';
 
     /**
      * Pide el fragmento de {url}. Resuelve {html} con el fragmento o {mensaje} con un texto para mostrar dentro del

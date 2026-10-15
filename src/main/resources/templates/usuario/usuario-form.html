@@ -53,7 +53,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('telefono')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('telefono')}" th:errors="*{telefono}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('telefono')}" class="mt-1 text-xs text-slate-400">Solo dígitos</p>
+                    <p th:unless="${#fields.hasErrors('telefono')}" class="mt-1 text-xs text-slate-400">Solo dígitos.</p>
                 </div>
 
                 <div class="xl:col-span-2">
@@ -62,7 +62,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('correo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('correo')}" th:errors="*{correo}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('correo')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas y no puede repetirse en otro usuario</p>
+                    <p th:unless="${#fields.hasErrors('correo')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas y no puede repetirse en otro usuario.</p>
                 </div>
 
             </div>
@@ -80,7 +80,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm lowercase focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('username')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('username')}" th:errors="*{username}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('username')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo</p>
+                    <p th:unless="${#fields.hasErrors('username')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo.</p>
                 </div>
 
                 <div>
@@ -100,7 +100,7 @@
                     <input type="hidden" th:field="*{rol}">
                     <div class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600"
                          th:text="${usuarioForm.rol.etiqueta}">Rol</div>
-                    <p class="mt-1 text-xs text-slate-400">No se puede cambiar el propio rol</p>
+                    <p class="mt-1 text-xs text-slate-400">No se puede cambiar el propio rol.</p>
                     <p th:if="${#fields.hasErrors('rol')}" th:errors="*{rol}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
 
@@ -109,7 +109,7 @@
                     <select id="rol" th:field="*{rol}"
                             class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                             th:classappend="${#fields.hasErrors('rol')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option value="">Seleccione un rol</option>
+                        <option value="">Seleccione rol</option>
                         <option th:each="r : ${roles}" th:value="${r}"
                                 th:text="${r.etiqueta}">Rol</option>
                     </select>

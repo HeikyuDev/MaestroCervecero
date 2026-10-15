@@ -20,6 +20,6 @@ public class PaisFormDTO {
     /**
      * Nombre del país. Debe ser único entre los países activos (case-insensitive).
      */
-    @NotBlank(message = "El nombre del país es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 }

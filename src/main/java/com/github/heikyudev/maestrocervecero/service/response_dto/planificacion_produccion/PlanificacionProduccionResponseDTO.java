@@ -87,4 +87,11 @@ public class PlanificacionProduccionResponseDTO {
      * Versión de receta utilizada en esta planificación de producción.
      */
     private VersionRecetaResponseDTO versionReceta;
+
+    /**
+     * The label of this plan shown on every screen ("Plan #7 - Pale Ale").
+     */
+    public String getEtiqueta() {
+        return com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion.de(id, versionReceta != null ? versionReceta.getNombre() : null);
+    }
 }

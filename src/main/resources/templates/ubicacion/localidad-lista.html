@@ -67,7 +67,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="l : ${localidades.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.nombre}">Río Cuarto</td>
+                <td class="px-4 py-3 font-medium text-slate-900"><div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${l.nombre}" th:text="${l.nombre}">Río Cuarto</div></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.codigoPostal}">5800</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.nombre}">Córdoba</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.pais.nombre}">Argentina</td>
@@ -96,7 +96,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${localidades}, 'localidades',
+        <div th:replace="~{fragments/paginacion :: paginacion(${localidades}, 'localidad|localidades',
                 ${localidades.hasPrevious()} ? @{/ubicaciones/localidades(pagina=${localidades.number - 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,
                 ${localidades.hasNext()} ? @{/ubicaciones/localidades(pagina=${localidades.number + 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,
                 false)}"></div>

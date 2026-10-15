@@ -18,13 +18,13 @@
 
         <div>
             <label for="fechaDesde" class="block text-xs font-medium text-slate-500 mb-1">Fecha desde</label>
-            <input type="date" id="fechaDesde" name="fechaDesde" th:value="${filtroFechaDesde}"
+            <input type="date" id="fechaDesde" name="fechaDesde" th:value="${filtroFechaDesde}" autocomplete="off" placeholder="Ej: 01/07/2027"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
 
         <div>
             <label for="fechaHasta" class="block text-xs font-medium text-slate-500 mb-1">Fecha hasta</label>
-            <input type="date" id="fechaHasta" name="fechaHasta" th:value="${filtroFechaHasta}"
+            <input type="date" id="fechaHasta" name="fechaHasta" th:value="${filtroFechaHasta}" autocomplete="off" placeholder="Ej: 31/07/2027"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
 
@@ -79,7 +79,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="l : ${logs.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${#temporals.format(l.fechaHora, 'dd/MM/yyyy HH:mm:ss')}">15/09/2026 10:30:00</td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${l.fechaHora})}"></th:block></td>
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${l.username}">admin</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.conceptoAuditoria.etiqueta}">Malta</td>
                 <td class="px-4 py-3">
@@ -92,8 +92,8 @@
                                         : 'bg-slate-100 text-slate-600')))"
                           th:text="${l.accion.etiqueta}">Alta</span>
                 </td>
-                <td class="px-4 py-3 text-slate-700" th:text="${l.entidadId != null} ? ${l.entidadId} : '—'">12</td>
-                <td class="px-4 py-3 text-slate-500" th:text="${l.ipAddress != null} ? ${l.ipAddress} : '—'">127.0.0.1</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${l.entidadId != null} ? ${l.entidadId} : '-'">12</td>
+                <td class="px-4 py-3 text-slate-500" th:text="${l.ipAddress != null} ? ${l.ipAddress} : '-'">127.0.0.1</td>
             </tr>
             <tr th:if="${logs.empty}">
                 <td colspan="6" class="px-4 py-10 text-center text-slate-400">
@@ -105,7 +105,7 @@
         </table>
 
         <!-- Paginación (conserva los criterios de búsqueda) -->
-        <div th:replace="~{fragments/paginacion :: paginacion(${logs}, 'registros',
+        <div th:replace="~{fragments/paginacion :: paginacion(${logs}, 'registro|registros',
                 ${logs.hasPrevious()} ? @{/auditoria(pagina=${logs.number - 1}, fechaDesde=${filtroFechaDesde}, fechaHasta=${filtroFechaHasta}, username=${filtroUsername}, accion=${filtroAccion}, concepto=${filtroConcepto})} : null,
                 ${logs.hasNext()} ? @{/auditoria(pagina=${logs.number + 1}, fechaDesde=${filtroFechaDesde}, fechaHasta=${filtroFechaHasta}, username=${filtroUsername}, accion=${filtroAccion}, concepto=${filtroConcepto})} : null,
                 false)}"></div>

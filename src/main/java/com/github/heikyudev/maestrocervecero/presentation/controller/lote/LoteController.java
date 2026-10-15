@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
@@ -37,7 +38,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -124,6 +127,28 @@ public class LoteController {
         String momento;
     }
 
+    /**
+     * Malta molida en la etapa de Molienda del lote, para la guía de Maceración: lo que el operario realmente molió
+     * (suma de los consumos registrados, no anulados, de cada malta) frente a lo requerido por la receta.
+     * {@code conConsumos} es {@code false} cuando la Molienda no tiene consumos registrados: en ese caso las cantidades
+     * por malta son las requeridas y la guía lo indica.
+     */
+    @Value
+    public static class MaltaMolida {
+        List<LineaDeMalta> lineas;
+        Double total;
+        Double requerido;
+        boolean conConsumos;
+    }
+
+    /** La cantidad de una malta en la guía de Maceración, en la unidad del insumo. */
+    @Value
+    public static class LineaDeMalta {
+        String nombre;
+        Double cantidad;
+        UnidadDeMedida unidadDeMedida;
+    }
+
     // ==================== Lista ====================
 
     /**
@@ -191,7 +216,7 @@ public class LoteController {
     // ==================== Registro ====================
 
     /**
-     * Muestra el formulario vacío para registrar un lote. Con {@code idPlanificacion} (el botón "Registrar lote" del
+     * Muestra el formulario vacío para registrar un lote. Con {@code idPlanificacion} (el botón "Nuevo lote" del
      * estado actual de una planificación) la planificación llega elegida; el estado de la planificación lo valida el
      * service al enviar.
      */
@@ -233,7 +258,7 @@ public class LoteController {
         if (!bindingResult.hasErrors()) {
             try {
                 LoteResponseDTO lote = loteServicio.registrarLote(loteForm);
-                agregarMensaje(redirectAttributes, "Lote " + lote.getIdentificadorInterno() + " registrado correctamente", TipoAlerta.SUCCESS);
+                agregarMensaje(redirectAttributes, "Lote " + lote.getIdentificadorInterno() + " creado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
             } catch (RecursoNoEncontradoException | ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
@@ -277,14 +302,13 @@ public class LoteController {
 
         model.addAttribute("lote", lote);
         model.addAttribute("receta", receta);
-        model.addAttribute("planificacionTexto", "Plan #" + lote.getIdPlanificacionProduccion()
-                + (receta != null && receta.getNombre() != null ? " - " + receta.getNombre() : ""));
+        model.addAttribute("planificacionTexto", EtiquetaPlanificacion.de(lote.getIdPlanificacionProduccion(), receta != null ? receta.getNombre() : null));
         model.addAttribute("tipoEtapa", tipoEtapa);
         model.addAttribute("etapaMostrada", etapaMostrada);
         model.addAttribute("slugEtapa", slugDe(tipoEtapa));
         model.addAttribute("etapaOperable", operable);
         List<InsumoRequeridoResponseDTO> requeridos = cargarInsumosYRegistrosDeEtapa(model, id, tipoEtapa, etapaMostrada, operable);
-        cargarGuiaDeEtapa(model, id, tipoEtapa, etapaMostrada, requeridos, receta);
+        cargarGuiaDeEtapa(model, id, tipoEtapa, etapaMostrada, requeridos, receta, lote.getEtapas());
 
         // El aviso de envasados solo importa donde se puede cancelar un lote que ya empezó
         model.addAttribute("tieneEnvasados", lote.getEstado() == EstadoLote.EN_EJECUCION && envasadoLoteServicio.existenEnvasadosRegistrados(id));
@@ -391,7 +415,7 @@ public class LoteController {
                 paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
         model.addAttribute("filtroReceta", receta);
         model.addAttribute("urlBuscador", "/lotes/buscador/planificaciones");
-        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación pendiente del lote");
+        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación pendiente del lote.");
         return VISTA_BUSCADOR_PLANIFICACION;
     }
 
@@ -471,7 +495,7 @@ public class LoteController {
                 vacioANulo(receta), null, paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
         model.addAttribute("filtroReceta", receta);
         model.addAttribute("urlBuscador", "/lotes/filtros/planificaciones");
-        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación de los lotes");
+        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación de los lotes.");
         return VISTA_FILTRO_PLANIFICACION;
     }
 
@@ -531,12 +555,50 @@ public class LoteController {
     }
 
     /**
+     * La malta de la Molienda del lote para la guía de Maceración: por cada malta, lo consumido (registrado, no anulado)
+     * en la Molienda y el total molido. Si la Molienda no tiene consumos registrados, las cantidades son las requeridas
+     * por la receta y {@code conConsumos} es {@code false}. Devuelve {@code null} si el lote no tiene etapa de Molienda
+     * o sus requerimientos no se pueden calcular (la guía usa entonces la masa de malta del cálculo del agua).
+     */
+    private MaltaMolida maltaMolidaDelLote(List<EtapaLoteResponseDTO> etapas) {
+        EtapaLoteResponseDTO molienda = etapas.stream().filter(e -> e.getEtapa() == TipoEtapa.MOLIENDA).findFirst().orElse(null);
+        if (molienda == null) {
+            return null;
+        }
+        List<InsumoRequeridoResponseDTO> maltas;
+        try {
+            maltas = consumoInsumoServicio.filtrarInsumosRequeridos(molienda.getId()).stream()
+                    .filter(r -> r.getInsumo() instanceof MaltaResponseDTO)
+                    .toList();
+        } catch (ReglaNegocioException | RecursoNoEncontradoException e) {
+            return null;
+        }
+        if (maltas.isEmpty()) {
+            return null;
+        }
+        boolean conConsumos = maltas.stream().anyMatch(r -> r.getCantidadConsumida() != null && r.getCantidadConsumida() > 0);
+        List<LineaDeMalta> lineas = maltas.stream()
+                .filter(r -> !conConsumos || (r.getCantidadConsumida() != null && r.getCantidadConsumida() > 0))
+                .map(r -> new LineaDeMalta(r.getInsumo().getNombre(),
+                        Redondeo.redondear(conConsumos ? r.getCantidadConsumida() : r.getCantidadRequerida()), r.getUnidadDeMedida()))
+                .sorted(Comparator.comparing(LineaDeMalta::getNombre))
+                .toList();
+        double total = Redondeo.redondear(lineas.stream().mapToDouble(LineaDeMalta::getCantidad).sum());
+        double requerido = Redondeo.redondear(maltas.stream().mapToDouble(InsumoRequeridoResponseDTO::getCantidadRequerida).sum());
+        return new MaltaMolida(lineas, total, requerido, conConsumos);
+    }
+
+    /**
      * Carga lo que la tarjeta guía de la etapa necesita además de los insumos: el agua del lote (Maceración y Hervido,
      * donde un cálculo imposible se informa en la propia tarjeta sin cerrar el detalle), los lúpulos con su tiempo de
      * hervor (Hervido) y el resumen del envasado (Envasado).
      */
     private void cargarGuiaDeEtapa(Model model, Long idLote, TipoEtapa tipoEtapa, EtapaLoteResponseDTO etapa,
-                                   List<InsumoRequeridoResponseDTO> requeridos, VersionRecetaResponseDTO receta) {
+                                   List<InsumoRequeridoResponseDTO> requeridos, VersionRecetaResponseDTO receta,
+                                   List<EtapaLoteResponseDTO> etapas) {
+        if (tipoEtapa == TipoEtapa.MACERACION) {
+            model.addAttribute("maltaMolida", maltaMolidaDelLote(etapas));
+        }
         if (tipoEtapa == TipoEtapa.MACERACION || tipoEtapa == TipoEtapa.HERVIDO) {
             try {
                 model.addAttribute("agua", loteServicio.calcularAguaDelLote(idLote));
@@ -669,8 +731,7 @@ public class LoteController {
     // ==================== Apoyo: general ====================
 
     private static String textoDePlanificacion(PlanificacionProduccionResponseDTO planificacion) {
-        String receta = planificacion.getVersionReceta() != null ? planificacion.getVersionReceta().getNombre() : null;
-        return "Plan #" + planificacion.getId() + (receta != null ? " - " + receta : "");
+        return planificacion.getEtiqueta();
     }
 
     private static String textoDeFermentador(FermentadorResponseDTO fermentador) {

@@ -22,7 +22,7 @@ public class LocalidadFormDTO {
      * Nombre de la localidad. Debe ser único entre las localidades activas de la misma
      * provincia (case-insensitive).
      */
-    @NotBlank(message = "El nombre de la localidad es obligatorio")
+    @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
 
     /**

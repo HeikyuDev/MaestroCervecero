@@ -10,9 +10,9 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-VN-01** | Mayor a cero con valor inválido | `validarMayorACero` con `null`, `NaN`, `+Infinity`, `-Infinity`, `0`, `-0` y `-1.5` | El valor no es un número finito mayor a 0 | Lanza `ReglaNegocioException`: "La capacidad total debe ser un número mayor a 0". |
+| **CP-VN-01** | Mayor a cero con valor inválido | `validarMayorACero` con `null`, `NaN`, `+Infinity`, `-Infinity`, `0`, `-0` y `-1.5` | El valor no es un número finito mayor a 0 | Lanza `ReglaNegocioException`: "La capacidad total debe ser mayor a 0". |
 | **CP-VN-02** | Mayor a cero con valor válido | `0.001` y `500.0` | El valor es finito y mayor a 0 | No lanza excepción. |
-| **CP-VN-03** | Mayor o igual a cero con valor inválido | `validarMayorOIgualACero` con `null`, `NaN`, `+Infinity`, `-Infinity`, `-0.01` y `-10` | El valor no es un número finito mayor o igual a 0 | Lanza `ReglaNegocioException`: "La capacidad total debe ser un número mayor o igual a 0". |
+| **CP-VN-03** | Mayor o igual a cero con valor inválido | `validarMayorOIgualACero` con `null`, `NaN`, `+Infinity`, `-Infinity`, `-0.01` y `-10` | El valor no es un número finito mayor o igual a 0 | Lanza `ReglaNegocioException`: "La capacidad total debe ser mayor o igual a 0". |
 | **CP-VN-04** | Mayor o igual a cero con valor válido | `0.0` y `12.5` | El valor es finito y no negativo | No lanza excepción. |
 | **CP-VN-05** | Máximo respetado | `validarMaximo` con `100000.0`, `1.0` y `null` (máximo 100.000) | El valor no supera el máximo (el nulo no se evalúa) | No lanza excepción. |
 | **CP-VN-06** | Máximo superado | `100000.01` y `+Infinity` (máximo 100.000) | El valor supera el máximo | Lanza `ReglaNegocioException`: "La capacidad total no puede superar 100.000 litros". |
@@ -26,9 +26,9 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-VN-10** | Entero mayor a cero inválido | `validarEnteroMayorACeroConMaximo` con `null`, `0` y `-1` | El valor es nulo, cero o negativo | Lanza `ReglaNegocioException`: "La duración debe ser un número entero mayor a 0". |
+| **CP-VN-10** | Entero mayor a cero inválido | `validarEnteroMayorACeroConMaximo` con `null`, `0` y `-1` | El valor es nulo, cero o negativo | Lanza `ReglaNegocioException`: "La duración debe ser mayor a 0". |
 | **CP-VN-11** | Entero mayor a cero con máximo | `1`, `10080` y `10081` (máximo 10.080) | El valor no supera el máximo | `1` y `10080` no lanzan; `10081` lanza "La duración no puede superar 10.080 minutos". |
-| **CP-VN-12** | Entero mayor o igual a cero inválido | `validarEnteroMayorOIgualACeroConMaximo` con `null` y `-1` | El valor es nulo o negativo | Lanza `ReglaNegocioException`: "El amargor debe ser un número entero mayor o igual a 0". |
+| **CP-VN-12** | Entero mayor o igual a cero inválido | `validarEnteroMayorOIgualACeroConMaximo` con `null` y `-1` | El valor es nulo o negativo | Lanza `ReglaNegocioException`: "El amargor debe ser mayor o igual a 0". |
 | **CP-VN-13** | Entero mayor o igual a cero con máximo | `0`, `500` y `501` (máximo 500); `100001` (máximo 100.000) | El valor no supera el máximo | `0` y `500` no lanzan; `501` lanza "El amargor no puede superar 500 IBU"; `100001` lanza "Los usos no puede superar 100.000 usos". |
 
 ---

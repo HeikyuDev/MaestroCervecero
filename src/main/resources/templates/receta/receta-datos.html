@@ -13,7 +13,7 @@
 
     <!-- Datos generales -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos generales</h2>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la receta</h2>
         <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
                 <dt class="text-xs font-medium text-slate-500">Código</dt>
@@ -51,11 +51,11 @@
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Duraciones estimadas</h2>
         <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
-                <dt class="text-xs font-medium text-slate-500">Maceración (minutos)</dt>
+                <dt class="text-xs font-medium text-slate-500">Maceración (min)</dt>
                 <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.duracionMaceracion})}"></th:block></dd>
             </div>
             <div>
-                <dt class="text-xs font-medium text-slate-500">Hervido (minutos)</dt>
+                <dt class="text-xs font-medium text-slate-500">Hervido (min)</dt>
                 <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.duracionHervido})}"></th:block></dd>
             </div>
             <div>
@@ -97,7 +97,7 @@
 
     <!-- Lúpulos -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Lúpulos (cantidad en g, tiempo de hervor en minutos)</h2>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Lúpulos (cantidad en g, tiempo de hervor en min)</h2>
         <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">

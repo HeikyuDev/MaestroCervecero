@@ -390,7 +390,7 @@ class ConsumoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No existe una reserva de este lote de insumo para esta etapa; utilice el registro de consumo directo");
+                .hasMessage("No existe una reserva de este lote de insumo para esta etapa: utilice el registro de consumo directo");
         verifyNoInteractions(consumoInsumoRepository);
         verify(loteInsumoRepository, never()).save(any());
     }
@@ -548,7 +548,7 @@ class ConsumoInsumoServicioImplTest {
         for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, noFinita)))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La cantidad consumida debe ser un número mayor a 0");
+                    .hasMessage("La cantidad consumida debe ser mayor a 0");
         }
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }
@@ -1026,7 +1026,7 @@ class ConsumoInsumoServicioImplTest {
         for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, noFinita)))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La cantidad consumida debe ser un número mayor a 0");
+                    .hasMessage("La cantidad consumida debe ser mayor a 0");
         }
         verifyNoInteractions(etapaLoteRepository, loteInsumoRepository, reservaInsumoRepository, consumoInsumoRepository);
     }

@@ -30,7 +30,7 @@
         <div th:replace="~{fragments/form-errors :: resumen(${editando} ? 'No se pudo modificar el molino' : 'No se pudo crear el molino')}"></div>
 
         <section class="p-6">
-            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Datos del equipo</h2>
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Datos del molino</h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div>
@@ -47,7 +47,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('rendimientoMolienda')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('rendimientoMolienda')}" th:errors="*{rendimientoMolienda}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('rendimientoMolienda')}" class="mt-1 text-xs text-slate-400">En kilogramos por hora. Mayor a 0.</p>
+                    <p th:unless="${#fields.hasErrors('rendimientoMolienda')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0.</p>
                 </div>
 
                 <div>

@@ -63,7 +63,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${levaduras}, 'levaduras',
+        <div th:replace="~{fragments/paginacion :: paginacion(${levaduras}, 'levadura|levaduras',
                 ${levaduras.hasPrevious()} ? @{/recetas/buscador/levaduras(pagina=${levaduras.number - 1}, nombre=${filtroNombre}, tipo=${filtroTipo})} : null,
                 ${levaduras.hasNext()} ? @{/recetas/buscador/levaduras(pagina=${levaduras.number + 1}, nombre=${filtroNombre}, tipo=${filtroTipo})} : null,
                 true)}"></div>

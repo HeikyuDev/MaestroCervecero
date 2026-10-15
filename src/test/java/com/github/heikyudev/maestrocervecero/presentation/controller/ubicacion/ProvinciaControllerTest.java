@@ -276,7 +276,7 @@ class ProvinciaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("ubicacion/provincia-form"))
                 .andExpect(content().string(containsString("No se pudo crear la provincia")))
-                .andExpect(content().string(containsString("El nombre de la provincia es obligatorio")))
+                .andExpect(content().string(containsString("El nombre es obligatorio")))
                 .andExpect(content().string(containsString("El país es obligatorio")));
 
         verify(provinciaServicio, never()).altaProvincia(any());

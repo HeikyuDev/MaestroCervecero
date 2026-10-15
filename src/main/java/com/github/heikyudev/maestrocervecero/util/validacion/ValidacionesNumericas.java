@@ -31,7 +31,7 @@ public final class ValidacionesNumericas {
      */
     public static void validarMayorACero(Double valor, String etiqueta) {
         if (!esFinito(valor) || valor <= 0) {
-            throw new ReglaNegocioException(etiqueta + " debe ser un número mayor a 0");
+            throw new ReglaNegocioException(etiqueta + " debe ser mayor a 0");
         }
     }
 
@@ -44,7 +44,7 @@ public final class ValidacionesNumericas {
      */
     public static void validarMayorOIgualACero(Double valor, String etiqueta) {
         if (!esFinito(valor) || valor < 0) {
-            throw new ReglaNegocioException(etiqueta + " debe ser un número mayor o igual a 0");
+            throw new ReglaNegocioException(etiqueta + " debe ser mayor o igual a 0");
         }
     }
 
@@ -103,7 +103,7 @@ public final class ValidacionesNumericas {
      */
     public static void validarEnteroMayorACeroConMaximo(Integer valor, int maximo, String etiqueta, String unidad) {
         if (valor == null || valor <= 0) {
-            throw new ReglaNegocioException(etiqueta + " debe ser un número entero mayor a 0");
+            throw new ReglaNegocioException(etiqueta + " debe ser mayor a 0");
         }
         validarMaximoEntero(valor, maximo, etiqueta, unidad);
     }
@@ -119,7 +119,7 @@ public final class ValidacionesNumericas {
      */
     public static void validarEnteroMayorOIgualACeroConMaximo(Integer valor, int maximo, String etiqueta, String unidad) {
         if (valor == null || valor < 0) {
-            throw new ReglaNegocioException(etiqueta + " debe ser un número entero mayor o igual a 0");
+            throw new ReglaNegocioException(etiqueta + " debe ser mayor o igual a 0");
         }
         validarMaximoEntero(valor, maximo, etiqueta, unidad);
     }

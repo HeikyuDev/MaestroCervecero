@@ -574,7 +574,7 @@ public class LoteServicioImpl implements ILoteServicio {
         // 4. Validar que el lote no tenga envasados registrados: la cerveza ya está en los barriles, así que primero
         //    deben anularse esos envasados
         if (envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(lote.getId(), EstadoTransaccion.REGISTRADO)) {
-            throw new ReglaNegocioException("No se puede cancelar el lote porque tiene envasados registrados, anule los envasados para poder cancelarlo");
+            throw new ReglaNegocioException("No se puede cancelar el lote porque tiene envasados registrados: anule los envasados para poder cancelarlo");
         }
 
         // 5. Liberar todas las reservas de insumo del lote todavía pendientes. Cancelar NO revierte

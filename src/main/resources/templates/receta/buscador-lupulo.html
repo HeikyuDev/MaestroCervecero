@@ -65,7 +65,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${lupulos}, 'lúpulos',
+        <div th:replace="~{fragments/paginacion :: paginacion(${lupulos}, 'lúpulo|lúpulos',
                 ${lupulos.hasPrevious()} ? @{/recetas/buscador/lupulos(pagina=${lupulos.number - 1}, nombre=${filtroNombre}, formato=${filtroFormato})} : null,
                 ${lupulos.hasNext()} ? @{/recetas/buscador/lupulos(pagina=${lupulos.number + 1}, nombre=${filtroNombre}, formato=${filtroFormato})} : null,
                 true)}"></div>

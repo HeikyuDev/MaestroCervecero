@@ -261,8 +261,8 @@ class RecetaControllerTest {
         mockMvc.perform(get("/recetas/7"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("receta/receta-detalle"))
-                // Datos generales
-                .andExpect(content().string(containsString("Datos generales")))
+                // Datos de la receta
+                .andExpect(content().string(containsString("Datos de la receta")))
                 .andExpect(content().string(containsString(">R7<")))
                 .andExpect(content().string(containsString("Volumen base (L)")))
                 .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
@@ -274,8 +274,8 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString(">1,010<")))
                 // Duraciones estimadas
                 .andExpect(content().string(containsString("Duraciones estimadas")))
-                .andExpect(content().string(containsString("Maceración (minutos)")))
-                .andExpect(content().string(containsString("Hervido (minutos)")))
+                .andExpect(content().string(containsString("Maceración (min)")))
+                .andExpect(content().string(containsString("Hervido (min)")))
                 .andExpect(content().string(containsString("Fermentación (días)")))
                 .andExpect(content().string(containsString("Maduración (días)")))
                 .andExpect(content().string(not(containsString("Duración total"))))
@@ -302,7 +302,7 @@ class RecetaControllerTest {
 
         mockMvc.perform(get("/recetas/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en minutos)")))
+                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en min)")))
                 .andExpect(content().string(containsString("Tiempo de hervor")))
                 .andExpect(content().string(matchesPattern(
                         "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*")))
@@ -320,7 +320,7 @@ class RecetaControllerTest {
 
         mockMvc.perform(get("/recetas/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Datos generales")))
+                .andExpect(content().string(containsString("Datos de la receta")))
                 .andExpect(content().string(containsString("Duraciones estimadas")))
                 .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
                 .andExpect(content().string(containsString("Levaduras (cantidad en g)")))
@@ -346,8 +346,8 @@ class RecetaControllerTest {
                 .andExpect(content().string(not(containsString("fue dada de baja"))))
                 .andReturn().getResponse().getContentAsString();
 
-        for (String seccion : List.of("Datos generales", "Duraciones estimadas", "Maltas (cantidad en kg)",
-                "Lúpulos (cantidad en g, tiempo de hervor en minutos)", "Levaduras (cantidad en g)")) {
+        for (String seccion : List.of("Datos de la receta", "Duraciones estimadas", "Maltas (cantidad en kg)",
+                "Lúpulos (cantidad en g, tiempo de hervor en min)", "Levaduras (cantidad en g)")) {
             assertThat(html.split(java.util.regex.Pattern.quote(">" + seccion + "<"), -1).length - 1)
                     .as("títulos \"" + seccion + "\"").isEqualTo(1);
         }
@@ -466,13 +466,13 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("Volumen base (L)")))
                 .andExpect(content().string(containsString("Relación de empaste (L/kg)")))
                 .andExpect(content().string(containsString("IBU objetivo (IBU)")))
-                .andExpect(content().string(containsString("Maceración (minutos)")))
-                .andExpect(content().string(containsString("Hervido (minutos)")))
+                .andExpect(content().string(containsString("Maceración (min)")))
+                .andExpect(content().string(containsString("Hervido (min)")))
                 .andExpect(content().string(containsString("Fermentación (días)")))
                 .andExpect(content().string(containsString("Maduración (días)")))
                 .andExpect(content().string(containsString("Cantidad (kg)")))
                 .andExpect(content().string(containsString("Cantidad (g)")))
-                .andExpect(content().string(containsString("Tiempo de hervor (minutos)")))
+                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
                 // Botones de agregar y tablas vacias con su texto
                 .andExpect(content().string(containsString("Agregar malta")))
                 .andExpect(content().string(containsString("Agregar lúpulo")))
@@ -522,7 +522,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("<option value=\"HERVOR\">Hervor</option>")))
                 .andExpect(content().string(containsString("<option value=\"WHIRLPOOL\">Whirlpool</option>")))
                 .andExpect(content().string(containsString("<option value=\"DRY_HOP\">Dry hop</option>")))
-                .andExpect(content().string(containsString("Tiempo de hervor (minutos)")))
+                .andExpect(content().string(containsString("Tiempo de hervor (min)")))
                 .andExpect(content().string(containsString("data-grupo=\"tiempoDeHervor\"")))
                 .andExpect(content().string(containsString("data-grupo=\"etapaDeUso\"")))
                 .andExpect(content().string(containsString("<option value=\"FERMENTACION\">")))
@@ -1147,12 +1147,12 @@ class RecetaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         String malta = ventana(html, "malta");
-        assertThat(malta).contains(aviso("insumo", "Seleccione un insumo"),
+        assertThat(malta).contains(aviso("insumo", "Seleccione malta"),
                 aviso("duplicado", "Esa malta ya está en la receta"),
                 aviso("cantidad", "Ingrese una cantidad mayor a 0"));
 
         String levadura = ventana(html, "levadura");
-        assertThat(levadura).contains(aviso("insumo", "Seleccione un insumo"),
+        assertThat(levadura).contains(aviso("insumo", "Seleccione levadura"),
                 aviso("duplicado", "Esa levadura ya está en la receta"),
                 aviso("cantidad", "Ingrese una cantidad mayor a 0"));
     }
@@ -1166,7 +1166,7 @@ class RecetaControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(ventana(html, "lupulo")).contains(
-                aviso("insumo", "Seleccione un insumo"),
+                aviso("insumo", "Seleccione lúpulo"),
                 aviso("duplicado", "Ese lúpulo ya está en la receta con el mismo uso y tiempo de hervor"),
                 aviso("cantidad", "Ingrese una cantidad mayor a 0"),
                 aviso("uso", "Seleccione el uso del lúpulo"),

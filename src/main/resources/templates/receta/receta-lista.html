@@ -54,7 +54,7 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="r : ${recetas.content}" class="hover:bg-slate-50">
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="'R' + ${r.id}">R7</td>
-                <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${r.version.nombre}">Pale Ale</td>
+                <td class="px-3 py-3 font-medium text-slate-900"><div class="max-w-[18rem] truncate" tabindex="0" th:data-tooltip="${r.version.nombre}" th:text="${r.version.nombre}">Pale Ale</div></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${r.version.volumenBase})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: gravedad(${r.version.ogObjetivo})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: gravedad(${r.version.fgObjetivo})}"></th:block></td>
@@ -62,18 +62,18 @@
                 <td class="px-3 py-3">
                     <div class="flex items-center justify-end gap-0.5">
                         <a th:href="@{/recetas/{id}(id=${r.id})}" title="Ver detalle de la receta" aria-label="Ver detalle de la receta"
-                           class="p-1.5 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                            <i class="bi bi-eye text-base"></i>
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
                         </a>
                         <a th:href="@{/recetas/{id}/editar(id=${r.id})}" title="Editar receta" aria-label="Editar receta"
-                           class="p-1.5 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                            <i class="bi bi-pencil-square text-base"></i>
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-pencil-square text-lg"></i>
                         </a>
                         <button type="button" title="Dar de baja receta" aria-label="Dar de baja receta"
                                 th:data-baja-url="@{/recetas/{id}/baja(id=${r.id})}"
                                 th:data-baja-nombre="${r.version.nombre}"
-                                class="shrink-0 whitespace-nowrap p-1.5 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
-                            <i class="bi bi-trash text-base"></i>
+                                class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                            <i class="bi bi-trash text-lg"></i>
                         </button>
                     </div>
                 </td>
@@ -88,7 +88,7 @@
         </table>
         </div>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${recetas}, 'recetas',
+        <div th:replace="~{fragments/paginacion :: paginacion(${recetas}, 'receta|recetas',
                 ${recetas.hasPrevious()} ? @{/recetas(pagina=${recetas.number - 1}, nombre=${filtroNombre})} : null,
                 ${recetas.hasNext()} ? @{/recetas(pagina=${recetas.number + 1}, nombre=${filtroNombre})} : null,
                 false)}"></div>

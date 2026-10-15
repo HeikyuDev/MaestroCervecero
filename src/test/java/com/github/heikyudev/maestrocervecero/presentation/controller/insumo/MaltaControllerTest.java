@@ -170,7 +170,7 @@ class MaltaControllerTest {
                 .andExpect(content().string(containsString("la define el sistema")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Pilsen\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
-                .andExpect(content().string(containsString("Un número entero mayor a 0 y hasta 90")))
+                .andExpect(content().string(containsString("Un número mayor a 0 y hasta 90.")))
                 .andExpect(content().string(containsString("Crear malta")))
                 .andExpect(content().string(containsString("Volver a maltas")))
                 .andExpect(content().string(not(containsString("name=\"retorno\""))))

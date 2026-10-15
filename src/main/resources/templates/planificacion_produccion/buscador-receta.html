@@ -55,7 +55,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${recetas}, 'recetas',
+        <div th:replace="~{fragments/paginacion :: paginacion(${recetas}, 'receta|recetas',
                 ${recetas.hasPrevious()} ? @{/planificaciones-produccion/buscador/recetas(pagina=${recetas.number - 1}, nombre=${filtroNombre})} : null,
                 ${recetas.hasNext()} ? @{/planificaciones-produccion/buscador/recetas(pagina=${recetas.number + 1}, nombre=${filtroNombre})} : null,
                 true)}"></div>

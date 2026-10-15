@@ -711,7 +711,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -724,7 +724,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -737,7 +737,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -750,7 +750,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -801,7 +801,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -814,7 +814,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -827,7 +827,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -903,7 +903,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación debe ser un número mayor a 0");
+                .hasMessage("La evaporación debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -929,7 +929,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.altaOllaHervor(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub debe ser un número mayor a 0");
+                .hasMessage("La pérdida por trub debe ser mayor a 0");
 
         verifyNoInteractions(ollaHervorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -956,7 +956,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -986,7 +986,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La evaporación debe ser un número mayor a 0");
+                .hasMessage("La evaporación debe ser mayor a 0");
 
         verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -1001,7 +1001,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La pérdida por trub debe ser un número mayor a 0");
+                .hasMessage("La pérdida por trub debe ser mayor a 0");
 
         verify(ollaHervorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

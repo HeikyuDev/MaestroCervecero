@@ -122,7 +122,7 @@ public class EnvasadoLoteController {
 
         ContextoDeEnvasado contexto = resolverContexto(idLote);
         envasadoLoteServicio.registrarEnvasadoLote(contexto.etapa().getId(), envasadoForm);
-        agregarMensaje(redirectAttributes, "Envasado registrado correctamente", TipoAlerta.SUCCESS);
+        agregarMensaje(redirectAttributes, "Envasado creado correctamente", TipoAlerta.SUCCESS);
         return volverALaPantalla(idLote);
     }
 

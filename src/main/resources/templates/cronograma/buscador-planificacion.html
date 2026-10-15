@@ -46,12 +46,12 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="p : ${planificaciones.content}" class="hover:bg-slate-50">
                 <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="|#${p.id}|">#7</td>
-                <td class="px-3 py-3 text-slate-900 whitespace-nowrap" th:text="${p.versionReceta.nombre}">Pale Ale</td>
+                <td class="px-3 py-3 text-slate-900"><div class="max-w-[14rem] truncate" tabindex="0" th:data-tooltip="${p.versionReceta.nombre}" th:text="${p.versionReceta.nombre}">Pale Ale</div></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${p.cantidadAProducir})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaInicioEstimada})}"></th:block></td>
                 <td class="px-3 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${p.estado})}"></span></td>
                 <td class="px-3 py-3 text-right">
-                    <button type="button" data-elegir th:data-id="${p.id}" th:data-texto="|Plan #${p.id} - ${p.versionReceta.nombre}|"
+                    <button type="button" data-elegir th:data-id="${p.id}" th:data-texto="${p.etiqueta}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
@@ -61,7 +61,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificaciones',
+        <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificación|planificaciones',
                 ${planificaciones.hasPrevious()} ? @{/cronograma-produccion/buscador/planificaciones(pagina=${planificaciones.number - 1}, receta=${filtroReceta})} : null,
                 ${planificaciones.hasNext()} ? @{/cronograma-produccion/buscador/planificaciones(pagina=${planificaciones.number + 1}, receta=${filtroReceta})} : null,
                 true)}"></div>

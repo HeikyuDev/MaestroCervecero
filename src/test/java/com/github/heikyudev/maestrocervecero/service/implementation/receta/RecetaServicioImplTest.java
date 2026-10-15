@@ -1745,17 +1745,17 @@ class RecetaServicioImplTest {
 
     static Stream<Arguments> versionesConNumerosNoFinitos() {
         return Stream.of(
-                Arguments.of("volumenBase NaN", versionValidaBuilder().volumenBase(Double.NaN).build(), "El volumen base debe ser un número mayor a 0"),
-                Arguments.of("volumenBase +Infinity", versionValidaBuilder().volumenBase(Double.POSITIVE_INFINITY).build(), "El volumen base debe ser un número mayor a 0"),
-                Arguments.of("relacionDeEmpaste NaN", versionValidaBuilder().relacionDeEmpaste(Double.NaN).build(), "La relación de empaste debe ser un número mayor a 0"),
-                Arguments.of("relacionDeEmpaste +Infinity", versionValidaBuilder().relacionDeEmpaste(Double.POSITIVE_INFINITY).build(), "La relación de empaste debe ser un número mayor a 0"),
-                Arguments.of("cantidad de malta NaN", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.NaN, MALTA_ID))).build(), "La cantidad de cada malta debe ser un número mayor a 0"),
-                Arguments.of("cantidad de malta +Infinity", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.POSITIVE_INFINITY, MALTA_ID))).build(), "La cantidad de cada malta debe ser un número mayor a 0"),
-                Arguments.of("cantidad de lúpulo NaN", versionValidaBuilder().detallesLupulo(lupuloHervor(Double.NaN, 30.0)).build(), "La cantidad de cada lúpulo debe ser un número mayor a 0"),
-                Arguments.of("cantidad de lúpulo +Infinity", versionValidaBuilder().detallesLupulo(lupuloHervor(Double.POSITIVE_INFINITY, 30.0)).build(), "La cantidad de cada lúpulo debe ser un número mayor a 0"),
-                Arguments.of("cantidad de levadura NaN", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(Double.NaN, LEVADURA_ID))).build(), "La cantidad de cada levadura debe ser un número mayor a 0"),
-                Arguments.of("cantidad de levadura +Infinity", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(Double.POSITIVE_INFINITY, LEVADURA_ID))).build(), "La cantidad de cada levadura debe ser un número mayor a 0"),
-                Arguments.of("tiempoDeHervor NaN", versionValidaBuilder().detallesLupulo(lupuloHervor(30.0, Double.NaN)).build(), "El tiempo de hervor debe ser un número mayor a 0"));
+                Arguments.of("volumenBase NaN", versionValidaBuilder().volumenBase(Double.NaN).build(), "El volumen base debe ser mayor a 0"),
+                Arguments.of("volumenBase +Infinity", versionValidaBuilder().volumenBase(Double.POSITIVE_INFINITY).build(), "El volumen base debe ser mayor a 0"),
+                Arguments.of("relacionDeEmpaste NaN", versionValidaBuilder().relacionDeEmpaste(Double.NaN).build(), "La relación de empaste debe ser mayor a 0"),
+                Arguments.of("relacionDeEmpaste +Infinity", versionValidaBuilder().relacionDeEmpaste(Double.POSITIVE_INFINITY).build(), "La relación de empaste debe ser mayor a 0"),
+                Arguments.of("cantidad de malta NaN", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.NaN, MALTA_ID))).build(), "La cantidad de cada malta debe ser mayor a 0"),
+                Arguments.of("cantidad de malta +Infinity", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.POSITIVE_INFINITY, MALTA_ID))).build(), "La cantidad de cada malta debe ser mayor a 0"),
+                Arguments.of("cantidad de lúpulo NaN", versionValidaBuilder().detallesLupulo(lupuloHervor(Double.NaN, 30.0)).build(), "La cantidad de cada lúpulo debe ser mayor a 0"),
+                Arguments.of("cantidad de lúpulo +Infinity", versionValidaBuilder().detallesLupulo(lupuloHervor(Double.POSITIVE_INFINITY, 30.0)).build(), "La cantidad de cada lúpulo debe ser mayor a 0"),
+                Arguments.of("cantidad de levadura NaN", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(Double.NaN, LEVADURA_ID))).build(), "La cantidad de cada levadura debe ser mayor a 0"),
+                Arguments.of("cantidad de levadura +Infinity", versionValidaBuilder().detallesLevadura(List.of(detalleLevaduraFormDTO(Double.POSITIVE_INFINITY, LEVADURA_ID))).build(), "La cantidad de cada levadura debe ser mayor a 0"),
+                Arguments.of("tiempoDeHervor NaN", versionValidaBuilder().detallesLupulo(lupuloHervor(30.0, Double.NaN)).build(), "El tiempo de hervor debe ser mayor a 0"));
     }
 
     static Stream<Arguments> versionesSobreElTecho() {

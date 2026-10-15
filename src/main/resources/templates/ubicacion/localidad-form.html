@@ -47,7 +47,7 @@
                            class="uppercase w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('codigoPostal')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('codigoPostal')}" th:errors="*{codigoPostal}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('codigoPostal')}" class="mt-1 text-xs text-slate-400">Se guarda en mayúsculas</p>
+                    <p th:unless="${#fields.hasErrors('codigoPostal')}" class="mt-1 text-xs text-slate-400">Se guarda en mayúsculas.</p>
                 </div>
 
                 <!-- La opción "Crear nueva provincia" del menú solo se ofrece a quien puede crearla -->

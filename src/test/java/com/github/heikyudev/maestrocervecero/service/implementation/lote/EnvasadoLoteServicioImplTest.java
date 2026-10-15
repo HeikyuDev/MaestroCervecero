@@ -592,7 +592,7 @@ class EnvasadoLoteServicioImplTest {
         for (double noFinita : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, noFinita)))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La cantidad a envasar debe ser un número mayor a 0");
+                    .hasMessage("La cantidad a envasar debe ser mayor a 0");
         }
 
         verifyNoInteractions(etapaLoteRepository, loteRepository, barrilRepository, envasadoLoteRepository);

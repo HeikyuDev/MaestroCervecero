@@ -69,7 +69,7 @@ class AuditLogControllerTest {
                 .andExpect(view().name("auditoria/auditoria-lista"))
                 .andExpect(content().string(containsString("Bitácora de Auditoría")))
                 .andExpect(content().string(containsString("<title>Bitácora de Auditoría - Maestro Cervecero</title>")))
-                .andExpect(content().string(containsString("15/09/2026 10:30:05")))
+                .andExpect(content().string(containsString("15/09/2026 10:30")))
                 .andExpect(content().string(containsString("admin")))
                 .andExpect(content().string(containsString("Orden de compra")))
                 .andExpect(content().string(containsString("Alta")))
@@ -213,7 +213,7 @@ class AuditLogControllerTest {
                 .andExpect(content().string(containsString("bg-slate-100 text-slate-600")))
                 .andExpect(content().string(containsString(">Baja<")))
                 .andExpect(content().string(containsString(">Cierre de sesión<")))
-                .andExpect(content().string(containsString("—")));
+                .andExpect(content().string(containsString(">-<")));
     }
 
     @Test

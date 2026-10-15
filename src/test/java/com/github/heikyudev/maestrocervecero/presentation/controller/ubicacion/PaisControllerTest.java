@@ -262,7 +262,7 @@ class PaisControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("ubicacion/pais-form"))
                 .andExpect(content().string(containsString("No se pudo crear el país")))
-                .andExpect(content().string(containsString("El nombre del país es obligatorio")));
+                .andExpect(content().string(containsString("El nombre es obligatorio")));
 
         verify(paisServicio, never()).altaPais(any());
     }
@@ -403,7 +403,7 @@ class PaisControllerTest {
     void modificar_debeVolverAlFormularioSiElNombreEstaEnBlanco() throws Exception {
         mockMvc.perform(post("/ubicaciones/paises/3").with(csrf()).param("nombre", ""))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("El nombre del país es obligatorio")));
+                .andExpect(content().string(containsString("El nombre es obligatorio")));
 
         verify(paisServicio, never()).modificarPais(any(), any());
     }

@@ -213,7 +213,7 @@ class EnvasadoLoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LEN-06: el formulario de registro es un POST con CSRF y novalidate, con el selector de barril (modal, sin alta ni quitar), la cantidad con placeholder, los asteriscos rojos y el botón Registrar envasado")
+    @DisplayName("CP-LEN-06: el formulario de registro es un POST con CSRF y novalidate, con el selector de barril (modal, sin alta ni quitar), la cantidad con placeholder, los asteriscos rojos y el botón Crear envasado")
     void pantalla_formularioDeRegistro() throws Exception {
         // Act
         String registrar = bloque(html(Rol.OPERARIO_DE_PRODUCCION), "data-registrar-envasado");
@@ -226,8 +226,8 @@ class EnvasadoLoteControllerTest {
                 .contains("data-buscador-url=\"" + URL_BUSCADOR + "\"").contains("placeholder=\"Seleccione barril\"")
                 .contains("name=\"idBarril\"").contains("name=\"cantidad\"").contains("placeholder=\"Ej: 50\"")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta").doesNotContain("data-selector-limpiar").doesNotContain("<select");
-        assertThat(texto(registrar)).contains("Barril *", "Cantidad a envasar (L) *", "Registrar envasado");
-        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(2);
+        assertThat(texto(registrar)).contains("Barril *", "Cantidad a envasar (L) *", "Nuevo envasado", "Crear envasado");
+        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(3);
         assertThat(textoDelSelector(registrar, "Seleccione barril")).isEmpty();
     }
 
@@ -295,12 +295,12 @@ class EnvasadoLoteControllerTest {
     void pantalla_alertasDelPostRedirectGet() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Envasado registrado correctamente").flashAttr("tipo", "success"))
+                        .flashAttr("mensaje", "Envasado creado correctamente").flashAttr("tipo", "success"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(html).contains(ALERTA_EXITO);
-        assertThat(texto(html)).contains("Envasado registrado correctamente");
+        assertThat(texto(html)).contains("Envasado creado correctamente");
     }
 
     @Test
@@ -397,7 +397,7 @@ class EnvasadoLoteControllerTest {
         mockMvc.perform(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "50"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL_PANTALLA))
-                .andExpect(flash().attribute("mensaje", "Envasado registrado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Envasado creado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         // Assert
@@ -414,7 +414,7 @@ class EnvasadoLoteControllerTest {
         String html = enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), null, null));
 
         // Assert
-        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo registrar el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria");
+        assertThat(texto(bloque(html, "data-errores-formulario"))).contains("No se pudo crear el envasado", "El barril es obligatorio", "La cantidad a envasar es obligatoria");
         assertThat(html).contains("data-indicador-envasado").contains("data-registrar-envasado").contains("data-envasados-registrados");
         assertThat(texto(bloque(html, "data-indicador-envasado"))).contains("120 L de 330 L");
         verify(envasadoLoteServicio, never()).registrarEnvasadoLote(any(), any());
@@ -852,13 +852,13 @@ class EnvasadoLoteControllerTest {
         List<String> paginas = List.of(
                 html(Rol.OPERARIO_DE_PRODUCCION),
                 mockMvc.perform(get(URL_PANTALLA).with(como(Rol.OPERARIO_DE_PRODUCCION))
-                                .flashAttr("mensaje", "Envasado registrado correctamente").flashAttr("tipo", "success"))
+                                .flashAttr("mensaje", "Envasado creado correctamente").flashAttr("tipo", "success"))
                         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8),
                 enviarConErroresYVolver(postRegistrar(como(Rol.OPERARIO_DE_PRODUCCION), "3", "abc")));
 
         // Assert
         String registrar = bloque(paginas.get(0), "data-registrar-envasado");
-        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(2);
+        assertThat(cuenta(registrar, "text-rose-600")).isEqualTo(3);
         assertThat(registrar).contains("placeholder=\"Seleccione barril\"").contains("placeholder=\"Ej: 50\"");
         assertThat(texto(registrar)).contains("Cantidad a envasar (L) *");
         assertThat(texto(bloque(paginas.get(0), "data-envasados-registrados"))).contains("Cantidad (L)");
@@ -987,7 +987,7 @@ class EnvasadoLoteControllerTest {
                 .doesNotContain("data-registrar-envasado").doesNotContain("name=\"cantidad\"")
                 .doesNotContain("data-selector").doesNotContain("data-motivo-url").doesNotContain("dialogo-anular");
         assertThat(contenido(html)).doesNotContain("<form").doesNotContain("<button");
-        assertThat(texto(contenido(html))).doesNotContain("Anular").doesNotContain("Registrar envasado");
+        assertThat(texto(contenido(html))).doesNotContain("Anular").doesNotContain("Nuevo envasado").doesNotContain("Crear envasado");
     }
 
     /**

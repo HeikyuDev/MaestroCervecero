@@ -63,7 +63,7 @@
             </tbody>
         </table>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${maltas}, 'maltas',
+        <div th:replace="~{fragments/paginacion :: paginacion(${maltas}, 'malta|maltas',
                 ${maltas.hasPrevious()} ? @{/recetas/buscador/maltas(pagina=${maltas.number - 1}, nombre=${filtroNombre}, tipo=${filtroTipo})} : null,
                 ${maltas.hasNext()} ? @{/recetas/buscador/maltas(pagina=${maltas.number + 1}, nombre=${filtroNombre}, tipo=${filtroTipo})} : null,
                 true)}"></div>

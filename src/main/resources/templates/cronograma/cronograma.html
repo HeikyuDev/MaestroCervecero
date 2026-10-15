@@ -5,8 +5,7 @@
 <body>
 
 <!--
-    Cronograma de producción global: el diagrama de Gantt de un período con un carril por fermentador (de a 10 por
-    página) y, debajo, la cola de lotes pendientes de cada fermentador de la página.
+    Cronograma de producción global: el diagrama de Gantt de un período con un carril por fermentador (de a 5 por página) y, debajo, la cola de lotes pendientes de cada fermentador de la página.
     La cola lista solo los lotes pendientes. Lo ven el Gerente de Producción (LOTE_CONSULTAR y LOTE_REGISTRAR: puede subir o bajar un lote) y el Operario de
     Producción (solo LOTE_CONSULTAR: las colas se muestran en solo lectura, sin formularios ni botones de mover).
     El filtro "Planificación a destacar" es de quien tiene PLANIFICACION_PRODUCCION_CONSULTAR.
@@ -36,12 +35,12 @@
         </div>
         <div>
             <label for="desde" class="block text-xs font-medium text-slate-500 mb-1">Desde</label>
-            <input type="date" id="desde" name="desde" th:value="${periodoDesde}"
+            <input type="date" id="desde" name="desde" th:value="${periodoDesde}" autocomplete="off" placeholder="Ej: 01/07/2027"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div>
             <label for="hasta" class="block text-xs font-medium text-slate-500 mb-1">Hasta</label>
-            <input type="date" id="hasta" name="hasta" th:value="${periodoHasta}"
+            <input type="date" id="hasta" name="hasta" th:value="${periodoHasta}" autocomplete="off" placeholder="Ej: 31/07/2027"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div class="md:col-span-2 xl:col-span-4 flex items-center justify-end gap-3">
@@ -49,7 +48,7 @@
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
             <button type="submit"
                     class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                <i class="bi bi-funnel"></i> Buscar
+                <i class="bi bi-search"></i> Buscar
             </button>
         </div>
     </form>
@@ -101,20 +100,20 @@
                     </p>
                     <div class="flex items-center gap-2">
                         <a th:if="${urlPaginaAnterior != null}" th:href="${urlPaginaAnterior}" data-pagina-anterior
-                           class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
-                            <i class="bi bi-arrow-left"></i> Página anterior
+                           class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
+                            <i class="bi bi-chevron-left"></i> Anterior
                         </a>
                         <span th:if="${urlPaginaAnterior == null}" data-pagina-anterior aria-disabled="true"
                               class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 cursor-not-allowed opacity-40">
-                            <i class="bi bi-arrow-left"></i> Página anterior
+                            <i class="bi bi-chevron-left"></i> Anterior
                         </span>
                         <a th:if="${urlPaginaSiguiente != null}" th:href="${urlPaginaSiguiente}" data-pagina-siguiente
-                           class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
-                            Página siguiente <i class="bi bi-arrow-right"></i>
+                           class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 transition-colors">
+                            Siguiente <i class="bi bi-chevron-right"></i>
                         </a>
                         <span th:if="${urlPaginaSiguiente == null}" data-pagina-siguiente aria-disabled="true"
                               class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 cursor-not-allowed opacity-40">
-                            Página siguiente <i class="bi bi-arrow-right"></i>
+                            Siguiente <i class="bi bi-chevron-right"></i>
                         </span>
                     </div>
                 </nav>
@@ -140,7 +139,6 @@
                 <tr>
                     <th class="px-2 py-3 whitespace-nowrap">#</th>
                     <th class="px-2 py-3 whitespace-nowrap">Lote</th>
-                    <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Receta</th>
                     <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Planificación</th>
                     <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Volumen (L)</th>
                     <th class="px-2 py-3 whitespace-nowrap">Inicio</th>
@@ -159,10 +157,9 @@
                                class="hover:text-amber-600 hover:underline" th:text="${item.lote.identificadorInterno}">PALE_ALE-1</a>
                             <span sec:authorize="!hasAuthority('LOTE_CONSULTAR')" th:text="${item.lote.identificadorInterno}">PALE_ALE-1</span>
                         </div>
-                        <!-- Debajo de xl, receta, planificación y volumen van como detalle del lote para que la fila entre sin desplazarse -->
+                        <!-- Debajo de xl, planificación y volumen van como detalle del lote para que la fila entre sin desplazarse -->
                         <div class="xl:hidden text-xs text-slate-500" data-cola-detalle-compacto>
-                            <span th:text="${item.lote.nombreReceta}">Pale Ale</span> ·
-                            <span th:text="|Plan #${item.lote.idPlanificacionProduccion}|">Plan #7</span> ·
+                            <span class="inline-block max-w-[18rem] truncate align-bottom" tabindex="0" th:data-tooltip="${item.lote.etiquetaPlanificacion}" th:text="${item.lote.etiquetaPlanificacion}">Plan #7 - Pale Ale</span> ·
                             <span><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block> L</span>
                         </div>
                         <div th:if="${item.lote.diasDeDesplazamiento > 0}" data-cola-desplazado>
@@ -171,8 +168,7 @@
                                   class="inline-block whitespace-nowrap rounded bg-orange-500 px-1.5 text-[10px] font-semibold leading-4 text-white">Corrido 3 días por atraso</span>
                         </div>
                     </td>
-                    <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${item.lote.nombreReceta}">Pale Ale</td>
-                    <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap" th:text="|#${item.lote.idPlanificacionProduccion}|">#7</td>
+                    <td class="hidden xl:table-cell px-2 py-3 text-slate-700"><div class="max-w-[18rem] truncate" tabindex="0" th:data-tooltip="${item.lote.etiquetaPlanificacion}" th:text="${item.lote.etiquetaPlanificacion}">Plan #7 - Pale Ale</div></td>
                     <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaInicioEstimada})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaFinalizacionEstimada})}"></th:block></td>

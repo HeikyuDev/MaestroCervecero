@@ -190,7 +190,7 @@
             <!-- Pie de la tarjeta: acceso a la pantalla de consumos de la etapa -->
             <div th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')"
                  class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
-                <p class="text-sm text-slate-500">Registre y consulte los consumos de esta etapa</p>
+                <p class="text-sm text-slate-500">Registre y consulte los consumos de esta etapa.</p>
                 <a data-ir-consumos th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
                     <i class="bi bi-list-check"></i> Gestionar consumos
@@ -204,8 +204,8 @@
                 <h2 class="text-sm font-semibold text-slate-700">Envasados registrados</h2>
                 <a th:if="${etapaOperable}" sec:authorize="hasAuthority('ENVASADO_REGISTRAR')" data-ir-envasados
                    th:href="@{/lotes/{id}/envasados(id=${lote.id})}"
-                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                    <i class="bi bi-database-add"></i> Registrar envasado
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i> Nuevo envasado
                 </a>
             </div>
             <p th:if="${#lists.isEmpty(envasados)}" class="px-5 py-6 text-sm text-slate-400">No hay envasados registrados</p>
@@ -214,14 +214,14 @@
                     <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
                         <th class="px-4 py-3 whitespace-nowrap">Barril</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Cantidad (L)</th>
                         <th class="px-4 py-3 whitespace-nowrap">Estado</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                     <tr th:each="e : ${envasados}" class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${e.barril.identificador}">B-001</td>
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${e.cantidadEnvasada}, 'L')}"></th:block></td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${e.cantidadEnvasada})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
                             <th:block th:if="${e.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${e.motivoAnulacion}, ${e.usuarioAnulacion}, ${e.fechaAnulacion})}"></th:block></th:block>
@@ -237,7 +237,7 @@
     <th:block th:if="${lote.estado.name() == 'PENDIENTE' or lote.estado.name() == 'EN_EJECUCION'}">
         <th:block sec:authorize="hasAuthority('LOTE_ANULAR')">
             <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-cancelar', 'Cancelar lote',
-                    'Se cancela y queda registrado el motivo. No procede si tiene envasados registrados',
+                    'Se cancela y queda registrado el motivo. No procede si tiene envasados registrados.',
                     'Confirmar cancelación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                     'Se detectó una contaminación en el mosto')}"></div>
         </th:block>

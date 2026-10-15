@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.presentation.view.GanttGeometria.Tr
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Carril;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.EtiquetaPlanificacion;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -136,7 +137,7 @@ public final class CronogramaProduccionBuilder {
         LoteCronogramaResponseDTO lote = tramo.lote();
         List<String> lineasExtra = new ArrayList<>();
         lineasExtra.add("Receta: " + textoODash(lote.getNombreReceta()));
-        lineasExtra.add("Planificación: " + (lote.getIdPlanificacionProduccion() == null ? SIN_DATO : "#" + lote.getIdPlanificacionProduccion()));
+        lineasExtra.add("Planificación: " + (lote.getIdPlanificacionProduccion() == null ? SIN_DATO : EtiquetaPlanificacion.de(lote.getIdPlanificacionProduccion(), lote.getNombreReceta())));
         return GanttGeometria.armarBarra(tramo, eje,
                 etiquetaDe(lote),
                 GanttGeometria.armarTooltip(lote, lineasExtra,
@@ -148,7 +149,7 @@ public final class CronogramaProduccionBuilder {
     private static String etiquetaDe(LoteCronogramaResponseDTO lote) {
         return Stream.of(
                         lote.getNombreReceta(),
-                        lote.getIdPlanificacionProduccion() == null ? null : "Plan #" + lote.getIdPlanificacionProduccion(),
+                        EtiquetaPlanificacion.de(lote.getIdPlanificacionProduccion(), null),
                         GanttGeometria.nombreDe(lote))
                 .filter(parte -> parte != null && !parte.isBlank())
                 .collect(Collectors.joining(" - "));

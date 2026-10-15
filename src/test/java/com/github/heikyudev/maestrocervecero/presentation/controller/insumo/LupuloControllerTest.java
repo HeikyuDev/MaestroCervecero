@@ -77,7 +77,7 @@ class LupuloControllerTest {
                 .andExpect(content().string(containsString("Cascade")))
                 .andExpect(content().string(containsString("PELLET")))
                 .andExpect(content().string(containsString("Ácidos alfa (%)")))
-                .andExpect(content().string(containsString(">5,50<")))
+                .andExpect(content().string(containsString(">5,5<")))
                 .andExpect(content().string(containsString(">g<")))
                 .andExpect(content().string(containsString("href=\"/insumos/maltas\"")))
                 .andExpect(content().string(containsString("href=\"/insumos/levaduras\"")))

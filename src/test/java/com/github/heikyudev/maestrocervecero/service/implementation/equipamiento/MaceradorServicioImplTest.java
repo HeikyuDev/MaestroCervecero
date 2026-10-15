@@ -620,7 +620,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -633,7 +633,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -646,7 +646,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -659,7 +659,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -710,7 +710,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -723,7 +723,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -736,7 +736,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -825,7 +825,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+                .hasMessage("El espacio muerto debe ser mayor o igual a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -851,7 +851,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.altaMacerador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+                .hasMessage("El espacio muerto debe ser mayor o igual a 0");
 
         verifyNoInteractions(maceradorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -967,7 +967,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verify(maceradorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -997,7 +997,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El espacio muerto debe ser un número mayor o igual a 0");
+                .hasMessage("El espacio muerto debe ser mayor o igual a 0");
 
         verify(maceradorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

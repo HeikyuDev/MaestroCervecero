@@ -620,7 +620,7 @@ class LoteServicioImplTest {
         for (double noFinito : new double[]{Double.NaN, Double.POSITIVE_INFINITY}) {
             assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(noFinito).build()))
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("El volumen objetivo del lote debe ser un número mayor a 0");
+                    .hasMessage("El volumen objetivo del lote debe ser mayor a 0");
         }
         assertThatThrownBy(() -> loteServicio.registrarLote(loteFormDTOBuilderBase().volumenObjetivo(-5.0).build()))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -1989,7 +1989,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase()))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede cancelar el lote porque tiene envasados registrados, anule los envasados para poder cancelarlo");
+                .hasMessage("No se puede cancelar el lote porque tiene envasados registrados: anule los envasados para poder cancelarlo");
         assertThat(lote.getEstado()).isEqualTo(EstadoLote.EN_EJECUCION);
         assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.EN_CURSO);
         verify(loteRepository, never()).save(any());

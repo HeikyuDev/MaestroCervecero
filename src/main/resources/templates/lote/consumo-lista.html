@@ -48,7 +48,7 @@
                 Avance para finalizar: <th:block th:replace="~{receta/formato :: numero(${avance.porcentajeMinimo})}"></th:block>% como mínimo de cada insumo
             </p>
         </div>
-        <p th:if="${#lists.isEmpty(resumen)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no requiere insumos</p>
+        <p th:if="${#lists.isEmpty(resumen)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no consume insumos</p>
         <div th:unless="${#lists.isEmpty(resumen)}" class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -62,7 +62,9 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="r : ${resumen}" class="hover:bg-slate-50">
-                    <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${r.requerido.insumo.nombre}">Cascade</td>
+                    <td class="px-4 py-3 font-medium text-slate-900">
+                        <div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${r.requerido.insumo.nombre}" th:text="${r.requerido.insumo.nombre}">Cascade</div>
+                    </td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadRequerida}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadReservada}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadConsumida}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
@@ -106,9 +108,11 @@
                         <option value="">Todos</option>
                         <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Registrado</option>
                     </select>
+                    <a th:href="@{${urlPantalla}(tipo=${pestana})}"
+                       class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
                     <button type="submit"
                             class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
-                        <i class="bi bi-funnel"></i> Filtrar
+                        <i class="bi bi-search"></i> Buscar
                     </button>
                 </form>
                 <a th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_REGISTRAR')" th:href="@{${urlNuevo}}" data-nuevo-consumo
@@ -128,17 +132,19 @@
                         <th class="px-4 py-3 whitespace-nowrap">Cantidad</th>
                         <th class="px-4 py-3 whitespace-nowrap">Fecha de registro</th>
                         <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                        <th th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right"></th>
+                        <th th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')" class="px-4 py-3 text-right">Acciones</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                     <tr th:each="c : ${consumos.content}" th:attr="data-consumo=${c.id}" class="hover:bg-slate-50"
                         th:classappend="${c.estado.name() == 'ANULADO'} ? 'opacity-60'">
-                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${c.loteInsumo.insumo.nombre}">Cascade</td>
+                        <td class="px-4 py-3 font-medium text-slate-900">
+                            <div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${c.loteInsumo.insumo.nombre}" th:text="${c.loteInsumo.insumo.nombre}">Cascade</div>
+                        </td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
-                            <span th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</span>
+                            <span class="inline-block max-w-[10rem] truncate align-bottom" tabindex="0" th:data-tooltip="${c.loteInsumo.identificacionLoteProveedor}" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</span>
                             <span th:if="${c.vencidoAlRegistrar}" data-vencido tabindex="0" th:data-tooltip="${'Venció el ' + #temporals.format(c.loteInsumo.fechaVencimiento, 'dd/MM/yyyy')}"
-                                  class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 cursor-help focus:outline-none focus:ring-2 focus:ring-amber-500/40">Vencido</span>
+                                      class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 cursor-help focus:outline-none focus:ring-2 focus:ring-amber-500/40">Vencido</span>
                         </td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${c.cantidadConsumida}, ${c.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${c.fechaRegistro})}"></th:block></td>
@@ -156,7 +162,7 @@
                     </tbody>
                 </table>
             </div>
-            <div th:replace="~{fragments/paginacion :: paginacion(${consumos}, 'consumos',
+            <div th:replace="~{fragments/paginacion :: paginacion(${consumos}, 'consumo|consumos',
                     ${consumos.hasPrevious()} ? (${filtroEstado != null} ? @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number - 1}, estado=${filtroEstado})} : @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number - 1})}) : null,
                     ${consumos.hasNext()} ? (${filtroEstado != null} ? @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number + 1}, estado=${filtroEstado})} : @{${urlPantalla}(tipo=${pestana}, pagina=${consumos.number + 1})}) : null,
                     false)}"></div>
@@ -166,7 +172,7 @@
     <!-- Diálogo del motivo de la anulación -->
     <th:block th:if="${operable}" sec:authorize="hasAuthority('CONSUMO_INSUMO_ANULAR')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular consumo',
-                'Se anula el consumo, se devuelve el stock y queda registrado el motivo',
+                'Se anula el consumo, se devuelve el stock y queda registrado el motivo.',
                 'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                 'Se cargó el lote de insumo equivocado')}"></div>
     </th:block>

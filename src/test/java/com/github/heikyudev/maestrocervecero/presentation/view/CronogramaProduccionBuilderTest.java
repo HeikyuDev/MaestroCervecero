@@ -112,7 +112,7 @@ class CronogramaProduccionBuilderTest {
         // Assert
         assertThat(barra.getEtiqueta()).isEqualTo("Pale Ale - Plan #7 - PALE_ALE-R7-1");
         assertThat(barra.getEstadoClave()).isEqualTo("pendiente");
-        assertThat(barra.getTooltip()).startsWith("PALE_ALE-R7-1 - Pendiente\nReceta: Pale Ale\nPlanificación: #7\nInicio estimado: 01/07/2027\n");
+        assertThat(barra.getTooltip()).startsWith("PALE_ALE-R7-1 - Pendiente\nReceta: Pale Ale\nPlanificación: Plan #7 - Pale Ale\nInicio estimado: 01/07/2027\n");
         assertThat(barra.getTooltip()).contains("Fin estimado: 05/07/2027", "Volumen: 300 L", "Molino: M-01", "Macerador: MA-01", "Olla de hervor: O-01", "Fermentador: F-01");
     }
 
@@ -384,13 +384,13 @@ class CronogramaProduccionBuilderTest {
 
         // Assert
         String tooltipEnEjecucion = barras.get(0).getTooltip();
-        assertThat(tooltipEnEjecucion).contains("Receta: Pale Ale", "Planificación: #7", "Atrasado 3 días respecto de la fecha estimada (07/07)");
-        assertThat(tooltipEnEjecucion.indexOf("Receta: Pale Ale")).isLessThan(tooltipEnEjecucion.indexOf("Planificación: #7"));
-        assertThat(tooltipEnEjecucion.indexOf("Planificación: #7")).isLessThan(tooltipEnEjecucion.indexOf("Atrasado"));
+        assertThat(tooltipEnEjecucion).contains("Receta: Pale Ale", "Planificación: Plan #7 - Pale Ale", "Atrasado 3 días respecto de la fecha estimada (07/07)");
+        assertThat(tooltipEnEjecucion.indexOf("Receta: Pale Ale")).isLessThan(tooltipEnEjecucion.indexOf("Planificación: Plan #7 - Pale Ale"));
+        assertThat(tooltipEnEjecucion.indexOf("Planificación: Plan #7 - Pale Ale")).isLessThan(tooltipEnEjecucion.indexOf("Atrasado"));
         assertThat(tooltipEnEjecucion.indexOf("Atrasado")).isLessThan(tooltipEnEjecucion.indexOf("Inicio estimado:"));
         String tooltipPendiente = barras.get(1).getTooltip();
         assertThat(tooltipPendiente).contains("Planificado para el 08/07, corrido 3 días por atraso");
-        assertThat(tooltipPendiente.indexOf("Planificación: #7")).isLessThan(tooltipPendiente.indexOf("Planificado para"));
+        assertThat(tooltipPendiente.indexOf("Planificación: Plan #7 - Pale Ale")).isLessThan(tooltipPendiente.indexOf("Planificado para"));
         assertThat(tooltipPendiente.indexOf("Planificado para")).isLessThan(tooltipPendiente.indexOf("Inicio estimado:"));
     }
 
@@ -763,7 +763,7 @@ class CronogramaProduccionBuilderTest {
         assertThat(tooltipDerecha).contains("Continúa después del período").doesNotContain("Continúa antes del período");
         String tooltipAmbos = carriles.get(2).getBarras().get(0).getTooltip();
         assertThat(tooltipAmbos).contains("Continúa antes del período", "Continúa después del período");
-        assertThat(tooltipAmbos.indexOf("Planificación: #7")).isLessThan(tooltipAmbos.indexOf("Planificado para"));
+        assertThat(tooltipAmbos.indexOf("Planificación: Plan #7 - Pale Ale")).isLessThan(tooltipAmbos.indexOf("Planificado para"));
         assertThat(tooltipAmbos.indexOf("Planificado para")).isLessThan(tooltipAmbos.indexOf("Continúa antes del período"));
         assertThat(tooltipAmbos.indexOf("Continúa antes del período")).isLessThan(tooltipAmbos.indexOf("Continúa después del período"));
         assertThat(tooltipAmbos.indexOf("Continúa después del período")).isLessThan(tooltipAmbos.indexOf("Inicio estimado:"));

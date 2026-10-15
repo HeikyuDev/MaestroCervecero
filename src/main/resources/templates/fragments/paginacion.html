@@ -2,14 +2,15 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
 <!--
-    Pie de paginación de las listas y buscadores. Los enlaces ya vienen armados
+    Pie de paginación de las listas y buscadores. La etiqueta se pasa como "singular|plural" (por ejemplo
+    'consumo|consumos') y se muestra en singular cuando hay un único registro. Los enlaces ya vienen armados
     (conservando los criterios de búsqueda). En un modal (enModal = true) se marcan con
     data-modal-get para que /js/modales.js pida la página sin salir del modal.
 -->
 <div th:fragment="paginacion(pagina, etiqueta, urlAnterior, urlSiguiente, enModal)" th:if="${pagina.totalPages > 0}"
      class="flex items-center justify-between px-4 py-3 border-t border-slate-100 bg-slate-50 text-sm text-slate-600">
     <span>
-        <span th:text="${pagina.totalElements}">0</span> <span th:text="${etiqueta}">registros</span> ·
+        <span th:text="${pagina.totalElements}">0</span> <span th:text="${pagina.totalElements == 1 ? #strings.arraySplit(etiqueta, '|')[0] : #strings.arraySplit(etiqueta, '|')[1]}">registros</span> ·
         Página <span th:text="${pagina.number + 1}">1</span> de <span th:text="${pagina.totalPages}">1</span>
     </span>
     <div class="flex items-center gap-2">

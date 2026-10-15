@@ -53,7 +53,7 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-PAC-12** | Alta correcta | Rol `ADMINISTRADOR`, `nombre: "Chile"`, con CSRF | Formulario válido | Llama a `altaPais` con `nombre: "Chile"`. Redirige a `/ubicaciones/paises` con la alerta "País creado correctamente" de tipo `success`. |
-| **CP-PAC-13** | Nombre en blanco | `nombre: "   "` | `@NotBlank` $\rightarrow$ **Falla** | Vuelve al formulario con el panel "No se pudo crear el país" y el mensaje "El nombre del país es obligatorio". No invoca al service. |
+| **CP-PAC-13** | Nombre en blanco | `nombre: "   "` | `@NotBlank` $\rightarrow$ **Falla** | Vuelve al formulario con el panel "No se pudo crear el país" y el mensaje "El nombre es obligatorio". No invoca al service. |
 | **CP-PAC-14** | Nombre duplicado | El service lanza `RecursoDuplicadoException("Ya existe un país con ese nombre")` | El service rechaza el nombre | Vuelve al formulario con el mensaje del service junto al campo y el nombre tipeado conservado. |
 | **CP-PAC-15** | Regla de negocio rechazada | El service lanza `ReglaNegocioException("Regla incumplida")` | El service rechaza la operación | Vuelve al formulario y muestra el mensaje como error general. |
 | **CP-PAC-16** | Alta contextual correcta | `nombre: "Chile"`, `retorno: "/ubicaciones/provincias/nuevo"`, `campo: "idPais"`. El service devuelve el país (`id: 9`) | El alta se abrió desde otro formulario | Redirige a `/ubicaciones/provincias/nuevo?desdeAlta=1&idPais=9` con la alerta "País creado correctamente". |
@@ -78,7 +78,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-PAC-21** | Modificación correcta | Rol `ADMINISTRADOR`, `id: 3`, `nombre: "Chile"` | Formulario válido | Llama a `modificarPais(3, ...)`. Redirige a `/ubicaciones/paises` con la alerta "País modificado correctamente" de tipo `success`. |
 | **CP-PAC-22** | Nombre duplicado | El service lanza `RecursoDuplicadoException` | El service rechaza el nombre | Vuelve al formulario de edición (`action="/ubicaciones/paises/3"`) con el panel "No se pudo modificar el país" y el mensaje del service. |
-| **CP-PAC-23** | Nombre en blanco | `nombre: ""` | `@NotBlank` $\rightarrow$ **Falla** | Vuelve al formulario con "El nombre del país es obligatorio". No invoca al service. |
+| **CP-PAC-23** | Nombre en blanco | `nombre: ""` | `@NotBlank` $\rightarrow$ **Falla** | Vuelve al formulario con "El nombre es obligatorio". No invoca al service. |
 | **CP-PAC-24** | Rol sin permiso de modificación | Rol `GERENTE_COMERCIAL` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

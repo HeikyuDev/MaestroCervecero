@@ -55,7 +55,7 @@
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-2 py-3 whitespace-nowrap">Receta</th>
+                <th class="px-2 py-3 whitespace-nowrap">Planificación</th>
                 <th class="px-2 py-3 whitespace-nowrap" title="Cantidad a producir (L)">Cantidad (L)</th>
                 <th class="px-2 py-3 whitespace-nowrap" title="Litros producidos (L)">Producido (L)</th>
                 <th class="px-2 py-3 whitespace-nowrap xl:hidden" title="Inicio estimado y fin estimado">Inicio / Fin</th>
@@ -67,7 +67,9 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="p : ${planificaciones.content}" class="hover:bg-slate-50">
-                <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${p.versionReceta.nombre}">Pale Ale</td>
+                <td class="px-2 py-3 font-medium text-slate-900">
+                    <div class="max-w-[18rem] truncate" data-planificacion-etiqueta tabindex="0" th:data-tooltip="${p.etiqueta}" th:text="${p.etiqueta}">Plan #7 - Pale Ale</div>
+                </td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${p.cantidadAProducir})}"></th:block></td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-litros-producidos><th:block th:replace="~{receta/formato :: numero(${p.litrosProducidos})}"></th:block></td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap xl:hidden">
@@ -80,23 +82,23 @@
                 <td class="px-2 py-3">
                     <div class="flex items-center justify-end gap-0.5">
                         <a th:href="@{/planificaciones-produccion/{id}(id=${p.id})}" title="Ver estado actual" aria-label="Ver estado actual"
-                           class="p-1.5 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                            <i class="bi bi-eye text-base"></i>
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
                         </a>
                         <th:block th:if="${p.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                             <button type="button" title="Finalizar planificación" aria-label="Finalizar planificación"
                                     data-motivo-dialogo="dialogo-finalizar"
                                     th:data-motivo-url="@{/planificaciones-produccion/{id}/finalizar(id=${p.id})}"
-                                    th:data-motivo-nombre="${p.versionReceta.nombre}"
-                                    class="shrink-0 whitespace-nowrap p-1.5 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
-                                <i class="bi bi-check2-circle text-base"></i>
+                                    th:data-motivo-nombre="${p.etiqueta}"
+                                    class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                                <i class="bi bi-check2-circle text-lg"></i>
                             </button>
                             <button type="button" title="Anular planificación" aria-label="Anular planificación"
                                     data-motivo-dialogo="dialogo-anular"
                                     th:data-motivo-url="@{/planificaciones-produccion/{id}/anular(id=${p.id})}"
-                                    th:data-motivo-nombre="${p.versionReceta.nombre}"
-                                    class="shrink-0 whitespace-nowrap p-1.5 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
-                                <i class="bi bi-x-circle text-base"></i>
+                                    th:data-motivo-nombre="${p.etiqueta}"
+                                    class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                <i class="bi bi-x-circle text-lg"></i>
                             </button>
                         </th:block>
                     </div>
@@ -105,14 +107,14 @@
             <tr th:if="${planificaciones.empty}">
                 <td colspan="7" class="px-4 py-10 text-center text-slate-400">
                     <i class="bi bi-calendar3 block text-3xl mb-2"></i>
-                    No se encontraron planificaciones de producción con los criterios indicados
+                    No se encontraron planificaciones con los criterios indicados
                 </td>
             </tr>
             </tbody>
         </table>
         </div>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificaciones',
+        <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificación|planificaciones',
                 ${planificaciones.hasPrevious()} ? @{/planificaciones-produccion(pagina=${planificaciones.number - 1}, idReceta=${filtroIdReceta}, estado=${filtroEstado}, fechaInicio=${filtroFechaInicio})} : null,
                 ${planificaciones.hasNext()} ? @{/planificaciones-produccion(pagina=${planificaciones.number + 1}, idReceta=${filtroIdReceta}, estado=${filtroEstado}, fechaInicio=${filtroFechaInicio})} : null,
                 false)}"></div>
@@ -121,11 +123,11 @@
     <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar planificación',
                 'Se cierra de forma forzada y queda registrado el motivo. Solo procede si ya tiene un lote finalizado y ninguno pendiente ni en ejecución.',
-                'Finalizar', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
+                'Confirmar finalización', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
                 'Se completó la producción prevista con menos lotes')}"></div>
         <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular planificación',
                 'Se anula y queda registrado el motivo. Solo procede si no tiene lotes pendientes, en ejecución ni finalizados.',
-                'Anular', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
                 'Se canceló el pedido del cliente')}"></div>
     </th:block>
 </div>

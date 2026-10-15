@@ -66,13 +66,13 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="x : ${ollas.content}" class="hover:bg-slate-50">
                 <td class="px-4 py-3">
-                    <span class="font-medium text-slate-900" th:text="${x.identificadorInterno}">OLLA-01</span>
+                    <span class="inline-block max-w-[14rem] truncate align-bottom font-medium text-slate-900" tabindex="0" th:data-tooltip="${x.identificadorInterno}" th:text="${x.identificadorInterno}">OLLA-01</span>
                 </td>
                 <td class="px-4 py-3"><span th:replace="~{equipamiento/estado :: badge(${x.estadoOperativo})}"></span></td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.capacidadTotal, 1, 'POINT', 2, 'COMMA')}">100,00</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.capacidadUtil, 1, 'POINT', 2, 'COMMA')}">80,00</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.evaporacion, 1, 'POINT', 2, 'COMMA')}">8,00</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.perdidaPorTrub, 1, 'POINT', 2, 'COMMA')}">3,00</td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.capacidadTotal})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.capacidadUtil})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.evaporacion})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.perdidaPorTrub})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">50</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
@@ -99,13 +99,13 @@
         </table>
         </div>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${ollas}, 'ollas de hervor',
+        <div th:replace="~{fragments/paginacion :: paginacion(${ollas}, 'olla de hervor|ollas de hervor',
                 ${ollas.hasPrevious()} ? @{/equipamiento/ollas-hervor(pagina=${ollas.number - 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado})} : null,
                 ${ollas.hasNext()} ? @{/equipamiento/ollas-hervor(pagina=${ollas.number + 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado})} : null,
                 false)}"></div>
     </div>
 
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Solo se puede dar de baja si está Disponible y no tiene lotes en estado Pendiente asociados.')}"></div>
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Si no está Disponible o tiene lotes en estado Pendiente asociados, el sistema no lo permitirá.')}"></div>
 </div>
 
 </body>

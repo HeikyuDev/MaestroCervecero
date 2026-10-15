@@ -283,7 +283,7 @@ public class LupuloServicioImpl implements ILupuloServicio {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0");
         }
         if (Double.isNaN(aa)) {
-            throw new ReglaNegocioException("Los ácidos alfa deben ser un número mayor a 0");
+            throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0");
         }
         if (aa > ALFA_ACIDOS_MAXIMO) {
             throw new ReglaNegocioException("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%");

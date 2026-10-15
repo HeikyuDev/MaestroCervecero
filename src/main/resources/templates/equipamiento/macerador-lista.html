@@ -66,13 +66,13 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="x : ${maceradores.content}" class="hover:bg-slate-50">
                 <td class="px-4 py-3">
-                    <span class="font-medium text-slate-900" th:text="${x.identificadorInterno}">MAC-01</span>
+                    <span class="inline-block max-w-[14rem] truncate align-bottom font-medium text-slate-900" tabindex="0" th:data-tooltip="${x.identificadorInterno}" th:text="${x.identificadorInterno}">MAC-01</span>
                 </td>
                 <td class="px-4 py-3"><span th:replace="~{equipamiento/estado :: badge(${x.estadoOperativo})}"></span></td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.capacidadTotal, 1, 'POINT', 2, 'COMMA')}">100,00</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.capacidadUtil, 1, 'POINT', 2, 'COMMA')}">80,00</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.espacioMuerto, 1, 'POINT', 2, 'COMMA')}">2,00</td>
-                <td class="px-4 py-3 text-slate-700" th:text="${#numbers.formatDecimal(x.eficienciaMaceracion, 1, 'POINT', 2, 'COMMA')} + ' %'">75,00 %</td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.capacidadTotal})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.capacidadUtil})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.espacioMuerto})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.eficienciaMaceracion})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">50</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
@@ -99,13 +99,13 @@
         </table>
         </div>
 
-        <div th:replace="~{fragments/paginacion :: paginacion(${maceradores}, 'maceradores',
+        <div th:replace="~{fragments/paginacion :: paginacion(${maceradores}, 'macerador|maceradores',
                 ${maceradores.hasPrevious()} ? @{/equipamiento/maceradores(pagina=${maceradores.number - 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado})} : null,
                 ${maceradores.hasNext()} ? @{/equipamiento/maceradores(pagina=${maceradores.number + 1}, identificador=${filtroIdentificador}, estadoOperativo=${filtroEstado})} : null,
                 false)}"></div>
     </div>
 
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja macerador', 'Solo se puede dar de baja si está Disponible y no tiene lotes en estado Pendiente asociados.')}"></div>
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja macerador', 'Si no está Disponible o tiene lotes en estado Pendiente asociados, el sistema no lo permitirá.')}"></div>
 </div>
 
 </body>

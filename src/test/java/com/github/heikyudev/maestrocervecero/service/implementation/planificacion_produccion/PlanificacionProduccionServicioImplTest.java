@@ -484,7 +484,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }
@@ -496,7 +496,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.registrarPlanificacionProduccion(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
 
         verifyNoInteractions(recetaRepository, planificacionProduccionRepository);
     }
@@ -806,7 +806,7 @@ class PlanificacionProduccionServicioImplTest {
 
         assertThatThrownBy(() -> planificacionProduccionServicio.finalizarPlanificacionProduccion(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado; corresponde anularla en su lugar");
+                .hasMessage("No se puede finalizar la planificación de producción porque no tiene ningún lote en estado Finalizado asociado: corresponde anularla en su lugar");
 
         verify(planificacionProduccionRepository, never()).save(any());
     }
@@ -1113,10 +1113,10 @@ class PlanificacionProduccionServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, Double.NaN, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
         assertThatThrownBy(() -> planificacionProduccionServicio.sugerirFechaFinalizacion(1L, Double.POSITIVE_INFINITY, FECHA_INICIO_SUGERENCIA))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad a producir debe ser un número mayor a 0");
+                .hasMessage("La cantidad a producir debe ser mayor a 0");
         verifyNoInteractions(recetaRepository, configuracionProduccionRepository, planificacionProduccionRepository, loteRepository);
     }
 

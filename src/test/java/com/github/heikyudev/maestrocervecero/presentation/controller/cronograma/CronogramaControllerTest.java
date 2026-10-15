@@ -342,7 +342,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("Inicio")))
                 .andExpect(content().string(containsString("Fin")))
                 .andExpect(content().string(containsString(">PALE_ALE-R7-1<")))
-                .andExpect(content().string(containsString(">#7<")))
+                .andExpect(content().string(containsString(">Plan #7 - Pale Ale<")))
                 .andExpect(content().string(containsString(">300<")))
                 .andExpect(content().string(not(containsString("300.0"))))
                 .andExpect(content().string(containsString("01/07/2027")))
@@ -1074,7 +1074,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-58: hasta 10 fermentadores caben en una pagina: 3 carriles y 3 colas, \"Pagina 1 de 1\", \"3 fermentadores\" y ambos botones de pagina desactivados")
+    @DisplayName("CP-CGC-58: hasta 5 fermentadores caben en una pagina: 3 carriles y 3 colas, \"Pagina 1 de 1\", \"3 fermentadores\" y ambos botones de pagina desactivados")
     void paginacion_unaSolaPagina() throws Exception {
         // Arrange
         fermentadoresActivos(3);
@@ -1093,7 +1093,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-59: los carriles se reparten de a 10: la pagina 1 muestra F-01 a F-10 y la 3 muestra F-21 a F-25, con los enlaces de pagina que corresponden")
+    @DisplayName("CP-CGC-59: los carriles se reparten de a 5: la pagina 1 muestra F-01 a F-05 y la 5 muestra F-21 a F-25, con los enlaces de pagina que corresponden")
     void paginacion_variasPaginas() throws Exception {
         // Arrange
         fermentadoresActivos(25);
@@ -1101,22 +1101,22 @@ class CronogramaControllerTest {
 
         // Act
         String pagina1 = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        String pagina3 = mockMvc.perform(get(URL).param("pagina", "3")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String ultima = mockMvc.perform(get(URL).param("pagina", "5")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
-        assertThat(pagina1).contains("Página 1 de 3").contains("25 fermentadores");
+        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 5));
+        assertThat(pagina1).contains("Página 1 de 5").contains("25 fermentadores");
         assertThat(pagina1).containsPattern("<span[^>]*data-pagina-anterior");
         assertThat(href(pagina1, "data-pagina-siguiente")).isEqualTo("/cronograma-produccion?pagina=2");
-        assertThat(colas(pagina3)).containsExactlyElementsOf(fermentadoresDe(21, 25));
-        assertThat(pagina3).contains("Página 3 de 3");
-        assertThat(href(pagina3, "data-pagina-anterior")).isEqualTo("/cronograma-produccion?pagina=2");
-        assertThat(pagina3).containsPattern("<span[^>]*data-pagina-siguiente");
+        assertThat(colas(ultima)).containsExactlyElementsOf(fermentadoresDe(21, 25));
+        assertThat(ultima).contains("Página 5 de 5");
+        assertThat(href(ultima, "data-pagina-anterior")).isEqualTo("/cronograma-produccion?pagina=4");
+        assertThat(ultima).containsPattern("<span[^>]*data-pagina-siguiente");
     }
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-60: orden estable y paginas contiguas: aunque el service entregue los lotes en orden inverso, la pagina 1 es F-01 a F-10 y la 2 F-11 y F-12, sin repetir ni omitir, y pedir la misma pagina dos veces da lo mismo")
+    @DisplayName("CP-CGC-60: orden estable y paginas contiguas: aunque el service entregue los lotes en orden inverso, la pagina 1 es F-01 a F-05, la 2 F-06 a F-10 y la 3 F-11 y F-12, sin repetir ni omitir, y pedir la misma pagina dos veces da lo mismo")
     void paginacion_ordenEstable() throws Exception {
         // Arrange
         fermentadoresActivos(12);
@@ -1128,10 +1128,12 @@ class CronogramaControllerTest {
         String pagina1 = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String pagina1Otra = mockMvc.perform(get(URL).param("pagina", "1")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String pagina2 = mockMvc.perform(get(URL).param("pagina", "2")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String pagina3 = mockMvc.perform(get(URL).param("pagina", "3")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
-        assertThat(colas(pagina2)).containsExactly("F-11", "F-12");
+        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 5));
+        assertThat(colas(pagina2)).containsExactlyElementsOf(fermentadoresDe(6, 10));
+        assertThat(colas(pagina3)).containsExactly("F-11", "F-12");
         assertThat(colas(pagina1Otra)).isEqualTo(colas(pagina1));
     }
 
@@ -1148,12 +1150,12 @@ class CronogramaControllerTest {
         String enBlanco = mockMvc.perform(get(URL).param("pagina", " ")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(fueraDeRango).contains("Página 3 de 3").contains("La página indicada no existe, se muestra la última");
+        assertThat(fueraDeRango).contains("Página 5 de 5").contains("La página indicada no existe, se muestra la última");
         for (String invalida : List.of("0", "-2", "abc")) {
             String html = mockMvc.perform(get(URL).param("pagina", invalida)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-            assertThat(html).contains("Página 1 de 3").contains("La página indicada no es válida, se muestra la primera");
+            assertThat(html).contains("Página 1 de 5").contains("La página indicada no es válida, se muestra la primera");
         }
-        assertThat(enBlanco).contains("Página 1 de 3").doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(enBlanco).contains("Página 1 de 5").doesNotContain(ALERTA_ADVERTENCIA);
 
         // Sin lotes en el período no hay páginas y no se avisa
         when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
@@ -1163,7 +1165,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-62: con 50 fermentadores el diagrama sigue acotado: la pagina 1 tiene 10 carriles y 10 colas (\"Pagina 1 de 5\", \"50 fermentadores\") y la 5 muestra F-41 a F-50")
+    @DisplayName("CP-CGC-62: con 50 fermentadores el diagrama sigue acotado: la pagina 1 tiene 5 carriles y 5 colas (\"Pagina 1 de 10\", \"50 fermentadores\") y la 10 muestra F-46 a F-50")
     void paginacion_cincuentaFermentadores() throws Exception {
         // Arrange
         fermentadoresActivos(50);
@@ -1171,14 +1173,14 @@ class CronogramaControllerTest {
 
         // Act
         String pagina1 = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        String pagina5 = mockMvc.perform(get(URL).param("pagina", "5")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String pagina10 = mockMvc.perform(get(URL).param("pagina", "10")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(carriles(pagina1)).isEqualTo(10);
-        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 10));
-        assertThat(pagina1).contains("Página 1 de 5").contains("50 fermentadores").doesNotContain("data-cola-fermentador=\"F-11\"").doesNotContain("data-cola-fermentador=\"F-50\"");
+        assertThat(carriles(pagina1)).isEqualTo(5);
+        assertThat(colas(pagina1)).containsExactlyElementsOf(fermentadoresDe(1, 5));
+        assertThat(pagina1).contains("Página 1 de 10").contains("50 fermentadores").doesNotContain("data-cola-fermentador=\"F-06\"").doesNotContain("data-cola-fermentador=\"F-50\"");
         assertThat(pagina1).doesNotContain("<option");
-        assertThat(colas(pagina5)).containsExactlyElementsOf(fermentadoresDe(41, 50));
+        assertThat(colas(pagina10)).containsExactlyElementsOf(fermentadoresDe(46, 50));
     }
 
     @Test
@@ -1378,8 +1380,8 @@ class CronogramaControllerTest {
         assertThat(segunda).contains("data-gantt-continua-despues").doesNotContain("data-gantt-continua-antes").contains("Continúa después del período")
                 .contains("Fin estimado: 25/07/2027");
         assertThat(tercera).doesNotContain("data-gantt-continua").doesNotContain("Continúa");
-        assertThat(cuenta(html, "bi-chevron-left")).isEqualTo(1);
-        assertThat(cuenta(html, "bi-chevron-right")).isEqualTo(1);
+        assertThat(cuenta(html, "bi-chevron-left")).isEqualTo(2);
+        assertThat(cuenta(html, "bi-chevron-right")).isEqualTo(2);
     }
 
     @Test

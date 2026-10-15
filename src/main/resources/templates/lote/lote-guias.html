@@ -37,11 +37,29 @@
 <div th:fragment="maceracion" class="space-y-3">
     <div th:replace="~{lote/lote-guias :: avisoAgua}"></div>
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-        <th:block th:if="${agua != null}">
-            <div data-malta-molida>
+        <!-- Malta que se agrega al macerador: la realmente molida (consumos registrados en la Molienda); sin consumos, la requerida por la receta -->
+        <div th:if="${maltaMolida != null or agua != null}" data-malta-molida class="sm:col-span-2"
+             th:attr="data-origen=${maltaMolida != null and maltaMolida.conConsumos} ? 'molienda' : 'receta'">
+            <th:block th:if="${maltaMolida != null and maltaMolida.conConsumos}">
                 <dt class="text-xs font-medium text-slate-500">Malta molida a agregar</dt>
-                <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: medida(${agua.masaMalta}, 'kg')}"></th:block></dd>
-            </div>
+                <dd class="font-semibold text-slate-900">
+                    <ul class="space-y-1" data-malta-molida-lineas>
+                        <li th:each="m : ${maltaMolida.lineas}"><span th:text="${m.nombre}">Pilsner</span>: <th:block th:replace="~{receta/formato :: medida(${m.cantidad}, ${m.unidadDeMedida.simbolo})}"></th:block></li>
+                    </ul>
+                    <p th:if="${#lists.size(maltaMolida.lineas) > 1}" data-malta-molida-total class="mt-1">Total: <th:block th:replace="~{receta/formato :: medida(${maltaMolida.total}, 'kg')}"></th:block></p>
+                    <p class="mt-1 text-xs font-normal text-slate-500" data-malta-requerida>Requerida por la receta: <th:block th:replace="~{receta/formato :: medida(${maltaMolida.requerido}, 'kg')}"></th:block></p>
+                </dd>
+            </th:block>
+            <th:block th:unless="${maltaMolida != null and maltaMolida.conConsumos}">
+                <dt class="text-xs font-medium text-slate-500">Malta a agregar (requerida por la receta)</dt>
+                <dd class="font-semibold text-slate-900">
+                    <th:block th:if="${maltaMolida != null}"><th:block th:replace="~{receta/formato :: medida(${maltaMolida.requerido}, 'kg')}"></th:block></th:block>
+                    <th:block th:unless="${maltaMolida != null}"><th:block th:replace="~{receta/formato :: medida(${agua.masaMalta}, 'kg')}"></th:block></th:block>
+                    <p class="mt-1 text-xs font-normal text-slate-500">Todavía no hay malta molida registrada en la Molienda.</p>
+                </dd>
+            </th:block>
+        </div>
+        <th:block th:if="${agua != null}">
             <div data-agua-macerado>
                 <dt class="flex items-center gap-1 text-xs font-medium text-slate-500">
                     Agua de macerado
@@ -51,7 +69,7 @@
                 <!-- Contenido del tooltip (/js/tooltips.js): el cálculo con los números reales; no ocupa lugar en la página -->
                 <div id="info-agua-macerado" data-info-panel hidden>
                     <p class="font-semibold text-white">Cómo se calcula el agua de macerado</p>
-                    <p class="mt-1">Relación de empaste × malta molida + espacio muerto del macerador</p>
+                    <p class="mt-1">Relación de empaste × malta requerida por la receta + espacio muerto del macerador</p>
                     <p class="mt-1 font-semibold text-amber-300"><th:block th:replace="~{receta/formato :: numero(${agua.relacionDeEmpaste})}"></th:block> L/kg × <th:block th:replace="~{receta/formato :: numero(${agua.masaMalta})}"></th:block> kg + <th:block th:replace="~{receta/formato :: numero(${agua.espacioMuerto})}"></th:block> L de espacio muerto = <th:block th:replace="~{receta/formato :: medida(${agua.aguaMacerado}, 'L')}"></th:block></p>
                     <p class="mt-1 text-slate-300">El espacio muerto es el agua que queda retenida en el fondo del macerador y no se puede recuperar, por eso se suma al agua del macerado</p>
                 </div>
@@ -70,7 +88,7 @@
         </th:block>
         <div>
             <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaceracion}, 'minuto', 'minutos')}"></th:block></dd>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaceracion}, 'min', 'min')}"></th:block></dd>
         </div>
         <div>
             <dt class="text-xs font-medium text-slate-500">Macerador</dt>
@@ -94,7 +112,7 @@
         </div>
         <div>
             <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionHervido}, 'minuto', 'minutos')}"></th:block></dd>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionHervido}, 'min', 'min')}"></th:block></dd>
         </div>
         <div>
             <dt class="text-xs font-medium text-slate-500">Olla de hervor</dt>

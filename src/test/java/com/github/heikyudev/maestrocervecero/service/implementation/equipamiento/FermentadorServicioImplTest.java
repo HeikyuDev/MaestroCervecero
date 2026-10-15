@@ -680,7 +680,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -693,7 +693,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -706,7 +706,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -719,7 +719,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -770,7 +770,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -783,7 +783,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -796,7 +796,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.altaFermentador(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verifyNoInteractions(fermentadorRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -873,7 +873,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
 
         verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);
@@ -903,7 +903,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La capacidad útil debe ser un número mayor a 0");
+                .hasMessage("La capacidad útil debe ser mayor a 0");
 
         verify(fermentadorRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

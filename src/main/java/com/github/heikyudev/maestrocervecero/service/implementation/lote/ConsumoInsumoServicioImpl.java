@@ -150,7 +150,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
 
         // 5. Validar que exista una reserva de ese lote de insumo para esa etapa
         ReservaInsumoEntity reserva = reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(etapaLote.getId(), loteInsumo.getId())
-                .orElseThrow(() -> new ReglaNegocioException("No existe una reserva de este lote de insumo para esta etapa; utilice el registro de consumo directo"));
+                .orElseThrow(() -> new ReglaNegocioException("No existe una reserva de este lote de insumo para esta etapa: utilice el registro de consumo directo"));
 
         // 6. Validar que la cantidad consumida no supere la cantidad reservada
         double cantidadReservada = Redondeo.redondear(reserva.getCantidadReservada());

@@ -575,7 +575,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -588,7 +588,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
         verifyNoInteractions(equipamientoRepository);
@@ -703,7 +703,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El rendimiento de molienda debe ser un número mayor a 0");
+                .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verify(molinoRepository).findById(1L);
         verifyNoInteractions(equipamientoRepository);

@@ -605,7 +605,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.altaLevadura(dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor a 0");
 
         verifyNoInteractions(levaduraRepository);
     }
@@ -689,7 +689,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, dto))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de células viables por gramo debe ser un número mayor a 0");
+                .hasMessage("La cantidad de células viables por gramo debe ser mayor a 0");
 
         verifyNoInteractions(levaduraRepository);
     }

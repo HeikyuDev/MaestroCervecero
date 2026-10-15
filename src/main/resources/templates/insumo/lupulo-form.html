@@ -31,7 +31,7 @@
 
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos del lúpulo</h2>
-            <p class="mt-1 mb-4 text-xs text-slate-400">Unidad de medida: gramos (la define el sistema)</p>
+            <p class="mt-1 mb-4 text-xs text-slate-400">Unidad de medida: gramos (la define el sistema).</p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 <div>
@@ -47,7 +47,7 @@
                     <select id="formato" th:field="*{formato}"
                             class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                             th:classappend="${#fields.hasErrors('formato')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option value="">Seleccione un formato</option>
+                        <option value="">Seleccione formato</option>
                         <option th:each="f : ${formatos}" th:value="${f}"><th:block th:replace="~{receta/formato :: formatoLupulo(${f})}">Pellet</th:block></option>
                     </select>
                     <p th:if="${#fields.hasErrors('formato')}" th:errors="*{formato}" class="mt-1 text-xs text-rose-600"></p>
@@ -59,7 +59,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('aa')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('aa')}" th:errors="*{aa}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('aa')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0 y hasta 25</p>
+                    <p th:unless="${#fields.hasErrors('aa')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0 y hasta 25.</p>
                 </div>
             </div>
         </section>

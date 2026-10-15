@@ -229,7 +229,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         //    completar (cantidad ingresada menor a la solicitada, proveedor discontinuado, etc.);
         //    si no recibió nada, corresponde anularla en lugar de finalizarla
         if (!ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(id, EstadoTransaccion.REGISTRADO)) {
-            throw new ReglaNegocioException("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado Registrado asociado; corresponde anularla en su lugar");
+            throw new ReglaNegocioException("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado Registrado asociado: corresponde anularla en su lugar");
         }
 
         // 5. Aplicar la finalización forzada sobre la entidad administrada por persistencia

@@ -23,7 +23,7 @@ class ValidacionesNumericasTest {
             assertThatThrownBy(() -> ValidacionesNumericas.validarMayorACero(invalido, ETIQUETA))
                     .as("valor: %s", invalido)
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La capacidad total debe ser un número mayor a 0");
+                    .hasMessage("La capacidad total debe ser mayor a 0");
         }
     }
 
@@ -46,7 +46,7 @@ class ValidacionesNumericasTest {
             assertThatThrownBy(() -> ValidacionesNumericas.validarMayorOIgualACero(invalido, ETIQUETA))
                     .as("valor: %s", invalido)
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La capacidad total debe ser un número mayor o igual a 0");
+                    .hasMessage("La capacidad total debe ser mayor o igual a 0");
         }
     }
 
@@ -101,12 +101,12 @@ class ValidacionesNumericasTest {
         // Act & Assert
         for (Double invalido : NO_FINITOS) {
             assertThatThrownBy(() -> ValidacionesNumericas.validarMayorACeroConMaximo(invalido, 100_000.0, ETIQUETA, "litros"))
-                    .hasMessage("La capacidad total debe ser un número mayor a 0");
+                    .hasMessage("La capacidad total debe ser mayor a 0");
         }
         assertThatThrownBy(() -> ValidacionesNumericas.validarMayorACeroConMaximo(0.0, 100_000.0, ETIQUETA, "litros"))
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
         assertThatThrownBy(() -> ValidacionesNumericas.validarMayorACeroConMaximo(-1.0, 100_000.0, ETIQUETA, "litros"))
-                .hasMessage("La capacidad total debe ser un número mayor a 0");
+                .hasMessage("La capacidad total debe ser mayor a 0");
         assertThatThrownBy(() -> ValidacionesNumericas.validarMayorACeroConMaximo(100_001.0, 100_000.0, ETIQUETA, "litros"))
                 .hasMessage("La capacidad total no puede superar 100.000 litros");
         assertThatCode(() -> ValidacionesNumericas.validarMayorACeroConMaximo(100_000.0, 100_000.0, ETIQUETA, "litros"))
@@ -119,10 +119,10 @@ class ValidacionesNumericasTest {
         // Act & Assert
         for (Double invalido : NO_FINITOS) {
             assertThatThrownBy(() -> ValidacionesNumericas.validarMayorOIgualACeroConMaximo(invalido, 100_000.0, ETIQUETA, "litros"))
-                    .hasMessage("La capacidad total debe ser un número mayor o igual a 0");
+                    .hasMessage("La capacidad total debe ser mayor o igual a 0");
         }
         assertThatThrownBy(() -> ValidacionesNumericas.validarMayorOIgualACeroConMaximo(-0.5, 100_000.0, ETIQUETA, "litros"))
-                .hasMessage("La capacidad total debe ser un número mayor o igual a 0");
+                .hasMessage("La capacidad total debe ser mayor o igual a 0");
         assertThatThrownBy(() -> ValidacionesNumericas.validarMayorOIgualACeroConMaximo(100_000.5, 100_000.0, ETIQUETA, "litros"))
                 .hasMessage("La capacidad total no puede superar 100.000 litros");
         assertThatCode(() -> ValidacionesNumericas.validarMayorOIgualACeroConMaximo(0.0, 100_000.0, ETIQUETA, "litros"))
@@ -139,7 +139,7 @@ class ValidacionesNumericasTest {
             assertThatThrownBy(() -> ValidacionesNumericas.validarEnteroMayorACeroConMaximo(invalido, 10_080, "La duración", "minutos"))
                     .as("valor: %s", invalido)
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("La duración debe ser un número entero mayor a 0");
+                    .hasMessage("La duración debe ser mayor a 0");
         }
     }
 
@@ -164,7 +164,7 @@ class ValidacionesNumericasTest {
             assertThatThrownBy(() -> ValidacionesNumericas.validarEnteroMayorOIgualACeroConMaximo(invalido, 500, "El amargor", "IBU"))
                     .as("valor: %s", invalido)
                     .isInstanceOf(ReglaNegocioException.class)
-                    .hasMessage("El amargor debe ser un número entero mayor o igual a 0");
+                    .hasMessage("El amargor debe ser mayor o igual a 0");
         }
     }
 

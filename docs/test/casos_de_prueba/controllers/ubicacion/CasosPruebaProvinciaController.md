@@ -53,7 +53,7 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-PRC-12** | Alta correcta | Rol `ADMINISTRADOR`, `nombre: "Córdoba"`, `idPais: 3`, con CSRF | Formulario válido | Llama a `altaProvincia` con el nombre y el país indicados. Redirige a `/ubicaciones/provincias` con la alerta "Provincia creada correctamente" de tipo `success`. |
-| **CP-PRC-13** | Faltan nombre y país | `nombre: "  "`, sin `idPais` | `@NotBlank` y `@NotNull` $\rightarrow$ **Fallan** | Vuelve al formulario con el panel "No se pudo crear la provincia" y los mensajes "El nombre de la provincia es obligatorio" y "El país es obligatorio". No invoca al service. |
+| **CP-PRC-13** | Faltan nombre y país | `nombre: "  "`, sin `idPais` | `@NotBlank` y `@NotNull` $\rightarrow$ **Fallan** | Vuelve al formulario con el panel "No se pudo crear la provincia" y los mensajes "El nombre es obligatorio" y "El país es obligatorio". No invoca al service. |
 | **CP-PRC-14** | El selector conserva el país al volver con errores | `nombre: ""`, `idPais: 3`. `IPaisServicio` devuelve "Argentina" | El formulario se vuelve a mostrar | El selector conserva `idPais=3` y el texto "Argentina". |
 | **CP-PRC-15** | Nombre duplicado | El service lanza `RecursoDuplicadoException("Ya existe una provincia con ese nombre")` | El service rechaza el nombre | Vuelve al formulario con el mensaje del service junto al campo y el nombre tipeado conservado. |
 | **CP-PRC-16** | País elegido inexistente | `idPais: 99`. El service lanza `RecursoNoEncontradoException("No existe el país indicado")` | El país ya no existe | Vuelve al formulario y muestra el mensaje junto al campo país. |

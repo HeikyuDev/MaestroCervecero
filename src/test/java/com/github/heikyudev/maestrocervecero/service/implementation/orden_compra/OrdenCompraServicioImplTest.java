@@ -635,7 +635,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado Registrado asociado; corresponde anularla en su lugar");
+                .hasMessage("No se puede finalizar la orden de compra porque no tiene ningún ingreso de insumo en estado Registrado asociado: corresponde anularla en su lugar");
 
         verify(ordenCompraRepository, never()).save(any());
     }

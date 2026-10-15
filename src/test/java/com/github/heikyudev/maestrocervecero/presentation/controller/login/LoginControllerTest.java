@@ -65,9 +65,9 @@ class LoginControllerTest {
         mockMvc.perform(get("/login").param("timeout", ""))
                 .andExpect(status().isOk())
                 .andExpect(view().name("login"))
-                .andExpect(model().attribute("mensaje", "Su sesión venció por inactividad, inicie sesión nuevamente"))
+                .andExpect(model().attribute("mensaje", "Su sesión venció por inactividad: inicie sesión nuevamente"))
                 .andExpect(model().attribute("tipo", "warning"))
-                .andExpect(content().string(containsString("Su sesión venció por inactividad, inicie sesión nuevamente")))
+                .andExpect(content().string(containsString("Su sesión venció por inactividad: inicie sesión nuevamente")))
                 .andExpect(content().string(containsString("bi-exclamation-triangle-fill")));
     }
 
