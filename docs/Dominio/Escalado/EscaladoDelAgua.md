@@ -176,8 +176,8 @@ El agua de lavado no puede ser negativa: si ${V}_{pre-hervor}-{V}_{most{o}_{}ext
 4. Agua total a preparar:  
    18.19 + 16.21 = 34.40 L (con más decimales: 18.1857 + 16.2096 = 34.3952 L)
 
-## Datos con los que se escala un lote iniciado
+## Datos con los que se escala un lote
 
-Al iniciar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan el espacio muerto del macerador, la pérdida por trub y la evaporación de la olla de hervor, y la masa de malta escalada (con los datos de la malta y del macerador). Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
+Al registrar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan el espacio muerto del macerador, la pérdida por trub y la evaporación de la olla de hervor, y la masa de malta escalada (con los datos de la malta y del macerador). Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
 
-Un lote Pendiente todavía no tiene instantánea y se calcula con los valores vigentes. Un lote iniciado antes de que existiera la instantánea tampoco la tiene y se calcula con los valores vigentes.
+Todo cálculo del lote, desde su registro, usa la instantánea: también el de un lote Pendiente. Un lote registrado sin instantánea se calcula con los valores vigentes.

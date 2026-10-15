@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Instantánea de los datos con los que se escaló un lote, tomada al iniciarlo: los parámetros de sus cuatro equipos y,
+ * Instantánea de los datos con los que se escaló un lote, tomada al registrar el lote: los parámetros de sus cuatro equipos y,
  * en {@link #insumos}, los de cada insumo de su receta. Una vez tomada, las cantidades del lote no cambian aunque
  * después se modifiquen los equipos o los insumos.
  */
@@ -65,7 +65,7 @@ public class EscaladoLoteEntity extends AuditableEntity<String> {
      * Busca los parámetros con los que se escaló un insumo del lote.
      *
      * @param idInsumo El ID del insumo.
-     * @return Los parámetros del insumo guardados al iniciar el lote.
+     * @return Los parámetros del insumo guardados al registrar el lote.
      * @throws ReglaNegocioException Si el escalado del lote no guardó parámetros de ese insumo.
      */
     public EscaladoLoteInsumoEntity buscarInsumo(Long idInsumo) {

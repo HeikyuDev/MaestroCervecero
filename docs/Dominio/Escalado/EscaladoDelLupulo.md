@@ -135,8 +135,8 @@ $Gramo{s}_{i}\ =\ Cantida{d}_{i\ base}\ ×\ ({V}_{obj}\ /\ {V}_{base})$
 8. Lúpulo C (DRY HOP, escalado lineal):   
    $15\ ×\ (100\ /\ 20)\ =\ 15\ ×\ 5\ =\ 75\ g$
 
-## Datos con los que se escala un lote iniciado
+## Datos con los que se escala un lote
 
-Al iniciar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan los ácidos alfa y el formato de cada lúpulo. Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
+Al registrar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan los ácidos alfa y el formato de cada lúpulo. Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
 
-Un lote Pendiente todavía no tiene instantánea y se calcula con los valores vigentes. Un lote iniciado antes de que existiera la instantánea tampoco la tiene y se calcula con los valores vigentes.
+Todo cálculo del lote, desde su registro, usa la instantánea: también el de un lote Pendiente. Un lote registrado sin instantánea se calcula con los valores vigentes.

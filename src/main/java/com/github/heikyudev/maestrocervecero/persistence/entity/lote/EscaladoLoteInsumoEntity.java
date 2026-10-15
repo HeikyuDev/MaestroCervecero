@@ -8,7 +8,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 /**
- * Parámetros con los que se escaló un insumo de un lote, guardados al iniciarlo. Solo se completan los datos del tipo
+ * Parámetros con los que se escaló un insumo de un lote, guardados al registrar el lote. Solo se completan los datos del tipo
  * de insumo: el extracto potencial para una malta; los ácidos alfa y el formato para un lúpulo; el tipo y las células
  * por gramo para una levadura.
  */

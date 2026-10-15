@@ -25,9 +25,8 @@ import java.util.List;
  * vez de duplicarse.
  * </p>
  * <p>
- * Si el lote ya se inició, el cálculo usa la instantánea del escalado guardada al iniciarlo ({@link LoteEntity#getEscaladoLote()}):
- * los parámetros del macerador y de cada insumo salen de ella y no cambian aunque después se modifiquen. Si el lote no tiene
- * instantánea (está Pendiente, o se inició antes de que existiera), el cálculo usa los valores vigentes.
+ * Si el lote tiene instantánea del escalado, guardada al registrarlo ({@link LoteEntity#getEscaladoLote()}), los parámetros del macerador y de cada insumo salen de ella y no cambian aunque después se modifiquen. Si el lote no tiene
+ * instantánea (se registró sin ella), el cálculo usa los valores vigentes.
  * </p>
  */
 public interface IEscaladoInsumoServicio {
@@ -48,7 +47,7 @@ public interface IEscaladoInsumoServicio {
     /**
      * Calcula, para cada malta de la receta del lote, la masa escalada necesaria (ver
      * docs/Dominio/Escalado/EscaladoDeMalta.md), con los datos del escalado del lote: los de su instantánea si el lote
-     * ya se inició (ver {@link #capturarEscalado}) y, si no, los vigentes de la malta y del macerador de la etapa de
+     * la tiene (ver {@link #capturarEscalado}) y, si no, los vigentes de la malta y del macerador de la etapa de
      * Maceración.
      *
      * @param lote El lote a escalar.
@@ -59,7 +58,7 @@ public interface IEscaladoInsumoServicio {
 
     /**
      * Toma la instantánea del escalado de un lote: los parámetros de sus cuatro equipos y los de cada malta, lúpulo y
-     * levadura de la receta, tal como están en este momento. No guarda nada: quien la toma al iniciar el lote la
+     * levadura de la receta, tal como están en este momento. No guarda nada: quien la toma al registrar el lote la
      * persiste y la asocia al lote.
      *
      * @param versionReceta La versión de receta del lote.

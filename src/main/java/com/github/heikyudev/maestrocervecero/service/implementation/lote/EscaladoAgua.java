@@ -38,7 +38,7 @@ public final class EscaladoAgua {
 
     /**
      * Igual que {@link #calcularVolumenPreHervor(double, OllaHervorEntity, VersionRecetaEntity)}, con la pérdida por trub
-     * y la evaporación de la olla como valores (los de su instantánea de escalado, si el lote ya se inició).
+     * y la evaporación de la olla como valores (los de su instantánea de escalado, si el lote tiene una).
      */
     public static double calcularVolumenPreHervor(double volumenObjetivo, double perdidaPorTrub, double evaporacion, VersionRecetaEntity versionReceta) {
         double horasHervor = versionReceta.getDuracionHervido() / MINUTOS_POR_HORA;
@@ -91,7 +91,7 @@ public final class EscaladoAgua {
     /**
      * Igual que {@link #calcular(double, double, MaceradorEntity, OllaHervorEntity, VersionRecetaEntity)}, con el espacio
      * muerto del macerador y la pérdida por trub y la evaporación de la olla como valores (los de su instantánea de
-     * escalado, si el lote ya se inició).
+     * escalado, si el lote tiene una).
      */
     public static VolumenesAgua calcular(double volumenObjetivo, double masaMalta, double espacioMuerto, double perdidaPorTrub, double evaporacion, VersionRecetaEntity versionReceta) {
         double volumenPreHervor = calcularVolumenPreHervor(volumenObjetivo, perdidaPorTrub, evaporacion, versionReceta);

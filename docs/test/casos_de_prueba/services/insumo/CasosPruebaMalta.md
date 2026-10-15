@@ -41,7 +41,7 @@ El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Si falta, el me
 
 ### 4. `modificarMalta(Long id, MaltaFormDTO maltaFormDTO)`
 
-Orden de los chequeos: nombre obligatorio y largo, extracto potencial, existencia de la malta, nombre duplicado entre las maltas activas y persistencia. El nombre, el tipo y el extracto potencial son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al iniciarlos (ver `CasosPruebaLote.md`, método `iniciarLote`) y no cambia.
+Orden de los chequeos: nombre obligatorio y largo, extracto potencial, existencia de la malta, nombre duplicado entre las maltas activas y persistencia. El nombre, el tipo y el extracto potencial son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al registrarlos (ver `CasosPruebaLote.md`, método `registrarLote`) y no cambia.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|

@@ -414,6 +414,12 @@ public class LoteServicioImpl implements ILoteServicio {
         LocalDate fechaInicioEstimada = calcularFechaInicioEstimada(fermentador, planificacionProduccion);
         LocalDate fechaFinalizacionEstimada = calcularFechaFinalizacionEstimada(fechaInicioEstimada, volumenObjetivo, molino, masaMaltaEscalada, versionReceta);
 
+        // 9 bis. Guardar la instantánea del escalado con los parámetros de los equipos elegidos y de los insumos de la
+        //    receta: desde el registro todo cálculo del lote (cantidades requeridas, agua, topes de capacidad) usa estos
+        //    valores y no los vigentes, así que editar un equipo o un insumo después no cambia las cantidades del lote
+        EscaladoLoteEntity escalado = escaladoInsumoServicio.capturarEscalado(versionReceta, molino, macerador, ollaHervor, fermentador);
+        escaladoLoteRepository.save(escalado);
+
         // 10. Construir el lote y sus 6 etapas (todas en PENDIENTE), y persistir
         LoteEntity loteEntity = LoteEntity.builder()
                 .identificadorInterno(identificadorInterno)
@@ -422,6 +428,7 @@ public class LoteServicioImpl implements ILoteServicio {
                 .fechaInicioEstimada(fechaInicioEstimada)
                 .fechaFinalizacionEstimada(fechaFinalizacionEstimada)
                 .planificacionProduccion(planificacionProduccion)
+                .escaladoLote(escalado)
                 .build();
 
         loteEntity.setEtapas(crearEtapasPendientes(loteEntity, molino, macerador, ollaHervor, fermentador));
@@ -460,14 +467,6 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 3. Bloquear y validar que el equipamiento asociado al lote se encuentre DISPONIBLE
         EquipamientoDelLote equipamiento = bloquearYValidarEquipamientoDisponible(lote);
-
-        // 3 bis. Guardar la instantánea del escalado: los parámetros de los equipos recién bloqueados y de los insumos de
-        //    la receta. Desde acá todo cálculo del lote (cantidades requeridas, agua, topes de capacidad) usa estos
-        //    valores y no los vigentes, así que editar un equipo o un insumo después no cambia las cantidades del lote
-        EscaladoLoteEntity escalado = escaladoInsumoServicio.capturarEscalado(lote.getPlanificacionProduccion().getVersionReceta(),
-                equipamiento.molino(), equipamiento.macerador(), equipamiento.ollaHervor(), equipamiento.fermentador());
-        escaladoLoteRepository.save(escalado);
-        lote.setEscaladoLote(escalado);
 
         // 4. Calcular la cantidad requerida de cada insumo, escalada al volumen objetivo del lote,
         //    y asociarla a la etapa donde efectivamente se va a usar: Molienda para la malta,
@@ -986,7 +985,7 @@ public class LoteServicioImpl implements ILoteServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
         // 2. Resolver los parámetros del macerador y de la olla de hervor, y la masa de malta escalada con ellos. Si el lote
-        //    ya se inició son los de su instantánea de escalado; si no, los vigentes de sus equipos
+        //    tiene instantánea de escalado son los de ella; si no, los vigentes de sus equipos
         VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
         EscaladoLoteEntity escalado = lote.getEscaladoLote();
         double espacioMuerto;

@@ -130,8 +130,8 @@ $Gramo{s}_{i}\ =\ (Celulas_i_millones\ x\ 1.000.000)\ /\ Celulas_por_gram{o}_{i}
    $Gramo{s}_{A}\ =\ (127.500\ x\ 1.000.000)\ /\ (18.000\ x\ 1.000.000)\ =\ 127.500\ /\ 18.000\ ≈\ 7,08\ g\ $  
    $Gramo{s}_{B}\ =\ (85.000\ x\ 1.000.000)\ /\ (20.000\ x\ 1.000.000)\ =\ 85.000\ /\ 20.000\ =\ 4,25\ g$
 
-## Datos con los que se escala un lote iniciado
+## Datos con los que se escala un lote
 
-Al iniciar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan el tipo y la cantidad de células por gramo de cada levadura. Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
+Al registrar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan el tipo y la cantidad de células por gramo de cada levadura. Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
 
-Un lote Pendiente todavía no tiene instantánea y se calcula con los valores vigentes. Un lote iniciado antes de que existiera la instantánea tampoco la tiene y se calcula con los valores vigentes.
+Todo cálculo del lote, desde su registro, usa la instantánea: también el de un lote Pendiente. Un lote registrado sin instantánea se calcula con los valores vigentes.

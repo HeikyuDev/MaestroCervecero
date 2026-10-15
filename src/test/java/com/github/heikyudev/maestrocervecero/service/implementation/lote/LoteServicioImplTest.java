@@ -3729,60 +3729,43 @@ class LoteServicioImplTest {
     // ==================== instantánea del escalado ====================
 
     @Test
-    @DisplayName("CP-EL-01: iniciarLote guarda la instantánea del escalado con los parámetros de los cuatro equipos y de cada insumo de la receta, y calcula las cantidades ya con ella")
-    void iniciarLote_debeGuardarLaInstantaneaDelEscaladoAntesDeCalcularLasCantidades() {
+    @DisplayName("CP-EL-01: registrarLote guarda la instantánea del escalado con los parámetros de los cuatro equipos elegidos y de cada insumo de la receta, y el lote queda asociado a ella")
+    void registrarLote_debeGuardarLaInstantaneaDelEscalado() {
         // === PREPARACION DE DATOS ===
-        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
-        LupuloEntity lupulo = crearLupulo(11L, "Cascade", 5.5, FormatoLupulo.PELLET);
-        LevaduraEntity levadura = crearLevadura(12L, "SafAle", TipoLevadura.ALE, 1.0E10);
-        LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
-        when(ordenCanonicoDeBloqueo.bloquearLote(1L, false)).thenReturn(lote);
-        mockearEquipamientoParaIniciar(lote);
-        List<EscaladoLoteEntity> escaladoVistoAlCalcular = new ArrayList<>();
-        doAnswer(invocacion -> {
-            escaladoVistoAlCalcular.add(((LoteEntity) invocacion.getArgument(0)).getEscaladoLote());
-            return List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), 4.0));
-        }).when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
-        stockDelInsumo(10L, List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
-        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(reservaInsumoRepository.saveAll(anyList())).thenReturn(List.of());
+        mockearEquipamientoBase();
+        mockearConfiguracionYReceta();
+        when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
+        ArgumentCaptor<LoteEntity> captorLote = ArgumentCaptor.forClass(LoteEntity.class);
+        when(loteRepository.save(captorLote.capture())).thenAnswer(inv -> inv.getArgument(0));
 
         // === EJECUCION ===
-        loteServicio.iniciarLote(1L);
+        loteServicio.registrarLote(loteFormDTOBase());
 
         // === ASSERTS ===
         ArgumentCaptor<EscaladoLoteEntity> captor = ArgumentCaptor.forClass(EscaladoLoteEntity.class);
         verify(escaladoLoteRepository).save(captor.capture());
         EscaladoLoteEntity escalado = captor.getValue();
-        assertThat(lote.getEscaladoLote()).isSameAs(escalado);
-        assertThat(escaladoVistoAlCalcular).containsExactly(escalado);
+        assertThat(captorLote.getValue().getEscaladoLote()).isSameAs(escalado);
+        assertThat(captorLote.getValue().getEstado()).isEqualTo(EstadoLote.PENDIENTE);
         assertThat(escalado.getRendimientoMolienda()).isEqualTo(5.0);
         assertThat(escalado.getEficienciaMaceracion()).isEqualTo(75.0);
         assertThat(escalado.getEspacioMuertoMacerador()).isEqualTo(5.0);
-        assertThat(escalado.getCapacidadUtilMacerador()).isEqualTo(100.0);
+        assertThat(escalado.getCapacidadUtilMacerador()).isEqualTo(25.0);
         assertThat(escalado.getPerdidaPorTrubOlla()).isEqualTo(2.0);
         assertThat(escalado.getEvaporacionOlla()).isEqualTo(3.0);
-        assertThat(escalado.getCapacidadUtilOlla()).isEqualTo(200.0);
-        assertThat(escalado.getCapacidadUtilFermentador()).isEqualTo(150.0);
-        assertThat(escalado.getInsumos()).hasSize(3);
-        assertThat(escalado.buscarInsumo(10L).getPotencialExtracto()).isEqualTo(75.0);
-        assertThat(escalado.buscarInsumo(11L).getAa()).isEqualTo(5.5);
-        assertThat(escalado.buscarInsumo(11L).getFormato()).isEqualTo(FormatoLupulo.PELLET);
-        assertThat(escalado.buscarInsumo(12L).getTipoLevadura()).isEqualTo(TipoLevadura.ALE);
-        assertThat(escalado.buscarInsumo(12L).getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
+        assertThat(escalado.getCapacidadUtilOlla()).isEqualTo(30.0);
+        assertThat(escalado.getCapacidadUtilFermentador()).isEqualTo(20.0);
+        assertThat(escalado.getInsumos()).hasSize(2);
+        assertThat(escalado.buscarInsumo(1L).getPotencialExtracto()).isEqualTo(80.0);
+        assertThat(escalado.buscarInsumo(2L).getPotencialExtracto()).isEqualTo(74.0);
     }
 
     @Test
-    @DisplayName("CP-EL-02: iniciarLote no guarda ninguna instantánea cuando el lote no está Pendiente")
-    void iniciarLote_noDebeGuardarInstantaneaSiElLoteNoEstaPendiente() {
-        // === PREPARACION DE DATOS ===
-        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
-        when(ordenCanonicoDeBloqueo.bloquearLote(1L, false)).thenReturn(lote);
-
+    @DisplayName("CP-EL-02: registrarLote no guarda ninguna instantánea cuando una validación rechaza el registro")
+    void registrarLote_noDebeGuardarInstantaneaSiSeRechazaElRegistro() {
         // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> loteServicio.iniciarLote(1L)).isInstanceOf(ReglaNegocioException.class);
+        assertThatThrownBy(() -> loteServicio.registrarLote(LoteFormDTO.builder().build())).isInstanceOf(ReglaNegocioException.class);
         verifyNoInteractions(escaladoLoteRepository);
-        assertThat(lote.getEscaladoLote()).isNull();
     }
 
     @Test
@@ -3804,10 +3787,11 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-EL-04: sin instantánea (lote Pendiente), calcularAguaDelLote usa los valores vigentes del macerador, la olla de hervor y la malta")
-    void calcularAguaDelLote_sinInstantaneaDebeUsarLosValoresVigentes() {
+    @DisplayName("CP-EL-04: un lote Pendiente con instantánea también calcula el agua con ella, aunque después se editen los equipos y las maltas")
+    void calcularAguaDelLote_loteConInstantaneaPendienteNoDebeCambiarAlEditar() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        lote.setEscaladoLote(capturarEscalado(lote));
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
         AguaLoteResponseDTO antes = loteServicio.calcularAguaDelLote(1L);
 
@@ -3816,13 +3800,13 @@ class LoteServicioImplTest {
         AguaLoteResponseDTO despues = loteServicio.calcularAguaDelLote(1L);
 
         // === ASSERTS ===
-        assertThat(despues.getAguaTotal()).isNotEqualTo(antes.getAguaTotal());
-        assertThat(despues.getVolumenPreHervor()).isEqualTo(30.0);
+        assertThat(despues).usingRecursiveComparison().isEqualTo(antes);
+        assertThat(despues.getVolumenPreHervor()).isEqualTo(25.0);
     }
 
     @Test
-    @DisplayName("CP-EL-05: un lote en ejecución sin instantánea (iniciado antes de que existiera) calcula el agua con los valores vigentes")
-    void calcularAguaDelLote_loteEnEjecucionSinInstantaneaDebeUsarLosValoresVigentes() {
+    @DisplayName("CP-EL-05: un lote registrado sin instantánea calcula el agua con los valores vigentes de sus equipos y maltas")
+    void calcularAguaDelLote_loteSinInstantaneaDebeUsarLosValoresVigentes() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
         when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
@@ -3835,6 +3819,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         assertThat(lote.getEscaladoLote()).isNull();
         assertThat(despues.getAguaTotal()).isNotEqualTo(antes.getAguaTotal());
+        assertThat(despues.getVolumenPreHervor()).isEqualTo(30.0);
     }
 
     /** Toma la instantánea del lote con los equipos y la receta que tiene en este momento. */

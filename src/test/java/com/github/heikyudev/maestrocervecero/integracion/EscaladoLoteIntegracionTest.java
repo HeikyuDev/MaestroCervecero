@@ -12,9 +12,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
-import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleLevaduraEntity;
@@ -38,6 +35,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMalt
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.receta.IRecetaRepository;
+import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.LoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEscaladoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.RequerimientoInsumo;
@@ -47,7 +45,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -90,13 +87,13 @@ class EscaladoLoteIntegracionTest extends IntegracionBaseTest {
     private ILoteInsumoRepository loteInsumoRepository;
 
     @Test
-    @DisplayName("CP-EIN-01: iniciarLote guarda la instantánea del escalado en la base y las cantidades del lote no cambian al editar el macerador y los insumos")
-    void iniciarLote_debeGuardarLaInstantaneaYMantenerLasCantidades() {
+    @DisplayName("CP-EIN-01: registrarLote guarda la instantánea del escalado en la base y las cantidades del lote no cambian al editar el macerador y los insumos, ni al iniciarlo")
+    void registrarLote_debeGuardarLaInstantaneaYMantenerLasCantidades() {
         // === PREPARACION DE DATOS ===
         Long idLote = crearLotePendiente();
 
         // === EJECUCION ===
-        loteServicio.iniciarLote(idLote);
+        // El lote se registró en crearLotePendiente
 
         // === ASSERTS ===
         assertThat(jdbcTemplate.queryForObject("select count(*) from escalado_lote", Integer.class)).isEqualTo(1);
@@ -120,6 +117,11 @@ class EscaladoLoteIntegracionTest extends IntegracionBaseTest {
         List<Double> antes = cantidadesRequeridas(idLote);
         editarMaceradorEInsumos();
         assertThat(cantidadesRequeridas(idLote)).isEqualTo(antes);
+        assertThat(jdbcTemplate.queryForObject("select eficiencia_maceracion from escalado_lote", Double.class)).isEqualTo(75.0);
+
+        // Iniciar el lote no modifica la instantánea
+        loteServicio.iniciarLote(idLote);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from escalado_lote", Integer.class)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject("select eficiencia_maceracion from escalado_lote", Double.class)).isEqualTo(75.0);
     }
 
@@ -186,20 +188,8 @@ class EscaladoLoteIntegracionTest extends IntegracionBaseTest {
         FermentadorEntity fermentador = fermentadorRepository.save(FermentadorEntity.builder().identificadorInterno("FER-01").estadoOperativo(EstadoOperativo.DISPONIBLE)
                 .usosMaximosAntesMantenimiento(100).estado(Estado.ACTIVO).capacidadTotal(160.0).capacidadUtil(150.0).build());
 
-        LoteEntity lote = LoteEntity.builder().identificadorInterno("IPA_TEST-R1-1").volumenObjetivo(20.0).estado(EstadoLote.PENDIENTE)
-                .fechaInicioEstimada(LocalDate.now()).fechaFinalizacionEstimada(LocalDate.now().plusDays(25)).planificacionProduccion(planificacion).build();
-        List<EtapaLoteEntity> etapas = new ArrayList<>();
-        etapas.add(etapa(lote, TipoEtapa.MOLIENDA, molino));
-        etapas.add(etapa(lote, TipoEtapa.MACERACION, macerador));
-        etapas.add(etapa(lote, TipoEtapa.HERVIDO, olla));
-        etapas.add(etapa(lote, TipoEtapa.FERMENTACION, fermentador));
-        etapas.add(etapa(lote, TipoEtapa.MADURACION, fermentador));
-        etapas.add(etapa(lote, TipoEtapa.ENVASADO, fermentador));
-        lote.setEtapas(etapas);
-        return loteRepository.save(lote).getId();
+        return loteServicio.registrarLote(LoteFormDTO.builder().volumenObjetivo(20.0).idPlanificacionProduccion(planificacion.getId())
+                .idMolino(molino.getId()).idMacerador(macerador.getId()).idOllaHervor(olla.getId()).idFermentador(fermentador.getId()).build()).getId();
     }
 
-    private static EtapaLoteEntity etapa(LoteEntity lote, TipoEtapa tipo, com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity equipamiento) {
-        return EtapaLoteEntity.builder().etapa(tipo).estado(EstadoEtapaLote.PENDIENTE).equipamiento(equipamiento).lote(lote).build();
-    }
 }

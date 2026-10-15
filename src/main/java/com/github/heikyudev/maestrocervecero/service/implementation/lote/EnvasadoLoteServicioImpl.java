@@ -266,7 +266,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     }
 
     /**
-     * Resuelve la capacidad útil del fermentador del lote: la de la instantánea de escalado tomada al iniciar el lote
+     * Resuelve la capacidad útil del fermentador del lote: la de la instantánea de escalado tomada al registrar el lote
      * y, si el lote no tiene instantánea, la vigente del fermentador.
      */
     private double obtenerCapacidadUtilFermentador(EtapaLoteEntity etapaEnvasado, LoteEntity lote) {

@@ -53,7 +53,7 @@ La cantidad de células viables por gramo debe estar entre 6.000.000.000 y 20.00
 
 ### 4. `modificarLevadura(Long id, LevaduraFormDTO formDTO)`
 
-Orden de los chequeos: nombre obligatorio y largo, cantidad de células por gramo, existencia de la levadura, nombre duplicado entre las levaduras activas y persistencia. El nombre, el tipo y la cantidad de células por gramo son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al iniciarlos (ver `CasosPruebaLote.md`, método `iniciarLote`) y no cambia.
+Orden de los chequeos: nombre obligatorio y largo, cantidad de células por gramo, existencia de la levadura, nombre duplicado entre las levaduras activas y persistencia. El nombre, el tipo y la cantidad de células por gramo son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al registrarlos (ver `CasosPruebaLote.md`, método `registrarLote`) y no cambia.
 
 | ID | Nombre del Caso | Datos de Entrada (Escenario) | Condición Evaluada | Resultado Esperado |
 | --- | --- | --- | --- | --- |

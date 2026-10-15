@@ -45,7 +45,7 @@ Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25% (el límite in
 
 ### 4. `modificarLupulo(Long id, LupuloFormDTO formDTO)`
 
-Orden de los chequeos: nombre obligatorio y largo, ácidos alfa, existencia del lúpulo, nombre duplicado entre los lúpulos activos y persistencia. El nombre, los ácidos alfa y el formato son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al iniciarlos (ver `CasosPruebaLote.md`, método `iniciarLote`) y no cambia.
+Orden de los chequeos: nombre obligatorio y largo, ácidos alfa, existencia del lúpulo, nombre duplicado entre los lúpulos activos y persistencia. El nombre, los ácidos alfa y el formato son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al registrarlos (ver `CasosPruebaLote.md`, método `registrarLote`) y no cambia.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
