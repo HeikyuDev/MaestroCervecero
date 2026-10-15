@@ -110,16 +110,16 @@ Lotes registrados, con el último registrado arriba
 
 +- Resultados --------------------------------------------------------------------------------------------------+
 | Código         Planificación         Fermentador  Estado        Etapa    Inicio              Fin                 Acciones          |
-| PALE_ALE-R7-3  Plan #7 - Pale Ale    F-01         En ejecución  Hervido  Estimado 01/07/2027  Estimado 05/07/2027  [Gestionar lote] |
+| PALE_ALE-R7-3  Plan #7 - Pale Ale    F-01         En ejecución  Hervido  Estimado 01/07/2027  Estimado 05/07/2027  [engranaje] |
 |                                                                          Real     01/07/2027  Real     -                           |
-| STOUT-R8-1     Plan #8 - Stout       F-02         Pendiente     -        Estimado 12/07/2027  Estimado 20/07/2027  [Gestionar lote] |
+| STOUT-R8-1     Plan #8 - Stout       F-02         Pendiente     -        Estimado 12/07/2027  Estimado 20/07/2027  [engranaje] |
 |                                                                          Real     -           Real     -                           |
 | 45 lotes · Página 1 de 3                                                          [< Anterior] [Siguiente >]  |
 +---------------------------------------------------------------------------------------------------------------+
 * "Nuevo lote" solo lo ve el gerente de producción.
 ```
 
-- Abrir un lote se hace con el botón "Gestionar lote" (sólido ámbar, ícono `bi-gear` y texto), que cierra cada fila en la última columna, "Acciones". La cabecera y la celda de esa columna se alinean a la derecha y el botón queda dentro de la columna. La fila no es clickeable y el código es texto.
+- Abrir un lote se hace con el botón de ícono `bi-gear` con tooltip "Gestionar lote" (igual que los botones de acción de las otras listas), que cierra cada fila en la última columna, "Acciones". La cabecera y la celda de esa columna se alinean a la derecha y el botón queda dentro de la columna. La fila no es clickeable y el código es texto.
 
 - Criterios opcionales y combinables; "Planificación" y "Fermentador" son selectores de entidad (campo en blanco con ícono de lista que abre un buscador en modal, nunca un desplegable) con botón para quitar la selección. Los buscadores requieren `LOTE_CONSULTAR`: los usan el gerente y el operario. El buscador de planificaciones filtra por "Receta" y ofrece planificaciones de cualquier estado; el de fermentadores, por "Identificador", "Estado operativo" (desplegable del enum) e "Incluir dados de baja" (casilla desmarcada por defecto, que suma los fermentadores dados de baja que tienen lotes para poder filtrar su historial); el elegido se muestra en el campo, con "(dado de baja)" si corresponde. Solo "Estado" es un desplegable, porque es un enum chico. Un parámetro inválido o inexistente en la URL se ignora con un aviso amarillo y la lista se muestra sin ese filtro.
 - Páginas de 20. Las cuatro fechas van en dos columnas, "Inicio" y "Fin"; cada celda tiene dos líneas, "Estimado" y "Real", con la etiqueta en gris chico; la fecha real que todavía no existe se muestra como "-". La tabla cabe en un ancho de 1280 px sin desplazamiento horizontal. La planificación se muestra como "Plan #N - Nombre". Los textos largos (código, planificación, fermentador) se acortan con puntos suspensivos dentro de un ancho máximo y su texto completo se ve en un tooltip flotante al apuntarlos o enfocarlos.

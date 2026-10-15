@@ -194,7 +194,8 @@ class LoteControllerTest {
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Nuevo lote")
                 .contains("href=\"/lotes/12\"").contains("overflow-x-auto");
         assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
-        assertThat(texto(html)).contains("Acciones", "Gestionar lote");
+        assertThat(texto(html)).contains("Acciones");
+        assertThat(html).contains("title=\"Gestionar lote\"").contains("aria-label=\"Gestionar lote\"");
     }
 
     @Test
@@ -2678,7 +2679,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón Gestionar lote (sólido ámbar, ícono bi-gear, sin hover como único indicio) hacia el detalle, y la cabecera y el botón quedan alineados a la derecha dentro de la columna; la fila no es clickeable y el código es texto")
+    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón de ícono Gestionar lote (bi-gear, con tooltip, igual que los botones de las otras listas) hacia el detalle, y la cabecera y el botón quedan alineados a la derecha dentro de la columna; la fila no es clickeable y el código es texto")
     void listar_cadaFilaTieneElBotonGestionarLote() throws Exception {
         // Arrange
         LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
@@ -2691,10 +2692,10 @@ class LoteControllerTest {
         // Assert
         Matcher boton = Pattern.compile("<a[^>]*data-gestionar-lote[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
         assertThat(boton.find()).isTrue();
-        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear").contains("bg-amber-500").contains("text-white");
+        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("title=\"Gestionar lote\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear").contains("hover:text-amber-600");
         assertThat(html).doesNotContain("sticky right-0").contains("justify-end");
         assertThat(html.substring(html.indexOf("<thead"), html.indexOf("</thead>"))).contains("text-right");
-        assertThat(texto(boton.group())).isEqualTo("Gestionar lote");
+        assertThat(texto(boton.group())).isEmpty();
         assertThat(boton.find()).isFalse();
         assertThat(celdas(html, "PALE_ALE-R7-3").get(0)).isEqualTo("PALE_ALE-R7-3");
         assertThat(texto(html.substring(html.indexOf("<thead"), html.indexOf("</thead>")))).endsWith("Acciones");

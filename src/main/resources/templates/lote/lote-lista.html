@@ -98,11 +98,11 @@
                         <div data-fecha-fin-real><span class="inline-block w-[3.25rem] text-xs text-slate-400">Real</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacion})}"></th:block></div>
                     </div>
                 </td>
-                <td class="px-1.5 py-3">
-                    <div class="flex items-center justify-end">
-                        <a th:href="@{/lotes/{id}(id=${l.id})}" data-gestionar-lote aria-label="Gestionar lote"
-                           class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-                            <i class="bi bi-gear"></i> Gestionar lote
+                <td class="px-2 py-3">
+                    <div class="flex items-center justify-end gap-0.5">
+                        <a th:href="@{/lotes/{id}(id=${l.id})}" data-gestionar-lote title="Gestionar lote" aria-label="Gestionar lote"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-gear text-lg"></i>
                         </a>
                     </div>
                 </td>
