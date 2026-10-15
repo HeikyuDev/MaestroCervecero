@@ -33,8 +33,16 @@ public final class EscaladoAgua {
      * objetivo la pérdida por trub y la evaporación estimada durante el hervor (Paso 2).
      */
     public static double calcularVolumenPreHervor(double volumenObjetivo, OllaHervorEntity ollaHervor, VersionRecetaEntity versionReceta) {
+        return calcularVolumenPreHervor(volumenObjetivo, ollaHervor.getPerdidaPorTrub(), ollaHervor.getEvaporacion(), versionReceta);
+    }
+
+    /**
+     * Igual que {@link #calcularVolumenPreHervor(double, OllaHervorEntity, VersionRecetaEntity)}, con la pérdida por trub
+     * y la evaporación de la olla como valores (los de su instantánea de escalado, si el lote ya se inició).
+     */
+    public static double calcularVolumenPreHervor(double volumenObjetivo, double perdidaPorTrub, double evaporacion, VersionRecetaEntity versionReceta) {
         double horasHervor = versionReceta.getDuracionHervido() / MINUTOS_POR_HORA;
-        return volumenObjetivo + ollaHervor.getPerdidaPorTrub() + (ollaHervor.getEvaporacion() * horasHervor);
+        return volumenObjetivo + perdidaPorTrub + (evaporacion * horasHervor);
     }
 
     /**
@@ -42,7 +50,12 @@ public final class EscaladoAgua {
      * agua retenida en el espacio muerto del macerador (Paso 3).
      */
     public static double calcularAguaMacerado(double masaMalta, MaceradorEntity macerador, VersionRecetaEntity versionReceta) {
-        return (masaMalta * versionReceta.getRelacionDeEmpaste()) + macerador.getEspacioMuerto();
+        return calcularAguaMacerado(masaMalta, macerador.getEspacioMuerto(), versionReceta);
+    }
+
+    /** Igual que {@link #calcularAguaMacerado(double, MaceradorEntity, VersionRecetaEntity)}, con el espacio muerto como valor. */
+    public static double calcularAguaMacerado(double masaMalta, double espacioMuerto, VersionRecetaEntity versionReceta) {
+        return (masaMalta * versionReceta.getRelacionDeEmpaste()) + espacioMuerto;
     }
 
     /**
@@ -72,10 +85,19 @@ public final class EscaladoAgua {
      *                               equipo con datos que producen una masa de malta infinita).
      */
     public static VolumenesAgua calcular(double volumenObjetivo, double masaMalta, MaceradorEntity macerador, OllaHervorEntity ollaHervor, VersionRecetaEntity versionReceta) {
-        double volumenPreHervor = calcularVolumenPreHervor(volumenObjetivo, ollaHervor, versionReceta);
-        double aguaMacerado = calcularAguaMacerado(masaMalta, macerador, versionReceta);
+        return calcular(volumenObjetivo, masaMalta, macerador.getEspacioMuerto(), ollaHervor.getPerdidaPorTrub(), ollaHervor.getEvaporacion(), versionReceta);
+    }
+
+    /**
+     * Igual que {@link #calcular(double, double, MaceradorEntity, OllaHervorEntity, VersionRecetaEntity)}, con el espacio
+     * muerto del macerador y la pérdida por trub y la evaporación de la olla como valores (los de su instantánea de
+     * escalado, si el lote ya se inició).
+     */
+    public static VolumenesAgua calcular(double volumenObjetivo, double masaMalta, double espacioMuerto, double perdidaPorTrub, double evaporacion, VersionRecetaEntity versionReceta) {
+        double volumenPreHervor = calcularVolumenPreHervor(volumenObjetivo, perdidaPorTrub, evaporacion, versionReceta);
+        double aguaMacerado = calcularAguaMacerado(masaMalta, espacioMuerto, versionReceta);
         double perdidaPorBagazo = masaMalta * ABSORCION_GRANO_L_POR_KG;
-        double mostoExtraido = aguaMacerado - macerador.getEspacioMuerto() - perdidaPorBagazo;
+        double mostoExtraido = aguaMacerado - espacioMuerto - perdidaPorBagazo;
         double aguaLavadoSinLimite = volumenPreHervor - mostoExtraido;
 
         if (!Double.isFinite(volumenPreHervor) || !Double.isFinite(aguaMacerado) || !Double.isFinite(mostoExtraido) || !Double.isFinite(aguaLavadoSinLimite)) {
@@ -98,7 +120,7 @@ public final class EscaladoAgua {
         double aguaTotal = Redondeo.redondear(aguaMacerado + Math.max(0.0, aguaLavadoSinLimite));
 
         return new VolumenesAgua(volumenPreHervorRedondeado, aguaMaceradoRedondeada, aguaLavado, aguaTotal,
-                Redondeo.redondear(aguaMacerado - macerador.getEspacioMuerto()), Redondeo.redondear(macerador.getEspacioMuerto()),
+                Redondeo.redondear(aguaMacerado - espacioMuerto), Redondeo.redondear(espacioMuerto),
                 ABSORCION_GRANO_L_POR_KG, Redondeo.redondear(perdidaPorBagazo), Redondeo.redondear(mostoExtraido),
                 List.copyOf(advertencias));
     }

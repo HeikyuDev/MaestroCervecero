@@ -15,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraE
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
@@ -43,6 +44,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEscaladoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
@@ -106,6 +108,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -148,6 +151,8 @@ class LoteServicioImplTest {
     private IConsumoInsumoServicio consumoInsumoServicio;
     @Mock
     private IEnvasadoLoteRepository envasadoLoteRepository;
+    @Mock
+    private IEscaladoLoteRepository escaladoLoteRepository;
     @Mock
     private ICostoDirectoAdicionalRepository costoDirectoAdicionalRepository;
     @Mock
@@ -3719,6 +3724,138 @@ class LoteServicioImplTest {
         assertThatThrownBy(() -> loteServicio.calcularAguaDelLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("No se puede calcular el agua del lote porque los datos de la receta o de los equipos producen un valor no válido");
+    }
+
+    // ==================== instantánea del escalado ====================
+
+    @Test
+    @DisplayName("CP-EL-01: iniciarLote guarda la instantánea del escalado con los parámetros de los cuatro equipos y de cada insumo de la receta, y calcula las cantidades ya con ella")
+    void iniciarLote_debeGuardarLaInstantaneaDelEscaladoAntesDeCalcularLasCantidades() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = crearMalta(10L, "MaltaB", 75);
+        LupuloEntity lupulo = crearLupulo(11L, "Cascade", 5.5, FormatoLupulo.PELLET);
+        LevaduraEntity levadura = crearLevadura(12L, "SafAle", TipoLevadura.ALE, 1.0E10);
+        LoteEntity lote = crearLoteConRecetaSimple(malta, lupulo, levadura);
+        when(ordenCanonicoDeBloqueo.bloquearLote(1L, false)).thenReturn(lote);
+        mockearEquipamientoParaIniciar(lote);
+        List<EscaladoLoteEntity> escaladoVistoAlCalcular = new ArrayList<>();
+        doAnswer(invocacion -> {
+            escaladoVistoAlCalcular.add(((LoteEntity) invocacion.getArgument(0)).getEscaladoLote());
+            return List.of(new RequerimientoInsumo(malta, findEtapa(lote, TipoEtapa.MOLIENDA), 4.0));
+        }).when(escaladoInsumoServicio).calcularRequerimientosTotales(lote);
+        stockDelInsumo(10L, List.of(crearLoteInsumo(100L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN)));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(reservaInsumoRepository.saveAll(anyList())).thenReturn(List.of());
+
+        // === EJECUCION ===
+        loteServicio.iniciarLote(1L);
+
+        // === ASSERTS ===
+        ArgumentCaptor<EscaladoLoteEntity> captor = ArgumentCaptor.forClass(EscaladoLoteEntity.class);
+        verify(escaladoLoteRepository).save(captor.capture());
+        EscaladoLoteEntity escalado = captor.getValue();
+        assertThat(lote.getEscaladoLote()).isSameAs(escalado);
+        assertThat(escaladoVistoAlCalcular).containsExactly(escalado);
+        assertThat(escalado.getRendimientoMolienda()).isEqualTo(5.0);
+        assertThat(escalado.getEficienciaMaceracion()).isEqualTo(75.0);
+        assertThat(escalado.getEspacioMuertoMacerador()).isEqualTo(5.0);
+        assertThat(escalado.getCapacidadUtilMacerador()).isEqualTo(100.0);
+        assertThat(escalado.getPerdidaPorTrubOlla()).isEqualTo(2.0);
+        assertThat(escalado.getEvaporacionOlla()).isEqualTo(3.0);
+        assertThat(escalado.getCapacidadUtilOlla()).isEqualTo(200.0);
+        assertThat(escalado.getCapacidadUtilFermentador()).isEqualTo(150.0);
+        assertThat(escalado.getInsumos()).hasSize(3);
+        assertThat(escalado.buscarInsumo(10L).getPotencialExtracto()).isEqualTo(75.0);
+        assertThat(escalado.buscarInsumo(11L).getAa()).isEqualTo(5.5);
+        assertThat(escalado.buscarInsumo(11L).getFormato()).isEqualTo(FormatoLupulo.PELLET);
+        assertThat(escalado.buscarInsumo(12L).getTipoLevadura()).isEqualTo(TipoLevadura.ALE);
+        assertThat(escalado.buscarInsumo(12L).getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
+    }
+
+    @Test
+    @DisplayName("CP-EL-02: iniciarLote no guarda ninguna instantánea cuando el lote no está Pendiente")
+    void iniciarLote_noDebeGuardarInstantaneaSiElLoteNoEstaPendiente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(ordenCanonicoDeBloqueo.bloquearLote(1L, false)).thenReturn(lote);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> loteServicio.iniciarLote(1L)).isInstanceOf(ReglaNegocioException.class);
+        verifyNoInteractions(escaladoLoteRepository);
+        assertThat(lote.getEscaladoLote()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-EL-03: con instantánea, calcularAguaDelLote devuelve el mismo resultado aunque después se editen el macerador, la olla de hervor y la malta")
+    void calcularAguaDelLote_conInstantaneaNoDebeCambiarAlEditarEquiposEInsumos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        lote.setEscaladoLote(capturarEscalado(lote));
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        AguaLoteResponseDTO antes = loteServicio.calcularAguaDelLote(1L);
+
+        // === EJECUCION ===
+        editarEquiposYMaltasDelLote(lote);
+        AguaLoteResponseDTO despues = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(antes.getAguaTotal()).isEqualTo(34.3952);
+        assertThat(despues).usingRecursiveComparison().isEqualTo(antes);
+    }
+
+    @Test
+    @DisplayName("CP-EL-04: sin instantánea (lote Pendiente), calcularAguaDelLote usa los valores vigentes del macerador, la olla de hervor y la malta")
+    void calcularAguaDelLote_sinInstantaneaDebeUsarLosValoresVigentes() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        AguaLoteResponseDTO antes = loteServicio.calcularAguaDelLote(1L);
+
+        // === EJECUCION ===
+        editarEquiposYMaltasDelLote(lote);
+        AguaLoteResponseDTO despues = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(despues.getAguaTotal()).isNotEqualTo(antes.getAguaTotal());
+        assertThat(despues.getVolumenPreHervor()).isEqualTo(30.0);
+    }
+
+    @Test
+    @DisplayName("CP-EL-05: un lote en ejecución sin instantánea (iniciado antes de que existiera) calcula el agua con los valores vigentes")
+    void calcularAguaDelLote_loteEnEjecucionSinInstantaneaDebeUsarLosValoresVigentes() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(loteRepository.findById(1L)).thenReturn(Optional.of(lote));
+        AguaLoteResponseDTO antes = loteServicio.calcularAguaDelLote(1L);
+
+        // === EJECUCION ===
+        editarEquiposYMaltasDelLote(lote);
+        AguaLoteResponseDTO despues = loteServicio.calcularAguaDelLote(1L);
+
+        // === ASSERTS ===
+        assertThat(lote.getEscaladoLote()).isNull();
+        assertThat(despues.getAguaTotal()).isNotEqualTo(antes.getAguaTotal());
+    }
+
+    /** Toma la instantánea del lote con los equipos y la receta que tiene en este momento. */
+    private EscaladoLoteEntity capturarEscalado(LoteEntity lote) {
+        return escaladoInsumoServicio.capturarEscalado(lote.getPlanificacionProduccion().getVersionReceta(),
+                (MolinoEntity) findEtapa(lote, TipoEtapa.MOLIENDA).getEquipamiento(),
+                (MaceradorEntity) findEtapa(lote, TipoEtapa.MACERACION).getEquipamiento(),
+                (OllaHervorEntity) findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento(),
+                (FermentadorEntity) findEtapa(lote, TipoEtapa.FERMENTACION).getEquipamiento());
+    }
+
+    /** Edita los datos de escalado del macerador, la olla de hervor y las maltas del lote. */
+    private static void editarEquiposYMaltasDelLote(LoteEntity lote) {
+        MaceradorEntity macerador = (MaceradorEntity) findEtapa(lote, TipoEtapa.MACERACION).getEquipamiento();
+        macerador.setEficienciaMaceracion(60.0);
+        macerador.setEspacioMuerto(8.0);
+        OllaHervorEntity olla = (OllaHervorEntity) findEtapa(lote, TipoEtapa.HERVIDO).getEquipamiento();
+        olla.setEvaporacion(6.0);
+        olla.setPerdidaPorTrub(4.0);
+        lote.getPlanificacionProduccion().getVersionReceta().getDetallesMalta()
+                .forEach(detalle -> detalle.getMalta().setPotencialExtracto(70));
     }
 
     // ==================== listarLotesDePlanificacion ====================

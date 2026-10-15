@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EnvasadoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
@@ -438,6 +439,43 @@ class EnvasadoLoteServicioImplTest {
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         verify(barrilRepository).save(barril);
         verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-REL-30: registrarEnvasadoLote valida contra la capacidad útil del fermentador guardada en la instantánea del lote, aunque después se edite el fermentador")
+    void registrarEnvasadoLote_conInstantaneaDebeUsarLaCapacidadUtilGuardada() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteEntity(EstadoLote.EN_EJECUCION);
+        lote.setEscaladoLote(EscaladoLoteEntity.builder().capacidadUtilFermentador(100.0).build());
+        // El fermentador vigente ahora tiene 60 L útiles, pero el lote se escaló con 100 L
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 60.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 300.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+        when(envasadoLoteRepository.save(any(EnvasadoLoteEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        EnvasadoLoteResponseDTO resultado = envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 90.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadEnvasada()).isEqualTo(90.0);
+        verify(envasadoLoteRepository).save(any(EnvasadoLoteEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-REL-31: registrarEnvasadoLote rechaza una cantidad que supera la capacidad útil guardada en la instantánea del lote, aunque el fermentador vigente tenga más capacidad")
+    void registrarEnvasadoLote_conInstantaneaDebeRechazarLoQueSuperaLaCapacidadGuardada() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteEntity(EstadoLote.EN_EJECUCION);
+        lote.setEscaladoLote(EscaladoLoteEntity.builder().capacidadUtilFermentador(100.0).build());
+        EtapaLoteEntity etapaLote = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 500.0);
+        BarrilEntity barril = crearBarrilEntity(1L, 300.0, 0.0, EstadoOperativoBarril.DISPONIBLE);
+        prepararRegistro(etapaLote, barril);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> envasadoLoteServicio.registrarEnvasadoLote(1L, registrarFormDTO(1L, 120.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad a envasar supera la capacidad útil del fermentador (quedan 100 L disponibles para envasar)");
+        verify(envasadoLoteRepository, never()).save(any());
     }
 
     @Test
@@ -1051,6 +1089,25 @@ class EnvasadoLoteServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getCapacidadUtilFermentador()).isEqualTo(80.0);
         assertThat(resultado.getRestante()).isEqualTo(60.0);
+        assertThat(resultado.getIdentificadorFermentador()).isEqualTo("FER-01");
+    }
+
+    @Test
+    @DisplayName("CP-RSE-09: resumirEnvasado usa la capacidad útil del fermentador guardada en la instantánea del lote, aunque después se edite el fermentador")
+    void resumirEnvasado_conInstantaneaDebeUsarLaCapacidadGuardada() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteEntity(EstadoLote.EN_EJECUCION);
+        lote.setEscaladoLote(EscaladoLoteEntity.builder().capacidadUtilFermentador(100.0).build());
+        EtapaLoteEntity etapaEnvasado = crearEtapaLoteEntity(1L, lote, TipoEtapa.ENVASADO, EstadoEtapaLote.EN_CURSO, 60.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaEnvasado));
+        when(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(1L)).thenReturn(30.0);
+
+        // === EJECUCION ===
+        ResumenEnvasadoResponseDTO resultado = envasadoLoteServicio.resumirEnvasado(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCapacidadUtilFermentador()).isEqualTo(100.0);
+        assertThat(resultado.getRestante()).isEqualTo(70.0);
         assertThat(resultado.getIdentificadorFermentador()).isEqualTo("FER-01");
     }
 

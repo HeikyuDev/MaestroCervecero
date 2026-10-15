@@ -41,7 +41,7 @@ El extracto potencial debe ser mayor a 0% y menor o igual a 90%. Si falta, el me
 
 ### 4. `modificarMalta(Long id, MaltaFormDTO maltaFormDTO)`
 
-Orden de los chequeos: nombre obligatorio y largo, extracto potencial, existencia de la malta, nombre duplicado entre las maltas activas y, por último, el bloqueo por lotes: si el extracto potencial cambia (se compara con el valor guardado) y algún lote `PENDIENTE` o `EN_EJECUCION` usa la malta en cualquier versión de la receta de su planificación, se rechaza la modificación con los códigos de los lotes. El resto de los datos (nombre y tipo) siguen siendo editables. El formato del mensaje se describe en `CasosPruebaBloqueoPorLotesVivos.md`.
+Orden de los chequeos: nombre obligatorio y largo, extracto potencial, existencia de la malta, nombre duplicado entre las maltas activas y persistencia. El nombre, el tipo y el extracto potencial son siempre editables: el escalado de los lotes ya iniciados usa la instantánea guardada al iniciarlos (ver `CasosPruebaLote.md`, método `iniciarLote`) y no cambia.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -57,14 +57,8 @@ Orden de los chequeos: nombre obligatorio y largo, extracto potencial, existenci
 |**CP-MM-10**|Duplicado detectado sobre el valor normalizado|`id: 1L` (existe), `nombre: "  pilsen "` (en uso por otro registro activo)|`existsByNombreIgnoreCaseAndIdNot` con el valor normalizado → **TRUE**|Lanza `RecursoDuplicadoException` ("El nombre 'pilsen' ya está en uso por otra malta"). No persiste.|
 |**CP-MM-11**|Violación del índice único al guardar|`id: 1L` (existe), `nombre: "Pilsen Nacional"`, la consulta previa devuelve FALSE y `save` lanza `DataIntegrityViolationException` por `udx_insumo_nombre` (pedido simultáneo)|La base de datos rechaza el duplicado que la consulta previa no vio|Lanza `RecursoDuplicadoException` con el mismo mensaje que la consulta previa ("El nombre 'Pilsen Nacional' ya está en uso por otra malta").|
 |**CP-MM-12**|Reutilización del nombre de un registro dado de baja|`id: 1L` (existe), `nombre: "Pilsen Nacional"` (solo otro registro con `estado = BAJA` tiene ese valor)|La consulta de unicidad considera solo registros `ACTIVO` → **FALSE**|Persiste con éxito: el valor de un registro dado de baja puede volver a usarse.|
-|**CP-MM-13**|Cambia el extracto potencial y lo usan dos lotes vivos|`id: 1L` (existe, `potencialExtracto: 80`), DTO con `potencialExtracto: 82`; `buscarCodigosDeLotesVivosPorMalta(1L)` $\rightarrow$ `["PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"]`|El extracto potencial cambia y hay lotes vivos $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`: "No se puede modificar el extracto potencial de la malta porque la usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4". No persiste.|
-|**CP-MM-14**|Cambia el extracto potencial y lo usa un solo lote vivo|Igual al caso anterior con `["PILSEN_CLASICA-R7-3"]`|El extracto potencial cambia y hay un lote vivo $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`: "No se puede modificar el extracto potencial de la malta porque la usa el lote PILSEN_CLASICA-R7-3". No persiste.|
-|**CP-MM-15**|Exactamente 5 lotes vivos _(Límite)_|Igual con los lotes `PILSEN_CLASICA-R7-1` a `PILSEN_CLASICA-R7-5`|Cantidad igual al máximo listado|El mensaje lista los 5 códigos completos, el último unido con " y ", sin "más". No persiste.|
-|**CP-MM-16**|Más de 5 lotes vivos|Igual con los lotes `PILSEN_CLASICA-R7-1` a `PILSEN_CLASICA-R7-7`|Cantidad mayor al máximo listado|El mensaje lista los primeros 5 códigos y termina con " y 2 más". No persiste.|
-|**CP-MM-17**|Cambia solo el nombre|`id: 1L` (existe, `nombre: "Original"`), DTO con `nombre: "Nuevo Nombre"` y el mismo tipo y `potencialExtracto`|Ningún dato que cambia el escalado cambia $\rightarrow$ **no consulta los lotes**|Persiste con el nuevo nombre. No llama a `ILoteRepository`.|
-|**CP-MM-18**|Cambia el extracto potencial sin lotes vivos|`id: 1L` (existe, `potencialExtracto: 80`), DTO con `potencialExtracto: 82`; sin lotes vivos|`ILoteRepository.buscarCodigosDeLotesVivosPorMalta(1L)` $\rightarrow$ **lista vacía** (los lotes `FINALIZADO` y `CANCELADO` no los devuelve la consulta)|Persiste con el nuevo valor.|
-|**CP-MM-19**|Extracto potencial sin cambios|`id: 1L` (existe, `potencialExtracto: 80`), DTO con el mismo `potencialExtracto: 80`|El valor enviado es igual al guardado $\rightarrow$ **no consulta los lotes**|Persiste. No llama a `ILoteRepository`.|
-|**CP-MM-20**|El nombre duplicado se valida antes del bloqueo por lotes|`id: 1L` (existe), `nombre: "Duplicado"` en uso por otro registro activo, DTO con `potencialExtracto: 82`|`existsByNombreIgnoreCaseAndIdNot` $\rightarrow$ **TRUE**|Lanza `RecursoDuplicadoException`. No consulta los lotes ni persiste.|
+|**CP-MM-17**|Cambia solo el nombre|`id: 1L` (existe, `nombre: "Original"`), DTO con `nombre: "Nuevo Nombre"` y el mismo tipo y `potencialExtracto`|El nombre no colisiona con otro registro activo|Persiste con el nuevo nombre.|
+|**CP-MM-18**|Cambia el extracto potencial aunque haya lotes que usan la malta|`id: 1L` (existe, `potencialExtracto: 80`), DTO con `potencialExtracto: 82`|El cambio no se bloquea por lotes Pendientes o En ejecución|Persiste con el nuevo valor.|
 
 ### 5. `bajaMalta(Long id)`
 
@@ -96,5 +90,3 @@ Los tests de servicio usan mocks, por lo que las consultas se verifican manualme
 | **CP-BM-M06** | `IOrdenCompraRepository.existsByInsumoEnOrdenCompraPendiente` | La orden con el insumo está `FINALIZADA` o `ANULADA` | `FALSE` |
 | **CP-BM-M07** | `ICatalogoProveedorRepository.existsByInsumoId` | Ítem de catálogo con el insumo en la última versión de un proveedor `ACTIVO` | `TRUE` |
 | **CP-BM-M08** | `ICatalogoProveedorRepository.existsByInsumoId` | El insumo solo figura en una versión anterior del proveedor, o el proveedor tiene `estado = BAJA` | `FALSE` |
-| **CP-BM-M09** | `ILoteRepository.buscarCodigosDeLotesVivosPorMalta(idMalta)` | Lotes `PENDIENTE` y `EN_EJECUCION` cuya planificación usa una versión de receta (cualquiera, no solo la última) con la malta | Devuelve los códigos de esos lotes, ordenados por ID |
-| **CP-BM-M10** | `ILoteRepository.buscarCodigosDeLotesVivosPorMalta(idMalta)` | Los lotes que usan la malta están `FINALIZADO` o `CANCELADO`, o no hay ninguno | Lista vacía |

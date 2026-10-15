@@ -6,7 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILevaduraRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -50,8 +49,6 @@ class LevaduraServicioImplTest {
     private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
-    @Mock
-    private ILoteRepository loteRepository;
     @Mock
     private IPlanificacionProduccionRepository planificacionProduccionRepository;
     @Mock
@@ -449,80 +446,8 @@ class LevaduraServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ML-14: modificarLevadura lanza ReglaNegocioException y no persiste cuando cambia el tipo y la usan dos lotes vivos")
-    void modificarLevadura_debeBloquearCambioDeTipoConDosLotesVivos() {
-        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
-        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
-        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("SafAle S-04", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLevadura(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"));
-        LevaduraFormDTO formDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.LAGER, 1.0E10);
-
-        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el tipo de la levadura porque la usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4");
-
-        verify(levaduraRepository, never()).save(any());
-        assertThat(levaduraEntity.getTipo()).isEqualTo(TipoLevadura.ALE);
-        assertThat(levaduraEntity.getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
-    }
-
-    @Test
-    @DisplayName("CP-ML-15: modificarLevadura lanza ReglaNegocioException con el lote en singular cuando cambia la cantidad de células por gramo y la usa un solo lote vivo")
-    void modificarLevadura_debeBloquearCambioDeCelulasConUnLoteVivo() {
-        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
-        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
-        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("SafAle S-04", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLevadura(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3"));
-        LevaduraFormDTO formDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 1.2E10);
-
-        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar la cantidad de células viables por gramo de la levadura porque la usa el lote PILSEN_CLASICA-R7-3");
-
-        verify(levaduraRepository, never()).save(any());
-        assertThat(levaduraEntity.getTipo()).isEqualTo(TipoLevadura.ALE);
-        assertThat(levaduraEntity.getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
-    }
-
-    @Test
-    @DisplayName("CP-ML-16: modificarLevadura nombra ambos datos cuando cambian el tipo y la cantidad de células por gramo a la vez")
-    void modificarLevadura_debeNombrarAmbosDatosSiCambianLosDos() {
-        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
-        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
-        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("SafAle S-04", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLevadura(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"));
-        LevaduraFormDTO formDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.LAGER, 1.2E10);
-
-        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el tipo y la cantidad de células viables por gramo de la levadura porque la usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4");
-
-        verify(levaduraRepository, never()).save(any());
-        assertThat(levaduraEntity.getTipo()).isEqualTo(TipoLevadura.ALE);
-        assertThat(levaduraEntity.getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
-    }
-
-    @Test
-    @DisplayName("CP-ML-17: modificarLevadura limita el mensaje a los primeros 5 lotes y resume el resto cuando la usan más de 5 lotes vivos")
-    void modificarLevadura_debeResumirLotesSobrantes() {
-        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
-        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
-        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("SafAle S-04", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLevadura(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-1", "PILSEN_CLASICA-R7-2", "PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4", "PILSEN_CLASICA-R7-5", "PILSEN_CLASICA-R7-6", "PILSEN_CLASICA-R7-7"));
-        LevaduraFormDTO formDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.LAGER, 1.0E10);
-
-        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el tipo de la levadura porque la usan los lotes PILSEN_CLASICA-R7-1, PILSEN_CLASICA-R7-2, PILSEN_CLASICA-R7-3, PILSEN_CLASICA-R7-4, PILSEN_CLASICA-R7-5 y 2 más");
-
-        verify(levaduraRepository, never()).save(any());
-        assertThat(levaduraEntity.getTipo()).isEqualTo(TipoLevadura.ALE);
-        assertThat(levaduraEntity.getCantidadCelulasPorGramo()).isEqualTo(1.0E10);
-    }
-
-    @Test
-    @DisplayName("CP-ML-18: modificarLevadura permite cambiar solo el nombre sin consultar los lotes cuando el tipo y la cantidad de células por gramo no cambian")
-    void modificarLevadura_debePermitirCambiarSoloElNombreSinConsultarLotes() {
+    @DisplayName("CP-ML-18: modificarLevadura permite cambiar solo el nombre de la levadura")
+    void modificarLevadura_debePermitirCambiarSoloElNombre() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "Original", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
         when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("Nuevo Nombre", 1L)).thenReturn(false);
@@ -532,56 +457,22 @@ class LevaduraServicioImplTest {
         assertThatCode(() -> levaduraServicio.modificarLevadura(1L, formDTO)).doesNotThrowAnyException();
 
         assertThat(levaduraEntity.getNombre()).isEqualTo("Nuevo Nombre");
-        verifyNoInteractions(loteRepository);
         verify(levaduraRepository).save(levaduraEntity);
     }
 
     @Test
-    @DisplayName("CP-ML-19: modificarLevadura permite cambiar la cantidad de células por gramo cuando ningún lote vivo usa la levadura (los lotes Finalizados o Cancelados no cuentan)")
-    void modificarLevadura_debePermitirCambiarCelulasSinLotesVivos() {
+    @DisplayName("CP-ML-19: modificarLevadura permite cambiar la cantidad de células por gramo aunque haya lotes que usan la levadura (el escalado de un lote iniciado queda guardado en su instantánea)")
+    void modificarLevadura_debePermitirCambiarCelulasAunqueLotesUsenLaLevadura() {
         LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
         when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
         when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("SafAle S-04", 1L)).thenReturn(false);
         when(levaduraRepository.save(levaduraEntity)).thenReturn(levaduraEntity);
-        // La consulta solo devuelve lotes Pendiente o En ejecución: uno Finalizado o Cancelado no figura
-        when(loteRepository.buscarCodigosDeLotesVivosPorLevadura(1L)).thenReturn(List.of());
         LevaduraFormDTO formDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 1.2E10);
 
         assertThatCode(() -> levaduraServicio.modificarLevadura(1L, formDTO)).doesNotThrowAnyException();
 
-        verify(loteRepository).buscarCodigosDeLotesVivosPorLevadura(1L);
         assertThat(levaduraEntity.getCantidadCelulasPorGramo()).isEqualTo(1.2E10);
         verify(levaduraRepository).save(levaduraEntity);
-    }
-
-    @Test
-    @DisplayName("CP-ML-20: modificarLevadura no consulta los lotes cuando el tipo y la cantidad de células por gramo enviados son iguales a los guardados")
-    void modificarLevadura_debePermitirMismosValoresSinConsultarLotes() {
-        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "SafAle S-04", TipoLevadura.ALE, 1.0E10);
-        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
-        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("SafAle S-04", 1L)).thenReturn(false);
-        when(levaduraRepository.save(levaduraEntity)).thenReturn(levaduraEntity);
-        LevaduraFormDTO formDTO = levaduraFormDTO("SafAle S-04", TipoLevadura.ALE, 1.0E10);
-
-        assertThatCode(() -> levaduraServicio.modificarLevadura(1L, formDTO)).doesNotThrowAnyException();
-
-        verifyNoInteractions(loteRepository);
-        verify(levaduraRepository).save(levaduraEntity);
-    }
-
-    @Test
-    @DisplayName("CP-ML-21: modificarLevadura lanza RecursoDuplicadoException antes de consultar los lotes cuando el nombre está en uso y la cantidad de células cambia")
-    void modificarLevadura_debeValidarNombreDuplicadoAntesQueLotes() {
-        LevaduraEntity levaduraEntity = crearLevaduraEntity(1L, "Original", TipoLevadura.ALE, 1.0E10);
-        when(levaduraRepository.findById(1L)).thenReturn(Optional.of(levaduraEntity));
-        when(levaduraRepository.existsByNombreIgnoreCaseAndIdNot("Duplicado", 1L)).thenReturn(true);
-        LevaduraFormDTO formDTO = levaduraFormDTO("Duplicado", TipoLevadura.ALE, 1.2E10);
-
-        assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class);
-
-        verifyNoInteractions(loteRepository);
-        verify(levaduraRepository, never()).save(any());
     }
 
     // ==================== bajaLevadura ====================

@@ -6,7 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IMaltaRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -50,8 +49,6 @@ class MaltaServicioImplTest {
     private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
-    @Mock
-    private ILoteRepository loteRepository;
     @Mock
     private IPlanificacionProduccionRepository planificacionProduccionRepository;
     @Mock
@@ -440,76 +437,8 @@ class MaltaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-13: modificarMalta lanza ReglaNegocioException y no persiste cuando cambia el extracto potencial y lo usan dos lotes vivos")
-    void modificarMalta_debeBloquearCambioDePotencialConDosLotesVivos() {
-        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
-        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
-        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorMalta(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"));
-        MaltaFormDTO formDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 82);
-
-        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el extracto potencial de la malta porque la usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4");
-
-        verify(maltaRepository, never()).save(any());
-        assertThat(maltaEntity.getPotencialExtracto()).isEqualTo(80);
-    }
-
-    @Test
-    @DisplayName("CP-MM-14: modificarMalta lanza ReglaNegocioException con el lote en singular cuando cambia el extracto potencial y lo usa un solo lote vivo")
-    void modificarMalta_debeBloquearCambioDePotencialConUnLoteVivo() {
-        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
-        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
-        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorMalta(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3"));
-        MaltaFormDTO formDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 82);
-
-        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el extracto potencial de la malta porque la usa el lote PILSEN_CLASICA-R7-3");
-
-        verify(maltaRepository, never()).save(any());
-        assertThat(maltaEntity.getPotencialExtracto()).isEqualTo(80);
-    }
-
-    @Test
-    @DisplayName("CP-MM-15: modificarMalta lista los 5 lotes completos cuando lo usan exactamente 5 lotes vivos (límite)")
-    void modificarMalta_debeListarCincoLotesSinResumen() {
-        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
-        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
-        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorMalta(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-1", "PILSEN_CLASICA-R7-2", "PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4", "PILSEN_CLASICA-R7-5"));
-        MaltaFormDTO formDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 82);
-
-        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el extracto potencial de la malta porque la usan los lotes PILSEN_CLASICA-R7-1, PILSEN_CLASICA-R7-2, PILSEN_CLASICA-R7-3, PILSEN_CLASICA-R7-4 y PILSEN_CLASICA-R7-5");
-
-        verify(maltaRepository, never()).save(any());
-        assertThat(maltaEntity.getPotencialExtracto()).isEqualTo(80);
-    }
-
-    @Test
-    @DisplayName("CP-MM-16: modificarMalta limita el mensaje a los primeros 5 lotes y resume el resto cuando lo usan más de 5 lotes vivos")
-    void modificarMalta_debeResumirLotesSobrantes() {
-        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
-        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
-        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorMalta(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-1", "PILSEN_CLASICA-R7-2", "PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4", "PILSEN_CLASICA-R7-5", "PILSEN_CLASICA-R7-6", "PILSEN_CLASICA-R7-7"));
-        MaltaFormDTO formDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 82);
-
-        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el extracto potencial de la malta porque la usan los lotes PILSEN_CLASICA-R7-1, PILSEN_CLASICA-R7-2, PILSEN_CLASICA-R7-3, PILSEN_CLASICA-R7-4, PILSEN_CLASICA-R7-5 y 2 más");
-
-        verify(maltaRepository, never()).save(any());
-        assertThat(maltaEntity.getPotencialExtracto()).isEqualTo(80);
-    }
-
-    @Test
-    @DisplayName("CP-MM-17: modificarMalta permite cambiar solo el nombre sin consultar los lotes cuando el extracto potencial no cambia")
-    void modificarMalta_debePermitirCambiarSoloElNombreSinConsultarLotes() {
+    @DisplayName("CP-MM-17: modificarMalta permite cambiar solo el nombre de la malta")
+    void modificarMalta_debePermitirCambiarSoloElNombre() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Original", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
         when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Nuevo Nombre", 1L)).thenReturn(false);
@@ -519,56 +448,22 @@ class MaltaServicioImplTest {
         assertThatCode(() -> maltaServicio.modificarMalta(1L, formDTO)).doesNotThrowAnyException();
 
         assertThat(maltaEntity.getNombre()).isEqualTo("Nuevo Nombre");
-        verifyNoInteractions(loteRepository);
         verify(maltaRepository).save(maltaEntity);
     }
 
     @Test
-    @DisplayName("CP-MM-18: modificarMalta permite cambiar el extracto potencial cuando ningún lote vivo usa la malta (los lotes Finalizados o Cancelados no cuentan)")
-    void modificarMalta_debePermitirCambiarPotencialSinLotesVivos() {
+    @DisplayName("CP-MM-18: modificarMalta permite cambiar el extracto potencial aunque haya lotes que usan la malta (el escalado de un lote iniciado queda guardado en su instantánea)")
+    void modificarMalta_debePermitirCambiarPotencialAunqueLotesUsenLaMalta() {
         MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
         when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
         when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L)).thenReturn(false);
         when(maltaRepository.save(maltaEntity)).thenReturn(maltaEntity);
-        // La consulta solo devuelve lotes Pendiente o En ejecución: uno Finalizado o Cancelado no figura
-        when(loteRepository.buscarCodigosDeLotesVivosPorMalta(1L)).thenReturn(List.of());
         MaltaFormDTO formDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 82);
 
         assertThatCode(() -> maltaServicio.modificarMalta(1L, formDTO)).doesNotThrowAnyException();
 
-        verify(loteRepository).buscarCodigosDeLotesVivosPorMalta(1L);
         assertThat(maltaEntity.getPotencialExtracto()).isEqualTo(82);
         verify(maltaRepository).save(maltaEntity);
-    }
-
-    @Test
-    @DisplayName("CP-MM-19: modificarMalta no consulta los lotes cuando el extracto potencial enviado es igual al guardado")
-    void modificarMalta_debePermitirMismoPotencialSinConsultarLotes() {
-        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Pilsen", TipoMalta.BASE, 80);
-        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
-        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L)).thenReturn(false);
-        when(maltaRepository.save(maltaEntity)).thenReturn(maltaEntity);
-        MaltaFormDTO formDTO = maltaFormDTO("Pilsen", TipoMalta.BASE, 80);
-
-        assertThatCode(() -> maltaServicio.modificarMalta(1L, formDTO)).doesNotThrowAnyException();
-
-        verifyNoInteractions(loteRepository);
-        verify(maltaRepository).save(maltaEntity);
-    }
-
-    @Test
-    @DisplayName("CP-MM-20: modificarMalta lanza RecursoDuplicadoException antes de consultar los lotes cuando el nombre está en uso y el extracto potencial cambia")
-    void modificarMalta_debeValidarNombreDuplicadoAntesQueLotes() {
-        MaltaEntity maltaEntity = crearMaltaEntity(1L, "Original", TipoMalta.BASE, 80);
-        when(maltaRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
-        when(maltaRepository.existsByNombreIgnoreCaseAndIdNot("Duplicado", 1L)).thenReturn(true);
-        MaltaFormDTO formDTO = maltaFormDTO("Duplicado", TipoMalta.BASE, 82);
-
-        assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class);
-
-        verifyNoInteractions(loteRepository);
-        verify(maltaRepository, never()).save(any());
     }
 
     // ==================== bajaMalta ====================

@@ -6,7 +6,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -50,8 +49,6 @@ class LupuloServicioImplTest {
     private IVersionRecetaRepository versionRecetaRepository;
     @Mock
     private ILoteInsumoRepository loteInsumoRepository;
-    @Mock
-    private ILoteRepository loteRepository;
     @Mock
     private IPlanificacionProduccionRepository planificacionProduccionRepository;
     @Mock
@@ -437,80 +434,8 @@ class LupuloServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ML-14: modificarLupulo lanza ReglaNegocioException y no persiste cuando cambian los ácidos alfa y lo usan dos lotes vivos")
-    void modificarLupulo_debeBloquearCambioDeAlfaAcidosConDosLotesVivos() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 5.5);
-        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
-        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLupulo(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"));
-        LupuloFormDTO formDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 6.0);
-
-        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar los ácidos alfa del lúpulo porque lo usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4");
-
-        verify(lupuloRepository, never()).save(any());
-        assertThat(lupuloEntity.getAa()).isEqualTo(5.5);
-        assertThat(lupuloEntity.getFormato()).isEqualTo(FormatoLupulo.PELLET);
-    }
-
-    @Test
-    @DisplayName("CP-ML-15: modificarLupulo lanza ReglaNegocioException con el lote en singular cuando cambia el formato y lo usa un solo lote vivo")
-    void modificarLupulo_debeBloquearCambioDeFormatoConUnLoteVivo() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 5.5);
-        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
-        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLupulo(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3"));
-        LupuloFormDTO formDTO = lupuloFormDTO("Cascade", FormatoLupulo.FLOR, 5.5);
-
-        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar el formato del lúpulo porque lo usa el lote PILSEN_CLASICA-R7-3");
-
-        verify(lupuloRepository, never()).save(any());
-        assertThat(lupuloEntity.getAa()).isEqualTo(5.5);
-        assertThat(lupuloEntity.getFormato()).isEqualTo(FormatoLupulo.PELLET);
-    }
-
-    @Test
-    @DisplayName("CP-ML-16: modificarLupulo nombra ambos datos cuando cambian los ácidos alfa y el formato a la vez")
-    void modificarLupulo_debeNombrarAmbosDatosSiCambianLosDos() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 5.5);
-        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
-        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLupulo(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4"));
-        LupuloFormDTO formDTO = lupuloFormDTO("Cascade", FormatoLupulo.FLOR, 6.0);
-
-        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar los ácidos alfa y el formato del lúpulo porque lo usan los lotes PILSEN_CLASICA-R7-3 y PILSEN_CLASICA-R7-4");
-
-        verify(lupuloRepository, never()).save(any());
-        assertThat(lupuloEntity.getAa()).isEqualTo(5.5);
-        assertThat(lupuloEntity.getFormato()).isEqualTo(FormatoLupulo.PELLET);
-    }
-
-    @Test
-    @DisplayName("CP-ML-17: modificarLupulo limita el mensaje a los primeros 5 lotes y resume el resto cuando lo usan más de 5 lotes vivos")
-    void modificarLupulo_debeResumirLotesSobrantes() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 5.5);
-        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
-        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade", 1L)).thenReturn(false);
-        when(loteRepository.buscarCodigosDeLotesVivosPorLupulo(1L)).thenReturn(List.of("PILSEN_CLASICA-R7-1", "PILSEN_CLASICA-R7-2", "PILSEN_CLASICA-R7-3", "PILSEN_CLASICA-R7-4", "PILSEN_CLASICA-R7-5", "PILSEN_CLASICA-R7-6", "PILSEN_CLASICA-R7-7"));
-        LupuloFormDTO formDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 6.0);
-
-        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede modificar los ácidos alfa del lúpulo porque lo usan los lotes PILSEN_CLASICA-R7-1, PILSEN_CLASICA-R7-2, PILSEN_CLASICA-R7-3, PILSEN_CLASICA-R7-4, PILSEN_CLASICA-R7-5 y 2 más");
-
-        verify(lupuloRepository, never()).save(any());
-        assertThat(lupuloEntity.getAa()).isEqualTo(5.5);
-        assertThat(lupuloEntity.getFormato()).isEqualTo(FormatoLupulo.PELLET);
-    }
-
-    @Test
-    @DisplayName("CP-ML-18: modificarLupulo permite cambiar solo el nombre sin consultar los lotes cuando los ácidos alfa y el formato no cambian")
-    void modificarLupulo_debePermitirCambiarSoloElNombreSinConsultarLotes() {
+    @DisplayName("CP-ML-18: modificarLupulo permite cambiar solo el nombre del lúpulo")
+    void modificarLupulo_debePermitirCambiarSoloElNombre() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Original", FormatoLupulo.PELLET, 5.5);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Nuevo Nombre", 1L)).thenReturn(false);
@@ -520,56 +445,22 @@ class LupuloServicioImplTest {
         assertThatCode(() -> lupuloServicio.modificarLupulo(1L, formDTO)).doesNotThrowAnyException();
 
         assertThat(lupuloEntity.getNombre()).isEqualTo("Nuevo Nombre");
-        verifyNoInteractions(loteRepository);
         verify(lupuloRepository).save(lupuloEntity);
     }
 
     @Test
-    @DisplayName("CP-ML-19: modificarLupulo permite cambiar los ácidos alfa cuando ningún lote vivo usa el lúpulo (los lotes Finalizados o Cancelados no cuentan)")
-    void modificarLupulo_debePermitirCambiarAlfaAcidosSinLotesVivos() {
+    @DisplayName("CP-ML-19: modificarLupulo permite cambiar los ácidos alfa aunque haya lotes que usan el lúpulo (el escalado de un lote iniciado queda guardado en su instantánea)")
+    void modificarLupulo_debePermitirCambiarAlfaAcidosAunqueLotesUsenElLupulo() {
         LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 5.5);
         when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
         when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade", 1L)).thenReturn(false);
         when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
-        // La consulta solo devuelve lotes Pendiente o En ejecución: uno Finalizado o Cancelado no figura
-        when(loteRepository.buscarCodigosDeLotesVivosPorLupulo(1L)).thenReturn(List.of());
         LupuloFormDTO formDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 6.0);
 
         assertThatCode(() -> lupuloServicio.modificarLupulo(1L, formDTO)).doesNotThrowAnyException();
 
-        verify(loteRepository).buscarCodigosDeLotesVivosPorLupulo(1L);
         assertThat(lupuloEntity.getAa()).isEqualTo(6.0);
         verify(lupuloRepository).save(lupuloEntity);
-    }
-
-    @Test
-    @DisplayName("CP-ML-20: modificarLupulo no consulta los lotes cuando los ácidos alfa y el formato enviados son iguales a los guardados")
-    void modificarLupulo_debePermitirMismosValoresSinConsultarLotes() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Cascade", FormatoLupulo.PELLET, 5.5);
-        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
-        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Cascade", 1L)).thenReturn(false);
-        when(lupuloRepository.save(lupuloEntity)).thenReturn(lupuloEntity);
-        LupuloFormDTO formDTO = lupuloFormDTO("Cascade", FormatoLupulo.PELLET, 5.5);
-
-        assertThatCode(() -> lupuloServicio.modificarLupulo(1L, formDTO)).doesNotThrowAnyException();
-
-        verifyNoInteractions(loteRepository);
-        verify(lupuloRepository).save(lupuloEntity);
-    }
-
-    @Test
-    @DisplayName("CP-ML-21: modificarLupulo lanza RecursoDuplicadoException antes de consultar los lotes cuando el nombre está en uso y los ácidos alfa cambian")
-    void modificarLupulo_debeValidarNombreDuplicadoAntesQueLotes() {
-        LupuloEntity lupuloEntity = crearLupuloEntity(1L, "Original", FormatoLupulo.PELLET, 5.5);
-        when(lupuloRepository.findById(1L)).thenReturn(Optional.of(lupuloEntity));
-        when(lupuloRepository.existsByNombreIgnoreCaseAndIdNot("Duplicado", 1L)).thenReturn(true);
-        LupuloFormDTO formDTO = lupuloFormDTO("Duplicado", FormatoLupulo.PELLET, 6.0);
-
-        assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class);
-
-        verifyNoInteractions(loteRepository);
-        verify(lupuloRepository, never()).save(any());
     }
 
     // ==================== bajaLupulo ====================

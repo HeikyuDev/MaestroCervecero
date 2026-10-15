@@ -1,10 +1,15 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.lote;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 
 import java.util.List;
 
@@ -18,6 +23,11 @@ import java.util.List;
  * y {@code ConsumoInsumoServicioImpl} la usa para reportar cuánto requiere cada etapa,
  * independientemente de cuánto stock haya reservado — de ahí que viva en un servicio propio en
  * vez de duplicarse.
+ * </p>
+ * <p>
+ * Si el lote ya se inició, el cálculo usa la instantánea del escalado guardada al iniciarlo ({@link LoteEntity#getEscaladoLote()}):
+ * los parámetros del macerador y de cada insumo salen de ella y no cambian aunque después se modifiquen. Si el lote no tiene
+ * instantánea (está Pendiente, o se inició antes de que existiera), el cálculo usa los valores vigentes.
  * </p>
  */
 public interface IEscaladoInsumoServicio {
@@ -34,6 +44,32 @@ public interface IEscaladoInsumoServicio {
      * @return Un requerimiento por cada malta de la receta, sin etapa asociada (nula).
      */
     List<RequerimientoInsumo> calcularRequerimientosMalta(VersionRecetaEntity versionReceta, double volumenObjetivo, MaceradorEntity macerador);
+
+    /**
+     * Calcula, para cada malta de la receta del lote, la masa escalada necesaria (ver
+     * docs/Dominio/Escalado/EscaladoDeMalta.md), con los datos del escalado del lote: los de su instantánea si el lote
+     * ya se inició (ver {@link #capturarEscalado}) y, si no, los vigentes de la malta y del macerador de la etapa de
+     * Maceración.
+     *
+     * @param lote El lote a escalar.
+     * @return Un requerimiento por cada malta de la receta, sin etapa asociada (nula).
+     * @throws ReglaNegocioException Si no hay instantánea y el equipamiento de la etapa de Maceración no es un macerador.
+     */
+    List<RequerimientoInsumo> calcularRequerimientosMalta(LoteEntity lote);
+
+    /**
+     * Toma la instantánea del escalado de un lote: los parámetros de sus cuatro equipos y los de cada malta, lúpulo y
+     * levadura de la receta, tal como están en este momento. No guarda nada: quien la toma al iniciar el lote la
+     * persiste y la asocia al lote.
+     *
+     * @param versionReceta La versión de receta del lote.
+     * @param molino El molino del lote.
+     * @param macerador El macerador del lote.
+     * @param ollaHervor La olla de hervor del lote.
+     * @param fermentador El fermentador del lote.
+     * @return La instantánea, con un registro por cada insumo distinto de la receta.
+     */
+    EscaladoLoteEntity capturarEscalado(VersionRecetaEntity versionReceta, MolinoEntity molino, MaceradorEntity macerador, OllaHervorEntity ollaHervor, FermentadorEntity fermentador);
 
     /**
      * Calcula, para cada lúpulo de la receta, la masa escalada necesaria

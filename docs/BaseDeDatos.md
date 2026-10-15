@@ -303,6 +303,19 @@ que las ordena, antes de validar:
 El identificador interno del lote de producción (por ejemplo `PILSEN_CLASICA-R7-3`) es único por la restricción
 `uk_lote_identificador_interno`.
 
+### Escalado del lote
+
+`V8__escalado_lote.sql` crea las tablas que guardan la instantánea del escalado de un lote, tomada al iniciarlo:
+
+| Tabla | Contenido |
+|---|---|
+| `escalado_lote` | Los parámetros de los cuatro equipos del lote: rendimiento del molino; eficiencia de maceración, espacio muerto y capacidad útil del macerador; pérdida por trub, evaporación y capacidad útil de la olla de hervor; capacidad útil del fermentador |
+| `escalado_lote_insumo` | Una fila por insumo de la receta del lote, con el extracto potencial (malta), los ácidos alfa y el formato (lúpulo), o el tipo y las células por gramo (levadura). Es única por `(escalado_lote_id, insumo_id)` |
+
+`lote.escalado_lote_id` (única, nula mientras el lote no se inició) referencia la fila de `escalado_lote`. Un lote Pendiente,
+un lote cancelado sin haberse iniciado y un lote iniciado sin instantánea calculan con los valores vigentes de los equipos
+y los insumos.
+
 ### Traducción de una violación de unicidad
 
 Los Services guardan con `GuardadoUnico.guardar(repositorio, entidad, excepcionesPorIndice)`, que ejecuta

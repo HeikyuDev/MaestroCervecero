@@ -265,51 +265,6 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     Optional<LoteEntity> buscarLoteEnEjecucionDeFermentador(@Param("idFermentador") Long idFermentador);
 
     /**
-     * Lista los códigos (identificador interno) de los lotes vivos (PENDIENTE o EN_EJECUCION) cuya receta
-     * incluye la malta indicada, en cualquier versión de la receta, ordenados por ID.
-     *
-     * @param idMalta El ID de la malta.
-     * @return Los códigos de los lotes vivos que la usan, o una lista vacía si ninguno.
-     */
-    @Query("SELECT l.identificadorInterno FROM LoteEntity l "
-            + "WHERE l.estado IN (com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.PENDIENTE, "
-            + "com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.EN_EJECUCION) "
-            + "AND EXISTS (SELECT 1 FROM DetalleMaltaEntity d WHERE d.versionReceta = l.planificacionProduccion.versionReceta "
-            + "AND d.malta.id = :idMalta) "
-            + "ORDER BY l.id")
-    List<String> buscarCodigosDeLotesVivosPorMalta(@Param("idMalta") Long idMalta);
-
-    /**
-     * Lista los códigos (identificador interno) de los lotes vivos (PENDIENTE o EN_EJECUCION) cuya receta
-     * incluye el lúpulo indicado, en cualquier versión de la receta, ordenados por ID.
-     *
-     * @param idLupulo El ID del lúpulo.
-     * @return Los códigos de los lotes vivos que lo usan, o una lista vacía si ninguno.
-     */
-    @Query("SELECT l.identificadorInterno FROM LoteEntity l "
-            + "WHERE l.estado IN (com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.PENDIENTE, "
-            + "com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.EN_EJECUCION) "
-            + "AND EXISTS (SELECT 1 FROM DetalleLupuloEntity d WHERE d.versionReceta = l.planificacionProduccion.versionReceta "
-            + "AND d.lupulo.id = :idLupulo) "
-            + "ORDER BY l.id")
-    List<String> buscarCodigosDeLotesVivosPorLupulo(@Param("idLupulo") Long idLupulo);
-
-    /**
-     * Lista los códigos (identificador interno) de los lotes vivos (PENDIENTE o EN_EJECUCION) cuya receta
-     * incluye la levadura indicada, en cualquier versión de la receta, ordenados por ID.
-     *
-     * @param idLevadura El ID de la levadura.
-     * @return Los códigos de los lotes vivos que la usan, o una lista vacía si ninguno.
-     */
-    @Query("SELECT l.identificadorInterno FROM LoteEntity l "
-            + "WHERE l.estado IN (com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.PENDIENTE, "
-            + "com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote.EN_EJECUCION) "
-            + "AND EXISTS (SELECT 1 FROM DetalleLevaduraEntity d WHERE d.versionReceta = l.planificacionProduccion.versionReceta "
-            + "AND d.levadura.id = :idLevadura) "
-            + "ORDER BY l.id")
-    List<String> buscarCodigosDeLotesVivosPorLevadura(@Param("idLevadura") Long idLevadura);
-
-    /**
      * Obtiene una página con los IDs de los lotes que cumplen los criterios del listado de lotes, del último registrado
      * al primero (ID descendente, que es un orden total y por eso estable entre páginas). Cada criterio nulo no
      * restringe. El fermentador de un lote es el equipamiento de su etapa de Fermentación y puede estar dado de baja.

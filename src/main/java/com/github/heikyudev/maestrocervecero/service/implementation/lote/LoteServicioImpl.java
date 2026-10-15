@@ -12,6 +12,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mol
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.LoteInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
@@ -31,6 +32,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEnvasadoLoteRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEscaladoLoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IReservaInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IConfiguracionProduccionRepository;
@@ -145,6 +147,7 @@ public class LoteServicioImpl implements ILoteServicio {
     private static final List<EstadoLote> ESTADOS_QUE_OCUPAN_FERMENTADOR = List.of(EstadoLote.PENDIENTE, EstadoLote.EN_EJECUCION);
 
     private final IEscaladoInsumoServicio escaladoInsumoServicio;
+    private final IEscaladoLoteRepository escaladoLoteRepository;
     private final ILoteRepository loteRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IMolinoRepository molinoRepository;
@@ -457,6 +460,14 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 3. Bloquear y validar que el equipamiento asociado al lote se encuentre DISPONIBLE
         EquipamientoDelLote equipamiento = bloquearYValidarEquipamientoDisponible(lote);
+
+        // 3 bis. Guardar la instantánea del escalado: los parámetros de los equipos recién bloqueados y de los insumos de
+        //    la receta. Desde acá todo cálculo del lote (cantidades requeridas, agua, topes de capacidad) usa estos
+        //    valores y no los vigentes, así que editar un equipo o un insumo después no cambia las cantidades del lote
+        EscaladoLoteEntity escalado = escaladoInsumoServicio.capturarEscalado(lote.getPlanificacionProduccion().getVersionReceta(),
+                equipamiento.molino(), equipamiento.macerador(), equipamiento.ollaHervor(), equipamiento.fermentador());
+        escaladoLoteRepository.save(escalado);
+        lote.setEscaladoLote(escalado);
 
         // 4. Calcular la cantidad requerida de cada insumo, escalada al volumen objetivo del lote,
         //    y asociarla a la etapa donde efectivamente se va a usar: Molienda para la malta,
@@ -974,17 +985,33 @@ public class LoteServicioImpl implements ILoteServicio {
         LoteEntity lote = loteRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el lote con ID: " + id));
 
-        // 2. Resolver el macerador y la olla de hervor del lote, y la masa de malta escalada con ese macerador
+        // 2. Resolver los parámetros del macerador y de la olla de hervor, y la masa de malta escalada con ellos. Si el lote
+        //    ya se inició son los de su instantánea de escalado; si no, los vigentes de sus equipos
         VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
-        MaceradorEntity macerador = obtenerEquipamientoDeEtapa(lote, TipoEtapa.MACERACION, MaceradorEntity.class, "un macerador asociado");
-        OllaHervorEntity ollaHervor = obtenerEquipamientoDeEtapa(lote, TipoEtapa.HERVIDO, OllaHervorEntity.class, "una olla de hervor asociada");
-        double masaMalta = calcularMasaMaltaEscalada(lote.getVolumenObjetivo(), macerador, versionReceta);
+        EscaladoLoteEntity escalado = lote.getEscaladoLote();
+        double espacioMuerto;
+        double perdidaPorTrub;
+        double evaporacion;
+        if (escalado != null) {
+            espacioMuerto = escalado.getEspacioMuertoMacerador();
+            perdidaPorTrub = escalado.getPerdidaPorTrubOlla();
+            evaporacion = escalado.getEvaporacionOlla();
+        } else {
+            MaceradorEntity macerador = obtenerEquipamientoDeEtapa(lote, TipoEtapa.MACERACION, MaceradorEntity.class, "un macerador asociado");
+            OllaHervorEntity ollaHervor = obtenerEquipamientoDeEtapa(lote, TipoEtapa.HERVIDO, OllaHervorEntity.class, "una olla de hervor asociada");
+            espacioMuerto = macerador.getEspacioMuerto();
+            perdidaPorTrub = ollaHervor.getPerdidaPorTrub();
+            evaporacion = ollaHervor.getEvaporacion();
+        }
+        double masaMalta = escaladoInsumoServicio.calcularRequerimientosMalta(lote).stream()
+                .mapToDouble(RequerimientoInsumo::cantidadRequerida)
+                .sum();
         if (!Double.isFinite(masaMalta)) {
             throw new ReglaNegocioException("No se puede calcular el agua del lote porque los datos de la receta o de los equipos producen un valor no válido");
         }
 
         // 3. Calcular los volúmenes de agua
-        VolumenesAgua agua = EscaladoAgua.calcular(lote.getVolumenObjetivo(), masaMalta, macerador, ollaHervor, versionReceta);
+        VolumenesAgua agua = EscaladoAgua.calcular(lote.getVolumenObjetivo(), masaMalta, espacioMuerto, perdidaPorTrub, evaporacion, versionReceta);
 
         return AguaLoteResponseDTO.builder()
                 .volumenObjetivo(lote.getVolumenObjetivo())

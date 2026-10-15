@@ -151,7 +151,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
 
         // 6. Validar que el total envasado en esta etapa (lo ya registrado más esta cantidad) no supere la
         //    capacidad útil del fermentador del lote. Es el único tope: se puede envasar más que el volumen objetivo
-        double capacidadUtilFermentador = Redondeo.redondear(obtenerFermentador(etapaLote).getCapacidadUtil());
+        double capacidadUtilFermentador = Redondeo.redondear(obtenerCapacidadUtilFermentador(etapaLote, lote));
         double totalEnvasadoPrevio = Redondeo.redondear(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote));
         if (Redondeo.redondear(totalEnvasadoPrevio + cantidad) > capacidadUtilFermentador) {
             double disponibleParaEnvasar = Math.max(0.0, Redondeo.redondear(capacidadUtilFermentador - totalEnvasadoPrevio));
@@ -266,6 +266,17 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
     }
 
     /**
+     * Resuelve la capacidad útil del fermentador del lote: la de la instantánea de escalado tomada al iniciar el lote
+     * y, si el lote no tiene instantánea, la vigente del fermentador.
+     */
+    private double obtenerCapacidadUtilFermentador(EtapaLoteEntity etapaEnvasado, LoteEntity lote) {
+        if (lote.getEscaladoLote() != null) {
+            return lote.getEscaladoLote().getCapacidadUtilFermentador();
+        }
+        return obtenerFermentador(etapaEnvasado).getCapacidadUtil();
+    }
+
+    /**
      * Resuelve el fermentador del lote: el equipamiento de su etapa de Envasado, que es el mismo de
      * Fermentación y Maduración. La relación de la etapa es perezosa, por lo que el equipamiento puede
      * ser un proxy de Hibernate de la clase abstracta {@code EquipamientoEntity}, que no es instancia de
@@ -337,7 +348,7 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
         }
 
         FermentadorEntity fermentador = obtenerFermentador(etapaLote);
-        double capacidadUtil = Redondeo.redondear(fermentador.getCapacidadUtil());
+        double capacidadUtil = Redondeo.redondear(obtenerCapacidadUtilFermentador(etapaLote, etapaLote.getLote()));
         double totalEnvasado = Redondeo.redondear(envasadoLoteRepository.sumarCantidadEnvasadaRegistrada(idEtapaLote));
         double volumenObjetivo = Redondeo.redondear(etapaLote.getLote().getVolumenObjetivo());
 

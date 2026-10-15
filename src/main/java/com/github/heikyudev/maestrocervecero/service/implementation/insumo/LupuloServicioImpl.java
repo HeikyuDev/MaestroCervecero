@@ -8,7 +8,6 @@ import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.ILupuloRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.lote.ILoteRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.proveedor.ICatalogoProveedorRepository;
@@ -22,7 +21,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.ILupuloSe
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLupulo;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
-import com.github.heikyudev.maestrocervecero.util.validacion.BloqueoPorLotesVivos;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -33,7 +31,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -53,7 +50,6 @@ public class LupuloServicioImpl implements ILupuloServicio {
     private final ILupuloRepository lupuloRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
-    private final ILoteRepository loteRepository;
     private final IPlanificacionProduccionRepository planificacionProduccionRepository;
     private final IOrdenCompraRepository ordenCompraRepository;
     private final ICatalogoProveedorRepository catalogoProveedorRepository;
@@ -152,12 +148,6 @@ public class LupuloServicioImpl implements ILupuloServicio {
      * el lúpulo por su ID y verifica que el nuevo nombre no colisione con el de otro lúpulo
      * activo (case-insensitive), permitiendo conservar el propio nombre actual.
      * </p>
-     * <p>
-     * Si los ácidos alfa o el formato cambian y algún lote Pendiente o En ejecución usa el lúpulo (en cualquier
-     * versión de la receta de su planificación), la modificación se rechaza: esos datos definen el escalado de esos
-     * lotes. Esta verificación va después de localizar el lúpulo y de validar el nombre duplicado. El resto de los
-     * campos siguen siendo editables.
-     * </p>
      *
      * @param id Identificador clave primaria del lúpulo a modificar.
      * @param lupuloFormDTO DTO con la información actualizada.
@@ -189,22 +179,13 @@ public class LupuloServicioImpl implements ILupuloServicio {
             throw nombreDuplicadoEnModificacion(nombre);
         }
 
-        // 6. Si los ácidos alfa o el formato cambian, ningún lote Pendiente o En ejecución puede estar usando el lúpulo
-        boolean cambiaAa = !Objects.equals(lupuloEntity.getAa(), lupuloFormDTO.getAa());
-        boolean cambiaFormato = !Objects.equals(lupuloEntity.getFormato(), lupuloFormDTO.getFormato());
-        if (cambiaAa || cambiaFormato) {
-            String campos = cambiaAa && cambiaFormato ? "los ácidos alfa y el formato del lúpulo"
-                    : cambiaAa ? "los ácidos alfa del lúpulo" : "el formato del lúpulo";
-            BloqueoPorLotesVivos.validar(loteRepository.buscarCodigosDeLotesVivosPorLupulo(id), campos, "lo");
-        }
-
-        // 7. Aplico los cambios sobre la entidad administrada por persistencia.
+        // 6. Aplico los cambios sobre la entidad administrada por persistencia.
         //    La unidad de medida no se toca: es fija por regla de negocio (GRAMO).
         lupuloEntity.setNombre(nombre);
         lupuloEntity.setFormato(lupuloFormDTO.getFormato());
         lupuloEntity.setAa(lupuloFormDTO.getAa());
 
-        // 8. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
+        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperLupulo.toDTO(GuardadoUnico.guardar(lupuloRepository, lupuloEntity,
                 Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));

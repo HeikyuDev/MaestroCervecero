@@ -118,3 +118,9 @@ De esta forma, el sistema garantiza que la relación entre las distintas maltas 
 5. Reparto:  
    1. $Kg_Pilsen\ =\ 4.3952\ ×\ 0.8333\ ≈\ 3.66\ kg$  
    2. $\ Kg_Caramelo\ =\ 4.3952\ ×\ 0.1667\ ≈\ 0.73\ kg$
+
+## Datos con los que se escala un lote iniciado
+
+Al iniciar un lote se guarda una instantánea de los datos del escalado: los parámetros del molino, del macerador, de la olla de hervor y del fermentador, y los de cada malta, lúpulo y levadura de la receta. Para este escalado se usan el extracto potencial de cada malta y la eficiencia de maceración del macerador. Desde ese momento las cantidades del lote se calculan con la instantánea y no cambian aunque después se modifiquen los equipos o los insumos.
+
+Un lote Pendiente todavía no tiene instantánea y se calcula con los valores vigentes. Un lote iniciado antes de que existiera la instantánea tampoco la tiene y se calcula con los valores vigentes.

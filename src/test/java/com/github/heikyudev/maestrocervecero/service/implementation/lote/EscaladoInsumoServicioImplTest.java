@@ -2,13 +2,16 @@ package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EquipamientoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.FermentadorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.OllaHervorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.FormatoLupulo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LevaduraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.LupuloEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoLevadura;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
@@ -552,6 +555,160 @@ class EscaladoInsumoServicioImplTest {
         assertThat(resultado).isEmpty();
     }
 
+    // ==================== instantánea del escalado ====================
+
+    @Test
+    @DisplayName("CP-EI-SN-01: capturarEscalado guarda los parámetros de los cuatro equipos y los de cada malta, lúpulo y levadura de la receta")
+    void capturarEscalado_debeGuardarLosParametrosDeEquiposEInsumos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteConRecetaCompleta();
+
+        // === EJECUCION ===
+        EscaladoLoteEntity escalado = capturar(lote);
+
+        // === ASSERTS ===
+        assertThat(escalado.getRendimientoMolienda()).isEqualTo(5.0);
+        assertThat(escalado.getEficienciaMaceracion()).isEqualTo(75.0);
+        assertThat(escalado.getEspacioMuertoMacerador()).isEqualTo(5.0);
+        assertThat(escalado.getCapacidadUtilMacerador()).isEqualTo(90.0);
+        assertThat(escalado.getPerdidaPorTrubOlla()).isEqualTo(2.0);
+        assertThat(escalado.getEvaporacionOlla()).isEqualTo(3.0);
+        assertThat(escalado.getCapacidadUtilOlla()).isEqualTo(30.0);
+        assertThat(escalado.getCapacidadUtilFermentador()).isEqualTo(150.0);
+        assertThat(escalado.getInsumos()).hasSize(3);
+        assertThat(escalado.getInsumos()).allSatisfy(insumo -> assertThat(insumo.getEscaladoLote()).isSameAs(escalado));
+        assertThat(escalado.buscarInsumo(1L).getPotencialExtracto()).isEqualTo(80.0);
+        assertThat(escalado.buscarInsumo(3L).getAa()).isEqualTo(5.5);
+        assertThat(escalado.buscarInsumo(3L).getFormato()).isEqualTo(FormatoLupulo.PELLET);
+        assertThat(escalado.buscarInsumo(2L).getTipoLevadura()).isEqualTo(TipoLevadura.ALE);
+        assertThat(escalado.buscarInsumo(2L).getCantidadCelulasPorGramo()).isEqualTo(20_000.0e6);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-02: capturarEscalado guarda un solo registro por insumo cuando un lúpulo figura en dos detalles de la receta")
+    void capturarEscalado_debeGuardarUnRegistroPorInsumoDistinto() {
+        // === PREPARACION DE DATOS ===
+        LupuloEntity lupuloDoble = crearLupulo(23L, "LupuloDoble", 5.0, FormatoLupulo.FLOR);
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of())
+                .detallesLevadura(List.of())
+                .detallesLupulo(List.of(
+                        detalleLupulo(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.HERVIDO, 0.0, lupuloDoble),
+                        detalleLupulo(5.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, lupuloDoble)))
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+
+        // === EJECUCION ===
+        EscaladoLoteEntity escalado = escaladoInsumoServicio.capturarEscalado(versionReceta,
+                MolinoEntity.builder().id(1L).rendimientoMolienda(5.0).build(),
+                (MaceradorEntity) lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION).getEquipamiento(),
+                OllaHervorEntity.builder().id(3L).capacidadUtil(30.0).evaporacion(3.0).perdidaPorTrub(2.0).build(),
+                FermentadorEntity.builder().id(4L).capacidadUtil(150.0).build());
+
+        // === ASSERTS ===
+        assertThat(escalado.getInsumos()).hasSize(1);
+        assertThat(escalado.getInsumos().get(0).getInsumo()).isSameAs(lupuloDoble);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-03: con instantánea, calcularRequerimientosTotales devuelve las mismas cantidades aunque después se editen la malta, el lúpulo, la levadura y el macerador")
+    void calcularRequerimientosTotales_conInstantaneaNoDebeCambiarAlEditarEquiposEInsumos() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteConRecetaCompleta();
+        lote.setEscaladoLote(capturar(lote));
+        List<Double> antes = cantidades(escaladoInsumoServicio.calcularRequerimientosTotales(lote));
+
+        // === EJECUCION ===
+        editarEquiposEInsumos(lote);
+        List<Double> despues = cantidades(escaladoInsumoServicio.calcularRequerimientosTotales(lote));
+
+        // === ASSERTS ===
+        assertThat(despues).isEqualTo(antes);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-04: sin instantánea (lote Pendiente), calcularRequerimientosTotales usa los valores vigentes de los insumos y del macerador")
+    void calcularRequerimientosTotales_sinInstantaneaDebeUsarLosValoresVigentes() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteConRecetaCompleta();
+        List<Double> antes = cantidades(escaladoInsumoServicio.calcularRequerimientosTotales(lote));
+
+        // === EJECUCION ===
+        editarEquiposEInsumos(lote);
+        List<Double> despues = cantidades(escaladoInsumoServicio.calcularRequerimientosTotales(lote));
+
+        // === ASSERTS ===
+        assertThat(lote.getEscaladoLote()).isNull();
+        assertThat(despues).doesNotContainAnyElementsOf(antes);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-05: un lote iniciado sin instantánea (anterior a su existencia) calcula con los valores vigentes, igual que uno Pendiente")
+    void calcularRequerimientosTotales_loteEnEjecucionSinInstantaneaDebeUsarLosValoresVigentes() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteConRecetaCompleta();
+        lote.setEstado(EstadoLote.EN_EJECUCION);
+        List<Double> antes = cantidades(escaladoInsumoServicio.calcularRequerimientosTotales(lote));
+
+        // === EJECUCION ===
+        editarEquiposEInsumos(lote);
+        List<Double> despues = cantidades(escaladoInsumoServicio.calcularRequerimientosTotales(lote));
+
+        // === ASSERTS ===
+        assertThat(despues).doesNotContainAnyElementsOf(antes);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-06: con instantánea, calcularRequerimientosEtapa y calcularAdicionesLupulo no cambian al editar los insumos y el macerador")
+    void calcularRequerimientosPorEtapa_conInstantaneaNoDebenCambiarAlEditar() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteConRecetaCompleta();
+        lote.setEscaladoLote(capturar(lote));
+        EtapaLoteEntity etapaMolienda = lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA);
+        EtapaLoteEntity etapaHervido = lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO);
+        EtapaLoteEntity etapaFermentacion = lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION);
+        List<Double> molienda = cantidades(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda));
+        List<Double> levadura = cantidades(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaFermentacion));
+        List<Double> adiciones = escaladoInsumoServicio.calcularAdicionesLupulo(etapaHervido).stream().map(AdicionLupulo::cantidad).toList();
+
+        // === EJECUCION ===
+        editarEquiposEInsumos(lote);
+
+        // === ASSERTS ===
+        assertThat(cantidades(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaMolienda))).isEqualTo(molienda);
+        assertThat(cantidades(escaladoInsumoServicio.calcularRequerimientosEtapa(etapaFermentacion))).isEqualTo(levadura);
+        assertThat(escaladoInsumoServicio.calcularAdicionesLupulo(etapaHervido).stream().map(AdicionLupulo::cantidad).toList()).isEqualTo(adiciones);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-07: con instantánea, calcularRequerimientosMalta(lote) no resuelve el macerador de la etapa de Maceración")
+    void calcularRequerimientosMalta_conInstantaneaNoDebeResolverElMacerador() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteConRecetaCompleta();
+        lote.setEscaladoLote(capturar(lote));
+        List<Double> esperado = cantidades(escaladoInsumoServicio.calcularRequerimientosMalta(lote));
+        lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION).setEquipamiento(MolinoEntity.builder().id(9L).rendimientoMolienda(5.0).build());
+
+        // === EJECUCION ===
+        List<Double> resultado = cantidades(escaladoInsumoServicio.calcularRequerimientosMalta(lote));
+
+        // === ASSERTS ===
+        assertThat(resultado).isEqualTo(esperado);
+    }
+
+    @Test
+    @DisplayName("CP-EI-SN-08: buscarInsumo lanza ReglaNegocioException si la instantánea no tiene los parámetros del insumo")
+    void buscarInsumo_debeLanzarExcepcionSiLaInstantaneaNoTieneElInsumo() {
+        // === PREPARACION DE DATOS ===
+        EscaladoLoteEntity escalado = capturar(crearLoteConRecetaCompleta());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> escalado.buscarInsumo(99L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El escalado del lote no tiene los parámetros del insumo con ID: 99");
+    }
+
     // ==================== helpers de construcción ====================
 
     /**
@@ -566,6 +723,47 @@ class EscaladoInsumoServicioImplTest {
         when(proxyHibernate.getHibernateLazyInitializer()).thenReturn(inicializador);
         when(inicializador.getImplementation()).thenReturn(real);
         return proxy;
+    }
+
+    private static List<Double> cantidades(List<RequerimientoInsumo> requerimientos) {
+        return requerimientos.stream().map(RequerimientoInsumo::cantidadRequerida).toList();
+    }
+
+    /** Lote con una malta, un lúpulo de HERVOR y una levadura, y sus equipos reales en las etapas. */
+    private static LoteEntity crearLoteConRecetaCompleta() {
+        VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
+                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .detallesMalta(List.of(detalleMalta(100.0, crearMalta(1L, "Pilsen", 80))))
+                .detallesLevadura(List.of(detalleLevadura(6.0, crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6))))
+                .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET))))
+                .build();
+        LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
+        lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA).setEquipamiento(MolinoEntity.builder().id(1L).rendimientoMolienda(5.0).build());
+        lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO).setEquipamiento(OllaHervorEntity.builder().id(3L).capacidadUtil(30.0).evaporacion(3.0).perdidaPorTrub(2.0).build());
+        lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).setEquipamiento(FermentadorEntity.builder().id(4L).capacidadUtil(150.0).build());
+        return lote;
+    }
+
+    /** Toma la instantánea del lote con los equipos y la receta que tiene en este momento. */
+    private EscaladoLoteEntity capturar(LoteEntity lote) {
+        return escaladoInsumoServicio.capturarEscalado(lote.getPlanificacionProduccion().getVersionReceta(),
+                (MolinoEntity) lote.obtenerEtapaPorTipo(TipoEtapa.MOLIENDA).getEquipamiento(),
+                (MaceradorEntity) lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION).getEquipamiento(),
+                (OllaHervorEntity) lote.obtenerEtapaPorTipo(TipoEtapa.HERVIDO).getEquipamiento(),
+                (FermentadorEntity) lote.obtenerEtapaPorTipo(TipoEtapa.FERMENTACION).getEquipamiento());
+    }
+
+    /** Edita los datos de escalado de la malta, el lúpulo, la levadura y el macerador del lote. */
+    private static void editarEquiposEInsumos(LoteEntity lote) {
+        VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
+        versionReceta.getDetallesMalta().get(0).getMalta().setPotencialExtracto(60);
+        LupuloEntity lupulo = versionReceta.getDetallesLupulo().get(0).getLupulo();
+        lupulo.setAa(12.0);
+        lupulo.setFormato(FormatoLupulo.FLOR);
+        LevaduraEntity levadura = versionReceta.getDetallesLevadura().get(0).getLevadura();
+        levadura.setTipo(TipoLevadura.LAGER);
+        levadura.setCantidadCelulasPorGramo(10_000.0e6);
+        ((MaceradorEntity) lote.obtenerEtapaPorTipo(TipoEtapa.MACERACION).getEquipamiento()).setEficienciaMaceracion(50.0);
     }
 
     private static MaltaEntity crearMalta(Long id, String nombre, int potencialExtracto) {

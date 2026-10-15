@@ -60,6 +60,12 @@ public class LoteEntity extends AuditableEntity<String> {
     @JoinColumn(name = "planificacion_produccion_id", nullable = false)
     private PlanificacionProduccionEntity planificacionProduccion;
 
+    // Instantánea del escalado, tomada al iniciar el lote; nula mientras está Pendiente, en los lotes cancelados sin
+    // haber iniciado y en los lotes iniciados antes de que existiera (su escalado usa los valores vigentes).
+    @OneToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "escalado_lote_id", unique = true)
+    private EscaladoLoteEntity escaladoLote;
+
     @OneToMany(mappedBy = "lote", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     @Builder.Default
     private List<EtapaLoteEntity> etapas = new ArrayList<>();

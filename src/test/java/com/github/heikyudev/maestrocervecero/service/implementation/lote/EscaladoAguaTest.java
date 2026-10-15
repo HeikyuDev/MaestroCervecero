@@ -185,6 +185,22 @@ class EscaladoAguaTest {
         assertThat(resultado.aguaPorRelacionDeEmpaste() + resultado.espacioMuerto()).isEqualTo(resultado.aguaMacerado());
     }
 
+    @Test
+    @DisplayName("CP-EA-12: calcular con el espacio muerto, la evaporación y la pérdida por trub como valores (los de la instantánea del lote) da el mismo resultado que con las entidades")
+    void calcular_conValoresDeLaInstantaneaDebeCoincidirConLasEntidades() {
+        // === PREPARACION DE DATOS ===
+        VersionRecetaEntity versionReceta = crearVersionReceta(3.0, 60);
+
+        // === EJECUCION ===
+        VolumenesAgua conEntidades = EscaladoAgua.calcular(20.0, 5.0, crearMacerador(1.5), crearOllaHervor(4.0, 1.0), versionReceta);
+        VolumenesAgua conValores = EscaladoAgua.calcular(20.0, 5.0, 1.5, 1.0, 4.0, versionReceta);
+
+        // === ASSERTS ===
+        assertThat(conValores).isEqualTo(conEntidades);
+        assertThat(EscaladoAgua.calcularVolumenPreHervor(20.0, 1.0, 4.0, versionReceta)).isEqualTo(25.0);
+        assertThat(EscaladoAgua.calcularAguaMacerado(5.0, 1.5, versionReceta)).isEqualTo(16.5);
+    }
+
     private static MaceradorEntity crearMacerador(double espacioMuerto) {
         return MaceradorEntity.builder()
                 .id(1L)
