@@ -60,55 +60,54 @@
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-1.5 py-3">Código</th>
-                <th class="px-1.5 py-3">Planificación</th>
-                <th class="px-1.5 py-3">Fermentador</th>
-                <th class="px-1.5 py-3">Estado</th>
-                <th class="px-1.5 py-3">Etapa actual</th>
-                <th class="px-1.5 py-3">Inicio</th>
-                <th class="px-1.5 py-3">Fin</th>
-                <th class="px-1.5 py-3 text-right whitespace-nowrap">Acciones</th>
+                <th class="px-1 py-3">Código</th>
+                <th class="px-1 py-3">Planificación</th>
+                <th class="px-1 py-3">Fermentador</th>
+                <th class="px-1 py-3">Estado y etapa</th>
+                <th class="px-1 py-3">Inicio</th>
+                <th class="px-1 py-3">Fin</th>
+                <th class="px-1 py-3 text-center whitespace-nowrap">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="l : ${lotes.content}" class="hover:bg-slate-50">
-                <td class="px-1.5 py-3 font-medium text-slate-900">
-                    <div class="max-w-[11rem] truncate" data-lote-codigo tabindex="0" th:data-tooltip="${l.identificadorInterno}"
+                <td class="px-1 py-3 font-medium text-slate-900">
+                    <div class="max-w-[9rem] truncate" data-lote-codigo tabindex="0" th:data-tooltip="${l.identificadorInterno}"
                          th:text="${l.identificadorInterno}">PALE_ALE-R7-3</div>
                 </td>
-                <td class="px-1.5 py-3 text-slate-700">
-                    <div class="max-w-[13rem] truncate" data-planificacion-etiqueta tabindex="0"
+                <td class="px-1 py-3 text-slate-700">
+                    <div class="max-w-[9rem] truncate" data-planificacion-etiqueta tabindex="0"
                          th:data-tooltip="${l.etiquetaPlanificacion}" th:text="${l.etiquetaPlanificacion}">Plan #7 - Pale Ale</div>
                 </td>
-                <td class="px-1.5 py-3 text-slate-700">
-                    <div class="max-w-[8rem] truncate" data-lote-fermentador tabindex="0" th:data-tooltip="${l.identificadorInternoFermentador}"
+                <td class="px-1 py-3 text-slate-700">
+                    <div class="max-w-[6rem] truncate" data-lote-fermentador tabindex="0" th:data-tooltip="${l.identificadorInternoFermentador}"
                          th:text="${l.identificadorInternoFermentador != null} ? ${l.identificadorInternoFermentador} : '-'">F-01</div>
                 </td>
-                <td class="px-1.5 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoLote(${l.estado})}"></span></td>
-                <td class="px-1.5 py-3 text-slate-700 whitespace-nowrap" th:text="${l.etapaActual != null} ? ${l.etapaActual.etiqueta} : '-'">Hervido</td>
-                <td class="px-1.5 py-3 text-slate-700 whitespace-nowrap" data-fecha-inicio>
+                <td class="px-1 py-3 whitespace-nowrap">
+                    <span th:replace="~{planificacion_produccion/formato :: estadoLote(${l.estado})}"></span>
+                    <div class="mt-1 text-xs text-slate-500" data-etapa-actual th:text="${l.etapaActual != null} ? ${l.etapaActual.etiqueta} : '-'">Hervido</div>
+                </td>
+                <td class="px-1 py-3 text-slate-700 whitespace-nowrap" data-fecha-inicio>
                     <div class="space-y-1">
-                        <div data-fecha-inicio-estimada><span class="inline-block w-[3.25rem] text-xs text-slate-400">Estimado</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaInicioEstimada})}"></th:block></div>
-                        <div data-fecha-inicio-real><span class="inline-block w-[3.25rem] text-xs text-slate-400">Real</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaInicio})}"></th:block></div>
+                        <div data-fecha-inicio-estimada><span class="inline-block w-6 text-xs text-slate-400" title="Estimado">Est.</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaInicioEstimada})}"></th:block></div>
+                        <div data-fecha-inicio-real><span class="inline-block w-6 text-xs text-slate-400">Real</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaInicio})}"></th:block></div>
                     </div>
                 </td>
-                <td class="px-1.5 py-3 text-slate-700 whitespace-nowrap" data-fecha-fin>
+                <td class="px-1 py-3 text-slate-700 whitespace-nowrap" data-fecha-fin>
                     <div class="space-y-1">
-                        <div data-fecha-fin-estimado><span class="inline-block w-[3.25rem] text-xs text-slate-400">Estimado</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacionEstimada})}"></th:block></div>
-                        <div data-fecha-fin-real><span class="inline-block w-[3.25rem] text-xs text-slate-400">Real</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacion})}"></th:block></div>
+                        <div data-fecha-fin-estimado><span class="inline-block w-6 text-xs text-slate-400" title="Estimado">Est.</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacionEstimada})}"></th:block></div>
+                        <div data-fecha-fin-real><span class="inline-block w-6 text-xs text-slate-400">Real</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacion})}"></th:block></div>
                     </div>
                 </td>
-                <td class="px-2 py-3">
-                    <div class="flex items-center justify-end gap-0.5">
-                        <a th:href="@{/lotes/{id}(id=${l.id})}" data-gestionar-lote title="Gestionar lote" aria-label="Gestionar lote"
-                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                            <i class="bi bi-gear text-lg"></i>
-                        </a>
-                    </div>
+                <td class="px-2 py-3 text-center">
+                    <a th:href="@{/lotes/{id}(id=${l.id})}" data-gestionar-lote title="Gestionar lote" aria-label="Gestionar lote"
+                       class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-sm transition-colors">
+                        <i class="bi bi-gear text-xl"></i>
+                    </a>
                 </td>
             </tr>
             <tr th:if="${lotes.empty}">
-                <td colspan="8" class="px-4 py-10 text-center text-slate-400">
+                <td colspan="7" class="px-4 py-10 text-center text-slate-400">
                     <i class="bi bi-collection block text-3xl mb-2"></i>
                     No se encontraron lotes con los criterios indicados
                 </td>

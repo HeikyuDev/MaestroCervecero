@@ -189,8 +189,8 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains("Gestión de Lotes").contains("action=\"/lotes\"").contains("novalidate");
-        assertThat(texto(html)).contains("Código", "Planificación", "Fermentador", "Estado", "Etapa actual", "Inicio", "Fin");
-        assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "Plan #7 - Pale Ale", "F-01", "En ejecución", "Hervido", "Estimado 01/07/2027 Real 01/07/2027", "Estimado 05/07/2027 Real -");
+        assertThat(texto(html)).contains("Código", "Planificación", "Fermentador", "Estado y etapa", "Inicio", "Fin");
+        assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "Plan #7 - Pale Ale", "F-01", "En ejecución Hervido", "Est. 01/07/2027 Real 01/07/2027", "Est. 05/07/2027 Real -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Nuevo lote")
                 .contains("href=\"/lotes/12\"").contains("overflow-x-auto");
         assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
@@ -378,10 +378,10 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(celdas(html, "L-PENDIENTE")).contains("Pendiente").element(4).isEqualTo("-");
-        assertThat(celdas(html, "L-EJECUCION")).contains("En ejecución").element(4).isEqualTo("Maduración");
-        assertThat(celdas(html, "L-FINALIZADO")).contains("Finalizado").element(4).isEqualTo("-");
-        assertThat(celdas(html, "L-CANCELADO")).contains("Cancelado").element(4).isEqualTo("-");
+        assertThat(celdas(html, "L-PENDIENTE")).contains("Pendiente -");
+        assertThat(celdas(html, "L-EJECUCION")).contains("En ejecución Maduración");
+        assertThat(celdas(html, "L-FINALIZADO")).contains("Finalizado -");
+        assertThat(celdas(html, "L-CANCELADO")).contains("Cancelado -");
     }
 
     @Test
@@ -409,8 +409,8 @@ class LoteControllerTest {
         // Assert
         assertThat(html).contains(">Inicio</th>").contains(">Fin</th>").doesNotContain("xl:hidden").doesNotContain("xl:table-cell");
         List<String> celdas = celdas(html, "PALE_ALE-R7-3");
-        assertThat(celdas.get(5)).isEqualTo("Estimado 01/07/2027 Real -");
-        assertThat(celdas.get(6)).isEqualTo("Estimado 05/07/2027 Real -");
+        assertThat(celdas.get(4)).isEqualTo("Est. 01/07/2027 Real -");
+        assertThat(celdas.get(5)).isEqualTo("Est. 05/07/2027 Real -");
         assertThat(html).contains("data-fecha-inicio-estimada").contains("data-fecha-fin-estimado").contains("data-fecha-inicio-real").contains("data-fecha-fin-real");
     }
 
@@ -1153,10 +1153,10 @@ class LoteControllerTest {
         // Assert
         String etiqueta = "Plan #7 - " + nombreLargo;
         String celda = elementoConAtributo(html, "div", "data-planificacion-etiqueta");
-        assertThat(celda).contains("truncate").contains("max-w-[13rem]").contains("data-tooltip=\"" + etiqueta + "\"").contains("tabindex=\"0\"");
+        assertThat(celda).contains("truncate").contains("max-w-[9rem]").contains("data-tooltip=\"" + etiqueta + "\"").contains("tabindex=\"0\"");
         assertThat(texto(celda)).isEqualTo(etiqueta);
-        assertThat(elementoConAtributo(html, "div", "data-lote-codigo")).contains("truncate").contains("max-w-[11rem]");
-        assertThat(elementoConAtributo(html, "div", "data-lote-fermentador")).contains("truncate").contains("max-w-[8rem]");
+        assertThat(elementoConAtributo(html, "div", "data-lote-codigo")).contains("truncate").contains("max-w-[9rem]");
+        assertThat(elementoConAtributo(html, "div", "data-lote-fermentador")).contains("truncate").contains("max-w-[6rem]");
         assertThat(html).contains("overflow-x-auto");
     }
 
@@ -2714,9 +2714,9 @@ class LoteControllerTest {
         // Assert
         Matcher boton = Pattern.compile("<a[^>]*data-gestionar-lote[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
         assertThat(boton.find()).isTrue();
-        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("title=\"Gestionar lote\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear").contains("hover:text-amber-600");
-        assertThat(html).doesNotContain("sticky right-0").contains("justify-end");
-        assertThat(html.substring(html.indexOf("<thead"), html.indexOf("</thead>"))).contains("text-right");
+        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("title=\"Gestionar lote\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear").contains("hover:bg-amber-500");
+        assertThat(html).doesNotContain("sticky right-0").contains("text-center");
+        assertThat(html.substring(html.indexOf("<thead"), html.indexOf("</thead>"))).contains("text-center");
         assertThat(texto(boton.group())).isEmpty();
         assertThat(boton.find()).isFalse();
         assertThat(celdas(html, "PALE_ALE-R7-3").get(0)).isEqualTo("PALE_ALE-R7-3");
