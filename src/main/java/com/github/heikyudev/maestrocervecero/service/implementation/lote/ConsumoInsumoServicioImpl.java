@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.L
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ConsumoInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MaceradorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
@@ -45,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import org.hibernate.Hibernate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -147,6 +149,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         validarEtapaConsumeInsumos(etapaLote);
         validarLoteDelInsumoElegido(idInsumo, loteInsumo);
         validarInsumoRequeridoPorEtapa(etapaLote, loteInsumo.getInsumo());
+        validarMaltaMolidaEnElMacerador(etapaLote, loteInsumo.getInsumo(), cantidadConsumida);
 
         // 5. Validar que exista una reserva de ese lote de insumo para esa etapa
         ReservaInsumoEntity reserva = reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(etapaLote.getId(), loteInsumo.getId())
@@ -231,6 +234,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         validarEtapaConsumeInsumos(etapaLote);
         validarLoteDelInsumoElegido(idInsumo, loteInsumo);
         validarInsumoRequeridoPorEtapa(etapaLote, loteInsumo.getInsumo());
+        validarMaltaMolidaEnElMacerador(etapaLote, loteInsumo.getInsumo(), cantidadConsumida);
 
         // 5. Validar que la cantidad consumida no supere la cantidad disponible del lote de insumo
         double cantidadDisponible = loteInsumo.getCantidadDisponible();
@@ -436,6 +440,55 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         TipoEtapa tipoEtapa = etapaLote.getEtapa();
         if (!tipoEtapa.isPermiteRegistrarConsumo()) {
             throw new ReglaNegocioException("La etapa " + tipoEtapa.getEtiqueta() + " no admite el registro de consumos de insumo");
+        }
+    }
+
+    /**
+     * Valida que la malta molida del lote no desborde el macerador. Solo aplica al consumo de una malta en la etapa de
+     * Molienda: el total molido (los consumos registrados, no anulados, de malta de la etapa más el que se registra)
+     * se lleva al volumen de la mezcla de agua y grano (Paso 3 del escalado de agua, con la relación de empaste de la
+     * receta y el espacio muerto y la capacidad útil del macerador de la instantánea de escalado del lote, o los del
+     * macerador del lote si no tiene instantánea) y no puede superar la capacidad útil del macerador. Los consumos de
+     * otras etapas y de otros insumos no se validan.
+     *
+     * @throws ReglaNegocioException Si la mezcla correspondiente a la malta molida supera la capacidad útil del macerador.
+     */
+    private void validarMaltaMolidaEnElMacerador(EtapaLoteEntity etapaLote, InsumoEntity insumo, double cantidadConsumida) {
+        LoteEntity lote = etapaLote.getLote();
+        if (etapaLote.getEtapa() != TipoEtapa.MOLIENDA || lote == null || lote.getPlanificacionProduccion() == null) {
+            return;
+        }
+        VersionRecetaEntity versionReceta = lote.getPlanificacionProduccion().getVersionReceta();
+        List<Long> idsMaltas = versionReceta.getDetallesMalta().stream().map(detalle -> detalle.getMalta().getId()).toList();
+        if (!idsMaltas.contains(insumo.getId())) {
+            return;
+        }
+
+        double espacioMuerto;
+        double capacidadUtil;
+        if (lote.getEscaladoLote() != null) {
+            espacioMuerto = lote.getEscaladoLote().getEspacioMuertoMacerador();
+            capacidadUtil = lote.getEscaladoLote().getCapacidadUtilMacerador();
+        } else {
+            EtapaLoteEntity maceracion = lote.getEtapas().stream().filter(e -> e.getEtapa() == TipoEtapa.MACERACION).findFirst().orElse(null);
+            Object equipamiento = maceracion != null ? Hibernate.unproxy(maceracion.getEquipamiento()) : null;
+            if (!(equipamiento instanceof MaceradorEntity macerador)) {
+                return;
+            }
+            espacioMuerto = macerador.getEspacioMuerto();
+            capacidadUtil = macerador.getCapacidadUtil();
+        }
+
+        double yaMolida = consumoInsumoRepository.findByEtapaLoteIdAndEstado(etapaLote.getId(), EstadoTransaccion.REGISTRADO).stream()
+                .filter(consumo -> idsMaltas.contains(consumo.getLoteInsumo().getInsumo().getId()))
+                .mapToDouble(ConsumoInsumoEntity::getCantidadConsumida)
+                .sum();
+        double totalMolido = Redondeo.redondear(yaMolida + cantidadConsumida);
+        double volumenMezcla = Redondeo.redondear(EscaladoAgua.calcularVolumenMezcla(totalMolido, espacioMuerto, versionReceta));
+        if (volumenMezcla > Redondeo.redondear(capacidadUtil)) {
+            throw new ReglaNegocioException("La malta molida (" + ValidacionesNumericas.formatearNumero(totalMolido)
+                    + " kg en total) requiere una mezcla de " + ValidacionesNumericas.formatearNumero(volumenMezcla)
+                    + " L que supera la capacidad útil del macerador (" + ValidacionesNumericas.formatearNumero(capacidadUtil) + " L)");
         }
     }
 

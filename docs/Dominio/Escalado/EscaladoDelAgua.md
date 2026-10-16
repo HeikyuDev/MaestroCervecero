@@ -190,3 +190,7 @@ El agua que informa el lote (agua de macerado, agua de lavado y agua total; Paso
 - El agua de lavado nunca es negativa: si el mosto extraído supera el volumen pre-hervor vale 0 y se informa una advertencia.
 - Con la malta molida, si el volumen de la mezcla de agua y malta (Paso 3, mezcla) supera la capacidad útil del macerador, el cálculo se informa igualmente con una advertencia que no bloquea. La validación de capacidad al registrar el lote usa la masa escalada y no cambia.
 - La tarjeta guía de la etapa de Maceración muestra la masa usada y la fórmula del agua de macerado con esos kilos.
+
+## Límite de la malta molida
+
+Al registrar un consumo (reservado o directo) de una malta en la etapa de Molienda, el total molido (los consumos registrados, no anulados, de malta de la etapa más el nuevo) se lleva al volumen de la mezcla de agua y grano del Paso 3 (total molido × relación de empaste + espacio muerto del macerador + 0,7 L por kilo de grano), con los datos del macerador de la instantánea del lote. Si ese volumen supera la capacidad útil del macerador, el consumo se rechaza con el mensaje "La malta molida (X kg en total) requiere una mezcla de Y L que supera la capacidad útil del macerador (Z L)". Los consumos de otras etapas y de otros insumos no se validan. Un lote que ya supera esa capacidad por datos anteriores sigue mostrando la advertencia de la guía de Maceración.

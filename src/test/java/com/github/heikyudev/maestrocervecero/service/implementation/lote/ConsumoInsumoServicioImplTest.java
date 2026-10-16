@@ -8,6 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ConsumoInsu
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
@@ -1896,6 +1897,104 @@ class ConsumoInsumoServicioImplTest {
                 .fechaFinalizacionEstimada(LocalDate.now().plusDays(20))
                 .planificacionProduccion(planificacionProduccion)
                 .build();
+    }
+
+    @Test
+    @DisplayName("CP-CR-33: registrarConsumoInsumoReservado rechaza una malta en la Molienda cuya mezcla de agua y grano (100000 kg) desborda el macerador de la instantánea de escalado")
+    void registrarReservado_debeRechazarMaltaQueDesbordaElMacerador() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        prepararMaceradorDeLaInstantanea(lote, 5.0, 100.0);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 200000.0, 200000.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 100000.0);
+
+        // === EJECUCION Y ASSERTS ===
+        // Mezcla = 100000 * 3 + 5 + 100000 * 0,7 = 370005 L > 100 L
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageStartingWith("La malta molida (")
+                .hasMessageContaining(" kg en total) requiere una mezcla de ")
+                .hasMessageEndingWith(" L que supera la capacidad útil del macerador (100 L)");
+        verify(loteInsumoRepository, never()).save(any());
+        verify(consumoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CR-34: registrarConsumoInsumoReservado suma la malta ya molida (consumos registrados) al consumo nuevo para validar el macerador, y permite la malta que entra")
+    void registrarReservado_debeSumarLaMaltaYaMolidaParaValidarElMacerador() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        prepararMaceradorDeLaInstantanea(lote, 5.0, 100.0);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 100.0, 100.0);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(1L, etapaLote, loteInsumo, 100.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 1L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.findByEtapaLoteIdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(crearConsumoBase(1L, 25.0)));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION Y ASSERTS ===
+        // 25 + 10 = 35 kg: mezcla = 35 * 3 + 5 + 35 * 0,7 = 134,5 L > 100 L; 25 + 5 = 30 kg: 90 + 5 + 21 = 116 L > 100 L; 25 + 1 = 26 kg: 78 + 5 + 18,2 = 101,2 L > 100 L
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 10.0)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageContaining("requiere una mezcla de ");
+        // 25 + 0,5 = 25,5 kg: 76,5 + 5 + 17,85 = 99,35 L <= 100 L
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTOBase(1L, 0.5));
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-CD-30: registrarConsumoInsumoDirecto rechaza una malta en la Molienda cuya mezcla de agua y grano (100000 kg) desborda el macerador de la instantánea de escalado")
+    void registrarDirecto_debeRechazarMaltaQueDesbordaElMacerador() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        prepararMaceradorDeLaInstantanea(lote, 5.0, 100.0);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 200000.0, 0.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        ConsumoInsumoFormDTO formDTO = formDTOBase(1L, 100000.0);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessageStartingWith("La malta molida (")
+                .hasMessageEndingWith(" L que supera la capacidad útil del macerador (100 L)");
+        verify(loteInsumoRepository, never()).save(any());
+        verify(consumoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-CD-31: registrarConsumoInsumoDirecto no valida el macerador cuando la malta cabe en él")
+    void registrarDirecto_debePermitirMaltaQueCabeEnElMacerador() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION, crearVersionRecetaConMalta(malta));
+        prepararMaceradorDeLaInstantanea(lote, 5.0, 100.0);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(1L, malta, 50.0, 0.0);
+        when(etapaLoteRepository.findById(1L)).thenReturn(Optional.of(etapaLote));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(1L)).thenReturn(Optional.of(loteInsumo));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        // 10 kg: mezcla = 30 + 5 + 7 = 42 L <= 100 L
+        ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoDirecto(1L, formDTOBase(1L, 10.0));
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+    }
+
+    private static void prepararMaceradorDeLaInstantanea(LoteEntity lote, double espacioMuerto, double capacidadUtil) {
+        lote.getPlanificacionProduccion().getVersionReceta().setRelacionDeEmpaste(3.0);
+        lote.setEscaladoLote(EscaladoLoteEntity.builder().espacioMuertoMacerador(espacioMuerto).capacidadUtilMacerador(capacidadUtil).build());
     }
 
     private static EtapaLoteEntity crearEtapaLote(Long id, TipoEtapa tipo, EstadoEtapaLote estado, LoteEntity lote) {
