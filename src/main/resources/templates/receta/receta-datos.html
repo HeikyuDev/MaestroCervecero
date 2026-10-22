@@ -71,24 +71,22 @@
 
     <!-- Maltas -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Maltas (cantidad en kg)</h2>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Maltas</h2>
         <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-4 py-3">Nombre</th>
-                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3">Malta</th>
                 <th class="px-4 py-3">Cantidad</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${version.detallesMalta}">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${d.malta.nombre}">Pilsen</td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: tipoMalta(${d.malta.tipo})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.cantidad})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidad}, 'kg')}"></th:block></td>
             </tr>
             <tr th:if="${#lists.isEmpty(version.detallesMalta)}">
-                <td colspan="3" class="px-4 py-6 text-center text-slate-400">La receta no tiene maltas</td>
+                <td colspan="2" class="px-4 py-6 text-center text-slate-400">La receta no tiene maltas</td>
             </tr>
             </tbody>
         </table>
@@ -97,14 +95,12 @@
 
     <!-- Lúpulos -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Lúpulos (cantidad en g, tiempo de hervor en min)</h2>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Lúpulos</h2>
         <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-4 py-3">Nombre</th>
-                <th class="px-4 py-3">Formato</th>
-                <th class="px-4 py-3">Ácidos alfa (%)</th>
+                <th class="px-4 py-3">Lúpulo</th>
                 <th class="px-4 py-3">Uso</th>
                 <th class="px-4 py-3">Etapa de uso</th>
                 <th class="px-4 py-3">Tiempo de hervor</th>
@@ -114,18 +110,16 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${version.detallesLupulo}">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${d.lupulo.nombre}">Cascade</td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: formatoLupulo(${d.lupulo.formato})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.lupulo.aa})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: usoLupulo(${d.uso})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: etapa(${d.etapaDeUso})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
-                    <th:block th:if="${d.uso.name() == 'HERVOR'}"><th:block th:replace="~{receta/formato :: numero(${d.tiempoDeHervor})}"></th:block></th:block>
+                    <th:block th:if="${d.uso.name() == 'HERVOR'}"><th:block th:replace="~{receta/formato :: medida(${d.tiempoDeHervor}, 'min')}"></th:block></th:block>
                     <th:block th:unless="${d.uso.name() == 'HERVOR'}">-</th:block>
                 </td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.cantidad})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidad}, 'g')}"></th:block></td>
             </tr>
             <tr th:if="${#lists.isEmpty(version.detallesLupulo)}">
-                <td colspan="7" class="px-4 py-6 text-center text-slate-400">La receta no tiene lúpulos</td>
+                <td colspan="5" class="px-4 py-6 text-center text-slate-400">La receta no tiene lúpulos</td>
             </tr>
             </tbody>
         </table>
@@ -134,24 +128,22 @@
 
     <!-- Levaduras -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Levaduras (cantidad en g)</h2>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Levaduras</h2>
         <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-4 py-3">Nombre</th>
-                <th class="px-4 py-3">Tipo</th>
+                <th class="px-4 py-3">Levadura</th>
                 <th class="px-4 py-3">Cantidad</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${version.detallesLevadura}">
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${d.levadura.nombre}">US-05</td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: tipoLevadura(${d.levadura.tipo})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${d.cantidad})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidad}, 'g')}"></th:block></td>
             </tr>
             <tr th:if="${#lists.isEmpty(version.detallesLevadura)}">
-                <td colspan="3" class="px-4 py-6 text-center text-slate-400">La receta no tiene levaduras</td>
+                <td colspan="2" class="px-4 py-6 text-center text-slate-400">La receta no tiene levaduras</td>
             </tr>
             </tbody>
         </table>

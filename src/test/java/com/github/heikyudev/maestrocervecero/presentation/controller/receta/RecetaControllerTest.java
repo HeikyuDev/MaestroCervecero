@@ -281,12 +281,12 @@ class RecetaControllerTest {
                 .andExpect(content().string(not(containsString("Duración total"))))
                 .andExpect(content().string(not(containsString("14 días"))))
                 // Maltas
-                .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
+                .andExpect(content().string(containsString("Maltas")))
                 .andExpect(content().string(containsString("Pilsen")))
-                .andExpect(content().string(matchesPattern("(?s).*Pilsen.*?>\\s*Base\\s*<.*?>\\s*4,5\\s*<.*")))
+                .andExpect(content().string(matchesPattern("(?s).*Pilsen.*?>\\s*4,5 kg\\s*<.*")))
                 // Levaduras
-                .andExpect(content().string(containsString("Levaduras (cantidad en g)")))
-                .andExpect(content().string(matchesPattern("(?s).*US-05.*?>\\s*Ale\\s*<.*?>\\s*11,5\\s*<.*")))
+                .andExpect(content().string(containsString("Levaduras")))
+                .andExpect(content().string(matchesPattern("(?s).*US-05.*?>\\s*11,5 g\\s*<.*")))
                 // Botones
                 .andExpect(content().string(containsString("Volver a recetas")))
                 .andExpect(content().string(containsString("href=\"/recetas\"")))
@@ -296,20 +296,20 @@ class RecetaControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-RCC-12: los lúpulos muestran formato, alfa, uso y etapa legibles; el tiempo de hervor solo aparece en el uso Hervor")
+    @DisplayName("CP-RCC-12: los lúpulos muestran uso, etapa, tiempo y cantidad con su unidad, como en el formulario; el tiempo de hervor solo aparece en el uso Hervor")
     void detalle_debeMostrarElTiempoDeHervorSoloParaHervor() throws Exception {
         when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
 
         mockMvc.perform(get("/recetas/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en min)")))
+                .andExpect(content().string(containsString("Lúpulos")))
                 .andExpect(content().string(containsString("Tiempo de hervor")))
                 .andExpect(content().string(matchesPattern(
-                        "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*")))
+                        "(?s).*Cascade.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60 min\\s*<.*?>\\s*25 g\\s*<.*")))
                 .andExpect(content().string(matchesPattern(
-                        "(?s).*Citra.*?>\\s*Flor\\s*<.*?>\\s*12\\s*<.*?>\\s*Dry hop\\s*<.*?>\\s*Fermentación\\s*<.*?>\\s*-\\s*<.*?>\\s*40\\s*<.*")))
+                        "(?s).*Citra.*?>\\s*Dry hop\\s*<.*?>\\s*Fermentación\\s*<.*?>\\s*-\\s*<.*?>\\s*40 g\\s*<.*")))
                 .andExpect(content().string(matchesPattern(
-                        "(?s).*Mosaic.*?>\\s*Whirlpool\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*-\\s*<.*?>\\s*30\\s*<.*")));
+                        "(?s).*Mosaic.*?>\\s*Whirlpool\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*-\\s*<.*?>\\s*30 g\\s*<.*")));
     }
 
     @Test
@@ -322,8 +322,8 @@ class RecetaControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Datos de la receta")))
                 .andExpect(content().string(containsString("Duraciones estimadas")))
-                .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
-                .andExpect(content().string(containsString("Levaduras (cantidad en g)")))
+                .andExpect(content().string(containsString("Maltas")))
+                .andExpect(content().string(containsString("Levaduras")))
                 .andExpect(content().string(not(containsString("Parámetro</th>"))));
     }
 
@@ -346,8 +346,8 @@ class RecetaControllerTest {
                 .andExpect(content().string(not(containsString("fue dada de baja"))))
                 .andReturn().getResponse().getContentAsString();
 
-        for (String seccion : List.of("Datos de la receta", "Duraciones estimadas", "Maltas (cantidad en kg)",
-                "Lúpulos (cantidad en g, tiempo de hervor en min)", "Levaduras (cantidad en g)")) {
+        for (String seccion : List.of("Datos de la receta", "Duraciones estimadas", "Maltas",
+                "Lúpulos", "Levaduras")) {
             assertThat(html.split(java.util.regex.Pattern.quote(">" + seccion + "<"), -1).length - 1)
                     .as("títulos \"" + seccion + "\"").isEqualTo(1);
         }

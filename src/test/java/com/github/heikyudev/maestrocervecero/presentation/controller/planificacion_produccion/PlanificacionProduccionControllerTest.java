@@ -1505,14 +1505,14 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("La receta fue dada de baja; se muestra la versión que usa la planificación")))
                 .andExpect(content().string(containsString("Datos de la receta")))
                 .andExpect(content().string(containsString("Duraciones estimadas")))
-                .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
-                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en min)")))
-                .andExpect(content().string(containsString("Levaduras (cantidad en g)")));
+                .andExpect(content().string(containsString("Maltas")))
+                .andExpect(content().string(containsString("Lúpulos")))
+                .andExpect(content().string(containsString("Levaduras")));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-78: la receta de la planificación lista todas las maltas con nombre, tipo legible y cantidad, en el orden recibido")
+    @DisplayName("CP-PPC-78: la receta de la planificación lista todas las maltas con nombre y cantidad con su unidad, en el orden recibido")
     void recetaDePlanificacion_debeListarTodasLasMaltas() throws Exception {
         VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
                 .detallesMalta(List.of(
@@ -1525,14 +1525,14 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Maltas (cantidad en kg)")))
-                .andExpect(content().string(matchesPattern("(?s).*Pilsen.*?>\\s*Base\\s*<.*?>\\s*4,5\\s*<.*Caramelo 60.*?>\\s*Caramelo\\s*<.*?>\\s*0,5\\s*<.*")))
+                .andExpect(content().string(containsString("Maltas")))
+                .andExpect(content().string(matchesPattern("(?s).*Pilsen.*?>\\s*4,5 kg\\s*<.*Caramelo 60.*?>\\s*0,5 kg\\s*<.*")))
                 .andExpect(content().string(not(containsString("La receta no tiene maltas"))));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-79: los lúpulos muestran formato, alfa, uso y etapa legibles; el tiempo de hervor solo aparece en el uso Hervor y el orden es el recibido")
+    @DisplayName("CP-PPC-79: los lúpulos muestran uso, etapa, tiempo y cantidad con su unidad, como en el formulario; el tiempo de hervor solo aparece en el uso Hervor y el orden es el recibido")
     void recetaDePlanificacion_debeMostrarElTiempoDeHervorSoloParaHervor() throws Exception {
         VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
                 .detallesLupulo(List.of(
@@ -1550,17 +1550,17 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lúpulos (cantidad en g, tiempo de hervor en min)")))
+                .andExpect(content().string(containsString("Lúpulos")))
                 .andExpect(content().string(containsString("Tiempo de hervor")))
                 .andExpect(content().string(matchesPattern(
-                        "(?s).*Cascade.*?>\\s*Pellet\\s*<.*?>\\s*5,5\\s*<.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60\\s*<.*?>\\s*25\\s*<.*"
-                                + "Citra.*?>\\s*Flor\\s*<.*?>\\s*12\\s*<.*?>\\s*Dry hop\\s*<.*?>\\s*Fermentación\\s*<.*?>\\s*-\\s*<.*?>\\s*40\\s*<.*"
-                                + "Mosaic.*?>\\s*Pellet\\s*<.*?>\\s*11,5\\s*<.*?>\\s*Whirlpool\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*-\\s*<.*?>\\s*30\\s*<.*")));
+                        "(?s).*Cascade.*?>\\s*Hervor\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*60 min\\s*<.*?>\\s*25 g\\s*<.*"
+                                + "Citra.*?>\\s*Dry hop\\s*<.*?>\\s*Fermentación\\s*<.*?>\\s*-\\s*<.*?>\\s*40 g\\s*<.*"
+                                + "Mosaic.*?>\\s*Whirlpool\\s*<.*?>\\s*Hervido\\s*<.*?>\\s*-\\s*<.*?>\\s*30 g\\s*<.*")));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-80: la receta de la planificación lista todas las levaduras con nombre, tipo legible y cantidad, en el orden recibido")
+    @DisplayName("CP-PPC-80: la receta de la planificación lista todas las levaduras con nombre y cantidad con su unidad, en el orden recibido")
     void recetaDePlanificacion_debeListarTodasLasLevaduras() throws Exception {
         VersionRecetaResponseDTO version = versionDeRecetaBuilder("Pale Ale", true)
                 .detallesLevadura(List.of(
@@ -1573,8 +1573,8 @@ class PlanificacionProduccionControllerTest {
 
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Levaduras (cantidad en g)")))
-                .andExpect(content().string(matchesPattern("(?s).*US-05.*?>\\s*Ale\\s*<.*?>\\s*11,5\\s*<.*W-34/70.*?>\\s*Lager\\s*<.*?>\\s*12\\s*<.*")))
+                .andExpect(content().string(containsString("Levaduras")))
+                .andExpect(content().string(matchesPattern("(?s).*US-05.*?>\\s*11,5 g\\s*<.*W-34/70.*?>\\s*12 g\\s*<.*")))
                 .andExpect(content().string(not(containsString("La receta no tiene levaduras"))));
     }
 
