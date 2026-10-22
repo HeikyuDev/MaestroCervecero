@@ -231,7 +231,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
      * @param id Identificador clave primaria de la receta a dar de baja.
      * @return {@link RecetaResponseDTO} con los datos de la receta ya marcada como dada de baja.
      * @throws RecursoNoEncontradoException Si la receta con el ID especificado no existe o ya fue dada de baja.
-     * @throws ReglaNegocioException Si la receta tiene una planificación de producción en estado {@code PENDIENTE} asociada a alguna de sus versiones.
+     * @throws ReglaNegocioException Si la receta tiene una planificación de producción en estado {@code PENDIENTE} o
+     *         {@code FINALIZADA} asociada a alguna de sus versiones. Las planificaciones {@code ANULADA} no impiden la baja.
      */
     @Override
     @Transactional
@@ -243,9 +244,12 @@ public class RecetaServicioImpl implements IRecetaServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id));
 
         // 2. Validar que ninguna versión de la receta (histórica o activa) tenga una planificación de
-        //    producción en estado PENDIENTE asociada
+        //    producción en estado PENDIENTE o FINALIZADA asociada: la baja solo corrige recetas cargadas por error
         if (planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(id, EstadoSolicitud.PENDIENTE)) {
             throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una planificación de producción en estado Pendiente asociada");
+        }
+        if (planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(id, EstadoSolicitud.FINALIZADA)) {
+            throw new ReglaNegocioException("No se puede dar de baja la receta porque tiene una planificación de producción en estado Finalizada asociada");
         }
 
         // 3. Ejecutamos la baja lógica: cambiamos el estado, liberamos el nombre de todas sus versiones y persistimos el cambio

@@ -1642,12 +1642,13 @@ class RecetaServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BR-04: bajaReceta permite la baja cuando existen planificaciones de producción asociadas pero ninguna en estado PENDIENTE")
-    void bajaReceta_debePermitirBajaConOrdenesDeProduccionEnOtroEstado() {
+    @DisplayName("CP-BR-04: bajaReceta permite la baja cuando las planificaciones de producción asociadas son solo ANULADAS")
+    void bajaReceta_debePermitirBajaConPlanificacionesSoloAnuladas() {
         // === PREPARACION DE DATOS ===
         RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
         when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
         when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.FINALIZADA)).thenReturn(false);
         when(recetaRepository.save(recetaEntity)).thenReturn(recetaEntity);
 
         // === EJECUCION ===
@@ -1655,7 +1656,27 @@ class RecetaServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(1L);
+        verify(planificacionProduccionRepository, never()).existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.ANULADA);
         verify(recetaRepository).save(recetaEntity);
+    }
+
+    @Test
+    @DisplayName("CP-BR-08: bajaReceta lanza ReglaNegocioException y no persiste cuando hay una planificación de producción FINALIZADA asociada")
+    void bajaReceta_debeRechazarConPlanificacionFinalizadaAsociada() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity recetaEntity = crearRecetaEntityConVersionActiva(1L, "IPA Clásica");
+        when(recetaRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(recetaEntity));
+        when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.PENDIENTE)).thenReturn(false);
+        when(planificacionProduccionRepository.existsByVersionReceta_Receta_IdAndEstado(1L, EstadoSolicitud.FINALIZADA)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> recetaServicio.bajaReceta(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la receta porque tiene una planificación de producción en estado Finalizada asociada");
+
+        assertThat(recetaEntity.getEstado()).isEqualTo(Estado.ACTIVO);
+        assertThat(recetaEntity.getVersiones()).allMatch(VersionRecetaEntity::isPadreActivo);
+        verify(recetaRepository, never()).save(any());
     }
 
     @Test

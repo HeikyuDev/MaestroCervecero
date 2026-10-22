@@ -47,7 +47,8 @@ public interface IRecetaServicio {
     RecetaResponseDTO modificarReceta(Long id, RecetaFormDTO recetaFormDTO);
 
     /**
-     * Realiza la baja lógica de una receta existente.
+     * Realiza la baja lógica de una receta existente. No se puede dar de baja una receta con planificaciones de
+     * producción Pendientes o Finalizadas; las Anuladas no lo impiden.
      *
      * @param id El ID de la receta a dar de baja.
      * @return La receta dada de baja.
