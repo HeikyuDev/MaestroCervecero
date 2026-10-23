@@ -90,6 +90,12 @@ public final class LimitesTecnicos {
     /** Cantidad máxima que se puede consumir de un insumo en un solo consumo, en kilogramos o gramos según el insumo (igual que la cantidad máxima de un insumo en una receta). */
     public static final double CANTIDAD_CONSUMIDA_MAXIMA = CANTIDAD_INSUMO_RECETA_MAXIMA;
 
+    /**
+     * Cantidad máxima de una presentación comercial, en kilogramos (10 toneladas): la cantidad informada en gramos,
+     * kilogramos o toneladas se convierte a esta unidad antes de compararla.
+     */
+    public static final double CANTIDAD_PRESENTACION_COMERCIAL_MAXIMA_KG = 10_000.0;
+
     /** Cantidad máxima que se puede envasar en un solo envasado, en litros (igual que la capacidad máxima de un equipo). */
     public static final double CANTIDAD_ENVASADA_MAXIMA_LITROS = CAPACIDAD_EQUIPO_MAXIMA_LITROS;
 

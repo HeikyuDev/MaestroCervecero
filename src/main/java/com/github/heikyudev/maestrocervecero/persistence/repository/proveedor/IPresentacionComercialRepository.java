@@ -4,7 +4,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Presen
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -92,4 +94,20 @@ public interface IPresentacionComercialRepository extends JpaRepository<Presenta
      */
     @Query("SELECT CASE WHEN COUNT(pc) > 0 THEN true ELSE false END FROM PresentacionComercialEntity pc WHERE LOWER(pc.nombre) = LOWER(:nombre) AND pc.id <> :id AND pc.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
+
+    /**
+     * Busca, bloqueándola para escritura, una presentación comercial activa por su ID.
+     * <p>
+     * Se usa al modificar y al dar de baja la presentación comercial, para que dos operaciones
+     * concurrentes sobre la misma presentación no la modifiquen al mismo tiempo: la segunda espera
+     * a que la primera confirme su transacción y luego evalúa sus validaciones contra el estado ya
+     * actualizado.
+     * </p>
+     *
+     * @param id El ID de la presentación comercial.
+     * @return Un Optional que contiene la presentación comercial si existe y está activa, o vacío en caso contrario.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT pc FROM PresentacionComercialEntity pc WHERE pc.id = :id AND pc.estado = 'ACTIVO'")
+    Optional<PresentacionComercialEntity> buscarPorIdParaModificarOBaja(@Param("id") Long id);
 }

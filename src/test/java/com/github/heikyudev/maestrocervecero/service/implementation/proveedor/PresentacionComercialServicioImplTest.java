@@ -377,13 +377,13 @@ class PresentacionComercialServicioImplTest {
     @DisplayName("CP-MPC-04: modificarPresentacionComercial lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarPresentacionComercial_debeLanzarExcepcionSiNoExiste() {
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la presentación comercial con ID: 99");
 
-        verify(presentacionComercialRepository).findById(99L);
+        verify(presentacionComercialRepository).buscarPorIdParaModificarOBaja(99L);
         // Al no existir la entidad, no debe llegarse a validar la duplicidad de nombre
         verify(presentacionComercialRepository, never()).existsByNombreIgnoreCaseAndIdNot(any(), any());
         verify(presentacionComercialRepository, never()).save(any());
@@ -394,7 +394,7 @@ class PresentacionComercialServicioImplTest {
     void modificarPresentacionComercial_debeRechazarNombreEnUsoPorOtraPresentacionComercial() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Paquete de 100 gm", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Paquete de 100 gm", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
@@ -411,7 +411,7 @@ class PresentacionComercialServicioImplTest {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         // Mismo nombre (distinto case): el AndIdNot excluye el propio ID y no debe fallar
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("bolsa de 25 kg", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("bolsa de 25 kg", 1L)).thenReturn(false);
         when(presentacionComercialRepository.save(presentacionEntity)).thenReturn(presentacionEntity);
 
@@ -427,7 +427,7 @@ class PresentacionComercialServicioImplTest {
         // === PREPARACION DE DATOS ===
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 25000.0, UnidadDeMedida.GRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Bolsa de 25 Kg", 1L)).thenReturn(false);
         when(presentacionComercialRepository.save(presentacionEntity)).thenReturn(presentacionEntity);
 
@@ -451,7 +451,7 @@ class PresentacionComercialServicioImplTest {
         // === PREPARACION DE DATOS ===
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 50 Kg", 50.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Bolsa de 50 Kg", 1L)).thenReturn(false);
         when(presentacionComercialRepository.save(presentacionEntity)).thenReturn(presentacionEntity);
 
@@ -467,7 +467,7 @@ class PresentacionComercialServicioImplTest {
         assertThat(entidadCapturada.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
 
         assertThat(resultado.getNombre()).isEqualTo("Bolsa de 50 Kg");
-        verify(presentacionComercialRepository).findById(1L);
+        verify(presentacionComercialRepository).buscarPorIdParaModificarOBaja(1L);
         verify(presentacionComercialRepository).existsByNombreIgnoreCaseAndIdNot("Bolsa de 50 Kg", 1L);
     }
 
@@ -476,13 +476,13 @@ class PresentacionComercialServicioImplTest {
     @Test
     @DisplayName("CP-BPC-01: bajaPresentacionComercial lanza RecursoNoEncontradoException y no consulta órdenes de compra ni catálogos ni persiste cuando el ID no existe")
     void bajaPresentacionComercial_debeLanzarExcepcionYNoPersistirSiNoExiste() {
-        when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> presentacionComercialServicio.bajaPresentacionComercial(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la presentación comercial con ID: 99");
 
-        verify(presentacionComercialRepository).findById(99L);
+        verify(presentacionComercialRepository).buscarPorIdParaModificarOBaja(99L);
         verifyNoInteractions(ordenCompraRepository, catalogoProveedorRepository);
         verify(presentacionComercialRepository, never()).save(any());
     }
@@ -491,7 +491,7 @@ class PresentacionComercialServicioImplTest {
     @DisplayName("CP-BPC-02: bajaPresentacionComercial lanza ReglaNegocioException y no persiste cuando está asociada a un catálogo de proveedor activo")
     void bajaPresentacionComercial_debeRechazarConCatalogoDeProveedorAsociado() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
         when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(true);
 
@@ -507,7 +507,7 @@ class PresentacionComercialServicioImplTest {
     @DisplayName("CP-BPC-04: bajaPresentacionComercial lanza ReglaNegocioException y no persiste cuando está en una orden de compra en estado Pendiente")
     void bajaPresentacionComercial_debeRechazarConOrdenCompraPendiente() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> presentacionComercialServicio.bajaPresentacionComercial(1L))
@@ -523,7 +523,7 @@ class PresentacionComercialServicioImplTest {
     @DisplayName("CP-BPC-03: bajaPresentacionComercial marca el estado como BAJA, persiste y retorna el DTO cuando no tiene órdenes de compra en estado Pendiente ni catálogos asociados")
     void bajaPresentacionComercial_debeMarcarBajaYRetornarPresentacionComercialExistente() {
         PresentacionComercialEntity presentacionEntity = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(presentacionEntity));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(presentacionEntity));
         when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
         when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
         when(presentacionComercialRepository.save(presentacionEntity)).thenReturn(presentacionEntity);
@@ -533,7 +533,7 @@ class PresentacionComercialServicioImplTest {
         // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
         assertThat(presentacionEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertPresentacionComercialDTO(presentacionEntity, resultado);
-        verify(presentacionComercialRepository).findById(1L);
+        verify(presentacionComercialRepository).buscarPorIdParaModificarOBaja(1L);
         verify(ordenCompraRepository).existsByPresentacionComercialEnOrdenCompraPendiente(1L);
         verify(catalogoProveedorRepository).existsByPresentacionComercialId(1L);
         verify(presentacionComercialRepository).save(presentacionEntity);
@@ -660,7 +660,7 @@ class PresentacionComercialServicioImplTest {
         // === PREPARACION DE DATOS ===
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("  Pilsen   Nacional  ", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
         when(presentacionComercialRepository.save(existente)).thenReturn(existente);
 
@@ -692,7 +692,7 @@ class PresentacionComercialServicioImplTest {
     void modificarPresentacionComercial_debeDetectarDuplicadoConElValorNormalizado() {
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("  pilsen ", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("pilsen", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
@@ -708,7 +708,7 @@ class PresentacionComercialServicioImplTest {
     void modificarPresentacionComercial_debeTraducirLaViolacionDelIndiceUnico() {
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pilsen Nacional", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
         when(presentacionComercialRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_presentacion_comercial_nombre"));
 
@@ -722,7 +722,7 @@ class PresentacionComercialServicioImplTest {
     void modificarPresentacionComercial_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
         PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Pilsen Nacional", 25.0, UnidadDeMedida.KILOGRAMO);
         PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Original", 25.0, UnidadDeMedida.KILOGRAMO);
-        when(presentacionComercialRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
         // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
         when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Pilsen Nacional", 1L)).thenReturn(false);
         when(presentacionComercialRepository.save(existente)).thenReturn(existente);
@@ -731,5 +731,311 @@ class PresentacionComercialServicioImplTest {
 
         assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
         verify(presentacionComercialRepository).save(existente);
+    }
+
+    // ==================== unidad de medida obligatoria y tope de cantidad (alta) ====================
+
+    @Test
+    @DisplayName("CP-APC-17: altaPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando la unidad de medida es nula")
+    void altaPresentacionComercial_debeRechazarUnidadDeMedidaNula() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 25.0, null);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La unidad de medida es obligatoria");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-18: altaPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad es NaN")
+    void altaPresentacionComercial_debeRechazarCantidadNaN() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", Double.NaN, UnidadDeMedida.KILOGRAMO);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad debe ser mayor a cero");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-19: altaPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad es infinita")
+    void altaPresentacionComercial_debeRechazarCantidadInfinita() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", Double.POSITIVE_INFINITY, UnidadDeMedida.KILOGRAMO);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad debe ser mayor a cero");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-20: altaPresentacionComercial lanza ReglaNegocioException cuando la cantidad en GRAMO supera el equivalente a 10.000 kilogramos")
+    void altaPresentacionComercial_debeRechazarCantidadEnGramosSobreElTope() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Granel", 10_000_000.1, UnidadDeMedida.GRAMO);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad no puede superar el equivalente a 10.000 kilogramos");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-21: altaPresentacionComercial lanza ReglaNegocioException cuando la cantidad en KILOGRAMO supera los 10.000 kilogramos")
+    void altaPresentacionComercial_debeRechazarCantidadEnKilogramosSobreElTope() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Granel", 10_000.1, UnidadDeMedida.KILOGRAMO);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad no puede superar el equivalente a 10.000 kilogramos");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-22: altaPresentacionComercial lanza ReglaNegocioException cuando la cantidad en TONELADA supera el equivalente a 10.000 kilogramos")
+    void altaPresentacionComercial_debeRechazarCantidadEnToneladasSobreElTope() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Granel", 10.001, UnidadDeMedida.TONELADA);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.altaPresentacionComercial(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad no puede superar el equivalente a 10.000 kilogramos");
+
+        verifyNoInteractions(presentacionComercialRepository);
+    }
+
+    @Test
+    @DisplayName("CP-APC-23: altaPresentacionComercial persiste cuando la cantidad en GRAMO es exactamente el tope (10.000.000 g)")
+    void altaPresentacionComercial_debePersistirConCantidadEnGramosEnElTope() {
+        assertAltaPersisteConCantidad(10_000_000.0, UnidadDeMedida.GRAMO);
+    }
+
+    @Test
+    @DisplayName("CP-APC-24: altaPresentacionComercial persiste cuando la cantidad en KILOGRAMO es exactamente el tope (10.000 kg)")
+    void altaPresentacionComercial_debePersistirConCantidadEnKilogramosEnElTope() {
+        assertAltaPersisteConCantidad(10_000.0, UnidadDeMedida.KILOGRAMO);
+    }
+
+    @Test
+    @DisplayName("CP-APC-25: altaPresentacionComercial persiste cuando la cantidad en TONELADA es exactamente el tope (10 t)")
+    void altaPresentacionComercial_debePersistirConCantidadEnToneladasEnElTope() {
+        assertAltaPersisteConCantidad(10.0, UnidadDeMedida.TONELADA);
+    }
+
+    // ==================== unidad de medida obligatoria, tope de cantidad y bloqueo por uso (modificar) ====================
+
+    @Test
+    @DisplayName("CP-MPC-14: modificarPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando la unidad de medida es nula")
+    void modificarPresentacionComercial_debeRechazarUnidadDeMedidaNula() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 25.0, null);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La unidad de medida es obligatoria");
+
+        verifyNoInteractions(presentacionComercialRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-15: modificarPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad es NaN")
+    void modificarPresentacionComercial_debeRechazarCantidadNaN() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", Double.NaN, UnidadDeMedida.KILOGRAMO);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad debe ser mayor a cero");
+
+        verifyNoInteractions(presentacionComercialRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-16: modificarPresentacionComercial lanza ReglaNegocioException y no consulta el repositorio cuando la cantidad supera el tope")
+    void modificarPresentacionComercial_debeRechazarCantidadSobreElTope() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Granel", 10.5, UnidadDeMedida.TONELADA);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad no puede superar el equivalente a 10.000 kilogramos");
+
+        verifyNoInteractions(presentacionComercialRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-17: modificarPresentacionComercial persiste cuando la cantidad es exactamente el tope y la presentación no está en uso")
+    void modificarPresentacionComercial_debePersistirConCantidadEnElTope() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Granel", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Granel", 10_000_000.0, UnidadDeMedida.GRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Granel", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        PresentacionComercialResponseDTO resultado = presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidad()).isEqualTo(10_000_000.0);
+        assertThat(resultado.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
+        verify(presentacionComercialRepository).save(existente);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-18: modificarPresentacionComercial lanza ReglaNegocioException y no persiste al cambiar la cantidad de una presentación en el catálogo de un proveedor activo")
+    void modificarPresentacionComercial_debeRechazarCambioDeCantidadConCatalogoDeProveedorActivo() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 30.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar la cantidad ni la unidad de medida de una presentación comercial que está en un catálogo de proveedor activo o en una orden de compra pendiente");
+
+        // El bloqueo por uso se evalúa antes que la duplicación de nombre y la entidad queda sin cambios
+        verify(presentacionComercialRepository, never()).existsByNombreIgnoreCaseAndIdNot(any(), any());
+        verify(presentacionComercialRepository, never()).save(any());
+        assertThat(existente.getCantidad()).isEqualTo(25.0);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-19: modificarPresentacionComercial lanza ReglaNegocioException y no persiste al cambiar la unidad de medida de una presentación en una orden de compra pendiente")
+    void modificarPresentacionComercial_debeRechazarCambioDeUnidadConOrdenCompraPendiente() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 25.0, UnidadDeMedida.GRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede modificar la cantidad ni la unidad de medida de una presentación comercial que está en un catálogo de proveedor activo o en una orden de compra pendiente");
+
+        verify(ordenCompraRepository).existsByPresentacionComercialEnOrdenCompraPendiente(1L);
+        verify(presentacionComercialRepository, never()).save(any());
+        assertThat(existente.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.KILOGRAMO);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-20: modificarPresentacionComercial permite cambiar solo el nombre sin consultar si la presentación está en uso")
+    void modificarPresentacionComercial_debePermitirCambiarSoloElNombreSinConsultarElUso() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa grande", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Bolsa grande", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        PresentacionComercialResponseDTO resultado = presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getNombre()).isEqualTo("Bolsa grande");
+        verify(presentacionComercialRepository).save(existente);
+        // Aunque la presentación estuviera en uso, cambiar solo el nombre no requiere consultarlo
+        verifyNoInteractions(catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-21: modificarPresentacionComercial compara la cantidad por valor y no consulta el uso cuando cantidad y unidad no cambian")
+    void modificarPresentacionComercial_debeCompararLaCantidadPorValor() {
+        // === PREPARACION DE DATOS ===
+        // Dos instancias distintas de Double con el mismo valor: una comparación por referencia las vería distintas
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", Double.valueOf(25.5), UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", Double.valueOf(25.5), UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Bolsa de 25 Kg", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO);
+
+        // === ASSERTS ===
+        verify(presentacionComercialRepository).save(existente);
+        verifyNoInteractions(catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MPC-22: modificarPresentacionComercial permite cambiar cantidad y unidad de medida cuando la presentación no está en uso")
+    void modificarPresentacionComercial_debePermitirCambiarCantidadYUnidadSinUso() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Bolsa de 25 Kg", 500.0, UnidadDeMedida.GRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(presentacionComercialRepository.existsByNombreIgnoreCaseAndIdNot("Bolsa de 25 Kg", 1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        PresentacionComercialResponseDTO resultado = presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidad()).isEqualTo(500.0);
+        assertThat(resultado.getUnidadDeMedida()).isEqualTo(UnidadDeMedida.GRAMO);
+        verify(catalogoProveedorRepository).existsByPresentacionComercialId(1L);
+        verify(ordenCompraRepository).existsByPresentacionComercialEnOrdenCompraPendiente(1L);
+        verify(presentacionComercialRepository).save(existente);
+        // La presentación se localiza siempre con el bloqueo para escritura, nunca con la lectura sin bloqueo
+        verify(presentacionComercialRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-BPC-05: bajaPresentacionComercial localiza la presentación con el bloqueo para escritura y no con la lectura sin bloqueo")
+    void bajaPresentacionComercial_debeLocalizarConBloqueoParaEscritura() {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialEntity existente = crearPresentacionComercialEntity(1L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO);
+        when(presentacionComercialRepository.buscarPorIdParaModificarOBaja(1L)).thenReturn(Optional.of(existente));
+        when(ordenCompraRepository.existsByPresentacionComercialEnOrdenCompraPendiente(1L)).thenReturn(false);
+        when(catalogoProveedorRepository.existsByPresentacionComercialId(1L)).thenReturn(false);
+        when(presentacionComercialRepository.save(existente)).thenReturn(existente);
+
+        // === EJECUCION ===
+        presentacionComercialServicio.bajaPresentacionComercial(1L);
+
+        // === ASSERTS ===
+        verify(presentacionComercialRepository).buscarPorIdParaModificarOBaja(1L);
+        verify(presentacionComercialRepository, never()).findById(any());
+    }
+
+    private void assertAltaPersisteConCantidad(Double cantidad, UnidadDeMedida unidadDeMedida) {
+        // === PREPARACION DE DATOS ===
+        PresentacionComercialFormDTO formDTO = presentacionComercialFormDTO("Granel", cantidad, unidadDeMedida);
+        when(presentacionComercialRepository.existsByNombreIgnoreCase("Granel")).thenReturn(false);
+        when(presentacionComercialRepository.save(any(PresentacionComercialEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        PresentacionComercialResponseDTO resultado = presentacionComercialServicio.altaPresentacionComercial(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidad()).isEqualTo(cantidad);
+        assertThat(resultado.getUnidadDeMedida()).isEqualTo(unidadDeMedida);
+        verify(presentacionComercialRepository).save(any(PresentacionComercialEntity.class));
     }
 }

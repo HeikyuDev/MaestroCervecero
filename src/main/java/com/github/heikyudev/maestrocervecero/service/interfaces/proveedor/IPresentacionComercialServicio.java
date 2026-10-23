@@ -45,7 +45,8 @@ public interface IPresentacionComercialServicio {
      *
      * @param presentacionComercialFormDTO Los datos de la presentación comercial a registrar.
      * @return La presentación comercial registrada.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero.
+     * @throws ReglaNegocioException Si la unidad de medida es nula, si el nombre falta o supera los 100 caracteres, si la cantidad es nula,
+     *                               no es un número finito o es menor o igual a cero, o si su equivalente supera los 10.000 kilogramos.
      * @throws RecursoDuplicadoException Si ya existe una presentación comercial activa con el mismo nombre (case-insensitive).
      */
     PresentacionComercialResponseDTO altaPresentacionComercial(PresentacionComercialFormDTO presentacionComercialFormDTO);
@@ -56,7 +57,10 @@ public interface IPresentacionComercialServicio {
      * @param id El ID de la presentación comercial a modificar.
      * @param presentacionComercialFormDTO Los nuevos datos de la presentación comercial.
      * @return La presentación comercial modificada.
-     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero.
+     * @throws ReglaNegocioException Si la unidad de medida es nula, si el nombre falta o supera los 100 caracteres, si la cantidad es nula,
+     *                               no es un número finito o es menor o igual a cero, si su equivalente supera los 10.000 kilogramos, o si
+     *                               se cambia la cantidad o la unidad de medida de una presentación comercial que está en el catálogo de un
+     *                               proveedor activo o en una orden de compra pendiente.
      * @throws RecursoNoEncontradoException Si no existe una presentación comercial activa con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otra presentación comercial activa (case-insensitive).
      */
