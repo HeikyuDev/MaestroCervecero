@@ -62,7 +62,7 @@ El gerente de producción registra y cancela lotes y consulta la lista y el deta
 | **CP-LCT-14** | Una sola consulta | Rol `GERENTE_DE_PRODUCCION`, 20 lotes en la página | Armar la página no dispara consultas por fila | El service de lotes se invoca una única vez para el listado; no hay `buscarPorId` ni consulta de etapas por lote (`verifyNoMoreInteractions`). |
 | **CP-LCT-15** | Alerta flash | Atributos flash `mensaje` ("Lote PALE_ALE-R7-3 cancelado correctamente") y `tipo` `success` | El layout muestra la alerta del Post-Redirect-Get | La página incluye el mensaje con el estilo de éxito. |
 | **CP-LCT-16** | Sidebar del gerente de producción | Rol `GERENTE_DE_PRODUCCION` | Gestión de lotes es operación diaria | "Gestión de Lotes" (`/lotes`, ícono `bi-collection`) es un enlace en la sección Operación, antes de "Planificación de Producción", resaltado como opción activa; el título de la pestaña del navegador dice "Gestión de lotes - Maestro Cervecero". |
-| **CP-LCT-17** | Sidebar del operario | Rol `OPERARIO_DE_PRODUCCION` | El operario opera y consulta el cronograma | En Operación aparecen "Gestión de Lotes" y "Cronograma de Producción" y no "Planificación de Producción" ni la sección Administración. |
+| **CP-LCT-17** | Sidebar del operario | Rol `OPERARIO_DE_PRODUCCION` | El operario opera y consulta el cronograma | En Operación aparecen "Cronograma de Producción" y, después, "Gestión de Lotes", y no "Planificación de Producción" ni la sección Administración. |
 | **CP-LCT-18** | Roles no autorizados | Roles `GERENTE_DE_COMPRAS`, `ENCARGADO_DE_DEPOSITO`, `GERENTE_COMERCIAL` y `ADMINISTRADOR` | `@PreAuthorize("hasAuthority('LOTE_CONSULTAR')")` → **Rechaza** | Cada pedido redirige con alerta de tipo `danger`. No se invoca ningún service. |
 
 ---

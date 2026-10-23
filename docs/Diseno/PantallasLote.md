@@ -59,7 +59,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | C | Subir o bajar un lote en la cola | `/cronograma-produccion/lotes/{id}/{subir, bajar}` | POST | `LOTE_REGISTRAR` | redirige al cronograma |
 
 - `{etapa}` toma los valores `molienda`, `maceracion`, `hervido`, `fermentacion`, `maduracion` y `envasado`. La pantalla de consumos existe para las etapas que consumen insumos (Molienda, Hervido, Fermentación y Maduración); Maceración y Envasado no consumen insumos. Una etapa sin insumos según la receta (por ejemplo, Maduración sin lúpulo de maduración) tampoco tiene pantalla de consumos: ni la pantalla, ni los formularios, ni el registro, que se rechazan con "Esta etapa no consume insumos" y vuelven al detalle del lote.
-- La sidebar (sección Operación) muestra "Gestión de Lotes" (`/lotes`, ícono `bi-collection`, de línea como los demás) para el gerente y el operario de producción, y "Cronograma de Producción" para ambos.
+- La sidebar (sección Operación) muestra "Cronograma de Producción" como primera opción y, a continuación, "Gestión de Lotes" (`/lotes`, ícono `bi-collection`, de línea como los demás), ambas para el gerente y el operario de producción.
 
 ## 3. Reglas comunes de las pantallas
 

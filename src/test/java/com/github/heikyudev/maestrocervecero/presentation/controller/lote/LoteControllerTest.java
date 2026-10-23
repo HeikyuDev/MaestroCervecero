@@ -510,6 +510,7 @@ class LoteControllerTest {
         assertThat(html).contains("href=\"/lotes\"").contains("Gestión de Lotes").contains("Operación")
                 .contains("href=\"/cronograma-produccion\"").contains("Cronograma de Producción")
                 .doesNotContain("Planificación de Producción").doesNotContain("Administración");
+        assertThat(html.indexOf("Cronograma de Producción")).isLessThan(html.indexOf("Gestión de Lotes"));
     }
 
     @ParameterizedTest(name = "{0}")

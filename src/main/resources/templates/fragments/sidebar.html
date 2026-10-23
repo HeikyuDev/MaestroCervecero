@@ -65,6 +65,11 @@
         <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
             <p th:replace="~{fragments/sidebar ::seccion('Operación')}"></p>
 
+            <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción: lo gestiona; Operario de Producción: lo consulta) -->
+            <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
+                <a th:replace="~{fragments/sidebar ::enlace('/cronograma-produccion', ${opcionActiva}, 'cronograma', 'bi-bar-chart-steps', 'Cronograma de Producción')}"></a>
+            </th:block>
+
             <!-- GESTIÓN DE LOTES (Operario de Producción, Gerente de Producción: quien puede consultar lotes) -->
             <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
                 <a th:replace="~{fragments/sidebar ::enlace('/lotes', ${opcionActiva}, 'lotes', 'bi-collection', 'Gestión de Lotes')}"></a>
@@ -73,11 +78,6 @@
             <!-- PLANIFICACIÓN DE PRODUCCIÓN (Gerente de Producción: gestiona; Gerente de Compras: consulta) -->
             <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
                 <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar3', 'Planificación de Producción')}"></a>
-            </th:block>
-
-            <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción: lo gestiona; Operario de Producción: lo consulta) -->
-            <th:block sec:authorize="hasAuthority('LOTE_CONSULTAR')">
-                <a th:replace="~{fragments/sidebar ::enlace('/cronograma-produccion', ${opcionActiva}, 'cronograma', 'bi-bar-chart-steps', 'Cronograma de Producción')}"></a>
             </th:block>
 
             <!-- ÓRDENES DE COMPRA (Gerente de Compras). Todavía no tiene controller: se muestra como "Próximamente" -->
