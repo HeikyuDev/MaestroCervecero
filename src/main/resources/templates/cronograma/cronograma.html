@@ -8,7 +8,7 @@
     Cronograma de producción global: el diagrama de Gantt de un período con un carril por fermentador (de a 5 por página) y, debajo, la cola de lotes pendientes de cada fermentador de la página.
     La cola lista solo los lotes pendientes. Lo ven el Gerente de Producción (LOTE_CONSULTAR y LOTE_REGISTRAR: puede subir o bajar un lote) y el Operario de
     Producción (solo LOTE_CONSULTAR: las colas se muestran en solo lectura, sin formularios ni botones de mover).
-    El filtro "Planificación a destacar" es de quien tiene PLANIFICACION_PRODUCCION_CONSULTAR.
+    Los filtros (fermentador, "Planificación a destacar" y período) son los mismos para todo rol con LOTE_CONSULTAR.
     El diagrama es el mismo fragmento del estado actual de una planificación (planificacion_produccion/gantt).
     No valida nada: las reglas de la cola las valida el servidor y su rechazo vuelve a esta página como alerta.
 -->
@@ -28,7 +28,7 @@
             <div th:replace="~{fragments/selector-entidad :: selector('idFermentador', ${filtroIdFermentador}, ${filtroFermentadorTexto},
                     @{/cronograma-produccion/buscador/fermentadores}, null, null, true, false, 'Seleccione fermentador')}"></div>
         </div>
-        <div sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')">
+        <div sec:authorize="hasAuthority('LOTE_CONSULTAR')">
             <span class="block text-xs font-medium text-slate-500 mb-1">Planificación a destacar</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacion', ${filtroIdPlanificacion}, ${filtroPlanificacionTexto},
                     @{/cronograma-produccion/buscador/planificaciones}, null, null, true, false, 'Seleccione planificación')}"></div>

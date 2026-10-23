@@ -2,7 +2,11 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!-- Contenido del modal de búsqueda de planificaciones del filtro del cronograma: criterio de receta + resultados con "Elegir". -->
+<!--
+    Contenido del modal de búsqueda de planificaciones del filtro del cronograma: criterio de receta + resultados con
+    "Elegir". La receta se elige con el selector de entidad, que abre el buscador de recetas del cronograma
+    (urlBuscadorRecetas, con la casilla "Incluir dados de baja") en un modal sobre este.
+-->
 <div th:fragment="buscador">
 
     <div class="flex items-start justify-between gap-4 p-6 pb-0">
@@ -19,9 +23,9 @@
     <form th:action="@{/cronograma-produccion/buscador/planificaciones}" method="get" data-modal-buscar novalidate
           class="p-6 grid grid-cols-1 gap-4 items-end">
         <div>
-            <label for="buscador-receta" class="block text-xs font-medium text-slate-500 mb-1">Receta</label>
-            <input type="text" id="buscador-receta" name="receta" th:value="${filtroReceta}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
-                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
+                    @{${urlBuscadorRecetas}}, null, null, true, false, 'Seleccione receta')}"></div>
         </div>
         <div class="flex justify-end">
             <button type="submit"
@@ -62,8 +66,8 @@
         </table>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificación|planificaciones',
-                ${planificaciones.hasPrevious()} ? @{/cronograma-produccion/buscador/planificaciones(pagina=${planificaciones.number - 1}, receta=${filtroReceta})} : null,
-                ${planificaciones.hasNext()} ? @{/cronograma-produccion/buscador/planificaciones(pagina=${planificaciones.number + 1}, receta=${filtroReceta})} : null,
+                ${planificaciones.hasPrevious()} ? @{/cronograma-produccion/buscador/planificaciones(pagina=${planificaciones.number - 1}, idReceta=${filtroIdReceta})} : null,
+                ${planificaciones.hasNext()} ? @{/cronograma-produccion/buscador/planificaciones(pagina=${planificaciones.number + 1}, idReceta=${filtroIdReceta})} : null,
                 true)}"></div>
     </div>
 </div>

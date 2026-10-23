@@ -79,6 +79,10 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
      * diferencia de otros módulos no se aplica ninguna condición de {@code estado = 'ACTIVO'}
      * adicional — el parámetro {@code estado} filtra directamente por {@link EstadoSolicitud}.
      * </p>
+     * <p>
+     * La versión de receta de cada planificación se trae en la misma consulta ({@code JOIN FETCH}), porque los
+     * listados y los buscadores muestran su nombre; la consulta de conteo no la necesita.
+     * </p>
      *
      * @param idReceta ID de la receta contenedora cuya versión se usó, o {@code null} para no filtrar por ella.
      * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
@@ -86,8 +90,8 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
      * @param pageable La configuración de paginación.
      * @return Una página de planificaciones de producción que cumplen los criterios indicados.
      */
-    @Query(value = "SELECT p FROM PlanificacionProduccionEntity p WHERE "
-            + "(:idReceta IS NULL OR p.versionReceta.receta.id = :idReceta) "
+    @Query(value = "SELECT p FROM PlanificacionProduccionEntity p JOIN FETCH p.versionReceta v WHERE "
+            + "(:idReceta IS NULL OR v.receta.id = :idReceta) "
             + "AND (:estado IS NULL OR p.estado = :estado) "
             + "AND (:fechaInicio IS NULL OR p.fechaInicioEstimada = :fechaInicio)",
             countQuery = "SELECT COUNT(p) FROM PlanificacionProduccionEntity p WHERE "
@@ -146,23 +150,4 @@ public interface IPlanificacionProduccionRepository extends JpaRepository<Planif
             + "JOIN p.versionReceta v JOIN v.detallesLevadura d "
             + "WHERE d.levadura.id = :idLevadura AND p.estado = 'PENDIENTE'")
     boolean existsByDetalleLevaduraEnPlanificacionPendiente(@Param("idLevadura") Long idLevadura);
-
-    /**
-     * Filtra las planificaciones de producción por parte del nombre de la versión de receta (sin distinguir
-     * mayúsculas) y por estado. Un criterio nulo no restringe.
-     *
-     * @param nombreReceta Texto a buscar dentro del nombre de la receta (ya normalizado), o {@code null}.
-     * @param estado Estado exacto, o {@code null} para no filtrar por él.
-     * @param pageable Paginación y ordenamiento.
-     * @return Una página de planificaciones con su versión de receta cargada.
-     */
-    @Query(value = "SELECT p FROM PlanificacionProduccionEntity p JOIN FETCH p.versionReceta v WHERE "
-            + "(:nombreReceta IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreReceta AS string), '%'))) "
-            + "AND (:estado IS NULL OR p.estado = :estado)",
-            countQuery = "SELECT COUNT(p) FROM PlanificacionProduccionEntity p JOIN p.versionReceta v WHERE "
-                    + "(:nombreReceta IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombreReceta AS string), '%'))) "
-                    + "AND (:estado IS NULL OR p.estado = :estado)")
-    Page<PlanificacionProduccionEntity> filtrarPlanificacionesPorNombreDeReceta(@Param("nombreReceta") String nombreReceta,
-                                                                                 @Param("estado") EstadoSolicitud estado,
-                                                                                 Pageable pageable);
 }

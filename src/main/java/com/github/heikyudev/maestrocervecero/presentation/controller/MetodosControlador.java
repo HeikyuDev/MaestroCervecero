@@ -3,13 +3,19 @@ package com.github.heikyudev.maestrocervecero.presentation.controller;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.function.Function;
 
 /**
  * Constantes y utilidades compartidas por los controllers de las pantallas de listado.
@@ -39,6 +45,12 @@ public final class MetodosControlador {
      * Los listados transaccionales se muestran con el último registro arriba: el id es autogenerado y creciente.
      */
     public static final Sort ORDEN_MAS_RECIENTE_PRIMERO = Sort.by(Sort.Order.desc("id"));
+
+    /**
+     * Fragmento del modal de búsqueda de recetas. Lo comparten el formulario de alta de planificaciones y los filtros
+     * de consulta (listado de planificaciones, listado de lotes y cronograma de producción).
+     */
+    public static final String VISTA_BUSCADOR_RECETA = "planificacion_produccion/buscador-receta :: buscador";
 
     private MetodosControlador() {
     }
@@ -135,5 +147,43 @@ public final class MetodosControlador {
                 .filter(tipo -> slugDe(tipo).equals(limpio.toLowerCase(Locale.ROOT)))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * La receta elegida en un filtro, resuelta con la búsqueda indicada, o {@code null} si no se eligió ninguna o si
+     * esa búsqueda no la encuentra (no existe, o es una receta que el buscador del filtro no ofrece).
+     */
+    public static RecetaResponseDTO recetaElegida(Long idReceta, Function<Long, RecetaResponseDTO> buscar) {
+        if (idReceta == null) {
+            return null;
+        }
+        try {
+            return buscar.apply(idReceta);
+        } catch (RecursoNoEncontradoException e) {
+            return null;
+        }
+    }
+
+    /**
+     * El texto con el que un selector muestra la receta elegida: el nombre de su versión vigente, con "(dada de baja)"
+     * si corresponde.
+     */
+    public static String textoDeReceta(RecetaResponseDTO receta) {
+        String nombre = receta.getVersion() != null ? receta.getVersion().getNombre() : null;
+        return receta.getEstado() == Estado.BAJA ? nombre + " (dada de baja)" : nombre;
+    }
+
+    /**
+     * Carga el modal de búsqueda de recetas ({@link #VISTA_BUSCADOR_RECETA}): los resultados, el criterio de nombre
+     * tal como se escribió, la URL del buscador (el formulario y la paginación vuelven a ella) y la casilla "Incluir
+     * dados de baja", que solo muestran los buscadores de los filtros de consulta.
+     */
+    public static void cargarBuscadorDeRecetas(Model model, Page<RecetaResponseDTO> recetas, String nombre, String urlBuscador,
+                                               boolean ofreceDadosDeBaja, boolean incluirDadosDeBaja) {
+        model.addAttribute("recetas", recetas);
+        model.addAttribute("filtroNombre", nombre);
+        model.addAttribute("urlBuscadorRecetas", urlBuscador);
+        model.addAttribute("ofreceIncluirDadosDeBaja", ofreceDadosDeBaja);
+        model.addAttribute("filtroIncluirDadosDeBaja", ofreceDadosDeBaja && incluirDadosDeBaja);
     }
 }

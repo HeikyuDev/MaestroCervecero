@@ -56,6 +56,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -179,81 +181,26 @@ class PlanificacionProduccionServicioImplTest {
         verifyNoInteractions(envasadoLoteRepository);
     }
 
-    // ==================== filtrarPlanificacionesPorNombreDeReceta ====================
-
     @Test
-    @DisplayName("CP-FPR-01: filtrarPlanificacionesPorNombreDeReceta normaliza el nombre buscado, filtra por estado y mapea con los litros producidos en una sola consulta de agregación")
-    void filtrarPlanificacionesPorNombreDeReceta_debeNormalizarFiltrarYMapearLitrosProducidos() {
+    @DisplayName("CP-FPP-06: filtrarPlanificacionesProduccion entrega el Pageable al repositorio sin cambios (no agrega ni modifica el orden)")
+    void filtrarPlanificacionesProduccion_debeEntregarElPageableSinCambios() {
         // === PREPARACION DE DATOS ===
-        Pageable pageable = PageRequest.of(0, 8, Sort.by(Sort.Direction.DESC, "id"));
-        PlanificacionProduccionEntity planificacion1 = crearPlanificacionEntity(1L, EstadoSolicitud.FINALIZADA, LocalDate.of(2026, 3, 1));
-        PlanificacionProduccionEntity planificacion2 = crearPlanificacionEntity(2L, EstadoSolicitud.FINALIZADA, LocalDate.of(2026, 3, 2));
-        when(planificacionProduccionRepository.filtrarPlanificacionesPorNombreDeReceta("Pale Ale", EstadoSolicitud.FINALIZADA, pageable))
-                .thenReturn(new PageImpl<>(List.of(planificacion2, planificacion1), pageable, 2));
-        when(envasadoLoteRepository.sumarLitrosProducidosPorPlanificacion(List.of(2L, 1L)))
-                .thenReturn(List.<Object[]>of(new Object[]{2L, 300.0}));
+        Pageable pageable = PageRequest.of(1, 8, Sort.by(Sort.Direction.DESC, "id"));
+        when(planificacionProduccionRepository.filtrarPlanificacionesProduccion(any(), any(), any(), any(Pageable.class)))
+                .thenAnswer(invocacion -> new PageImpl<PlanificacionProduccionEntity>(List.of(), invocacion.getArgument(3), 0));
 
         // === EJECUCION ===
-        Page<PlanificacionProduccionResponseDTO> resultado = planificacionProduccionServicio
-                .filtrarPlanificacionesPorNombreDeReceta("   Pale    Ale ", EstadoSolicitud.FINALIZADA, pageable);
-
-        // === ASSERTS ===
-        assertThat(resultado.getContent()).extracting(PlanificacionProduccionResponseDTO::getId).containsExactly(2L, 1L);
-        assertThat(resultado.getContent()).extracting(PlanificacionProduccionResponseDTO::getLitrosProducidos).containsExactly(300.0, 0.0);
-        verify(envasadoLoteRepository, times(1)).sumarLitrosProducidosPorPlanificacion(List.of(2L, 1L));
-    }
-
-    @Test
-    @DisplayName("CP-FPR-02: filtrarPlanificacionesPorNombreDeReceta con nombre nulo o en blanco y estado nulo no restringe la búsqueda (ofrece planificaciones de cualquier estado)")
-    void filtrarPlanificacionesPorNombreDeReceta_debePropagarCriteriosNulosOEnBlancoComoNulos() {
-        // === PREPARACION DE DATOS ===
-        Pageable pageable = PageRequest.of(0, 8, Sort.by(Sort.Direction.DESC, "id"));
-        when(planificacionProduccionRepository.filtrarPlanificacionesPorNombreDeReceta(null, null, pageable))
-                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
-
-        // === EJECUCION ===
-        planificacionProduccionServicio.filtrarPlanificacionesPorNombreDeReceta(null, null, pageable);
-        planificacionProduccionServicio.filtrarPlanificacionesPorNombreDeReceta("    ", null, pageable);
-
-        // === ASSERTS ===
-        verify(planificacionProduccionRepository, times(2)).filtrarPlanificacionesPorNombreDeReceta(null, null, pageable);
-    }
-
-    @Test
-    @DisplayName("CP-FPR-03: filtrarPlanificacionesPorNombreDeReceta sin coincidencias retorna una página vacía y no consulta los litros producidos")
-    void filtrarPlanificacionesPorNombreDeReceta_debeRetornarPaginaVaciaSinConsultarLitros() {
-        // === PREPARACION DE DATOS ===
-        Pageable pageable = PageRequest.of(0, 8, Sort.by(Sort.Direction.DESC, "id"));
-        when(planificacionProduccionRepository.filtrarPlanificacionesPorNombreDeReceta("Inexistente", null, pageable))
-                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
-
-        // === EJECUCION ===
-        Page<PlanificacionProduccionResponseDTO> resultado = planificacionProduccionServicio.filtrarPlanificacionesPorNombreDeReceta("Inexistente", null, pageable);
-
-        // === ASSERTS ===
-        assertThat(resultado.getContent()).isEmpty();
-        verifyNoInteractions(envasadoLoteRepository);
-    }
-
-    @Test
-    @DisplayName("CP-FPR-04: filtrarPlanificacionesPorNombreDeReceta ordena con la última registrada arriba (id descendente) cuando el Pageable no trae orden y respeta el orden recibido si lo trae")
-    void filtrarPlanificacionesPorNombreDeReceta_debeOrdenarPorIdDescendenteSiNoHayOrden() {
-        // === PREPARACION DE DATOS ===
-        when(planificacionProduccionRepository.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any(Pageable.class)))
-                .thenAnswer(invocacion -> new PageImpl<PlanificacionProduccionEntity>(List.of(), invocacion.getArgument(2), 0));
-        Pageable conOrden = PageRequest.of(0, 8, Sort.by(Sort.Direction.ASC, "fechaInicioEstimada"));
-
-        // === EJECUCION ===
-        planificacionProduccionServicio.filtrarPlanificacionesPorNombreDeReceta(null, null, PageRequest.of(1, 8));
-        planificacionProduccionServicio.filtrarPlanificacionesPorNombreDeReceta(null, null, conOrden);
+        Page<PlanificacionProduccionResponseDTO> resultado = planificacionProduccionServicio.filtrarPlanificacionesProduccion(3L, null, null, pageable);
 
         // === ASSERTS ===
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionProduccionRepository, times(2)).filtrarPlanificacionesPorNombreDeReceta(any(), any(), captor.capture());
-        assertThat(captor.getAllValues().get(0).getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "id"));
-        assertThat(captor.getAllValues().get(0).getPageNumber()).isEqualTo(1);
-        assertThat(captor.getAllValues().get(0).getPageSize()).isEqualTo(8);
-        assertThat(captor.getAllValues().get(1)).isSameAs(conOrden);
+        verify(planificacionProduccionRepository).filtrarPlanificacionesProduccion(eq(3L), isNull(), isNull(), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captor.getValue().getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "id"));
+        assertThat(resultado.getPageable().getPageNumber()).isEqualTo(1);
+        assertThat(resultado.getPageable().getPageSize()).isEqualTo(8);
+        assertThat(resultado.getPageable().getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "id"));
     }
 
     // ==================== buscarPorId ====================

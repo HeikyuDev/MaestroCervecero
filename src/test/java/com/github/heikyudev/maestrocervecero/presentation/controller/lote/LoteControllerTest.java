@@ -27,6 +27,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoIns
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
@@ -54,6 +55,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.DetalleLupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -146,6 +148,9 @@ class LoteControllerTest {
     private IFermentadorServicio fermentadorServicio;
 
     @MockitoBean
+    private IRecetaServicio recetaServicio;
+
+    @MockitoBean
     private UserDetailServiceImpl userDetailService;
 
     /**
@@ -162,13 +167,15 @@ class LoteControllerTest {
         when(loteServicio.finalizarEnvasado(any())).thenReturn(respuestaDeLote());
         when(consumoInsumoServicio.filtrarConsumosInsumo(any(), any(), any(), any(), any())).thenReturn(Page.empty());
         when(envasadoLoteServicio.filtrarEnvasadosLote(any(), any(), any(), any())).thenReturn(Page.empty());
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any())).thenReturn(Page.empty());
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(Page.empty());
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(molinoServicio.filtrarMolinos(any(), any(), any())).thenReturn(Page.empty());
         when(maceradorServicio.filtrarMaceradores(any(), any(), any())).thenReturn(Page.empty());
         when(ollaHervorServicio.filtrarOllasHervor(any(), any(), any())).thenReturn(Page.empty());
         when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(Page.empty());
         when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(Page.empty());
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(Page.empty());
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(Page.empty());
     }
 
     // ==================== GET /lotes ====================
@@ -240,7 +247,7 @@ class LoteControllerTest {
         verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), listado.capture());
         assertThat(listado.getValue().getPageNumber()).isEqualTo(Paginacion.PAGINA_MAXIMA);
         ArgumentCaptor<Pageable> buscador = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(any(), any(), buscador.capture());
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(any(), any(), any(), buscador.capture());
         assertThat(buscador.getValue().getPageNumber()).isEqualTo(Paginacion.PAGINA_MAXIMA);
     }
 
@@ -2115,10 +2122,10 @@ class LoteControllerTest {
     // ==================== Buscadores del formulario de registro ====================
 
     @Test
-    @DisplayName("CP-LCT-109: el buscador de planificaciones devuelve un fragmento (sin layout) con el criterio de receta, las columnas y el botón Elegir con su id y texto")
+    @DisplayName("CP-LCT-109: el buscador de planificaciones devuelve un fragmento (sin layout) con el criterio de receta como selector de entidad, las columnas y el botón Elegir con su id y texto")
     void buscadorDePlanificaciones_debeDevolverElFragmento() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 planificacion(8L, "Stout", EstadoSolicitud.PENDIENTE), planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE))));
 
         // Act
@@ -2128,80 +2135,95 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: Pale Ale\"").contains("action=\"/lotes/buscador/planificaciones\"").contains("data-modal-buscar");
+        assertThat(html).doesNotContain("<html").contains("action=\"/lotes/buscador/planificaciones\"").contains("data-modal-buscar");
+        assertThat(html).contains("data-selector-buscar").contains("bi-list-ul").contains("data-buscador-url=\"/lotes/buscador/recetas\"")
+                .contains("placeholder=\"Seleccione receta\"").contains("data-selector-limpiar")
+                .containsPattern("<input[^>]*data-selector-id[^>]*name=\"idReceta\"[^>]*>")
+                .doesNotContain("data-selector-menu").doesNotContain("name=\"receta\"").doesNotContain("placeholder=\"Ej: Pale Ale\"");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
         assertThat(texto(html)).contains("Buscar planificación", "Receta", "Planificación Receta Cantidad (L) Inicio estimado Estado");
         assertThat(celdas(html, "Pale Ale")).startsWith("#7", "Pale Ale", "600", "01/07/2027", "Pendiente");
         assertThat(html).contains("data-id=\"7\"").contains("data-texto=\"Plan #7 - Pale Ale\"").contains("data-id=\"8\"").contains("data-texto=\"Plan #8 - Stout\"");
     }
 
     @Test
-    @DisplayName("CP-LCT-110: solo se ofrecen planificaciones pendientes, sin filtrar por fecha, con la última registrada arriba y de a 8")
+    @DisplayName("CP-LCT-110: solo se ofrecen planificaciones pendientes, sin receta ni fecha, con la última registrada arriba y de a 8, sin consultar recetas")
     void buscadorDePlanificaciones_soloPendientes() throws Exception {
         // Act
-        mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk());
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(isNull(), eq(EstadoSolicitud.PENDIENTE), pageable.capture());
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), eq(EstadoSolicitud.PENDIENTE), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(8);
         assertThat(pageable.getValue().getSort().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
+        verifyNoInteractions(recetaServicio);
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
     }
 
     @Test
-    @DisplayName("CP-LCT-111: el criterio de receta llega al service recortado y el campo conserva lo escrito")
-    void buscadorDePlanificaciones_criterioDeRecetaNormalizado() throws Exception {
+    @DisplayName("CP-LCT-111: la receta elegida llega como identificador al service de planificaciones y el selector la muestra con su id oculto")
+    void buscadorDePlanificaciones_filtraPorLaRecetaElegida() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("STOUT"), any(), any())).thenReturn(new PageImpl<>(List.of(
-                planificacion(9L, "Stout", EstadoSolicitud.PENDIENTE), planificacion(7L, "Imperial Stout", EstadoSolicitud.PENDIENTE))));
+        when(recetaServicio.buscarPorId(3L)).thenReturn(receta(3L, "Stout", Estado.ACTIVO));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(3L), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                planificacion(9L, "Stout", EstadoSolicitud.PENDIENTE), planificacion(7L, "Stout", EstadoSolicitud.PENDIENTE))));
 
         // Act
-        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", " STOUT "))
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "3"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("data-texto=\"Plan #9 - Stout\"").contains("data-texto=\"Plan #7 - Imperial Stout\"").doesNotContain("Plan #8");
-        assertThat(campo(html, "receta")).isEqualTo(" STOUT ");
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(eq(3L), eq(EstadoSolicitud.PENDIENTE), isNull(), any(Pageable.class));
+        assertThat(html).contains("data-texto=\"Plan #9 - Stout\"").contains("data-texto=\"Plan #7 - Stout\"").doesNotContain("Plan #8");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Stout");
+        assertThat(campo(html, "idReceta")).isEqualTo("3");
     }
 
     @Test
-    @DisplayName("CP-LCT-112: la paginación del modal es de a 8 y conserva el criterio en los links marcados para pedir el fragmento")
+    @DisplayName("CP-LCT-112: la paginación del modal es de a 8 y conserva la receta elegida en los links marcados para pedir el fragmento")
     void buscadorDePlanificaciones_paginacion() throws Exception {
         // Arrange
         List<PlanificacionProduccionResponseDTO> primera = new ArrayList<>();
         for (long id = 10; id >= 3; id--) {
             primera.add(planificacion(id, "Pale Ale", EstadoSolicitud.PENDIENTE));
         }
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), eq(PageRequest.of(0, 8, Sort.by(Sort.Order.desc("id")))))).thenReturn(new PageImpl<>(primera, PageRequest.of(0, 8), 10));
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), eq(PageRequest.of(1, 8, Sort.by(Sort.Order.desc("id")))))).thenReturn(new PageImpl<>(
+        when(recetaServicio.buscarPorId(3L)).thenReturn(receta(3L, "Pale Ale", Estado.ACTIVO));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(3L), any(), any(), eq(PageRequest.of(0, 8, Sort.by(Sort.Order.desc("id")))))).thenReturn(new PageImpl<>(primera, PageRequest.of(0, 8), 10));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(3L), any(), any(), eq(PageRequest.of(1, 8, Sort.by(Sort.Order.desc("id")))))).thenReturn(new PageImpl<>(
                 List.of(planificacion(2L, "Pale Ale", EstadoSolicitud.PENDIENTE), planificacion(1L, "Pale Ale", EstadoSolicitud.PENDIENTE)), PageRequest.of(1, 8), 10));
 
         // Act
-        String primeraPagina = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", "pale"))
+        String primeraPagina = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "3"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String segundaPagina = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", "pale").param("pagina", "1"))
+        String segundaPagina = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "3").param("pagina", "1"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(cuenta(primeraPagina, "data-elegir")).isEqualTo(8);
         assertThat(texto(primeraPagina)).contains("10 planificaciones · Página 1 de 2");
-        assertThat(enlaceDe(primeraPagina, "Siguiente")).contains("pagina=1").contains("receta=pale");
+        assertThat(enlaceDe(primeraPagina, "Siguiente")).contains("pagina=1").contains("idReceta=3");
         assertThat(primeraPagina).contains("data-modal-get=\"true\"");
         assertThat(cuenta(segundaPagina, "data-elegir")).isEqualTo(2);
         assertThat(texto(segundaPagina)).contains("Página 2 de 2");
-        assertThat(enlaceDe(segundaPagina, "Anterior")).contains("pagina=0").contains("receta=pale");
+        assertThat(enlaceDe(segundaPagina, "Anterior")).contains("pagina=0").contains("idReceta=3");
     }
 
     @Test
     @DisplayName("CP-LCT-113: sin resultados el modal lo informa y una página negativa equivale a la primera")
     void buscadorDePlanificaciones_vacioYPaginaNegativa() throws Exception {
+        // Arrange
+        when(recetaServicio.buscarPorId(3L)).thenReturn(receta(3L, "Stout", Estado.ACTIVO));
+
         // Act + Assert
-        mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", "zzz"))
+        mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "3"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se encontraron planificaciones con los criterios indicados")));
         mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "-3")).andExpect(status().isOk());
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio, times(2)).filtrarPlanificacionesPorNombreDeReceta(any(), any(), pageable.capture());
+        verify(planificacionServicio, times(2)).filtrarPlanificacionesProduccion(any(), any(), any(), pageable.capture());
         assertThat(pageable.getAllValues()).allSatisfy(p -> assertThat(p.getPageNumber()).isZero());
     }
 
@@ -2357,22 +2379,101 @@ class LoteControllerTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
-    @DisplayName("CP-LCT-121: los roles sin LOTE_REGISTRAR no pueden usar los cinco buscadores del formulario: redirigen con alerta de error y no llegan a ningún service")
+    @DisplayName("CP-LCT-121: los roles sin LOTE_REGISTRAR no pueden usar los seis buscadores del formulario: redirigen con alerta de error y no llegan a ningún service")
     void buscadoresDelFormulario_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
-        for (String buscador : List.of("planificaciones", "molinos", "maceradores", "ollas", "fermentadores")) {
+        for (String buscador : List.of("planificaciones", "recetas", "molinos", "maceradores", "ollas", "fermentadores")) {
             assertRechazado(mockMvc.perform(get(URL + "/buscador/" + buscador).with(como(rol))));
         }
         verifyNingunService();
     }
 
+    @Test
+    @DisplayName("CP-LCT-149: una receta inexistente o dada de baja en el buscador de planificaciones del registro se ignora sin aviso: se busca sin filtrar por receta y el selector queda en blanco")
+    void buscadorDePlanificaciones_ignoraUnaRecetaQueNoSeOfrece() throws Exception {
+        // Arrange: buscarPorId solo ve recetas activas, así que también lanza para una dada de baja
+        when(recetaServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 99"));
+        when(recetaServicio.buscarPorId(5L)).thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 5"));
+
+        for (String idReceta : List.of("99", "5")) {
+            // Act
+            String html = mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", idReceta))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+            // Assert
+            assertThat(html).doesNotContain("<html").doesNotContain("role=\"alert\"");
+            assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
+            assertThat(campoOVacio(html, "idReceta")).isEmpty();
+        }
+        verify(planificacionServicio, times(2)).filtrarPlanificacionesProduccion(isNull(), eq(EstadoSolicitud.PENDIENTE), isNull(), any(Pageable.class));
+        verify(recetaServicio, never()).buscarActivaODadaDeBajaConPlanificacionesPorId(any());
+    }
+
+    @Test
+    @DisplayName("CP-LCT-150: el buscador de recetas del registro devuelve el fragmento compartido con el criterio de nombre, las columnas y el botón Elegir, sin la casilla Incluir dados de baja")
+    void buscadorDeRecetas_debeDevolverElFragmento() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.ACTIVO))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: Pale Ale\"").contains("action=\"/lotes/buscador/recetas\"").contains("data-modal-buscar")
+                .doesNotContain("incluirDadosDeBaja");
+        assertThat(texto(html)).contains("Buscar receta", "Nombre", "Nombre Volumen base (L)").doesNotContain("Incluir dados de baja");
+        assertThat(celdas(html, "Pale Ale")).startsWith("Pale Ale", "20");
+        assertThat(html).contains("data-id=\"3\"").contains("data-texto=\"Pale Ale\"").contains("data-id=\"4\"").contains("data-texto=\"Stout\"");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-151: el buscador de recetas del registro ofrece solo recetas activas (aun con incluirDadosDeBaja), recorta el nombre, pagina de a 8 conservando el criterio, informa el vacío y una página negativa pide la primera")
+    void buscadorDeRecetas_soloActivasCriterioYPaginacion() throws Exception {
+        // Act
+        mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk());
+        mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("nombre", " pale ")).andExpect(status().isOk());
+        mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("nombre", "  ")).andExpect(status().isOk());
+        mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "true")).andExpect(status().isOk());
+
+        // Assert
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio, times(3)).filtrarRecetas(isNull(), pageable.capture());
+        verify(recetaServicio).filtrarRecetas(eq("pale"), pageable.capture());
+        assertThat(pageable.getAllValues()).allSatisfy(p -> {
+            assertThat(p.getPageNumber()).isZero();
+            assertThat(p.getPageSize()).isEqualTo(8);
+            assertThat(p.getSort().isUnsorted()).isTrue();
+        });
+        verify(recetaServicio, never()).filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any());
+
+        // Arrange + Act + Assert: paginación, vacío y página negativa
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(receta(3L, "Pale Ale", Estado.ACTIVO)), PageRequest.of(1, 8), 20));
+        String html = mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("nombre", "pale").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(texto(html)).contains("Página 2 de 3");
+        assertThat(enlaceDe(html, "Anterior")).contains("pagina=0").contains("nombre=pale").doesNotContain("incluirDadosDeBaja=true");
+        assertThat(enlaceDe(html, "Siguiente")).contains("pagina=2").contains("nombre=pale").doesNotContain("incluirDadosDeBaja=true");
+        assertThat(html).contains("data-modal-get=\"true\"");
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get(URL + "/buscador/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "-3"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados")));
+        ArgumentCaptor<Pageable> negativa = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio, times(6)).filtrarRecetas(any(), negativa.capture());
+        assertThat(negativa.getAllValues().get(5).getPageNumber()).isZero();
+    }
+
     // ==================== Buscadores de los filtros de la lista ====================
 
     @Test
-    @DisplayName("CP-LCT-122: el buscador de planificaciones del filtro devuelve un fragmento que puede usar el operario, con el estado legible de cada planificación")
+    @DisplayName("CP-LCT-122: el buscador de planificaciones del filtro devuelve un fragmento que puede usar el operario, con el criterio de receta como selector de entidad y el estado legible de cada planificación")
     void filtroDePlanificaciones_debeDevolverElFragmento() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 planificacion(8L, "Stout", EstadoSolicitud.FINALIZADA), planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE))));
 
         // Act
@@ -2382,7 +2483,11 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: Pale Ale\"").contains("action=\"/lotes/filtros/planificaciones\"").contains("data-modal-buscar");
+        assertThat(html).doesNotContain("<html").contains("action=\"/lotes/filtros/planificaciones\"").contains("data-modal-buscar");
+        assertThat(html).contains("data-selector-buscar").contains("bi-list-ul").contains("data-buscador-url=\"/lotes/filtros/recetas\"")
+                .contains("placeholder=\"Seleccione receta\"").contains("data-selector-limpiar")
+                .containsPattern("<input[^>]*data-selector-id[^>]*name=\"idReceta\"[^>]*>")
+                .doesNotContain("data-selector-menu").doesNotContain("name=\"receta\"").doesNotContain("placeholder=\"Ej: Pale Ale\"");
         assertThat(texto(html)).contains("Buscar planificación", "Planificación Receta Cantidad (L) Inicio estimado Estado");
         assertThat(celdas(html, "Stout")).contains("Finalizada");
         assertThat(celdas(html, "Pale Ale")).contains("Pendiente");
@@ -2390,39 +2495,44 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-123: el buscador de planificaciones del filtro ofrece las de cualquier estado, sin filtrar por fecha, con la última registrada arriba, de a 8 y con el criterio recortado")
-    void filtroDePlanificaciones_cualquierEstadoCriterioYPaginacion() throws Exception {
+    @DisplayName("CP-LCT-123: el buscador de planificaciones del filtro ofrece las de cualquier estado, sin fecha, con la última registrada arriba, de a 8 y filtradas por la receta elegida")
+    void filtroDePlanificaciones_cualquierEstadoRecetaYPaginacion() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("STOUT"), any(), any())).thenReturn(new PageImpl<>(List.of(
-                planificacion(9L, "Stout", EstadoSolicitud.PENDIENTE), planificacion(7L, "Imperial Stout", EstadoSolicitud.ANULADA))));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Stout", Estado.ACTIVO));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(4L)).thenReturn(receta(4L, "Pale Ale", Estado.ACTIVO));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(3L), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                planificacion(9L, "Stout", EstadoSolicitud.PENDIENTE), planificacion(7L, "Stout", EstadoSolicitud.ANULADA))));
         List<PlanificacionProduccionResponseDTO> primera = new ArrayList<>();
         for (long id = 10; id >= 3; id--) {
             primera.add(planificacion(id, "Pale Ale", EstadoSolicitud.PENDIENTE));
         }
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("pale"), any(), any())).thenReturn(new PageImpl<>(primera, PageRequest.of(0, 8), 10));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(4L), any(), any(), any())).thenReturn(new PageImpl<>(primera, PageRequest.of(0, 8), 10));
 
         // Act
         mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk());
-        String stout = mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", " STOUT "))
+        verifyNoInteractions(recetaServicio);
+        String stout = mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "3"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String pale = mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", "pale"))
+        String pale = mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "4"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("receta", "zzz"))
+        mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "-3"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se encontraron planificaciones con los criterios indicados")));
-        mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "-3")).andExpect(status().isOk());
 
         // Assert
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio, times(2)).filtrarPlanificacionesPorNombreDeReceta(isNull(), isNull(), pageable.capture());
+        verify(planificacionServicio, times(2)).filtrarPlanificacionesProduccion(isNull(), isNull(), isNull(), pageable.capture());
         assertThat(pageable.getAllValues()).allSatisfy(p -> {
             assertThat(p.getPageSize()).isEqualTo(8);
             assertThat(p.getSort().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
         });
         assertThat(pageable.getAllValues().get(1).getPageNumber()).isZero();
-        assertThat(stout).contains("data-texto=\"Plan #9 - Stout\"").contains("data-texto=\"Plan #7 - Imperial Stout\"").doesNotContain("Plan #8");
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(eq(3L), isNull(), isNull(), any(Pageable.class));
+        assertThat(stout).contains("data-texto=\"Plan #9 - Stout\"").contains("data-texto=\"Plan #7 - Stout\"").doesNotContain("Plan #8");
+        assertThat(textoDelSelector(stout, "Seleccione receta")).isEqualTo("Stout");
+        assertThat(campo(stout, "idReceta")).isEqualTo("3");
         assertThat(texto(pale)).contains("10 planificaciones · Página 1 de 2");
-        assertThat(enlaceDe(pale, "Siguiente")).contains("pagina=1").contains("receta=pale");
+        assertThat(enlaceDe(pale, "Siguiente")).contains("pagina=1").contains("idReceta=4");
         assertThat(pale).contains("data-modal-get=\"true\"");
     }
 
@@ -2515,10 +2625,13 @@ class LoteControllerTest {
         for (RequestPostProcessor usuario : List.of(como(Rol.GERENTE_DE_PRODUCCION), como(Rol.OPERARIO_DE_PRODUCCION), conPermisos(Permiso.LOTE_CONSULTAR))) {
             mockMvc.perform(get(URL + "/filtros/planificaciones").with(usuario)).andExpect(status().isOk())
                     .andExpect(view().name("lote/filtro-planificacion :: buscador"));
+            mockMvc.perform(get(URL + "/filtros/recetas").with(usuario)).andExpect(status().isOk())
+                    .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"));
             mockMvc.perform(get(URL + "/filtros/fermentadores").with(usuario)).andExpect(status().isOk())
                     .andExpect(view().name("lote/filtro-fermentador :: buscador"));
         }
         assertRechazado(mockMvc.perform(get(URL + "/filtros/planificaciones").with(conPermisos(Permiso.LOTE_REGISTRAR))));
+        assertRechazado(mockMvc.perform(get(URL + "/filtros/recetas").with(conPermisos(Permiso.LOTE_REGISTRAR))));
         assertRechazado(mockMvc.perform(get(URL + "/filtros/fermentadores").with(conPermisos(Permiso.LOTE_REGISTRAR))));
     }
 
@@ -2528,8 +2641,126 @@ class LoteControllerTest {
     void filtros_losRolesNoAutorizadosSonRechazados(Rol rol) throws Exception {
         // Act + Assert
         assertRechazado(mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(rol))));
+        assertRechazado(mockMvc.perform(get(URL + "/filtros/recetas").with(como(rol))));
         assertRechazado(mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(rol))));
         verifyNingunService();
+    }
+
+    @Test
+    @DisplayName("CP-LCT-152: una receta dada de baja con planificaciones se puede elegir en el filtro: filtra sus planificaciones de cualquier estado y el selector la muestra con (dada de baja)")
+    void filtroDePlanificaciones_admiteUnaRecetaDadaDeBaja() throws Exception {
+        // Arrange
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(5L)).thenReturn(receta(5L, "Stout", Estado.BAJA));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(5L), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                planificacion(12L, "Stout", EstadoSolicitud.ANULADA))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idReceta", "5"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(eq(5L), isNull(), isNull(), any(Pageable.class));
+        verify(recetaServicio, never()).buscarPorId(any());
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Stout (dada de baja)");
+        assertThat(campo(html, "idReceta")).isEqualTo("5");
+        assertThat(celdas(html, "Plan #12")).contains("Anulada");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-153: una receta inexistente o dada de baja sin planificaciones en el filtro se ignora sin aviso: se busca sin filtrar por receta y el selector queda en blanco")
+    void filtroDePlanificaciones_ignoraUnaRecetaQueNoSeOfrece() throws Exception {
+        // Arrange
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 99"));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idReceta", "99"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), isNull(), any(Pageable.class));
+        assertThat(html).doesNotContain("<html").doesNotContain("role=\"alert\"");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
+        assertThat(campoOVacio(html, "idReceta")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("CP-LCT-154: el buscador de recetas del filtro devuelve el fragmento compartido, que puede usar el operario, con la casilla Incluir dados de baja desmarcada")
+    void filtroDeRecetas_debeDevolverElFragmento() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.ACTIVO))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/filtros/recetas").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: Pale Ale\"").contains("action=\"/lotes/filtros/recetas\"").contains("data-modal-buscar")
+                .doesNotContain("data-receta-dada-de-baja");
+        assertThat(texto(html)).contains("Buscar receta", "Incluir dados de baja", "Nombre Volumen base (L)");
+        Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
+        assertThat(casilla.find()).isTrue();
+        assertThat(casilla.group()).contains("type=\"checkbox\"").doesNotContain("checked");
+        assertThat(html).contains("data-id=\"3\"").contains("data-texto=\"Pale Ale\"").contains("data-id=\"4\"").contains("data-texto=\"Stout\"");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-155: sin la casilla el buscador de recetas del filtro consulta solo las activas; con ella se suman las dadas de baja con planificaciones, marcadas y con su texto")
+    void filtroDeRecetas_soloActivasODadasDeBaja() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.BAJA))));
+
+        // Act
+        mockMvc.perform(get(URL + "/filtros/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("nombre", " pale ")).andExpect(status().isOk());
+        String html = mockMvc.perform(get(URL + "/filtros/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "true"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio).filtrarRecetas(eq("pale"), pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isZero();
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(8);
+        assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
+        verify(recetaServicio).filtrarRecetasConDadasDeBajaConPlanificaciones(isNull(), any(Pageable.class));
+        verify(recetaServicio, times(1)).filtrarRecetas(any(), any());
+        assertThat(celdas(html, "Stout").get(0)).isEqualTo("Stout Dada de baja");
+        assertThat(html).contains("data-receta-dada-de-baja").contains("data-texto=\"Stout (dada de baja)\"").contains("data-texto=\"Pale Ale\"");
+        assertThat(cuenta(html, "data-receta-dada-de-baja")).isEqualTo(1);
+        Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
+        assertThat(casilla.find()).isTrue();
+        assertThat(casilla.group()).contains("checked");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-156: la paginación del buscador de recetas del filtro conserva el nombre y la casilla; sin resultados lo informa y una página negativa pide la primera")
+    void filtroDeRecetas_paginacionYVacio() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO)), PageRequest.of(1, 8), 20));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/filtros/recetas").with(como(Rol.GERENTE_DE_PRODUCCION))
+                        .param("nombre", "pale").param("incluirDadosDeBaja", "true").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get(URL + "/filtros/recetas").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "true").param("pagina", "-3"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados")));
+
+        // Assert
+        assertThat(texto(html)).contains("Página 2 de 3");
+        for (String enlace : List.of(enlaceDe(html, "Anterior"), enlaceDe(html, "Siguiente"))) {
+            assertThat(enlace).contains("nombre=pale").contains("incluirDadosDeBaja=true");
+        }
+        assertThat(enlaceDe(html, "Anterior")).contains("pagina=0");
+        assertThat(enlaceDe(html, "Siguiente")).contains("pagina=2");
+        assertThat(html).contains("data-modal-get=\"true\"");
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio, times(2)).filtrarRecetasConDadasDeBajaConPlanificaciones(any(), pageable.capture());
+        assertThat(pageable.getAllValues().get(1).getPageNumber()).isZero();
     }
 
     // ==================== Transversales ====================
@@ -2661,15 +2892,17 @@ class LoteControllerTest {
         }
 
         // Act + Assert: un modal no puede recibir una página completa
-        for (String ruta : List.of("/buscador/planificaciones", "/buscador/molinos", "/filtros/planificaciones", "/filtros/fermentadores")) {
-            mockMvc.perform(get(URL + ruta).with(como(Rol.GERENTE_DE_PRODUCCION)).param("pagina", "xyz").header("Referer", "/lotes"))
+        String[][] buscadores = {
+                {"/buscador/planificaciones", "pagina"}, {"/buscador/recetas", "pagina"}, {"/buscador/molinos", "pagina"},
+                {"/filtros/planificaciones", "pagina"}, {"/filtros/recetas", "pagina"}, {"/filtros/fermentadores", "pagina"},
+                {"/buscador/planificaciones", "idReceta"}, {"/filtros/planificaciones", "idReceta"},
+                {"/filtros/recetas", "incluirDadosDeBaja"}, {"/filtros/fermentadores", "incluirDadosDeBaja"}};
+        for (String[] buscador : buscadores) {
+            mockMvc.perform(get(URL + buscador[0]).with(como(Rol.GERENTE_DE_PRODUCCION)).param(buscador[1], "xyz").header("Referer", "/lotes"))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType("text/plain;charset=UTF-8"))
                     .andExpect(content().string("El valor indicado no es válido"));
         }
-        mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "xyz"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("El valor indicado no es válido"));
     }
 
     @Test
@@ -2866,7 +3099,7 @@ class LoteControllerTest {
 
     private void verifyNingunService() {
         verifyNoInteractions(loteServicio, consumoInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
-                ollaHervorServicio, fermentadorServicio);
+                ollaHervorServicio, fermentadorServicio, recetaServicio);
     }
 
     private void assertAvisoDeValorInvalido(org.springframework.test.web.servlet.ResultActions resultado) throws Exception {
@@ -2951,6 +3184,11 @@ class LoteControllerTest {
     private static PlanificacionProduccionResponseDTO planificacion(Long id, String receta, EstadoSolicitud estado) {
         return PlanificacionProduccionResponseDTO.builder().id(id).cantidadAProducir(600.0).fechaInicioEstimada(LocalDate.of(2027, 7, 1))
                 .estado(estado).versionReceta(VersionRecetaResponseDTO.builder().nombre(receta).build()).build();
+    }
+
+    private static RecetaResponseDTO receta(Long id, String nombre, Estado estado) {
+        return RecetaResponseDTO.builder().id(id).estado(estado)
+                .version(VersionRecetaResponseDTO.builder().nombre(nombre).volumenBase(20.0).build()).build();
     }
 
     private static FermentadorResponseDTO fermentador(Long id, String identificador, EstadoOperativo estadoOperativo, double capacidadUtil, Estado estado) {
@@ -3181,6 +3419,16 @@ class LoteControllerTest {
             }
         }
         throw new AssertionError("No hay selector con el placeholder " + placeholder);
+    }
+
+    /**
+     * El valor del campo con ese nombre, o vacío si el campo no tiene valor.
+     */
+    private static String campoOVacio(String html, String nombre) {
+        Matcher m = Pattern.compile("<input[^>]*name=\"" + nombre + "\"[^>]*>").matcher(html);
+        assertThat(m.find()).as("campo %s", nombre).isTrue();
+        Matcher valor = Pattern.compile("value=\"([^\"]*)\"").matcher(m.group());
+        return valor.find() ? HtmlUtils.htmlUnescape(valor.group(1)) : "";
     }
 
     /**

@@ -22,6 +22,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoIns
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
@@ -31,6 +32,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetal
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
@@ -93,6 +95,8 @@ public class LoteController {
     private static final String VISTA_FILTRO_FERMENTADOR = "lote/filtro-fermentador :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "loteForm";
     private static final String URL_LISTA = "/lotes";
+    private static final String URL_BUSCADOR_RECETAS = "/lotes/buscador/recetas";
+    private static final String URL_FILTRO_RECETAS = "/lotes/filtros/recetas";
 
     private final ILoteServicio loteServicio;
     private final IConsumoInsumoServicio consumoInsumoServicio;
@@ -102,6 +106,7 @@ public class LoteController {
     private final IMaceradorServicio maceradorServicio;
     private final IOllaHervorServicio ollaHervorServicio;
     private final IFermentadorServicio fermentadorServicio;
+    private final IRecetaServicio recetaServicio;
 
     /**
      * Fila de un buscador de equipos: lo que ayuda a elegir (identificador, estado operativo y los valores de las
@@ -404,19 +409,36 @@ public class LoteController {
      * Devuelve el contenido del modal de búsqueda de planificaciones del formulario de registro (criterio de receta +
      * resultados), de a 8 y con la última registrada arriba. Solo se ofrecen las pendientes: es el único estado sobre
      * el que se registra un lote.
+     * <p>
+     * La receta se elige con su propio buscador, que solo ofrece recetas activas: un {@code idReceta} que no es de una
+     * receta activa se ignora y se busca sin filtrar por receta.
+     * </p>
      */
     @GetMapping("/buscador/planificaciones")
     @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
-    public String buscarPlanificaciones(@RequestParam(required = false) String receta,
+    public String buscarPlanificaciones(@RequestParam(required = false) Long idReceta,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
-        model.addAttribute("planificaciones", planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(
-                vacioANulo(receta), EstadoSolicitud.PENDIENTE,
-                paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
-        model.addAttribute("filtroReceta", receta);
-        model.addAttribute("urlBuscador", "/lotes/buscador/planificaciones");
-        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación pendiente del lote.");
+        cargarBuscadorDePlanificaciones(model, recetaElegida(idReceta, recetaServicio::buscarPorId), idReceta,
+                EstadoSolicitud.PENDIENTE, pagina, "/lotes/buscador/planificaciones", URL_BUSCADOR_RECETAS,
+                "Filtre y elija la planificación pendiente del lote.");
         return VISTA_BUSCADOR_PLANIFICACION;
+    }
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de recetas del criterio "Receta" del buscador de planificaciones del
+     * formulario de registro (criterio de nombre + resultados), de a 8 y en orden alfabético. Solo se ofrecen las
+     * recetas activas. El orden lo define la consulta del repositorio, por eso el {@code Pageable} no lleva
+     * ordenamiento.
+     */
+    @GetMapping("/buscador/recetas")
+    @PreAuthorize("hasAuthority('LOTE_REGISTRAR')")
+    public String buscarRecetas(@RequestParam(required = false) String nombre,
+                                @RequestParam(defaultValue = "0") int pagina,
+                                Model model) {
+        cargarBuscadorDeRecetas(model, recetaServicio.filtrarRecetas(vacioANulo(nombre), paginaDeBuscador(pagina, Sort.unsorted())),
+                nombre, URL_BUSCADOR_RECETAS, false, false);
+        return VISTA_BUSCADOR_RECETA;
     }
 
     /** Devuelve el contenido del modal de búsqueda de molinos activos, en orden alfabético por identificador. */
@@ -485,18 +507,41 @@ public class LoteController {
      * Devuelve el contenido del modal de búsqueda de planificaciones del filtro de la lista (criterio de receta +
      * resultados), de a 8 y con la última registrada arriba. A diferencia del formulario de registro, ofrece las de
      * cualquier estado, porque filtra el historial.
+     * <p>
+     * La receta se elige con el buscador de recetas del filtro, que también ofrece las dadas de baja con
+     * planificaciones: un {@code idReceta} que ese buscador no ofrece se ignora y se busca sin filtrar por receta.
+     * </p>
      */
     @GetMapping("/filtros/planificaciones")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
-    public String filtrarPlanificaciones(@RequestParam(required = false) String receta,
+    public String filtrarPlanificaciones(@RequestParam(required = false) Long idReceta,
                                          @RequestParam(defaultValue = "0") int pagina,
                                          Model model) {
-        model.addAttribute("planificaciones", planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(
-                vacioANulo(receta), null, paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
-        model.addAttribute("filtroReceta", receta);
-        model.addAttribute("urlBuscador", "/lotes/filtros/planificaciones");
-        model.addAttribute("subtituloBuscador", "Filtre y elija la planificación de los lotes.");
+        cargarBuscadorDePlanificaciones(model, recetaElegida(idReceta, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId),
+                idReceta, null, pagina, "/lotes/filtros/planificaciones", URL_FILTRO_RECETAS,
+                "Filtre y elija la planificación de los lotes.");
         return VISTA_FILTRO_PLANIFICACION;
+    }
+
+    /**
+     * Devuelve el contenido del modal de búsqueda de recetas del criterio "Receta" del buscador de planificaciones del
+     * filtro de la lista (nombre e "Incluir dados de baja" + resultados), de a 8 y en orden alfabético. Sin el último
+     * criterio solo se ofrecen las recetas activas; con él se suman las dadas de baja que tienen alguna planificación,
+     * para poder filtrar su historial.
+     */
+    @GetMapping("/filtros/recetas")
+    @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
+    public String filtrarRecetas(@RequestParam(required = false) String nombre,
+                                 @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
+                                 @RequestParam(defaultValue = "0") int pagina,
+                                 Model model) {
+        String nombreBuscado = vacioANulo(nombre);
+        Pageable pageable = paginaDeBuscador(pagina, Sort.unsorted());
+        Page<RecetaResponseDTO> recetas = incluirDadosDeBaja
+                ? recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(nombreBuscado, pageable)
+                : recetaServicio.filtrarRecetas(nombreBuscado, pageable);
+        cargarBuscadorDeRecetas(model, recetas, nombre, URL_FILTRO_RECETAS, true, incluirDadosDeBaja);
+        return VISTA_BUSCADOR_RECETA;
     }
 
     /**
@@ -706,6 +751,23 @@ public class LoteController {
 
     private static Pageable paginaDeBuscador(int pagina, Sort orden) {
         return PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, orden);
+    }
+
+    /**
+     * Arma el modal de un buscador de planificaciones: las planificaciones del estado indicado ({@code null} para
+     * cualquiera) de la receta elegida, de a 8 y con la última registrada arriba, y el selector de receta con la URL de
+     * su propio buscador. Si la receta no se resolvió, se busca sin filtrar por receta y el selector queda en blanco.
+     */
+    private void cargarBuscadorDePlanificaciones(Model model, RecetaResponseDTO receta, Long idReceta, EstadoSolicitud estado, int pagina,
+                                                 String urlBuscador, String urlBuscadorRecetas, String subtitulo) {
+        Long idRecetaFiltro = receta != null ? idReceta : null;
+        model.addAttribute("planificaciones", planificacionServicio.filtrarPlanificacionesProduccion(
+                idRecetaFiltro, estado, null, paginaDeBuscador(pagina, ORDEN_MAS_RECIENTE_PRIMERO)));
+        model.addAttribute("filtroIdReceta", idRecetaFiltro);
+        model.addAttribute("filtroRecetaTexto", receta != null ? textoDeReceta(receta) : null);
+        model.addAttribute("urlBuscador", urlBuscador);
+        model.addAttribute("urlBuscadorRecetas", urlBuscadorRecetas);
+        model.addAttribute("subtituloBuscador", subtitulo);
     }
 
     /**

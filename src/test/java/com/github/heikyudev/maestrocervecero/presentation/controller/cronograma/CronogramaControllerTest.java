@@ -14,9 +14,11 @@ import com.github.heikyudev.maestrocervecero.service.implementation.usuario.User
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFermentadorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,6 +90,9 @@ class CronogramaControllerTest {
     private IPlanificacionProduccionServicio planificacionServicio;
 
     @MockitoBean
+    private IRecetaServicio recetaServicio;
+
+    @MockitoBean
     private UserDetailServiceImpl userDetailService;
 
     // ==================== GET /cronograma-produccion ====================
@@ -112,6 +117,8 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("action=\"/cronograma-produccion\"")))
                 .andExpect(content().string(containsString("novalidate")))
                 .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/fermentadores\"")))
+                .andExpect(content().string(containsString("Planificación a destacar")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")))
                 .andExpect(content().string(containsString(">Desde</label>")))
                 .andExpect(content().string(containsString(">Hasta</label>")))
                 .andExpect(content().string(containsString("Buscar")))
@@ -350,23 +357,24 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-11: el filtro de planificacion es un campo en blanco con ícono de lista que abre el buscador (no un combo), con placeholder y boton para quitar")
+    @DisplayName("CP-CGC-11: para el gerente y el operario el filtro de planificacion es un campo en blanco con ícono de lista que abre el buscador (no un combo), con placeholder y boton para quitar")
     void cronograma_elFiltroDePlanificacionEsUnSelectorConBuscador() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
         when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of());
 
         // Act + Assert
-        mockMvc.perform(get(URL))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-selector-buscar")))
-                .andExpect(content().string(containsString("bi-list-ul")))
-                .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")))
-                .andExpect(content().string(containsString("name=\"idPlanificacion\"")))
-                .andExpect(content().string(containsString("placeholder=\"Seleccione planificaci")))
-                .andExpect(content().string(containsString("data-selector-limpiar")))
-                .andExpect(content().string(not(containsString("data-selector-menu"))));
+        for (Rol rol : List.of(Rol.GERENTE_DE_PRODUCCION, Rol.OPERARIO_DE_PRODUCCION)) {
+            mockMvc.perform(get(URL).with(como(rol)))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("data-selector-buscar")))
+                    .andExpect(content().string(containsString("bi-list-ul")))
+                    .andExpect(content().string(containsString("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")))
+                    .andExpect(content().string(containsString("name=\"idPlanificacion\"")))
+                    .andExpect(content().string(containsString("placeholder=\"Seleccione planificaci")))
+                    .andExpect(content().string(containsString("data-selector-limpiar")))
+                    .andExpect(content().string(not(containsString("data-selector-menu"))));
+        }
     }
 
     @Test
@@ -492,8 +500,7 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-38: la leyenda explica los tres colores y las marcas (Pendiente, En ejecución, Finalizado, Limpieza y Hoy) y suma el atenuado solo al destacar una planificación")
+    @DisplayName("CP-CGC-38: para el gerente y el operario la leyenda explica los tres colores y las marcas (Pendiente, En ejecución, Finalizado, Limpieza y Hoy) y suma el atenuado solo al destacar una planificación")
     void cronograma_laLeyendaExplicaLosTresColoresYLasMarcas() throws Exception {
         // Arrange
         fermentadores(1L, "F-01");
@@ -501,21 +508,23 @@ class CronogramaControllerTest {
         when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(List.of(
                 lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", 1)));
 
-        // Act
-        String sinDestacar = leyenda(mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        String destacando = leyenda(mockMvc.perform(get(URL).param("idPlanificacion", "7")).andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString());
+        for (Rol rol : List.of(Rol.GERENTE_DE_PRODUCCION, Rol.OPERARIO_DE_PRODUCCION)) {
+            // Act
+            String sinDestacar = leyenda(mockMvc.perform(get(URL).with(como(rol))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+            String destacando = leyenda(mockMvc.perform(get(URL).with(como(rol)).param("idPlanificacion", "7")).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString());
 
-        // Assert
-        assertThat(sinDestacar.indexOf("Pendiente")).isGreaterThanOrEqualTo(0);
-        assertThat(sinDestacar.indexOf("Pendiente")).isLessThan(sinDestacar.indexOf("En ejecuci"));
-        assertThat(sinDestacar.indexOf("En ejecuci")).isLessThan(sinDestacar.indexOf("Finalizado"));
-        assertThat(sinDestacar.indexOf("Finalizado")).isLessThan(sinDestacar.indexOf("Limpieza"));
-        assertThat(sinDestacar.indexOf("Limpieza")).isLessThan(sinDestacar.indexOf("Hoy"));
-        assertThat(sinDestacar).doesNotContain("Cancelado").doesNotContain("Atraso").doesNotContain("Desplazado")
-                .doesNotContain("transcurrido").doesNotContain("Inicio y fin estimados")
-                .doesNotContain("Lote de otra planificaci");
-        assertThat(destacando).contains("Lote de otra planificaci");
+            // Assert
+            assertThat(sinDestacar.indexOf("Pendiente")).isGreaterThanOrEqualTo(0);
+            assertThat(sinDestacar.indexOf("Pendiente")).isLessThan(sinDestacar.indexOf("En ejecuci"));
+            assertThat(sinDestacar.indexOf("En ejecuci")).isLessThan(sinDestacar.indexOf("Finalizado"));
+            assertThat(sinDestacar.indexOf("Finalizado")).isLessThan(sinDestacar.indexOf("Limpieza"));
+            assertThat(sinDestacar.indexOf("Limpieza")).isLessThan(sinDestacar.indexOf("Hoy"));
+            assertThat(sinDestacar).doesNotContain("Cancelado").doesNotContain("Atraso").doesNotContain("Desplazado")
+                    .doesNotContain("transcurrido").doesNotContain("Inicio y fin estimados")
+                    .doesNotContain("Lote de otra planificaci");
+            assertThat(destacando).contains("Lote de otra planificaci");
+        }
     }
 
     @Test
@@ -1633,104 +1642,111 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-30: el buscador devuelve un fragmento (sin layout) con el criterio de receta, el placeholder, las planificaciones y el boton Elegir con su id y texto")
+    @DisplayName("CP-CGC-30: el buscador devuelve un fragmento (sin layout) con el criterio de receta como selector de entidad, las planificaciones y el boton Elegir con su id y texto")
     void buscador_debeDevolverElFragmentoConLasPlanificaciones() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any()))
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(
                         planificacion(8L, "Stout", EstadoSolicitud.FINALIZADA),
                         planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE))));
 
-        // Act + Assert
-        mockMvc.perform(get(URL + "/buscador/planificaciones"))
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("cronograma/buscador-planificacion :: buscador"))
-                .andExpect(content().string(containsString("Buscar planificaci")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: Pale Ale\"")))
-                .andExpect(content().string(containsString("action=\"/cronograma-produccion/buscador/planificaciones\"")))
-                .andExpect(content().string(containsString("data-modal-buscar")))
-                .andExpect(content().string(containsString("data-id=\"7\"")))
-                .andExpect(content().string(containsString("data-texto=\"Plan #7 - Pale Ale\"")))
-                .andExpect(content().string(containsString("data-id=\"8\"")))
-                .andExpect(content().string(containsString("Cantidad (L)")))
-                .andExpect(content().string(containsString(">600<")))
-                .andExpect(content().string(containsString("01/07/2027")))
-                .andExpect(content().string(containsString(">Pendiente<")))
-                .andExpect(content().string(containsString(">Finalizada<")))
-                .andExpect(content().string(containsString("Elegir")))
-                .andExpect(content().string(not(containsString("<html"))));
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).doesNotContain("<html").contains("Buscar planificaci")
+                .contains("action=\"/cronograma-produccion/buscador/planificaciones\"").contains("data-modal-buscar");
+        assertThat(html).contains(">Receta</span>").contains("data-selector-buscar").contains("bi-list-ul")
+                .contains("data-buscador-url=\"/cronograma-produccion/buscador/recetas\"").contains("placeholder=\"Seleccione receta\"")
+                .contains("data-selector-limpiar").containsPattern("<input[^>]*data-selector-id[^>]*name=\"idReceta\"[^>]*>")
+                .doesNotContain("data-selector-menu").doesNotContain("name=\"receta\"").doesNotContain("placeholder=\"Ej: Pale Ale\"");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
+        assertThat(html).contains("data-id=\"7\"").contains("data-texto=\"Plan #7 - Pale Ale\"").contains("data-id=\"8\"")
+                .contains("Cantidad (L)").contains(">600<").contains("01/07/2027").contains(">Pendiente<").contains(">Finalizada<").contains("Elegir");
     }
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-31: el buscador pide al service la primera pagina de 8 planificaciones de cualquier estado, con la ultima registrada primero (id descendente), sin filtrar por receta ni estado")
+    @DisplayName("CP-CGC-31: el buscador pide a filtrarPlanificacionesProduccion la primera pagina de 8 planificaciones de cualquier estado, con la ultima registrada primero (id descendente), sin receta ni fecha y sin consultar recetas")
     void buscador_pideLasMasRecientesPrimero() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(any(), any(), any()))
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         // Act
-        mockMvc.perform(get(URL + "/buscador/planificaciones")).andExpect(status().isOk());
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(isNull(), isNull(), captor.capture());
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), isNull(), captor.capture());
         assertThat(captor.getValue().getPageNumber()).isZero();
         assertThat(captor.getValue().getPageSize()).isEqualTo(8);
         assertThat(captor.getValue().getSort().getOrderFor("id").isDescending()).isTrue();
         verifyNoMoreInteractions(planificacionServicio);
+        verifyNoInteractions(recetaServicio);
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
     }
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-32: el criterio de receta se pasa recortado al service, que filtra por parte del nombre; el buscador muestra lo que el service devuelve y conserva el criterio tipeado")
-    void buscador_filtraPorNombreDeReceta() throws Exception {
+    @DisplayName("CP-CGC-32: la receta elegida llega como identificador al service de planificaciones y el selector la muestra con su id oculto")
+    void buscador_filtraPorLaRecetaElegida() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("STOUT"), any(), any()))
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Stout", Estado.ACTIVO));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(3L), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(
                         planificacion(9L, "Stout", EstadoSolicitud.PENDIENTE),
-                        planificacion(7L, "Imperial Stout", EstadoSolicitud.PENDIENTE))));
+                        planificacion(7L, "Stout", EstadoSolicitud.PENDIENTE))));
 
         // Act
-        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").param("receta", " STOUT "))
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").param("idReceta", "3"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(eq(3L), isNull(), isNull(), any(Pageable.class));
         assertThat(html).contains("data-id=\"9\"").contains("data-id=\"7\"").doesNotContain("data-id=\"8\"");
-        assertThat(html).contains("value=\" STOUT \"");
-        verify(planificacionServicio).filtrarPlanificacionesPorNombreDeReceta(eq("STOUT"), isNull(), any(Pageable.class));
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Stout");
+        assertThat(campo(html, "idReceta")).isEqualTo("3");
     }
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-33: el buscador pagina de a 8 con la ultima registrada arriba; la paginacion conserva el criterio, se pide dentro del modal y la segunda pagina trae el resto")
-    void buscador_paginaDeA8ConservandoElCriterio() throws Exception {
-        // Arrange: 10 planificaciones de "Pale Ale" (ids 10 a 1, la mas reciente primero), que el service reparte de a 8
+    @DisplayName("CP-CGC-33: el buscador pagina de a 8 con la ultima registrada arriba; la paginacion conserva la receta elegida, se pide dentro del modal y la segunda pagina trae el resto")
+    void buscador_paginaDeA8ConservandoLaReceta() throws Exception {
+        // Arrange: 10 planificaciones de "Pale Ale" (receta 4, ids 10 a 1, la mas reciente primero), que el service reparte de a 8
         List<PlanificacionProduccionResponseDTO> todas = new ArrayList<>();
         for (long id = 10; id >= 1; id--) {
             todas.add(planificacion(id, "Pale Ale", EstadoSolicitud.PENDIENTE));
         }
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("pale"), any(), eq(PageRequest.of(0, 8, Sort.by(Sort.Order.desc("id"))))))
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(4L)).thenReturn(receta(4L, "Pale Ale", Estado.ACTIVO));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(4L), any(), any(), eq(PageRequest.of(0, 8, Sort.by(Sort.Order.desc("id"))))))
                 .thenReturn(new PageImpl<>(todas.subList(0, 8), PageRequest.of(0, 8), 10));
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("pale"), any(), eq(PageRequest.of(1, 8, Sort.by(Sort.Order.desc("id"))))))
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(4L), any(), any(), eq(PageRequest.of(1, 8, Sort.by(Sort.Order.desc("id"))))))
                 .thenReturn(new PageImpl<>(todas.subList(8, 10), PageRequest.of(1, 8), 10));
 
         // Act
-        String primera = mockMvc.perform(get(URL + "/buscador/planificaciones").param("receta", "pale"))
+        String primera = mockMvc.perform(get(URL + "/buscador/planificaciones").param("idReceta", "4"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        String segunda = mockMvc.perform(get(URL + "/buscador/planificaciones").param("receta", "pale").param("pagina", "1"))
+        String segunda = mockMvc.perform(get(URL + "/buscador/planificaciones").param("idReceta", "4").param("pagina", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
         assertThat(cuenta(primera, "data-elegir")).isEqualTo(8);
         assertThat(primera).contains("data-id=\"10\"").contains("data-id=\"3\"").doesNotContain("data-id=\"2\"");
-        assertThat(primera).contains("Página <span>1</span> de <span>2</span>").contains("data-modal-get=\"true\"")
-                .contains("pagina=1").contains("receta=pale");
+        assertThat(primera).contains("Página <span>1</span> de <span>2</span>").contains("data-modal-get=\"true\"");
+        assertThat(enlacesDeBuscador(primera, "buscador/planificaciones")).singleElement()
+                .satisfies(enlace -> assertThat(enlace).contains("pagina=1").contains("idReceta=4"));
         assertThat(cuenta(segunda, "data-elegir")).isEqualTo(2);
-        assertThat(segunda).contains("data-id=\"2\"").contains("data-id=\"1\"").contains("pagina=0");
+        assertThat(segunda).contains("data-id=\"2\"").contains("data-id=\"1\"");
+        assertThat(enlacesDeBuscador(segunda, "buscador/planificaciones")).singleElement()
+                .satisfies(enlace -> assertThat(enlace).contains("pagina=0").contains("idReceta=4"));
     }
 
     @Test
@@ -1738,20 +1754,181 @@ class CronogramaControllerTest {
     @DisplayName("CP-CGC-34: sin resultados el buscador muestra un mensaje claro, y una pagina negativa equivale a la primera")
     void buscador_sinResultadosYPaginaNegativa() throws Exception {
         // Arrange
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(eq("zzz"), any(), any())).thenReturn(Page.empty());
-        when(planificacionServicio.filtrarPlanificacionesPorNombreDeReceta(isNull(), any(), any()))
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Stout", Estado.ACTIVO));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(3L), any(), any(), any())).thenReturn(Page.empty());
+        when(planificacionServicio.filtrarPlanificacionesProduccion(isNull(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE))));
 
         // Act + Assert
-        mockMvc.perform(get(URL + "/buscador/planificaciones").param("receta", "zzz"))
+        mockMvc.perform(get(URL + "/buscador/planificaciones").param("idReceta", "3"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se encontraron planificaciones con los criterios indicados")));
         mockMvc.perform(get(URL + "/buscador/planificaciones").param("pagina", "-3"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-id=\"7\"")));
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(planificacionServicio, times(2)).filtrarPlanificacionesPorNombreDeReceta(any(), any(), captor.capture());
+        verify(planificacionServicio, times(2)).filtrarPlanificacionesProduccion(any(), any(), any(), captor.capture());
         assertThat(captor.getAllValues()).extracting(Pageable::getPageNumber).containsOnly(0);
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-103: una receta dada de baja con planificaciones se puede elegir: filtra sus planificaciones y el selector la muestra con (dada de baja)")
+    void buscador_admiteUnaRecetaDadaDeBaja() throws Exception {
+        // Arrange
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(5L)).thenReturn(receta(5L, "Stout", Estado.BAJA));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(eq(5L), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(planificacion(12L, "Stout", EstadoSolicitud.ANULADA))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").param("idReceta", "5"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(eq(5L), isNull(), isNull(), any(Pageable.class));
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Stout (dada de baja)");
+        assertThat(campo(html, "idReceta")).isEqualTo("5");
+        assertThat(html).contains("data-id=\"12\"").contains(">Anulada<");
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-104: una receta inexistente o dada de baja sin planificaciones se ignora sin aviso: se busca sin filtrar por receta y el selector queda en blanco")
+    void buscador_ignoraUnaRecetaQueNoSeOfrece() throws Exception {
+        // Arrange
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 99"));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/planificaciones").param("idReceta", "99"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), isNull(), any(Pageable.class));
+        assertThat(html).doesNotContain("<html").doesNotContain("role=\"alert\"");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEmpty();
+        assertThat(campoOVacio(html, "idReceta")).isEmpty();
+    }
+
+    // ==================== GET /cronograma-produccion/buscador/recetas ====================
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-105: el buscador de recetas devuelve el fragmento compartido con el criterio de nombre, la casilla Incluir dados de baja desmarcada, las columnas y el boton Elegir")
+    void buscadorRecetas_debeDevolverElFragmento() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.ACTIVO))));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/recetas"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(html).doesNotContain("<html").contains("Buscar receta").contains(">Nombre</label>").contains("placeholder=\"Ej: Pale Ale\"")
+                .contains("action=\"/cronograma-produccion/buscador/recetas\"").contains("data-modal-buscar")
+                .contains("Incluir dados de baja").contains("Nombre</th>").contains("Volumen base (L)</th>")
+                .contains("data-id=\"3\"").contains("data-texto=\"Pale Ale\"").contains("data-id=\"4\"").contains("data-texto=\"Stout\"")
+                .doesNotContain("data-receta-dada-de-baja");
+        Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
+        assertThat(casilla.find()).isTrue();
+        assertThat(casilla.group()).contains("type=\"checkbox\"").doesNotContain("checked");
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-106: sin la casilla solo se consultan las recetas activas; con ella se suman las dadas de baja con planificaciones, marcadas y con su texto")
+    void buscadorRecetas_soloActivasODadasDeBaja() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.BAJA))));
+
+        // Act
+        String activas = mockMvc.perform(get(URL + "/buscador/recetas").param("nombre", " pale "))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String conBajas = mockMvc.perform(get(URL + "/buscador/recetas").param("incluirDadosDeBaja", "true"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio).filtrarRecetas(eq("pale"), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
+        verify(recetaServicio).filtrarRecetasConDadasDeBajaConPlanificaciones(isNull(), any(Pageable.class));
+        verify(recetaServicio, times(1)).filtrarRecetas(any(), any());
+        assertThat(activas).contains("value=\" pale \"");
+        Matcher casillaActivas = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(activas);
+        assertThat(casillaActivas.find()).isTrue();
+        assertThat(casillaActivas.group()).doesNotContain("checked");
+        assertThat(cuenta(conBajas, "data-receta-dada-de-baja")).isEqualTo(1);
+        assertThat(conBajas).contains("data-texto=\"Stout (dada de baja)\"").contains("data-texto=\"Pale Ale\"").contains("Dada de baja");
+        Matcher casillaConBajas = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(conBajas);
+        assertThat(casillaConBajas.find()).isTrue();
+        assertThat(casillaConBajas.group()).contains("checked");
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-107: la paginacion del buscador de recetas conserva el nombre y la casilla; sin resultados lo informa, un nombre en blanco no filtra y una pagina negativa pide la primera")
+    void buscadorRecetas_paginacionYVacio() throws Exception {
+        // Arrange
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(new PageImpl<>(List.of(
+                receta(3L, "Pale Ale", Estado.ACTIVO)), PageRequest.of(1, 8), 20));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/buscador/recetas").param("nombre", "pale").param("incluirDadosDeBaja", "true").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get(URL + "/buscador/recetas").param("nombre", "  ").param("pagina", "-3"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados")));
+
+        // Assert
+        assertThat(html).contains("Página <span>2</span> de <span>3</span>").contains("data-modal-get=\"true\"");
+        List<String> enlaces = enlacesDeBuscador(html, "buscador/recetas");
+        assertThat(enlaces).hasSize(2);
+        assertThat(enlaces.get(0)).contains("pagina=0");
+        assertThat(enlaces.get(1)).contains("pagina=2");
+        assertThat(enlaces).allSatisfy(enlace -> assertThat(enlace).contains("nombre=pale").contains("incluirDadosDeBaja=true"));
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio).filtrarRecetas(isNull(), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+    }
+
+    @Test
+    @DisplayName("CP-CGC-108: los buscadores de planificaciones y de recetas exigen LOTE_CONSULTAR: los usan el gerente y el operario; el gerente de compras y quien solo tiene LOTE_REGISTRAR son rechazados")
+    void buscadoresDePlanificacionYReceta_exigenLoteConsultar() throws Exception {
+        // Arrange
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of()));
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of()));
+
+        // Act + Assert
+        for (RequestPostProcessor usuario : List.of(como(Rol.GERENTE_DE_PRODUCCION), como(Rol.OPERARIO_DE_PRODUCCION))) {
+            mockMvc.perform(get(URL + "/buscador/planificaciones").with(usuario))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("cronograma/buscador-planificacion :: buscador"));
+            mockMvc.perform(get(URL + "/buscador/recetas").with(usuario))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"));
+        }
+        verify(planificacionServicio, times(2)).filtrarPlanificacionesProduccion(any(), any(), any(), any());
+        verify(recetaServicio, times(2)).filtrarRecetas(any(), any());
+
+        for (RequestPostProcessor usuario : List.of(como(Rol.GERENTE_DE_COMPRAS), conPermisos(Permiso.LOTE_REGISTRAR))) {
+            for (String buscador : List.of("/buscador/planificaciones", "/buscador/recetas")) {
+                mockMvc.perform(get(URL + buscador).with(usuario))
+                        .andExpect(status().is3xxRedirection())
+                        .andExpect(flash().attribute("tipo", "danger"));
+            }
+        }
+        verifyNoMoreInteractions(planificacionServicio, recetaServicio);
+        verifyNoInteractions(loteServicio, fermentadorServicio);
     }
 
     // ==================== GET /cronograma-produccion/buscador/fermentadores ====================
@@ -1960,19 +2137,21 @@ class CronogramaControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
-        verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio);
+        verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio, recetaServicio);
     }
 
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = Rol.class, names = {"OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
-    @DisplayName("CP-CGC-35: los roles sin PLANIFICACION_PRODUCCION_CONSULTAR no pueden usar el buscador de planificaciones: redirigen con alerta de error y no llegan a ningun service")
-    void roles_sinPlanificacionConsultarNoPuedenUsarElBuscadorDePlanificaciones(Rol rol) throws Exception {
+    @EnumSource(value = Rol.class, names = {"GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL", "ADMINISTRADOR"})
+    @DisplayName("CP-CGC-109: los roles sin LOTE_CONSULTAR no pueden usar los buscadores de planificaciones ni de recetas: redirigen con alerta de error y no llegan a ningun service")
+    void roles_sinLoteConsultarNoPuedenUsarLosBuscadoresDePlanificacionYReceta(Rol rol) throws Exception {
         // Act + Assert
-        mockMvc.perform(get(URL + "/buscador/planificaciones").with(como(rol)))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attribute("tipo", "danger"));
+        for (String buscador : List.of("/buscador/planificaciones", "/buscador/recetas")) {
+            mockMvc.perform(get(URL + buscador).with(como(rol)))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("tipo", "danger"));
+        }
 
-        verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio);
+        verifyNoInteractions(loteServicio, fermentadorServicio, planificacionServicio, recetaServicio);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -2005,7 +2184,7 @@ class CronogramaControllerTest {
     // ==================== Operario en solo lectura ====================
 
     @Test
-    @DisplayName("CP-CGC-79: el OPERARIO_DE_PRODUCCION ve el cronograma con el diagrama, los filtros de fermentador y periodo, la paginacion y las colas de cada fermentador")
+    @DisplayName("CP-CGC-79: el OPERARIO_DE_PRODUCCION ve el cronograma con el diagrama, los filtros de fermentador, planificacion a destacar y periodo, la paginacion y las colas de cada fermentador")
     void operario_veElCronograma() throws Exception {
         // Arrange
         escenarioDelOperario();
@@ -2125,10 +2304,11 @@ class CronogramaControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CGC-84: el operario no tiene el filtro de planificacion: la pagina no ofrece el selector y el parametro idPlanificacion se ignora sin aviso, sin consultar la planificacion ni atenuar nada")
-    void operario_sinPlanificacionADestacar() throws Exception {
+    @DisplayName("CP-CGC-84: el operario destaca una planificacion igual que el gerente: la pagina ofrece el selector y con idPlanificacion consulta la planificacion, la muestra y atenua los lotes de las demas")
+    void operario_destacaUnaPlanificacion() throws Exception {
         // Arrange
         escenarioDelOperario();
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
 
         // Act
         String sinParametro = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
@@ -2137,42 +2317,33 @@ class CronogramaControllerTest {
         String conParametro = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idPlanificacion", "7"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        String invalido = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idPlanificacion", "abc"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
 
         // Assert
-        for (String html : List.of(sinParametro, conParametro, invalido)) {
-            assertThat(html).doesNotContain("name=\"idPlanificacion\"").doesNotContain("Planificación a destacar")
-                    .doesNotContain("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")
-                    .doesNotContain("Seleccione planificación").doesNotContain(ALERTA_ADVERTENCIA);
-            assertThat(leyenda(html)).doesNotContain("atenuado");
-            assertThat(barra(html, "PALE_ALE-R7-1")).doesNotContain("gantt-barra--atenuada");
-            assertThat(barra(html, "STOUT-R8-1")).doesNotContain("gantt-barra--atenuada");
-            assertThat(fila(html, 4L)).doesNotContain("opacity-50");
-            assertThat(href(html, "data-periodo-siguiente")).doesNotContain("idPlanificacion");
-        }
-        verifyNoInteractions(planificacionServicio);
+        assertThat(sinParametro).contains("name=\"idPlanificacion\"").contains("Planificación a destacar")
+                .contains("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"");
+        verify(planificacionServicio).buscarPorId(7L);
+        assertThat(textoDelSelector(conParametro, "Seleccione planificación")).isEqualTo("Plan #7 - Pale Ale");
+        assertThat(campo(conParametro, "idPlanificacion")).isEqualTo("7");
+        assertThat(conParametro).doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(barra(conParametro, "STOUT-R8-1")).contains("gantt-barra--atenuada");
+        assertThat(barra(conParametro, "PALE_ALE-R7-1")).doesNotContain("gantt-barra--atenuada");
+        assertThat(fila(conParametro, 4L)).contains("opacity-50");
+        assertThat(fila(conParametro, 2L)).doesNotContain("opacity-50");
     }
 
     @Test
-    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-85: el GERENTE_DE_PRODUCCION conserva el selector de planificacion y la leyenda con el atenuado cuando hay una planificacion elegida")
-    void gerente_conservaElSelectorDePlanificacion() throws Exception {
+    @DisplayName("CP-CGC-85: la leyenda del operario suma el atenuado cuando hay una planificacion destacada, igual que la del gerente")
+    void operario_leyendaConElAtenuado() throws Exception {
         // Arrange
         escenarioDelOperario();
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
 
         // Act
-        String html = mockMvc.perform(get(URL).param("idPlanificacion", "7"))
+        String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)).param("idPlanificacion", "7"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(html).contains("Planificación a destacar")
-                .contains("data-buscador-url=\"/cronograma-produccion/buscador/planificaciones\"")
-                .contains("name=\"idPlanificacion\"");
-        assertThat(textoDelSelector(html, "Seleccione planificación")).isEqualTo("Plan #7 - Pale Ale");
         assertThat(leyenda(html)).contains("Lote de otra planificaci");
     }
 
@@ -2320,18 +2491,19 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-101: un valor de la URL que no se puede convertir (página del buscador o casilla) en un buscador responde 400 con el mensaje El valor indicado no es válido, sin redirigir")
+    @DisplayName("CP-CGC-101: un valor de la URL que no se puede convertir (página, receta o casilla) en un buscador responde 400 con el mensaje El valor indicado no es válido, sin redirigir")
     void buscadores_valorInvalidoEnLaUrl() throws Exception {
         // Act + Assert
-        for (String ruta : List.of("/buscador/fermentadores", "/buscador/planificaciones")) {
-            mockMvc.perform(get(URL + ruta).param("pagina", "xyz").header("Referer", URL))
+        String[][] pedidos = {
+                {"/buscador/fermentadores", "pagina"}, {"/buscador/planificaciones", "pagina"}, {"/buscador/planificaciones", "idReceta"},
+                {"/buscador/recetas", "pagina"}, {"/buscador/fermentadores", "incluirDadosDeBaja"}, {"/buscador/recetas", "incluirDadosDeBaja"}};
+        for (String[] pedido : pedidos) {
+            mockMvc.perform(get(URL + pedido[0]).param(pedido[1], "xyz").header("Referer", URL))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType("text/plain;charset=UTF-8"))
                     .andExpect(content().string("El valor indicado no es válido"));
         }
-        mockMvc.perform(get(URL + "/buscador/fermentadores").param("incluirDadosDeBaja", "xyz"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("El valor indicado no es válido"));
+        verifyNoInteractions(planificacionServicio, recetaServicio, fermentadorServicio);
     }
 
     // ==================== Datos de prueba ====================
@@ -2454,6 +2626,37 @@ class CronogramaControllerTest {
         Matcher valor = Pattern.compile("value=\"([^\"]*)\"").matcher(m.group());
         assertThat(valor.find()).isTrue();
         return valor.group(1);
+    }
+
+    /**
+     * El valor del campo con ese nombre, o vacío si el campo no tiene valor.
+     */
+    private static String campoOVacio(String html, String nombre) {
+        Matcher m = Pattern.compile("<input[^>]*name=\"" + nombre + "\"[^>]*>").matcher(html);
+        assertThat(m.find()).as("campo %s", nombre).isTrue();
+        Matcher valor = Pattern.compile("value=\"([^\"]*)\"").matcher(m.group());
+        return valor.find() ? valor.group(1) : "";
+    }
+
+    /**
+     * Los destinos (sin escapar) de los enlaces hacia el buscador indicado, en el orden de la página.
+     */
+    private static List<String> enlacesDeBuscador(String html, String buscador) {
+        List<String> enlaces = new ArrayList<>();
+        Matcher m = Pattern.compile("href=\"([^\"]*" + Pattern.quote(buscador) + "[^\"]*)\"").matcher(html);
+        while (m.find()) {
+            enlaces.add(HtmlUtils.htmlUnescape(m.group(1)));
+        }
+        return enlaces;
+    }
+
+    /**
+     * Una receta como la devuelve el service de recetas, con su versión vigente de 20 L.
+     */
+    private static RecetaResponseDTO receta(Long id, String nombre, Estado estado) {
+        return RecetaResponseDTO.builder().id(id).estado(estado)
+                .version(VersionRecetaResponseDTO.builder().id(id * 10).nombre(nombre).volumenBase(20.0).build())
+                .build();
     }
 
     /**

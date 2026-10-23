@@ -112,6 +112,41 @@ public class RecetaServicioImpl implements IRecetaServicio {
     }
 
     /**
+     * Recupera una página de recetas activas y de recetas dadas de baja que tienen al menos una planificación de
+     * producción en cualquier estado, filtradas opcionalmente por el nombre de su versión vigente (coincidencia
+     * parcial, sin distinguir mayúsculas/minúsculas) y ordenadas alfabéticamente por ese nombre.
+     * <p>
+     * El texto buscado se normaliza igual que en {@link #filtrarRecetas}. Qué recetas dadas de baja se incluyen lo
+     * resuelve la consulta del repositorio.
+     * </p>
+     *
+     * @param nombre Texto a buscar dentro del nombre de la versión vigente, o {@code null} para no filtrar por él.
+     * @param pageable Configuración de paginación (sin ordenamiento: el orden lo define la consulta).
+     * @return {@link Page} que contiene los objetos {@link RecetaResponseDTO} correspondientes, activos y dados de baja.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RecetaResponseDTO> filtrarRecetasConDadasDeBajaConPlanificaciones(String nombre, Pageable pageable) {
+        return recetaRepository.filtrarRecetasConDadasDeBajaConPlanificaciones(vacioANulo(NormalizacionTexto.nombrePropio(nombre)), pageable)
+                .map(MapperReceta::toDTO);
+    }
+
+    /**
+     * Busca y retorna, solo para lectura, una receta activa o una receta dada de baja que tiene al menos una
+     * planificación de producción en cualquier estado.
+     *
+     * @param id Identificador clave primaria de la receta buscada.
+     * @return Objeto {@link RecetaResponseDTO} con la información de la receta encontrada y su estado.
+     * @throws RecursoNoEncontradoException Si la receta no existe, o si está dada de baja y no tiene planificaciones.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public RecetaResponseDTO buscarActivaODadaDeBajaConPlanificacionesPorId(Long id) {
+        return MapperReceta.toDTO(recetaRepository.buscarActivaODadaDeBajaConPlanificacionesPorId(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la receta con ID: " + id)));
+    }
+
+    /**
      * Registra una nueva receta en el sistema junto con su versión inicial.
      * <p>
      * {@link RecetaEntity} no tiene datos propios: toda la información productiva (volumen, OG,

@@ -63,6 +63,48 @@ public interface IRecetaRepository extends JpaRepository<RecetaEntity, Long> {
                     + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
     Page<RecetaEntity> filtrarRecetas(@Param("nombre") String nombre, Pageable pageable);
 
+    /**
+     * Obtiene una página de recetas activas y de recetas dadas de baja que tienen al menos una planificación de
+     * producción (en cualquier estado, incluso si todas están anuladas) asociada a alguna de sus versiones, histórica
+     * o vigente, filtradas opcionalmente por el nombre de su versión vigente ({@code esUltimaVersion = true}) —
+     * coincidencia parcial, sin distinguir mayúsculas/minúsculas. Un parámetro nulo no restringe por ese criterio.
+     * <p>
+     * Sirve para que los filtros de consulta (listado de planificaciones, listado de lotes y cronograma de
+     * producción) puedan elegir una receta dada de baja cuyas planificaciones siguen en el historial. El orden es el
+     * mismo que el de {@link #filtrarRecetas}: alfabético por el nombre de la versión vigente (sin distinguir
+     * mayúsculas) y, como desempate, por id.
+     * </p>
+     *
+     * @param nombre Texto a buscar dentro del nombre de la versión vigente, o {@code null} para no filtrar por él.
+     * @param pageable La configuración de paginación (sin ordenamiento: el orden lo define la consulta).
+     * @return Una página de recetas activas y dadas de baja con planificaciones que cumplen el criterio indicado.
+     */
+    @Query(value = "SELECT r FROM RecetaEntity r JOIN r.versiones v WHERE v.esUltimaVersion = true "
+            + "AND (r.estado = 'ACTIVO' OR (r.estado = 'BAJA' AND EXISTS ("
+            + "SELECT 1 FROM PlanificacionProduccionEntity p WHERE p.versionReceta.receta.id = r.id))) "
+            + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%'))) "
+            + "ORDER BY UPPER(v.nombre) ASC, r.id ASC",
+            countQuery = "SELECT COUNT(r) FROM RecetaEntity r JOIN r.versiones v WHERE v.esUltimaVersion = true "
+                    + "AND (r.estado = 'ACTIVO' OR (r.estado = 'BAJA' AND EXISTS ("
+                    + "SELECT 1 FROM PlanificacionProduccionEntity p WHERE p.versionReceta.receta.id = r.id))) "
+                    + "AND (:nombre IS NULL OR UPPER(v.nombre) LIKE UPPER(CONCAT('%', CAST(:nombre AS string), '%')))")
+    Page<RecetaEntity> filtrarRecetasConDadasDeBajaConPlanificaciones(@Param("nombre") String nombre, Pageable pageable);
+
+    /**
+     * Busca una receta por su ID si está activa o si está dada de baja y tiene al menos una planificación de
+     * producción (en cualquier estado) asociada a alguna de sus versiones.
+     * <p>
+     * Sirve para resolver la receta elegida en los filtros de consulta, que también ofrecen las recetas dadas de baja
+     * con historial. {@link #findById} no cambia y sigue viendo solo recetas activas.
+     * </p>
+     *
+     * @param id El ID de la receta.
+     * @return Un Optional con la receta activa o dada de baja con planificaciones, o vacío en caso contrario.
+     */
+    @Query("SELECT r FROM RecetaEntity r WHERE r.id = :id AND (r.estado = 'ACTIVO' OR (r.estado = 'BAJA' AND EXISTS ("
+            + "SELECT 1 FROM PlanificacionProduccionEntity p WHERE p.versionReceta.receta.id = r.id)))")
+    Optional<RecetaEntity> buscarActivaODadaDeBajaConPlanificacionesPorId(@Param("id") Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM RecetaEntity r WHERE r.id = :id AND r.estado = 'ACTIVO'")
     Optional<RecetaEntity> findByIdParaActualizarContador(@Param("id") Long id);

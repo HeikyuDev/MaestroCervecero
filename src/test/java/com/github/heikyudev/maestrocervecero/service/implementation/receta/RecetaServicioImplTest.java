@@ -192,6 +192,125 @@ class RecetaServicioImplTest {
         verify(recetaRepository).findById(99L);
     }
 
+    // ==================== filtrarRecetasConDadasDeBajaConPlanificaciones ====================
+
+    @Test
+    @DisplayName("CP-FRD-01: filtrarRecetasConDadasDeBajaConPlanificaciones filtra por el nombre de la versión vigente y mapea recetas activas y dadas de baja en el mismo orden")
+    void filtrarRecetasConDadasDeBajaConPlanificaciones_debeRetornarActivasYDadasDeBajaMapeadas() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        RecetaEntity paleAle = crearRecetaEntityConVersionActiva(1L, "Pale Ale");
+        RecetaEntity brownAle = crearRecetaEntityConVersionActiva(2L, "Brown Ale");
+        brownAle.setEstado(Estado.BAJA);
+        when(recetaRepository.filtrarRecetasConDadasDeBajaConPlanificaciones("Ale", pageable))
+                .thenReturn(new PageImpl<>(List.of(paleAle, brownAle), pageable, 2));
+
+        // === EJECUCION ===
+        Page<RecetaResponseDTO> resultado = recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones("Ale", pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalElements()).isEqualTo(2);
+        assertThat(resultado.getContent()).extracting(RecetaResponseDTO::getId).containsExactly(1L, 2L);
+        assertThat(resultado.getContent()).extracting(RecetaResponseDTO::getEstado).containsExactly(Estado.ACTIVO, Estado.BAJA);
+        assertThat(resultado.getContent().get(0).getVersion().getNombre()).isEqualTo("Pale Ale");
+        assertThat(resultado.getContent().get(1).getVersion().getNombre()).isEqualTo("Brown Ale");
+        verify(recetaRepository).filtrarRecetasConDadasDeBajaConPlanificaciones("Ale", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FRD-02: filtrarRecetasConDadasDeBajaConPlanificaciones propaga nombre nulo sin restringir ese criterio")
+    void filtrarRecetasConDadasDeBajaConPlanificaciones_debePropagarNombreNulo() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        when(recetaRepository.filtrarRecetasConDadasDeBajaConPlanificaciones(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        Page<RecetaResponseDTO> resultado = recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(null, pageable);
+
+        // === ASSERTS ===
+        assertThat(resultado.getContent()).isEmpty();
+        verify(recetaRepository).filtrarRecetasConDadasDeBajaConPlanificaciones(null, pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FRD-03: filtrarRecetasConDadasDeBajaConPlanificaciones normaliza el texto buscado antes de consultar")
+    void filtrarRecetasConDadasDeBajaConPlanificaciones_debeNormalizarElTextoBuscado() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        when(recetaRepository.filtrarRecetasConDadasDeBajaConPlanificaciones("IPA Clásica", pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones("   IPA   Clásica ", pageable);
+
+        // === ASSERTS ===
+        verify(recetaRepository).filtrarRecetasConDadasDeBajaConPlanificaciones("IPA Clásica", pageable);
+    }
+
+    @Test
+    @DisplayName("CP-FRD-04: filtrarRecetasConDadasDeBajaConPlanificaciones trata el texto de solo espacios como criterio nulo")
+    void filtrarRecetasConDadasDeBajaConPlanificaciones_debeTratarTextoEnBlancoComoNulo() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 8);
+        when(recetaRepository.filtrarRecetasConDadasDeBajaConPlanificaciones(null, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        // === EJECUCION ===
+        recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones("    ", pageable);
+
+        // === ASSERTS ===
+        verify(recetaRepository).filtrarRecetasConDadasDeBajaConPlanificaciones(null, pageable);
+    }
+
+    // ==================== buscarActivaODadaDeBajaConPlanificacionesPorId ====================
+
+    @Test
+    @DisplayName("CP-BAD-01: buscarActivaODadaDeBajaConPlanificacionesPorId retorna la receta dada de baja con planificaciones sin consultar findById")
+    void buscarActivaODadaDeBajaConPlanificacionesPorId_debeRetornarRecetaDadaDeBaja() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity stout = crearRecetaEntityConVersionActiva(3L, "Stout");
+        stout.setEstado(Estado.BAJA);
+        when(recetaRepository.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(Optional.of(stout));
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getId()).isEqualTo(3L);
+        assertThat(resultado.getVersion().getNombre()).isEqualTo("Stout");
+        assertThat(resultado.getEstado()).isEqualTo(Estado.BAJA);
+        verify(recetaRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-BAD-02: buscarActivaODadaDeBajaConPlanificacionesPorId retorna la receta activa")
+    void buscarActivaODadaDeBajaConPlanificacionesPorId_debeRetornarRecetaActiva() {
+        // === PREPARACION DE DATOS ===
+        RecetaEntity paleAle = crearRecetaEntityConVersionActiva(1L, "Pale Ale");
+        when(recetaRepository.buscarActivaODadaDeBajaConPlanificacionesPorId(1L)).thenReturn(Optional.of(paleAle));
+
+        // === EJECUCION ===
+        RecetaResponseDTO resultado = recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getId()).isEqualTo(1L);
+        assertThat(resultado.getVersion().getNombre()).isEqualTo("Pale Ale");
+        assertThat(resultado.getEstado()).isEqualTo(Estado.ACTIVO);
+    }
+
+    @Test
+    @DisplayName("CP-BAD-03: buscarActivaODadaDeBajaConPlanificacionesPorId lanza RecursoNoEncontradoException cuando la receta no existe o está dada de baja sin planificaciones")
+    void buscarActivaODadaDeBajaConPlanificacionesPorId_debeLanzarExcepcionSiNoSeEncuentra() {
+        // === PREPARACION DE DATOS ===
+        when(recetaRepository.buscarActivaODadaDeBajaConPlanificacionesPorId(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la receta con ID: 99");
+    }
+
     // ==================== altaReceta ====================
 
     @Test

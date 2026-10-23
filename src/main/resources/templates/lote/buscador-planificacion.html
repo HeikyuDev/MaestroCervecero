@@ -5,7 +5,10 @@
 <!--
     Contenido del modal de búsqueda de planificaciones: criterio de receta + resultados con "Elegir". Lo comparten el
     buscador del formulario de registro (solo pendientes) y el del filtro de la lista (cualquier estado): el
-    controller indica la URL del buscador (urlBuscador) y la frase que explica para qué se elige (subtituloBuscador).
+    controller indica la URL del buscador (urlBuscador), la frase que explica para qué se elige (subtituloBuscador) y
+    la URL del buscador de recetas que abre el selector de receta (urlBuscadorRecetas): solo recetas activas en el
+    registro, y también las dadas de baja con planificaciones en el filtro. El buscador de recetas se abre en un modal
+    sobre este, igual que el de país desde el buscador de provincias.
 -->
 <div th:fragment="buscador">
 
@@ -23,9 +26,9 @@
     <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
           class="p-6 grid grid-cols-1 gap-4 items-end">
         <div>
-            <label for="buscador-receta" class="block text-xs font-medium text-slate-500 mb-1">Receta</label>
-            <input type="text" id="buscador-receta" name="receta" th:value="${filtroReceta}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
-                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
+                    @{${urlBuscadorRecetas}}, null, null, true, false, 'Seleccione receta')}"></div>
         </div>
         <div class="flex justify-end">
             <button type="submit"
@@ -66,8 +69,8 @@
         </table>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${planificaciones}, 'planificación|planificaciones',
-                ${planificaciones.hasPrevious()} ? @{${urlBuscador}(pagina=${planificaciones.number - 1}, receta=${filtroReceta})} : null,
-                ${planificaciones.hasNext()} ? @{${urlBuscador}(pagina=${planificaciones.number + 1}, receta=${filtroReceta})} : null,
+                ${planificaciones.hasPrevious()} ? @{${urlBuscador}(pagina=${planificaciones.number - 1}, idReceta=${filtroIdReceta})} : null,
+                ${planificaciones.hasNext()} ? @{${urlBuscador}(pagina=${planificaciones.number + 1}, idReceta=${filtroIdReceta})} : null,
                 true)}"></div>
     </div>
 </div>

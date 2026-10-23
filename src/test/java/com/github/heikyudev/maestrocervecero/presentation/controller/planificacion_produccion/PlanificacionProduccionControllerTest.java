@@ -199,7 +199,7 @@ class PlanificacionProduccionControllerTest {
     void listado_debePasarLosFiltrosAlService() throws Exception {
         when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 20), 0));
-        when(recetaServicio.buscarPorId(3L)).thenReturn(receta(3L, "Pale Ale"));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Pale Ale"));
 
         mockMvc.perform(get("/planificaciones-produccion")
                         .param("idReceta", "3").param("estado", "PENDIENTE")
@@ -237,14 +237,15 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-06: el filtro de receta es un campo en blanco con ícono de lista que abre el buscador (no un combo) y todos los filtros tienen placeholder")
+    @DisplayName("CP-PPC-06: el filtro de receta es un campo en blanco con ícono de lista que abre el buscador del filtro (no un combo ni el buscador del alta) y todos los filtros tienen placeholder")
     void listado_elFiltroDeRecetaUsaElSelectorDeEntidad() throws Exception {
         when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         mockMvc.perform(get("/planificaciones-produccion"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-buscador-url=\"/planificaciones-produccion/buscador/recetas\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/planificaciones-produccion/filtros/recetas\"")))
+                .andExpect(content().string(not(containsString("data-buscador-url=\"/planificaciones-produccion/buscador/recetas\""))))
                 .andExpect(content().string(containsString("placeholder=\"Seleccione receta\"")))
                 .andExpect(content().string(containsString("bi bi-list-ul")))
                 .andExpect(content().string(containsString("data-selector-limpiar")))
@@ -260,6 +261,7 @@ class PlanificacionProduccionControllerTest {
     void listado_debeConservarLosFiltrosEnLaPaginacion() throws Exception {
         when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE)), PageRequest.of(1, 20), 45));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Pale Ale"));
 
         mockMvc.perform(get("/planificaciones-produccion")
                         .param("idReceta", "3").param("estado", "PENDIENTE").param("pagina", "1"))
@@ -1042,6 +1044,47 @@ class PlanificacionProduccionControllerTest {
         verifyNoInteractions(planificacionServicio);
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-96: una receta dada de baja con planificaciones se puede elegir en el filtro: el listado filtra por ella y el selector la muestra con (dada de baja)")
+    void listado_admiteUnaRecetaDadaDeBajaEnElFiltro() throws Exception {
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(5L)).thenReturn(receta(5L, "Stout", Estado.BAJA));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(planificacion(12L, "Stout", EstadoSolicitud.ANULADA)), PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/planificaciones-produccion").param("idReceta", "5"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"Stout (dada de baja)\"")))
+                .andExpect(content().string(containsString("name=\"idReceta\" value=\"5\"")))
+                .andExpect(content().string(containsString(">Plan #12 - Stout<")))
+                .andExpect(content().string(containsString(">Anulada<")));
+
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(eq(5L), isNull(), isNull(), any(Pageable.class));
+        verify(recetaServicio, never()).buscarPorId(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-97: una receta inexistente o dada de baja sin planificaciones se ignora sin aviso: se lista sin filtrar por receta, el selector queda en blanco y la paginación no la lleva")
+    void listado_ignoraUnaRecetaQueElFiltroNoOfrece() throws Exception {
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(99L))
+                .thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 99"));
+        when(planificacionServicio.filtrarPlanificacionesProduccion(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE)), PageRequest.of(1, 20), 45));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion").param("idReceta", "99").param("pagina", "1"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        verify(planificacionServicio).filtrarPlanificacionesProduccion(isNull(), isNull(), isNull(), any(Pageable.class));
+        assertThat(html).doesNotContain("No se encontró la receta").doesNotContain("bg-amber-50 border-amber-200 text-amber-800");
+        assertThat(html).contains("<input type=\"hidden\" data-selector-id name=\"idReceta\" value=\"\">");
+        Matcher selector = Pattern.compile("<input[^>]*data-selector-texto[^>]*placeholder=\"Seleccione receta\"[^>]*>").matcher(html);
+        assertThat(selector.find()).isTrue();
+        assertThat(selector.group()).contains("value=\"\"");
+        assertThat(html).contains("pagina=0").contains("pagina=2").doesNotContainPattern("idReceta=\\d");
+    }
+
     // ==================== GET /planificaciones-produccion/buscador/recetas ====================
 
     @Test
@@ -1058,6 +1101,8 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: Pale Ale\"")))
                 .andExpect(content().string(containsString("action=\"/planificaciones-produccion/buscador/recetas\"")))
                 .andExpect(content().string(containsString("data-modal-buscar")))
+                .andExpect(content().string(not(containsString("incluirDadosDeBaja"))))
+                .andExpect(content().string(not(containsString("Incluir dados de baja"))))
                 .andExpect(content().string(containsString("data-id=\"3\"")))
                 .andExpect(content().string(containsString("data-texto=\"Pale Ale\"")))
                 .andExpect(content().string(containsString("data-id=\"4\"")))
@@ -1067,7 +1112,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-55: el buscador pide páginas de 8 sin ordenamiento (el alfabético lo define la consulta del repositorio) y el nombre llega sin espacios; en blanco equivale a null")
+    @DisplayName("CP-PPC-55: el buscador del alta pide páginas de 8 sin ordenamiento (el alfabético lo define la consulta del repositorio) y el nombre llega sin espacios; en blanco equivale a null; nunca ofrece recetas dadas de baja")
     void buscador_debePedirPaginasDe8() throws Exception {
         when(recetaServicio.filtrarRecetas(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 8), 0));
@@ -1076,13 +1121,16 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/planificaciones-produccion/buscador/recetas").param("nombre", "  "))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/planificaciones-produccion/buscador/recetas").param("incluirDadosDeBaja", "true"))
+                .andExpect(status().isOk());
 
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(recetaServicio).filtrarRecetas(eq("pale"), captor.capture());
         assertThat(captor.getValue().getPageSize()).isEqualTo(8);
         assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
         assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
-        verify(recetaServicio).filtrarRecetas(isNull(), any());
+        verify(recetaServicio, times(2)).filtrarRecetas(isNull(), any());
+        verify(recetaServicio, never()).filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any());
     }
 
     @Test
@@ -1116,6 +1164,124 @@ class PlanificacionProduccionControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
+        verifyNoInteractions(recetaServicio);
+    }
+
+    // ==================== GET /planificaciones-produccion/filtros/recetas ====================
+
+    @Test
+    @DisplayName("CP-PPC-98: el buscador de recetas del filtro devuelve el fragmento compartido, que puede usar el gerente de compras, con la casilla Incluir dados de baja desmarcada")
+    void filtroDeRecetas_debeDevolverElFragmento() throws Exception {
+        when(recetaServicio.filtrarRecetas(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.ACTIVO)), PageRequest.of(0, 8), 2));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(html).doesNotContain("<html").contains("Buscar receta").contains(">Nombre</label>").contains("placeholder=\"Ej: Pale Ale\"")
+                .contains("action=\"/planificaciones-produccion/filtros/recetas\"").contains("data-modal-buscar")
+                .contains("Incluir dados de baja").contains("Nombre</th>").contains("Volumen base (L)</th>")
+                .contains("data-id=\"3\"").contains("data-texto=\"Pale Ale\"").contains("data-id=\"4\"").contains("data-texto=\"Stout\"")
+                .doesNotContain("data-receta-dada-de-baja");
+        Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
+        assertThat(casilla.find()).isTrue();
+        assertThat(casilla.group()).contains("type=\"checkbox\"").doesNotContain("checked");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-99: sin la casilla el buscador del filtro consulta solo las recetas activas; con ella se suman las dadas de baja con planificaciones, marcadas y con su texto")
+    void filtroDeRecetas_soloActivasODadasDeBaja() throws Exception {
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 8), 0));
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(receta(3L, "Pale Ale", Estado.ACTIVO), receta(4L, "Stout", Estado.BAJA)), PageRequest.of(0, 8), 2));
+
+        String activas = mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").param("nombre", " pale "))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String conBajas = mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").param("incluirDadosDeBaja", "true"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio).filtrarRecetas(eq("pale"), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
+        assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
+        verify(recetaServicio).filtrarRecetasConDadasDeBajaConPlanificaciones(isNull(), any(Pageable.class));
+        verify(recetaServicio, times(1)).filtrarRecetas(any(), any());
+        assertThat(activas).contains("value=\" pale \"");
+        Matcher casillaActivas = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(activas);
+        assertThat(casillaActivas.find()).isTrue();
+        assertThat(casillaActivas.group()).doesNotContain("checked");
+        assertThat(conBajas.split("data-receta-dada-de-baja", -1).length - 1).isEqualTo(1);
+        assertThat(conBajas).contains("Dada de baja").contains("data-texto=\"Stout (dada de baja)\"").contains("data-texto=\"Pale Ale\"");
+        Matcher casillaConBajas = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(conBajas);
+        assertThat(casillaConBajas.find()).isTrue();
+        assertThat(casillaConBajas.group()).contains("checked");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-100: la paginación del buscador del filtro conserva el nombre y la casilla; sin resultados lo informa, un nombre en blanco no filtra y una página negativa pide la primera")
+    void filtroDeRecetas_paginacionYVacio() throws Exception {
+        when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(receta(3L, "Pale Ale", Estado.ACTIVO)), PageRequest.of(1, 8), 20));
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/filtros/recetas")
+                        .param("nombre", "pale").param("incluirDadosDeBaja", "true").param("pagina", "1"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 8), 0));
+        mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").param("nombre", "  ").param("pagina", "-3"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("No se encontraron recetas con los criterios indicados")));
+
+        assertThat(html).contains("Página <span>2</span> de <span>3</span>").contains("data-modal-get=\"true\"");
+        List<String> enlaces = new ArrayList<>();
+        Matcher m = Pattern.compile("href=\"([^\"]*filtros/recetas[^\"]*)\"").matcher(html);
+        while (m.find()) {
+            enlaces.add(m.group(1).replace("&amp;", "&"));
+        }
+        assertThat(enlaces).hasSize(2);
+        assertThat(enlaces.get(0)).contains("pagina=0");
+        assertThat(enlaces.get(1)).contains("pagina=2");
+        assertThat(enlaces).allSatisfy(enlace -> assertThat(enlace).contains("nombre=pale").contains("incluirDadosDeBaja=true"));
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(recetaServicio).filtrarRecetas(isNull(), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+    }
+
+    @Test
+    @DisplayName("CP-PPC-101: el buscador de recetas del filtro lo usan los roles del listado (los dos gerentes); los demás roles son rechazados sin llegar al service")
+    void filtroDeRecetas_rolesDelListado() throws Exception {
+        when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 8), 0));
+
+        for (Rol rol : List.of(Rol.GERENTE_DE_PRODUCCION, Rol.GERENTE_DE_COMPRAS)) {
+            mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").with(como(rol)))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"));
+        }
+        verify(recetaServicio, times(2)).filtrarRecetas(any(), any());
+
+        for (Rol rol : List.of(Rol.OPERARIO_DE_PRODUCCION, Rol.ENCARGADO_DE_DEPOSITO, Rol.GERENTE_COMERCIAL, Rol.ADMINISTRADOR)) {
+            mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").with(como(rol)))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(flash().attribute("tipo", "danger"));
+        }
+        verifyNoMoreInteractions(recetaServicio);
+        verifyNoInteractions(planificacionServicio, loteServicio);
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PPC-102: un valor de la URL que no se puede convertir (página o casilla) en el buscador del filtro responde 400 con el mensaje El valor indicado no es válido, sin redirigir")
+    void filtroDeRecetas_valorInvalidoEnLaUrl() throws Exception {
+        for (String parametro : List.of("pagina", "incluirDadosDeBaja")) {
+            mockMvc.perform(get("/planificaciones-produccion/filtros/recetas").param(parametro, "xyz").header("Referer", "/planificaciones-produccion"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentType("text/plain;charset=UTF-8"))
+                    .andExpect(content().string("El valor indicado no es válido"));
+        }
         verifyNoInteractions(recetaServicio);
     }
 
@@ -1844,6 +2010,12 @@ class PlanificacionProduccionControllerTest {
                 .cantidadAProducir(600.0)
                 .estado(estado)
                 .versionReceta(VersionRecetaResponseDTO.builder().id(70L).nombre(nombreReceta).volumenBase(20.0).build());
+    }
+
+    private static RecetaResponseDTO receta(Long id, String nombre, Estado estado) {
+        return RecetaResponseDTO.builder().id(id).estado(estado)
+                .version(VersionRecetaResponseDTO.builder().id(70L).nombre(nombre).volumenBase(20.0).build())
+                .build();
     }
 
     private static RecetaResponseDTO receta(Long id, String nombre) {

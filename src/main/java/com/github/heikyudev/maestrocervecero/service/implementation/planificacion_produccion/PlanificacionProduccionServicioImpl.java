@@ -31,9 +31,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -448,38 +446,5 @@ public class PlanificacionProduccionServicioImpl implements IPlanificacionProduc
 
         return MetodosVersionado.obtenerVersionActiva(recetaEntity.getVersiones(),
                 () -> new RecursoNoEncontradoException("No se encontró una versión activa para la receta con ID: " + idReceta));
-    }
-
-    /**
-     * Filtra las planificaciones de producción, de cualquier estado, por parte del nombre de su receta y por estado.
-     * El texto buscado se normaliza como el nombre guardado y un texto en blanco equivale a no filtrar. Si el
-     * {@code pageable} no trae orden, la última planificación registrada va primero.
-     *
-     * @param nombreReceta Texto a buscar dentro del nombre de la receta, o {@code null} para no filtrar por él.
-     * @param estado Estado exacto a filtrar, o {@code null} para no filtrar por estado.
-     * @param pageable Configuración de paginación y ordenamiento.
-     * @return {@link Page} de {@link PlanificacionProduccionResponseDTO} con sus litros producidos (0.0 si no tiene envasados registrados).
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public Page<PlanificacionProduccionResponseDTO> filtrarPlanificacionesPorNombreDeReceta(String nombreReceta, EstadoSolicitud estado, Pageable pageable) {
-        String nombreNormalizado = NormalizacionTexto.nombrePropio(nombreReceta);
-        if (nombreNormalizado != null && nombreNormalizado.isEmpty()) {
-            nombreNormalizado = null;
-        }
-        Pageable pageableConOrden = pageable.getSort().isSorted() ? pageable
-                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Direction.DESC, "id"));
-        Page<PlanificacionProduccionEntity> pagina = planificacionProduccionRepository.filtrarPlanificacionesPorNombreDeReceta(nombreNormalizado, estado, pageableConOrden);
-
-        // Una sola consulta de agregación para todas las planificaciones de la página (evita una consulta por fila)
-        List<Long> ids = pagina.getContent().stream().map(PlanificacionProduccionEntity::getId).toList();
-        Map<Long, Double> litrosProducidosPorId = new HashMap<>();
-        if (!ids.isEmpty()) {
-            for (Object[] fila : envasadoLoteRepository.sumarLitrosProducidosPorPlanificacion(ids)) {
-                litrosProducidosPorId.put(((Number) fila[0]).longValue(), ((Number) fila[1]).doubleValue());
-            }
-        }
-
-        return pagina.map(p -> MapperPlanificacionProduccion.toDTO(p, litrosProducidosPorId.getOrDefault(p.getId(), 0.0)));
     }
 }

@@ -2,7 +2,13 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!-- Contenido del modal de búsqueda de recetas del formulario de planificación (y del filtro del listado): criterio de nombre + resultados con "Elegir". -->
+<!--
+    Contenido del modal de búsqueda de recetas: criterio de nombre + resultados con "Elegir". Lo comparten el buscador
+    del formulario de alta de planificaciones y los buscadores de los filtros de consulta (listado de planificaciones,
+    listado de lotes y cronograma de producción). El controller indica la URL del buscador (urlBuscadorRecetas) y si
+    ofrece la casilla "Incluir dados de baja" (ofreceIncluirDadosDeBaja), que solo tienen los filtros de consulta: suma
+    las recetas dadas de baja que tienen planificaciones, para filtrar el historial.
+-->
 <div th:fragment="buscador">
 
     <div class="flex items-start justify-between gap-4 p-6 pb-0">
@@ -16,12 +22,20 @@
         </button>
     </div>
 
-    <form th:action="@{/planificaciones-produccion/buscador/recetas}" method="get" data-modal-buscar
+    <form th:action="@{${urlBuscadorRecetas}}" method="get" data-modal-buscar novalidate
           class="p-6 grid grid-cols-1 gap-4 items-end">
         <div>
             <label for="buscador-nombre" class="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
             <input type="text" id="buscador-nombre" name="nombre" th:value="${filtroNombre}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div th:if="${ofreceIncluirDadosDeBaja}">
+            <label for="buscador-incluir-dados-de-baja" class="inline-flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" id="buscador-incluir-dados-de-baja" name="incluirDadosDeBaja" value="true" th:checked="${filtroIncluirDadosDeBaja}"
+                       class="rounded border-slate-300 text-amber-500 focus:ring-amber-500/40">
+                Incluir dados de baja
+            </label>
+            <p class="text-xs text-slate-400">Suma las recetas dadas de baja que tuvieron planificaciones.</p>
         </div>
         <div class="flex justify-end">
             <button type="submit"
@@ -41,11 +55,16 @@
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="r : ${recetas.content}" class="hover:bg-slate-50">
-                <td class="px-4 py-3 font-medium text-slate-900" th:text="${r.version.nombre}">Pale Ale</td>
+            <tr th:each="r : ${recetas.content}" th:with="dadaDeBaja=${r.estado != null and r.estado.name() == 'BAJA'}" class="hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-slate-900">
+                    <span th:text="${r.version.nombre}">Pale Ale</span>
+                    <span th:if="${dadaDeBaja}" data-receta-dada-de-baja
+                          class="ml-1 inline-block whitespace-nowrap rounded bg-slate-200 px-1.5 text-[10px] font-semibold leading-4 text-slate-600">Dada de baja</span>
+                </td>
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${r.version.volumenBase})}"></th:block></td>
                 <td class="px-4 py-3 text-right">
-                    <button type="button" data-elegir th:data-id="${r.id}" th:data-texto="${r.version.nombre}"
+                    <button type="button" data-elegir th:data-id="${r.id}"
+                            th:data-texto="${dadaDeBaja} ? |${r.version.nombre} (dada de baja)| : ${r.version.nombre}"
                             class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
@@ -56,8 +75,8 @@
         </table>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${recetas}, 'receta|recetas',
-                ${recetas.hasPrevious()} ? @{/planificaciones-produccion/buscador/recetas(pagina=${recetas.number - 1}, nombre=${filtroNombre})} : null,
-                ${recetas.hasNext()} ? @{/planificaciones-produccion/buscador/recetas(pagina=${recetas.number + 1}, nombre=${filtroNombre})} : null,
+                ${recetas.hasPrevious()} ? @{${urlBuscadorRecetas}(pagina=${recetas.number - 1}, nombre=${filtroNombre}, incluirDadosDeBaja=${filtroIncluirDadosDeBaja ? true : null})} : null,
+                ${recetas.hasNext()} ? @{${urlBuscadorRecetas}(pagina=${recetas.number + 1}, nombre=${filtroNombre}, incluirDadosDeBaja=${filtroIncluirDadosDeBaja ? true : null})} : null,
                 true)}"></div>
     </div>
 </div>

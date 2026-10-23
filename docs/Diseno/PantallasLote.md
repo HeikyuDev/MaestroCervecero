@@ -23,7 +23,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | Anular un envasado | `ENVASADO_ANULAR` | No | Sí |
 | Ver el cronograma de producción y buscar fermentadores en sus filtros | `LOTE_CONSULTAR` | Sí, con acciones | Sí, solo lectura |
 | Subir o bajar un lote en la cola | `LOTE_REGISTRAR` | Sí | No |
-| Destacar una planificación en el cronograma (filtro y su buscador) | `PLANIFICACION_PRODUCCION_CONSULTAR` | Sí | No |
+| Destacar una planificación en el cronograma (filtro y sus buscadores) | `LOTE_CONSULTAR` | Sí | Sí |
 | Registrar un lote desde una planificación | `LOTE_REGISTRAR` y `PLANIFICACION_PRODUCCION_CONSULTAR` | Sí | No |
 
 - Cada método del Controller lleva `@PreAuthorize("hasAuthority('<PERMISO>')")` con el permiso de la tabla (`LOTE_CONSULTAR`, `LOTE_REGISTRAR`, `LOTE_ANULAR`, `LOTE_INICIAR`, `LOTE_FINALIZAR_<ETAPA>`, `CONSUMO_INSUMO_*` y `ENVASADO_*`), y cada botón se oculta con `sec:authorize` por el mismo permiso. El servidor es quien rechaza: ocultar el botón es solo una ayuda visual.
@@ -51,11 +51,11 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | 5 | Envasados del lote | `/lotes/{id}/envasados` | GET | `ENVASADO_CONSULTAR` | `lote/envasado-lista` |
 | 5 | Crear envasado (envío) | `/lotes/{id}/envasados` | POST | `ENVASADO_REGISTRAR` | redirige a la misma pantalla |
 | 5 | Anular envasado | `/lotes/{id}/envasados/{idEnvasado}/anular` | POST | `ENVASADO_ANULAR` | redirige a la misma pantalla |
-| M1 | Buscadores del formulario de registro (fragmentos) | `/lotes/buscador/{planificaciones, molinos, maceradores, ollas, fermentadores}` | GET | `LOTE_REGISTRAR` | `lote/buscador-*` |
-| M2 | Buscadores de los filtros de la lista (fragmentos) | `/lotes/filtros/{planificaciones, fermentadores}` | GET | `LOTE_CONSULTAR` | `lote/filtro-*` |
+| M1 | Buscadores del formulario de registro (fragmentos) | `/lotes/buscador/{planificaciones, recetas, molinos, maceradores, ollas, fermentadores}` | GET | `LOTE_REGISTRAR` | `lote/buscador-*` |
+| M2 | Buscadores de los filtros de la lista (fragmentos) | `/lotes/filtros/{planificaciones, recetas, fermentadores}` | GET | `LOTE_CONSULTAR` | `lote/filtro-*` |
 | M3 | Buscadores de las pantallas de operación (fragmentos) | `/lotes/{id}/etapas/{etapa}/consumos/{reservado, directo}/buscador/insumos`, `/lotes/{id}/etapas/{etapa}/consumos/{reservado, directo}/buscador/lotes-insumo`, `/lotes/{id}/envasados/buscador/barriles` | GET | `CONSUMO_INSUMO_REGISTRAR` y `ENVASADO_REGISTRAR` | `lote/buscador-*` |
 | C | Cronograma de producción (y su buscador de fermentadores) | `/cronograma-produccion`, `/cronograma-produccion/buscador/fermentadores` | GET | `LOTE_CONSULTAR` | `cronograma/cronograma` |
-| C | Buscador de planificaciones del filtro "Planificación a destacar" (fragmento) | `/cronograma-produccion/buscador/planificaciones` | GET | `PLANIFICACION_PRODUCCION_CONSULTAR` | `cronograma/buscador-planificacion` |
+| C | Buscadores de planificaciones y de recetas del filtro "Planificación a destacar" (fragmentos) | `/cronograma-produccion/buscador/{planificaciones, recetas}` | GET | `LOTE_CONSULTAR` | `cronograma/buscador-planificacion` |
 | C | Subir o bajar un lote en la cola | `/cronograma-produccion/lotes/{id}/{subir, bajar}` | POST | `LOTE_REGISTRAR` | redirige al cronograma |
 
 - `{etapa}` toma los valores `molienda`, `maceracion`, `hervido`, `fermentacion`, `maduracion` y `envasado`. La pantalla de consumos existe para las etapas que consumen insumos (Molienda, Hervido, Fermentación y Maduración); Maceración y Envasado no consumen insumos. Una etapa sin insumos según la receta (por ejemplo, Maduración sin lúpulo de maduración) tampoco tiene pantalla de consumos: ni la pantalla, ni los formularios, ni el registro, que se rechazan con "Esta etapa no consume insumos" y vuelven al detalle del lote.
@@ -122,7 +122,7 @@ Lotes registrados, con el último registrado arriba
 
 - Abrir un lote se hace con el botón de ícono `bi-gear` con tooltip "Gestionar lote" (visible, con borde y fondo ámbar suave), que cierra cada fila en la última columna, "Acciones". La cabecera y la celda de esa columna se centran y el botón queda dentro de la columna. La fila no es clickeable y el código es texto.
 
-- Criterios opcionales y combinables; "Planificación" y "Fermentador" son selectores de entidad (campo en blanco con ícono de lista que abre un buscador en modal, nunca un desplegable) con botón para quitar la selección. Los buscadores requieren `LOTE_CONSULTAR`: los usan el gerente y el operario. El buscador de planificaciones filtra por "Receta" y ofrece planificaciones de cualquier estado; el de fermentadores, por "Identificador", "Estado operativo" (desplegable del enum) e "Incluir dados de baja" (casilla desmarcada por defecto, que suma los fermentadores dados de baja que tienen lotes para poder filtrar su historial); el elegido se muestra en el campo, con "(dado de baja)" si corresponde. Solo "Estado" es un desplegable, porque es un enum chico. Un parámetro inválido o inexistente en la URL se ignora con un aviso amarillo y la lista se muestra sin ese filtro.
+- Criterios opcionales y combinables; "Planificación" y "Fermentador" son selectores de entidad (campo en blanco con ícono de lista que abre un buscador en modal, nunca un desplegable) con botón para quitar la selección. Los buscadores requieren `LOTE_CONSULTAR`: los usan el gerente y el operario. El buscador de planificaciones filtra por "Receta", que es un selector de entidad (campo en blanco con ícono de lista y botón para quitar la selección, nunca un texto libre) que abre el buscador de recetas del filtro (`/lotes/filtros/recetas`), y ofrece planificaciones de cualquier estado; el de recetas filtra por "Nombre" e "Incluir dados de baja" (casilla desmarcada por defecto, que suma las recetas dadas de baja que tienen alguna planificación en cualquier estado para poder filtrar su historial); el de fermentadores, por "Identificador", "Estado operativo" (desplegable del enum) e "Incluir dados de baja" (casilla desmarcada por defecto, que suma los fermentadores dados de baja que tienen lotes para poder filtrar su historial); el elegido se muestra en el campo, con "(dado de baja)" si corresponde. Solo "Estado" es un desplegable, porque es un enum chico. Un parámetro inválido o inexistente en la URL se ignora con un aviso amarillo y la lista se muestra sin ese filtro.
 - Páginas de 20. Las cuatro fechas van en dos columnas, "Inicio" y "Fin"; cada celda tiene dos líneas, "Est." (estimado, con tooltip) y "Real", con la etiqueta en gris chico; la fecha real que todavía no existe se muestra como "-". La tabla cabe en un ancho de 1280 px sin desplazamiento horizontal. La planificación se muestra como "Plan #N - Nombre". Los textos largos (código, planificación, fermentador) se acortan con puntos suspensivos dentro de un ancho máximo y su texto completo se ve en un tooltip flotante al apuntarlos o enfocarlos.
 - Sin resultados: "No se encontraron lotes con los criterios indicados".
 
@@ -149,7 +149,7 @@ PRODUCCIÓN
                                                               [Cancelar]  [ Crear lote ]
 ```
 
-- Cada `[=]` abre el buscador en modal del campo: planificaciones pendientes (criterio "Receta"), molinos, maceradores, ollas de hervor y fermentadores (criterio "Identificador"). Los buscadores de equipos muestran todos los equipos activos con su estado operativo y su capacidad útil para ayudar a elegir.
+- Cada `[=]` abre el buscador en modal del campo: planificaciones pendientes (criterio "Receta", un selector de entidad que abre el buscador de recetas activas, `/lotes/buscador/recetas`), molinos, maceradores, ollas de hervor y fermentadores (criterio "Identificador"). Los buscadores de equipos muestran todos los equipos activos con su estado operativo y su capacidad útil para ayudar a elegir.
 - El registro no valida la disponibilidad de los equipos ni el stock (eso lo hace el inicio del lote); sí valida capacidades y la cobertura de la planificación, y esos mensajes se muestran en el resumen de errores.
 - Éxito: la lista de lotes, con la alerta "Lote PALE_ALE-R7-3 creado correctamente". El lote queda Pendiente y lo inicia el operario, por eso el gerente no pasa por el detalle.
 
@@ -380,7 +380,7 @@ Cola pendiente de F-01
 ```
 
 - Sin botones "Subir" ni "Bajar", sin formularios POST y sin columna de acciones. El código de cada lote de la cola es un enlace "Ver lote" al detalle (`/lotes/{id}`) para quien tiene `LOTE_CONSULTAR`. Cada barra del diagrama también es un enlace al detalle del lote (con su tooltip, su color y su posición): quien consulta lotes la abre con un clic. La cola lista solo los pendientes; el lote en ejecución se ve en el diagrama y no se repite en la cola. El bloque de limpieza del diagrama lleva un icono de destellos (`bi-stars`) que se oculta si el bloque es muy angosto.
-- El filtro "Planificación a destacar" se ofrece solo a quien puede consultar planificaciones (el gerente de producción): el operario no lo ve y el parámetro `idPlanificacion` se ignora. El filtro de fermentador (con su buscador, `LOTE_CONSULTAR`) y el período los tienen ambos roles. Subir y bajar (`POST`) son del gerente (`LOTE_REGISTRAR`).
+- El filtro "Planificación a destacar" lo tienen el gerente y el operario de producción, con el mismo comportamiento (`LOTE_CONSULTAR`). Su buscador filtra por "Receta" con un selector de entidad que abre el buscador de recetas (`/cronograma-produccion/buscador/recetas`, `LOTE_CONSULTAR`, con la casilla "Incluir dados de baja"). El filtro de fermentador (con su buscador, `LOTE_CONSULTAR`) y el período los tienen ambos roles. Subir y bajar (`POST`) son del gerente (`LOTE_REGISTRAR`).
 
 ## 10. Estado de planificación: enlaces al módulo de lotes
 

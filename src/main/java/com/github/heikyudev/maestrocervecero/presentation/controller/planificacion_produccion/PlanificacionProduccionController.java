@@ -20,6 +20,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -50,8 +51,10 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * GERENTE_DE_PRODUCCION.
  * </p>
  * <p>
- * El formulario de alta elige la receta con un buscador (modal) y ofrece una sugerencia de fecha de
- * finalización: un fragmento HTML que el navegador pide a pedido del usuario y que nunca se aplica solo.
+ * El formulario de alta elige la receta con un buscador (modal) que solo ofrece recetas activas, y ofrece una
+ * sugerencia de fecha de finalización: un fragmento HTML que el navegador pide a pedido del usuario y que nunca se
+ * aplica solo. El filtro de receta del listado usa otro buscador, que también ofrece las recetas dadas de baja con
+ * planificaciones, para poder consultar su historial.
  * </p>
  */
 @Controller
@@ -64,10 +67,11 @@ public class PlanificacionProduccionController {
     private static final String VISTA_DETALLE = "planificacion_produccion/planificacion-detalle";
     private static final String VISTA_RECETA = "planificacion_produccion/planificacion-receta";
     private static final String VISTA_FORMULARIO = "planificacion_produccion/planificacion-form";
-    private static final String VISTA_BUSCADOR_RECETA = "planificacion_produccion/buscador-receta :: buscador";
     private static final String VISTA_SUGERENCIA = "planificacion_produccion/sugerencia-fecha :: sugerencia";
     private static final String ATRIBUTO_FORMULARIO = "planificacionForm";
     private static final String URL_LISTA = "/planificaciones-produccion";
+    private static final String URL_BUSCADOR_RECETAS = "/planificaciones-produccion/buscador/recetas";
+    private static final String URL_FILTRO_RECETAS = "/planificaciones-produccion/filtros/recetas";
 
     private final IPlanificacionProduccionServicio planificacionServicio;
     private final IRecetaServicio recetaServicio;
@@ -78,6 +82,11 @@ public class PlanificacionProduccionController {
     /**
      * Lista las planificaciones, paginadas de a 20 y con la última registrada arriba. Los criterios
      * (receta, estado y fecha de inicio estimada) son opcionales.
+     * <p>
+     * La receta se elige con el buscador del filtro, que también ofrece las recetas dadas de baja con
+     * planificaciones: un {@code idReceta} que ese buscador no ofrece (inexistente, o dada de baja sin
+     * planificaciones) se ignora y se lista sin filtrar por receta.
+     * </p>
      */
     @GetMapping
     public String listarPlanificaciones(@RequestParam(required = false) Long idReceta,
@@ -85,14 +94,16 @@ public class PlanificacionProduccionController {
                                         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaInicio,
                                         @RequestParam(defaultValue = "0") int pagina,
                                         Model model) {
+        RecetaResponseDTO receta = recetaElegida(idReceta, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId);
+        Long idRecetaFiltro = receta != null ? idReceta : null;
         Page<PlanificacionProduccionResponseDTO> planificaciones = planificacionServicio.filtrarPlanificacionesProduccion(
-                idReceta, estado, fechaInicio,
+                idRecetaFiltro, estado, fechaInicio,
                 PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("planificaciones", planificaciones);
         model.addAttribute("estados", EstadoSolicitud.values());
-        model.addAttribute("filtroIdReceta", idReceta);
-        model.addAttribute("filtroRecetaTexto", nombreDeReceta(idReceta));
+        model.addAttribute("filtroIdReceta", idRecetaFiltro);
+        model.addAttribute("filtroRecetaTexto", receta != null ? textoDeReceta(receta) : null);
         model.addAttribute("filtroEstado", estado);
         model.addAttribute("filtroFechaInicio", fechaInicio);
         return VISTA_LISTA;
@@ -239,12 +250,13 @@ public class PlanificacionProduccionController {
         return VISTA_SUGERENCIA;
     }
 
-    // ==================== Buscador de recetas ====================
+    // ==================== Buscadores de recetas ====================
 
     /**
-     * Devuelve el contenido del modal de búsqueda de recetas activas (criterio de nombre + resultados), en
-     * orden alfabético. El orden lo define la consulta del repositorio, por eso el {@code Pageable} no lleva
-     * ordenamiento.
+     * Devuelve el contenido del modal de búsqueda de recetas del formulario de alta (criterio de nombre +
+     * resultados), en orden alfabético. Solo ofrece recetas activas: una planificación se registra sobre la versión
+     * vigente de una receta activa. El orden lo define la consulta del repositorio, por eso el {@code Pageable} no
+     * lleva ordenamiento.
      */
     @GetMapping("/buscador/recetas")
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
@@ -253,9 +265,28 @@ public class PlanificacionProduccionController {
                                 Model model) {
         Page<RecetaResponseDTO> recetas = recetaServicio.filtrarRecetas(
                 vacioANulo(nombre), PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR));
+        cargarBuscadorDeRecetas(model, recetas, nombre, URL_BUSCADOR_RECETAS, false, false);
+        return VISTA_BUSCADOR_RECETA;
+    }
 
-        model.addAttribute("recetas", recetas);
-        model.addAttribute("filtroNombre", nombre);
+    /**
+     * Devuelve el contenido del modal de búsqueda de recetas del filtro del listado (nombre e "Incluir dados de baja"
+     * + resultados), de a 8 y en orden alfabético. Lo usan los mismos roles que ven el listado. Sin el último criterio
+     * solo se ofrecen las recetas activas; con él se suman las dadas de baja que tienen alguna planificación en
+     * cualquier estado: una receta solo se puede dar de baja si todas sus planificaciones están anuladas, y esas
+     * planificaciones se encuentran filtrando por ella.
+     */
+    @GetMapping("/filtros/recetas")
+    public String filtrarRecetas(@RequestParam(required = false) String nombre,
+                                 @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
+                                 @RequestParam(defaultValue = "0") int pagina,
+                                 Model model) {
+        String nombreBuscado = vacioANulo(nombre);
+        Pageable pageable = PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR);
+        Page<RecetaResponseDTO> recetas = incluirDadosDeBaja
+                ? recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(nombreBuscado, pageable)
+                : recetaServicio.filtrarRecetas(nombreBuscado, pageable);
+        cargarBuscadorDeRecetas(model, recetas, nombre, URL_FILTRO_RECETAS, true, incluirDadosDeBaja);
         return VISTA_BUSCADOR_RECETA;
     }
 

@@ -24,7 +24,7 @@
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
-                    @{/planificaciones-produccion/buscador/recetas}, null, null, true, false, 'Seleccione receta')}"></div>
+                    @{/planificaciones-produccion/filtros/recetas}, null, null, true, false, 'Seleccione receta')}"></div>
         </div>
         <div>
             <label for="estado" class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
