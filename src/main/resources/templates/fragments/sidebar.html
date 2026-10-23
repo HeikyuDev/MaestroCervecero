@@ -103,6 +103,11 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/recetas', ${opcionActiva}, 'recetas', 'bi-journal-bookmark', 'Gestión de Recetas')}"></a>
             </th:block>
 
+            <!-- GESTIÓN DE BARRILES: barriles y fabricantes de barril en pestañas (Gerente de Producción) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+                <a th:replace="~{fragments/sidebar ::enlace('/barriles', ${opcionActiva}, 'barriles', 'bi-boxes', 'Gestión de Barriles')}"></a>
+            </th:block>
+
             <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamiento')}"></a>

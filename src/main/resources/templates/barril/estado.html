@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Etiqueta de color del estado operativo de un barril: verde disponible, azul con cerveza, violeta despachado,
+    ámbar en limpieza, rojo en mantenimiento.
+    Uso: <span th:replace="~{barril/estado :: badge(${x.estadoOperativo})}"></span>
+-->
+<span th:fragment="badge(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'DISPONIBLE'} ? 'bg-emerald-50 text-emerald-700'
+                    : (${estado.name() == 'CON_CERVEZA'} ? 'bg-blue-50 text-blue-700'
+                    : (${estado.name() == 'DESPACHADO'} ? 'bg-violet-50 text-violet-700'
+                    : (${estado.name() == 'EN_LIMPIEZA'} ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700')))"
+      th:text="${estado.etiqueta}">Disponible</span>
+
+</html>
