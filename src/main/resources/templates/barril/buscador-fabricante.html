@@ -42,7 +42,7 @@
                 <td class="px-4 py-3 font-medium text-slate-900" th:text="${f.nombre}">Tonelería del Sur</td>
                 <td class="px-4 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${f.id}" th:data-texto="${f.nombre}"
-                            class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
+                            class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>
             <tr th:if="${fabricantes.empty}">
