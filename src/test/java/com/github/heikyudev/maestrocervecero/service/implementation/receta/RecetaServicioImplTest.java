@@ -1255,7 +1255,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'RECETA-EXISTENTE' ya está en uso por otra receta");
+                .hasMessage("Ya existe una receta con el nombre 'RECETA-EXISTENTE'");
 
         verify(versionRecetaRepository).existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot("RECETA-EXISTENTE", 1L);
         verify(recetaRepository, never()).save(any());
@@ -1626,7 +1626,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'ipa clásica' ya está en uso por otra receta");
+                .hasMessage("Ya existe una receta con el nombre 'ipa clásica'");
 
         verify(recetaRepository, never()).save(any());
     }
@@ -1644,7 +1644,7 @@ class RecetaServicioImplTest {
 
         assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'IPA Clásica' ya está en uso por otra receta");
+                .hasMessage("Ya existe una receta con el nombre 'IPA Clásica'");
     }
 
     @Test

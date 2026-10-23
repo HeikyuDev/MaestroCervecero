@@ -364,7 +364,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno \'MOL-EXISTENTE\' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno \'MOL-EXISTENTE\'");
 
         verify(molinoRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L);
@@ -937,7 +937,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
 
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
         verify(molinoRepository, never()).save(any());
@@ -954,7 +954,7 @@ class MolinoServicioImplTest {
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
     }
 
     @Test

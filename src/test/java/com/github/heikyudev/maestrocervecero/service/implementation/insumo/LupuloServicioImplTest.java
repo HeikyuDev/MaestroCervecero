@@ -378,7 +378,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, lupuloFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Citra' ya está en uso por otro lúpulo");
+                .hasMessage("Ya existe un lúpulo con el nombre 'Citra'");
 
         verify(lupuloRepository).findById(1L);
         verify(lupuloRepository).existsByNombreIgnoreCaseAndIdNot("Citra", 1L);
@@ -854,7 +854,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otro lúpulo");
+                .hasMessage("Ya existe un lúpulo con el nombre 'pilsen'");
 
         verify(lupuloRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(lupuloRepository, never()).save(any());
@@ -871,7 +871,7 @@ class LupuloServicioImplTest {
 
         assertThatThrownBy(() -> lupuloServicio.modificarLupulo(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro lúpulo");
+                .hasMessage("Ya existe un lúpulo con el nombre 'Pilsen Nacional'");
     }
 
     @Test

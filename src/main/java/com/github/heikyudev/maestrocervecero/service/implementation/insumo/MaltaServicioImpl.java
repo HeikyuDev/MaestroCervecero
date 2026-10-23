@@ -123,7 +123,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
 
         // 4. Validar si el nombre ya está registrado en otra malta activa (case-insensitive)
         if (maltaRepository.existsByNombreIgnoreCase(nombre)) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 5. Creo la entidad que se va a almacenar en la base de datos.
@@ -139,7 +139,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
         // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperMalta.toDTO(GuardadoUnico.guardar(maltaRepository, maltaEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -177,7 +177,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
         // 5. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (maltaRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 6. Aplico los cambios sobre la entidad administrada por persistencia.
@@ -189,7 +189,7 @@ public class MaltaServicioImpl implements IMaltaServicio {
         // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperMalta.toDTO(GuardadoUnico.guardar(maltaRepository, maltaEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -260,12 +260,8 @@ public class MaltaServicioImpl implements IMaltaServicio {
         ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe una malta con el nombre '" + nombre + "'");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra malta");
     }
 
     /**

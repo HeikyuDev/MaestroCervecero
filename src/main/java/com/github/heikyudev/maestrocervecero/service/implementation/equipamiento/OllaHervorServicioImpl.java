@@ -119,7 +119,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 7. Validar que no exista otra olla de hervor con el mismo identificador interno (ignorando mayúsculas y minúsculas)
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
-            throw identificadorDuplicadoEnAlta(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 8. Crear la entidad OllaHervorEntity a partir del DTO de formulario
@@ -137,7 +137,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 9. Guardar la entidad en la base de datos y retonar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(GuardadoUnico.guardar(ollaHervorRepository, ollaHervorEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
 
@@ -187,7 +187,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 8. Validar que no exista otro equipamiento con el mismo identificador interno (ignorando mayúsculas y minúsculas) que no sea el actual
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
-            throw identificadorDuplicadoEnModificacion(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 9. Actualizar los campos de la entidad con los valores del DTO de formulario
@@ -200,7 +200,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
 
         // 10. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperOllaHervor.toDTO(GuardadoUnico.guardar(ollaHervorRepository, ollaHervorEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -283,11 +283,7 @@ public class OllaHervorServicioImpl implements IOllaHervorServicio {
         ValidacionesNumericas.validarMayorACero(perdidaPorTrub, "La pérdida por trub");
     }
 
-    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+    private static RecursoDuplicadoException identificadorDuplicado(String identificadorInterno) {
         return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
-    }
-
-    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
-        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
     }
 }

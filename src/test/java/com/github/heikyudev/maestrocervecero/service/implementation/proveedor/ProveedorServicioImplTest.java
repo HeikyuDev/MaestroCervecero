@@ -681,7 +681,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("La razón social '" + versionFormDTO.getRazonSocial() + "' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con la razón social '" + versionFormDTO.getRazonSocial() + "'");
 
         verify(proveedorRepository, never()).save(any());
         verifyNoInteractions(localidadRepository, insumoRepository, presentacionComercialRepository);
@@ -701,7 +701,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El CUIT '" + versionFormDTO.getCuit() + "' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con el CUIT '" + versionFormDTO.getCuit() + "'");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -984,7 +984,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'contacto@malteriadelsur.com' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con el correo electrónico 'contacto@malteriadelsur.com'");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -999,7 +999,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("La razón social 'acme s.a.' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con la razón social 'acme s.a.'");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -1030,7 +1030,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("La razón social 'Maltería del Sur S.A.' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con la razón social 'Maltería del Sur S.A.'");
     }
 
     @Test
@@ -1044,7 +1044,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El CUIT '30123456789' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con el CUIT '30123456789'");
     }
 
     @Test
@@ -1058,7 +1058,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'contacto@malteriadelsur.com' ya está en uso por otro proveedor");
+                .hasMessage("Ya existe un proveedor con el correo electrónico 'contacto@malteriadelsur.com'");
     }
 
     @Test

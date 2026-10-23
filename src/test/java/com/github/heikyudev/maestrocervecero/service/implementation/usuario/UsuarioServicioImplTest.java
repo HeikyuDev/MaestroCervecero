@@ -358,7 +358,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, usuarioFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'pedro' ya está en uso por otro usuario");
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'pedro'");
 
         verify(usuarioRepository).findById(1L);
         verify(usuarioRepository).existsByUsername("pedro");
@@ -903,7 +903,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'pedro' ya está en uso por otro usuario");
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'pedro'");
 
         verify(usuarioRepository, never()).save(any());
     }
@@ -918,7 +918,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro usuario");
+                .hasMessage("Ya existe un usuario con el correo electrónico 'otro@mail.com'");
 
         verify(usuarioRepository, never()).save(any());
         assertThat(existente.getCorreo()).isEqualTo("juan@mail.com");
@@ -980,7 +980,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre de usuario 'pedro' ya está en uso por otro usuario");
+                .hasMessage("Ya existe un usuario con el nombre de usuario 'pedro'");
     }
 
     @Test
@@ -993,7 +993,7 @@ class UsuarioServicioImplTest {
 
         assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro usuario");
+                .hasMessage("Ya existe un usuario con el correo electrónico 'otro@mail.com'");
     }
 
     @Test

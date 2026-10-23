@@ -108,7 +108,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
-            throw identificadorDuplicadoEnAlta(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 6. Crear la entidad MolinoEntity.
@@ -122,7 +122,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 7. Guardar la entidad en la base de datos.
         return MapperMolino.toDTO(GuardadoUnico.guardar(molinoRepository, molinoEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -157,7 +157,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 6. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
-            throw identificadorDuplicadoEnModificacion(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 7. Actualizar los campos del molinoEntity con los datos del molinoFormDTO.
@@ -167,7 +167,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
 
         // 8. Guardar la entidad actualizada en la base de datos.
         return MapperMolino.toDTO(GuardadoUnico.guardar(molinoRepository, molinoEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -225,11 +225,7 @@ public class MolinoServicioImpl implements IMolinoServicio {
                 LimitesTecnicos.RENDIMIENTO_MOLINO_MAXIMO_KG_H, "El rendimiento de molienda", "kg/h");
     }
 
-    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+    private static RecursoDuplicadoException identificadorDuplicado(String identificadorInterno) {
         return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
-    }
-
-    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
-        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
     }
 }

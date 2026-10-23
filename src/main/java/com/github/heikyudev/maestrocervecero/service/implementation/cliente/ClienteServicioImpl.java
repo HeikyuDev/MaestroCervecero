@@ -109,7 +109,7 @@ public class ClienteServicioImpl implements IClienteServicio {
 
         // 3. Validar que no exista otro cliente con el mismo correo electrónico
         if (clienteRepository.existsByEmailIgnoreCase(email)) {
-            throw emailDuplicadoEnAlta(email);
+            throw emailDuplicado(email);
         }
 
         // 4. Validar que la localidad esté registrada en el sistema
@@ -129,7 +129,7 @@ public class ClienteServicioImpl implements IClienteServicio {
         // 6. Persistir la entidad (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y retornar el DTO de respuesta correspondiente
         return MapperCliente.toDTO(GuardadoUnico.guardar(clienteRepository, clienteEntity,
-                Map.of(INDICE_EMAIL, () -> emailDuplicadoEnAlta(email))));
+                Map.of(INDICE_EMAIL, () -> emailDuplicado(email))));
     }
 
     /**
@@ -165,7 +165,7 @@ public class ClienteServicioImpl implements IClienteServicio {
 
         // 4. Validar que no exista otro cliente con el mismo correo electrónico, excluyendo el propio ID
         if (clienteRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
-            throw emailDuplicadoEnModificacion(email);
+            throw emailDuplicado(email);
         }
 
         // 5. Validar que la localidad esté registrada en el sistema
@@ -182,7 +182,7 @@ public class ClienteServicioImpl implements IClienteServicio {
         // 7. Persistir la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y retornar el DTO de respuesta correspondiente
         return MapperCliente.toDTO(GuardadoUnico.guardar(clienteRepository, clienteEntity,
-                Map.of(INDICE_EMAIL, () -> emailDuplicadoEnModificacion(email))));
+                Map.of(INDICE_EMAIL, () -> emailDuplicado(email))));
     }
 
     /**
@@ -248,11 +248,7 @@ public class ClienteServicioImpl implements IClienteServicio {
         return (valor == null || valor.isEmpty()) ? null : valor;
     }
 
-    private static RecursoDuplicadoException emailDuplicadoEnAlta(String email) {
+    private static RecursoDuplicadoException emailDuplicado(String email) {
         return new RecursoDuplicadoException("Ya existe un cliente con el correo electrónico '" + email + "'");
-    }
-
-    private static RecursoDuplicadoException emailDuplicadoEnModificacion(String email) {
-        return new RecursoDuplicadoException("El correo electrónico '" + email + "' ya está en uso por otro cliente");
     }
 }

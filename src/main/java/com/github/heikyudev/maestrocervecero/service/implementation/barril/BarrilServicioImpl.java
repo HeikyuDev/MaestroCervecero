@@ -125,7 +125,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
 
         // 6. Validar que no haya otro barril activo del mismo fabricante con el mismo identificador
         if (barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId(identificador, barrilFormDTO.getIdFabricanteBarril())) {
-            throw identificadorDuplicadoEnAlta(identificador);
+            throw identificadorDuplicado(identificador);
         }
 
         // 7. Creo la entidad que se va a almacenar en la base de datos
@@ -142,7 +142,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 8. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperBarril.toDTO(GuardadoUnico.guardar(barrilRepository, barrilEntity,
-                Map.of(INDICE_IDENTIFICADOR, () -> identificadorDuplicadoEnAlta(identificador))));
+                Map.of(INDICE_IDENTIFICADOR, () -> identificadorDuplicado(identificador))));
     }
 
     /**
@@ -195,7 +195,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 8. Validar duplicación excluyendo el propio barril, de modo que conservar el
         //    identificador actual no falle contra el mismo registro
         if (barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot(identificador, barrilFormDTO.getIdFabricanteBarril(), id)) {
-            throw identificadorDuplicadoEnModificacion(identificador);
+            throw identificadorDuplicado(identificador);
         }
 
         // 9. Aplico los cambios sobre la entidad administrada por persistencia
@@ -207,7 +207,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 10. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //     y devuelvo el DTO correspondiente
         return MapperBarril.toDTO(GuardadoUnico.guardar(barrilRepository, barrilEntity,
-                Map.of(INDICE_IDENTIFICADOR, () -> identificadorDuplicadoEnModificacion(identificador))));
+                Map.of(INDICE_IDENTIFICADOR, () -> identificadorDuplicado(identificador))));
     }
 
     /**
@@ -271,11 +271,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         ValidacionesNumericas.validarLongitudMaxima(identificador, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El identificador");
     }
 
-    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificador) {
+    private static RecursoDuplicadoException identificadorDuplicado(String identificador) {
         return new RecursoDuplicadoException("Ya existe un barril con el identificador '" + identificador + "' para el fabricante seleccionado");
-    }
-
-    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificador) {
-        return new RecursoDuplicadoException("El identificador '" + identificador + "' ya está en uso por otro barril del fabricante seleccionado");
     }
 }

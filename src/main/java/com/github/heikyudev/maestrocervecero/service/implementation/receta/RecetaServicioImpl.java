@@ -177,7 +177,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
 
         // 2. Validar si el nombre ya está registrado en otra receta activa (sin distinguir mayúsculas)
         if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrue(nombre)) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 3. Crear el contenedor de la receta y su versión inicial (cascada hacia todos los detalles)
@@ -188,7 +188,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         // 4. Guardar la receta en la base de datos (un pedido simultáneo que viole el índice único se traduce al mensaje
         //    del nombre) y retornar el DTO de respuesta correspondiente
         return MapperReceta.toDTO(GuardadoUnico.guardar(recetaRepository, recetaEntity, Map.of(
-                INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -234,7 +234,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         // 3. Validar duplicación excluyendo la propia receta, de modo que conservar el nombre
         //    actual no falle contra el mismo registro
         if (versionRecetaRepository.existsByNombreIgnoreCaseAndEsUltimaVersionTrueAndRecetaIdNot(nombre, id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 4. Construir la nueva versión primero: si alguna malta, lúpulo o levadura
@@ -251,7 +251,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
         //    al mensaje correspondiente) y retornar el DTO de respuesta correspondiente
         recetaEntity.getVersiones().add(nuevaVersionRecetaEntity);
         return MapperReceta.toDTO(GuardadoUnico.guardar(recetaRepository, recetaEntity, Map.of(
-                INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre),
+                INDICE_NOMBRE, () -> nombreDuplicado(nombre),
                 INDICE_ULTIMA_VERSION, RecetaServicioImpl::recetaModificadaEnSimultaneo)));
     }
 
@@ -534,12 +534,8 @@ public class RecetaServicioImpl implements IRecetaServicio {
         return (valor == null || valor.isEmpty()) ? null : valor;
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe una receta con el nombre '" + nombre + "'");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra receta");
     }
 
     private static ReglaNegocioException recetaModificadaEnSimultaneo() {

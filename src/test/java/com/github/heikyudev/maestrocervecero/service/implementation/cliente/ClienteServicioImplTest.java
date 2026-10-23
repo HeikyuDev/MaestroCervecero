@@ -268,7 +268,7 @@ class ClienteServicioImplTest {
 
         assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro cliente");
+                .hasMessage("Ya existe un cliente con el correo electrónico 'otro@mail.com'");
 
         verifyNoInteractions(localidadRepository);
         verify(clienteRepository, never()).save(any());
@@ -649,7 +649,7 @@ class ClienteServicioImplTest {
 
         assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro cliente");
+                .hasMessage("Ya existe un cliente con el correo electrónico 'otro@mail.com'");
 
         verify(clienteRepository, never()).save(any());
         assertThat(existente.getEmail()).isEqualTo("juan@mail.com");
@@ -667,7 +667,7 @@ class ClienteServicioImplTest {
 
         assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El correo electrónico 'otro@mail.com' ya está en uso por otro cliente");
+                .hasMessage("Ya existe un cliente con el correo electrónico 'otro@mail.com'");
     }
 
     @Test

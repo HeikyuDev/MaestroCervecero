@@ -451,7 +451,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno \'FERM-EXISTENTE\' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno \'FERM-EXISTENTE\'");
 
         verify(fermentadorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FERM-EXISTENTE", 1L);
@@ -1129,7 +1129,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
 
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
         verify(fermentadorRepository, never()).save(any());
@@ -1146,7 +1146,7 @@ class FermentadorServicioImplTest {
 
         assertThatThrownBy(() -> fermentadorServicio.modificarFermentador(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
     }
 
     @Test

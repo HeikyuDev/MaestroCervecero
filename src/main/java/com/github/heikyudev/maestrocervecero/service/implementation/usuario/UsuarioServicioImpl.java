@@ -117,12 +117,12 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
 
         // 3. Validar si el username ya esta registrado
         if (usuarioRepository.existsByUsername(username)) {
-            throw usernameDuplicadoEnAlta(username);
+            throw usernameDuplicado(username);
         }
 
         // 4. Validar si el correo electrónico ya esta registrado
         if (usuarioRepository.existsByCorreo(correo)) {
-            throw correoDuplicadoEnAlta(correo);
+            throw correoDuplicado(correo);
         }
 
         // 5. Validar que se haya informado una contraseña y que cumpla las reglas (el encoder no
@@ -148,8 +148,8 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         // 7. Guardo la entidad en la base de datos (un pedido simultáneo que viole un índice único se traduce al mensaje del campo)
         //    y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(GuardadoUnico.guardar(usuarioRepository, usuarioEntity, Map.of(
-                INDICE_USERNAME, () -> usernameDuplicadoEnAlta(username),
-                INDICE_CORREO, () -> correoDuplicadoEnAlta(correo))));
+                INDICE_USERNAME, () -> usernameDuplicado(username),
+                INDICE_CORREO, () -> correoDuplicado(correo))));
     }
 
     /**
@@ -189,14 +189,14 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         // 3. Se valida duplicación ÚNICAMENTE si el username cambió respecto al actual
         if (!username.equals(NormalizacionTexto.username(usuarioEntity.getUsername()))) {
             if (usuarioRepository.existsByUsername(username)) {
-                throw usernameDuplicadoEnModificacion(username);
+                throw usernameDuplicado(username);
             }
         }
 
         // 4. Se valida duplicación del correo excluyendo el propio ID, de modo que conservar
         //    el correo actual (incluso con distinto case) no falla contra el mismo registro
         if (usuarioRepository.existsByCorreoAndIdNot(correo, id)) {
-            throw correoDuplicadoEnModificacion(correo);
+            throw correoDuplicado(correo);
         }
 
         // 5. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
@@ -223,8 +223,8 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         // 7. Persisto la entidad actualizada (un pedido simultáneo que viole un índice único se traduce al mensaje del campo)
         //    y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(GuardadoUnico.guardar(usuarioRepository, usuarioEntity, Map.of(
-                INDICE_USERNAME, () -> usernameDuplicadoEnModificacion(username),
-                INDICE_CORREO, () -> correoDuplicadoEnModificacion(correo))));
+                INDICE_USERNAME, () -> usernameDuplicado(username),
+                INDICE_CORREO, () -> correoDuplicado(correo))));
     }
 
     /**
@@ -291,19 +291,11 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         return (valor == null || valor.isEmpty()) ? null : valor;
     }
 
-    private static RecursoDuplicadoException usernameDuplicadoEnAlta(String username) {
+    private static RecursoDuplicadoException usernameDuplicado(String username) {
         return new RecursoDuplicadoException("Ya existe un usuario con el nombre de usuario '" + username + "'");
     }
 
-    private static RecursoDuplicadoException usernameDuplicadoEnModificacion(String username) {
-        return new RecursoDuplicadoException("El nombre de usuario '" + username + "' ya está en uso por otro usuario");
-    }
-
-    private static RecursoDuplicadoException correoDuplicadoEnAlta(String correo) {
+    private static RecursoDuplicadoException correoDuplicado(String correo) {
         return new RecursoDuplicadoException("Ya existe un usuario con el correo electrónico '" + correo + "'");
-    }
-
-    private static RecursoDuplicadoException correoDuplicadoEnModificacion(String correo) {
-        return new RecursoDuplicadoException("El correo electrónico '" + correo + "' ya está en uso por otro usuario");
     }
 }

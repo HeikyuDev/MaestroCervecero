@@ -321,7 +321,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Gas natural' ya está en uso por otro costo directo adicional");
+                .hasMessage("Ya existe un costo directo adicional con el nombre 'Gas natural'");
 
         verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCaseAndIdNot("Gas natural", 1L);
         verify(costoDirectoAdicionalRepository, never()).save(any());
@@ -600,7 +600,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otro costo directo adicional");
+                .hasMessage("Ya existe un costo directo adicional con el nombre 'pilsen'");
 
         verify(costoDirectoAdicionalRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(costoDirectoAdicionalRepository, never()).save(any());
@@ -617,7 +617,7 @@ class CostoDirectoAdicionalServicioImplTest {
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro costo directo adicional");
+                .hasMessage("Ya existe un costo directo adicional con el nombre 'Pilsen Nacional'");
     }
 
     @Test

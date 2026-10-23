@@ -167,7 +167,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // 5. Validar que no haya otro equipamiento registrado con el mismo identificador interno.
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
-            throw identificadorDuplicadoEnAlta(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 6. Crear la entidad del fermentador a partir del DTO de formulario y establecer su estado operativo como DISPONIBLE.
@@ -182,7 +182,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente.
         return MapperFermentador.toDTO(GuardadoUnico.guardar(fermentadorRepository, fermentadorEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -217,7 +217,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // 6. Validar que no haya otro equipamiento registrado con el mismo identificador interno (excluyendo el actual).
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
-            throw identificadorDuplicadoEnModificacion(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 7. Actualizar los campos del fermentador con los datos del DTO de formulario.
@@ -228,7 +228,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
 
         // 8. Guardar la entidad actualizada en la base de datos y retornar el DTO de respuesta correspondiente.
         return MapperFermentador.toDTO(GuardadoUnico.guardar(fermentadorRepository, fermentadorEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -269,11 +269,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
         return MapperFermentador.toDTO(fermentadorRepository.save(fermentadorEntity));
     }
 
-    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+    private static RecursoDuplicadoException identificadorDuplicado(String identificadorInterno) {
         return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
-    }
-
-    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
-        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
     }
 }

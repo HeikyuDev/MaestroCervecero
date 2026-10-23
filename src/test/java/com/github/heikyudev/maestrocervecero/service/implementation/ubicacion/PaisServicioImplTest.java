@@ -255,7 +255,7 @@ class PaisServicioImplTest {
 
         assertThatThrownBy(() -> paisServicio.modificarPais(1L, paisFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Brasil' ya está en uso por otro país");
+                .hasMessage("Ya existe un país con el nombre 'Brasil'");
 
         verify(paisRepository).findById(1L);
         verify(paisRepository).existsByNombreIgnoreCaseAndIdNot("Brasil", 1L);
@@ -515,7 +515,7 @@ class PaisServicioImplTest {
 
         assertThatThrownBy(() -> paisServicio.modificarPais(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otro país");
+                .hasMessage("Ya existe un país con el nombre 'pilsen'");
 
         verify(paisRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(paisRepository, never()).save(any());
@@ -532,7 +532,7 @@ class PaisServicioImplTest {
 
         assertThatThrownBy(() -> paisServicio.modificarPais(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro país");
+                .hasMessage("Ya existe un país con el nombre 'Pilsen Nacional'");
     }
 
     @Test

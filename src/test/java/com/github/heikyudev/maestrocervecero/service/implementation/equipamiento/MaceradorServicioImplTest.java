@@ -396,7 +396,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, maceradorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno \'MAC-EXISTENTE\' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno \'MAC-EXISTENTE\'");
 
         verify(maceradorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MAC-EXISTENTE", 1L);
@@ -1260,7 +1260,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
 
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
         verify(maceradorRepository, never()).save(any());
@@ -1277,7 +1277,7 @@ class MaceradorServicioImplTest {
 
         assertThatThrownBy(() -> maceradorServicio.modificarMacerador(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
     }
 
     @Test

@@ -268,7 +268,7 @@ class MotivoAjusteServicioImplTest {
 
         assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Rotura de lote' ya está en uso por otro motivo de ajuste");
+                .hasMessage("Ya existe un motivo de ajuste con el nombre 'Rotura de lote'");
 
         verify(motivoAjusteRepository).existsByNombreIgnoreCaseAndIdNot("Rotura de lote", 1L);
         verify(motivoAjusteRepository, never()).save(any());
@@ -520,7 +520,7 @@ class MotivoAjusteServicioImplTest {
 
         assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otro motivo de ajuste");
+                .hasMessage("Ya existe un motivo de ajuste con el nombre 'pilsen'");
 
         verify(motivoAjusteRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(motivoAjusteRepository, never()).save(any());
@@ -537,7 +537,7 @@ class MotivoAjusteServicioImplTest {
 
         assertThatThrownBy(() -> motivoAjusteServicio.modificarMotivoAjuste(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otro motivo de ajuste");
+                .hasMessage("Ya existe un motivo de ajuste con el nombre 'Pilsen Nacional'");
     }
 
     @Test

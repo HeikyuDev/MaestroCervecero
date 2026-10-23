@@ -399,7 +399,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Paquete de 100 gm' ya está en uso por otra presentación comercial");
+                .hasMessage("Ya existe una presentación comercial con el nombre 'Paquete de 100 gm'");
 
         verify(presentacionComercialRepository).existsByNombreIgnoreCaseAndIdNot("Paquete de 100 gm", 1L);
         verify(presentacionComercialRepository, never()).save(any());
@@ -697,7 +697,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otra presentación comercial");
+                .hasMessage("Ya existe una presentación comercial con el nombre 'pilsen'");
 
         verify(presentacionComercialRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(presentacionComercialRepository, never()).save(any());
@@ -714,7 +714,7 @@ class PresentacionComercialServicioImplTest {
 
         assertThatThrownBy(() -> presentacionComercialServicio.modificarPresentacionComercial(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra presentación comercial");
+                .hasMessage("Ya existe una presentación comercial con el nombre 'Pilsen Nacional'");
     }
 
     @Test

@@ -93,7 +93,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
 
         // 3. Validar que no exista otro costo directo adicional con el mismo nombre (case-insensitive)
         if (costoDirectoAdicionalRepository.existsByNombreIgnoreCase(nombre)) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 4. Validar que el costo por litro sea mayor a cero
@@ -109,7 +109,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         // 6. Guardar la entidad (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y retornar el DTO de respuesta correspondiente
         return MapperCostoDirectoAdicional.toDTO(GuardadoUnico.guardar(costoDirectoAdicionalRepository, costoDirectoAdicionalEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -138,7 +138,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
 
         // 4. Validar que no exista otro costo directo adicional con el mismo nombre, excluyendo el propio ID
         if (costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 5. Validar que el costo por litro sea mayor a cero
@@ -151,7 +151,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         // 7. Persistir la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y retornar el DTO de respuesta correspondiente
         return MapperCostoDirectoAdicional.toDTO(GuardadoUnico.guardar(costoDirectoAdicionalRepository, costoDirectoAdicionalEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -207,11 +207,7 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe un costo directo adicional con el nombre '" + nombre + "'");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otro costo directo adicional");
     }
 }

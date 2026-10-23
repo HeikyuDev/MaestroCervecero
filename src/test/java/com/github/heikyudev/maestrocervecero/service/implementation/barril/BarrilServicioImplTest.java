@@ -467,7 +467,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador 'BAR-02' ya está en uso por otro barril del fabricante seleccionado");
+                .hasMessage("Ya existe un barril con el identificador 'BAR-02' para el fabricante seleccionado");
 
         verify(barrilRepository, never()).save(any());
     }
@@ -870,7 +870,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador 'BAR-01' ya está en uso por otro barril del fabricante seleccionado");
+                .hasMessage("Ya existe un barril con el identificador 'BAR-01' para el fabricante seleccionado");
 
         verify(barrilRepository).existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L);
         verify(barrilRepository, never()).save(any());
@@ -888,7 +888,7 @@ class BarrilServicioImplTest {
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador 'BAR 01' ya está en uso por otro barril del fabricante seleccionado");
+                .hasMessage("Ya existe un barril con el identificador 'BAR 01' para el fabricante seleccionado");
     }
 
     @Test

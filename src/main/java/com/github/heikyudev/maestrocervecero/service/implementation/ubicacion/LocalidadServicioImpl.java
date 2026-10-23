@@ -121,7 +121,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
 
         // 4. Validar si el nombre ya está registrado en otra localidad de la misma provincia (case-insensitive)
         if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaId(nombre, localidadFormDTO.getIdProvincia())) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 5. Creo la entidad que se va a almacenar en la base de datos
@@ -135,7 +135,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
         // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperLocalidad.toDTO(GuardadoUnico.guardar(localidadRepository, localidadEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -175,7 +175,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
         // 5. Se valida duplicación de nombre excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (localidadRepository.existsByNombreIgnoreCaseAndProvinciaIdAndIdNot(nombre, localidadFormDTO.getIdProvincia(), id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 6. Aplico los cambios sobre la entidad administrada por persistencia
@@ -186,7 +186,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
         // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperLocalidad.toDTO(GuardadoUnico.guardar(localidadRepository, localidadEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -246,11 +246,7 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
         ValidacionesNumericas.validarLongitudMaxima(codigoPostal, LimitesTecnicos.LONGITUD_MAXIMA_CODIGO_POSTAL, "El código postal");
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe una localidad con el nombre '" + nombre + "' para la provincia seleccionada");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra localidad de la provincia seleccionada");
     }
 }

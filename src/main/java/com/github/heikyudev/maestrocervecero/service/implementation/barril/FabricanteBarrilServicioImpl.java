@@ -107,7 +107,7 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
 
         // 3. Validar que el nombre no esté registrado en otro fabricante activo (case-insensitive)
         if (fabricanteBarrilRepository.existsByNombreIgnoreCase(nombre)) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 4. Creo la entidad que se va a almacenar en la base de datos
@@ -119,7 +119,7 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
         // 5. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperFabricanteBarril.toDTO(GuardadoUnico.guardar(fabricanteBarrilRepository, fabricanteBarrilEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -154,7 +154,7 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
         // 4. Validar el nombre excluyendo el propio ID, de modo que conservar el nombre actual
         //    (incluso con distinto case) no falle contra el mismo registro
         if (fabricanteBarrilRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 5. Aplico los cambios sobre la entidad administrada por persistencia
@@ -163,7 +163,7 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
         // 6. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperFabricanteBarril.toDTO(GuardadoUnico.guardar(fabricanteBarrilRepository, fabricanteBarrilEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -213,11 +213,7 @@ public class FabricanteBarrilServicioImpl implements IFabricanteBarrilServicio {
         ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe un fabricante de barril con el nombre '" + nombre + "'");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otro fabricante de barril");
     }
 }

@@ -332,7 +332,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, provinciaFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Corrientes' ya está en uso por otra provincia del país seleccionado");
+                .hasMessage("Ya existe una provincia con el nombre 'Corrientes' para el país seleccionado");
 
         verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisIdAndIdNot("Corrientes", 1L, 1L);
         verify(provinciaRepository, never()).save(any());
@@ -641,7 +641,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otra provincia del país seleccionado");
+                .hasMessage("Ya existe una provincia con el nombre 'pilsen' para el país seleccionado");
 
         verify(provinciaRepository).existsByNombreIgnoreCaseAndPaisIdAndIdNot("pilsen", 1L, 1L);
         verify(provinciaRepository, never()).save(any());
@@ -659,7 +659,7 @@ class ProvinciaServicioImplTest {
 
         assertThatThrownBy(() -> provinciaServicio.modificarProvincia(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra provincia del país seleccionado");
+                .hasMessage("Ya existe una provincia con el nombre 'Pilsen Nacional' para el país seleccionado");
     }
 
     @Test

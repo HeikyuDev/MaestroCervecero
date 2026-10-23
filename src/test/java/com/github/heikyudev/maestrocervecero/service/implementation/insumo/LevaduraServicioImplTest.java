@@ -390,7 +390,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, levaduraFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'SafAle US-05' ya está en uso por otra levadura");
+                .hasMessage("Ya existe una levadura con el nombre 'SafAle US-05'");
 
         verify(levaduraRepository).findById(1L);
         verify(levaduraRepository).existsByNombreIgnoreCaseAndIdNot("SafAle US-05", 1L);
@@ -878,7 +878,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otra levadura");
+                .hasMessage("Ya existe una levadura con el nombre 'pilsen'");
 
         verify(levaduraRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(levaduraRepository, never()).save(any());
@@ -895,7 +895,7 @@ class LevaduraServicioImplTest {
 
         assertThatThrownBy(() -> levaduraServicio.modificarLevadura(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra levadura");
+                .hasMessage("Ya existe una levadura con el nombre 'Pilsen Nacional'");
     }
 
     @Test

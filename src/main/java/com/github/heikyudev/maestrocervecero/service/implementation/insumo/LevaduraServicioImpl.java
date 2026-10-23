@@ -128,7 +128,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
 
         // 4. Validar si el nombre ya está registrado en otra levadura activa (case-insensitive)
         if (levaduraRepository.existsByNombreIgnoreCase(nombre)) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 5. Creo la entidad que se va a almacenar en la base de datos.
@@ -144,7 +144,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperLevadura.toDTO(GuardadoUnico.guardar(levaduraRepository, levaduraEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -182,7 +182,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         // 5. Se valida duplicación excluyendo el propio ID, de modo que conservar
         //    el nombre actual (incluso con distinto case) no falla contra el mismo registro
         if (levaduraRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 6. Aplico los cambios sobre la entidad administrada por persistencia.
@@ -194,7 +194,7 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         // 7. Persisto la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y devuelvo el DTO correspondiente
         return MapperLevadura.toDTO(GuardadoUnico.guardar(levaduraRepository, levaduraEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -265,12 +265,8 @@ public class LevaduraServicioImpl implements ILevaduraServicio {
         ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe una levadura con el nombre '" + nombre + "'");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otra levadura");
     }
 
     /**

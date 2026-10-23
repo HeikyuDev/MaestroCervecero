@@ -121,7 +121,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 7. Validar que el identificador interno no esté duplicado
         if (equipamientoRepository.existsByIdentificadorInternoIgnoreCase(identificadorInterno)) {
-            throw identificadorDuplicadoEnAlta(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 8. Creo la entidad que se va a almacenar en la base de datos.
@@ -138,7 +138,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
                 .build();
 
         return MapperMacerador.toDTO(GuardadoUnico.guardar(maceradorRepository, maceradorEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnAlta(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -187,7 +187,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 8. Validar que el identificador interno no esté duplicado
         if(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot(identificadorInterno, id)) {
-            throw identificadorDuplicadoEnModificacion(identificadorInterno);
+            throw identificadorDuplicado(identificadorInterno);
         }
 
         // 9. Aplico los cambios sobre la entidad administrada por persistencia.
@@ -200,7 +200,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
 
         // 10. Persisto la entidad actualizada y devuelvo el DTO correspondiente
         return MapperMacerador.toDTO(GuardadoUnico.guardar(maceradorRepository, maceradorEntity,
-                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicadoEnModificacion(identificadorInterno))));
+                Map.of(INDICE_IDENTIFICADOR_INTERNO, () -> identificadorDuplicado(identificadorInterno))));
     }
 
     /**
@@ -275,11 +275,7 @@ public class MaceradorServicioImpl implements IMaceradorServicio {
         }
     }
 
-    private static RecursoDuplicadoException identificadorDuplicadoEnAlta(String identificadorInterno) {
+    private static RecursoDuplicadoException identificadorDuplicado(String identificadorInterno) {
         return new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno '" + identificadorInterno + "'");
-    }
-
-    private static RecursoDuplicadoException identificadorDuplicadoEnModificacion(String identificadorInterno) {
-        return new RecursoDuplicadoException("El identificador interno '" + identificadorInterno + "' ya está en uso por otro equipamiento");
     }
 }

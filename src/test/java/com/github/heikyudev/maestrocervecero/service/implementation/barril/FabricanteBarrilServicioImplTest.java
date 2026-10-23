@@ -345,7 +345,7 @@ class FabricanteBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Tonelería del Norte' ya está en uso por otro fabricante de barril");
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'Tonelería del Norte'");
 
         verify(fabricanteBarrilRepository, never()).save(any());
     }
@@ -360,7 +360,7 @@ class FabricanteBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'tonelería del norte' ya está en uso por otro fabricante de barril");
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'tonelería del norte'");
 
         verify(fabricanteBarrilRepository, never()).save(any());
     }
@@ -446,7 +446,7 @@ class FabricanteBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'tonelería del norte' ya está en uso por otro fabricante de barril");
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'tonelería del norte'");
 
         verify(fabricanteBarrilRepository).existsByNombreIgnoreCaseAndIdNot("tonelería del norte", 1L);
         verify(fabricanteBarrilRepository, never()).save(any());
@@ -464,7 +464,7 @@ class FabricanteBarrilServicioImplTest {
 
         assertThatThrownBy(() -> fabricanteBarrilServicio.modificarFabricanteBarril(1L, fabricanteBarrilFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Tonelería del Norte' ya está en uso por otro fabricante de barril");
+                .hasMessage("Ya existe un fabricante de barril con el nombre 'Tonelería del Norte'");
     }
 
     @Test

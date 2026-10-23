@@ -160,17 +160,17 @@ public class ProveedorServicioImpl implements IProveedorServicio {
 
         // 2. Validar que la razón social no esté registrada en otro proveedor activo
         if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(datos.razonSocial())) {
-            throw razonSocialDuplicadaEnAlta(datos.razonSocial());
+            throw razonSocialDuplicada(datos.razonSocial());
         }
 
         // 3. Validar que el CUIT no esté registrado en otro proveedor activo
         if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(datos.cuit())) {
-            throw cuitDuplicadoEnAlta(datos.cuit());
+            throw cuitDuplicado(datos.cuit());
         }
 
         // 4. Validar que el correo electrónico no esté registrado en otro proveedor activo
         if (versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue(datos.email())) {
-            throw emailDuplicadoEnAlta(datos.email());
+            throw emailDuplicado(datos.email());
         }
 
         // 5. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
@@ -181,9 +181,9 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         // 6. Guardar el proveedor en la base de datos (un pedido simultáneo que viole un índice único se traduce al
         //    mensaje del campo) y retornar el DTO de respuesta correspondiente
         return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
-                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicadaEnAlta(datos.razonSocial()),
-                INDICE_CUIT, () -> cuitDuplicadoEnAlta(datos.cuit()),
-                INDICE_EMAIL, () -> emailDuplicadoEnAlta(datos.email()),
+                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicada(datos.razonSocial()),
+                INDICE_CUIT, () -> cuitDuplicado(datos.cuit()),
+                INDICE_EMAIL, () -> emailDuplicado(datos.email()),
                 INDICE_ITEM_CATALOGO, ProveedorServicioImpl::catalogoConItemRepetido)));
     }
 
@@ -226,18 +226,18 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         // 3. Validar la razón social excluyendo al propio proveedor, de modo que conservar la
         //    razón social actual no falle contra el mismo registro
         if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(datos.razonSocial(), id)) {
-            throw razonSocialDuplicadaEnModificacion(datos.razonSocial());
+            throw razonSocialDuplicada(datos.razonSocial());
         }
 
         // 4. Validar el CUIT excluyendo al propio proveedor, de modo que conservar el CUIT actual
         //    no falle contra el mismo registro
         if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(datos.cuit(), id)) {
-            throw cuitDuplicadoEnModificacion(datos.cuit());
+            throw cuitDuplicado(datos.cuit());
         }
 
         // 5. Validar el correo electrónico excluyendo al propio proveedor
         if (versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(datos.email(), id)) {
-            throw emailDuplicadoEnModificacion(datos.email());
+            throw emailDuplicado(datos.email());
         }
 
         // 6. Construir la nueva versión primero: si la localidad, algún insumo o alguna
@@ -254,9 +254,9 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         //    traduce al mensaje del campo) y retornar el DTO de respuesta correspondiente
         proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
         return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
-                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicadaEnModificacion(datos.razonSocial()),
-                INDICE_CUIT, () -> cuitDuplicadoEnModificacion(datos.cuit()),
-                INDICE_EMAIL, () -> emailDuplicadoEnModificacion(datos.email()),
+                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicada(datos.razonSocial()),
+                INDICE_CUIT, () -> cuitDuplicado(datos.cuit()),
+                INDICE_EMAIL, () -> emailDuplicado(datos.email()),
                 INDICE_ITEM_CATALOGO, ProveedorServicioImpl::catalogoConItemRepetido,
                 INDICE_ULTIMA_VERSION, ProveedorServicioImpl::proveedorModificadoEnSimultaneo)));
     }
@@ -361,28 +361,16 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         return (valor == null || valor.isEmpty()) ? null : valor;
     }
 
-    private static RecursoDuplicadoException razonSocialDuplicadaEnAlta(String razonSocial) {
+    private static RecursoDuplicadoException razonSocialDuplicada(String razonSocial) {
         return new RecursoDuplicadoException("Ya existe un proveedor con la razón social '" + razonSocial + "'");
     }
 
-    private static RecursoDuplicadoException razonSocialDuplicadaEnModificacion(String razonSocial) {
-        return new RecursoDuplicadoException("La razón social '" + razonSocial + "' ya está en uso por otro proveedor");
-    }
-
-    private static RecursoDuplicadoException cuitDuplicadoEnAlta(String cuit) {
+    private static RecursoDuplicadoException cuitDuplicado(String cuit) {
         return new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'");
     }
 
-    private static RecursoDuplicadoException cuitDuplicadoEnModificacion(String cuit) {
-        return new RecursoDuplicadoException("El CUIT '" + cuit + "' ya está en uso por otro proveedor");
-    }
-
-    private static RecursoDuplicadoException emailDuplicadoEnAlta(String email) {
+    private static RecursoDuplicadoException emailDuplicado(String email) {
         return new RecursoDuplicadoException("Ya existe un proveedor con el correo electrónico '" + email + "'");
-    }
-
-    private static RecursoDuplicadoException emailDuplicadoEnModificacion(String email) {
-        return new RecursoDuplicadoException("El correo electrónico '" + email + "' ya está en uso por otro proveedor");
     }
 
     private static ReglaNegocioException catalogoConItemRepetido() {

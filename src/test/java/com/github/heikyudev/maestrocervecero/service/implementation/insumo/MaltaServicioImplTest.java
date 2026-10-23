@@ -381,7 +381,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, maltaFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen' ya está en uso por otra malta");
+                .hasMessage("Ya existe una malta con el nombre 'Pilsen'");
 
         verify(maltaRepository).findById(1L);
         verify(maltaRepository).existsByNombreIgnoreCaseAndIdNot("Pilsen", 1L);
@@ -797,7 +797,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'pilsen' ya está en uso por otra malta");
+                .hasMessage("Ya existe una malta con el nombre 'pilsen'");
 
         verify(maltaRepository).existsByNombreIgnoreCaseAndIdNot("pilsen", 1L);
         verify(maltaRepository, never()).save(any());
@@ -814,7 +814,7 @@ class MaltaServicioImplTest {
 
         assertThatThrownBy(() -> maltaServicio.modificarMalta(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El nombre 'Pilsen Nacional' ya está en uso por otra malta");
+                .hasMessage("Ya existe una malta con el nombre 'Pilsen Nacional'");
     }
 
     @Test

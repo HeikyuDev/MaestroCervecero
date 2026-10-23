@@ -515,13 +515,13 @@ class PresentacionComercialControllerTest {
     void caso_cp_pcc_25() throws Exception {
         // Arrange
         when(presentacionComercialServicio.modificarPresentacionComercial(eq(3L), any()))
-                .thenThrow(new RecursoDuplicadoException("El nombre 'Bolsa de 25 Kg' ya está en uso por otra presentación comercial"));
+                .thenThrow(new RecursoDuplicadoException("Ya existe una presentación comercial con el nombre 'Bolsa de 25 Kg'"));
 
         // Act + Assert
         mockMvc.perform(post(URL + "/3").with(csrf()).params(datosValidos()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la presentación comercial")))
-                .andExpect(content().string(containsString("ya está en uso por otra presentación comercial")))
+                .andExpect(content().string(containsString("Ya existe una presentación comercial con el nombre &#39;Bolsa de 25 Kg&#39;")))
                 .andExpect(content().string(matchesPattern("(?s).*id=\"nombre\"[^>]*border-rose-400.*")));
     }
 

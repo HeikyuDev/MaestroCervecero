@@ -364,13 +364,13 @@ class FabricanteBarrilControllerTest {
     @DisplayName("CP-FBC-19: modificar con un nombre duplicado vuelve al formulario de edición con el mensaje del service")
     void caso_cp_fbc_19() throws Exception {
         // Arrange
-        when(fabricanteBarrilServicio.modificarFabricanteBarril(eq(2L), any())).thenThrow(new RecursoDuplicadoException("El nombre 'Barrilitos SA' ya está en uso por otro fabricante de barril"));
+        when(fabricanteBarrilServicio.modificarFabricanteBarril(eq(2L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un fabricante de barril con el nombre 'Barrilitos SA'"));
 
         // Act + Assert
         mockMvc.perform(post(URL + "/2").with(csrf()).param("nombre", "Barrilitos SA"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el fabricante de barril")))
-                .andExpect(content().string(containsString("ya está en uso por otro fabricante de barril")))
+                .andExpect(content().string(containsString("Ya existe un fabricante de barril con el nombre &#39;Barrilitos SA&#39;")))
                 .andExpect(content().string(matchesPattern("(?s).*id=\"nombre\"[^>]*border-rose-400.*")));
     }
 

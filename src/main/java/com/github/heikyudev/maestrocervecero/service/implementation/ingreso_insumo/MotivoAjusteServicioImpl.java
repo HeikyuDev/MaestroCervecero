@@ -96,7 +96,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
 
         // 3. Validar que no exista otro motivo de ajuste con el mismo nombre (case-insensitive)
         if (motivoAjusteRepository.existsByNombreIgnoreCase(nombre)) {
-            throw nombreDuplicadoEnAlta(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 4. Construir la entidad que se va a almacenar en la base de datos
@@ -109,7 +109,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         // 5. Guardar la entidad (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y retornar el DTO de respuesta correspondiente
         return MapperMotivoAjuste.toDTO(GuardadoUnico.guardar(motivoAjusteRepository, motivoAjusteEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnAlta(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -145,7 +145,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
 
         // 5. Validar que no exista otro motivo de ajuste con el mismo nombre, excluyendo el propio ID
         if (motivoAjusteRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
-            throw nombreDuplicadoEnModificacion(nombre);
+            throw nombreDuplicado(nombre);
         }
 
         // 6. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
@@ -155,7 +155,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         // 7. Persistir la entidad actualizada (un pedido simultáneo que viole el índice único se traduce al mismo mensaje)
         //    y retornar el DTO de respuesta correspondiente
         return MapperMotivoAjuste.toDTO(GuardadoUnico.guardar(motivoAjusteRepository, motivoAjusteEntity,
-                Map.of(INDICE_NOMBRE, () -> nombreDuplicadoEnModificacion(nombre))));
+                Map.of(INDICE_NOMBRE, () -> nombreDuplicado(nombre))));
     }
 
     /**
@@ -199,11 +199,7 @@ public class MotivoAjusteServicioImpl implements IMotivoAjusteServicio {
         ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
     }
 
-    private static RecursoDuplicadoException nombreDuplicadoEnAlta(String nombre) {
+    private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe un motivo de ajuste con el nombre '" + nombre + "'");
-    }
-
-    private static RecursoDuplicadoException nombreDuplicadoEnModificacion(String nombre) {
-        return new RecursoDuplicadoException("El nombre '" + nombre + "' ya está en uso por otro motivo de ajuste");
     }
 }

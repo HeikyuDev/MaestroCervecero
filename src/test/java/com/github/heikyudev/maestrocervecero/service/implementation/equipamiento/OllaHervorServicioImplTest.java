@@ -487,7 +487,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno \'OLLA-EXISTENTE\' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno \'OLLA-EXISTENTE\'");
 
         verify(ollaHervorRepository).findById(1L);
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("OLLA-EXISTENTE", 1L);
@@ -1234,7 +1234,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER-01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
 
         verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
         verify(ollaHervorRepository, never()).save(any());
@@ -1251,7 +1251,7 @@ class OllaHervorServicioImplTest {
 
         assertThatThrownBy(() -> ollaHervorServicio.modificarOllaHervor(1L, formDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("El identificador interno 'FER 01' ya está en uso por otro equipamiento");
+                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
     }
 
     @Test

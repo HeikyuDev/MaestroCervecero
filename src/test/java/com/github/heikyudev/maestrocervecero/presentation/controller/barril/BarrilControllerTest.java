@@ -712,13 +712,13 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-35: modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service")
     void caso_cp_bct_35() throws Exception {
         // Arrange
-        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new RecursoDuplicadoException("El identificador 'B-002' ya está en uso por otro barril del fabricante seleccionado"));
+        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un barril con el identificador 'B-002' para el fabricante seleccionado"));
 
         // Act + Assert
         mockMvc.perform(post("/barriles/4").with(csrf()).params(datosCon("identificador", "B-002")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el barril")))
-                .andExpect(content().string(containsString("ya está en uso por otro barril del fabricante seleccionado")))
+                .andExpect(content().string(containsString("Ya existe un barril con el identificador &#39;B-002&#39; para el fabricante seleccionado")))
                 .andExpect(content().string(matchesPattern("(?s).*id=\"identificador\"[^>]*border-rose-400.*")));
     }
 
