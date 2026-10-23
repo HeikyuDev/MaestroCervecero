@@ -347,19 +347,66 @@ class BarrilServicioImplTest {
         verifyNoInteractions(barrilRepository);
     }
 
+    @Test
+    @DisplayName("CP-AB-16: altaBarril lanza ReglaNegocioException y no consulta la BD cuando la capacidad supera el máximo técnico")
+    void altaBarril_debeRechazarCapacidadMayorAlMaximo() {
+        // === PREPARACION DE DATOS ===
+        BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 1000.5, 1L);
+
+        // === EJECUCION Y ASERTOS ===
+        assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad no puede superar 1.000 litros");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verifyNoInteractions(barrilRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AB-17: altaBarril persiste el barril cuando la capacidad es igual al máximo técnico (valor límite)")
+    void altaBarril_debePermitirCapacidadIgualAlMaximo() {
+        // === PREPARACION DE DATOS ===
+        BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 1000.0, 1L);
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteId("BAR-01", 1L)).thenReturn(false);
+        when(barrilRepository.save(any(BarrilEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        BarrilResponseDTO resultado = barrilServicio.altaBarril(barrilFormDTO);
+
+        // === ASERTOS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(1000.0);
+    }
+
+    @Test
+    @DisplayName("CP-AB-18: altaBarril lanza ReglaNegocioException y no consulta la BD cuando los usos máximos antes de mantenimiento superan el máximo técnico")
+    void altaBarril_debeRechazarUsosMaximosMayoresAlMaximo() {
+        // === PREPARACION DE DATOS ===
+        BarrilFormDTO barrilFormDTO = BarrilFormDTO.builder()
+                .identificador("BAR-01").capacidad(50.0).usosMaximosAntesMantenimiento(100_001).idFabricanteBarril(1L).build();
+
+        // === EJECUCION Y ASERTOS ===
+        assertThatThrownBy(() -> barrilServicio.altaBarril(barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verifyNoInteractions(barrilRepository);
+    }
+
     // ==================== modificarBarril ====================
 
     @Test
     @DisplayName("CP-MB-01: modificarBarril lanza RecursoNoEncontradoException y no valida nada más cuando el ID no existe")
     void modificarBarril_debeLanzarExcepcionSiNoExiste() {
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 50.0, 1L);
-        when(barrilRepository.findById(99L)).thenReturn(Optional.empty());
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(99L, barrilFormDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el barril con ID: 99");
 
-        verify(barrilRepository).findById(99L);
+        verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(99L);
         verifyNoInteractions(fabricanteBarrilRepository);
         verify(barrilRepository, never()).save(any());
     }
@@ -369,7 +416,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debeRechazarCapacidadNula() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", null, 1L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -384,7 +431,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debeRechazarCapacidadIgualACero() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 0.0, 1L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -398,7 +445,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debeRechazarFabricanteInexistente() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 50.0, 99L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
         when(fabricanteBarrilRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
@@ -414,7 +461,7 @@ class BarrilServicioImplTest {
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-02", 50.0, 1L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-02", 1L, 1L)).thenReturn(true);
 
@@ -431,7 +478,7 @@ class BarrilServicioImplTest {
         FabricanteBarrilEntity fabricanteEntity = crearFabricanteBarrilEntity(1L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteEntity);
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 60.0, 1L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricanteEntity));
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(false);
         when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
@@ -452,7 +499,7 @@ class BarrilServicioImplTest {
         FabricanteBarrilEntity fabricanteNuevo = crearFabricanteBarrilEntity(2L);
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricanteOriginal);
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 50.0, 2L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
         when(fabricanteBarrilRepository.findById(2L)).thenReturn(Optional.of(fabricanteNuevo));
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 2L, 1L)).thenReturn(false);
         when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
@@ -477,7 +524,7 @@ class BarrilServicioImplTest {
                 .estadoOperativo(EstadoOperativoBarril.CON_CERVEZA).usosMaximosAntesMantenimiento(USOS_MAXIMOS_ANTES_MANTENIMIENTO)
                 .estado(Estado.ACTIVO).fabricante(crearFabricanteBarrilEntity(1L)).build();
         BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 20.0, 1L);
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -493,11 +540,66 @@ class BarrilServicioImplTest {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
         BarrilFormDTO barrilFormDTO = BarrilFormDTO.builder()
                 .identificador("BAR-01").capacidad(50.0).usosMaximosAntesMantenimiento(null).idFabricanteBarril(1L).build();
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MB-15: modificarBarril lanza ReglaNegocioException y no consulta el fabricante cuando la capacidad supera el máximo técnico")
+    void modificarBarril_debeRechazarCapacidadMayorAlMaximo() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 1000.5, 1L);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+
+        // === EJECUCION Y ASERTOS ===
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La capacidad no puede superar 1.000 litros");
+
+        verifyNoInteractions(fabricanteBarrilRepository);
+        verify(barrilRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MB-16: modificarBarril persiste el barril cuando la capacidad es igual al máximo técnico (valor límite)")
+    void modificarBarril_debePermitirCapacidadIgualAlMaximo() {
+        // === PREPARACION DE DATOS ===
+        FabricanteBarrilEntity fabricante = crearFabricanteBarrilEntity(1L);
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, fabricante);
+        BarrilFormDTO barrilFormDTO = barrilFormDTO("BAR-01", 1000.0, 1L);
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+        when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(fabricante));
+        when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(false);
+        when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
+
+        // === EJECUCION ===
+        BarrilResponseDTO resultado = barrilServicio.modificarBarril(1L, barrilFormDTO);
+
+        // === ASERTOS ===
+        assertThat(resultado.getCapacidad()).isEqualTo(1000.0);
+        assertThat(barrilEntity.getCapacidad()).isEqualTo(1000.0);
+    }
+
+    @Test
+    @DisplayName("CP-MB-17: modificarBarril lanza ReglaNegocioException y no consulta el fabricante cuando los usos máximos antes de mantenimiento superan el máximo técnico")
+    void modificarBarril_debeRechazarUsosMaximosMayoresAlMaximo() {
+        // === PREPARACION DE DATOS ===
+        BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
+        BarrilFormDTO barrilFormDTO = BarrilFormDTO.builder()
+                .identificador("BAR-01").capacidad(50.0).usosMaximosAntesMantenimiento(100_001).idFabricanteBarril(1L).build();
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
+
+        // === EJECUCION Y ASERTOS ===
+        assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, barrilFormDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(fabricanteBarrilRepository);
         verify(barrilRepository, never()).save(any());
@@ -508,13 +610,13 @@ class BarrilServicioImplTest {
     @Test
     @DisplayName("CP-BB-01: bajaBarril lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaBarril_debeLanzarExcepcionYNoPersistirSiNoExiste() {
-        when(barrilRepository.findById(99L)).thenReturn(Optional.empty());
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el barril con ID: 99");
 
-        verify(barrilRepository).findById(99L);
+        verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(99L);
         verify(barrilRepository, never()).save(any());
     }
 
@@ -522,7 +624,7 @@ class BarrilServicioImplTest {
     @DisplayName("CP-BB-02: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo CON_CERVEZA")
     void bajaBarril_debeRechazarEstadoOperativoConCerveza() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.CON_CERVEZA, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -535,7 +637,7 @@ class BarrilServicioImplTest {
     @DisplayName("CP-BB-03: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo DESPACHADO")
     void bajaBarril_debeRechazarEstadoOperativoDespachado() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DESPACHADO, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -548,7 +650,7 @@ class BarrilServicioImplTest {
     @DisplayName("CP-BB-05: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo EN_LIMPIEZA")
     void bajaBarril_debeRechazarEstadoOperativoEnLimpieza() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.EN_LIMPIEZA, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -561,7 +663,7 @@ class BarrilServicioImplTest {
     @DisplayName("CP-BB-06: bajaBarril lanza ReglaNegocioException y no persiste cuando el barril está en estado operativo EN_MANTENIMIENTO")
     void bajaBarril_debeRechazarEstadoOperativoEnMantenimiento() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.EN_MANTENIMIENTO, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
 
         assertThatThrownBy(() -> barrilServicio.bajaBarril(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -574,7 +676,7 @@ class BarrilServicioImplTest {
     @DisplayName("CP-BB-04: bajaBarril marca el estado como BAJA, persiste y retorna el DTO cuando el barril está en estado operativo DISPONIBLE")
     void bajaBarril_debeMarcarBajaYRetornarBarrilExistente() {
         BarrilEntity barrilEntity = crearBarrilEntity(1L, "BAR-01", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(barrilEntity));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(barrilEntity));
         when(barrilRepository.save(barrilEntity)).thenReturn(barrilEntity);
 
         BarrilResponseDTO resultado = barrilServicio.bajaBarril(1L);
@@ -582,7 +684,7 @@ class BarrilServicioImplTest {
         // La baja es lógica: el estado pasa a BAJA y se persiste con save(), nunca con delete()
         assertThat(barrilEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertBarrilDTO(barrilEntity, resultado);
-        verify(barrilRepository).findById(1L);
+        verify(barrilRepository).buscarPorIdParaCambiarEstadoOperativo(1L);
         verify(barrilRepository).save(barrilEntity);
         verify(barrilRepository, never()).delete(any());
     }
@@ -727,7 +829,7 @@ class BarrilServicioImplTest {
         // === PREPARACION DE DATOS ===
         BarrilFormDTO formDTO = barrilFormDTO("  bar   01 ", 50.0, 1L);
         BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(existente));
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L)).thenReturn(false);
         when(barrilRepository.save(existente)).thenReturn(existente);
@@ -748,7 +850,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debeRechazarValorVacio() {
         BarrilFormDTO formDTO = barrilFormDTO("   ", 50.0, 1L);
         BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(existente));
 
         assertThatThrownBy(() -> barrilServicio.modificarBarril(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -762,7 +864,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debeDetectarDuplicadoConElValorNormalizado() {
         BarrilFormDTO formDTO = barrilFormDTO("  bar-01 ", 50.0, 1L);
         BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(existente));
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR-01", 1L, 1L)).thenReturn(true);
 
@@ -779,7 +881,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debeTraducirLaViolacionDelIndiceUnico() {
         BarrilFormDTO formDTO = barrilFormDTO("BAR 01", 50.0, 1L);
         BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(existente));
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L)).thenReturn(false);
         when(barrilRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_barril_identificador"));
@@ -794,7 +896,7 @@ class BarrilServicioImplTest {
     void modificarBarril_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
         BarrilFormDTO formDTO = barrilFormDTO("BAR 01", 50.0, 1L);
         BarrilEntity existente = crearBarrilEntity(1L, "Original", 50.0, EstadoOperativoBarril.DISPONIBLE, crearFabricanteBarrilEntity(1L));
-        when(barrilRepository.findById(1L)).thenReturn(Optional.of(existente));
+        when(barrilRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(existente));
         when(fabricanteBarrilRepository.findById(1L)).thenReturn(Optional.of(crearFabricanteBarrilEntity(1L)));
         // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
         when(barrilRepository.existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot("BAR 01", 1L, 1L)).thenReturn(false);

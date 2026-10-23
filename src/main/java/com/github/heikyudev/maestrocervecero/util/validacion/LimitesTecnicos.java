@@ -41,6 +41,9 @@ public final class LimitesTecnicos {
     /** Capacidad máxima, en litros, de un equipo (capacidad total, útil y espacio muerto). */
     public static final double CAPACIDAD_EQUIPO_MAXIMA_LITROS = 100_000.0;
 
+    /** Capacidad máxima, en litros, de un barril. */
+    public static final double CAPACIDAD_BARRIL_MAXIMA_LITROS = 1_000.0;
+
     /** Rendimiento máximo de un molino, en kilogramos por hora. */
     public static final double RENDIMIENTO_MOLINO_MAXIMO_KG_H = 10_000.0;
 

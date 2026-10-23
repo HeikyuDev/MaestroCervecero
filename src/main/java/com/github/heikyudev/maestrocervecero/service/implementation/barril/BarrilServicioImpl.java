@@ -16,6 +16,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.barril.IBarrilServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.barril.BarrilResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.barril.MapperBarril;
+import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosEquipamiento;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
@@ -91,14 +92,14 @@ public class BarrilServicioImpl implements IBarrilServicio {
      * Registra un nuevo barril en el sistema.
      * <p>
      * Normaliza el identificador (en mayúsculas, sin espacios en los extremos ni repetidos), valida que sea obligatorio y no supere los 100 caracteres,
-     * que la capacidad sea mayor a 0, que el fabricante de barril indicado exista y esté
+     * que la capacidad sea mayor a 0 y no supere {@link LimitesTecnicos#CAPACIDAD_BARRIL_MAXIMA_LITROS} litros, que los usos máximos antes de mantenimiento sean mayores a 0 y no superen {@link LimitesTecnicos#USOS_MAXIMOS_MANTENIMIENTO_MAXIMO}, que el fabricante de barril indicado exista y esté
      * activo, y que ningún otro barril activo de ese mismo fabricante tenga ya el identificador
      * indicado.
      * </p>
      *
      * @param barrilFormDTO Objeto DTO que contiene los datos de creación del barril.
      * @return {@link BarrilResponseDTO} representativo del barril guardado en la base de datos.
-     * @throws ReglaNegocioException Si el identificador falta o supera los 100 caracteres, si la capacidad es nula o menor o igual a 0, o si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
+     * @throws ReglaNegocioException Si el identificador falta o supera los 100 caracteres, si la capacidad es nula, menor o igual a 0 o supera {@link LimitesTecnicos#CAPACIDAD_BARRIL_MAXIMA_LITROS} litros, o si los usos máximos antes de mantenimiento son nulos, menores o iguales a 0 o superan {@link LimitesTecnicos#USOS_MAXIMOS_MANTENIMIENTO_MAXIMO}.
      * @throws RecursoNoEncontradoException Si no existe un fabricante de barril activo con el ID indicado.
      * @throws RecursoDuplicadoException Si otro barril activo del mismo fabricante ya tiene ese identificador.
      */
@@ -112,11 +113,11 @@ public class BarrilServicioImpl implements IBarrilServicio {
         // 2. Validar que el identificador sea obligatorio y no supere la longitud máxima
         validarIdentificador(identificador);
 
-        // 3. Validar que la capacidad sea mayor a 0
+        // 3. Validar que la capacidad sea mayor a 0 y no supere el máximo técnico
         validarCapacidad(barrilFormDTO.getCapacidad());
 
         // 4. Validar que los usos máximos antes de mantenimiento sean válidos
-        validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
 
         // 5. Validar que el fabricante de barril indicado exista y esté activo
         FabricanteBarrilEntity fabricanteBarrilEntity = fabricanteBarrilRepository.findById(barrilFormDTO.getIdFabricanteBarril())
@@ -147,7 +148,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
     /**
      * Actualiza la información de un barril existente en la base de datos.
      * <p>
-     * Localiza el barril por su ID, normaliza el identificador (en mayúsculas), valida que sea obligatorio y no supere los 100 caracteres, que la capacidad sea mayor a 0 y no sea menor al
+     * Localiza el barril por su ID bloqueándolo mientras se valida y se escribe (un envasado o despacho simultáneo no puede cambiarlo entre ambos pasos), normaliza el identificador (en mayúsculas), valida que sea obligatorio y no supere los 100 caracteres, que la capacidad sea mayor a 0 y no sea menor al
      * contenido actual del barril, que los usos máximos antes de mantenimiento sean válidos, que
      * el fabricante de barril indicado exista y esté activo (el fabricante puede reasignarse al
      * modificar), y que ningún otro barril activo de ese fabricante tenga ya el identificador
@@ -158,7 +159,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
      * @param barrilFormDTO DTO con la información actualizada.
      * @return {@link BarrilResponseDTO} representativo del barril con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza un barril activo por el ID proporcionado, o si no existe un fabricante de barril activo con el ID indicado.
-     * @throws ReglaNegocioException Si el identificador falta o supera los 100 caracteres, si la capacidad es nula o menor o igual a 0, si la capacidad es menor al contenido actual del barril, o si los usos máximos antes de mantenimiento son nulos o menores o iguales a 0.
+     * @throws ReglaNegocioException Si el identificador falta o supera los 100 caracteres, si la capacidad es nula, menor o igual a 0 o supera {@link LimitesTecnicos#CAPACIDAD_BARRIL_MAXIMA_LITROS} litros, si la capacidad es menor al contenido actual del barril, o si los usos máximos antes de mantenimiento son nulos, menores o iguales a 0 o superan {@link LimitesTecnicos#USOS_MAXIMOS_MANTENIMIENTO_MAXIMO}.
      * @throws RecursoDuplicadoException Si otro barril activo del mismo fabricante ya tiene ese identificador.
      */
     @Override
@@ -169,13 +170,13 @@ public class BarrilServicioImpl implements IBarrilServicio {
         String identificador = NormalizacionTexto.codigo(barrilFormDTO.getIdentificador());
 
         // 2. Localizar el barril existente. Si no existe, se dispara RecursoNoEncontradoException
-        BarrilEntity barrilEntity = barrilRepository.findById(id)
+        BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + id));
 
         // 3. Validar que el identificador sea obligatorio y no supere la longitud máxima
         validarIdentificador(identificador);
 
-        // 4. Validar que la capacidad sea mayor a 0
+        // 4. Validar que la capacidad sea mayor a 0 y no supere el máximo técnico
         validarCapacidad(barrilFormDTO.getCapacidad());
 
         // 5. Validar que la nueva capacidad no sea menor al contenido actual del barril: reducirla
@@ -185,7 +186,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
         }
 
         // 6. Validar que los usos máximos antes de mantenimiento sean válidos
-        validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
+        MetodosEquipamiento.validarUsosMaximosAntesMantenimiento(barrilFormDTO.getUsosMaximosAntesMantenimiento());
 
         // 7. Validar que el fabricante de barril indicado exista y esté activo
         FabricanteBarrilEntity fabricanteBarrilEntity = fabricanteBarrilRepository.findById(barrilFormDTO.getIdFabricanteBarril())
@@ -212,7 +213,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
     /**
      * Procesa la baja lógica de un barril existente en el sistema.
      * <p>
-     * En lugar de eliminar el registro, marca al barril con {@link Estado#BAJA} y persiste el
+     * Localiza el barril bloqueándolo mientras se valida y se escribe, de modo que un envasado o despacho simultáneo no cambie su estado operativo entre ambos pasos. En lugar de eliminar el registro, marca al barril con {@link Estado#BAJA} y persiste el
      * cambio. Solo se puede dar de baja un barril disponible: uno con cerveza, despachado, en
      * limpieza o en mantenimiento todavía forma parte de un ciclo de vida en curso, por eso se
      * valida esa condición antes de aplicar la baja.
@@ -228,7 +229,7 @@ public class BarrilServicioImpl implements IBarrilServicio {
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.BARRIL)
     public BarrilResponseDTO bajaBarril(Long id) {
         // 1. Buscamos el barril. Si no existe, se dispara RecursoNoEncontradoException
-        BarrilEntity barrilEntity = barrilRepository.findById(id)
+        BarrilEntity barrilEntity = barrilRepository.buscarPorIdParaCambiarEstadoOperativo(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el barril con ID: " + id));
 
         // 2. Validar que el barril se encuentre DISPONIBLE
@@ -244,33 +245,17 @@ public class BarrilServicioImpl implements IBarrilServicio {
     }
 
     /**
-     * Valida que la capacidad sea mayor a 0.
+     * Valida que la capacidad sea un número mayor a 0 que no supere {@link LimitesTecnicos#CAPACIDAD_BARRIL_MAXIMA_LITROS} litros.
      *
      * @param capacidad Capacidad a validar.
-     * @throws ReglaNegocioException Si la capacidad es nula o menor o igual a 0.
+     * @throws ReglaNegocioException Si la capacidad es nula, no es un número mayor a 0 o supera el máximo.
      */
     private static void validarCapacidad(Double capacidad) {
         if (capacidad == null) {
             throw new ReglaNegocioException("La capacidad es obligatoria");
         }
-        if (capacidad <= 0) {
-            throw new ReglaNegocioException("La capacidad debe ser mayor a 0");
-        }
-    }
-
-    /**
-     * Valida que los usos máximos antes de mantenimiento sean mayores a 0.
-     *
-     * @param usosMaximosAntesMantenimiento Valor a validar.
-     * @throws ReglaNegocioException Si es nulo o menor o igual a 0.
-     */
-    private static void validarUsosMaximosAntesMantenimiento(Integer usosMaximosAntesMantenimiento) {
-        if (usosMaximosAntesMantenimiento == null) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento son obligatorios");
-        }
-        if (usosMaximosAntesMantenimiento <= 0) {
-            throw new ReglaNegocioException("Los usos máximos antes de mantenimiento deben ser mayores a 0");
-        }
+        ValidacionesNumericas.validarMayorACeroConMaximo(capacidad,
+                LimitesTecnicos.CAPACIDAD_BARRIL_MAXIMA_LITROS, "La capacidad", "litros");
     }
 
     /**

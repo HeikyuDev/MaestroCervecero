@@ -45,7 +45,7 @@ public interface IBarrilServicio {
     BarrilResponseDTO altaBarril(BarrilFormDTO barrilFormDTO);
 
     /**
-     * Modifica un barril existente.
+     * Modifica un barril existente. El barril queda bloqueado mientras se valida y se escribe.
      *
      * @param id             ID del barril a modificar.
      * @param barrilFormDTO  Datos del barril a modificar.
@@ -56,7 +56,7 @@ public interface IBarrilServicio {
     /**
      * Da de baja un barril existente.
      * <p>
-     * La baja solo procede si el barril se encuentra en estado operativo {@code DISPONIBLE}.
+     * El barril queda bloqueado mientras se valida y se escribe. La baja solo procede si el barril se encuentra en estado operativo {@code DISPONIBLE}.
      * </p>
      *
      * @param id ID del barril a dar de baja.
