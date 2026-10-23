@@ -10,6 +10,7 @@
     agrega /js/receta-form.js usan el mismo formato.
     usoLupulo(valor): nombre legible del uso de un lúpulo (Hervor, Whirlpool, Dry hop).
     tipoMalta(valor), formatoLupulo(valor), tipoLevadura(valor): nombre legible de cada enum de insumo.
+    unidadDeMedida(valor): nombre legible de una unidad de medida con su símbolo ("Kilogramo (kg)").
 -->
 <th:block th:fragment="etapa(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'MOLIENDA'">Molienda</th:block><th:block th:case="'MACERACION'">Maceración</th:block><th:block th:case="'HERVIDO'">Hervido</th:block><th:block th:case="'FERMENTACION'">Fermentación</th:block><th:block th:case="'MADURACION'">Maduración</th:block><th:block th:case="'ENVASADO'">Envasado</th:block></th:block>
 
@@ -27,5 +28,7 @@
 <th:block th:fragment="formatoLupulo(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'PELLET'">Pellet</th:block><th:block th:case="'FLOR'">Flor</th:block></th:block>
 
 <th:block th:fragment="tipoLevadura(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'ALE'">Ale</th:block><th:block th:case="'HIBRIDA'">Híbrida</th:block><th:block th:case="'LAGER'">Lager</th:block></th:block>
+
+<th:block th:fragment="unidadDeMedida(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'GRAMO'">Gramo (g)</th:block><th:block th:case="'KILOGRAMO'">Kilogramo (kg)</th:block><th:block th:case="'TONELADA'">Tonelada (t)</th:block></th:block>
 
 </html>

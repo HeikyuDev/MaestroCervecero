@@ -87,10 +87,10 @@
         </th:block>
 
         <!--
-            ADMINISTRACIÓN: los datos que se definen una vez (insumos, equipamiento, recetas, ubicaciones, usuarios) y alimentan
-            al resto del sistema. Va debajo de la operación diaria.
+            ADMINISTRACIÓN: los datos que se definen una vez (insumos, equipamiento, recetas, presentaciones comerciales,
+            ubicaciones, usuarios) y alimentan al resto del sistema. Va debajo de la operación diaria.
         -->
-        <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'ADMINISTRADOR')">
+        <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS', 'ADMINISTRADOR')">
             <p th:replace="~{fragments/sidebar ::seccion('Administración')}"></p>
 
             <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción) -->
@@ -111,6 +111,11 @@
             <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamiento')}"></a>
+            </th:block>
+
+            <!-- GESTIÓN DE PRESENTACIONES: presentaciones comerciales de los insumos (Gerente de Compras) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
+                <a th:replace="~{fragments/sidebar ::enlace('/presentaciones-comerciales', ${opcionActiva}, 'presentaciones-comerciales', 'bi-box', 'Gestión de Presentaciones')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE UBICACIONES: países, provincias y localidades en pestañas (Administrador) -->
