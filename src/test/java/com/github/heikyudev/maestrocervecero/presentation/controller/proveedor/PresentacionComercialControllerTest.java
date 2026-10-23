@@ -92,7 +92,7 @@ class PresentacionComercialControllerTest {
                 .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Cantidad</th>")))
                 .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Unidad</th>")))
                 .andExpect(content().string(containsString(">25<")))
-                .andExpect(content().string(containsString(">Kilogramo (kg)<")))
+                .andExpect(content().string(containsString(">kg<")))
                 .andExpect(content().string(containsString("href=\"/presentaciones-comerciales/nuevo\"")))
                 .andExpect(content().string(containsString("Nueva presentación")))
                 .andExpect(content().string(containsString("href=\"/presentaciones-comerciales/3/editar\"")))
@@ -233,7 +233,7 @@ class PresentacionComercialControllerTest {
                 .andExpect(content().string(containsString(">25<")))
                 .andExpect(content().string(not(containsString("25.0"))))
                 .andExpect(content().string(containsString(">2,5<")))
-                .andExpect(content().string(containsString(">Gramo (g)<")));
+                .andExpect(content().string(containsString(">g<")));
     }
 
     @ParameterizedTest

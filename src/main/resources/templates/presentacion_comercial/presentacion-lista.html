@@ -67,7 +67,7 @@
                     <span class="inline-block max-w-[24rem] truncate align-bottom font-medium text-slate-900" tabindex="0" th:data-tooltip="${x.nombre}" th:text="${x.nombre}">Bolsa de 25 Kg</span>
                 </td>
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.cantidad})}"></th:block></td>
-                <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: unidadDeMedida(${x.unidadDeMedida})}"></th:block></td>
+                <td class="px-4 py-3 text-slate-700" th:text="${x.unidadDeMedida.simbolo}">kg</td>
                 <td class="px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
                         <a th:href="@{/presentaciones-comerciales/{id}/editar(id=${x.id})}" title="Editar presentación" aria-label="Editar presentación"
