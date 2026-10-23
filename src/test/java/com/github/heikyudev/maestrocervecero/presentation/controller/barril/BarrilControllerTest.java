@@ -399,6 +399,23 @@ class BarrilControllerTest {
         verify(fabricanteBarrilServicio, never()).filtrarFabricantesBarril(any(), any());
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-BCT-45: un fabricante con un nombre muy largo y sin espacios no desborda el buscador y conserva el botón \"Elegir\"")
+    void caso_cp_bct_45() throws Exception {
+        // Arrange
+        String nombreLargo = "A".repeat(100);
+        when(fabricanteBarrilServicio.filtrarFabricantesBarril(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(fabricante(2L, nombreLargo)), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(BUSCADOR_FABRICANTES))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<table class=\"tabla-buscador\">")))
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"px-4 py-3 font-medium text-slate-900\"\\s*>" + nombreLargo + "</td>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-elegir[^>]*data-id=\"2\"[^>]*data-texto=\"" + nombreLargo + "\".*>Elegir</button>.*")));
+    }
+
     // ==================== GET /barriles/nuevo ====================
 
     @Test
@@ -416,8 +433,10 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: B-001\"")))
                 .andExpect(content().string(containsString("Capacidad (L)")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 50\"")))
+                .andExpect(content().string(containsString("Un número mayor a 0 y hasta 1.000.</p>")))
                 .andExpect(content().string(containsString("Usos antes de mantenimiento")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 100\"")))
+                .andExpect(content().string(containsString("Un número entero mayor a 0 y hasta 100.000. Al llegar a esa cantidad de usos se requiere mantenimiento.</p>")))
                 .andExpect(content().string(containsString("Fabricante")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccione fabricante\"")))
                 .andExpect(content().string(containsString("data-buscador-url=\"" + BUSCADOR_FABRICANTES + "\"")))

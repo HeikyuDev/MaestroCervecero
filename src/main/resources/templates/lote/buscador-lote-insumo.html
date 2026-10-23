@@ -45,7 +45,7 @@
         </form>
 
         <div class="border-t border-slate-100">
-            <table class="w-full text-sm text-left">
+            <table class="tabla-buscador">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
                     <th class="px-3 py-3 whitespace-nowrap">Lote</th>
@@ -57,7 +57,7 @@
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="f : ${filas.content}" th:with="l=${f.lote}" class="hover:bg-slate-50"
                     th:classappend="${l.vencido} ? 'bg-amber-50/40'">
-                    <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.identificacionLoteProveedor}">L-125</td>
+                    <td class="px-3 py-3 font-medium text-slate-900" th:text="${l.identificacionLoteProveedor}">L-125</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
                         <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaVencimiento})}"></th:block>
                         <span th:if="${l.vencido}" class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700">Vencido</span>

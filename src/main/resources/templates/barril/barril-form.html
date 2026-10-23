@@ -51,7 +51,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('capacidad')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('capacidad')}" th:errors="*{capacidad}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('capacidad')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0.</p>
+                    <p th:unless="${#fields.hasErrors('capacidad')}" class="mt-1 text-xs text-slate-400">Un número mayor a 0 y hasta 1.000.</p>
                 </div>
 
                 <div>
@@ -60,7 +60,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('usosMaximosAntesMantenimiento')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('usosMaximosAntesMantenimiento')}" th:errors="*{usosMaximosAntesMantenimiento}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('usosMaximosAntesMantenimiento')}" class="mt-1 text-xs text-slate-400">Un número entero mayor a 0. Al llegar a esa cantidad de usos se requiere mantenimiento.</p>
+                    <p th:unless="${#fields.hasErrors('usosMaximosAntesMantenimiento')}" class="mt-1 text-xs text-slate-400">Un número entero mayor a 0 y hasta 100.000. Al llegar a esa cantidad de usos se requiere mantenimiento.</p>
                 </div>
             </div>
         </section>

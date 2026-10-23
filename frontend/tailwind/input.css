@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Tabla de resultados de todo buscador modal (archivos buscador-*.html de templates).
+ * Un texto largo sin espacios se parte en cualquier punto en lugar de ensanchar la fila, y el botón
+ * "Elegir" nunca se achica ni se parte, de modo que siempre queda a la vista dentro del modal.
+ */
+@layer components {
+  .tabla-buscador {
+    @apply w-full text-sm text-left;
+    overflow-wrap: anywhere;
+  }
+
+  .tabla-buscador [data-elegir] {
+    @apply shrink-0 whitespace-nowrap;
+  }
+}

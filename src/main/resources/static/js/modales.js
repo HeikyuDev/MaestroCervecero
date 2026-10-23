@@ -41,7 +41,7 @@
 (function () {
     'use strict';
 
-    var CLASES_MODAL = 'm-auto w-full max-w-2xl rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50';
+    var CLASES_MODAL = 'm-auto w-full max-w-2xl overflow-x-hidden rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50';
     var PARAM_DESDE_ALTA = 'desdeAlta';
     var PREFIJO_BORRADOR = 'borrador:';
 

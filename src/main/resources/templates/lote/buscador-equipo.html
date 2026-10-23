@@ -50,7 +50,7 @@
     </form>
 
     <div class="border-t border-slate-100">
-        <table class="w-full text-sm text-left">
+        <table class="tabla-buscador">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
                 <th class="px-3 py-3 whitespace-nowrap">Identificador</th>
@@ -61,7 +61,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="f : ${filas.content}" class="hover:bg-slate-50">
-                <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${f.identificador}">M-01</td>
+                <td class="px-3 py-3 font-medium text-slate-900" th:text="${f.identificador}">M-01</td>
                 <td class="px-3 py-3 whitespace-nowrap"><span th:replace="~{equipamiento/estado :: badge(${f.estadoOperativo})}"></span></td>
                 <td th:each="valor : ${f.valores}" class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${valor})}"></th:block></td>
                 <td class="px-3 py-3 text-right">
