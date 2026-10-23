@@ -339,11 +339,10 @@ class OllaHervorControllerTest {
                 .andExpect(view().name("equipamiento/olla-form"))
                 .andExpect(content().string(containsString("Editar olla de hervor")))
                 .andExpect(content().string(containsString("value=\"OLLA-01\"")))
-                .andExpect(content().string(containsString("value=\"100.0\"")))
-                .andExpect(content().string(containsString("value=\"80.0\"")))
-                .andExpect(content().string(containsString("value=\"8.0\"")))
-                .andExpect(content().string(containsString("value=\"3.0\"")))
-                .andExpect(content().string(containsString("value=\"50\"")))
+                .andExpect(content().string(containsString("value=\"100\"")))
+                .andExpect(content().string(containsString("value=\"80\"")))
+                .andExpect(content().string(containsString("value=\"8\"")))
+                .andExpect(content().string(containsString("value=\"3\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/ollas-hervor/4\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
     }

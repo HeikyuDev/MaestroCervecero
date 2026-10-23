@@ -53,7 +53,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-MOC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `MOL-01` con su descripción y datos técnicos | Molino existe | Responde 200 con la vista `equipamiento/molino-form`: título "Editar molino", los datos actuales (identificador, descripción y datos técnicos), `action="/equipamiento/molinos/4"` y el botón "Guardar cambios". |
+| **CP-MOC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `MOL-01` con su descripción y datos técnicos | Molino existe | Responde 200 con la vista `equipamiento/molino-form`: título "Editar molino", los datos actuales (identificador, descripción y datos técnicos; el rendimiento de molienda sin ceros sobrantes: `150`), `action="/equipamiento/molinos/4"` y el botón "Guardar cambios". |
 
 ---
 

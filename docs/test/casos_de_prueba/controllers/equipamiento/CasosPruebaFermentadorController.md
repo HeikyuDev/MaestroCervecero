@@ -46,6 +46,7 @@
 | **CP-FEC-13** | Una regla de negocio rechazada por el service se muestra como error general del formulario | El service lanza `ReglaNegocioException("Regla incumplida")` (ej. capacidad útil mayor a la total) | El service rechaza los datos | Vuelve al formulario y muestra el mensaje en el panel de errores, conservando lo tipeado. |
 | **CP-FEC-14** | El alta contextual vuelve al formulario de origen con el equipamiento creado en el campo indicado | Datos válidos, `retorno: "/lotes/nuevo"`, `campo: "idEquipamiento"`. El service devuelve el equipo (`id: 9`) | El alta se abrió desde otro formulario | Redirige a `/lotes/nuevo?desdeAlta=1&idEquipamiento=9` con la alerta "Fermentador creado correctamente". |
 | **CP-FEC-15** | Un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-FEC-24** | Al volver con errores los números válidos se muestran con punto y sin ceros sobrantes y un texto inválido deja el campo vacío con su error | `identificadorInterno: "FER-01"`, `capacidadTotal: "12.5"`, `capacidadUtil: "abc"`, `usosMaximosAntesMantenimiento: 50` | `capacidadUtil` no es un número | El formulario se vuelve a mostrar con `capacidadTotal` en `12.5`, y `capacidadUtil` vacío y resaltado como error. No invoca al service. |
 
 ---
 
@@ -53,7 +54,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-FEC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `FER-01` con su descripción y datos técnicos | Fermentador existe | Responde 200 con la vista `equipamiento/fermentador-form`: título "Editar fermentador", los datos actuales (identificador, descripción y datos técnicos), `action="/equipamiento/fermentadores/4"` y el botón "Guardar cambios". |
+| **CP-FEC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `FER-01` con su descripción y datos técnicos | Fermentador existe | Responde 200 con la vista `equipamiento/fermentador-form`: título "Editar fermentador", los datos actuales (identificador, descripción y datos técnicos; los números sin ceros sobrantes: capacidad total `100` y capacidad útil `80`), `action="/equipamiento/fermentadores/4"` y el botón "Guardar cambios". |
 
 ---
 

@@ -53,7 +53,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-OHC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `OLLA-01` con su descripción y datos técnicos | Olla de hervor existe | Responde 200 con la vista `equipamiento/olla-form`: título "Editar olla de hervor", los datos actuales (identificador, descripción y datos técnicos), `action="/equipamiento/ollas-hervor/4"` y el botón "Guardar cambios". |
+| **CP-OHC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `OLLA-01` con su descripción y datos técnicos | Olla de hervor existe | Responde 200 con la vista `equipamiento/olla-form`: título "Editar olla de hervor", los datos actuales (identificador, descripción y datos técnicos; los números sin ceros sobrantes: `100`, `80`, `8` y `3`), `action="/equipamiento/ollas-hervor/4"` y el botón "Guardar cambios". |
 
 ---
 

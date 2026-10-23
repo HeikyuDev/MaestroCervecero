@@ -553,7 +553,8 @@ class BarrilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*name=\"idFabricanteBarril\"[^>]*value=\"2\".*")))
                 .andExpect(content().string(containsString("value=\"Barrilitos SA\"")))
-                .andExpect(content().string(containsString("value=\"50.0\"")));
+                .andExpect(content().string(containsString("value=\"50\"")))
+                .andExpect(content().string(not(containsString("value=\"50.0\""))));
     }
 
     @Test
@@ -635,7 +636,8 @@ class BarrilControllerTest {
                 .andExpect(view().name("barril/barril-form"))
                 .andExpect(content().string(containsString("Editar barril")))
                 .andExpect(content().string(containsString("value=\"B-001\"")))
-                .andExpect(content().string(containsString("value=\"50.0\"")))
+                .andExpect(content().string(containsString("value=\"50\"")))
+                .andExpect(content().string(not(containsString("value=\"50.0\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"idFabricanteBarril\"[^>]*value=\"2\".*")))
                 .andExpect(content().string(containsString("value=\"Barrilitos SA\"")))
@@ -849,6 +851,27 @@ class BarrilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("href=\"/barriles\""))))
                 .andExpect(content().string(not(containsString("Gestión de Barriles"))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-BCT-46: al volver con errores la capacidad decimal se muestra con punto y un texto inválido deja el campo vacío con su error")
+    void caso_cp_bct_46() throws Exception {
+        // Arrange
+        when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
+
+        // Act + Assert
+        LinkedMultiValueMap<String, String> sinIdentificador = datosCon("capacidad", "4.5");
+        sinIdentificador.set("identificador", "");
+        mockMvc.perform(post("/barriles").with(csrf()).params(sinIdentificador))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"4.5\"")));
+
+        mockMvc.perform(post("/barriles").with(csrf()).params(datosCon("capacidad", "abc")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*id=\"capacidad\"[^>]*border-rose-400[^>]*value=\"\".*")));
+
+        verify(barrilServicio, never()).altaBarril(any());
     }
 
     // ==================== Datos de prueba ====================

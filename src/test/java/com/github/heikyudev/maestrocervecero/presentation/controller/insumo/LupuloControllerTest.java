@@ -252,7 +252,7 @@ class LupuloControllerTest {
                         .param("nombre", "Cascade").param("formato", "PELLET").param("aa", "233333"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Los ácidos alfa deben ser mayores a 0% y menores o iguales a 25%")))
-                .andExpect(content().string(containsString("value=\"233333.0\"")));
+                .andExpect(content().string(containsString("value=\"233333\"")));
     }
 
     @Test

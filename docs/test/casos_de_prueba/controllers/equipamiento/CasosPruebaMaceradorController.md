@@ -53,7 +53,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-MCC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `MAC-01` con su descripción y datos técnicos | Macerador existe | Responde 200 con la vista `equipamiento/macerador-form`: título "Editar macerador", los datos actuales (identificador, descripción y datos técnicos), `action="/equipamiento/maceradores/4"` y el botón "Guardar cambios". |
+| **CP-MCC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `MAC-01` con su descripción y datos técnicos | Macerador existe | Responde 200 con la vista `equipamiento/macerador-form`: título "Editar macerador", los datos actuales (identificador, descripción y datos técnicos; los números sin ceros sobrantes: `100`, `80`, `2` y `75`), `action="/equipamiento/maceradores/4"` y el botón "Guardar cambios". |
 
 ---
 

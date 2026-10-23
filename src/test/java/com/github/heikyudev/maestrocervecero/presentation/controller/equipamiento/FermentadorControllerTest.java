@@ -321,9 +321,8 @@ class FermentadorControllerTest {
                 .andExpect(view().name("equipamiento/fermentador-form"))
                 .andExpect(content().string(containsString("Editar fermentador")))
                 .andExpect(content().string(containsString("value=\"FER-01\"")))
-                .andExpect(content().string(containsString("value=\"100.0\"")))
-                .andExpect(content().string(containsString("value=\"80.0\"")))
-                .andExpect(content().string(containsString("value=\"50\"")))
+                .andExpect(content().string(containsString("value=\"100\"")))
+                .andExpect(content().string(containsString("value=\"80\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/fermentadores/4\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
     }
@@ -428,6 +427,22 @@ class FermentadorControllerTest {
                 .andExpect(flash().attribute("tipo", "danger"));
 
         verify(fermentadorServicio, never()).bajaFermentador(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-FEC-24: al volver con errores los números válidos se muestran con punto y sin ceros sobrantes y un texto inválido deja el campo vacío con su error")
+    void caso_cp_fec_24() throws Exception {
+        mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
+                        .param("identificadorInterno", "FER-01")
+                        .param("capacidadTotal", "12.5")
+                        .param("capacidadUtil", "abc")
+                        .param("usosMaximosAntesMantenimiento", "50"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"12.5\"")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"capacidadUtil\"[^>]*border-rose-400[^>]*value=\"\".*")));
+
+        verify(fermentadorServicio, never()).altaFermentador(any());
     }
 
     private static FermentadorResponseDTO equipo(Long id, String identificadorInterno, EstadoOperativo estadoOperativo) {

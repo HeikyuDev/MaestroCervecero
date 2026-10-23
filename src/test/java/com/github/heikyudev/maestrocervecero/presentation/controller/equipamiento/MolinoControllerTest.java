@@ -312,8 +312,7 @@ class MolinoControllerTest {
                 .andExpect(view().name("equipamiento/molino-form"))
                 .andExpect(content().string(containsString("Editar molino")))
                 .andExpect(content().string(containsString("value=\"MOL-01\"")))
-                .andExpect(content().string(containsString("value=\"150.0\"")))
-                .andExpect(content().string(containsString("value=\"50\"")))
+                .andExpect(content().string(containsString("value=\"150\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/molinos/4\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
     }

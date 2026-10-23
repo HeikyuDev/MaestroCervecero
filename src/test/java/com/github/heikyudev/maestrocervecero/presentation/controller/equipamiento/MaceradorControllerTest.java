@@ -339,11 +339,10 @@ class MaceradorControllerTest {
                 .andExpect(view().name("equipamiento/macerador-form"))
                 .andExpect(content().string(containsString("Editar macerador")))
                 .andExpect(content().string(containsString("value=\"MAC-01\"")))
-                .andExpect(content().string(containsString("value=\"100.0\"")))
-                .andExpect(content().string(containsString("value=\"80.0\"")))
-                .andExpect(content().string(containsString("value=\"2.0\"")))
-                .andExpect(content().string(containsString("value=\"75.0\"")))
-                .andExpect(content().string(containsString("value=\"50\"")))
+                .andExpect(content().string(containsString("value=\"100\"")))
+                .andExpect(content().string(containsString("value=\"80\"")))
+                .andExpect(content().string(containsString("value=\"2\"")))
+                .andExpect(content().string(containsString("value=\"75\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/maceradores/4\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
     }
