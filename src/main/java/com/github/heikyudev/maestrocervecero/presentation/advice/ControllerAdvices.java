@@ -22,13 +22,16 @@ import org.springframework.web.servlet.view.RedirectView;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Manejo global de excepciones para controladores MVC ({@link Controller}).
  * <p>
  * Cada handler traduce la excepción en un par {@code mensaje}/{@code tipo} vía Flash
  * Attributes -el mismo contrato que ya consume {@code login.html}- y redirige de vuelta
- * al origen de la petición (header {@code Referer}) solo si es del mismo sitio, con un fallback a la raíz. Un buscador en modal no
+ * al origen de la petición (header {@code Referer}) solo si es del mismo sitio, con un fallback a la raíz. Si el origen es
+ * la misma página que falló al pedirse, vuelve a su ruta padre para no repetir el rechazo sin fin. Un buscador en modal no
  * puede redirigir: responde con el estado HTTP del rechazo y el motivo como texto.
  * </p>
  */
@@ -40,6 +43,7 @@ public class ControllerAdvices {
     private static final String MENSAJE_VALOR_INVALIDO = "El valor indicado no es válido";
     private static final String MENSAJE_CONFLICTO_DE_DATOS =
             "No se pudo guardar porque los datos entran en conflicto con otro registro. Revise la información e intente nuevamente";
+    private static final Pattern SUFIJO_DE_REGISTRO = Pattern.compile("^(.*)/\\d+(?:/editar)?/?$");
 
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public Object handleRecursoNoEncontrado(RecursoNoEncontradoException ex,
@@ -152,14 +156,45 @@ public class ControllerAdvices {
     }
 
     /**
-     * Vuelve al origen del pedido. La vista no expande llaves como variables de plantilla: una ruta con llaves en la
-     * cabecera {@code Referer} se redirige tal cual, sin evaluarse.
+     * Vuelve al origen del pedido. Si el origen es la misma página que se pidió con GET (por ejemplo, la pantalla de
+     * edición de un registro que otro usuario dio de baja), redirigir a él repetiría el mismo rechazo sin fin: en ese
+     * caso se vuelve a la ruta padre, la que resulta de quitar el sufijo {@code /{id}/editar} o {@code /{id}}, y a la
+     * raíz si la ruta no termina en un identificador. La vista no expande llaves como variables de plantilla: una ruta
+     * con llaves en la cabecera {@code Referer} se redirige tal cual, sin evaluarse.
      */
     private static RedirectView volverAlOrigen(HttpServletRequest request) {
         String ruta = resolverRutaRelativaDelReferer(request);
+        if (ruta != null && esLaMismaPaginaPedida(request, ruta)) {
+            ruta = rutaPadre(request.getRequestURI());
+        }
         RedirectView vista = new RedirectView(ruta == null ? "/" : ruta, ruta == null);
         vista.setExpandUriTemplateVariables(false);
         return vista;
+    }
+
+    /**
+     * Un GET cuyo destino de vuelta es él mismo (ruta y consulta) volvería a fallar igual al seguir la redirección.
+     * Un POST no: la redirección lo convierte en un GET, que es otra petición.
+     */
+    private static boolean esLaMismaPaginaPedida(HttpServletRequest request, String ruta) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String consulta = request.getQueryString();
+        String rutaPedida = consulta == null ? request.getRequestURI() : request.getRequestURI() + "?" + consulta;
+        return ruta.equals(rutaPedida);
+    }
+
+    /**
+     * Quita de la ruta el sufijo {@code /{id}/editar} o {@code /{id}} (con un identificador numérico). Devuelve
+     * {@code null} si la ruta no termina en un identificador o si no queda una ruta padre.
+     */
+    static String rutaPadre(String ruta) {
+        Matcher coincidencia = SUFIJO_DE_REGISTRO.matcher(ruta);
+        if (!coincidencia.matches() || coincidencia.group(1).isEmpty()) {
+            return null;
+        }
+        return coincidencia.group(1);
     }
 
     /**

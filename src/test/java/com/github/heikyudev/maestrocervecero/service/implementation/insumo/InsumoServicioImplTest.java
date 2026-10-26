@@ -7,7 +7,9 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoMalta
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,8 +22,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -136,6 +140,35 @@ class InsumoServicioImplTest {
 
         // === ASSERTS ===
         verify(insumoRepository).filtrarInsumos(null, null, pageable);
+    }
+
+    // ==================== buscarPorId ====================
+
+    @Test
+    @DisplayName("CP-FI-07: buscarPorId retorna el insumo activo en su DTO concreto, cualquiera sea su tipo")
+    void buscarPorId_debeRetornarElInsumoEnSuDTOConcreto() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity maltaEntity = crearMaltaEntity(1L, "Pilsen");
+        when(insumoRepository.findById(1L)).thenReturn(Optional.of(maltaEntity));
+
+        // === EJECUCION ===
+        InsumoResponseDTO resultado = insumoServicio.buscarPorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).isInstanceOf(MaltaResponseDTO.class);
+        assertInsumoDTO(maltaEntity, resultado);
+    }
+
+    @Test
+    @DisplayName("CP-FI-08: buscarPorId lanza RecursoNoEncontradoException cuando no existe un insumo activo con ese ID")
+    void buscarPorId_debeLanzarExcepcionCuandoNoExiste() {
+        // === PREPARACION DE DATOS ===
+        when(insumoRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> insumoServicio.buscarPorId(99L))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el insumo con ID: 99");
     }
 
     // ==================== helpers ====================

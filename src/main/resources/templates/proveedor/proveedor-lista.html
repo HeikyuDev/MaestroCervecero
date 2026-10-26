@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#proveedor-lista-content}, 'proveedores')}">
+<body>
+
+<div id="proveedor-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Proveedores</h1>
+            <p class="text-sm text-slate-500">Proveedores y su catálogo de insumos, en orden alfabético por razón social.</p>
+        </div>
+        <a th:href="@{/proveedores/nuevo}"
+           class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+            <i class="bi bi-plus-lg"></i> Nuevo proveedor
+        </a>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/proveedores}" method="get"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div>
+            <label for="razonSocial" class="block text-xs font-medium text-slate-500 mb-1">Razón social</label>
+            <input type="text" id="razonSocial" name="razonSocial" th:value="${filtroRazonSocial}" autocomplete="off" placeholder="Ej: Malterías del Sur S.A."
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="nombreComercial" class="block text-xs font-medium text-slate-500 mb-1">Nombre comercial</label>
+            <input type="text" id="nombreComercial" name="nombreComercial" th:value="${filtroNombreComercial}" autocomplete="off" placeholder="Ej: Malterías del Sur"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="cuit" class="block text-xs font-medium text-slate-500 mb-1">CUIT</label>
+            <input type="text" id="cuit" name="cuit" th:value="${filtroCuit}" autocomplete="off" placeholder="Ej: 30-71234567-8"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Localidad</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idLocalidad', ${filtroIdLocalidad}, ${filtroLocalidadTexto},
+                    @{/ubicaciones/localidades/buscador}, null, null, true, false, 'Seleccione localidad')}"></div>
+        </div>
+        <div class="md:col-span-2 flex items-center justify-end gap-3">
+            <a th:href="@{/proveedores}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-4 py-3">Razón social</th>
+                <th class="px-4 py-3">Nombre comercial</th>
+                <th class="px-4 py-3">CUIT</th>
+                <th class="px-4 py-3">Localidad</th>
+                <th class="px-4 py-3">Teléfono</th>
+                <th class="px-4 py-3">Ítems del catálogo</th>
+                <th class="px-4 py-3 text-right">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="x : ${proveedores.content}" class="hover:bg-slate-50">
+                <td class="px-4 py-3">
+                    <span class="inline-block max-w-[16rem] truncate align-bottom font-medium text-slate-900" tabindex="0" th:data-tooltip="${x.version.razonSocial}" th:text="${x.version.razonSocial}">Malterías del Sur S.A.</span>
+                </td>
+                <td class="px-4 py-3 text-slate-700">
+                    <span class="inline-block max-w-[16rem] truncate align-bottom" tabindex="0" th:data-tooltip="${x.version.nombreComercial}" th:text="${x.version.nombreComercial}">Malterías del Sur</span>
+                </td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(x.version.cuit)}">30-71234567-8</td>
+                <td class="px-4 py-3 text-slate-700">
+                    <span class="inline-block max-w-[16rem] truncate align-bottom" tabindex="0"
+                          th:with="localidad=${x.version.localidad != null} ? ${x.version.localidad.nombre} : '-'"
+                          th:data-tooltip="${localidad}" th:text="${localidad}">Río Cuarto</span>
+                </td>
+                <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${x.version.telefono != null and !#strings.isEmpty(x.version.telefono)} ? ${x.version.telefono} : '-'">3584123456</td>
+                <td class="px-4 py-3 text-slate-700" th:text="${x.version.catalogoProveedor != null} ? ${#lists.size(x.version.catalogoProveedor)} : 0">3</td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center justify-end gap-1">
+                        <a th:href="@{/proveedores/{id}/editar(id=${x.id})}" title="Editar proveedor" aria-label="Editar proveedor"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-pencil-square text-lg"></i>
+                        </a>
+                        <button type="button" title="Dar de baja proveedor" aria-label="Dar de baja proveedor"
+                                th:data-baja-url="@{/proveedores/{id}/baja(id=${x.id})}"
+                                th:data-baja-nombre="${x.version.razonSocial}"
+                                class="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                            <i class="bi bi-trash text-lg"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${proveedores.empty}">
+                <td colspan="7" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-truck text-3xl block mb-2"></i>
+                    No se encontraron proveedores con los criterios indicados
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${proveedores}, 'proveedor|proveedores',
+                ${proveedores.hasPrevious()} ? @{/proveedores(pagina=${proveedores.number - 1}, razonSocial=${filtroRazonSocial}, nombreComercial=${filtroNombreComercial}, cuit=${filtroCuit}, idLocalidad=${filtroIdLocalidad})} : null,
+                ${proveedores.hasNext()} ? @{/proveedores(pagina=${proveedores.number + 1}, razonSocial=${filtroRazonSocial}, nombreComercial=${filtroNombreComercial}, cuit=${filtroCuit}, idLocalidad=${filtroIdLocalidad})} : null,
+                false)}"></div>
+    </div>
+
+    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja proveedor', 'Si tiene una orden de compra pendiente, el sistema no lo permitirá.')}"></div>
+</div>
+
+</body>
+</html>

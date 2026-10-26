@@ -12,10 +12,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
@@ -139,8 +141,88 @@ class ControllerAdvicesTest {
                 .andExpect(status().is3xxRedirection());
     }
 
+    @Test
+    @DisplayName("CP-CA-10: un GET a una pantalla de edición de un registro inexistente cuyo Referer es la misma pantalla redirige a la lista padre, no a sí mismo")
+    void recursoInexistenteConRefererIgualALaPantallaDeEdicion_debeRedirigirALaListaPadre() throws Exception {
+        // Arrange
+        String[][] casos = {
+                {"/proveedores/5/editar", "/proveedores"},
+                {"/equipamiento/fermentadores/3/editar", "/equipamiento/fermentadores"}};
+
+        for (String[] caso : casos) {
+            // Act + Assert
+            mockMvc.perform(get(caso[0]).header("Referer", "http://localhost" + caso[0]))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl(caso[1]))
+                    .andExpect(flash().attribute("mensaje", "No se encontró el registro con ID: 5"))
+                    .andExpect(flash().attribute("tipo", "danger"));
+        }
+    }
+
+    @Test
+    @DisplayName("CP-CA-11: un GET a la pantalla de detalle de un registro inexistente cuyo Referer es la misma pantalla redirige a la lista padre")
+    void recursoInexistenteConRefererIgualAlDetalle_debeRedirigirALaListaPadre() throws Exception {
+        // Act + Assert
+        mockMvc.perform(get("/recetas/7").header("Referer", "/recetas/7"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/recetas"))
+                .andExpect(flash().attribute("mensaje", "No se encontró el registro con ID: 5"))
+                .andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    @Test
+    @DisplayName("CP-CA-12: un GET cuyo Referer es la misma ruta sin un identificador al final redirige a la raíz del sitio")
+    void rechazoConRefererIgualSinPadre_debeRedirigirALaRaiz() throws Exception {
+        // Act + Assert
+        mockMvc.perform(get("/tablero").header("Referer", "http://localhost/tablero"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("mensaje", "No se encontró el registro con ID: 5"));
+        mockMvc.perform(get("/listado?pagina=abc").header("Referer", "http://localhost/listado?pagina=abc"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("tipo", "warning"));
+    }
+
+    @Test
+    @DisplayName("CP-CA-13: con un Referer distinto de la petición se sigue volviendo al origen, también en un POST cuyo Referer es su misma ruta")
+    void refererDistintoDeLaPeticion_debeVolverAlOrigen() throws Exception {
+        // Act + Assert: GET de edición desde la lista con filtros
+        mockMvc.perform(get("/proveedores/5/editar").header("Referer", "http://localhost/proveedores?pagina=2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/proveedores?pagina=2"));
+        // POST del formulario de edición: vuelve al formulario
+        mockMvc.perform(post("/proveedores/5").header("Referer", "http://localhost/proveedores/5/editar"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/proveedores/5/editar"));
+        // POST a la misma ruta de su pantalla: la redirección es un GET, no repite el POST
+        mockMvc.perform(post("/recetas/7").header("Referer", "http://localhost/recetas/7"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/recetas/7"));
+        // Misma ruta con otra consulta: vuelve a la consulta del origen
+        mockMvc.perform(get("/listado?pagina=abc").header("Referer", "http://localhost/listado?pagina=2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/listado?pagina=2"))
+                .andExpect(flash().attribute("tipo", "warning"));
+    }
+
     @Controller
     static class ControladorQueFalla {
+
+        @GetMapping({"/proveedores/{id}/editar", "/equipamiento/fermentadores/{id}/editar", "/recetas/{id}", "/tablero"})
+        String inexistenteEnPagina() {
+            throw new RecursoNoEncontradoException("No se encontró el registro con ID: 5");
+        }
+
+        @PostMapping({"/proveedores/{id}", "/recetas/{id}"})
+        String inexistenteAlEnviar() {
+            throw new RecursoNoEncontradoException("No se encontró el registro con ID: 5");
+        }
+
+        @GetMapping("/listado")
+        String listado(@RequestParam int pagina) {
+            return "listado";
+        }
 
         @GetMapping("/pagina/{id}")
         String pagina(@PathVariable Long id) {

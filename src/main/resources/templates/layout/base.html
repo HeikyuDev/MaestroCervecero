@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- El título de la pestaña lleva la sección activa del menú: "<Sección> - Maestro Cervecero" -->
-    <title th:with="titulos=${ {'dashboard': 'Panel de control', 'insumos': 'Insumos', 'equipamiento': 'Equipamiento', 'barriles': 'Barriles', 'presentaciones-comerciales': 'Presentaciones comerciales','ubicaciones': 'Ubicaciones', 'recetas': 'Recetas', 'planificaciones': 'Planificaciones de producción', 'cronograma': 'Cronograma de producción', 'lotes': 'Gestión de lotes', 'configuracion-produccion': 'Configuración de producción', 'auditoria': 'Bitácora de Auditoría', 'usuarios': 'Usuarios'} }"
+    <title th:with="titulos=${ {'dashboard': 'Panel de control', 'insumos': 'Insumos', 'equipamiento': 'Equipamiento', 'barriles': 'Barriles', 'presentaciones-comerciales': 'Presentaciones comerciales', 'proveedores': 'Proveedores', 'ubicaciones': 'Ubicaciones', 'recetas': 'Recetas', 'planificaciones': 'Planificaciones de producción', 'cronograma': 'Cronograma de producción', 'lotes': 'Gestión de lotes', 'configuracion-produccion': 'Configuración de producción', 'auditoria': 'Bitácora de Auditoría', 'usuarios': 'Usuarios'} }"
            th:text="${titulos.get(opcionActiva) != null} ? ${titulos.get(opcionActiva)} + ' - Maestro Cervecero' : 'Maestro Cervecero'">Maestro Cervecero</title>
     <link rel="icon" type="image/x-icon" th:href="@{/img/logo-32x32.ico}" />
 

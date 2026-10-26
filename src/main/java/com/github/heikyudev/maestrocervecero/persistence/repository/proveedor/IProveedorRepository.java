@@ -50,19 +50,26 @@ public interface IProveedorRepository extends JpaRepository<ProveedorEntity, Lon
      * Filtra los proveedores activos, opcionalmente por razón social, nombre comercial, CUIT y/o
      * localidad, contra la versión de cada proveedor marcada como {@code esUltimaVersion = true}
      * (la única que representa sus datos vigentes).
+     * <p>
+     * El resultado se ordena alfabéticamente por la razón social de la versión vigente (sin distinguir mayúsculas)
+     * y, como desempate, por id. El orden va dentro de la consulta porque {@code razonSocial} no es una propiedad de
+     * {@code ProveedorEntity}: un {@code Sort} del {@code Pageable} se resolvería contra el proveedor y no contra su
+     * versión.
+     * </p>
      *
      * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
      * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
      * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
      * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
-     * @param pageable La configuración de paginación.
+     * @param pageable La configuración de paginación (sin ordenamiento: el orden lo define la consulta).
      * @return Una página de proveedores activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT p FROM ProveedorEntity p JOIN p.versiones v WHERE p.estado = 'ACTIVO' AND v.esUltimaVersion = true "
             + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
             + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "
             + "AND (:cuit IS NULL OR v.cuit = :cuit) "
-            + "AND (:idLocalidad IS NULL OR v.localidad.id = :idLocalidad)",
+            + "AND (:idLocalidad IS NULL OR v.localidad.id = :idLocalidad) "
+            + "ORDER BY UPPER(v.razonSocial) ASC, p.id ASC",
             countQuery = "SELECT COUNT(p) FROM ProveedorEntity p JOIN p.versiones v WHERE p.estado = 'ACTIVO' AND v.esUltimaVersion = true "
                     + "AND (:razonSocial IS NULL OR UPPER(v.razonSocial) LIKE UPPER(CONCAT('%', CAST(:razonSocial AS string), '%'))) "
                     + "AND (:nombreComercial IS NULL OR UPPER(v.nombreComercial) LIKE UPPER(CONCAT('%', CAST(:nombreComercial AS string), '%'))) "

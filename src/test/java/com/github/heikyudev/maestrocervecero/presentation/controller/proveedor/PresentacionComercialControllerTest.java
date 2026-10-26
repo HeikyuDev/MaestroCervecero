@@ -207,7 +207,7 @@ class PresentacionComercialControllerTest {
     void caso_cp_pcc_07() throws Exception {
         // Act + Assert
         for (String[] parametro : new String[][]{{"cantidad", "abc"}, {"unidadDeMedida", "LITRO"}}) {
-            mockMvc.perform(get(URL).param(parametro[0], parametro[1]).header("Referer", URL))
+            mockMvc.perform(get(URL + "?" + parametro[0] + "=" + parametro[1]).header("Referer", URL))
                     .andExpect(status().is3xxRedirection())
                     .andExpect(redirectedUrl(URL))
                     .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))

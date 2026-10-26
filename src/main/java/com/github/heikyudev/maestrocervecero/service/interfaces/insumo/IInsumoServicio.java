@@ -22,4 +22,13 @@ public interface IInsumoServicio {
      * @return Una página de insumos activos que cumplen los criterios indicados, en su DTO concreto correspondiente.
      */
     Page<InsumoResponseDTO> filtrarInsumos(String nombre, TipoInsumo tipo, Pageable pageable);
+
+    /**
+     * Busca un insumo activo por su ID, cualquiera sea su tipo concreto (Malta, Lúpulo o Levadura).
+     *
+     * @param id El ID del insumo buscado.
+     * @return El insumo encontrado, en su DTO concreto correspondiente.
+     * @throws com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException Si no existe un insumo activo con ese ID.
+     */
+    InsumoResponseDTO buscarPorId(Long id);
 }

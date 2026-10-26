@@ -31,3 +31,38 @@ Ejemplo: se pierden 100 Kg de un lote físico de Malta A que tenía reservados 6
 ### Cuándo retomarla
 
 "Registrar Consumo de Insumo" (`ConsumoInsumoServicioImpl`) ya trabaja de lleno sobre `ReservaInsumoEntity`, por lo que la forma de manipular reservas está definida. La re-reserva automática puede abordarse tomando ese servicio como referencia para extraer la lógica FEFO a un componente compartido.
+
+---
+
+## 2. Aviso de edición concurrente de un proveedor
+
+### Contexto
+
+Modificar un proveedor (`ProveedorServicioImpl.modificarProveedor`) bloquea la fila del proveedor (`PESSIMISTIC_WRITE`) y registra una nueva versión con los datos enviados. El bloqueo garantiza una sola versión vigente, pero no detecta que el proveedor cambió desde que el usuario abrió el formulario: si dos usuarios abren la misma pantalla de edición y guardan uno después del otro, la segunda modificación se aplica sobre la versión que dejó la primera sin avisar, y los cambios de la primera se pierden en silencio.
+
+### Propuesta
+
+Agregar al formulario de edición un token de versión (por ejemplo, el id de la versión vigente que se precargó) como campo oculto. Al guardar, el Service compara ese token con la versión vigente: si no coincide, rechaza la modificación con un mensaje claro ("El proveedor fue modificado por otra persona desde que abrió el formulario, revise los datos e intente nuevamente") y el formulario se vuelve a mostrar con los datos vigentes.
+
+### Por qué no es trivial
+
+1. **Contrato del formulario**: el token viaja en `ProveedorFormDTO`, pero es un dato de control, no un dato del proveedor; hay que decidir si va en el DTO o como parámetro separado del método del Controller.
+2. **Experiencia de uso**: ante el rechazo, el usuario necesita ver qué cambió; mostrar solo el mensaje obliga a rehacer la carga.
+3. **Uniformidad**: el mismo problema existe en los demás módulos versionados (por ejemplo, Recetas); conviene resolverlo con un mecanismo común.
+
+---
+
+## 3. Una consulta por lote para los nombres del catálogo del proveedor
+
+### Contexto
+
+Al abrir el formulario de edición de un proveedor o al volver a mostrarlo tras un error, `ProveedorController` resuelve el nombre de cada insumo y de cada presentación comercial del catálogo con una consulta por id (`buscarPorId`). Con el máximo de 100 ítems, eso son hasta unas 200 consultas por pedido.
+
+### Propuesta
+
+Agregar a los Services de insumos y de presentaciones comerciales una búsqueda por un conjunto de ids (una consulta `IN` por tipo de dato), y que el Controller arme los mapas id → datos con dos consultas en total. Un id que ya no existe sigue sin entrada en el mapa, y la vista lo indica como "no disponible".
+
+### Por qué no es trivial
+
+1. **Contrato de los Services**: hace falta un método nuevo en `IInsumoServicio` y en `IPresentacionComercialServicio`, con su validación, sus tests y su documentación de casos de prueba.
+2. **Insumos activos y dados de baja**: la consulta por lote debe respetar el mismo criterio de visibilidad que `buscarPorId` para que la pantalla muestre lo mismo.

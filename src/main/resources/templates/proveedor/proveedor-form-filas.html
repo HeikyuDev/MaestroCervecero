@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Fila de la tabla del catálogo del formulario de proveedor.
+
+    La fila lleva sus datos en campos ocultos con el nombre indexado que espera el ProveedorFormDTO
+    (version.catalogoProveedor[0].idInsumo y version.catalogoProveedor[0].idPresentacionComercial). La misma fila se
+    usa para pintar lo que ya tiene el catálogo (alta con errores, modificación) y como plantilla (<template>) que
+    clona /js/proveedor-form.js al agregar un ítem desde la ventana emergente:
+
+      data-campo   campo oculto del DTO; /js/proveedor-form.js recalcula el índice del nombre.
+      data-celda   texto visible; /js/proveedor-form.js escribe ahí el dato elegido en la ventana.
+
+    Parámetros: indice (posición en la lista), los ids del insumo y de la presentación comercial, el nombre y el tipo
+    del insumo, el nombre, la cantidad y el símbolo de la unidad de la presentación (null si ya no existen) y conError
+    (true si el servidor rechazó algún campo de la fila: se resalta; la plantilla pasa false).
+-->
+
+<tr th:fragment="item(indice, idInsumo, idPresentacionComercial, insumo, tipoInsumo, presentacion, cantidad, unidad, conError)"
+    data-fila data-prefijo="version.catalogoProveedor" th:classappend="${conError} ? 'bg-rose-50'">
+    <td class="px-4 py-3">
+        <input type="hidden" data-campo="idInsumo" th:name="|version.catalogoProveedor[${indice}].idInsumo|" th:value="${idInsumo}">
+        <input type="hidden" data-campo="idPresentacionComercial" th:name="|version.catalogoProveedor[${indice}].idPresentacionComercial|" th:value="${idPresentacionComercial}">
+        <span class="block break-words font-medium text-slate-900" data-celda="insumo" th:text="${insumo != null} ? ${insumo} : 'Insumo no disponible'">Pilsen</span>
+        <span class="block text-xs text-slate-500" data-celda="tipoInsumo" th:text="${tipoInsumo}">Malta</span>
+    </td>
+    <td class="px-4 py-3">
+        <span class="block break-words text-slate-700" data-celda="presentacion" th:text="${presentacion != null} ? ${presentacion} : 'Presentación no disponible'">Bolsa de 25 Kg</span>
+        <span class="block text-xs text-slate-500 whitespace-nowrap" data-celda="medidaPresentacion"><th:block th:if="${unidad != null}"><th:block th:replace="~{receta/formato :: medida(${cantidad}, ${unidad})}"></th:block></th:block></span>
+    </td>
+    <td class="px-4 py-3 text-right">
+        <button type="button" data-quitar-fila
+                class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
+            <i class="bi bi-trash"></i> Quitar
+        </button>
+    </td>
+</tr>
+
+</html>

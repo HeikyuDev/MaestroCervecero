@@ -51,6 +51,7 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -722,6 +723,49 @@ class ProveedorServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @Test
+    @DisplayName("CP-AP-38: altaProveedor indica en la excepción de duplicado el campo repetido (cuit o email) al detectarlo con la consulta")
+    void altaProveedor_debeIndicarElCampoDuplicadoDetectadoPorLaConsulta() {
+        // Arrange
+        VersionProveedorFormDTO conCuitRepetido = versionValidaBuilder().cuit("30111111111").build();
+        VersionProveedorFormDTO conCorreoRepetido = versionValidaBuilder().cuit("30222222222").email("contacto@malteriadelsur.com").build();
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30111111111")).thenReturn(true);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30222222222")).thenReturn(false);
+        when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue("contacto@malteriadelsur.com")).thenReturn(true);
+
+        // Act
+        Throwable cuit = catchThrowable(() -> proveedorServicio.altaProveedor(proveedorFormDTO(conCuitRepetido)));
+        Throwable correo = catchThrowable(() -> proveedorServicio.altaProveedor(proveedorFormDTO(conCorreoRepetido)));
+
+        // Assert
+        assertThat(cuit).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) cuit).getCampo()).isEqualTo("cuit");
+        assertThat(correo).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) correo).getCampo()).isEqualTo("email");
+        verify(proveedorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AP-39: altaProveedor indica en la excepción de duplicado el campo repetido (cuit o email) al traducir la violación de su índice único")
+    void altaProveedor_debeIndicarElCampoDuplicadoAlTraducirLaViolacionDelIndice() {
+        // Arrange
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
+        mockearAltaSinGuardado(versionFormDTO);
+        when(proveedorRepository.save(any(ProveedorEntity.class)))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_proveedor_cuit"))
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_proveedor_email"));
+
+        // Act
+        Throwable cuit = catchThrowable(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)));
+        Throwable correo = catchThrowable(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)));
+
+        // Assert
+        assertThat(cuit).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) cuit).getCampo()).isEqualTo("cuit");
+        assertThat(correo).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) correo).getCampo()).isEqualTo("email");
+    }
+
     // ==================== modificarProveedor ====================
 
     @Test
@@ -1243,6 +1287,58 @@ class ProveedorServicioImplTest {
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
                 .hasMessage(GuardadoUnico.MENSAJE_DUPLICADO_GENERICO);
+    }
+
+    @Test
+    @DisplayName("CP-MP-34: modificarProveedor indica en la excepción de duplicado el campo repetido (cuit o email) al detectarlo con la consulta")
+    void modificarProveedor_debeIndicarElCampoDuplicadoDetectadoPorLaConsulta() {
+        // Arrange
+        VersionProveedorFormDTO conCuitRepetido = versionValidaBuilder().cuit("30111111111").build();
+        VersionProveedorFormDTO conCorreoRepetido = versionValidaBuilder().cuit("30222222222").email("contacto@malteriadelsur.com").build();
+        when(proveedorRepository.findByIdParaActualizarVersiones(1L))
+                .thenReturn(Optional.of(crearProveedorEntityConVersionActiva(1L, "Maltería del Norte S.A.", "30987654321")));
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30111111111", 1L)).thenReturn(true);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30222222222", 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot("contacto@malteriadelsur.com", 1L)).thenReturn(true);
+
+        // Act
+        Throwable cuit = catchThrowable(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(conCuitRepetido)));
+        Throwable correo = catchThrowable(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(conCorreoRepetido)));
+
+        // Assert
+        assertThat(cuit).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) cuit).getCampo()).isEqualTo("cuit");
+        assertThat(correo).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) correo).getCampo()).isEqualTo("email");
+        verify(proveedorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MP-35: modificarProveedor indica el campo repetido (cuit o email) al traducir la violación de su índice único, y ninguno ante un índice sin mensaje propio")
+    void modificarProveedor_debeIndicarElCampoDuplicadoAlTraducirLaViolacionDelIndice() {
+        // Arrange
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().build();
+        ProveedorEntity proveedorEntityExistente = crearProveedorEntityConVersiones(1L, crearVersionProveedorEntity(10L, "Maltería del Sur S.A.", "30111111111", true));
+        mockearModificacionSinGuardado(versionFormDTO, proveedorEntityExistente);
+        when(proveedorRepository.save(proveedorEntityExistente)).thenReturn(proveedorEntityExistente)
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_proveedor_cuit"))
+                .thenReturn(proveedorEntityExistente)
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_proveedor_email"))
+                .thenReturn(proveedorEntityExistente)
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_version_proveedor_razon_social"));
+
+        // Act
+        Throwable cuit = catchThrowable(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)));
+        Throwable correo = catchThrowable(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)));
+        Throwable generico = catchThrowable(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)));
+
+        // Assert
+        assertThat(cuit).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) cuit).getCampo()).isEqualTo("cuit");
+        assertThat(correo).isInstanceOf(RecursoDuplicadoException.class);
+        assertThat(((RecursoDuplicadoException) correo).getCampo()).isEqualTo("email");
+        assertThat(generico).isInstanceOf(RecursoDuplicadoException.class).hasMessage(GuardadoUnico.MENSAJE_DUPLICADO_GENERICO);
+        assertThat(((RecursoDuplicadoException) generico).getCampo()).isNull();
     }
 
     // ==================== bajaProveedor ====================

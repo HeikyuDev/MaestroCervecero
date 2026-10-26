@@ -2884,7 +2884,7 @@ class LoteControllerTest {
         // Act + Assert: las pantallas y las acciones vuelven al origen con un aviso
         List<org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder> pantallas = List.of(
                 get(URL + "/abc"),
-                get(URL).param("pagina", "xyz"),
+                get(URL + "?pagina=xyz"),
                 post(URL + "/abc/iniciar").with(csrf()),
                 post(URL + "/abc/cancelar").with(csrf()).param("motivo", "Error de carga"),
                 post(URL + "/abc/etapas/hervido/finalizar").with(csrf()));

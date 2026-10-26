@@ -17,14 +17,15 @@ public interface IProveedorServicio {
      * {@link com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity}
      * no tiene datos propios: la razón social, el nombre comercial, el CUIT y la localidad viven
      * en su {@code VersionProveedorEntity} marcada como {@code esUltimaVersion = true}, así que el
-     * filtrado se resuelve contra esa versión vigente, no contra el historial completo.
+     * filtrado se resuelve contra esa versión vigente, no contra el historial completo. El resultado se ordena
+     * alfabéticamente por la razón social vigente (sin distinguir mayúsculas) y, como desempate, por id.
      * </p>
      *
      * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
      * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
      * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
      * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
-     * @param pageable La configuración de paginación.
+     * @param pageable La configuración de paginación (sin ordenamiento: el orden lo define la consulta).
      * @return Una página de proveedores activos en formato DTO que cumplen los criterios indicados.
      */
     Page<ProveedorResponseDTO> filtrarProveedores(String razonSocial, String nombreComercial, String cuit, Long idLocalidad, Pageable pageable);

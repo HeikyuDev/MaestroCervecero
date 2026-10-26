@@ -69,6 +69,13 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     private static final String INDICE_ITEM_CATALOGO = "udx_catalogo_proveedor_item";
 
     /**
+     * Campos que indica {@link RecursoDuplicadoException#getCampo()} ante un duplicado del CUIT o del correo electrónico:
+     * son los nombres de los campos de {@link VersionProveedorFormDTO}.
+     */
+    private static final String CAMPO_CUIT = "cuit";
+    private static final String CAMPO_EMAIL = "email";
+
+    /**
      * Datos de texto de la versión ya normalizados, listos para validar, consultar la unicidad y guardar.
      */
     private record DatosVersion(String razonSocial, String nombreComercial, String cuit, String telefono,
@@ -142,7 +149,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      *
      * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor y su versión inicial.
      * @return {@link ProveedorResponseDTO} representativo del proveedor guardado en la base de datos.
-     * @throws RecursoDuplicadoException Si el CUIT o el correo electrónico ya pertenecen a otro proveedor activo.
+     * @throws RecursoDuplicadoException Si el CUIT o el correo electrónico ya pertenecen a otro proveedor activo; la excepción indica el campo repetido ({@code "cuit"} o {@code "email"}).
      * @throws ReglaNegocioException Si faltan los datos del proveedor; si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido; si el teléfono informado no tiene solo dígitos o supera los 15; si falta la localidad; o si el catálogo está vacío, supera el máximo de ítems, tiene un ítem sin insumo o sin presentación comercial, o repite el mismo insumo con la misma presentación comercial.
      * @throws RecursoNoEncontradoException Si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
@@ -196,7 +203,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * @param id Identificador clave primaria del proveedor a modificar.
      * @param proveedorFormDTO DTO que contiene los nuevos datos de la versión del proveedor.
      * @return {@link ProveedorResponseDTO} representativo del proveedor con la nueva versión aplicada.
-     * @throws RecursoDuplicadoException Si el nuevo CUIT o el nuevo correo electrónico ya pertenecen a otro proveedor activo.
+     * @throws RecursoDuplicadoException Si el nuevo CUIT o el nuevo correo electrónico ya pertenecen a otro proveedor activo; la excepción indica el campo repetido ({@code "cuit"} o {@code "email"}).
      * @throws ReglaNegocioException Si los datos de la versión no cumplen las mismas reglas del alta (ver {@link #altaProveedor(ProveedorFormDTO)}), o si otra persona modificó el proveedor al mismo tiempo.
      * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
@@ -380,12 +387,18 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         return (valor == null || valor.isEmpty()) ? null : valor;
     }
 
+    /**
+     * Duplicado del CUIT, con el campo {@code "cuit"} para que el Controller marque ese campo del formulario.
+     */
     private static RecursoDuplicadoException cuitDuplicado(String cuit) {
-        return new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'");
+        return new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'", CAMPO_CUIT);
     }
 
+    /**
+     * Duplicado del correo electrónico, con el campo {@code "email"} para que el Controller marque ese campo del formulario.
+     */
     private static RecursoDuplicadoException emailDuplicado(String email) {
-        return new RecursoDuplicadoException("Ya existe un proveedor con el correo electrónico '" + email + "'");
+        return new RecursoDuplicadoException("Ya existe un proveedor con el correo electrónico '" + email + "'", CAMPO_EMAIL);
     }
 
     private static ReglaNegocioException catalogoConItemRepetido() {

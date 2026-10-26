@@ -285,7 +285,7 @@ class BarrilControllerTest {
     void caso_cp_bct_11() throws Exception {
         // Act + Assert
         for (String[] parametro : new String[][]{{"capacidad", "abc"}, {"estadoOperativo", "XYZ"}, {"idFabricante", "abc"}}) {
-            mockMvc.perform(get("/barriles").param(parametro[0], parametro[1]).header("Referer", "/barriles"))
+            mockMvc.perform(get("/barriles?" + parametro[0] + "=" + parametro[1]).header("Referer", "/barriles"))
                     .andExpect(status().is3xxRedirection())
                     .andExpect(redirectedUrl("/barriles"))
                     .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))

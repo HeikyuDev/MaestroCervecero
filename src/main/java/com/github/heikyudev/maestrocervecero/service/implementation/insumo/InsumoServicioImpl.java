@@ -3,6 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.insumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.TipoInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
+import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperInsumo;
@@ -33,5 +34,12 @@ public class InsumoServicioImpl implements IInsumoServicio {
         }
         return insumoRepository.filtrarInsumos(nombreNormalizado, tipoClase, pageable)
                 .map(MapperInsumo::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InsumoResponseDTO buscarPorId(Long id) {
+        return MapperInsumo.toDTO(insumoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + id)));
     }
 }
