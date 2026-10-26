@@ -1,6 +1,6 @@
 ## Casos de prueba de `GuardadoUnico`
 
-**Tipo de prueba:** unitaria (clase `GuardadoUnicoTest`), con el repositorio simulado (mock) y sin base de datos. Verifica que el guardado confirme los datos en la base dentro del método del Service y que la violación de un índice único se traduzca a la excepción de negocio asociada al nombre del índice. El comportamiento contra PostgreSQL real está en `integracion/CasosPruebaIntegracionBaseDeDatos.md`.
+**Tipo de prueba:** unitaria (clase `GuardadoUnicoTest`), con el repositorio simulado (mock) y sin base de datos. Verifica que el guardado confirme los datos en la base dentro del método del Service y que la violación de un índice único se traduzca a la excepción de negocio asociada al nombre del índice.
 
 **Regla:** `guardar(repositorio, entidad, excepcionesPorIndice)` ejecuta `repositorio.save(entidad)` y luego `repositorio.flush()`. Si falla con `DataIntegrityViolationException`, busca en la cadena de causas el SQLSTATE y el nombre de la restricción:
 

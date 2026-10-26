@@ -31,7 +31,7 @@ común y cada perfil define la URL, el usuario, la clave y si se muestra el SQL.
 |---|---|---|---|---|
 | `dev` (por defecto) | Trabajo diario y pruebas manuales en el navegador | `src/main/resources/application-dev.properties` | `maestrocervecero_dev` | Sí |
 | `prod` | Versión real y de demostración | `src/main/resources/application-prod.properties` | `maestrocervecero` | No |
-| `test` | Tests de integración | `src/test/resources/application-test.properties` | `maestrocervecero_test` | No |
+| `test` | Reservado para los tests de integración | `src/test/resources/application-test.properties` | `maestrocervecero_test` | No |
 
 El perfil se elige con la propiedad `spring.profiles.active` o con la variable de entorno `SPRING_PROFILES_ACTIVE`. Sin
 perfil activo se usa `dev` (`spring.profiles.default=dev`).
@@ -135,13 +135,16 @@ administrador.
 Una base con tablas pero sin tabla `flyway_schema_history` (por ejemplo, creada por Hibernate) no se adopta
 automáticamente; Flyway se niega a migrarla. Debe reiniciarse con alguna de las opciones anteriores.
 
-## Tests de integración
+## Tests
 
-Los tests que levantan Spring contra una base real usan el perfil `test`
-(`src/test/resources/application-test.properties`) y una base propia, `maestrocervecero_test`. Ningún test usa la
-base de desarrollo (`maestrocervecero_dev`) ni la de producción (`maestrocervecero`).
+Todos los tests de la aplicación son unitarios: cada módulo valida su Service y su Controller con dependencias
+simuladas, sin levantar Spring contra una base de datos. Se ejecutan con `./mvnw test` y no necesitan PostgreSQL.
 
-| Propiedad | Valor |
+El perfil `test` (`src/test/resources/application-test.properties`, base `maestrocervecero_test`) queda preparado
+para los tests de integración, que se agregan cuando todos los módulos estén implementados. Ninguna ejecución de tests
+usa la base de desarrollo (`maestrocervecero_dev`) ni la de producción (`maestrocervecero`).
+
+| Propiedad del perfil `test` | Valor |
 |---|---|
 | `spring.datasource.url` | `${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/maestrocervecero_test}` |
 | `spring.datasource.username` / `password` | `${SPRING_DATASOURCE_USERNAME:AdminCerveza}` / `${SPRING_DATASOURCE_PASSWORD:admin}` |
@@ -149,44 +152,14 @@ base de desarrollo (`maestrocervecero_dev`) ni la de producción (`maestrocervec
 | `spring.jpa.hibernate.ddl-auto` | `validate` |
 | `spring.jpa.show-sql` | `false` |
 
-### Preparar la base de tests
-
-Se crea una vez, vacía. Flyway crea el esquema y los datos iniciales al primer arranque:
+La base de tests se crea una vez, vacía; Flyway crea el esquema y los datos iniciales al primer arranque:
 
 ```sql
 CREATE DATABASE maestrocervecero_test OWNER "AdminCerveza";
 ```
 
-### Ejecutar
-
-| Qué | Comando |
-|---|---|
-| Toda la suite (unitarios e integración) | `./mvnw test` |
-| Solo los de integración | `./mvnw test -Dgroups=integracion` |
-| Solo los unitarios (no necesitan base de datos) | `./mvnw test -DexcludedGroups=integracion` |
-
-Los tests de integración llevan la etiqueta `@Tag("integracion")`, heredada de `IntegracionBaseTest`. Para apuntar la
-ejecución a otra base se define la URL en la variable de entorno `SPRING_DATASOURCE_URL`. En PowerShell:
-`$env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/otra_base"; ./mvnw test`. Una base vacía comprueba además
-que todas las migraciones se aplican de principio a fin.
-
 En CI (`.github/workflows/ci.yml`) el servicio `postgres:16` arranca con una base vacía llamada `maestrocervecero` y el
-paso de tests define `SPRING_DATASOURCE_URL` apuntando a ella y `SPRING_PROFILES_ACTIVE=test`, de modo que ningún
-contexto de Spring use el perfil por defecto `dev`: Flyway crea el esquema y los datos iniciales en cada ejecución.
-
-### Clase base y limpieza de datos
-
-Todo test de integración extiende `IntegracionBaseTest` (`@SpringBootTest`, `@ActiveProfiles("test")`,
-`@Tag("integracion")`). Antes de cada test la clase base vacía las tablas de negocio con
-`TRUNCATE ... RESTART IDENTITY CASCADE` y elimina los usuarios distintos de `admin`. No se vacían:
-
-- `flyway_schema_history`: historial de migraciones.
-- `configuracion_produccion`: fila singleton cargada por `V2`.
-- `usuarios`: se conserva el administrador que crea `UserDataLoader` al arrancar el contexto.
-
-Se usa `TRUNCATE` y no una transacción con rollback por test porque estos tests necesitan que las transacciones se
-confirmen: verifican restricciones que PostgreSQL evalúa al confirmar y el registro de auditoría, que se guarda de
-forma asíncrona en otra transacción y no vería datos sin confirmar.
+paso de tests define `SPRING_DATASOURCE_URL` apuntando a ella y `SPRING_PROFILES_ACTIVE=test`.
 
 ## Unicidad
 

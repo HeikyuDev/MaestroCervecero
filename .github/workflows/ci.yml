@@ -42,10 +42,10 @@ jobs:
       - name: Grant execute permission for mvnw
         run: chmod +x mvnw
 
-      # Los tests de integracion usan el perfil "test" (src/test/resources/application-test.properties):
-      # la URL apunta a la base vacia que crea el servicio postgres de este job.
-      # SPRING_PROFILES_ACTIVE fija el perfil "test" tambien para cualquier contexto de Spring que no lo declare,
-      # de modo que ningun test use el perfil por defecto "dev" (base maestrocervecero_dev, inexistente en el job).
+      # Todos los tests son unitarios y no usan base de datos. El perfil "test"
+      # (src/test/resources/application-test.properties) y la base vacia que crea el servicio postgres de este job quedan
+      # preparados para los tests de integracion; SPRING_PROFILES_ACTIVE evita que un contexto de Spring use el perfil
+      # por defecto "dev".
       - name: Build and run tests
         run: ./mvnw --batch-mode --no-transfer-progress test
         env:
