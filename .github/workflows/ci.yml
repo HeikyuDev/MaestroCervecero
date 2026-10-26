@@ -44,7 +44,10 @@ jobs:
 
       # Los tests de integracion usan el perfil "test" (src/test/resources/application-test.properties):
       # la URL apunta a la base vacia que crea el servicio postgres de este job.
+      # SPRING_PROFILES_ACTIVE fija el perfil "test" tambien para cualquier contexto de Spring que no lo declare,
+      # de modo que ningun test use el perfil por defecto "dev" (base maestrocervecero_dev, inexistente en el job).
       - name: Build and run tests
         run: ./mvnw --batch-mode --no-transfer-progress test
         env:
+          SPRING_PROFILES_ACTIVE: test
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/maestrocervecero

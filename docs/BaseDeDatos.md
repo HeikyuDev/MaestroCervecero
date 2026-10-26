@@ -22,6 +22,37 @@ spring.flyway.locations=classpath:db/migration
 spring.flyway.baseline-on-migrate=false
 ```
 
+## Entornos
+
+Cada entorno es un perfil de Spring con su propia base de datos. `application.properties` contiene la configuración
+común y cada perfil define la URL, el usuario, la clave y si se muestra el SQL.
+
+| Perfil | Uso | Archivo | Base | SQL en consola |
+|---|---|---|---|---|
+| `dev` (por defecto) | Trabajo diario y pruebas manuales en el navegador | `src/main/resources/application-dev.properties` | `maestrocervecero_dev` | Sí |
+| `prod` | Versión real y de demostración | `src/main/resources/application-prod.properties` | `maestrocervecero` | No |
+| `test` | Tests de integración | `src/test/resources/application-test.properties` | `maestrocervecero_test` | No |
+
+El perfil se elige con la propiedad `spring.profiles.active` o con la variable de entorno `SPRING_PROFILES_ACTIVE`. Sin
+perfil activo se usa `dev` (`spring.profiles.default=dev`).
+
+| Qué | Comando |
+|---|---|
+| Arrancar en desarrollo | `./mvnw spring-boot:run` |
+| Arrancar en producción | `./mvnw spring-boot:run "-Dspring-boot.run.profiles=prod"` |
+| Arrancar en producción con variable de entorno (PowerShell) | `$env:SPRING_PROFILES_ACTIVE="prod"; ./mvnw spring-boot:run` |
+
+En `prod`, la URL, el usuario y la clave se pueden reemplazar con `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y
+`SPRING_DATASOURCE_PASSWORD`; sin ellas apuntan a `jdbc:postgresql://localhost:5432/maestrocervecero` con el usuario
+`AdminCerveza`.
+
+Cada base se crea una vez, vacía. Al primer arranque Flyway crea el esquema y los datos iniciales, y `UserDataLoader` crea
+el usuario administrador:
+
+```sql
+CREATE DATABASE maestrocervecero_dev OWNER "AdminCerveza";
+```
+
 ## Migraciones
 
 ### Convención de nombres
@@ -81,7 +112,8 @@ una base migrada por Flyway. Solo difieren los nombres de las restricciones.
 
 ## Reiniciar la base de desarrollo
 
-Con Flyway la base conserva su historial entre arranques. Para empezar de cero:
+Con Flyway la base conserva su historial entre arranques. Para empezar de cero con la base de desarrollo
+(`maestrocervecero_dev`), conectado a ella:
 
 Opción 1, vaciar el esquema (conserva la base y sus permisos):
 
@@ -93,8 +125,8 @@ CREATE SCHEMA public;
 Opción 2, recrear la base:
 
 ```sql
-DROP DATABASE maestrocervecero;
-CREATE DATABASE maestrocervecero OWNER "AdminCerveza";
+DROP DATABASE maestrocervecero_dev;
+CREATE DATABASE maestrocervecero_dev OWNER "AdminCerveza";
 ```
 
 Después se arranca la aplicación: Flyway aplica todas las migraciones y `UserDataLoader` crea el usuario
@@ -107,7 +139,7 @@ automáticamente; Flyway se niega a migrarla. Debe reiniciarse con alguna de las
 
 Los tests que levantan Spring contra una base real usan el perfil `test`
 (`src/test/resources/application-test.properties`) y una base propia, `maestrocervecero_test`. Ningún test usa la
-base de desarrollo `maestrocervecero`.
+base de desarrollo (`maestrocervecero_dev`) ni la de producción (`maestrocervecero`).
 
 | Propiedad | Valor |
 |---|---|
@@ -139,8 +171,8 @@ ejecución a otra base se define la URL en la variable de entorno `SPRING_DATASO
 que todas las migraciones se aplican de principio a fin.
 
 En CI (`.github/workflows/ci.yml`) el servicio `postgres:16` arranca con una base vacía llamada `maestrocervecero` y el
-paso de tests define `SPRING_DATASOURCE_URL` apuntando a ella: Flyway crea el esquema y los datos iniciales en cada
-ejecución.
+paso de tests define `SPRING_DATASOURCE_URL` apuntando a ella y `SPRING_PROFILES_ACTIVE=test`, de modo que ningún
+contexto de Spring use el perfil por defecto `dev`: Flyway crea el esquema y los datos iniciales en cada ejecución.
 
 ### Clase base y limpieza de datos
 
