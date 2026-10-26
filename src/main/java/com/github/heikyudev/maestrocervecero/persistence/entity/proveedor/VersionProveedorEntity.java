@@ -55,8 +55,8 @@ public class VersionProveedorEntity implements VersionadoEntity {
 
     /**
      * {@code true} mientras el proveedor dueño está activo; pasa a {@code false} en todas sus versiones al darlo de baja.
-     * Permite que los índices únicos de la tabla (que no ven el estado del proveedor) liberen la razón social, el CUIT
-     * y el correo electrónico.
+     * Permite que los índices únicos de la tabla (que no ven el estado del proveedor) liberen el CUIT y el correo
+     * electrónico.
      */
     @Builder.Default
     @Column(name = "padre_activo", nullable = false)

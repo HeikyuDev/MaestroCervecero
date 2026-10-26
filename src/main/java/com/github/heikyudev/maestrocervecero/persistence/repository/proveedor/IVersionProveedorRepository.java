@@ -10,8 +10,8 @@ import org.springframework.stereotype.Repository;
  * Repositorio JPA de las versiones de proveedor ({@link VersionProveedorEntity}).
  * <p>
  * {@link VersionProveedorEntity} no tiene {@code estado} propio: el estado del proveedor vive en
- * {@code ProveedorEntity} y cada versión lo refleja en {@code padreActivo}. La unicidad de la razón social, el CUIT y el
- * correo electrónico se valida contra las versiones vigentes ({@code esUltimaVersion = true}) de proveedores activos
+ * {@code ProveedorEntity} y cada versión lo refleja en {@code padreActivo}. La unicidad del CUIT y del correo
+ * electrónico se valida contra las versiones vigentes ({@code esUltimaVersion = true}) de proveedores activos
  * ({@code padreActivo = true}), la misma condición de los índices únicos parciales de la base de datos, de modo que los
  * datos de un proveedor dado de baja quedan libres para un proveedor nuevo.
  * </p>
@@ -21,17 +21,6 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface IVersionProveedorRepository extends JpaRepository<VersionProveedorEntity, Long> {
-
-    /**
-     * Verifica si existe un proveedor activo cuya versión vigente tiene la razón social dada (ignorando mayúsculas y
-     * minúsculas).
-     *
-     * @param razonSocial La razón social normalizada a buscar.
-     * @return {@code true} si ya existe un proveedor activo con esa razón social, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE LOWER(v.razonSocial) = LOWER(:razonSocial) AND v.esUltimaVersion = true AND v.padreActivo = true")
-    boolean existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(@Param("razonSocial") String razonSocial);
 
     /**
      * Verifica si existe un proveedor activo cuya versión vigente tiene el CUIT dado.
@@ -53,20 +42,6 @@ public interface IVersionProveedorRepository extends JpaRepository<VersionProvee
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
             "WHERE LOWER(v.email) = LOWER(:email) AND v.esUltimaVersion = true AND v.padreActivo = true")
     boolean existsByEmailIgnoreCaseAndEsUltimaVersionTrue(@Param("email") String email);
-
-    /**
-     * Igual que {@link #existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(String)}, excluyendo al proveedor con el ID
-     * indicado. Se utiliza en la modificación para permitir conservar la propia razón social sin que la validación
-     * falle contra el mismo proveedor.
-     *
-     * @param razonSocial La razón social normalizada a buscar.
-     * @param proveedorId El ID del proveedor a excluir de la verificación.
-     * @return {@code true} si otro proveedor activo ya posee esa razón social, {@code false} en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
-            "WHERE LOWER(v.razonSocial) = LOWER(:razonSocial) AND v.esUltimaVersion = true AND v.padreActivo = true " +
-            "AND v.proveedor.id <> :proveedorId")
-    boolean existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(@Param("razonSocial") String razonSocial, @Param("proveedorId") Long proveedorId);
 
     /**
      * Igual que {@link #existsByCuitAndEsUltimaVersionTrue(String)}, excluyendo al proveedor con el ID indicado.

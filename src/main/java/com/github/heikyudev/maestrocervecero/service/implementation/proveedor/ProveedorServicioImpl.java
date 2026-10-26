@@ -49,11 +49,6 @@ import java.util.Set;
 public class ProveedorServicioImpl implements IProveedorServicio {
 
     /**
-     * Índice único de la base de datos que garantiza que no haya dos proveedores activos con la misma razón social.
-     */
-    private static final String INDICE_RAZON_SOCIAL = "udx_version_proveedor_razon_social";
-
-    /**
      * Índice único de la base de datos que garantiza que no haya dos proveedores activos con el mismo CUIT.
      */
     private static final String INDICE_CUIT = "udx_version_proveedor_cuit";
@@ -139,14 +134,16 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * </p>
      * <p>
      * Normaliza los datos de texto (el CUIT se guarda solo con sus dígitos y el correo electrónico en minúsculas),
-     * valida que sean correctos y que la razón social, el CUIT y el correo electrónico no estén registrados en otro
-     * proveedor activo (sin distinguir mayúsculas). El teléfono es opcional y no tiene unicidad.
+     * valida que sean correctos y que el CUIT y el correo electrónico no estén registrados en otro proveedor activo
+     * (sin distinguir mayúsculas). La razón social no es única: el CUIT identifica al proveedor. El teléfono es
+     * opcional y no tiene unicidad. La localidad es obligatoria y el catálogo debe tener entre 1 y
+     * {@link LimitesTecnicos#CATALOGO_PROVEEDOR_MAXIMO_ITEMS} ítems, cada uno con su insumo y su presentación comercial.
      * </p>
      *
      * @param proveedorFormDTO Objeto DTO que contiene los datos de creación del proveedor y su versión inicial.
      * @return {@link ProveedorResponseDTO} representativo del proveedor guardado en la base de datos.
-     * @throws RecursoDuplicadoException Si la razón social, el CUIT o el correo electrónico ya pertenecen a otro proveedor activo.
-     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, o si el teléfono informado no tiene solo dígitos o supera los 15, o si el catálogo repite el mismo insumo con la misma presentación comercial.
+     * @throws RecursoDuplicadoException Si el CUIT o el correo electrónico ya pertenecen a otro proveedor activo.
+     * @throws ReglaNegocioException Si faltan los datos del proveedor; si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido; si el teléfono informado no tiene solo dígitos o supera los 15; si falta la localidad; o si el catálogo está vacío, supera el máximo de ítems, tiene un ítem sin insumo o sin presentación comercial, o repite el mismo insumo con la misma presentación comercial.
      * @throws RecursoNoEncontradoException Si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -158,30 +155,24 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         // 1. Normalizar los datos de texto sin modificar el DTO y validar que sean obligatorios, correctos y no superen la longitud máxima
         DatosVersion datos = normalizarYValidar(versionFormDTO);
 
-        // 2. Validar que la razón social no esté registrada en otro proveedor activo
-        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrue(datos.razonSocial())) {
-            throw razonSocialDuplicada(datos.razonSocial());
-        }
-
-        // 3. Validar que el CUIT no esté registrado en otro proveedor activo
+        // 2. Validar que el CUIT no esté registrado en otro proveedor activo
         if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(datos.cuit())) {
             throw cuitDuplicado(datos.cuit());
         }
 
-        // 4. Validar que el correo electrónico no esté registrado en otro proveedor activo
+        // 3. Validar que el correo electrónico no esté registrado en otro proveedor activo
         if (versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue(datos.email())) {
             throw emailDuplicado(datos.email());
         }
 
-        // 5. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
+        // 4. Crear el contenedor del proveedor y su versión inicial (cascada hacia el catálogo)
         ProveedorEntity proveedorEntity = ProveedorEntity.builder().estado(Estado.ACTIVO).build();
         VersionProveedorEntity versionProveedorEntity = construirVersion(versionFormDTO, datos, proveedorEntity);
         proveedorEntity.getVersiones().add(versionProveedorEntity);
 
-        // 6. Guardar el proveedor en la base de datos (un pedido simultáneo que viole un índice único se traduce al
+        // 5. Guardar el proveedor en la base de datos (un pedido simultáneo que viole un índice único se traduce al
         //    mensaje del campo) y retornar el DTO de respuesta correspondiente
         return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
-                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicada(datos.razonSocial()),
                 INDICE_CUIT, () -> cuitDuplicado(datos.cuit()),
                 INDICE_EMAIL, () -> emailDuplicado(datos.email()),
                 INDICE_ITEM_CATALOGO, ProveedorServicioImpl::catalogoConItemRepetido)));
@@ -205,8 +196,8 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * @param id Identificador clave primaria del proveedor a modificar.
      * @param proveedorFormDTO DTO que contiene los nuevos datos de la versión del proveedor.
      * @return {@link ProveedorResponseDTO} representativo del proveedor con la nueva versión aplicada.
-     * @throws RecursoDuplicadoException Si la nueva razón social, el nuevo CUIT o el nuevo correo electrónico ya pertenecen a otro proveedor activo.
-     * @throws ReglaNegocioException Si la razón social, el nombre comercial, el CUIT, el correo electrónico o la dirección faltan, superan su longitud máxima o tienen un formato inválido, si el teléfono informado no tiene solo dígitos o supera los 15, o si el catálogo repite el mismo insumo con la misma presentación comercial, o si otra persona modificó el proveedor al mismo tiempo.
+     * @throws RecursoDuplicadoException Si el nuevo CUIT o el nuevo correo electrónico ya pertenecen a otro proveedor activo.
+     * @throws ReglaNegocioException Si los datos de la versión no cumplen las mismas reglas del alta (ver {@link #altaProveedor(ProveedorFormDTO)}), o si otra persona modificó el proveedor al mismo tiempo.
      * @throws RecursoNoEncontradoException Si no se localiza un proveedor activo por el ID proporcionado, o si la localidad, algún insumo o alguna presentación comercial referenciados no existen o no están activos.
      */
     @Override
@@ -223,38 +214,31 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         ProveedorEntity proveedorEntity = proveedorRepository.findByIdParaActualizarVersiones(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + id));
 
-        // 3. Validar la razón social excluyendo al propio proveedor, de modo que conservar la
-        //    razón social actual no falle contra el mismo registro
-        if (versionProveedorRepository.existsByRazonSocialIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(datos.razonSocial(), id)) {
-            throw razonSocialDuplicada(datos.razonSocial());
-        }
-
-        // 4. Validar el CUIT excluyendo al propio proveedor, de modo que conservar el CUIT actual
+        // 3. Validar el CUIT excluyendo al propio proveedor, de modo que conservar el CUIT actual
         //    no falle contra el mismo registro
         if (versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(datos.cuit(), id)) {
             throw cuitDuplicado(datos.cuit());
         }
 
-        // 5. Validar el correo electrónico excluyendo al propio proveedor
+        // 4. Validar el correo electrónico excluyendo al propio proveedor
         if (versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(datos.email(), id)) {
             throw emailDuplicado(datos.email());
         }
 
-        // 6. Construir la nueva versión primero: si la localidad, algún insumo o alguna
+        // 5. Construir la nueva versión primero: si la localidad, algún insumo o alguna
         //    presentación comercial no existen, esto lanza antes de tocar la versión anterior
         VersionProveedorEntity nuevaVersionProveedorEntity = construirVersion(versionFormDTO, datos, proveedorEntity);
 
-        // 7. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y confirmar el cambio en la
+        // 6. Recién si la construcción fue exitosa, desactivar la versión actualmente activa y confirmar el cambio en la
         //    base de datos antes de insertar la nueva
         MetodosVersionado.desactivarVersionAnterior(proveedorEntity.getVersiones());
         proveedorRepository.save(proveedorEntity);
         proveedorRepository.flush();
 
-        // 8. Registrar la nueva versión, persistir el proveedor (un pedido simultáneo que viole un índice único se
+        // 7. Registrar la nueva versión, persistir el proveedor (un pedido simultáneo que viole un índice único se
         //    traduce al mensaje del campo) y retornar el DTO de respuesta correspondiente
         proveedorEntity.getVersiones().add(nuevaVersionProveedorEntity);
         return MapperProveedor.toDTO(GuardadoUnico.guardar(proveedorRepository, proveedorEntity, Map.of(
-                INDICE_RAZON_SOCIAL, () -> razonSocialDuplicada(datos.razonSocial()),
                 INDICE_CUIT, () -> cuitDuplicado(datos.cuit()),
                 INDICE_EMAIL, () -> emailDuplicado(datos.email()),
                 INDICE_ITEM_CATALOGO, ProveedorServicioImpl::catalogoConItemRepetido,
@@ -266,8 +250,8 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * <p>
      * En lugar de eliminar el registro, marca al proveedor con {@link Estado#BAJA} y persiste el
      * cambio. A partir de ese momento, todas las consultas del repositorio dejan de encontrarlo.
-     * Todas sus versiones pasan a {@code padreActivo = false}, de modo que su razón social, su CUIT y su correo
-     * electrónico quedan libres para un proveedor nuevo.
+     * Todas sus versiones pasan a {@code padreActivo = false}, de modo que su CUIT y su correo electrónico quedan libres
+     * para un proveedor nuevo.
      * </p>
      *
      * @param id Identificador clave primaria del proveedor a dar de baja.
@@ -287,7 +271,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         // 2. Validar que ninguna versión del proveedor (histórica o activa) tenga una orden de
         //    compra en estado PENDIENTE asociada
         if (ordenCompraRepository.existsByVersionProveedor_Proveedor_IdAndEstado(id, EstadoSolicitud.PENDIENTE)) {
-            throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene una orden de compra en estado Pendiente asociada");
+            throw new ReglaNegocioException("No se puede dar de baja el proveedor porque tiene al menos una orden de compra en estado Pendiente asociada");
         }
 
         // 3. Ejecutamos la baja lógica: cambiamos el estado, liberamos los datos únicos de todas sus versiones,
@@ -300,17 +284,24 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     // === NORMALIZACIÓN Y VALIDACIÓN DE LOS DATOS DE TEXTO ===
 
     /**
-     * Normaliza los datos de texto de la versión sin modificar el DTO y valida que sean obligatorios, correctos y no
-     * superen la longitud máxima.
+     * Normaliza los datos de texto de la versión sin modificar el DTO y valida, antes de consultar la base de datos,
+     * que los datos sean obligatorios, correctos y no superen la longitud máxima.
      * <p>
      * La razón social, el nombre comercial y la dirección conservan las mayúsculas y las tildes escritas (la
-     * puntuación cuenta: {@code ACME S.A.} y {@code ACME SA} son razones sociales distintas); el CUIT se guarda solo
+     * puntuación cuenta: {@code ACME S.A.} y {@code ACME SA} se guardan tal como se escriben); el CUIT se guarda solo
      * con sus dígitos y el correo electrónico en minúsculas.
      * </p>
+     * <p>
+     * Los datos se validan en el orden de los campos del formulario (razón social, nombre comercial, CUIT, teléfono,
+     * correo electrónico, dirección, localidad y catálogo), de modo que se informa el primer dato inválido.
+     * </p>
      *
-     * @throws ReglaNegocioException Si algún dato no cumple su regla.
+     * @throws ReglaNegocioException Si faltan los datos de la versión o si algún dato no cumple su regla.
      */
     private static DatosVersion normalizarYValidar(VersionProveedorFormDTO versionFormDTO) {
+        if (versionFormDTO == null) {
+            throw new ReglaNegocioException("Los datos del proveedor son obligatorios");
+        }
         DatosVersion datos = new DatosVersion(
                 NormalizacionTexto.nombrePropio(versionFormDTO.getRazonSocial()),
                 NormalizacionTexto.nombrePropio(versionFormDTO.getNombreComercial()),
@@ -321,26 +312,54 @@ public class ProveedorServicioImpl implements IProveedorServicio {
 
         validarObligatorioYLongitud(datos.razonSocial(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "La razón social", "obligatoria");
         validarObligatorioYLongitud(datos.nombreComercial(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre comercial", "obligatorio");
-        ValidacionesTexto.validarCuit(datos.cuit());
+        validarCuit(datos.cuit());
         ValidacionesTexto.validarTelefono(datos.telefono());
         validarObligatorioYLongitud(datos.email(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
         validarObligatorioYLongitud(datos.direccion(), LimitesTecnicos.LONGITUD_MAXIMA_DIRECCION, "La dirección", "obligatoria");
-        validarCatalogoSinItemsRepetidos(versionFormDTO.getCatalogoProveedor());
+        if (versionFormDTO.getIdLocalidad() == null) {
+            throw new ReglaNegocioException("La localidad es obligatoria");
+        }
+        validarCatalogo(versionFormDTO.getCatalogoProveedor());
         return datos;
     }
 
     /**
-     * Valida que el catálogo no repita el mismo ítem: un ítem es la combinación de un insumo y una presentación
-     * comercial.
+     * Valida el CUIT normalizado: es obligatorio y, si se informa, debe tener 11 dígitos.
      *
-     * @throws ReglaNegocioException Si el mismo insumo con la misma presentación comercial figura más de una vez.
+     * @throws ReglaNegocioException Si el CUIT es nulo o queda vacío al quitar los separadores, o si no tiene 11 dígitos.
      */
-    private static void validarCatalogoSinItemsRepetidos(List<CatalogoProveedorFormDTO> catalogo) {
-        if (catalogo == null) {
-            return;
+    private static void validarCuit(String cuit) {
+        if (cuit == null || cuit.isEmpty()) {
+            throw new ReglaNegocioException("El CUIT es obligatorio");
+        }
+        ValidacionesTexto.validarCuit(cuit);
+    }
+
+    /**
+     * Valida el catálogo: debe tener entre 1 y {@link LimitesTecnicos#CATALOGO_PROVEEDOR_MAXIMO_ITEMS} ítems, cada ítem
+     * debe indicar su insumo y su presentación comercial, y no puede repetir el mismo ítem (un ítem es la combinación
+     * de un insumo y una presentación comercial). Un catálogo nulo equivale a un catálogo vacío.
+     *
+     * @throws ReglaNegocioException Si el catálogo es nulo o está vacío, si supera el máximo de ítems, si un ítem es
+     *                               nulo o no indica el insumo o la presentación comercial, o si el mismo insumo con la
+     *                               misma presentación comercial figura más de una vez.
+     */
+    private static void validarCatalogo(List<CatalogoProveedorFormDTO> catalogo) {
+        if (catalogo == null || catalogo.isEmpty()) {
+            throw new ReglaNegocioException("El catálogo debe tener al menos un ítem");
+        }
+        if (catalogo.size() > LimitesTecnicos.CATALOGO_PROVEEDOR_MAXIMO_ITEMS) {
+            throw new ReglaNegocioException("El catálogo no puede superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CATALOGO_PROVEEDOR_MAXIMO_ITEMS) + " ítems");
         }
         Set<List<Long>> itemsVistos = new HashSet<>();
         for (CatalogoProveedorFormDTO item : catalogo) {
+            if (item == null || item.getIdInsumo() == null) {
+                throw new ReglaNegocioException("El insumo de cada ítem del catálogo es obligatorio");
+            }
+            if (item.getIdPresentacionComercial() == null) {
+                throw new ReglaNegocioException("La presentación comercial de cada ítem del catálogo es obligatoria");
+            }
             if (!itemsVistos.add(Arrays.asList(item.getIdInsumo(), item.getIdPresentacionComercial()))) {
                 throw catalogoConItemRepetido();
             }
@@ -359,10 +378,6 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      */
     private static String vacioANulo(String valor) {
         return (valor == null || valor.isEmpty()) ? null : valor;
-    }
-
-    private static RecursoDuplicadoException razonSocialDuplicada(String razonSocial) {
-        return new RecursoDuplicadoException("Ya existe un proveedor con la razón social '" + razonSocial + "'");
     }
 
     private static RecursoDuplicadoException cuitDuplicado(String cuit) {

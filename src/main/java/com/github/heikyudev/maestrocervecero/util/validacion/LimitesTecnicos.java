@@ -96,6 +96,9 @@ public final class LimitesTecnicos {
      */
     public static final double CANTIDAD_PRESENTACION_COMERCIAL_MAXIMA_KG = 10_000.0;
 
+    /** Cantidad máxima de ítems (combinaciones de insumo y presentación comercial) del catálogo de un proveedor. */
+    public static final int CATALOGO_PROVEEDOR_MAXIMO_ITEMS = 100;
+
     /** Cantidad máxima que se puede envasar en un solo envasado, en litros (igual que la capacidad máxima de un equipo). */
     public static final double CANTIDAD_ENVASADA_MAXIMA_LITROS = CAPACIDAD_EQUIPO_MAXIMA_LITROS;
 

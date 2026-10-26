@@ -284,23 +284,27 @@ registros activos. El estado (`ACTIVO` o `BAJA`) vive en la tabla padre (`provee
 tabla de versiones no puede consultarlo, por eso cada versión guarda `padre_activo`:
 
 - `padre_activo` es `true` mientras el padre está activo (valor por defecto al crear una versión).
-- Al dar de baja el padre, el Service pone `padre_activo = false` en todas sus versiones, y su razón social, CUIT, correo
-  electrónico o nombre quedan libres para un registro nuevo.
+- Al dar de baja el padre, el Service pone `padre_activo = false` en todas sus versiones, y su CUIT, correo electrónico o
+  nombre quedan libres para un registro nuevo.
 - Los índices únicos de negocio llevan `WHERE es_ultima_version = true AND padre_activo = true`.
 
 | Índice | Tabla | Expresión | Regla |
 |---|---|---|---|
 | `udx_version_proveedor_ultima_version` | `version_proveedor` | `(proveedor_id) WHERE es_ultima_version = true` | Una sola versión vigente por proveedor |
-| `udx_version_proveedor_razon_social` | `version_proveedor` | `(lower(btrim(razon_social)))` | Razón social única entre proveedores activos (la puntuación cuenta: `ACME S.A.` y `ACME SA` son distintas) |
 | `udx_version_proveedor_cuit` | `version_proveedor` | `(cuit)` | CUIT único entre proveedores activos (se guarda con sus 11 dígitos) |
 | `udx_version_proveedor_email` | `version_proveedor` | `(lower(btrim(email))) WHERE email IS NOT NULL` | Correo electrónico único entre proveedores activos |
 | `udx_version_receta_ultima_version` | `version_receta` | `(receta_id) WHERE es_ultima_version = true` | Una sola versión vigente por receta |
 | `udx_version_receta_nombre` | `version_receta` | `(lower(btrim(nombre)))` | Nombre único entre recetas activas; los nombres de versiones históricas no cuentan |
 
-Los índices de negocio (los cuatro con nombre de dato) son parciales por `es_ultima_version = true AND padre_activo = true`;
-los de versión vigente solo por `es_ultima_version = true`. El teléfono del proveedor no tiene unicidad, y el código
+Los índices de negocio (los tres con nombre de dato) son parciales por `es_ultima_version = true AND padre_activo = true`;
+los de versión vigente solo por `es_ultima_version = true`. La razón social y el teléfono del proveedor no tienen
+unicidad, y el código
 `R<id>` de la receta tampoco. Si las tablas contienen datos repetidos entre proveedores o recetas activos (sobre su versión
 vigente), o un padre con más de una versión vigente, la creación del índice falla y deben resolverse antes de migrar.
+
+`V9__eliminar_unicidad_razon_social_proveedor.sql` elimina el índice `udx_version_proveedor_razon_social` que crea V6.
+El CUIT es el identificador único del proveedor: dos proveedores activos pueden tener la misma razón social si su CUIT
+es distinto. El CUIT y el correo electrónico son únicos entre las versiones vigentes de los proveedores activos.
 
 **Una sola versión vigente.** Dos protecciones se combinan al modificar un proveedor o una receta:
 
