@@ -322,6 +322,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         validarCuit(datos.cuit());
         ValidacionesTexto.validarTelefono(datos.telefono());
         validarObligatorioYLongitud(datos.email(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
+        ValidacionesTexto.validarCorreo(datos.email());
         validarObligatorioYLongitud(datos.direccion(), LimitesTecnicos.LONGITUD_MAXIMA_DIRECCION, "La dirección", "obligatoria");
         if (versionFormDTO.getIdLocalidad() == null) {
             throw new ReglaNegocioException("La localidad es obligatoria");

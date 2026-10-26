@@ -1,12 +1,13 @@
 ## Casos de prueba de `ValidacionesTexto`
 
-**Tipo de prueba:** unitaria (clase `ValidacionesTextoTest`), sin Spring ni mocks. Verifica las validaciones de formato del CUIT, el teléfono y el nombre de usuario, que se aplican sobre el valor ya normalizado con `NormalizacionTexto`.
+**Tipo de prueba:** unitaria (clase `ValidacionesTextoTest`), sin Spring ni mocks. Verifica las validaciones de formato del CUIT, el teléfono, el nombre de usuario y el correo electrónico, que se aplican sobre el valor ya normalizado con `NormalizacionTexto`.
 
 **Regla:** cada validación lanza `ReglaNegocioException` con un mensaje en español, sin punto final.
 
 - **CUIT:** 11 dígitos ASCII; no se verifica el prefijo ni el dígito verificador.
 - **Teléfono:** opcional; si se informa, solo dígitos y hasta 15 (`LimitesTecnicos.LONGITUD_MAXIMA_TELEFONO`).
 - **Nombre de usuario:** obligatorio; letras ASCII (sin tildes ni eñes), números, `.`, `_` y `-`, sin espacios.
+- **Correo electrónico:** se valida después de su obligatoriedad y su longitud máxima (255). Parte local de letras ASCII, dígitos y `. _ % + -`, sin puntos al inicio, al final ni consecutivos; un único `@`; dominio de etiquetas de letras, dígitos y guiones (sin guion en los extremos) separadas por puntos, terminado en una etiqueta de al menos dos letras; sin espacios. No cubre todo el RFC 5322.
 
 ---
 
@@ -40,3 +41,14 @@
 | **CP-VT-09** | Nombre de usuario válido | `a`, `juan.perez`, `juan_perez`, `juan-perez`, `juan.perez-2_x`, `30123456` (un DNI), `Admin`, `ADMIN01` | Solo letras ASCII, números, `.`, `_` y `-` | No lanza excepción. |
 | **CP-VT-10** | Nulo o vacío | `null`, `""` | El nombre de usuario es obligatorio | Lanza `ReglaNegocioException`: "El nombre de usuario es obligatorio". |
 | **CP-VT-11** | Caracteres no permitidos | `juan perez`, ` juan`, `juan\tperez`, `juan@mail.com`, `ñandú`, `josé`, `juan!`, `juan/perez`, `juan+perez`, dígitos arábigos orientales | Contiene espacios, tildes, eñes, símbolos u otros caracteres fuera del conjunto permitido | Lanza `ReglaNegocioException`: "El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos, sin espacios". |
+
+### `validarCorreo(String)` y `PATRON_CORREO_FORMULARIO`
+
+`PATRON_CORREO_FORMULARIO` es el patrón de `@Pattern` de los FormDTO de Proveedor, Cliente y Usuario, con el mismo mensaje que `validarCorreo` (`MENSAJE_CORREO_INVALIDO`): el formulario y el Service rechazan los mismos valores con el mismo texto.
+
+| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
+| --- | --- | --- | --- | --- |
+| **CP-VT-12** | Correo válido | `ventas@malteria.com.ar`, `a.b+c@dominio.co`, `contacto@malteriadelsur.com`, `juan_perez-2@mail-sur.com.ar`, `info%ventas@x1.io`, `VENTAS@MALTERIA.COM` | Parte local, un único `@` y un dominio con al menos un punto que termina en una etiqueta de al menos dos letras | No lanza excepción. |
+| **CP-VT-13** | Formato inválido | `null`, `""`, `no-es-correo`, `a@b`, `a@@b.com`, `a b@c.com`, `@x.com`, `x@.com`, `x@y.`, `.a@b.com`, `a.@b.com`, `a..b@c.com`, `a@b..com`, `a@-b.com`, `a@b-.com`, `a@b.c`, `a@b.com.`, `a@b,com`, `ñandu@b.com`, `a@b@c.com`, `a@b.co m` | Falta la parte local, el `@` o el punto del dominio; hay más de un `@`, espacios, puntos al inicio, al final o consecutivos, guiones en los extremos de una etiqueta, una terminación de una sola letra o caracteres no permitidos | Lanza `ReglaNegocioException`: "El correo electrónico no tiene un formato válido". |
+| **CP-VT-14** | El patrón del formulario acepta lo que acepta el Service | `""`, `"   "`, `ventas@malteria.com.ar`, `"  Ventas@Malteria.COM.ar  "`, `a.b+c@dominio.co` | El valor llega sin normalizar: se admiten espacios en los extremos y mayúsculas; el vacío lo informa `@NotBlank` | El patrón coincide. |
+| **CP-VT-15** | El patrón del formulario rechaza lo que rechaza el Service | `no-es-correo`, `a@b`, `a@@b.com`, `a b@c.com`, `@x.com`, `x@.com`, `x@y.`, `a..b@c.com`, `a@b.c`, `ñandu@b.com` | Mismo formato que `validarCorreo` | El patrón no coincide. |

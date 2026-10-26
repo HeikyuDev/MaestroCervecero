@@ -5,7 +5,8 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import java.util.regex.Pattern;
 
 /**
- * Validaciones de formato de datos de texto (CUIT, teléfono y nombre de usuario) reutilizables por los services.
+ * Validaciones de formato de datos de texto (CUIT, teléfono, nombre de usuario y correo electrónico) reutilizables por
+ * los services.
  * <p>
  * Validan el valor ya normalizado con {@link NormalizacionTexto}. Todas lanzan {@link ReglaNegocioException} con un
  * mensaje en español.
@@ -17,6 +18,29 @@ public final class ValidacionesTexto {
 
     private static final Pattern SOLO_DIGITOS = Pattern.compile("[0-9]+");
     private static final Pattern FORMATO_USERNAME = Pattern.compile("[A-Za-z0-9._-]+");
+
+    /**
+     * Mensaje único del formato inválido del correo electrónico, el mismo en el service y en el formulario.
+     */
+    public static final String MENSAJE_CORREO_INVALIDO = "El correo electrónico no tiene un formato válido";
+
+    /**
+     * Formato del correo electrónico: una parte local de letras ASCII, dígitos y {@code . _ % + -} (sin puntos al
+     * inicio, al final ni consecutivos), un único {@code @} y un dominio de etiquetas de letras, dígitos y guiones
+     * (sin guion al inicio ni al final de cada etiqueta) separadas por puntos, que termina en una etiqueta de al menos
+     * dos letras. No admite espacios. No cubre todo el RFC 5322.
+     */
+    private static final String REGEX_CORREO = "[a-z0-9_%+-]+(?:\\.[a-z0-9_%+-]+)*"
+            + "@[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*\\.[a-z]{2,}";
+
+    /**
+     * Patrón de {@code @Pattern} para el correo electrónico de los formularios: el mismo formato que
+     * {@link #validarCorreo(String)}, sin distinguir mayúsculas y con espacios en los extremos, porque el valor llega sin
+     * normalizar. Un valor vacío o de solo espacios es válido para que la obligatoriedad la informe {@code @NotBlank}.
+     */
+    public static final String PATRON_CORREO_FORMULARIO = "(?i)[\\s\\p{Z}]*(?:" + REGEX_CORREO + ")?[\\s\\p{Z}]*";
+
+    private static final Pattern FORMATO_CORREO = Pattern.compile(REGEX_CORREO, Pattern.CASE_INSENSITIVE);
 
     private ValidacionesTexto() {
     }
@@ -69,6 +93,22 @@ public final class ValidacionesTexto {
         if (!FORMATO_USERNAME.matcher(username).matches()) {
             throw new ReglaNegocioException(
                     "El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos, sin espacios");
+        }
+    }
+
+    /**
+     * Valida el formato de un correo electrónico normalizado (ver {@link NormalizacionTexto#correo(String)}): una parte
+     * local, un único {@code @} y un dominio con al menos un punto, sin espacios ni caracteres inválidos y sin puntos
+     * consecutivos ni al inicio o al final. Se aplica después de validar que el correo es obligatorio y no supera su
+     * longitud máxima.
+     *
+     * @param correo Correo electrónico normalizado.
+     * @throws ReglaNegocioException Si es nulo o no tiene el formato de un correo electrónico
+     *                               ({@value #MENSAJE_CORREO_INVALIDO}).
+     */
+    public static void validarCorreo(String correo) {
+        if (correo == null || !FORMATO_CORREO.matcher(correo).matches()) {
+            throw new ReglaNegocioException(MENSAJE_CORREO_INVALIDO);
         }
     }
 

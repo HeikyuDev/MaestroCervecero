@@ -90,7 +90,7 @@ public class ClienteServicioImpl implements IClienteServicio {
      *
      * @param clienteFormDTO Los datos del cliente a registrar.
      * @return El cliente registrado.
-     * @throws ReglaNegocioException Si el nombre, la dirección o el correo electrónico faltan o superan su longitud máxima, o si el teléfono informado no tiene solo dígitos o supera los 15.
+     * @throws ReglaNegocioException Si el nombre, la dirección o el correo electrónico faltan o superan su longitud máxima, si el correo electrónico no tiene un formato válido, o si el teléfono informado no tiene solo dígitos o supera los 15.
      * @throws RecursoDuplicadoException Si ya existe un cliente activo con el mismo correo electrónico.
      * @throws RecursoNoEncontradoException Si la localidad referenciada no existe.
      */
@@ -142,7 +142,7 @@ public class ClienteServicioImpl implements IClienteServicio {
      * @param id El ID del cliente a modificar.
      * @param clienteFormDTO Los nuevos datos del cliente.
      * @return El cliente modificado.
-     * @throws ReglaNegocioException Si el nombre, la dirección o el correo electrónico faltan o superan su longitud máxima, o si el teléfono informado no tiene solo dígitos o supera los 15.
+     * @throws ReglaNegocioException Si el nombre, la dirección o el correo electrónico faltan o superan su longitud máxima, si el correo electrónico no tiene un formato válido, o si el teléfono informado no tiene solo dígitos o supera los 15.
      * @throws RecursoNoEncontradoException Si no existe un cliente activo con el ID especificado, o si la localidad referenciada no existe.
      * @throws RecursoDuplicadoException Si el nuevo correo electrónico ya pertenece a otro cliente activo.
      */
@@ -223,13 +223,15 @@ public class ClienteServicioImpl implements IClienteServicio {
 
     /**
      * Valida los datos de texto ya normalizados: el nombre, el correo electrónico y la dirección (obligatorios y
-     * de longitud máxima) y el teléfono (opcional, solo dígitos y de longitud máxima).
+     * de longitud máxima; el correo electrónico, además, con formato válido) y el teléfono (opcional, solo dígitos y
+     * de longitud máxima).
      *
      * @throws ReglaNegocioException Si algún dato no cumple su regla.
      */
     private static void validarDatosDeTexto(String nombre, String telefono, String email, String direccion) {
         validarObligatorioYLongitud(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre", "obligatorio");
         validarObligatorioYLongitud(email, LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
+        ValidacionesTexto.validarCorreo(email);
         ValidacionesTexto.validarTelefono(telefono);
         validarObligatorioYLongitud(direccion, LimitesTecnicos.LONGITUD_MAXIMA_DIRECCION, "La dirección", "obligatoria");
     }

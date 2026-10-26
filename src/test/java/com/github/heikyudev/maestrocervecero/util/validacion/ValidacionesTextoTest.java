@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,6 +22,7 @@ class ValidacionesTextoTest {
     private static final String MENSAJE_TELEFONO_DIGITOS = "El teléfono solo puede contener dígitos";
     private static final String MENSAJE_USERNAME_FORMATO =
             "El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos, sin espacios";
+    private static final String MENSAJE_CORREO_FORMATO = "El correo electrónico no tiene un formato válido";
 
     // ==================== validarCuit ====================
 
@@ -136,5 +138,42 @@ class ValidacionesTextoTest {
         assertThatThrownBy(() -> ValidacionesTexto.validarUsername(username))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage(MENSAJE_USERNAME_FORMATO);
+    }
+
+    // ==================== validarCorreo ====================
+
+    @ParameterizedTest(name = "[{index}] \"{0}\"")
+    @ValueSource(strings = {"ventas@malteria.com.ar", "a.b+c@dominio.co", "contacto@malteriadelsur.com",
+            "juan_perez-2@mail-sur.com.ar", "info%ventas@x1.io", "VENTAS@MALTERIA.COM"})
+    @DisplayName("CP-VT-12: validarCorreo acepta una parte local, un único @ y un dominio con al menos un punto")
+    void validarCorreo_debeAceptarCorreosValidos(String correo) {
+        assertThatCode(() -> ValidacionesTexto.validarCorreo(correo)).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest(name = "[{index}] \"{0}\"")
+    @NullSource
+    @ValueSource(strings = {"", "no-es-correo", "a@b", "a@@b.com", "a b@c.com", "@x.com", "x@.com", "x@y.",
+            ".a@b.com", "a.@b.com", "a..b@c.com", "a@b..com", "a@-b.com", "a@b-.com", "a@b.c", "a@b.com.",
+            "a@b,com", "ñandu@b.com", "a@b@c.com", "a@b.co m"})
+    @DisplayName("CP-VT-13: validarCorreo rechaza un valor sin el formato de un correo electrónico con \"El correo electrónico no tiene un formato válido\"")
+    void validarCorreo_debeRechazarFormatosInvalidos(String correo) {
+        assertThatThrownBy(() -> ValidacionesTexto.validarCorreo(correo))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage(MENSAJE_CORREO_FORMATO);
+    }
+
+    @ParameterizedTest(name = "[{index}] \"{0}\"")
+    @ValueSource(strings = {"", "   ", "ventas@malteria.com.ar", "  Ventas@Malteria.COM.ar  ", "a.b+c@dominio.co"})
+    @DisplayName("CP-VT-14: el patrón del formulario acepta un correo válido con espacios en los extremos o mayúsculas, y el valor vacío (lo informa la obligatoriedad)")
+    void patronCorreoFormulario_debeAceptarLoQueAceptaElService(String correo) {
+        assertThat(Pattern.matches(ValidacionesTexto.PATRON_CORREO_FORMULARIO, correo)).isTrue();
+    }
+
+    @ParameterizedTest(name = "[{index}] \"{0}\"")
+    @ValueSource(strings = {"no-es-correo", "a@b", "a@@b.com", "a b@c.com", "@x.com", "x@.com", "x@y.",
+            "a..b@c.com", "a@b.c", "ñandu@b.com"})
+    @DisplayName("CP-VT-15: el patrón del formulario rechaza los mismos formatos inválidos que validarCorreo")
+    void patronCorreoFormulario_debeRechazarLoQueRechazaElService(String correo) {
+        assertThat(Pattern.matches(ValidacionesTexto.PATRON_CORREO_FORMULARIO, correo)).isFalse();
     }
 }

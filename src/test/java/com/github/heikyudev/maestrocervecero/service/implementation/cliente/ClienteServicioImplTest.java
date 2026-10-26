@@ -715,7 +715,48 @@ class ClienteServicioImplTest {
         assertThat(existente.getNombre()).isEqualTo("María López");
     }
 
+    @Test
+    @DisplayName("CP-AC-15: altaCliente lanza ReglaNegocioException y no consulta la BD cuando el correo electrónico no tiene un formato válido")
+    void altaCliente_debeRechazarCorreoConFormatoInvalido() {
+        for (String email : CORREOS_CON_FORMATO_INVALIDO) {
+            // Arrange
+            ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", email, "Calle Falsa 123", 1L);
+
+            // Act + Assert
+            assertThatThrownBy(() -> clienteServicio.altaCliente(formDTO))
+                    .as("email: '%s'", email)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El correo electrónico no tiene un formato válido");
+        }
+
+        verifyNoInteractions(clienteRepository, localidadRepository);
+    }
+
+    @Test
+    @DisplayName("CP-MC-14: modificarCliente lanza ReglaNegocioException y no consulta la BD cuando el correo electrónico no tiene un formato válido")
+    void modificarCliente_debeRechazarCorreoConFormatoInvalido() {
+        for (String email : CORREOS_CON_FORMATO_INVALIDO) {
+            // Arrange
+            ClienteFormDTO formDTO = clienteFormDTO("Juan Pérez", "1122334455", email, "Calle Falsa 123", 1L);
+
+            // Act + Assert
+            assertThatThrownBy(() -> clienteServicio.modificarCliente(1L, formDTO))
+                    .as("email: '%s'", email)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El correo electrónico no tiene un formato válido");
+        }
+
+        verifyNoInteractions(clienteRepository, localidadRepository);
+    }
+
     // ==================== helpers ====================
+
+    /**
+     * Correos sin el formato de un correo electrónico: sin @, dominio sin punto, dos @, espacio interno, sin parte
+     * local, y dominio que empieza o termina en punto.
+     */
+    private static final String[] CORREOS_CON_FORMATO_INVALIDO =
+            {"no-es-correo", "a@b", "a@@b.com", "a b@c.com", "@x.com", "x@.com", "x@y."};
 
     private static ClienteEntity crearClienteEntity(Long id, String nombre, String telefono, String email, String direccion, LocalidadEntity localidad) {
         return ClienteEntity.builder()

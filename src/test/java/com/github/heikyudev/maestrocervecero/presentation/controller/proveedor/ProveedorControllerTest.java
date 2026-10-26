@@ -67,6 +67,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest({ProveedorController.class, HomeController.class})
@@ -755,6 +756,52 @@ class ProveedorControllerTest {
                 .andExpect(content().string(containsString("Ya existe un proveedor con el correo electrónico")))
                 .andExpect(content().string(matchesPattern("(?s).*id=\"email\"[^>]*border-rose-400.*")))
                 .andExpect(content().string(containsString("name=\"version.catalogoProveedor[1].idPresentacionComercial\" value=\"6\"")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-46: en el alta, un correo electrónico con formato inválido (incluido un dominio sin punto) vuelve al formulario con el mensaje junto al campo correo, conserva lo tipeado y no llega al service")
+    void caso_cp_pvc_46() throws Exception {
+        // Arrange
+        cargarCatalogoResuelto();
+
+        for (String email : new String[]{"no-es-correo", "a@b", "a b@c.com"}) {
+            LinkedMultiValueMap<String, String> datos = datosValidos();
+            datos.set("version.email", email);
+
+            // Act + Assert
+            mockMvc.perform(post(URL).with(csrf()).params(datos))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name(VISTA_FORMULARIO))
+                    .andExpect(model().attributeHasFieldErrorCode("proveedorForm", "version.email", "Pattern"))
+                    .andExpect(content().string(containsString("No se pudo crear el proveedor")))
+                    .andExpect(content().string(containsString("El correo electrónico no tiene un formato válido")))
+                    .andExpect(content().string(matchesPattern("(?s).*id=\"email\"[^>]*border-rose-400.*")))
+                    .andExpect(content().string(matchesPattern("(?s).*id=\"email\"[^>]*value=\"" + Pattern.quote(email) + "\".*")));
+        }
+
+        verify(proveedorServicio, never()).altaProveedor(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-47: al modificar, un correo electrónico con formato inválido vuelve al formulario de edición con el mensaje junto al campo correo, conserva lo tipeado y no llega al service")
+    void caso_cp_pvc_47() throws Exception {
+        // Arrange
+        cargarCatalogoResuelto();
+        LinkedMultiValueMap<String, String> datos = datosValidos();
+        datos.set("version.email", "ventas@malteriasdelsur");
+
+        // Act + Assert
+        mockMvc.perform(post(URL + "/4").with(csrf()).params(datos))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA_FORMULARIO))
+                .andExpect(model().attributeHasFieldErrorCode("proveedorForm", "version.email", "Pattern"))
+                .andExpect(content().string(containsString("No se pudo modificar el proveedor")))
+                .andExpect(content().string(containsString("El correo electrónico no tiene un formato válido")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"email\"[^>]*value=\"ventas@malteriasdelsur\".*")));
+
+        verify(proveedorServicio, never()).modificarProveedor(any(), any());
     }
 
     @Test

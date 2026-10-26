@@ -1,5 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.cliente;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 /**
@@ -26,8 +28,10 @@ public class ClienteFormDTO {
     private String telefono;
 
     /**
-     * Correo electrónico del cliente.
+     * Correo electrónico del cliente. El formato es el mismo que valida el service
+     * ({@link ValidacionesTexto#validarCorreo(String)}), con el mismo mensaje.
      */
+    @Pattern(regexp = ValidacionesTexto.PATRON_CORREO_FORMULARIO, message = ValidacionesTexto.MENSAJE_CORREO_INVALIDO)
     private String email;
 
     /**

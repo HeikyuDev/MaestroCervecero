@@ -1,11 +1,11 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.usuario;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosPassword;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto;
 import lombok.*;
 
 
@@ -45,10 +45,11 @@ public class UsuarioFormDTO {
     private String apellido;
 
     /**
-     * Correo electrónico del usuario.
+     * Correo electrónico del usuario. El formato es el mismo que valida el service
+     * ({@link ValidacionesTexto#validarCorreo(String)}), con el mismo mensaje.
      */
     @NotBlank(message = "El correo electrónico es obligatorio")
-    @Email(message = "El correo electrónico no tiene un formato válido")
+    @Pattern(regexp = ValidacionesTexto.PATRON_CORREO_FORMULARIO, message = ValidacionesTexto.MENSAJE_CORREO_INVALIDO)
     private String correo;
 
     /**

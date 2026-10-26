@@ -1,9 +1,11 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.proveedor;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -47,9 +49,11 @@ public class VersionProveedorFormDTO {
     private String telefono;
 
     /**
-     * Correo electrónico de contacto del proveedor.
+     * Correo electrónico de contacto del proveedor. El formato es el mismo que valida el service
+     * ({@link ValidacionesTexto#validarCorreo(String)}), con el mismo mensaje.
      */
     @NotBlank(message = "El correo electrónico es obligatorio")
+    @Pattern(regexp = ValidacionesTexto.PATRON_CORREO_FORMULARIO, message = ValidacionesTexto.MENSAJE_CORREO_INVALIDO)
     private String email;
 
     /**

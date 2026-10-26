@@ -1013,7 +1013,48 @@ class UsuarioServicioImplTest {
         assertThat(existente.getCorreo()).isEqualTo("pedro@mail.com");
     }
 
+    @Test
+    @DisplayName("CP-AU-23: altaUsuario lanza ReglaNegocioException y no consulta la BD cuando el correo electrónico no tiene un formato válido")
+    void altaUsuario_debeRechazarCorreoConFormatoInvalido() {
+        for (String correo : CORREOS_CON_FORMATO_INVALIDO) {
+            // Arrange
+            UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", correo, "1111", Rol.OPERARIO_DE_PRODUCCION);
+
+            // Act + Assert
+            assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
+                    .as("correo: '%s'", correo)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El correo electrónico no tiene un formato válido");
+        }
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
+    @Test
+    @DisplayName("CP-MU-21: modificarUsuario lanza ReglaNegocioException y no consulta la BD cuando el correo electrónico no tiene un formato válido")
+    void modificarUsuario_debeRechazarCorreoConFormatoInvalido() {
+        for (String correo : CORREOS_CON_FORMATO_INVALIDO) {
+            // Arrange
+            UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan", correo, "1111", Rol.OPERARIO_DE_PRODUCCION);
+
+            // Act + Assert
+            assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
+                    .as("correo: '%s'", correo)
+                    .isInstanceOf(ReglaNegocioException.class)
+                    .hasMessage("El correo electrónico no tiene un formato válido");
+        }
+
+        verifyNoInteractions(usuarioRepository, passwordEncoder);
+    }
+
     // ==================== helpers ====================
+
+    /**
+     * Correos sin el formato de un correo electrónico: sin @, dominio sin punto, dos @, espacio interno, sin parte
+     * local, y dominio que empieza o termina en punto.
+     */
+    private static final String[] CORREOS_CON_FORMATO_INVALIDO =
+            {"no-es-correo", "a@b", "a@@b.com", "a b@c.com", "@x.com", "x@.com", "x@y."};
 
     private static UsuarioEntity crearUsuarioEntity(Long id, String username, String password, String nombre, String correo, String telefono, Rol rol) {
         return UsuarioEntity.builder()

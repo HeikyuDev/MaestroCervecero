@@ -427,6 +427,18 @@ class ProveedorServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @ParameterizedTest(name = "CP-AP-40: correo {0}")
+    @MethodSource("versionesConCorreoInvalido")
+    @DisplayName("CP-AP-40: altaProveedor lanza ReglaNegocioException y no consulta la BD cuando el correo electrónico no tiene un formato válido")
+    void altaProveedor_debeRechazarCorreoConFormatoInvalido(String descripcion, VersionProveedorFormDTO version) {
+        // Act + Assert
+        assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El correo electrónico no tiene un formato válido");
+
+        verifyNoRepositoryInteractions();
+    }
+
     @ParameterizedTest(name = "CP-AP-15: teléfono [{0}]")
     @NullAndEmptySource
     @ValueSource(strings = {"   "})
@@ -1038,6 +1050,18 @@ class ProveedorServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @ParameterizedTest(name = "CP-MP-36: correo {0}")
+    @MethodSource("versionesConCorreoInvalido")
+    @DisplayName("CP-MP-36: modificarProveedor lanza ReglaNegocioException y no consulta la BD cuando el correo electrónico no tiene un formato válido")
+    void modificarProveedor_debeRechazarCorreoConFormatoInvalido(String descripcion, VersionProveedorFormDTO version) {
+        // Act + Assert
+        assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El correo electrónico no tiene un formato válido");
+
+        verifyNoRepositoryInteractions();
+    }
+
     @Test
     @DisplayName("CP-MP-15: modificarProveedor lanza RecursoDuplicadoException y no persiste cuando el correo electrónico está en uso por otro proveedor activo")
     void modificarProveedor_debeRechazarCorreoEnUsoPorOtroProveedor() {
@@ -1565,6 +1589,17 @@ class ProveedorServicioImplTest {
                         "La dirección es obligatoria"),
                 Arguments.of("localidad y catálogo vacíos", versionValidaBuilder().idLocalidad(null).catalogoProveedor(List.of()).build(),
                         "La localidad es obligatoria"));
+    }
+
+    static Stream<Arguments> versionesConCorreoInvalido() {
+        return Stream.of(
+                Arguments.of("sin @", versionValidaBuilder().email("no-es-correo").build()),
+                Arguments.of("dominio sin punto", versionValidaBuilder().email("a@b").build()),
+                Arguments.of("dos @", versionValidaBuilder().email("a@@b.com").build()),
+                Arguments.of("espacio interno", versionValidaBuilder().email("a b@c.com").build()),
+                Arguments.of("sin parte local", versionValidaBuilder().email("@x.com").build()),
+                Arguments.of("dominio que empieza con punto", versionValidaBuilder().email("x@.com").build()),
+                Arguments.of("dominio que termina en punto", versionValidaBuilder().email("x@y.").build()));
     }
 
     static Stream<Arguments> versionesConTelefonoInvalido() {

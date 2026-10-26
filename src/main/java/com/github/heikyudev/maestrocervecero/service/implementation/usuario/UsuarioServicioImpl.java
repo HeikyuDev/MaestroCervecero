@@ -99,7 +99,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @param usuarioFormDTO Objeto DTO que contiene los datos de creación del usuario.
      * @return {@link UsuarioResponseDTO} representativo del usuario guardado en la base de datos.
      * @throws RecursoDuplicadoException Si el username o el correo electrónico provistos ya pertenecen a un usuario activo.
-     * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido o el correo electrónico faltan o superan su longitud máxima, si el nombre de usuario tiene caracteres no permitidos, si el teléfono informado no tiene solo dígitos o supera los 15, si la contraseña no fue informada, o si no cumple las reglas de {@link MetodosPassword} (entre 8 y 72 caracteres, sin espacios en blanco).
+     * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido o el correo electrónico faltan o superan su longitud máxima, si el nombre de usuario tiene caracteres no permitidos, si el correo electrónico no tiene un formato válido, si el teléfono informado no tiene solo dígitos o supera los 15, si la contraseña no fue informada, o si no cumple las reglas de {@link MetodosPassword} (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
     @Transactional
@@ -167,7 +167,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @return {@link UsuarioResponseDTO} representativo del usuario con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza el usuario por el ID proporcionado.
      * @throws RecursoDuplicadoException Si el nuevo username o el nuevo correo electrónico ya se encuentran asignados a otra cuenta activa.
-     * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido o el correo electrónico faltan o superan su longitud máxima, si el nombre de usuario tiene caracteres no permitidos, si el teléfono informado no tiene solo dígitos o supera los 15, o si se envía una contraseña que no cumple las reglas (entre 8 y 72 caracteres, sin espacios en blanco).
+     * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido o el correo electrónico faltan o superan su longitud máxima, si el nombre de usuario tiene caracteres no permitidos, si el correo electrónico no tiene un formato válido, si el teléfono informado no tiene solo dígitos o supera los 15, o si se envía una contraseña que no cumple las reglas (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
     @Transactional
@@ -263,8 +263,8 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
 
     /**
      * Valida los datos de texto ya normalizados: el nombre de usuario (obligatorio, con caracteres permitidos y de
-     * longitud máxima), el nombre, el apellido y el correo electrónico (obligatorios y de longitud máxima) y el
-     * teléfono (opcional, solo dígitos y de longitud máxima).
+     * longitud máxima), el nombre, el apellido y el correo electrónico (obligatorios y de longitud máxima; el correo
+     * electrónico, además, con formato válido) y el teléfono (opcional, solo dígitos y de longitud máxima).
      *
      * @throws ReglaNegocioException Si algún dato no cumple su regla.
      */
@@ -274,6 +274,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         validarObligatorioYLongitud(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
         validarObligatorioYLongitud(apellido, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El apellido");
         validarObligatorioYLongitud(correo, LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico");
+        ValidacionesTexto.validarCorreo(correo);
         ValidacionesTexto.validarTelefono(telefono);
     }
 

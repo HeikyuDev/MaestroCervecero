@@ -19,7 +19,7 @@
 
 ### 3. `altaCliente(ClienteFormDTO clienteFormDTO)`
 
-Los datos de texto se normalizan antes de validar y de guardar: el correo electrónico se guarda en minúsculas y sin espacios en los extremos, y el nombre, la dirección y el teléfono sin espacios de más. La unicidad rige solo para el correo electrónico entre clientes activos (sin distinguir mayúsculas): el nombre y el teléfono no tienen unicidad. El teléfono es opcional; si se informa, debe tener solo dígitos y hasta 15.
+Los datos de texto se normalizan antes de validar y de guardar: el correo electrónico se guarda en minúsculas y sin espacios en los extremos, y el nombre, la dirección y el teléfono sin espacios de más. La unicidad rige solo para el correo electrónico entre clientes activos (sin distinguir mayúsculas): el nombre y el teléfono no tienen unicidad. El teléfono es opcional; si se informa, debe tener solo dígitos y hasta 15. El correo electrónico, además de obligatorio y de hasta 255 caracteres, debe tener un formato válido.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
@@ -37,6 +37,7 @@ Los datos de texto se normalizan antes de validar y de guardar: el correo electr
 |**CP-AC-12**|Violación del índice único al guardar|`email: "juan@mail.com"`; la consulta previa devuelve FALSE y `save` lanza `DataIntegrityViolationException` por `udx_cliente_email` (pedido simultáneo)|La base de datos rechaza el duplicado que la consulta previa no vio|Lanza `RecursoDuplicadoException` con el mismo mensaje que la consulta previa ("Ya existe un cliente con el correo electrónico 'juan@mail.com'").|
 |**CP-AC-13**|Reutilización del correo electrónico de un cliente dado de baja|`email: "juan@mail.com"` (solo un cliente con `estado = BAJA` tiene ese valor)|La consulta de unicidad considera solo clientes `ACTIVO` $\rightarrow$ **FALSE**|Persiste con éxito: el correo electrónico de un cliente dado de baja puede volver a usarse.|
 |**CP-AC-14**|El nombre no tiene unicidad|Dos altas con `nombre: "Juan Pérez"` y `"juan pérez"`, con correo electrónico distinto|No existe consulta de unicidad del nombre|Ambas se persisten.|
+|**CP-AC-15**|Correo electrónico con formato inválido|`email: "no-es-correo"` (sin `@`), `"a@b"` (dominio sin punto), `"a@@b.com"` (dos `@`), `"a b@c.com"` (espacio interno), `"@x.com"` (sin parte local), `"x@.com"` y `"x@y."` (dominio que empieza o termina en punto)|`ValidacionesTexto.validarCorreo` $\rightarrow$ **Falla** (después de validar que es obligatorio y no supera 255 caracteres)|Lanza `ReglaNegocioException` ("El correo electrónico no tiene un formato válido") en cada caso. No consulta la BD.|
 
 ### 4. `modificarCliente(Long id, ClienteFormDTO clienteFormDTO)`
 
@@ -57,6 +58,7 @@ Los datos de texto se normalizan y validan antes de consultar la base de datos, 
 |**CP-MC-11**|Reutilización del correo electrónico de un cliente dado de baja|`id: 1L` (Existe), `email: "baja@mail.com"` (solo otro cliente con `estado = BAJA` tiene ese valor)|La consulta de unicidad considera solo clientes `ACTIVO` $\rightarrow$ **FALSE**|Persiste con éxito: el correo electrónico de un cliente dado de baja puede volver a usarse.|
 |**CP-MC-12**|Teléfono opcional|`id: 1L` (Existe), `telefono: "   "`|El teléfono vacío equivale a nulo|Persiste con `telefono = null`.|
 |**CP-MC-13**|El nombre no tiene unicidad|`id: 1L` (Existe), `nombre: "María López"` (lo tiene otro cliente activo)|No existe consulta de unicidad del nombre|Persiste con éxito el cliente con el nombre indicado.|
+|**CP-MC-14**|Correo electrónico con formato inválido|`id: 1L` y los mismos siete casos de CP-AC-15|`ValidacionesTexto.validarCorreo` $\rightarrow$ **Falla**|Lanza `ReglaNegocioException` ("El correo electrónico no tiene un formato válido") en cada caso. No consulta la BD.|
 
 ### 5. `bajaCliente(Long id)`
 

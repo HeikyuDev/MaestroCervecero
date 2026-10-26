@@ -24,6 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -647,6 +648,63 @@ class UsuarioControllerTest {
                 .andExpect(content().string(containsString("Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo")))
                 .andExpect(content().string(containsString("Solo dígitos")))
                 .andExpect(content().string(containsString("Se guarda en minúsculas y no puede repetirse en otro usuario")));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-39: en el alta, un correo electrónico con formato inválido (incluido un dominio sin punto) vuelve al formulario con el mensaje junto al campo, conserva lo tipeado y no llega al service")
+    void alta_debeRechazarCorreoConFormatoInvalido() throws Exception {
+        for (String correo : new String[]{"no-es-correo", "a@b", "a@@b.com"}) {
+            // Arrange
+            org.springframework.util.LinkedMultiValueMap<String, String> params = paramsValidos("carlos");
+            params.set("correo", correo);
+
+            // Act + Assert
+            mockMvc.perform(post("/usuarios").with(csrf()).params(params))
+                    .andExpect(status().isOk())
+                    .andExpect(view().name("usuario/usuario-form"))
+                    .andExpect(model().attributeHasFieldErrorCode("usuarioForm", "correo", "Pattern"))
+                    .andExpect(content().string(containsString("El correo electrónico no tiene un formato válido")))
+                    .andExpect(content().string(matchesPattern("(?s).*id=\"correo\"[^>]*value=\"" + Pattern.quote(correo) + "\".*")));
+        }
+
+        verify(usuarioServicio, never()).altaUsuario(any());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-40: al modificar, un correo electrónico con formato inválido vuelve al formulario de edición con el mensaje junto al campo, conserva lo tipeado y no llega al service")
+    void modificar_debeRechazarCorreoConFormatoInvalido() throws Exception {
+        // Arrange
+        when(usuarioServicio.buscarPorId(7L)).thenReturn(usuario(7L, "carlos", Rol.GERENTE_DE_COMPRAS));
+        org.springframework.util.LinkedMultiValueMap<String, String> params = paramsValidos("carlos");
+        params.set("correo", "carlos@mail");
+
+        // Act + Assert
+        mockMvc.perform(post("/usuarios/7").with(csrf()).params(params))
+                .andExpect(status().isOk())
+                .andExpect(view().name("usuario/usuario-form"))
+                .andExpect(model().attributeHasFieldErrorCode("usuarioForm", "correo", "Pattern"))
+                .andExpect(content().string(containsString("El correo electrónico no tiene un formato válido")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"correo\"[^>]*value=\"carlos@mail\".*")));
+
+        verify(usuarioServicio, never()).modificarUsuario(any(), any());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
+    @DisplayName("CP-UC-41: un correo electrónico válido con espacios en los extremos y mayúsculas pasa el formulario y llega al service (que lo normaliza)")
+    void alta_debeAceptarCorreoConEspaciosYMayusculas() throws Exception {
+        // Arrange
+        org.springframework.util.LinkedMultiValueMap<String, String> params = paramsValidos("carlos");
+        params.set("correo", "  Carlos@Mail.COM ");
+
+        // Act + Assert
+        mockMvc.perform(post("/usuarios").with(csrf()).params(params))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/usuarios"));
+
+        verify(usuarioServicio).altaUsuario(any());
     }
 
     // ==================== helpers ====================
