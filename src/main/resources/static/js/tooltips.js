@@ -25,8 +25,9 @@
         tarjeta.id = 'tooltip-flotante';
         tarjeta.hidden = true;
         tarjeta.className = 'fixed left-0 top-0 z-[100] max-w-xs rounded-lg bg-slate-800 px-3 py-2 text-xs leading-relaxed text-slate-100 shadow-xl';
-        // Estilos de posición en línea: la tarjeta se mide apenas se muestra, antes de que Tailwind genere sus clases
-        tarjeta.style.cssText = 'position:fixed;left:0;top:0;z-index:100;max-width:20rem;width:max-content';
+        // Estilos de posición en línea: la tarjeta se mide apenas se muestra, antes de que Tailwind genere sus clases.
+        // overflow-wrap:anywhere parte las palabras sin espacios (por ejemplo, 100 caracteres seguidos) dentro de la caja
+        tarjeta.style.cssText = 'position:fixed;left:0;top:0;z-index:100;max-width:20rem;width:max-content;overflow-wrap:anywhere';
 
         var contenido = document.createElement('div');
         contenido.setAttribute('data-tooltip-texto', '');

@@ -119,12 +119,12 @@ class ProveedorControllerTest {
                 .andExpect(view().name("proveedor/proveedor-lista"))
                 .andExpect(content().string(containsString("<title>Proveedores - Maestro Cervecero</title>")))
                 .andExpect(content().string(containsString("Gestión de Proveedores")))
-                .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Razón social</th>")))
-                .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Nombre comercial</th>")))
-                .andExpect(content().string(containsString("<th class=\"px-4 py-3\">CUIT</th>")))
-                .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Localidad</th>")))
-                .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Teléfono</th>")))
-                .andExpect(content().string(containsString("<th class=\"px-4 py-3\">Ítems del catálogo</th>")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Razón social</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Nombre comercial</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">CUIT</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Localidad</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Teléfono</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Ítems del catálogo</th>.*")))
                 .andExpect(content().string(containsString(">Malterías del Sur S.A.<")))
                 .andExpect(content().string(containsString(">Malterías del Sur<")))
                 .andExpect(content().string(containsString(">30-71234567-8<")))
@@ -281,6 +281,36 @@ class ProveedorControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*whitespace-nowrap\">-</td>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*class=\"[^\"]*truncate[^\"]*\"[^>]*data-tooltip=\"" + largo + "\".*")))
                 .andExpect(content().string(containsString(">0<")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-48: con textos de 100 caracteres sin espacios las columnas de texto quedan acotadas a 9rem y las celdas usan px-2, así la tabla entra completa con sus acciones")
+    void caso_cp_pvc_48() throws Exception {
+        // Arrange
+        String largo = "ZZ-PV-" + "X".repeat(94);
+        ProveedorResponseDTO conTextosLargos = ProveedorResponseDTO.builder().id(5L).version(VersionProveedorResponseDTO.builder()
+                .razonSocial(largo).nombreComercial(largo).cuit("20111111112").telefono("123456789012345")
+                .localidad(LocalidadResponseDTO.builder().id(9L).nombre(largo).build()).catalogoProveedor(List.of()).build()).build();
+        when(proveedorServicio.filtrarProveedores(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(conTextosLargos), PageRequest.of(0, 20), 1));
+
+        // Act
+        String html = mockMvc.perform(get(URL))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String tabla = html.substring(html.indexOf("<table"), html.indexOf("</table>"));
+
+        // Assert
+        Matcher acotadas = Pattern.compile("<span class=\"inline-block max-w-\\[9rem\\] truncate[^\"]*\"[^>]*data-tooltip=\"" + largo + "\"").matcher(tabla);
+        int cantidadAcotadas = 0;
+        while (acotadas.find()) {
+            cantidadAcotadas++;
+        }
+        assertThat(cantidadAcotadas).as("razón social, nombre comercial y localidad acotadas a 9rem con tooltip").isEqualTo(3);
+        assertThat(tabla).doesNotContain("px-4 py-3").contains("<td class=\"px-2 py-3 text-slate-700 whitespace-nowrap\">20-11111111-2</td>")
+                .contains("<td class=\"px-2 py-3 text-slate-700 whitespace-nowrap\">123456789012345</td>")
+                .contains("<th class=\"px-2 py-3 text-right whitespace-nowrap\">Acciones</th>");
     }
 
     @ParameterizedTest
