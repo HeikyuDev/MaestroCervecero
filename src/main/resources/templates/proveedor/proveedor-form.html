@@ -108,12 +108,15 @@
             </div>
             <div class="border rounded-lg overflow-hidden" th:classappend="${#fields.hasErrors('version.catalogoProveedor*')} ? 'border-rose-400' : 'border-slate-200'">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
+                    <!-- table-fixed: Insumo y Presentación comparten el ancho en partes iguales y la columna de "Quitar"
+                         tiene ancho fijo, así un nombre largo sin espacios se parte dentro de su celda (break-words)
+                         en lugar de ensanchar la tabla. -->
+                    <table class="w-full table-fixed text-sm text-left" data-tabla-catalogo>
                         <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <tr>
                             <th class="px-4 py-3">Insumo</th>
                             <th class="px-4 py-3">Presentación comercial</th>
-                            <th class="px-4 py-3 text-right"></th>
+                            <th class="w-32 px-4 py-3 text-right"></th>
                         </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100" data-filas>

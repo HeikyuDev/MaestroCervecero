@@ -654,6 +654,33 @@ class ProveedorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-43: un insumo y una presentación con nombres de 100 caracteres sin espacios se parten dentro de su celda del catálogo, sin ensanchar la tabla")
+    void caso_cp_pvc_43() throws Exception {
+        // Arrange
+        String nombreInsumo = "ZZ-PV-MaltaLarga" + "X".repeat(84);
+        String nombrePresentacion = "ZZ-PV-BolsaLarga" + "Y".repeat(84);
+        MaltaResponseDTO malta = MaltaResponseDTO.builder().id(11L).nombre(nombreInsumo).build();
+        PresentacionComercialResponseDTO bolsa = presentacion(5L, nombrePresentacion, 25.0, UnidadDeMedida.KILOGRAMO);
+        when(insumoServicio.buscarPorId(11L)).thenReturn(malta);
+        when(presentacionComercialServicio.buscarPorId(5L)).thenReturn(bolsa);
+        when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
+        when(proveedorServicio.buscarPorId(4L)).thenReturn(ProveedorResponseDTO.builder().id(4L).version(
+                VersionProveedorResponseDTO.builder().razonSocial("Malterías del Sur S.A.").cuit("30712345678").localidad(localidad())
+                        .catalogoProveedor(List.of(CatalogoProveedorResponseDTO.builder().insumo(malta).presentacionComercial(bolsa).build()))
+                        .build()).build());
+
+        // Act + Assert: table-fixed reparte el ancho entre las columnas y la de "Quitar" tiene ancho fijo (w-32)
+        mockMvc.perform(get(URL + "/4/editar"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<table class=\"[^\"]*\\btable-fixed\\b[^\"]*\" data-tabla-catalogo>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-tabla-catalogo>.*<th class=\"[^\"]*\\bw-32\\b[^\"]*\"></th>.*")))
+                // Los nombres completos (sin truncar) se parten dentro de su celda con break-words
+                .andExpect(content().string(matchesPattern("(?s).*<span class=\"[^\"]*\\bbreak-words\\b[^\"]*\" data-celda=\"insumo\">" + nombreInsumo + "</span>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<span class=\"[^\"]*\\bbreak-words\\b[^\"]*\" data-celda=\"presentacion\">" + nombrePresentacion + "</span>.*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
     @DisplayName("CP-PVC-22: un proveedor inexistente redirige al origen con el motivo")
     void caso_cp_pvc_22() throws Exception {
         // Arrange
@@ -884,6 +911,26 @@ class ProveedorControllerTest {
                 .andExpect(content().string("El valor indicado no es válido"));
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-44: en el buscador de insumos solo el nombre se puede partir; los encabezados y el tipo no se cortan a mitad de palabra")
+    void caso_cp_pvc_44() throws Exception {
+        // Arrange
+        String nombreLargo = "ZZ-PV-MaltaLarga" + "X".repeat(84);
+        when(insumoServicio.filtrarInsumos(any(), any(), any())).thenReturn(new PageImpl<>(List.<InsumoResponseDTO>of(
+                MaltaResponseDTO.builder().id(11L).nombre(nombreLargo).build()), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/buscador/insumos"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Nombre</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Tipo</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Malta</td>.*")))
+                // La celda del nombre conserva el corte libre de tabla-buscador
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"(?![^\"]*whitespace-nowrap)[^\"]*\">" + nombreLargo + "</td>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-id=\"11\" data-texto=\"" + nombreLargo + "\".*")));
+    }
+
     // ==================== GET /proveedores/buscador/presentaciones ====================
 
     @Test
@@ -937,6 +984,27 @@ class ProveedorControllerTest {
         mockMvc.perform(get(URL + "/buscador/presentaciones").param("nombre", "nada"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se encontraron presentaciones comerciales con los criterios indicados")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-45: en el buscador de presentaciones solo el nombre se puede partir; los encabezados, la cantidad y la unidad no se cortan a mitad de palabra")
+    void caso_cp_pvc_45() throws Exception {
+        // Arrange
+        String nombreLargo = "ZZ-PV-BolsaLarga" + "Y".repeat(84);
+        when(presentacionComercialServicio.filtrarPresentacionesComerciales(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                presentacion(5L, nombreLargo, 1234.5, UnidadDeMedida.KILOGRAMO)), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/buscador/presentaciones"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Nombre</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Cantidad</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">Unidad</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">1234,5</td>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\\bwhitespace-nowrap\\b[^\"]*\">kg</td>.*")))
+                // La celda del nombre conserva el corte libre de tabla-buscador
+                .andExpect(content().string(matchesPattern("(?s).*<td class=\"(?![^\"]*whitespace-nowrap)[^\"]*\">" + nombreLargo + "</td>.*")));
     }
 
     @Test
