@@ -55,6 +55,7 @@
 
     <!-- Resultados -->
     <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
@@ -62,7 +63,7 @@
                 <th class="px-4 py-3">Código postal</th>
                 <th class="px-4 py-3">Provincia</th>
                 <th class="px-4 py-3">País</th>
-                <th class="px-4 py-3 text-right">Acciones</th>
+                <th class="col-acciones px-4 py-3 text-right">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -71,7 +72,7 @@
                 <td class="px-4 py-3 text-slate-700" th:text="${l.codigoPostal}">5800</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.nombre}">Córdoba</td>
                 <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.pais.nombre}">Argentina</td>
-                <td class="px-4 py-3">
+                <td class="col-acciones px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
                         <a th:href="@{/ubicaciones/localidades/{id}/editar(id=${l.id})}"
                            title="Editar localidad" aria-label="Editar localidad"
@@ -95,6 +96,7 @@
             </tr>
             </tbody>
         </table>
+        </div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${localidades}, 'localidad|localidades',
                 ${localidades.hasPrevious()} ? @{/ubicaciones/localidades(pagina=${localidades.number - 1}, nombre=${filtroNombre}, codigoPostal=${filtroCodigoPostal}, idProvincia=${filtroIdProvincia}, idPais=${filtroIdPais})} : null,

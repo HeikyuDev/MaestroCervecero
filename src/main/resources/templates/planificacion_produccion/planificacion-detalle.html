@@ -154,7 +154,7 @@
                     <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Fin estimado</th>
                     <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Inicio real</th>
                     <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Fin real</th>
-                    <th sec:authorize="hasAuthority('LOTE_CONSULTAR')" class="px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                    <th sec:authorize="hasAuthority('LOTE_CONSULTAR')" class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -174,7 +174,7 @@
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacionEstimada})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${l.fechaInicio})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${l.fechaFinalizacion})}"></th:block></td>
-                    <td sec:authorize="hasAuthority('LOTE_CONSULTAR')" class="px-2 py-3">
+                    <td sec:authorize="hasAuthority('LOTE_CONSULTAR')" class="col-acciones px-2 py-3">
                         <div class="flex items-center justify-end gap-0.5">
                             <a th:href="@{/lotes/{id}(id=${l.id})}" title="Ver lote" aria-label="Ver lote"
                                class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">

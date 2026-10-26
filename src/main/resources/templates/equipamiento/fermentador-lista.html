@@ -58,7 +58,7 @@
                 <th class="px-4 py-3">Capacidad total (L)</th>
                 <th class="px-4 py-3">Capacidad útil (L)</th>
                 <th class="px-4 py-3">Usos antes de mantenimiento</th>
-                <th class="px-4 py-3 text-right">Acciones</th>
+                <th class="col-acciones px-4 py-3 text-right">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -70,7 +70,7 @@
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.capacidadTotal})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.capacidadUtil})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">50</td>
-                <td class="px-4 py-3">
+                <td class="col-acciones px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
                         <a th:href="@{/equipamiento/fermentadores/{id}/editar(id=${x.id})}" title="Editar fermentador" aria-label="Editar fermentador"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">

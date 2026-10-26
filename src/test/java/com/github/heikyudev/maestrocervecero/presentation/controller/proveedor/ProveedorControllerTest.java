@@ -310,7 +310,7 @@ class ProveedorControllerTest {
         assertThat(cantidadAcotadas).as("razón social, nombre comercial y localidad acotadas a 9rem con tooltip").isEqualTo(3);
         assertThat(tabla).doesNotContain("px-4 py-3").contains("<td class=\"px-2 py-3 text-slate-700 whitespace-nowrap\">20-11111111-2</td>")
                 .contains("<td class=\"px-2 py-3 text-slate-700 whitespace-nowrap\">123456789012345</td>")
-                .contains("<th class=\"px-2 py-3 text-right whitespace-nowrap\">Acciones</th>");
+                .contains("<th class=\"col-acciones px-2 py-3 text-right whitespace-nowrap\">Acciones</th>");
     }
 
     @ParameterizedTest

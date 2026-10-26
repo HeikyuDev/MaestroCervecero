@@ -17,3 +17,51 @@
     @apply shrink-0 whitespace-nowrap;
   }
 }
+
+/*
+ * Columna de acciones de toda tabla de listado (editar, dar de baja, ver, anular, mover, quitar), en el <th> y en
+ * cada <td> de esa columna. Cuando la tarjeta es más angosta que la tabla, el contenedor overflow-x-auto se desplaza
+ * en horizontal y la columna queda fija contra su borde derecho, por encima de las demás celdas.
+ *
+ * La celda toma el fondo de su fila, así el texto que pasa por detrás nunca se transparenta: blanco en las filas,
+ * el gris del <thead> en el encabezado, el gris del hover de la fila y el color de una fila resaltada (por ejemplo
+ * bg-rose-50). El fondo blanco por defecto de la fila va dentro de :where(), que no suma especificidad, de modo que
+ * cualquier clase de fondo de la fila (hover:bg-slate-50, bg-rose-50, etc.) lo reemplaza.
+ *
+ * La sombra izquierda solo aparece mientras queda contenido oculto detrás de la columna: sigue el desplazamiento
+ * horizontal del contenedor y se desvanece al llegar al final. Si la tabla entra completa no hay desplazamiento y
+ * la columna se ve sin sombra.
+ */
+@layer components {
+  .col-acciones {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background-color: inherit;
+  }
+
+  :where(tbody > tr:has(> .col-acciones)) {
+    background-color: theme('colors.white');
+  }
+
+  :where(thead > tr:has(> .col-acciones)) {
+    background-color: inherit;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  .col-acciones {
+    animation: col-acciones-sombra linear both;
+    animation-timeline: scroll(nearest inline);
+  }
+}
+
+@keyframes col-acciones-sombra {
+  from {
+    box-shadow: -8px 0 8px -8px rgb(15 23 42 / 0.15);
+  }
+
+  to {
+    box-shadow: none;
+  }
+}

@@ -143,7 +143,7 @@
                     <th class="hidden xl:table-cell px-2 py-3 whitespace-nowrap">Volumen (L)</th>
                     <th class="px-2 py-3 whitespace-nowrap">Inicio</th>
                     <th class="px-2 py-3 whitespace-nowrap">Fin</th>
-                    <th sec:authorize="hasAuthority('LOTE_REGISTRAR')" class="px-2 py-3 text-right whitespace-nowrap">Mover</th>
+                    <th sec:authorize="hasAuthority('LOTE_REGISTRAR')" class="col-acciones px-2 py-3 text-right whitespace-nowrap">Mover</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -172,7 +172,7 @@
                     <td class="hidden xl:table-cell px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${item.lote.volumenObjetivo})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaInicioEstimada})}"></th:block></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${item.lote.fechaFinalizacionEstimada})}"></th:block></td>
-                    <td sec:authorize="hasAuthority('LOTE_REGISTRAR')" class="px-2 py-3">
+                    <td sec:authorize="hasAuthority('LOTE_REGISTRAR')" class="col-acciones px-2 py-3">
                         <div class="flex items-center justify-end gap-1">
                             <form th:action="@{/cronograma-produccion/lotes/{id}/subir(id=${item.lote.id})}" method="post" novalidate class="m-0">
                                 <input type="hidden" name="idFermentador" th:if="${filtroIdFermentador != null}" th:value="${filtroIdFermentador}">

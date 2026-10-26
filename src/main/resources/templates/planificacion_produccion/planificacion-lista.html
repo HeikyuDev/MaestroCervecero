@@ -62,7 +62,7 @@
                 <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Inicio estimado</th>
                 <th class="px-2 py-3 whitespace-nowrap hidden xl:table-cell">Fin estimado</th>
                 <th class="px-2 py-3 whitespace-nowrap">Estado</th>
-                <th class="px-2 py-3 text-right whitespace-nowrap">Acciones</th>
+                <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -79,7 +79,7 @@
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaInicioEstimada})}"></th:block></td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap hidden xl:table-cell"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${p.fechaFinalizacionEstimada})}"></th:block></td>
                 <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${p.estado})}"></span></td>
-                <td class="px-2 py-3">
+                <td class="col-acciones px-2 py-3">
                     <div class="flex items-center justify-end gap-0.5">
                         <a th:href="@{/planificaciones-produccion/{id}(id=${p.id})}" title="Ver estado actual" aria-label="Ver estado actual"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">

@@ -111,7 +111,7 @@
                     <th class="px-4 py-3 whitespace-nowrap">Cantidad (L)</th>
                     <th class="px-4 py-3 whitespace-nowrap">Fecha de registro</th>
                     <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                    <th th:if="${operable}" sec:authorize="hasAuthority('ENVASADO_ANULAR')" class="px-4 py-3 text-right">Acciones</th>
+                    <th th:if="${operable}" sec:authorize="hasAuthority('ENVASADO_ANULAR')" class="col-acciones px-4 py-3 text-right">Acciones</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -126,7 +126,7 @@
                         <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>
                         <th:block th:if="${e.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${e.motivoAnulacion}, ${e.usuarioAnulacion}, ${e.fechaAnulacion})}"></th:block></th:block>
                     </td>
-                    <td th:if="${operable}" sec:authorize="hasAuthority('ENVASADO_ANULAR')" class="px-4 py-3 text-right">
+                    <td th:if="${operable}" sec:authorize="hasAuthority('ENVASADO_ANULAR')" class="col-acciones px-4 py-3 text-right">
                         <button type="button" th:if="${e.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
                                 th:data-motivo-url="@{/lotes/{id}/envasados/{idEnvasado}/anular(id=${lote.id}, idEnvasado=${e.id})}"
                                 th:data-motivo-nombre="${e.barril.identificador}"

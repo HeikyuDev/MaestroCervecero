@@ -69,7 +69,7 @@
                 <th class="px-4 py-3">Contenido actual (L)</th>
                 <th class="px-4 py-3">Estado operativo</th>
                 <th class="px-4 py-3">Usos máximos</th>
-                <th class="px-4 py-3 text-right">Acciones</th>
+                <th class="col-acciones px-4 py-3 text-right">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -84,7 +84,7 @@
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.contenidoActual})}"></th:block></td>
                 <td class="px-4 py-3"><span th:replace="~{barril/estado :: badge(${x.estadoOperativo})}"></span></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">100</td>
-                <td class="px-4 py-3">
+                <td class="col-acciones px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
                         <a th:href="@{/barriles/{id}/editar(id=${x.id})}" title="Editar barril" aria-label="Editar barril"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
