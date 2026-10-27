@@ -40,12 +40,17 @@ public interface IOrdenCompraServicio {
      * @param estado El estado de la orden de compra a filtrar, o {@code null} para no filtrar por él.
      * @param fechaEntregaEstimada La fecha de entrega estimada exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación.
-     * @return Una página de órdenes de compra en formato DTO que cumplen los criterios indicados.
+     * @return Una página de órdenes de compra en formato DTO que cumplen los criterios indicados, sin las cantidades recibida y pendiente de cada ítem.
      */
     Page<OrdenCompraResponseDTO> filtrarOrdenesCompra(Long idPlanificacionProduccion, Long idProveedor, EstadoSolicitud estado, LocalDate fechaEntregaEstimada, Pageable pageable);
 
     /**
      * Obtiene una orden de compra por su ID, en cualquier estado.
+     * <p>
+     * Cada ítem informa la cantidad recibida y la cantidad pendiente de entrega, además de su subtotal; la orden
+     * informa su total. Los listados de {@link #filtrarOrdenesCompra} informan subtotales y total, pero no las
+     * cantidades recibida y pendiente.
+     * </p>
      *
      * @param id El ID de la orden de compra.
      * @return La orden de compra correspondiente al ID.

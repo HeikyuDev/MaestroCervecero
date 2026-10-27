@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,4 +76,9 @@ public class OrdenCompraResponseDTO {
      * Detalle de los ítems del catálogo del proveedor solicitados en esta compra.
      */
     private List<DetalleCompraResponseDTO> detallesCompra;
+
+    /**
+     * Total de la orden: suma de los subtotales de sus ítems, sin redondear.
+     */
+    private BigDecimal total;
 }

@@ -7,6 +7,7 @@
 |**CP-FOC-01**|Filtra por los 4 criterios informados|`idPlanificacionProduccion: 1L`, `idProveedor: 2L`, `estado: PENDIENTE`, `fechaEntregaEstimada: 2026-01-15`, `pageable: PageRequest.of(0, 10)`, BD con 1 orden que cumple los cuatro criterios|`filtrarOrdenesCompra(1L, 2L, PENDIENTE, 2026-01-15, pageable)` contiene elementos|Retorna `Page<OrdenCompraResponseDTO>` con 1 elemento mapeado.|
 |**CP-FOC-02**|Los 4 parámetros nulos no restringen la búsqueda|`idPlanificacionProduccion: null`, `idProveedor: null`, `estado: null`, `fechaEntregaEstimada: null`, `pageable: PageRequest.of(0, 10)`, BD con 3 órdenes en distintos estados|El service propaga los 4 parámetros nulos tal cual al repositorio|Retorna `Page<OrdenCompraResponseDTO>` con las 3 órdenes (equivalente a no filtrar).|
 |**CP-FOC-03**|Consulta sin coincidencias|`idPlanificacionProduccion: 99L`, resto de los parámetros nulos, `pageable: PageRequest.of(0, 10)`|`filtrarOrdenesCompra(99L, null, null, null, pageable)` está vacío|Retorna `Page<OrdenCompraResponseDTO>` vacía (`getContent().isEmpty() == true`).|
+|**CP-FOC-04**|El listado informa subtotales y total, sin cantidades recibida y pendiente|BD con 1 orden con 1 ítem de `cantidad: 4` y `costoUnitario: 2.5000`, todos los criterios nulos|El listado no consulta los ingresos de cada ítem|Cada ítem informa `subtotal: 10.0000` y la orden `total: 10.0000`; `cantidadRecibida` y `cantidadPendiente` quedan en `null`. No interactúa con `ingresoInsumoRepository`.|
 
 ### 2. `buscarPorId(Long id)`
 
@@ -14,6 +15,9 @@
 |---|---|---|---|---|
 |**CP-BI-01**|Orden de compra encontrada|`id: 1L` (Existe en BD)|`findById(1L)` → **Presente**|Retorna `OrdenCompraResponseDTO` con los datos de la entidad.|
 |**CP-BI-02**|Orden de compra inexistente|`id: 99L` (No existe en BD)|`findById(99L)` → **Optional.empty()**|Lanza `RecursoNoEncontradoException` con mensaje "No se encontró la orden de compra con ID: 99".|
+|**CP-BI-03**|El detalle informa cantidades recibida y pendiente, subtotal y total|`id: 1L` (Existe), 1 ítem de `cantidad: 5`, `costoUnitario: 12.5000`, presentación de 25000 `GRAMO` para un insumo en `KILOGRAMO`, ingresos `REGISTRADO` de 30.0 y 20.5|Se suman los ingresos `REGISTRADO` y la cantidad solicitada se convierte a la unidad del insumo (125 kg)|El ítem informa `cantidadRecibida: 50.5`, `cantidadPendiente: 74.5` y `subtotal: 62.5000`; la orden informa `total: 62.5000`. Consulta los ingresos `REGISTRADO` del ítem.|
+|**CP-BI-04**|Ítem sin ingresos REGISTRADO|`id: 1L` (Existe), mismo ítem que CP-BI-03, sin ingresos `REGISTRADO`|No hay cantidad recibida|`cantidadRecibida: 0.0` y `cantidadPendiente: 125.0`.|
+|**CP-BI-05**|Pendiente con residuo de coma flotante|`id: 1L` (Existe), ítem de `cantidad: 3` con presentación de 0.1 `KILOGRAMO` (0.30000000000000004 kg solicitados), un ingreso `REGISTRADO` de 0.3|El residuo es menor a la escala de 4 decimales|`cantidadRecibida: 0.3` y `cantidadPendiente: 0.0`.|
 
 ### 3. `registrarOrdenCompra(OrdenCompraFormDTO ordenCompraFormDTO)`
 

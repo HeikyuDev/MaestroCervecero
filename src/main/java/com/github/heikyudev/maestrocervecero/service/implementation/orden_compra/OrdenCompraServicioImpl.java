@@ -27,6 +27,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOrdenCompraServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.orden_compra.MapperOrdenCompra;
+import com.github.heikyudev.maestrocervecero.util.method.CantidadesDetalleCompra;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
@@ -77,6 +78,10 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
 
     /**
      * Busca y retorna una orden de compra específica mediante su identificador único.
+     * <p>
+     * Cada ítem informa la cantidad recibida (ingresos {@code REGISTRADO}) y la cantidad pendiente de entrega,
+     * calculadas con la misma regla con la que el ingreso de insumos valida y cierra la orden.
+     * </p>
      *
      * @param id Identificador clave primaria de la orden de compra buscada.
      * @return Objeto {@link OrdenCompraResponseDTO} con la información de la orden de compra encontrada.
@@ -85,8 +90,10 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     @Override
     @Transactional(readOnly = true)
     public OrdenCompraResponseDTO buscarPorId(Long id) {
-        return MapperOrdenCompra.toDTO(ordenCompraRepository.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + id)));
+        return MapperOrdenCompra.toDTOConCantidades(ordenCompraRepository.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + id)),
+                detalleCompraEntity -> CantidadesDetalleCompra.sumarCantidadRecibida(
+                        ingresoInsumoRepository.findByDetalleCompraIdAndEstado(detalleCompraEntity.getId(), EstadoTransaccion.REGISTRADO)));
     }
 
     /**

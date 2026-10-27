@@ -8,7 +8,6 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.T
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
-import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IIngresoInsumoRepository;
@@ -25,6 +24,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IIngresoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.IngresoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperIngresoInsumo;
+import com.github.heikyudev.maestrocervecero.util.method.CantidadesDetalleCompra;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
@@ -358,30 +358,15 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * medida base del insumo: la cantidad total solicitada (unidades de la presentación comercial
      * pedidas, convertida a la unidad del insumo) menos la ya recibida mediante ingresos en
      * estado {@code REGISTRADO}.
-     * <p>
-     * {@code detalleCompraEntity.getCantidad()} es la cantidad de unidades de la presentación
-     * comercial pedidas (ej. 5 bolsas), no la cantidad de insumo — por eso hay que multiplicarla
-     * por el contenido de cada unidad ({@code presentacionComercial.getCantidad()}), convertido
-     * primero a la unidad del insumo por si la presentación fue cargada en una unidad distinta
-     * (ej. presentación en GRAMO para un insumo que trackea en KILOGRAMO).
-     * </p>
+     * El cálculo es el de {@link CantidadesDetalleCompra#calcularCantidadPendiente}, compartido con el detalle de la orden de compra.
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
      * @return Cantidad pendiente de entrega, en la unidad de medida base del insumo.
      */
     private double calcularCantidadPendiente(DetalleCompraEntity detalleCompraEntity) {
-        double cantidadYaRecibida = ingresoInsumoRepository.findByDetalleCompraIdAndEstado(detalleCompraEntity.getId(), EstadoTransaccion.REGISTRADO)
-                .stream()
-                .mapToDouble(IngresoInsumoEntity::getCantidadRecibida)
-                .sum();
-
-        PresentacionComercialEntity presentacionComercial = detalleCompraEntity.getCatalogoProveedor().getPresentacionComercial();
-        InsumoEntity insumo = detalleCompraEntity.getCatalogoProveedor().getInsumo();
-        double cantidadPorUnidadEnUnidadDelInsumo = insumo.getUnidadDeMedida()
-                .desdeGramos(presentacionComercial.getUnidadDeMedida().aGramos(presentacionComercial.getCantidad()));
-        double cantidadTotalSolicitada = cantidadPorUnidadEnUnidadDelInsumo * detalleCompraEntity.getCantidad();
-
-        return cantidadTotalSolicitada - cantidadYaRecibida;
+        double cantidadYaRecibida = CantidadesDetalleCompra.sumarCantidadRecibida(
+                ingresoInsumoRepository.findByDetalleCompraIdAndEstado(detalleCompraEntity.getId(), EstadoTransaccion.REGISTRADO));
+        return CantidadesDetalleCompra.calcularCantidadPendiente(detalleCompraEntity, cantidadYaRecibida);
     }
 
     /**

@@ -1,10 +1,13 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.orden_compra;
 
+import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.IngresoInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.CatalogoProveedorEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.DetalleMaltaEntity;
@@ -13,6 +16,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.Locali
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import com.github.heikyudev.maestrocervecero.persistence.enums.UnidadDeMedida;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IIngresoInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.planificacion_produccion.IPlanificacionProduccionRepository;
@@ -24,6 +28,7 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.orden_compra.OrdenCompraFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
+import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.DetalleCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -130,6 +135,28 @@ class OrdenCompraServicioImplTest {
         verify(ordenCompraRepository).filtrarOrdenesCompra(99L, null, null, null, pageable);
     }
 
+    @Test
+    @DisplayName("CP-FOC-04: filtrarOrdenesCompra informa subtotales y total pero no consulta los ingresos ni informa las cantidades recibida y pendiente")
+    void filtrar_noDebeInformarCantidadesRecibidaYPendiente() {
+        // === PREPARACION DE DATOS ===
+        Pageable pageable = PageRequest.of(0, 10);
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10),
+                crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE), crearVersionProveedorEntity(1L, 2L));
+        agregarDetalleCompra(orden, 10L, 4, new BigDecimal("2.5000"), 1.0, UnidadDeMedida.KILOGRAMO);
+        when(ordenCompraRepository.filtrarOrdenesCompra(null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(orden)));
+
+        // === EJECUCION ===
+        Page<OrdenCompraResponseDTO> resultado = ordenCompraServicio.filtrarOrdenesCompra(null, null, null, null, pageable);
+
+        // === ASSERTS ===
+        OrdenCompraResponseDTO ordenDTO = resultado.getContent().get(0);
+        assertThat(ordenDTO.getTotal()).isEqualByComparingTo("10.0000");
+        assertThat(ordenDTO.getDetallesCompra().get(0).getSubtotal()).isEqualByComparingTo("10.0000");
+        assertThat(ordenDTO.getDetallesCompra().get(0).getCantidadRecibida()).isNull();
+        assertThat(ordenDTO.getDetallesCompra().get(0).getCantidadPendiente()).isNull();
+        verifyNoInteractions(ingresoInsumoRepository);
+    }
+
     // ==================== buscarPorId ====================
 
     @Test
@@ -148,6 +175,67 @@ class OrdenCompraServicioImplTest {
         assertThat(resultado.getId()).isEqualTo(1L);
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
         verify(ordenCompraRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("CP-BI-03: buscarPorId informa por ítem la cantidad recibida y la pendiente, el subtotal, y el total de la orden")
+    void buscarPorId_debeInformarCantidadesRecibidaYPendienteYTotales() {
+        // === PREPARACION DE DATOS ===
+        // 5 bolsas de 25.000 g para un insumo en KILOGRAMO = 125 kg solicitados
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10),
+                crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE), crearVersionProveedorEntity(1L, 2L));
+        agregarDetalleCompra(orden, 10L, 5, new BigDecimal("12.5000"), 25000.0, UnidadDeMedida.GRAMO);
+        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(10L, EstadoTransaccion.REGISTRADO))
+                .thenReturn(List.of(ingresoRecibido(30.0), ingresoRecibido(20.5)));
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.buscarPorId(1L);
+
+        // === ASSERTS ===
+        DetalleCompraResponseDTO detalle = resultado.getDetallesCompra().get(0);
+        assertThat(detalle.getCantidadRecibida()).isEqualTo(50.5);
+        assertThat(detalle.getCantidadPendiente()).isEqualTo(74.5);
+        assertThat(detalle.getSubtotal()).isEqualByComparingTo("62.5000");
+        assertThat(resultado.getTotal()).isEqualByComparingTo("62.5000");
+        verify(ingresoInsumoRepository).findByDetalleCompraIdAndEstado(10L, EstadoTransaccion.REGISTRADO);
+    }
+
+    @Test
+    @DisplayName("CP-BI-04: buscarPorId informa cantidad recibida cero y pendiente igual a la solicitada cuando el ítem no tiene ingresos REGISTRADO")
+    void buscarPorId_debeInformarTodoPendienteSinIngresos() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10),
+                crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE), crearVersionProveedorEntity(1L, 2L));
+        agregarDetalleCompra(orden, 10L, 5, new BigDecimal("12.5000"), 25000.0, UnidadDeMedida.GRAMO);
+        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(10L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.buscarPorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadRecibida()).isEqualTo(0.0);
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadPendiente()).isEqualTo(125.0);
+    }
+
+    @Test
+    @DisplayName("CP-BI-05: buscarPorId informa pendiente cero cuando el residuo de coma flotante es menor a la escala de 4 decimales")
+    void buscarPorId_debeInformarPendienteCeroConResiduoDeComaFlotante() {
+        // === PREPARACION DE DATOS ===
+        // 3 unidades de 0.1 kg = 0.30000000000000004 kg solicitados; se recibió 0.3 kg
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10),
+                crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE), crearVersionProveedorEntity(1L, 2L));
+        agregarDetalleCompra(orden, 10L, 3, new BigDecimal("1.0000"), 0.1, UnidadDeMedida.KILOGRAMO);
+        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(10L, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(ingresoRecibido(0.3)));
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.buscarPorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadRecibida()).isEqualTo(0.3);
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadPendiente()).isEqualTo(0.0);
     }
 
     @Test
@@ -1057,6 +1145,23 @@ class OrdenCompraServicioImplTest {
         when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(crearProveedorEntityConVersiones(2L, versionActiva)));
         when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L))));
         when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
+    /**
+     * Agrega a la orden un ítem de un insumo que se mide en KILOGRAMO, con una presentación comercial del contenido indicado.
+     */
+    private static void agregarDetalleCompra(OrdenCompraEntity orden, Long id, int cantidad, BigDecimal costoUnitario,
+                                             double cantidadPresentacion, UnidadDeMedida unidadPresentacion) {
+        PresentacionComercialEntity presentacion = PresentacionComercialEntity.builder()
+                .id(1L).nombre("Presentación de prueba").cantidad(cantidadPresentacion).unidadDeMedida(unidadPresentacion).estado(Estado.ACTIVO).build();
+        MaltaEntity insumo = MaltaEntity.builder().id(1L).nombre("Malta Pilsen").estado(Estado.ACTIVO).unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+        CatalogoProveedorEntity catalogo = CatalogoProveedorEntity.builder().id(id).insumo(insumo).presentacionComercial(presentacion).build();
+        orden.getDetallesCompra().add(DetalleCompraEntity.builder()
+                .id(id).cantidad(cantidad).costoUnitario(costoUnitario).ordenCompra(orden).catalogoProveedor(catalogo).build());
+    }
+
+    private static IngresoInsumoEntity ingresoRecibido(double cantidadRecibida) {
+        return IngresoInsumoEntity.builder().cantidadRecibida(cantidadRecibida).estado(EstadoTransaccion.REGISTRADO).build();
     }
 
     private static AnulacionOrdenCompraFormDTO anulacionFormDTO(String motivoAnulacion) {
