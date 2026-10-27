@@ -29,6 +29,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,12 +40,15 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -167,7 +171,7 @@ class OrdenCompraServicioImplTest {
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de entrega estimada no puede ser anterior a la fecha actual");
+                .hasMessage("La fecha de entrega estimada es obligatoria");
 
         verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
     }
@@ -244,7 +248,7 @@ class OrdenCompraServicioImplTest {
     @DisplayName("CP-ROC-07: registrarOrdenCompra lanza RecursoNoEncontradoException cuando la planificación de producción no existe")
     void registrar_debeRechazarPlanificacionInexistente() {
         OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(99L, 2L).build();
-        when(planificacionProduccionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -259,7 +263,7 @@ class OrdenCompraServicioImplTest {
     void registrar_debeRechazarPlanificacionNoPendiente() {
         OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).build();
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.FINALIZADA, 7L);
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -274,8 +278,8 @@ class OrdenCompraServicioImplTest {
     void registrar_debeRechazarProveedorInexistente() {
         OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 99L).build();
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(99L)).thenReturn(Optional.empty());
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -292,8 +296,8 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
         VersionProveedorEntity versionInactiva = crearVersionProveedorEntity(3L, 2L, false);
         ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionInactiva);
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -312,8 +316,8 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
         VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
         ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
         when(catalogoProveedorRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
@@ -334,8 +338,8 @@ class OrdenCompraServicioImplTest {
         ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
         VersionProveedorEntity versionDeOtroProveedor = crearVersionProveedorEntity(999L, 888L, true);
         CatalogoProveedorEntity catalogo = crearCatalogoProveedorEntity(5L, versionDeOtroProveedor, maltaEntity(7L));
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
         when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(catalogo));
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
@@ -356,8 +360,8 @@ class OrdenCompraServicioImplTest {
         VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
         ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
         CatalogoProveedorEntity catalogo = crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(8L));
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
         when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(catalogo));
 
         assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
@@ -378,8 +382,8 @@ class OrdenCompraServicioImplTest {
         VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
         ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
         CatalogoProveedorEntity catalogo = crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L));
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
         when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(catalogo));
         when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> {
             OrdenCompraEntity entidad = invocation.getArgument(0);
@@ -432,8 +436,8 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
         VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
         ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
-        when(planificacionProduccionRepository.findById(1L)).thenReturn(Optional.of(planificacion));
-        when(proveedorRepository.findById(2L)).thenReturn(Optional.of(proveedor));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
         when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L))));
         when(catalogoProveedorRepository.findById(6L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(6L, versionActiva, maltaEntity(7L))));
         when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -445,6 +449,330 @@ class OrdenCompraServicioImplTest {
         ArgumentCaptor<OrdenCompraEntity> captor = ArgumentCaptor.forClass(OrdenCompraEntity.class);
         verify(ordenCompraRepository).save(captor.capture());
         assertThat(captor.getValue().getDetallesCompra()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-17: registrarOrdenCompra lanza ReglaNegocioException cuando la fecha de entrega estimada supera un año desde la fecha actual")
+    void registrar_debeRechazarFechaEntregaEstimadaMayorAUnAnio() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).fechaEntregaEstimada(LocalDate.now().plusDays(366)).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de entrega estimada no puede superar un año desde la fecha actual");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-18: registrarOrdenCompra lanza ReglaNegocioException cuando el formulario es nulo")
+    void registrar_debeRechazarFormularioNulo() {
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los datos de la orden de compra son obligatorios");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-19: registrarOrdenCompra lanza ReglaNegocioException cuando la planificación de producción es nula")
+    void registrar_debeRechazarPlanificacionNula() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(null, 2L).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La planificación de producción es obligatoria");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-20: registrarOrdenCompra lanza ReglaNegocioException cuando el proveedor es nulo")
+    void registrar_debeRechazarProveedorNulo() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, null).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El proveedor es obligatorio");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-21: registrarOrdenCompra lanza ReglaNegocioException cuando la lista de ítems es nula")
+    void registrar_debeRechazarDetallesNulos() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).detallesCompra(null).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La orden de compra debe tener al menos un ítem");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-22: registrarOrdenCompra lanza ReglaNegocioException cuando la lista de ítems está vacía")
+    void registrar_debeRechazarDetallesVacios() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).detallesCompra(List.of()).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La orden de compra debe tener al menos un ítem");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-23: registrarOrdenCompra lanza ReglaNegocioException cuando la orden tiene 101 ítems")
+    void registrar_debeRechazarMasDeCienItems() {
+        List<DetalleCompraFormDTO> detalles = new ArrayList<>();
+        for (long idCatalogo = 1; idCatalogo <= 101; idCatalogo++) {
+            detalles.add(detalleCompraFormDTO(10, BigDecimal.TEN, idCatalogo));
+        }
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).detallesCompra(detalles).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La orden de compra no puede superar 100 ítems");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-24: registrarOrdenCompra lanza ReglaNegocioException cuando la lista de ítems contiene un ítem nulo")
+    void registrar_debeRechazarItemNulo() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(Arrays.asList(detalleCompraFormDTO(10, BigDecimal.TEN, 5L), null))
+                .build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los ítems de la orden de compra son obligatorios");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-25: registrarOrdenCompra lanza ReglaNegocioException cuando un ítem no indica el ítem del catálogo, antes de evaluar los repetidos")
+    void registrar_debeRechazarItemSinCatalogoAntesDeLosRepetidos() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(
+                        detalleCompraFormDTO(10, BigDecimal.TEN, null),
+                        detalleCompraFormDTO(20, BigDecimal.ONE, null)))
+                .build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El ítem del catálogo de cada ítem de la orden de compra es obligatorio");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-26: registrarOrdenCompra lanza ReglaNegocioException cuando la cantidad de un ítem supera 1.000.000")
+    void registrar_debeRechazarCantidadMayorAlMaximo() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(1_000_001, BigDecimal.TEN, 5L)))
+                .build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad de cada ítem no puede superar 1.000.000");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-27: registrarOrdenCompra lanza ReglaNegocioException cuando el costo unitario de un ítem supera 1.000.000.000")
+    void registrar_debeRechazarCostoUnitarioMayorAlMaximo() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(10, new BigDecimal("1000000000.0001"), 5L)))
+                .build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario de cada ítem no puede superar 1.000.000.000");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-28: registrarOrdenCompra lanza ReglaNegocioException cuando el costo unitario de un ítem tiene más de 4 decimales")
+    void registrar_debeRechazarCostoUnitarioConMasDeCuatroDecimales() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(10, new BigDecimal("10.00001"), 5L)))
+                .build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario de cada ítem no puede tener más de 4 decimales");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-29: registrarOrdenCompra acepta los valores límite: entrega a 365 días, cantidad 1.000.000 y costo 1.000.000.000 con ceros sobrantes en los decimales")
+    void registrar_debeAceptarLosValoresLimite() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .fechaEntregaEstimada(LocalDate.now().plusDays(365))
+                .detallesCompra(List.of(detalleCompraFormDTO(1_000_000, new BigDecimal("1000000000.000000"), 5L)))
+                .build();
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
+        ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
+        when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L))));
+        when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.registrarOrdenCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        verify(ordenCompraRepository).save(any(OrdenCompraEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ROC-30: registrarOrdenCompra lanza ReglaNegocioException cuando el proveedor está dado de baja")
+    void registrar_debeRechazarProveedorDadoDeBaja() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).build();
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        ProveedorEntity proveedorDeBaja = ProveedorEntity.builder().id(2L).estado(Estado.BAJA).build();
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedorDeBaja));
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar la orden de compra para un proveedor dado de baja");
+
+        verifyNoInteractions(catalogoProveedorRepository);
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ROC-31: registrarOrdenCompra bloquea la planificación y el proveedor con los métodos de bloqueo, sin usar findById")
+    void registrar_debeBloquearPlanificacionYProveedor() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).build();
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
+        ProveedorEntity proveedor = crearProveedorEntityConVersiones(2L, versionActiva);
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedor));
+        when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L))));
+        when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ordenCompraServicio.registrarOrdenCompra(formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(planificacionProduccionRepository, proveedorRepository, ordenCompraRepository);
+        orden.verify(planificacionProduccionRepository).buscarPorIdParaActualizar(1L);
+        orden.verify(proveedorRepository).buscarPorIdParaRegistrarOrdenCompra(2L);
+        orden.verify(ordenCompraRepository).save(any(OrdenCompraEntity.class));
+        verify(planificacionProduccionRepository, never()).findById(any());
+        verify(proveedorRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-ROC-32: registrarOrdenCompra acepta un costo unitario igual a 1.000.000.000 _(Límite)_")
+    void registrar_debeAceptarCostoUnitarioIgualAlMaximo() {
+        stubearRegistroValido();
+
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.registrarOrdenCompra(ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(10, new BigDecimal("1000000000"), 5L))).build());
+
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-33: registrarOrdenCompra lanza ReglaNegocioException cuando el costo unitario es 1.000.000.001 _(Límite)_")
+    void registrar_debeRechazarCostoUnitarioUnoPorEncimaDelMaximo() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(10, new BigDecimal("1000000001"), 5L))).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario de cada ítem no puede superar 1.000.000.000");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-34: registrarOrdenCompra acepta un costo unitario de 4 decimales _(Límite)_")
+    void registrar_debeAceptarCostoUnitarioDeCuatroDecimales() {
+        stubearRegistroValido();
+
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.registrarOrdenCompra(ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(10, new BigDecimal("1.0001"), 5L))).build());
+
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-35: registrarOrdenCompra lanza ReglaNegocioException cuando el costo unitario es 1.00001 (5 decimales significativos) _(Límite)_")
+    void registrar_debeRechazarCostoUnitarioDeCincoDecimales() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(10, new BigDecimal("1.00001"), 5L))).build();
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario de cada ítem no puede tener más de 4 decimales");
+
+        verifyNoInteractions(planificacionProduccionRepository, proveedorRepository, catalogoProveedorRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-36: registrarOrdenCompra acepta una cantidad igual a 1.000.000 _(Límite)_")
+    void registrar_debeAceptarCantidadIgualAlMaximo() {
+        stubearRegistroValido();
+
+        OrdenCompraResponseDTO resultado = ordenCompraServicio.registrarOrdenCompra(ordenCompraFormDTOValidoBuilder(1L, 2L)
+                .detallesCompra(List.of(detalleCompraFormDTO(1_000_000, BigDecimal.TEN, 5L))).build());
+
+        assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-37: registrarOrdenCompra acepta una orden con 100 ítems _(Límite)_")
+    void registrar_debeAceptarCienItems() {
+        // === PREPARACION DE DATOS ===
+        List<DetalleCompraFormDTO> detalles = new ArrayList<>();
+        for (long idCatalogo = 1; idCatalogo <= 100; idCatalogo++) {
+            detalles.add(detalleCompraFormDTO(10, BigDecimal.TEN, idCatalogo));
+        }
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(crearProveedorEntityConVersiones(2L, versionActiva)));
+        when(catalogoProveedorRepository.findById(any(Long.class))).thenAnswer(invocation ->
+                Optional.of(crearCatalogoProveedorEntity(invocation.getArgument(0), versionActiva, maltaEntity(7L))));
+        when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ordenCompraServicio.registrarOrdenCompra(ordenCompraFormDTOValidoBuilder(1L, 2L).detallesCompra(detalles).build());
+
+        // === ASSERTS ===
+        ArgumentCaptor<OrdenCompraEntity> captor = ArgumentCaptor.forClass(OrdenCompraEntity.class);
+        verify(ordenCompraRepository).save(captor.capture());
+        assertThat(captor.getValue().getDetallesCompra()).hasSize(100);
+    }
+
+    @Test
+    @DisplayName("CP-ROC-38: registrarOrdenCompra rechaza un proveedor dado de baja antes de evaluar si tiene versión activa")
+    void registrar_debeRechazarProveedorDeBajaAntesQueLaVersionActiva() {
+        OrdenCompraFormDTO formDTO = ordenCompraFormDTOValidoBuilder(1L, 2L).build();
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        // Proveedor de baja sin ninguna versión activa: debe fallar por la baja, no por la versión
+        ProveedorEntity proveedorDeBaja = ProveedorEntity.builder().id(2L).estado(Estado.BAJA).build();
+        proveedorDeBaja.getVersiones().add(crearVersionProveedorEntity(3L, 2L, false));
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(proveedorDeBaja));
+
+        assertThatThrownBy(() -> ordenCompraServicio.registrarOrdenCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar la orden de compra para un proveedor dado de baja");
     }
 
     // ==================== anularOrdenCompra ====================
@@ -489,7 +817,7 @@ class OrdenCompraServicioImplTest {
     @DisplayName("CP-AOC-03: anularOrdenCompra lanza RecursoNoEncontradoException cuando la orden de compra no existe")
     void anular_debeLanzarExcepcionSiNoExiste() {
         AnulacionOrdenCompraFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(ordenCompraRepository.findById(99L)).thenReturn(Optional.empty());
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ordenCompraServicio.anularOrdenCompra(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -505,7 +833,7 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
         OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.FINALIZADA, LocalDate.now().plusDays(10), planificacion, versionProveedor);
         AnulacionOrdenCompraFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
 
         assertThatThrownBy(() -> ordenCompraServicio.anularOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -522,7 +850,7 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
         OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
         AnulacionOrdenCompraFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
         when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
 
         assertThatThrownBy(() -> ordenCompraServicio.anularOrdenCompra(1L, formDTO))
@@ -540,7 +868,7 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
         OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
         AnulacionOrdenCompraFormDTO formDTO = anulacionFormDTO("Error de carga");
-        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
         when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
         when(ordenCompraRepository.save(orden)).thenReturn(orden);
 
@@ -553,6 +881,25 @@ class OrdenCompraServicioImplTest {
         assertThat(orden.getMotivoAnulacion()).isEqualTo("Error de carga");
         assertThat(resultado.getEstado()).isEqualTo(EstadoSolicitud.ANULADA);
         verify(ordenCompraRepository).save(orden);
+    }
+
+    @Test
+    @DisplayName("CP-AOC-08: anularOrdenCompra carga la orden con el método de bloqueo, sin usar findById")
+    void anular_debeBloquearLaOrden() {
+        // === PREPARACION DE DATOS ===
+        VersionProveedorEntity versionProveedor = crearVersionProveedorEntity(1L, 2L);
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
+        when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        ordenCompraServicio.anularOrdenCompra(1L, anulacionFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        verify(ordenCompraRepository).buscarPorIdParaCambiarEstado(1L);
+        verify(ordenCompraRepository, never()).findById(any());
     }
 
     // ==================== finalizarOrdenCompra ====================
@@ -597,7 +944,7 @@ class OrdenCompraServicioImplTest {
     @DisplayName("CP-FZOC-03: finalizarOrdenCompra lanza RecursoNoEncontradoException cuando la orden de compra no existe")
     void finalizar_debeLanzarExcepcionSiNoExiste() {
         FinalizacionForzadaOrdenCompraFormDTO formDTO = finalizacionFormDTO("Proveedor discontinuado");
-        when(ordenCompraRepository.findById(99L)).thenReturn(Optional.empty());
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -613,7 +960,7 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
         OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.ANULADA, LocalDate.now().plusDays(10), planificacion, versionProveedor);
         FinalizacionForzadaOrdenCompraFormDTO formDTO = finalizacionFormDTO("Proveedor discontinuado");
-        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
 
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -630,7 +977,7 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
         OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
         FinalizacionForzadaOrdenCompraFormDTO formDTO = finalizacionFormDTO("Proveedor discontinuado");
-        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
         when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(false);
 
         assertThatThrownBy(() -> ordenCompraServicio.finalizarOrdenCompra(1L, formDTO))
@@ -648,7 +995,7 @@ class OrdenCompraServicioImplTest {
         PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
         OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
         FinalizacionForzadaOrdenCompraFormDTO formDTO = finalizacionFormDTO("Cantidad ingresada menor a la solicitada");
-        when(ordenCompraRepository.findById(1L)).thenReturn(Optional.of(orden));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
         when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
         when(ordenCompraRepository.save(orden)).thenReturn(orden);
 
@@ -663,7 +1010,54 @@ class OrdenCompraServicioImplTest {
         verify(ordenCompraRepository).save(orden);
     }
 
+    @Test
+    @DisplayName("CP-FZOC-08: finalizarOrdenCompra carga la orden con el método de bloqueo, sin usar findById")
+    void finalizar_debeBloquearLaOrden() {
+        // === PREPARACION DE DATOS ===
+        VersionProveedorEntity versionProveedor = crearVersionProveedorEntity(1L, 2L);
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
+        when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        ordenCompraServicio.finalizarOrdenCompra(1L, finalizacionFormDTO("Cantidad ingresada menor a la solicitada"));
+
+        // === ASSERTS ===
+        verify(ordenCompraRepository).buscarPorIdParaCambiarEstado(1L);
+        verify(ordenCompraRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-FZOC-09: finalizarOrdenCompra siempre deja un motivo de finalización no vacío, de modo que un motivo nulo identifica la finalización automática")
+    void finalizar_siempreDebeDejarUnMotivoNoVacio() {
+        // === PREPARACION DE DATOS ===
+        VersionProveedorEntity versionProveedor = crearVersionProveedorEntity(1L, 2L);
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntity(1L, EstadoSolicitud.PENDIENTE);
+        OrdenCompraEntity orden = crearOrdenCompraEntity(1L, EstadoSolicitud.PENDIENTE, LocalDate.now().plusDays(10), planificacion, versionProveedor);
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.of(orden));
+        when(ingresoInsumoRepository.existsByDetalleCompra_OrdenCompra_IdAndEstado(1L, EstadoTransaccion.REGISTRADO)).thenReturn(true);
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        // Un motivo en blanco se rechaza (CP-FZOC-02); uno con espacios alrededor se guarda normalizado y nunca vacío
+        ordenCompraServicio.finalizarOrdenCompra(1L, finalizacionFormDTO("   Proveedor discontinuado   "));
+
+        // === ASSERTS ===
+        assertThat(orden.getMotivoFinalizacion()).isNotBlank();
+    }
+
     // ==================== helpers de construcción ====================
+
+    private void stubearRegistroValido() {
+        PlanificacionProduccionEntity planificacion = crearPlanificacionProduccionEntityConMalta(1L, EstadoSolicitud.PENDIENTE, 7L);
+        VersionProveedorEntity versionActiva = crearVersionProveedorEntity(3L, 2L, true);
+        when(planificacionProduccionRepository.buscarPorIdParaActualizar(1L)).thenReturn(Optional.of(planificacion));
+        when(proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(2L)).thenReturn(Optional.of(crearProveedorEntityConVersiones(2L, versionActiva)));
+        when(catalogoProveedorRepository.findById(5L)).thenReturn(Optional.of(crearCatalogoProveedorEntity(5L, versionActiva, maltaEntity(7L))));
+        when(ordenCompraRepository.save(any(OrdenCompraEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     private static AnulacionOrdenCompraFormDTO anulacionFormDTO(String motivoAnulacion) {
         return AnulacionOrdenCompraFormDTO.builder().motivoAnulacion(motivoAnulacion).build();

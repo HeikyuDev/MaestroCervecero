@@ -3,15 +3,18 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_ins
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.IngresoInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoIngreso;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repositorio JPA de los ingresos de insumo ({@link IngresoInsumoEntity}).
@@ -92,4 +95,19 @@ public interface IIngresoInsumoRepository extends JpaRepository<IngresoInsumoEnt
                                                     @Param("tipoIngreso") TipoIngreso tipoIngreso,
                                                     @Param("fechaIngreso") LocalDate fechaIngreso,
                                                     Pageable pageable);
+
+    /**
+     * Busca un ingreso de insumo por su ID y bloquea su fila hasta el fin de la transacción
+     * ({@code PESSIMISTIC_WRITE}).
+     * <p>
+     * Se usa al anular el ingreso: dos anulaciones simultáneas del mismo ingreso se ejecutan una a una, y la segunda
+     * encuentra el ingreso ya {@code ANULADO} en lugar de descontar dos veces su cantidad del lote.
+     * </p>
+     *
+     * @param id El ID del ingreso de insumo.
+     * @return Un Optional que contiene el ingreso bloqueado, o vacío si no existe.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM IngresoInsumoEntity i WHERE i.id = :id")
+    Optional<IngresoInsumoEntity> buscarPorIdParaAnular(@Param("id") Long id);
 }

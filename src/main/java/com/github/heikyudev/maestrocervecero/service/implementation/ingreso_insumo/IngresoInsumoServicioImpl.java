@@ -7,6 +7,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.L
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoIngreso;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
@@ -14,6 +15,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insu
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IDetalleCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AnularIngresoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.IngresoInsumoDirectoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.IngresoInsumoPorCompraFormDTO;
@@ -26,6 +28,7 @@ import com.github.heikyudev.maestrocervecero.util.mapper.ingreso_insumo.MapperIn
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,6 +41,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+/**
+ * Implementación del servicio de ingresos de insumo.
+ * <p>
+ * Orden de bloqueo (invariante): todo método que bloquea varias filas lo hace siempre en el mismo orden, para que
+ * dos transacciones nunca se esperen entre sí. Registrar un ingreso por compra: ítem de la orden, orden de compra,
+ * insumo y lote. Anular un ingreso: ingreso, orden de compra y lote. Quien cambia el estado de la orden de compra
+ * (anular, finalizar) solo bloquea la orden. Un método nuevo que bloquee estas filas debe respetar este orden.
+ * </p>
+ */
 @Service
 @RequiredArgsConstructor
 public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
@@ -50,6 +62,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     private final IIngresoInsumoRepository ingresoInsumoRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
     private final IDetalleCompraRepository detalleCompraRepository;
+    private final IOrdenCompraRepository ordenCompraRepository;
     private final IInsumoRepository insumoRepository;
 
     /**
@@ -98,11 +111,17 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
     /**
      * Registra un ingreso de insumo como recepción de un ítem de una orden de compra.
+     * <p>
+     * Bloquea la fila del ítem y la de su orden de compra ({@code PESSIMISTIC_WRITE}), de modo que el ingreso no se
+     * cruza con una anulación o una finalización de la orden. Si con este ingreso todos los ítems de la orden
+     * quedan completamente recibidos, la orden se finaliza automáticamente: pasa a {@code FINALIZADA}, con la fecha
+     * de finalización y sin motivo (el motivo solo existe en la finalización forzada).
+     * </p>
      *
      * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.
      * @throws ReglaNegocioException Si la orden de compra del ítem no está en estado {@code PENDIENTE}, si la cantidad recibida es nula, menor o igual a cero, o supera la cantidad pendiente de entrega del ítem, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
-     * @throws RecursoNoEncontradoException Si el ítem de detalle de compra referenciado no existe.
+     * @throws RecursoNoEncontradoException Si el ítem de detalle de compra referenciado o su orden de compra no existen.
      */
     @Override
     @Transactional
@@ -114,8 +133,11 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         DetalleCompraEntity detalleCompraEntity = detalleCompraRepository.buscarPorIdParaIngresar(ingresoInsumoPorCompraFormDTO.getIdDetalleCompra())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de detalle de compra con ID: " + ingresoInsumoPorCompraFormDTO.getIdDetalleCompra()));
 
-        // 2. Validar que la orden de compra de ese ítem se encuentre en estado PENDIENTE
-        if (detalleCompraEntity.getOrdenCompra().getEstado() != EstadoSolicitud.PENDIENTE) {
+        // 2. Localizar, bloqueándola para escritura, la orden de compra de ese ítem y validar que se encuentre en
+        //    estado PENDIENTE: una anulación o una finalización simultáneas de la orden esperan a este ingreso
+        OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.buscarPorIdParaCambiarEstado(detalleCompraEntity.getOrdenCompra().getId())
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + detalleCompraEntity.getOrdenCompra().getId()));
+        if (ordenCompraEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
             throw new ReglaNegocioException("Solo se pueden registrar ingresos de ítems de órdenes de compra en estado Pendiente");
         }
 
@@ -124,8 +146,10 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         if (cantidadRecibida == null || cantidadRecibida <= 0) {
             throw new ReglaNegocioException("La cantidad recibida debe ser mayor a cero");
         }
-        double cantidadPendiente = calcularCantidadPendiente(detalleCompraEntity);
-        if (cantidadRecibida > cantidadPendiente) {
+        // Ambos valores se redondean a la escala de las cantidades: el mismo criterio con el que se decide si la orden
+        // quedó completamente recibida, para que el residuo de la coma flotante (0,1 + 0,2) no rechace un ingreso exacto
+        double cantidadPendiente = Redondeo.redondear(calcularCantidadPendiente(detalleCompraEntity));
+        if (Redondeo.redondear(cantidadRecibida) > cantidadPendiente) {
             throw new ReglaNegocioException("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (" + cantidadPendiente + ")");
         }
 
@@ -148,7 +172,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         //    persistirlo
         loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, detalleCompraEntity.getCostoUnitario());
 
-        // 8. Construir y persistir el ingreso de insumo, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir el ingreso de insumo
         IngresoInsumoEntity ingresoInsumoEntity = IngresoInsumoEntity.builder()
                 .fechaIngreso(fechaIngreso)
                 .cantidadRecibida(cantidadRecibida)
@@ -158,8 +182,18 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
                 .detalleCompra(detalleCompraEntity)
                 .loteInsumo(loteInsumoEntity)
                 .build();
+        IngresoInsumoEntity ingresoGuardado = ingresoInsumoRepository.save(ingresoInsumoEntity);
 
-        return MapperIngresoInsumo.toDTO(ingresoInsumoRepository.save(ingresoInsumoEntity));
+        // 9. Si con este ingreso todos los ítems de la orden quedaron completamente recibidos, finalizar la orden
+        //    automáticamente: sin motivo, porque el motivo solo existe en la finalización forzada
+        if (ordenCompraCompletamenteRecibida(ordenCompraEntity)) {
+            ordenCompraEntity.setEstado(EstadoSolicitud.FINALIZADA);
+            ordenCompraEntity.setFechaFinalizacion(LocalDateTime.now());
+            ordenCompraEntity.setMotivoFinalizacion(null);
+            ordenCompraRepository.save(ordenCompraEntity);
+        }
+
+        return MapperIngresoInsumo.toDTO(ingresoGuardado);
     }
 
     /**
@@ -225,12 +259,18 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * No existe la baja lógica para este registro: un ingreso solo puede pasar de
      * {@code REGISTRADO} a {@code ANULADO}, nunca eliminarse.
      * </p>
+     * <p>
+     * Si el ingreso es de un ítem de una orden de compra, bloquea la fila de la orden ({@code PESSIMISTIC_WRITE}).
+     * Si la orden fue finalizada automáticamente (sin motivo de finalización) y, tras la anulación, algún ítem
+     * vuelve a tener cantidad pendiente, la orden se reabre: vuelve a {@code PENDIENTE} y pierde la fecha de
+     * finalización. Si la orden fue finalizada manualmente (con motivo), el ingreso no se puede anular.
+     * </p>
      *
      * @param id El ID del ingreso de insumo a anular.
      * @param anularIngresoInsumoFormDTO Los datos de la anulación (motivo).
      * @return El ingreso de insumo anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el ingreso no se encuentra en estado {@code REGISTRADO}, o si su cantidad recibida supera la cantidad disponible del lote de insumo.
-     * @throws RecursoNoEncontradoException Si el ingreso de insumo con el ID especificado no existe, o si su lote de insumo asociado no existe.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el ingreso no se encuentra en estado {@code REGISTRADO}, si pertenece a una orden de compra finalizada manualmente, o si su cantidad recibida supera la cantidad disponible del lote de insumo.
+     * @throws RecursoNoEncontradoException Si el ingreso de insumo con el ID especificado no existe, o si su lote de insumo o su orden de compra asociados no existen.
      */
     @Override
     @Transactional
@@ -243,8 +283,9 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
-        // 2. Localizar el ingreso de insumo. Si no existe, se dispara RecursoNoEncontradoException
-        IngresoInsumoEntity ingresoInsumoEntity = ingresoInsumoRepository.findById(id)
+        // 2. Localizar el ingreso de insumo bloqueando su fila antes de validar su estado: una segunda anulación del
+        //    mismo ingreso espera a la primera y luego lo encuentra ANULADO. Si no existe, se dispara RecursoNoEncontradoException
+        IngresoInsumoEntity ingresoInsumoEntity = ingresoInsumoRepository.buscarPorIdParaAnular(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ingreso de insumo con ID: " + id));
 
         // 3. Validar que el ingreso se encuentre en estado REGISTRADO
@@ -252,7 +293,20 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("Solo se pueden anular ingresos de insumo en estado Registrado");
         }
 
-        // 4. Bloquear el lote de insumo asociado para escritura, y validar que la cantidad del
+        // 4. Si el ingreso es de un ítem de una orden de compra, bloquear la fila de la orden para escritura antes de
+        //    tocar el lote: una finalización o una anulación simultáneas de la orden esperan a esta anulación
+        OrdenCompraEntity ordenCompraEntity = null;
+        if (ingresoInsumoEntity.getDetalleCompra() != null) {
+            Long idOrdenCompra = ingresoInsumoEntity.getDetalleCompra().getOrdenCompra().getId();
+            ordenCompraEntity = ordenCompraRepository.buscarPorIdParaCambiarEstado(idOrdenCompra)
+                    .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + idOrdenCompra));
+            // Una orden finalizada manualmente (con motivo) es un cierre deliberado: sus ingresos no se anulan
+            if (ordenCompraEntity.getEstado() == EstadoSolicitud.FINALIZADA && ordenCompraEntity.getMotivoFinalizacion() != null) {
+                throw new ReglaNegocioException("No se puede anular el ingreso porque la orden de compra fue finalizada manualmente");
+            }
+        }
+
+        // 5. Bloquear el lote de insumo asociado para escritura, y validar que la cantidad del
         //    ingreso a anular no supere la cantidad disponible del lote (parte de esa cantidad
         //    puede ya haber sido reservada o consumida)
         LoteInsumoEntity loteInsumoEntity = loteInsumoRepository.buscarPorIdParaAnularIngreso(ingresoInsumoEntity.getLoteInsumo().getId())
@@ -261,17 +315,30 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("No se puede anular el ingreso: su cantidad supera la cantidad disponible del lote de insumo");
         }
 
-        // 5. Recién si todas las validaciones pasaron, descontar la cantidad anulada del lote y
+        // 6. Recién si todas las validaciones pasaron, descontar la cantidad anulada del lote y
         //    persistirlo
         loteInsumoEntity.anularIngreso(ingresoInsumoEntity.getCantidadRecibida(), ingresoInsumoEntity.getCostoUnitario());
         loteInsumoRepository.save(loteInsumoEntity);
 
-        // 6. Aplicar la anulación sobre el ingreso y persistirlo
+        // 7. Aplicar la anulación sobre el ingreso y persistirlo
         ingresoInsumoEntity.setEstado(EstadoTransaccion.ANULADO);
         ingresoInsumoEntity.setFechaAnulacion(LocalDateTime.now());
         ingresoInsumoEntity.setMotivoAnulacion(motivoAnulacion);
+        IngresoInsumoEntity ingresoGuardado = ingresoInsumoRepository.save(ingresoInsumoEntity);
 
-        return MapperIngresoInsumo.toDTO(ingresoInsumoRepository.save(ingresoInsumoEntity));
+        // 8. Si la orden fue finalizada automáticamente (sin motivo) y la anulación dejó algún ítem con cantidad
+        //    pendiente, reabrirla. Una finalización manual (con motivo) ya se rechazó antes. Que el motivo nulo
+        //    identifique el cierre automático es un invariante: finalizarOrdenCompra exige siempre un motivo no vacío
+        if (ordenCompraEntity != null
+                && ordenCompraEntity.getEstado() == EstadoSolicitud.FINALIZADA
+                && ordenCompraEntity.getMotivoFinalizacion() == null
+                && !ordenCompraCompletamenteRecibida(ordenCompraEntity)) {
+            ordenCompraEntity.setEstado(EstadoSolicitud.PENDIENTE);
+            ordenCompraEntity.setFechaFinalizacion(null);
+            ordenCompraRepository.save(ordenCompraEntity);
+        }
+
+        return MapperIngresoInsumo.toDTO(ingresoGuardado);
     }
 
     /**
@@ -315,6 +382,20 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         double cantidadTotalSolicitada = cantidadPorUnidadEnUnidadDelInsumo * detalleCompraEntity.getCantidad();
 
         return cantidadTotalSolicitada - cantidadYaRecibida;
+    }
+
+    /**
+     * Indica si todos los ítems de una orden de compra están completamente recibidos: ninguno tiene cantidad
+     * pendiente de entrega (redondeada a la escala de las cantidades), contando los ingresos {@code REGISTRADO}
+     * persistidos hasta el momento. Una orden sin ítems no se considera recibida.
+     *
+     * @param ordenCompraEntity Orden de compra a evaluar.
+     * @return {@code true} si todos sus ítems están completamente recibidos, {@code false} en caso contrario.
+     */
+    private boolean ordenCompraCompletamenteRecibida(OrdenCompraEntity ordenCompraEntity) {
+        return !ordenCompraEntity.getDetallesCompra().isEmpty()
+                && ordenCompraEntity.getDetallesCompra().stream()
+                .allMatch(detalleCompraEntity -> Redondeo.redondear(calcularCantidadPendiente(detalleCompraEntity)) <= 0);
     }
 
     /**

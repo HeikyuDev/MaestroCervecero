@@ -14,9 +14,19 @@ import java.time.LocalDate;
  * Interfaz que define los métodos para la gestión de órdenes de compra.
  * <p>
  * A diferencia de los demás módulos, este no es un CRUD: una orden de compra es un registro
- * transaccional que nunca se modifica ni se da de baja. Solo admite su registro inicial y dos
- * cierres excepcionales (anulación o finalización forzada); el cierre normal ocurre cuando la
- * compra es efectivamente recibida, algo que resuelve el módulo de stock/ingreso de insumos.
+ * transaccional que nunca se modifica ni se da de baja. Solo admite su registro inicial, en estado
+ * {@code PENDIENTE}, y tres formas de cierre:
+ * </p>
+ * <ul>
+ *     <li>finalización automática, cuando un ingreso de insumo deja todos sus ítems completamente recibidos (la
+ *     resuelve el módulo de ingreso de insumos): la orden queda {@code FINALIZADA}, sin motivo de finalización;</li>
+ *     <li>finalización forzada, con motivo, para una orden que recibió algo pero no se va a completar;</li>
+ *     <li>anulación, con motivo, para una orden que no recibió nada.</li>
+ * </ul>
+ * <p>
+ * Si se anula un ingreso de una orden finalizada automáticamente y algún ítem vuelve a tener cantidad
+ * pendiente, la orden se reabre y vuelve a {@code PENDIENTE}. Una orden finalizada de forma forzada no se reabre
+ * y sus ingresos no se pueden anular; una orden anulada tampoco se reabre.
  * </p>
  */
 public interface IOrdenCompraServicio {
@@ -35,7 +45,7 @@ public interface IOrdenCompraServicio {
     Page<OrdenCompraResponseDTO> filtrarOrdenesCompra(Long idPlanificacionProduccion, Long idProveedor, EstadoSolicitud estado, LocalDate fechaEntregaEstimada, Pageable pageable);
 
     /**
-     * Obtiene una orden de compra activa por su ID.
+     * Obtiene una orden de compra por su ID, en cualquier estado.
      *
      * @param id El ID de la orden de compra.
      * @return La orden de compra correspondiente al ID.
@@ -43,7 +53,7 @@ public interface IOrdenCompraServicio {
     OrdenCompraResponseDTO buscarPorId(Long id);
 
     /**
-     * Registra una nueva orden de compra.
+     * Registra una nueva orden de compra en estado {@code PENDIENTE}.
      *
      * @param ordenCompraFormDTO Los datos de la orden de compra a registrar.
      * @return La orden de compra registrada.
@@ -51,7 +61,7 @@ public interface IOrdenCompraServicio {
     OrdenCompraResponseDTO registrarOrdenCompra(OrdenCompraFormDTO ordenCompraFormDTO);
 
     /**
-     * Anula una orden de compra existente.
+     * Anula una orden de compra existente. Solo procede sobre órdenes {@code PENDIENTE} sin ingresos de insumo registrados.
      *
      * @param id El ID de la orden de compra a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
@@ -60,7 +70,7 @@ public interface IOrdenCompraServicio {
     OrdenCompraResponseDTO anularOrdenCompra(Long id, AnulacionOrdenCompraFormDTO anulacionFormDTO);
 
     /**
-     * Finaliza de forma forzada una orden de compra existente.
+     * Finaliza de forma forzada una orden de compra existente. Solo procede sobre órdenes {@code PENDIENTE} con al menos un ingreso de insumo registrado, y exige un motivo.
      *
      * @param id El ID de la orden de compra a finalizar.
      * @param finalizacionFormDTO Los datos de la finalización forzada (motivo).

@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.Catalo
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.ProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.VersionProveedorEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.VersionRecetaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.IIngresoInsumoRepository;
@@ -36,6 +37,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -78,7 +80,7 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      *
      * @param id Identificador clave primaria de la orden de compra buscada.
      * @return Objeto {@link OrdenCompraResponseDTO} con la información de la orden de compra encontrada.
-     * @throws RecursoNoEncontradoException Si no existe ninguna orden de compra activa con el ID especificado.
+     * @throws RecursoNoEncontradoException Si no existe ninguna orden de compra con el ID especificado.
      */
     @Override
     @Transactional(readOnly = true)
@@ -95,38 +97,64 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
      * versión de receta asociada a esa planificación de producción. El costo unitario de cada ítem se
      * define recién en esta transacción; el catálogo del proveedor no fija precio.
      * </p>
+     * <p>
+     * La fecha de entrega estimada no puede ser anterior a la fecha actual ni superar un año desde ella, y la
+     * orden tiene entre 1 y {@link LimitesTecnicos#ORDEN_COMPRA_MAXIMO_ITEMS} ítems. Cada ítem solicita hasta
+     * {@link LimitesTecnicos#CANTIDAD_COMPRA_MAXIMA} unidades, con un costo unitario mayor a cero, de hasta
+     * {@link LimitesTecnicos#ESCALA_COSTO_UNITARIO} decimales y que no supere {@link LimitesTecnicos#COSTO_UNITARIO_COMPRA_MAXIMO}.
+     * Se bloquean las filas de la planificación de producción y del proveedor hasta el fin de la transacción: la
+     * baja del proveedor y el registro de la orden no se cruzan.
+     * </p>
      *
      * @param ordenCompraFormDTO Objeto DTO que contiene los datos de creación de la orden de compra.
      * @return {@link OrdenCompraResponseDTO} representativo de la orden de compra guardada en la base de datos, en estado {@code PENDIENTE}.
-     * @throws ReglaNegocioException Si la fecha de entrega estimada no fue informada o es anterior a la fecha actual, si algún ítem tiene cantidad o costo unitario nulo o menor o igual a cero, si la orden repite el mismo ítem del catálogo, si la planificación de producción no se encuentra en estado {@code PENDIENTE}, si algún ítem del catálogo no pertenece al proveedor seleccionado, o si el insumo de algún ítem no forma parte de la versión de receta de la planificación de producción.
-     * @throws RecursoNoEncontradoException Si la planificación de producción, el proveedor o algún ítem del catálogo referenciado no existen.
+     * @throws ReglaNegocioException Si faltan los datos de la orden; si la fecha de entrega estimada no fue informada, es anterior a la fecha actual o supera un año desde ella; si falta la planificación de producción o el proveedor; si la orden no tiene ítems, supera el máximo de ítems, tiene un ítem nulo o sin ítem del catálogo, o repite el mismo ítem del catálogo; si algún ítem tiene cantidad o costo unitario nulo o menor o igual a cero, supera el máximo de cantidad o de costo unitario, o el costo unitario tiene más de 4 decimales; si la planificación de producción no se encuentra en estado {@code PENDIENTE}; si el proveedor está dado de baja; si algún ítem del catálogo no pertenece al proveedor seleccionado; o si el insumo de algún ítem no forma parte de la versión de receta de la planificación de producción.
+     * @throws RecursoNoEncontradoException Si la planificación de producción, el proveedor o algún ítem del catálogo referenciado no existen, o si el proveedor no tiene una versión activa.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.ORDEN_COMPRA)
     public OrdenCompraResponseDTO registrarOrdenCompra(OrdenCompraFormDTO ordenCompraFormDTO) {
-        // 1. Validar que la fecha de entrega estimada no sea anterior a la fecha actual
-        LocalDate fechaEntregaEstimada = ordenCompraFormDTO.getFechaEntregaEstimada();
-        if (fechaEntregaEstimada == null || fechaEntregaEstimada.isBefore(LocalDate.now())) {
-            throw new ReglaNegocioException("La fecha de entrega estimada no puede ser anterior a la fecha actual");
+        // 1. Validar que se hayan informado los datos de la orden
+        if (ordenCompraFormDTO == null) {
+            throw new ReglaNegocioException("Los datos de la orden de compra son obligatorios");
         }
 
-        // 2. Validar que cada ítem tenga cantidad y costo unitario mayores a cero, y que no se repita el mismo ítem del catálogo
-        List<DetalleCompraFormDTO> detallesCompraFormDTO = ordenCompraFormDTO.getDetallesCompra();
-        detallesCompraFormDTO.forEach(this::validarCantidadYCosto);
-        validarSinItemsRepetidos(detallesCompraFormDTO);
+        // 2. Validar la fecha de entrega estimada: informada, no anterior a la fecha actual y a no más de un año
+        LocalDate fechaEntregaEstimada = ordenCompraFormDTO.getFechaEntregaEstimada();
+        if (fechaEntregaEstimada == null) {
+            throw new ReglaNegocioException("La fecha de entrega estimada es obligatoria");
+        }
+        if (fechaEntregaEstimada.isBefore(LocalDate.now())) {
+            throw new ReglaNegocioException("La fecha de entrega estimada no puede ser anterior a la fecha actual");
+        }
+        if (fechaEntregaEstimada.isAfter(LocalDate.now().plusDays(LimitesTecnicos.ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA))) {
+            throw new ReglaNegocioException("La fecha de entrega estimada no puede superar un año desde la fecha actual");
+        }
 
-        // 3. Localizar la planificación de producción y validar que se encuentre en estado PENDIENTE
-        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.findById(ordenCompraFormDTO.getIdPlanificacionProduccion())
+        // 3. Validar que se hayan informado la planificación de producción y el proveedor
+        if (ordenCompraFormDTO.getIdPlanificacionProduccion() == null) {
+            throw new ReglaNegocioException("La planificación de producción es obligatoria");
+        }
+        if (ordenCompraFormDTO.getIdProveedor() == null) {
+            throw new ReglaNegocioException("El proveedor es obligatorio");
+        }
+
+        // 4. Validar los ítems: cantidad, ítem del catálogo, cantidad y costo unitario de cada uno, y que no se repita el mismo ítem del catálogo
+        List<DetalleCompraFormDTO> detallesCompraFormDTO = ordenCompraFormDTO.getDetallesCompra();
+        validarDetallesCompra(detallesCompraFormDTO);
+
+        // 5. Localizar, bloqueándola para escritura, la planificación de producción y validar que se encuentre en estado PENDIENTE
+        PlanificacionProduccionEntity planificacionProduccionEntity = planificacionProduccionRepository.buscarPorIdParaActualizar(ordenCompraFormDTO.getIdPlanificacionProduccion())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la planificación de producción con ID: " + ordenCompraFormDTO.getIdPlanificacionProduccion()));
         if (planificacionProduccionEntity.getEstado() != EstadoSolicitud.PENDIENTE) {
             throw new ReglaNegocioException("Solo se pueden asociar órdenes de compra a planificaciones de producción en estado Pendiente");
         }
 
-        // 4. Localizar la última versión activa del proveedor seleccionado
+        // 6. Localizar la última versión activa del proveedor seleccionado, bloqueando su fila
         VersionProveedorEntity versionProveedorEntity = obtenerVersionActiva(ordenCompraFormDTO.getIdProveedor());
 
-        // 5. Crear la entidad de la orden de compra a partir del DTO de formulario
+        // 7. Crear la entidad de la orden de compra a partir del DTO de formulario
         OrdenCompraEntity ordenCompraEntity = OrdenCompraEntity.builder()
                 .fechaEntregaEstimada(fechaEntregaEstimada)
                 .estado(EstadoSolicitud.PENDIENTE)
@@ -134,11 +162,11 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
                 .versionProveedor(versionProveedorEntity)
                 .build();
 
-        // 6. Construir el detalle de la compra, validando cada ítem contra el proveedor y la receta
+        // 8. Construir el detalle de la compra, validando cada ítem contra el proveedor y la receta
         Set<Long> idsInsumosDeReceta = resolverInsumosDeReceta(planificacionProduccionEntity.getVersionReceta());
         ordenCompraEntity.setDetallesCompra(construirDetallesCompra(detallesCompraFormDTO, ordenCompraEntity, versionProveedorEntity.getId(), idsInsumosDeReceta));
 
-        // 7. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
+        // 9. Guardar la entidad en la base de datos y retornar el DTO de respuesta correspondiente
         return MapperOrdenCompra.toDTO(ordenCompraRepository.save(ordenCompraEntity));
     }
 
@@ -166,8 +194,9 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
 
-        // 2. Localizar la orden de compra. Si no existe, se dispara RecursoNoEncontradoException
-        OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.findById(id)
+        // 2. Localizar la orden de compra bloqueando su fila: un ingreso que se está registrando o anulando sobre la
+        //    misma orden no se cruza con este cambio de estado. Si no existe, se dispara RecursoNoEncontradoException
+        OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.buscarPorIdParaCambiarEstado(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + id));
 
         // 3. Validar que la orden se encuentre en estado PENDIENTE
@@ -215,8 +244,9 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
         }
         ValidacionesNumericas.validarLongitudMaxima(motivoFinalizacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de finalización");
 
-        // 2. Localizar la orden de compra. Si no existe, se dispara RecursoNoEncontradoException
-        OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.findById(id)
+        // 2. Localizar la orden de compra bloqueando su fila: un ingreso que se está registrando o anulando sobre la
+        //    misma orden no se cruza con este cambio de estado. Si no existe, se dispara RecursoNoEncontradoException
+        OrdenCompraEntity ordenCompraEntity = ordenCompraRepository.buscarPorIdParaCambiarEstado(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la orden de compra con ID: " + id));
 
         // 3. Validar que la orden se encuentre en estado PENDIENTE
@@ -242,17 +272,61 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     }
 
     /**
-     * Valida la regla de negocio de cantidad y costo unitario de un ítem del detalle de compra.
+     * Valida los ítems de la orden de compra: debe haber entre 1 y {@link LimitesTecnicos#ORDEN_COMPRA_MAXIMO_ITEMS},
+     * ninguno nulo ni sin ítem del catálogo, cada uno con cantidad y costo unitario válidos, y sin repetir el mismo
+     * ítem del catálogo.
+     *
+     * @param detallesCompraFormDTO Ítems solicitados en el formulario.
+     * @throws ReglaNegocioException Si no hay ítems, supera el máximo, algún ítem es nulo o no indica el ítem del catálogo, algún ítem tiene cantidad o costo unitario inválidos, o el mismo ítem del catálogo figura más de una vez.
+     */
+    private void validarDetallesCompra(List<DetalleCompraFormDTO> detallesCompraFormDTO) {
+        if (detallesCompraFormDTO == null || detallesCompraFormDTO.isEmpty()) {
+            throw new ReglaNegocioException("La orden de compra debe tener al menos un ítem");
+        }
+        if (detallesCompraFormDTO.size() > LimitesTecnicos.ORDEN_COMPRA_MAXIMO_ITEMS) {
+            throw new ReglaNegocioException("La orden de compra no puede superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.ORDEN_COMPRA_MAXIMO_ITEMS) + " ítems");
+        }
+        for (DetalleCompraFormDTO detalleCompraFormDTO : detallesCompraFormDTO) {
+            if (detalleCompraFormDTO == null) {
+                throw new ReglaNegocioException("Los ítems de la orden de compra son obligatorios");
+            }
+            if (detalleCompraFormDTO.getIdCatalogoProveedor() == null) {
+                throw new ReglaNegocioException("El ítem del catálogo de cada ítem de la orden de compra es obligatorio");
+            }
+            validarCantidadYCosto(detalleCompraFormDTO);
+        }
+        validarSinItemsRepetidos(detallesCompraFormDTO);
+    }
+
+    /**
+     * Valida la regla de negocio de cantidad y costo unitario de un ítem del detalle de compra: ambos deben ser
+     * mayores a cero y no superar su máximo, y el costo unitario no puede tener más decimales que la columna de la
+     * base de datos.
      *
      * @param detalleCompraFormDTO Ítem a validar.
-     * @throws ReglaNegocioException Si la cantidad o el costo unitario son nulos o menores o iguales a cero.
+     * @throws ReglaNegocioException Si la cantidad o el costo unitario son nulos o menores o iguales a cero, superan su máximo, o el costo unitario tiene más de 4 decimales.
      */
     private void validarCantidadYCosto(DetalleCompraFormDTO detalleCompraFormDTO) {
-        if (detalleCompraFormDTO.getCantidad() == null || detalleCompraFormDTO.getCantidad() <= 0) {
+        Integer cantidad = detalleCompraFormDTO.getCantidad();
+        if (cantidad == null || cantidad <= 0) {
             throw new ReglaNegocioException("La cantidad de cada ítem debe ser mayor a cero");
         }
-        if (detalleCompraFormDTO.getCostoUnitario() == null || detalleCompraFormDTO.getCostoUnitario().signum() <= 0) {
+        if (cantidad > LimitesTecnicos.CANTIDAD_COMPRA_MAXIMA) {
+            throw new ReglaNegocioException("La cantidad de cada ítem no puede superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CANTIDAD_COMPRA_MAXIMA));
+        }
+        BigDecimal costoUnitario = detalleCompraFormDTO.getCostoUnitario();
+        if (costoUnitario == null || costoUnitario.signum() <= 0) {
             throw new ReglaNegocioException("El costo unitario de cada ítem debe ser mayor a cero");
+        }
+        if (costoUnitario.compareTo(BigDecimal.valueOf(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO)) > 0) {
+            throw new ReglaNegocioException("El costo unitario de cada ítem no puede superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO));
+        }
+        if (costoUnitario.stripTrailingZeros().scale() > LimitesTecnicos.ESCALA_COSTO_UNITARIO) {
+            throw new ReglaNegocioException("El costo unitario de cada ítem no puede tener más de "
+                    + LimitesTecnicos.ESCALA_COSTO_UNITARIO + " decimales");
         }
     }
 
@@ -328,15 +402,21 @@ public class OrdenCompraServicioImpl implements IOrdenCompraServicio {
     }
 
     /**
-     * Resuelve la última versión activa ({@code esUltimaVersion = true}) del proveedor indicado.
+     * Resuelve la última versión activa ({@code esUltimaVersion = true}) del proveedor indicado, bloqueando la fila
+     * del proveedor ({@code PESSIMISTIC_WRITE}) hasta el fin de la transacción: la baja del proveedor, que verifica
+     * que no tenga órdenes pendientes, no se cruza con el registro de una orden nueva.
      *
      * @param idProveedor Identificador del proveedor cuya última versión activa se quiere obtener.
      * @return Entidad de la última versión activa del proveedor.
      * @throws RecursoNoEncontradoException Si el proveedor no existe, o si no tiene ninguna versión activa.
+     * @throws ReglaNegocioException Si el proveedor está dado de baja.
      */
     private VersionProveedorEntity obtenerVersionActiva(Long idProveedor) {
-        ProveedorEntity proveedorEntity = proveedorRepository.findById(idProveedor)
+        ProveedorEntity proveedorEntity = proveedorRepository.buscarPorIdParaRegistrarOrdenCompra(idProveedor)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el proveedor con ID: " + idProveedor));
+        if (proveedorEntity.getEstado() == Estado.BAJA) {
+            throw new ReglaNegocioException("No se puede registrar la orden de compra para un proveedor dado de baja");
+        }
 
         return MetodosVersionado.obtenerVersionActiva(proveedorEntity.getVersiones(),
                 () -> new RecursoNoEncontradoException("No se encontró una versión activa para el proveedor con ID: " + idProveedor));

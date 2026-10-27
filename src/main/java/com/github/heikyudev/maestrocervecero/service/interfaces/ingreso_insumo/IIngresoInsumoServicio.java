@@ -51,6 +51,10 @@ public interface IIngresoInsumoServicio {
 
     /**
      * Registra un ingreso de insumo como recepción de un ítem de una orden de compra.
+     * <p>
+     * Solo procede sobre órdenes en estado {@code PENDIENTE}. Si con este ingreso todos los ítems de la orden
+     * quedan completamente recibidos, la orden se finaliza automáticamente.
+     * </p>
      *
      * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.
@@ -67,6 +71,11 @@ public interface IIngresoInsumoServicio {
 
     /**
      * Anula un ingreso de insumo existente.
+     * <p>
+     * Si el ingreso es de un ítem de una orden de compra finalizada automáticamente y, tras la anulación, algún ítem
+     * vuelve a tener cantidad pendiente, la orden se reabre y vuelve a {@code PENDIENTE}. Si la orden fue
+     * finalizada manualmente (con motivo), el ingreso no se puede anular.
+     * </p>
      *
      * @param id El ID del ingreso de insumo a anular.
      * @param anularIngresoInsumoFormDTO Los datos de la anulación (motivo).

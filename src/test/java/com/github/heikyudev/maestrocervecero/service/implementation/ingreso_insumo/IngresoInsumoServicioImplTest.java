@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insu
 import com.github.heikyudev.maestrocervecero.persistence.repository.ingreso_insumo.ILoteInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.insumo.IInsumoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IDetalleCompraRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.orden_compra.IOrdenCompraRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.AnularIngresoInsumoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.IngresoInsumoDirectoFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insumo.IngresoInsumoPorCompraFormDTO;
@@ -39,6 +40,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -66,6 +69,8 @@ class IngresoInsumoServicioImplTest {
     private IDetalleCompraRepository detalleCompraRepository;
     @Mock
     private IInsumoRepository insumoRepository;
+    @Mock
+    private IOrdenCompraRepository ordenCompraRepository;
 
     @InjectMocks
     private IngresoInsumoServicioImpl ingresoInsumoServicio;
@@ -229,6 +234,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -243,6 +249,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(null).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -257,6 +264,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(0.0).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -271,6 +279,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(150.0).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -287,6 +296,7 @@ class IngresoInsumoServicioImplTest {
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(65.0).build();
         IngresoInsumoEntity ingresoPrevioRegistrado = ingresoInsumoEntity(10L, EstadoTransaccion.REGISTRADO, 40.0, null);
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(ingresoPrevioRegistrado));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -300,6 +310,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaIngreso(null).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -315,6 +326,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaIngreso(LocalDate.now().plusDays(1)).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -330,6 +342,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaVencimiento(null).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -345,6 +358,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaVencimiento(LocalDate.now().minusDays(1)).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -365,6 +379,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", LocalDate.now().plusMonths(3), 10.0, 0.0);
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
@@ -388,6 +403,7 @@ class IngresoInsumoServicioImplTest {
                 .cantidadRecibida(20.0)
                 .build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
@@ -436,6 +452,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", fechaVencimiento, 50.0, 0.0);
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
@@ -474,6 +491,7 @@ class IngresoInsumoServicioImplTest {
         // por superar "3" (comparando kg contra bultos); aquí está dentro de los 75.0 kg reales pedidos
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(50.0).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
@@ -502,6 +520,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(80.0).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         // === EJECUCION Y ASSERTS ===
@@ -523,6 +542,7 @@ class IngresoInsumoServicioImplTest {
                 .cantidadRecibida(20.0)
                 .build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025 001")).thenReturn(Optional.empty());
@@ -547,6 +567,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
@@ -575,6 +596,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", vencimientoDelLote, 10.0, 0.0);
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
@@ -596,6 +618,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
@@ -616,6 +639,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.empty());
 
@@ -634,6 +658,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor(null).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -651,6 +676,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor("   ").build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -668,6 +694,7 @@ class IngresoInsumoServicioImplTest {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor("A".repeat(256)).build();
         when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
@@ -676,6 +703,229 @@ class IngresoInsumoServicioImplTest {
 
         verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
         verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-24: registrarIngresoInsumoPorCompra lanza RecursoNoEncontradoException cuando la orden de compra del ítem ya no existe al bloquearla")
+    void registrarPorCompra_debeRechazarOrdenInexistenteAlBloquear() {
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la orden de compra con ID: 1");
+
+        verifyNoInteractions(loteInsumoRepository);
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-25: registrarIngresoInsumoPorCompra bloquea el ítem y luego la orden de compra, y no usa findById de la orden")
+    void registrarPorCompra_debeBloquearElItemYLuegoLaOrden() {
+        // === PREPARACION DE DATOS ===
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumoEntity(INSUMO_ID));
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
+
+        // === EJECUCION ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(detalleCompraRepository, ordenCompraRepository);
+        orden.verify(detalleCompraRepository).buscarPorIdParaIngresar(DETALLE_COMPRA_ID);
+        orden.verify(ordenCompraRepository).buscarPorIdParaCambiarEstado(1L);
+        verify(ordenCompraRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-26: registrarIngresoInsumoPorCompra finaliza automáticamente la orden, sin motivo, cuando el ingreso deja todos sus ítems completamente recibidos")
+    void registrarPorCompra_debeFinalizarAutomaticamenteLaOrdenCuandoSeCompleta() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build();
+        IngresoInsumoEntity ingresoPrevio = ingresoPorCompra(10L, EstadoTransaccion.REGISTRADO, 80.0, null, detalleCompra);
+        IngresoInsumoEntity ingresoNuevo = ingresoPorCompra(11L, EstadoTransaccion.REGISTRADO, 20.0, null, detalleCompra);
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        // Antes de guardar el ingreso queda pendiente 20; después de guardarlo, 0
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO))
+                .thenReturn(List.of(ingresoPrevio))
+                .thenReturn(List.of(ingresoPrevio, ingresoNuevo));
+        stubearLoteNuevoYGuardado(insumo);
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(orden.getFechaFinalizacion()).isNotNull();
+        assertThat(orden.getMotivoFinalizacion()).isNull();
+        verify(ordenCompraRepository).save(orden);
+    }
+
+    @Test
+    @DisplayName("CP-RC-27: registrarIngresoInsumoPorCompra deja la orden en PENDIENTE cuando el ingreso es parcial")
+    void registrarPorCompra_debeDejarPendienteLaOrdenSiElIngresoEsParcial() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build();
+        IngresoInsumoEntity ingresoPrevio = ingresoPorCompra(10L, EstadoTransaccion.REGISTRADO, 50.0, null, detalleCompra);
+        IngresoInsumoEntity ingresoNuevo = ingresoPorCompra(11L, EstadoTransaccion.REGISTRADO, 20.0, null, detalleCompra);
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO))
+                .thenReturn(List.of(ingresoPrevio))
+                .thenReturn(List.of(ingresoPrevio, ingresoNuevo));
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        assertThat(orden.getFechaFinalizacion()).isNull();
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-28: registrarIngresoInsumoPorCompra deja la orden en PENDIENTE cuando este ítem queda completo pero otro ítem de la orden sigue con cantidad pendiente")
+    void registrarPorCompra_debeDejarPendienteLaOrdenSiOtroItemSigueIncompleto() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        DetalleCompraEntity otroDetalle = agregarOtroDetalle(detalleCompra, 2L, 40);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(100.0).build();
+        IngresoInsumoEntity ingresoNuevo = ingresoPorCompra(11L, EstadoTransaccion.REGISTRADO, 100.0, null, detalleCompra);
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO))
+                .thenReturn(List.of())
+                .thenReturn(List.of(ingresoNuevo));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(otroDetalle.getId(), EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-29: registrarIngresoInsumoPorCompra finaliza automáticamente la orden cuando el último ítem pendiente de una orden de varios ítems queda completo")
+    void registrarPorCompra_debeFinalizarAutomaticamenteUnaOrdenDeVariosItems() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        DetalleCompraEntity otroDetalle = agregarOtroDetalle(detalleCompra, 2L, 40);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(100.0).build();
+        IngresoInsumoEntity ingresoNuevo = ingresoPorCompra(11L, EstadoTransaccion.REGISTRADO, 100.0, null, detalleCompra);
+        IngresoInsumoEntity ingresoDelOtroDetalle = ingresoPorCompra(12L, EstadoTransaccion.REGISTRADO, 40.0, null, otroDetalle);
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO))
+                .thenReturn(List.of())
+                .thenReturn(List.of(ingresoNuevo));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(otroDetalle.getId(), EstadoTransaccion.REGISTRADO)).thenReturn(List.of(ingresoDelOtroDetalle));
+        stubearLoteNuevoYGuardado(insumo);
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        assertThat(orden.getMotivoFinalizacion()).isNull();
+        verify(ordenCompraRepository).save(orden);
+    }
+
+    @Test
+    @DisplayName("CP-RC-30: registrarIngresoInsumoPorCompra acepta recibir lo pendiente exacto aunque la suma de los ingresos previos arrastre residuo de coma flotante")
+    void registrarPorCompra_debeAceptarLoPendienteExactoConResiduoDeComaFlotante() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 3, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        bloquearOrdenCompra(detalleCompra);
+        // 0.1 + 0.2 = 0.30000000000000004: sin redondear, el pendiente sería 2.6999999999999997 y 2.7 se rechazaría
+        IngresoInsumoEntity previo1 = ingresoPorCompra(10L, EstadoTransaccion.REGISTRADO, 0.1, null, detalleCompra);
+        IngresoInsumoEntity previo2 = ingresoPorCompra(11L, EstadoTransaccion.REGISTRADO, 0.2, null, detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(2.7).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(previo1, previo2));
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatCode(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("CP-RC-31: registrarIngresoInsumoPorCompra informa el pendiente redondeado cuando queda menos de 0,00005 y rechaza cualquier ingreso mayor")
+    void registrarPorCompra_debeRechazarConPendienteMenorALaEscala() {
+        // === PREPARACION DE DATOS ===
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
+        bloquearOrdenCompra(detalleCompra);
+        // Pendiente real 0.00003, que redondeado a 4 decimales es 0.0
+        IngresoInsumoEntity previo = ingresoPorCompra(10L, EstadoTransaccion.REGISTRADO, 99.99997, null, detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(1.0).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(previo));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (0.0)");
+
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-32: registrarIngresoInsumoPorCompra no finaliza una orden sin ítems cargados")
+    void registrarPorCompra_noDebeFinalizarUnaOrdenSinItems() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        orden.getDetallesCompra().clear();
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-33: registrarIngresoInsumoPorCompra guarda el ingreso antes de recalcular la cantidad pendiente para decidir si finaliza la orden")
+    void registrarPorCompra_debeGuardarElIngresoAntesDeRecalcularElPendiente() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        bloquearOrdenCompra(detalleCompra);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(ingresoInsumoRepository);
+        orden.verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+        orden.verify(ingresoInsumoRepository, atLeastOnce()).findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO);
     }
 
     // ==================== registrarIngresoInsumoDirecto ====================
@@ -1067,7 +1317,7 @@ class IngresoInsumoServicioImplTest {
     @DisplayName("CP-AI-03: anularIngresoInsumo lanza RecursoNoEncontradoException cuando el ingreso de insumo no existe")
     void anular_debeLanzarExcepcionSiNoExiste() {
         AnularIngresoInsumoFormDTO formDTO = anularFormDTO("Error de carga");
-        when(ingresoInsumoRepository.findById(99L)).thenReturn(Optional.empty());
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
@@ -1082,7 +1332,7 @@ class IngresoInsumoServicioImplTest {
         LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
         IngresoInsumoEntity ingreso = ingresoInsumoEntity(1L, EstadoTransaccion.ANULADO, 20.0, lote);
         AnularIngresoInsumoFormDTO formDTO = anularFormDTO("Error de carga");
-        when(ingresoInsumoRepository.findById(1L)).thenReturn(Optional.of(ingreso));
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -1098,7 +1348,7 @@ class IngresoInsumoServicioImplTest {
         LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(1), 50.0, 20.0);
         IngresoInsumoEntity ingreso = ingresoInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 50.0, lote);
         AnularIngresoInsumoFormDTO formDTO = anularFormDTO("Error de carga");
-        when(ingresoInsumoRepository.findById(1L)).thenReturn(Optional.of(ingreso));
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
         when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, formDTO))
@@ -1116,7 +1366,7 @@ class IngresoInsumoServicioImplTest {
         LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
         IngresoInsumoEntity ingreso = ingresoInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 20.0, lote);
         AnularIngresoInsumoFormDTO formDTO = anularFormDTO("Error de carga");
-        when(ingresoInsumoRepository.findById(1L)).thenReturn(Optional.of(ingreso));
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
         when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
         when(loteInsumoRepository.save(lote)).thenReturn(lote);
         when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
@@ -1135,7 +1385,256 @@ class IngresoInsumoServicioImplTest {
         verify(ingresoInsumoRepository).save(ingreso);
     }
 
+    @Test
+    @DisplayName("CP-AI-08: anularIngresoInsumo de un ingreso por compra bloquea la orden de compra antes de bloquear el lote")
+    void anular_debeBloquearLaOrdenAntesDelLote() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        bloquearOrdenCompra(detalleCompra);
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(ordenCompraRepository, loteInsumoRepository);
+        orden.verify(ordenCompraRepository).buscarPorIdParaCambiarEstado(1L);
+        orden.verify(loteInsumoRepository).buscarPorIdParaAnularIngreso(1L);
+        verify(ordenCompraRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-09: anularIngresoInsumo reabre la orden finalizada automáticamente cuando algún ítem vuelve a tener cantidad pendiente")
+    void anular_debeReabrirLaOrdenFinalizadaAutomaticamente() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        orden.setFechaFinalizacion(LocalDateTime.now());
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 100.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        IngresoInsumoEntity otroIngreso = ingresoPorCompra(2L, EstadoTransaccion.REGISTRADO, 80.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
+        // Tras anular el ingreso de 20 solo queda registrado el de 80: pendiente 20
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(otroIngreso));
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        assertThat(orden.getFechaFinalizacion()).isNull();
+        assertThat(orden.getMotivoFinalizacion()).isNull();
+        verify(ordenCompraRepository).save(orden);
+    }
+
+    @Test
+    @DisplayName("CP-AI-10: anularIngresoInsumo lanza ReglaNegocioException cuando la orden fue finalizada manualmente (con motivo) y no modifica nada")
+    void anular_debeRechazarSiLaOrdenFueFinalizadaManualmente() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        orden.setMotivoFinalizacion("Proveedor discontinuado");
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga")))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular el ingreso porque la orden de compra fue finalizada manualmente");
+
+        assertThat(ingreso.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(lote.getCantidadActual()).isEqualTo(50.0);
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        verifyNoInteractions(loteInsumoRepository);
+        verify(ingresoInsumoRepository, never()).save(any());
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-11: anularIngresoInsumo deja FINALIZADA la orden finalizada automáticamente cuando el resto de los ingresos sigue cubriendo todos los ítems")
+    void anular_noDebeReabrirLaOrdenSiTodoSigueCubierto() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 150.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        // Un ingreso extra registrado deja la cantidad recibida cubierta aun sin el que se anula
+        IngresoInsumoEntity ingresoQueCubreTodo = ingresoPorCompra(2L, EstadoTransaccion.REGISTRADO, 100.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(ingresoQueCubreTodo));
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-12: anularIngresoInsumo no modifica una orden que sigue en PENDIENTE")
+    void anular_noDebeModificarUnaOrdenPendiente() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        verify(ingresoInsumoRepository, never()).findByDetalleCompraIdAndEstado(any(), any());
+        verify(ordenCompraRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-13: anularIngresoInsumo lanza RecursoNoEncontradoException cuando la orden de compra del ingreso ya no existe al bloquearla")
+    void anular_debeRechazarOrdenInexistenteAlBloquear() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(1L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga")))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la orden de compra con ID: 1");
+
+        verifyNoInteractions(loteInsumoRepository);
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-14: anularIngresoInsumo bloquea el ingreso antes de validar su estado y antes de bloquear la orden y el lote")
+    void anular_debeBloquearElIngresoPrimero() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        bloquearOrdenCompra(detalleCompra);
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(ingresoInsumoRepository, ordenCompraRepository, loteInsumoRepository);
+        orden.verify(ingresoInsumoRepository).buscarPorIdParaAnular(1L);
+        orden.verify(ordenCompraRepository).buscarPorIdParaCambiarEstado(1L);
+        orden.verify(loteInsumoRepository).buscarPorIdParaAnularIngreso(1L);
+        verify(ingresoInsumoRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-15: anularIngresoInsumo rechaza el ingreso de una orden finalizada manualmente aunque sea el único registrado")
+    void anular_debeRechazarOrdenManualAunqueSeaElUnicoIngreso() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumo);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        orden.setMotivoFinalizacion("Cantidad ingresada menor a la solicitada");
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 20.0, 0.0);
+        IngresoInsumoEntity unicoIngreso = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 20.0, lote, detalleCompra);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(unicoIngreso));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga")))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede anular el ingreso porque la orden de compra fue finalizada manualmente");
+
+        assertThat(unicoIngreso.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.FINALIZADA);
+        verifyNoInteractions(loteInsumoRepository);
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AI-16: anularIngresoInsumo reabre la orden automática de dos ítems cuando solo uno de ellos vuelve a tener cantidad pendiente")
+    void anular_debeReabrirUnaOrdenDeDosItemsConSoloUnoPendiente() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.FINALIZADA, insumo);
+        DetalleCompraEntity otroDetalle = agregarOtroDetalle(detalleCompra, 2L, 40);
+        OrdenCompraEntity orden = bloquearOrdenCompra(detalleCompra);
+        orden.setFechaFinalizacion(LocalDateTime.now());
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumo, "L-1", LocalDate.now().plusMonths(1), 140.0, 0.0);
+        IngresoInsumoEntity ingresoCompleto = ingresoPorCompra(2L, EstadoTransaccion.REGISTRADO, 100.0, lote, detalleCompra);
+        IngresoInsumoEntity ingresoQueSeAnula = ingresoPorCompra(1L, EstadoTransaccion.REGISTRADO, 40.0, lote, otroDetalle);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingresoQueSeAnula));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingresoQueSeAnula)).thenReturn(ingresoQueSeAnula);
+        // El primer ítem sigue completo; el segundo se queda sin ingresos registrados
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of(ingresoCompleto));
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(otroDetalle.getId(), EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        when(ordenCompraRepository.save(orden)).thenReturn(orden);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        assertThat(orden.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE);
+        assertThat(orden.getFechaFinalizacion()).isNull();
+        verify(ordenCompraRepository).save(orden);
+    }
+
+    @Test
+    @DisplayName("CP-AI-17: anularIngresoInsumo de un ingreso directo no consulta ninguna orden de compra")
+    void anular_ingresoDirectoNoDebeConsultarOrdenesDeCompra() {
+        // === PREPARACION DE DATOS ===
+        LoteInsumoEntity lote = loteInsumoEntity(1L, insumoEntity(INSUMO_ID), "L-1", LocalDate.now().plusMonths(1), 50.0, 0.0);
+        IngresoInsumoEntity ingreso = ingresoInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 20.0, lote);
+        when(ingresoInsumoRepository.buscarPorIdParaAnular(1L)).thenReturn(Optional.of(ingreso));
+        when(loteInsumoRepository.buscarPorIdParaAnularIngreso(1L)).thenReturn(Optional.of(lote));
+        when(loteInsumoRepository.save(lote)).thenReturn(lote);
+        when(ingresoInsumoRepository.save(ingreso)).thenReturn(ingreso);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO("Error de carga"));
+
+        // === ASSERTS ===
+        verifyNoInteractions(ordenCompraRepository);
+    }
+
     // ==================== helpers de construcción ====================
+
+    private void stubearLoteNuevoYGuardado(InsumoEntity insumo) {
+        when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
+        when(loteInsumoRepository.save(any(LoteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ingresoInsumoRepository.save(any(IngresoInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
 
     private static IngresoInsumoPorCompraFormDTO.IngresoInsumoPorCompraFormDTOBuilder porCompraValidoBuilder(Long idDetalleCompra) {
         return IngresoInsumoPorCompraFormDTO.builder()
@@ -1173,13 +1672,45 @@ class IngresoInsumoServicioImplTest {
         // con los kg pedidos, para no alterar los cálculos de los demás casos de prueba.
         PresentacionComercialEntity presentacionComercial = presentacionComercialEntity(1.0, UnidadDeMedida.KILOGRAMO);
         CatalogoProveedorEntity catalogoProveedor = CatalogoProveedorEntity.builder().id(1L).insumo(insumo).presentacionComercial(presentacionComercial).build();
-        return DetalleCompraEntity.builder()
+        DetalleCompraEntity detalleCompra = DetalleCompraEntity.builder()
                 .id(id)
                 .cantidad(cantidad)
                 .costoUnitario(costoUnitario)
                 .ordenCompra(ordenCompraEntity(estadoOrden))
                 .catalogoProveedor(catalogoProveedor)
                 .build();
+        detalleCompra.getOrdenCompra().getDetallesCompra().add(detalleCompra);
+        return detalleCompra;
+    }
+
+    /**
+     * Agrega a la orden del detalle indicado otro ítem de la misma presentación (1 kg por unidad) y del mismo insumo.
+     */
+    private static DetalleCompraEntity agregarOtroDetalle(DetalleCompraEntity detalleCompra, Long id, Integer cantidad) {
+        DetalleCompraEntity otroDetalle = DetalleCompraEntity.builder()
+                .id(id)
+                .cantidad(cantidad)
+                .costoUnitario(BigDecimal.TEN)
+                .ordenCompra(detalleCompra.getOrdenCompra())
+                .catalogoProveedor(detalleCompra.getCatalogoProveedor())
+                .build();
+        detalleCompra.getOrdenCompra().getDetallesCompra().add(otroDetalle);
+        return otroDetalle;
+    }
+
+    /**
+     * Simula el bloqueo de la fila de la orden del detalle indicado: devuelve la misma instancia de la orden.
+     */
+    private OrdenCompraEntity bloquearOrdenCompra(DetalleCompraEntity detalleCompra) {
+        OrdenCompraEntity ordenCompra = detalleCompra.getOrdenCompra();
+        when(ordenCompraRepository.buscarPorIdParaCambiarEstado(ordenCompra.getId())).thenReturn(Optional.of(ordenCompra));
+        return ordenCompra;
+    }
+
+    private static IngresoInsumoEntity ingresoPorCompra(Long id, EstadoTransaccion estado, Double cantidadRecibida, LoteInsumoEntity lote, DetalleCompraEntity detalleCompra) {
+        IngresoInsumoEntity ingreso = ingresoInsumoEntity(id, estado, TipoIngreso.COMPRA, cantidadRecibida, lote);
+        ingreso.setDetalleCompra(detalleCompra);
+        return ingreso;
     }
 
     private static PresentacionComercialEntity presentacionComercialEntity(double cantidad, UnidadDeMedida unidadDeMedida) {

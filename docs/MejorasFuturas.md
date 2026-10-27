@@ -66,3 +66,54 @@ Agregar a los Services de insumos y de presentaciones comerciales una búsqueda 
 
 1. **Contrato de los Services**: hace falta un método nuevo en `IInsumoServicio` y en `IPresentacionComercialServicio`, con su validación, sus tests y su documentación de casos de prueba.
 2. **Insumos activos y dados de baja**: la consulta por lote debe respetar el mismo criterio de visibilidad que `buscarPorId` para que la pantalla muestre lo mismo.
+
+---
+
+## 4. Tiempo máximo de espera de los bloqueos de fila
+
+### Contexto
+
+El registro de órdenes de compra y de ingresos de insumo, su anulación y la baja del proveedor toman bloqueos de fila (`PESSIMISTIC_WRITE`) sobre la orden de compra, el proveedor, la planificación, el insumo y el lote. No hay configurado `jakarta.persistence.lock.timeout` (ni el equivalente del motor): una transacción que espera un bloqueo lo hace hasta el tiempo de espera por defecto de la base de datos, y varias personas operando sobre la misma orden o el mismo proveedor forman una cola larga.
+
+### Propuesta
+
+Configurar un tiempo de espera corto para los bloqueos (por ejemplo, unos segundos) y traducir la falla por tiempo vencido a un mensaje claro ("El registro está siendo modificado por otra persona, intente nuevamente"), con el mismo tratamiento que ya reciben los índices únicos.
+
+### Por qué no es trivial
+
+1. **Alcance**: el valor se aplica a todos los módulos que bloquean filas, no solo a estos dos.
+2. **Traducción del error**: hay que decidir en qué capa se convierte la excepción del motor y cómo se muestra en cada pantalla.
+
+---
+
+## 5. Consultas por ítem al decidir si una orden de compra quedó completamente recibida
+
+### Contexto
+
+Al registrar un ingreso por compra, y al anular el ingreso de una orden finalizada automáticamente, `ordenCompraCompletamenteRecibida` calcula la cantidad pendiente de cada ítem de la orden con una consulta por ítem (`findByDetalleCompraIdAndEstado`). Con el máximo de 100 ítems son hasta 100 consultas por operación, dentro de una transacción que mantiene bloqueada la orden.
+
+### Propuesta
+
+Reemplazarlas por una sola consulta que devuelva, por ítem de la orden, la suma de la cantidad recibida de sus ingresos `REGISTRADO`, y calcular el pendiente en memoria.
+
+### Por qué no es trivial
+
+1. **Contrato del repositorio**: la consulta agrupada es nueva y su JPQL solo se verifica contra la base de datos.
+2. **Un solo criterio**: el cálculo del pendiente (conversión de la presentación comercial a la unidad del insumo y redondeo) debe seguir en un único lugar, también para la validación del ingreso individual.
+
+---
+
+## 6. Bitácora propia para el cierre y la reapertura automáticos de una orden de compra
+
+### Contexto
+
+Cuando un ingreso completa la recepción, la orden de compra pasa a `FINALIZADA` de forma automática; cuando se anula ese ingreso, puede volver a `PENDIENTE`. Ambos cambios ocurren dentro de la operación de ingreso, que registra una sola entrada de bitácora (concepto ingreso de insumo): el cambio de estado de la orden solo queda en sus campos de auditoría de la entidad (`LastModifiedBy` y `LastModifiedDate`), sin una entrada propia de finalización o de reapertura del concepto orden de compra.
+
+### Propuesta
+
+Registrar una segunda entrada de bitácora (acción finalizar, concepto orden de compra) cuando la operación cierra la orden, y una de reapertura cuando la vuelve a abrir, reutilizando el mismo registro diferido hasta la confirmación de la transacción.
+
+### Por qué no es trivial
+
+1. **Mecanismo**: el aspecto de auditoría solo conoce los métodos anotados; hay que exponer una forma de registrar una entrada adicional desde el Service sin duplicar la lógica de usuario e IP.
+2. **Vocabulario**: la reapertura no tiene hoy una acción de auditoría propia.

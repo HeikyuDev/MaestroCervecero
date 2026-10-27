@@ -99,6 +99,21 @@ public final class LimitesTecnicos {
     /** Cantidad máxima de ítems (combinaciones de insumo y presentación comercial) del catálogo de un proveedor. */
     public static final int CATALOGO_PROVEEDOR_MAXIMO_ITEMS = 100;
 
+    /** Cantidad máxima de ítems de una orden de compra. */
+    public static final int ORDEN_COMPRA_MAXIMO_ITEMS = 100;
+
+    /** Cantidad máxima de días entre la fecha actual y la fecha de entrega estimada de una orden de compra (un año). */
+    public static final int ORDEN_COMPRA_MAXIMO_DIAS_ENTREGA = 365;
+
+    /** Cantidad máxima de unidades de la presentación comercial que se puede solicitar en un ítem de una orden de compra. */
+    public static final int CANTIDAD_COMPRA_MAXIMA = 1_000_000;
+
+    /** Costo unitario máximo de un ítem de una orden de compra. */
+    public static final double COSTO_UNITARIO_COMPRA_MAXIMO = 1_000_000_000.0;
+
+    /** Cantidad máxima de decimales del costo unitario de un ítem de una orden de compra (la escala de la columna de la base de datos). */
+    public static final int ESCALA_COSTO_UNITARIO = 4;
+
     /** Cantidad máxima que se puede envasar en un solo envasado, en litros (igual que la capacidad máxima de un equipo). */
     public static final double CANTIDAD_ENVASADA_MAXIMA_LITROS = CAPACIDAD_EQUIPO_MAXIMA_LITROS;
 

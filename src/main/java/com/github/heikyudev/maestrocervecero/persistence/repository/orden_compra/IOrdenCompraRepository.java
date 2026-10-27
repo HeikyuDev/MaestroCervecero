@@ -2,14 +2,17 @@ package com.github.heikyudev.maestrocervecero.persistence.repository.orden_compr
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 /**
  * Repositorio para la entidad OrdenCompraEntity.
@@ -96,4 +99,20 @@ public interface IOrdenCompraRepository extends JpaRepository<OrdenCompraEntity,
             + "JOIN o.detallesCompra d "
             + "WHERE d.catalogoProveedor.presentacionComercial.id = :idPresentacionComercial AND o.estado = 'PENDIENTE'")
     boolean existsByPresentacionComercialEnOrdenCompraPendiente(@Param("idPresentacionComercial") Long idPresentacionComercial);
+
+    /**
+     * Busca una orden de compra por su ID y bloquea su fila hasta el fin de la transacción
+     * ({@code PESSIMISTIC_WRITE}).
+     * <p>
+     * Se usa en toda operación que decide según el estado de la orden o lo cambia (anularla, finalizarla,
+     * registrar o anular un ingreso de sus ítems): serializa los pedidos sobre la misma orden, de modo que
+     * una anulación o una finalización no se crucen con un ingreso que se está registrando.
+     * </p>
+     *
+     * @param id El ID de la orden de compra.
+     * @return Un Optional que contiene la orden bloqueada, o vacío si no existe.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM OrdenCompraEntity o WHERE o.id = :id")
+    Optional<OrdenCompraEntity> buscarPorIdParaCambiarEstado(@Param("id") Long id);
 }

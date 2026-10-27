@@ -96,4 +96,21 @@ public interface IProveedorRepository extends JpaRepository<ProveedorEntity, Lon
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM ProveedorEntity p WHERE p.id = :id AND p.estado = 'ACTIVO'")
     Optional<ProveedorEntity> findByIdParaActualizarVersiones(@Param("id") Long id);
+
+    /**
+     * Busca un proveedor por su ID, esté activo o dado de baja, y bloquea su fila hasta el fin de la transacción
+     * ({@code PESSIMISTIC_WRITE}).
+     * <p>
+     * Se usa al registrar una orden de compra: el bloqueo es el mismo que toma la baja del proveedor, de modo que
+     * la baja (que verifica que no haya órdenes pendientes) y el registro de una orden nueva no se cruzan. A
+     * diferencia de {@link #findByIdParaActualizarVersiones(Long)}, no filtra por estado: permite distinguir un
+     * proveedor dado de baja de uno que no existe.
+     * </p>
+     *
+     * @param id El ID del proveedor a buscar.
+     * @return Un Optional que contiene el proveedor bloqueado, o vacío si no existe.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM ProveedorEntity p WHERE p.id = :id")
+    Optional<ProveedorEntity> buscarPorIdParaRegistrarOrdenCompra(@Param("id") Long id);
 }
