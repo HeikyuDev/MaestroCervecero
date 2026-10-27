@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#orden-form-content}, 'ordenes-compra')}">
+<body>
+
+<div id="orden-form-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i>
+            <span>Volver a órdenes de compra</span>
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Nueva orden de compra</h1>
+        <p class="text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+    </div>
+
+    <!--
+        bloqueado = true cuando la orden ya tiene ítems: la planificación y el proveedor no se pueden cambiar (los ítems
+        ofrecidos dependen de los dos) hasta quitar todos. /js/orden-compra-form.js mantiene este estado al agregar y
+        quitar filas; el servidor lo pinta al volver a mostrar el formulario con filas.
+    -->
+    <form id="orden-form" th:action="@{/ordenes-compra}"
+          th:object="${ordenCompraForm}" method="post" novalidate data-un-solo-envio
+          th:with="bloqueado=${!#lists.isEmpty(ordenCompraForm.detallesCompra)}"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <!-- Resumen de todos los errores: campos inválidos (@Valid) y reglas de negocio del service -->
+        <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar la orden de compra')}"></div>
+
+        <!-- 1. PLANIFICACIÓN, PROVEEDOR Y FECHA -->
+        <section class="p-6" data-seccion-datos>
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Datos de la orden</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Planificación de producción <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div data-selector-de="planificacion" th:data-deshabilitado="${bloqueado} ? 'true'" th:classappend="${bloqueado} ? 'opacity-50'">
+                        <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacionProduccion', *{idPlanificacionProduccion}, ${planificacionTexto},
+                                @{/ordenes-compra/buscador/planificaciones}, null, null, false, ${#fields.hasErrors('idPlanificacionProduccion')}, 'Seleccione planificación')}"></div>
+                    </div>
+                    <p th:if="${#fields.hasErrors('idPlanificacionProduccion')}" th:errors="*{idPlanificacionProduccion}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('idPlanificacionProduccion')}" class="mt-1 text-xs text-slate-400">Solo planificaciones pendientes. Define qué insumos se pueden pedir.</p>
+                </div>
+
+                <div>
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Proveedor <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div data-selector-de="proveedor" th:data-deshabilitado="${bloqueado} ? 'true'" th:classappend="${bloqueado} ? 'opacity-50'">
+                        <div th:replace="~{fragments/selector-entidad :: selector('idProveedor', *{idProveedor}, ${proveedorTexto},
+                                @{/ordenes-compra/buscador/proveedores}, null, null, false, ${#fields.hasErrors('idProveedor')}, 'Seleccione proveedor')}"></div>
+                    </div>
+                    <p th:if="${#fields.hasErrors('idProveedor')}" th:errors="*{idProveedor}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('idProveedor')}" class="mt-1 text-xs text-slate-400">Se usa la versión vigente de su catálogo.</p>
+                </div>
+
+                <div>
+                    <label for="fechaEntregaEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de entrega estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="date" id="fechaEntregaEstimada" th:field="*{fechaEntregaEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 15/07/2027"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('fechaEntregaEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('fechaEntregaEstimada')}" th:errors="*{fechaEntregaEstimada}" class="mt-1 text-xs text-rose-600"></p>
+                    <p th:unless="${#fields.hasErrors('fechaEntregaEstimada')}" class="mt-1 text-xs text-slate-400">Desde hoy y hasta un año.</p>
+                </div>
+            </div>
+
+            <!-- Aviso del bloqueo: visible mientras la orden tiene ítems -->
+            <div data-aviso-bloqueo th:hidden="${!bloqueado}" class="mt-4">
+                <p class="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    <i class="bi bi-lock-fill"></i>
+                    <span>Para cambiar la planificación o el proveedor, quite primero todos los ítems</span>
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. ÍTEMS -->
+        <section class="p-6" data-detalle="item">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ítems <span class="text-rose-600" title="Obligatorio">*</span></h2>
+                    <p class="mt-1 mb-4 text-xs text-slate-400">Ítems del catálogo del proveedor que usa la receta de la planificación. Entre 1 y 100 ítems; cada ítem se puede pedir una sola vez.</p>
+                </div>
+                <div class="shrink-0 text-right">
+                    <button type="button" data-abrir-agregar="item"
+                            th:disabled="${ordenCompraForm.idPlanificacionProduccion == null or ordenCompraForm.idProveedor == null}"
+                            class="inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-slate-800">
+                        <i class="bi bi-plus-lg"></i> Agregar ítem
+                    </button>
+                    <p data-ayuda-agregar th:hidden="${ordenCompraForm.idPlanificacionProduccion != null and ordenCompraForm.idProveedor != null}"
+                       class="mt-1 text-xs text-slate-500">Elija primero la planificación y el proveedor</p>
+                </div>
+            </div>
+            <div class="border rounded-lg overflow-hidden" th:classappend="${#fields.hasErrors('detallesCompra*')} ? 'border-rose-400' : 'border-slate-200'">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left" data-tabla-items>
+                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr>
+                            <th class="px-3 py-3">Insumo</th>
+                            <th class="px-3 py-3">Presentación comercial</th>
+                            <th class="px-3 py-3 text-right">Cantidad (unidades)</th>
+                            <th class="px-3 py-3 text-right">Costo unitario ($)</th>
+                            <th class="px-3 py-3 text-right">Subtotal ($)</th>
+                            <th class="col-acciones w-32 px-3 py-3 text-right"></th>
+                        </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100" data-filas>
+                        <th:block th:each="detalle, i : *{detallesCompra}"
+                                  th:with="item=${itemsPorId.get(detalle?.idCatalogoProveedor)}, pc=${item?.presentacionComercial}">
+                            <tr th:replace="~{orden_compra/orden-form-filas :: item(${i.index}, ${detalle?.idCatalogoProveedor}, ${detalle?.cantidad}, ${detalle?.costoUnitario},
+                                    ${item?.insumo?.nombre}, ${pc?.nombre},
+                                    ${(pc == null or pc.cantidad == null or pc.unidadDeMedida == null) ? null : ((pc.cantidad == pc.cantidad.intValue() ? #numbers.formatInteger(pc.cantidad.intValue(), 1, 'POINT') : #strings.replace(pc.cantidad, '.', ',')) + ' ' + pc.unidadDeMedida.simbolo)},
+                                    ${#fields.hasErrors('detallesCompra[' + i.index + '].*')})}"></tr>
+                        </th:block>
+                        <tr data-fila-vacia th:hidden="${!#lists.isEmpty(ordenCompraForm.detallesCompra)}">
+                            <td colspan="6" class="px-4 py-6 text-center text-slate-400">No hay ítems en la orden</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div th:if="${#fields.hasErrors('detallesCompra*')}" class="mt-2 space-y-0.5">
+                <p th:each="mensaje : ${#sets.toSet(#fields.errors('detallesCompra*'))}" th:text="${mensaje}" class="text-xs text-rose-600"></p>
+            </div>
+            <p class="mt-3 text-right text-sm text-slate-700">
+                Total ($): <strong class="text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(total)}">0,00</strong>
+            </p>
+            <template data-plantilla="item">
+                <tr th:replace="~{orden_compra/orden-form-filas :: item(0, null, null, null, null, null, null, false)}"></tr>
+            </template>
+        </section>
+
+        <!-- ACCIONES -->
+        <div class="p-6 flex items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit"
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                Registrar orden de compra
+            </button>
+        </div>
+    </form>
+
+    <!-- Ventana emergente para agregar un ítem. Va fuera del formulario: sus campos no se envían -->
+    <div th:replace="~{orden_compra/orden-dialogos :: item}"></div>
+
+    <script th:src="@{/js/orden-compra-form.js}" defer></script>
+</div>
+
+</body>
+</html>

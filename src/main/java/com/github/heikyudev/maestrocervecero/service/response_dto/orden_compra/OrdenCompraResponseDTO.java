@@ -51,6 +51,12 @@ public class OrdenCompraResponseDTO {
     private String motivoFinalizacion;
 
     /**
+     * Usuario que finalizó la orden de compra, según la auditoría de la última modificación.
+     * Queda en {@code null} si la orden no está finalizada.
+     */
+    private String usuarioFinalizacion;
+
+    /**
      * Fecha y hora en la que se anuló la orden de compra.
      * Queda en {@code null} si la orden nunca fue anulada.
      */
@@ -61,6 +67,12 @@ public class OrdenCompraResponseDTO {
      * Queda en {@code null} si la orden nunca fue anulada.
      */
     private String motivoAnulacion;
+
+    /**
+     * Usuario que anuló la orden de compra, según la auditoría de la última modificación.
+     * Queda en {@code null} si la orden nunca fue anulada.
+     */
+    private String usuarioAnulacion;
 
     /**
      * Planificación de producción que impulsa esta compra.

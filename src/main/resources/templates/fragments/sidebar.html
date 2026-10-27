@@ -62,7 +62,7 @@
             OPERACIÓN: el trabajo diario. Cada botón lo ve solo el rol que lo usa, y el título de la
             sección aparece únicamente si el usuario ve al menos uno de sus botones.
         -->
-        <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS')">
+        <th:block sec:authorize="hasAnyRole('OPERARIO_DE_PRODUCCION', 'GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')">
             <p th:replace="~{fragments/sidebar ::seccion('Operación')}"></p>
 
             <!-- CRONOGRAMA DE PRODUCCIÓN (Gerente de Producción: lo gestiona; Operario de Producción: lo consulta) -->
@@ -80,9 +80,9 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/planificaciones-produccion', ${opcionActiva}, 'planificaciones', 'bi-calendar3', 'Planificación de Producción')}"></a>
             </th:block>
 
-            <!-- ÓRDENES DE COMPRA (Gerente de Compras). Todavía no tiene controller: se muestra como "Próximamente" -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
-                <span th:replace="~{fragments/sidebar ::enlaceProximamente('bi-cart3', 'Órdenes de Compra')}"></span>
+            <!-- ÓRDENES DE COMPRA (Gerente de Compras: las gestiona; Encargado de Depósito: las consulta) -->
+            <th:block sec:authorize="hasAnyRole('GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')">
+                <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'ordenes-compra', 'bi-cart3', 'Órdenes de Compra')}"></a>
             </th:block>
         </th:block>
 

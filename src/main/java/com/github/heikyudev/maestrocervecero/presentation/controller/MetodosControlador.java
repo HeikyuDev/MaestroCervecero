@@ -14,7 +14,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 /**
@@ -185,5 +190,30 @@ public final class MetodosControlador {
         model.addAttribute("urlBuscadorRecetas", urlBuscador);
         model.addAttribute("ofreceIncluirDadosDeBaja", ofreceDadosDeBaja);
         model.addAttribute("filtroIncluirDadosDeBaja", ofreceDadosDeBaja && incluirDadosDeBaja);
+    }
+
+    /**
+     * Busca una vez cada id (ignorando los nulos) y arma el mapa id -> datos. Un id que ya no existe no tiene entrada.
+     */
+    public static <T> Map<Long, T> resolver(Collection<Long> ids, Function<Long, T> buscar) {
+        Map<Long, T> resultado = new HashMap<>();
+        ids.stream().filter(Objects::nonNull).distinct().forEach(id -> {
+            try {
+                T encontrado = buscar.apply(id);
+                if (encontrado != null) {
+                    resultado.put(id, encontrado);
+                }
+            } catch (RecursoNoEncontradoException e) {
+                // sin entrada: la vista indica que el dato ya no está disponible
+            }
+        });
+        return resultado;
+    }
+
+    /**
+     * El dato de un solo id, o {@code null} si el id es nulo o ya no existe.
+     */
+    public static <T> T resolverUno(Long id, Function<Long, T> buscar) {
+        return id == null ? null : resolver(List.of(id), buscar).get(id);
     }
 }

@@ -112,6 +112,33 @@ class MapperOrdenCompraTest {
         assertThat(MapperOrdenCompra.toDTOConCantidades(null, detalle -> 0.0)).isNull();
     }
 
+    @Test
+    @DisplayName("CP-MOC-07: toDTO informa el usuario de anulación o de finalización solo en el estado que corresponde")
+    void toDTO_debeInformarElUsuarioDeCierreSegunElEstado() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraEntity anulada = ordenCompra();
+        anulada.setEstado(EstadoSolicitud.ANULADA);
+        anulada.setLastModifiedBy("gerente.compras");
+        OrdenCompraEntity finalizada = ordenCompra();
+        finalizada.setEstado(EstadoSolicitud.FINALIZADA);
+        finalizada.setLastModifiedBy("gerente.compras");
+        OrdenCompraEntity pendiente = ordenCompra();
+        pendiente.setLastModifiedBy("gerente.compras");
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO dtoAnulada = MapperOrdenCompra.toDTO(anulada);
+        OrdenCompraResponseDTO dtoFinalizada = MapperOrdenCompra.toDTO(finalizada);
+        OrdenCompraResponseDTO dtoPendiente = MapperOrdenCompra.toDTO(pendiente);
+
+        // === ASSERTS ===
+        assertThat(dtoAnulada.getUsuarioAnulacion()).isEqualTo("gerente.compras");
+        assertThat(dtoAnulada.getUsuarioFinalizacion()).isNull();
+        assertThat(dtoFinalizada.getUsuarioFinalizacion()).isEqualTo("gerente.compras");
+        assertThat(dtoFinalizada.getUsuarioAnulacion()).isNull();
+        assertThat(dtoPendiente.getUsuarioAnulacion()).isNull();
+        assertThat(dtoPendiente.getUsuarioFinalizacion()).isNull();
+    }
+
     private static OrdenCompraEntity ordenCompra() {
         return OrdenCompraEntity.builder().id(1L).estado(EstadoSolicitud.PENDIENTE).build();
     }

@@ -332,22 +332,4 @@ public class ProveedorController {
             return null;
         }
     }
-
-    /**
-     * Busca una vez cada id (ignorando los nulos) y arma el mapa id -> datos. Un id que ya no existe no tiene entrada.
-     */
-    private static <T> Map<Long, T> resolver(Collection<Long> ids, Function<Long, T> buscar) {
-        Map<Long, T> resultado = new HashMap<>();
-        ids.stream().filter(Objects::nonNull).distinct().forEach(id -> {
-            try {
-                T encontrado = buscar.apply(id);
-                if (encontrado != null) {
-                    resultado.put(id, encontrado);
-                }
-            } catch (RecursoNoEncontradoException e) {
-                // sin entrada: la vista indica que el dato ya no está disponible
-            }
-        });
-        return resultado;
-    }
 }

@@ -117,3 +117,27 @@ Registrar una segunda entrada de bitácora (acción finalizar, concepto orden de
 
 1. **Mecanismo**: el aspecto de auditoría solo conoce los métodos anotados; hay que exponer una forma de registrar una entrada adicional desde el Service sin duplicar la lógica de usuario e IP.
 2. **Vocabulario**: la reapertura no tiene hoy una acción de auditoría propia.
+
+---
+
+## Tests automáticos del JavaScript de los formularios con filas
+
+### Contexto
+
+El reindexado sin huecos, el bloqueo de selectores y el cálculo de subtotales de `orden-compra-form.js` (y de sus equivalentes de proveedores y recetas) solo se verifican a mano en el navegador; el proyecto no tiene infraestructura de tests de JavaScript.
+
+### Propuesta
+
+Incorporar un runner de tests de JavaScript en `frontend` que ejecute estos módulos con un DOM simulado y dejarlo en el CI.
+
+---
+
+## Consulta de ingresos de insumo con filtro de fecha
+
+### Contexto
+
+`IIngresoInsumoRepository` usa el patrón `:fecha IS NULL OR ...` que en PostgreSQL falla al no poder determinar el tipo del parámetro cuando es nulo; en órdenes de compra se corrigió con `CAST(:parametro AS LocalDate) IS NULL`.
+
+### Propuesta
+
+Aplicar la misma corrección al implementar el Controller del módulo de ingresos y verificarlo en el navegador.

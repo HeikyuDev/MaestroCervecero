@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.util.mapper.orden_compra;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.OrdenCompraEntity;
+import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoSolicitud;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.DetalleCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.orden_compra.OrdenCompraResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.planificacion_produccion.MapperPlanificacionProduccion;
@@ -57,8 +58,10 @@ public class MapperOrdenCompra {
                 .estado(ordenCompraEntity.getEstado())
                 .fechaFinalizacion(ordenCompraEntity.getFechaFinalizacion())
                 .motivoFinalizacion(ordenCompraEntity.getMotivoFinalizacion())
+                .usuarioFinalizacion(ordenCompraEntity.getEstado() == EstadoSolicitud.FINALIZADA ? ordenCompraEntity.getLastModifiedBy() : null)
                 .fechaAnulacion(ordenCompraEntity.getFechaAnulacion())
                 .motivoAnulacion(ordenCompraEntity.getMotivoAnulacion())
+                .usuarioAnulacion(ordenCompraEntity.getEstado() == EstadoSolicitud.ANULADA ? ordenCompraEntity.getLastModifiedBy() : null)
                 .planificacionProduccion(MapperPlanificacionProduccion.toDTO(ordenCompraEntity.getPlanificacionProduccion()))
                 .proveedor(MapperVersionProveedor.toDTO(ordenCompraEntity.getVersionProveedor()))
                 .detallesCompra(detallesCompra)

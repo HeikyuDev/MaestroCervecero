@@ -41,12 +41,12 @@ public interface IOrdenCompraRepository extends JpaRepository<OrdenCompraEntity,
             + "(:idPlanificacionProduccion IS NULL OR o.planificacionProduccion.id = :idPlanificacionProduccion) "
             + "AND (:idProveedor IS NULL OR o.versionProveedor.proveedor.id = :idProveedor) "
             + "AND (:estado IS NULL OR o.estado = :estado) "
-            + "AND (:fechaEntregaEstimada IS NULL OR o.fechaEntregaEstimada = :fechaEntregaEstimada)",
+            + "AND (CAST(:fechaEntregaEstimada AS LocalDate) IS NULL OR o.fechaEntregaEstimada = :fechaEntregaEstimada)",
             countQuery = "SELECT COUNT(o) FROM OrdenCompraEntity o WHERE "
                     + "(:idPlanificacionProduccion IS NULL OR o.planificacionProduccion.id = :idPlanificacionProduccion) "
                     + "AND (:idProveedor IS NULL OR o.versionProveedor.proveedor.id = :idProveedor) "
                     + "AND (:estado IS NULL OR o.estado = :estado) "
-                    + "AND (:fechaEntregaEstimada IS NULL OR o.fechaEntregaEstimada = :fechaEntregaEstimada)")
+                    + "AND (CAST(:fechaEntregaEstimada AS LocalDate) IS NULL OR o.fechaEntregaEstimada = :fechaEntregaEstimada)")
     Page<OrdenCompraEntity> filtrarOrdenesCompra(@Param("idPlanificacionProduccion") Long idPlanificacionProduccion,
                                                   @Param("idProveedor") Long idProveedor,
                                                   @Param("estado") EstadoSolicitud estado,

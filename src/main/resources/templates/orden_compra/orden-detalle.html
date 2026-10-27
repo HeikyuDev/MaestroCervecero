@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#orden-detalle-content}, 'ordenes-compra')}">
+<body>
+
+<div id="orden-detalle-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div class="flex items-start justify-between gap-4">
+        <div>
+            <a th:href="@{/ordenes-compra}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+                <i class="bi bi-arrow-left"></i>
+                <span>Volver a órdenes de compra</span>
+            </a>
+            <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="|Orden de compra #${orden.id}|">Orden de compra #7</h1>
+            <p class="text-sm text-slate-500">Datos de la orden, ítems solicitados y cantidades recibidas.</p>
+        </div>
+        <div th:if="${orden.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_COMPRAS')"
+             class="flex shrink-0 flex-wrap items-center justify-end gap-3">
+            <button type="button" data-boton-finalizar data-motivo-dialogo="dialogo-finalizar"
+                    th:data-motivo-url="@{/ordenes-compra/{id}/finalizar(id=${orden.id})}"
+                    th:data-motivo-nombre="|Orden de compra #${orden.id}|"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-colors">
+                <i class="bi bi-check2-circle"></i> Finalizar
+            </button>
+            <button type="button" data-boton-anular data-motivo-dialogo="dialogo-anular"
+                    th:data-motivo-url="@{/ordenes-compra/{id}/anular(id=${orden.id})}"
+                    th:data-motivo-nombre="|Orden de compra #${orden.id}|"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-colors">
+                <i class="bi bi-x-circle"></i> Anular
+            </button>
+        </div>
+    </div>
+
+    <!-- Datos de la orden -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la orden</h2>
+        <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Estado</dt>
+                <dd class="mt-1 flex items-center gap-2">
+                    <span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${orden.estado})}"></span>
+                    <!-- El motivo y la fecha del cierre van en un diálogo, no en línea -->
+                    <th:block th:if="${orden.estado.name() == 'ANULADA'}">
+                        <th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${orden.motivoAnulacion}, ${orden.usuarioAnulacion}, ${orden.fechaAnulacion})}"></th:block>
+                    </th:block>
+                    <button th:if="${orden.estado.name() == 'FINALIZADA'}" type="button" data-detalle-anulacion data-detalle-finalizacion
+                            data-detalle-etiqueta-usuario="Finalizada por"
+                            th:data-detalle-titulo="${orden.motivoFinalizacion != null} ? 'Detalle de la finalización' : 'Finalizada automáticamente'"
+                            th:data-detalle-motivo="${orden.motivoFinalizacion}"
+                            th:data-detalle-usuario="${orden.usuarioFinalizacion}"
+                            th:data-detalle-fecha="${orden.fechaFinalizacion != null} ? ${#temporals.format(orden.fechaFinalizacion, 'dd/MM/yyyy HH:mm')}"
+                            aria-label="Ver detalle de la finalización" title="Ver detalle de la finalización"
+                            class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </button>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Planificación de producción</dt>
+                <dd class="mt-1 font-medium text-slate-900 break-words" th:text="${orden.planificacionProduccion.etiqueta}">Plan #7 - Pale Ale</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Proveedor</dt>
+                <dd class="mt-1 text-slate-900 break-words">
+                    <span class="font-medium" th:text="${orden.proveedor.razonSocial}">Malterías del Sur S.A.</span>
+                    <span class="block text-xs text-slate-500 whitespace-nowrap">CUIT <th:block th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(orden.proveedor.cuit)}">30-71234567-8</th:block></span>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Fecha de entrega estimada</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${orden.fechaEntregaEstimada})}"></th:block></dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Total ($)</dt>
+                <dd class="mt-1 text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</dd>
+            </div>
+        </dl>
+    </section>
+
+    <!-- Ítems -->
+    <section class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Ítems solicitados</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left" data-tabla-items>
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-3 py-3">Insumo</th>
+                    <th class="px-3 py-3">Presentación comercial</th>
+                    <th class="px-3 py-3 text-right">Cantidad pedida (unidades)</th>
+                    <th class="px-3 py-3 text-right">
+                        <span tabindex="0" data-tooltip="Cantidad de insumo ya recibida mediante ingresos registrados, en la unidad del insumo">Recibida</span>
+                    </th>
+                    <th class="px-3 py-3 text-right">
+                        <span tabindex="0" data-tooltip="Cantidad de insumo que resta recibir, en la unidad del insumo">Pendiente</span>
+                    </th>
+                    <th class="px-3 py-3 text-right">Costo unitario ($)</th>
+                    <th class="px-3 py-3 text-right">Subtotal ($)</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="d : ${orden.detallesCompra}" data-fila-detalle class="hover:bg-slate-50"
+                    th:with="insumo=${d.catalogoProveedor.insumo}, presentacion=${d.catalogoProveedor.presentacionComercial}">
+                    <td class="px-3 py-3 font-medium text-slate-900 break-words" th:text="${insumo.nombre}">Pilsen</td>
+                    <td class="px-3 py-3">
+                        <span class="block break-words text-slate-700" th:text="${presentacion.nombre}">Bolsa de 25 Kg</span>
+                        <span class="block text-xs text-slate-500 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${presentacion.cantidad}, ${presentacion.unidadDeMedida?.simbolo})}"></th:block></span>
+                    </td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" th:text="${d.cantidad}">10</td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidadRecibida}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidadPendiente}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(d.costoUnitario)}">1.250,50</td>
+                    <td class="px-3 py-3 text-right font-medium text-slate-900 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(d.subtotal)}">12.505,00</td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(orden.detallesCompra)}">
+                    <td colspan="7" class="px-4 py-6 text-center text-slate-400">La orden no tiene ítems</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="px-5 py-3 border-t border-slate-100 bg-slate-50 text-right text-sm text-slate-700">
+            Total ($): <strong class="text-base font-semibold text-slate-900" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</strong>
+        </p>
+    </section>
+
+    <!-- Diálogos de cierre: piden el motivo y envían la acción -->
+    <th:block th:if="${orden.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar orden de compra',
+                'se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado. El motivo admite hasta 255 caracteres.',
+                'Confirmar finalización', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
+                'El proveedor no puede entregar el resto de los ítems')}"></div>
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular orden de compra',
+                'se anula y queda registrado el motivo. Requiere que no tenga ingresos de insumo registrados. El motivo admite hasta 255 caracteres.',
+                'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                'La orden se cargó con un proveedor equivocado')}"></div>
+    </th:block>
+</div>
+
+</body>
+</html>

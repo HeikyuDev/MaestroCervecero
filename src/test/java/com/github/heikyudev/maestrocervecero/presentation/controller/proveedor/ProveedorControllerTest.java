@@ -1133,8 +1133,8 @@ class ProveedorControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*Administración.*<span>Gestión de Presentaciones</span>.*href=\"/proveedores\"[^>]*>\\s*<i class=\"bi text-lg bi-truck\"></i>\\s*<span>Gestión de Proveedores</span>.*")))
                 // En el panel de control la opción no está resaltada
                 .andExpect(content().string(not(matchesPattern(ENLACE_RESALTADO))))
-                // "Órdenes de Compra" sigue como "Próximamente"
-                .andExpect(content().string(matchesPattern("(?s).*Órdenes de Compra</span>\\s*<span[^>]*>Próximamente</span>.*")));
+                // "Órdenes de Compra" es un enlace real, en Operación
+                .andExpect(content().string(matchesPattern("(?s).*Operación.*href=\"/ordenes-compra\"[^>]*>\\s*<i class=\"bi text-lg bi-cart3\"></i>\\s*<span>Órdenes de Compra</span>.*Administración.*")));
     }
 
     @Test
