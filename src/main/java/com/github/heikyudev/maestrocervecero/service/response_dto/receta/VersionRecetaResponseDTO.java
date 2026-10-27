@@ -49,6 +49,12 @@ public class VersionRecetaResponseDTO {
     private Double ibuObjetivo;
 
     /**
+     * Alcohol por volumen estimado (%) a partir de la OG y la FG objetivo, con un decimal. Nulo si alguna falta o si
+     * la OG no es mayor que la FG.
+     */
+    private Double abv;
+
+    /**
      * Duración de la maceración en minutos.
      */
     private Integer duracionMaceracion;

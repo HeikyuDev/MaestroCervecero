@@ -531,6 +531,8 @@ Es de solo lectura (`@Transactional(readOnly = true)`) y alimenta el detalle del
 |**CP-BD-08**|Lote cancelado sin haber empezado|(a) Lote `CANCELADO` con las seis etapas `CANCELADA` sin fechas de inicio; (b) lote `CANCELADO` con las seis etapas `PENDIENTE`|Ninguna etapa se inició|En ambos casos `etapaPorDefecto: MOLIENDA`.|
 |**CP-BD-09**|Lote en ejecución sin etapa en curso|Lote `EN_EJECUCION` con las seis etapas `PENDIENTE` (dato inconsistente)|No hay etapa En curso|`etapaPorDefecto: MOLIENDA` (no lanza excepción).|
 |**CP-BD-10**|Lote que no está cancelado no informa usuario de cancelación|Lote `EN_EJECUCION` con `lastModifiedBy: "operario"`|El usuario de la última modificación no es el de una cancelación|`usuarioCancelacion` es `null`.|
+|**CP-BD-11**|ABV y alcohol estimados|Lote de 20 L cuya versión de receta informa `abv: 5.3`|El service completa los datos estimados con el ABV de la receta|`abvEstimado: 5.3` y `alcoholEstimadoLitros: 1.1` (20 x 5,3 / 100 = 1,06, un decimal hacia arriba en la mitad), calculados con `CalculosCerveza` sin consultas adicionales.|
+|**CP-BD-12**|Receta sin ABV|Lote cuya versión de receta llega sin datos|No hay ABV del cual partir|`abvEstimado` y `alcoholEstimadoLitros` quedan en `null`.|
 
 ### 20. `calcularAvanceDeEtapa(Long idLote, TipoEtapa etapa)`
 

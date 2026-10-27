@@ -67,6 +67,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCrono
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetalleResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
 import jakarta.persistence.EntityManager;
@@ -6356,6 +6357,37 @@ class LoteServicioImplTest {
 
         // === EJECUCION Y ASSERTS ===
         assertThat(loteServicio.buscarDetallePorId(1L).getUsuarioCancelacion()).isNull();
+    }
+
+    @Test
+    @DisplayName("CP-BD-11: buscarDetallePorId informa el ABV estimado de la receta y los litros de alcohol estimados del volumen objetivo")
+    void buscarDetallePorId_debeInformarElAbvYElAlcoholEstimados() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null); // volumen objetivo 20 L
+        when(loteRepository.buscarConEtapasParaDetalle(1L)).thenReturn(Optional.of(lote));
+        when(planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(1L)).thenReturn(VersionRecetaDePlanificacionResponseDTO.builder()
+                .version(VersionRecetaResponseDTO.builder().ogObjetivo(1.05).fgObjetivo(1.01).abv(5.3).build()).build());
+
+        // === EJECUCION ===
+        LoteDetalleResponseDTO resultado = loteServicio.buscarDetallePorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getAbvEstimado()).isEqualTo(5.3);
+        assertThat(resultado.getAlcoholEstimadoLitros()).isEqualTo(1.1);
+    }
+
+    @Test
+    @DisplayName("CP-BD-12: buscarDetallePorId deja el ABV y el alcohol estimados en null si la receta no tiene ABV")
+    void buscarDetallePorId_debeDejarElAbvYElAlcoholEnNullSiNoHayAbv() {
+        // === PREPARACION DE DATOS ===
+        mockearDetalle(crearLoteParaCancelar(EstadoLote.PENDIENTE, null)); // la versión de receta llega sin datos
+
+        // === EJECUCION ===
+        LoteDetalleResponseDTO resultado = loteServicio.buscarDetallePorId(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado.getAbvEstimado()).isNull();
+        assertThat(resultado.getAlcoholEstimadoLitros()).isNull();
     }
 
     private void mockearDetalle(LoteEntity lote) {

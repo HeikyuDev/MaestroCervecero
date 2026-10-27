@@ -22,6 +22,9 @@
 <!-- gravedad(valor): densidad (OG/FG) con tres decimales fijos y coma decimal (1.050 se muestra "1,050"). -->
 <th:block th:fragment="gravedad(valor)"><th:block th:if="${valor != null}" th:text="${#numbers.formatDecimal(valor, 1, 3, 'COMMA')}">1,050</th:block></th:block>
 
+<!-- unDecimal(valor): número con un decimal fijo y coma decimal (ABV 5.3 se muestra "5,3", litros de alcohol 1.0 se muestra "1,0"); "-" si no hay valor. -->
+<th:block th:fragment="unDecimal(valor)"><th:block th:text="${valor != null} ? ${#numbers.formatDecimal(valor, 1, 1, 'COMMA')} : '-'">5,3</th:block></th:block>
+
 <th:block th:fragment="usoLupulo(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'HERVOR'">Hervor</th:block><th:block th:case="'WHIRLPOOL'">Whirlpool</th:block><th:block th:case="'DRY_HOP'">Dry hop</th:block></th:block>
 
 <th:block th:fragment="tipoMalta(valor)" th:switch="${valor != null} ? ${valor.name()} : ''"><th:block th:case="'BASE'">Base</th:block><th:block th:case="'CARAMELO'">Caramelo</th:block><th:block th:case="'TOSTADA'">Tostada</th:block><th:block th:case="'ESPECIAL'">Especial</th:block></th:block>

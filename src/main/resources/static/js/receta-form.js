@@ -326,10 +326,39 @@
         }
     });
 
+    // ---------- ABV estimado ----------
+
+    /**
+     * Muestra el ABV estimado que resulta de la OG y la FG escritas (cuatro dígitos cada una: 1050 = 1,050).
+     * ABV = (OG - FG) x 131,25, con un decimal y redondeo hacia arriba en la mitad, igual que el servidor
+     * (CalculosCerveza.calcularAbv). Se calcula con enteros para no arrastrar errores de coma flotante. Solo
+     * muestra: si algún valor no tiene cuatro dígitos o la OG no supera a la FG, muestra "-". No valida ni bloquea
+     * nada; el servidor valida al enviar.
+     */
+    function actualizarAbv() {
+        var salida = document.querySelector('[data-abv-estimado]');
+        var og = document.getElementById('ogObjetivo');
+        var fg = document.getElementById('fgObjetivo');
+        if (!salida || !og || !fg) { return; }
+        var texto = '-';
+        if (/^\d{4}$/.test(og.value) && /^\d{4}$/.test(fg.value) && Number(og.value) > Number(fg.value)) {
+            var diferencia = Number(og.value) - Number(fg.value);
+            // (diferencia / 1000) x 131,25 x 10 = diferencia x 13125 / 10000 décimas de punto porcentual
+            var decimas = Math.floor((diferencia * 13125 + 5000) / 10000);
+            texto = Math.floor(decimas / 10) + ',' + (decimas % 10);
+        }
+        salida.textContent = texto;
+    }
+
+    document.addEventListener('input', function (evento) {
+        if (evento.target && (evento.target.id === 'ogObjetivo' || evento.target.id === 'fgObjetivo')) { actualizarAbv(); }
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         var formulario = document.getElementById('receta-form');
         var secciones = document.querySelectorAll('[data-detalle]');
         secciones.forEach(sincronizar);
+        actualizarAbv();
         // Última garantía antes de enviar: índices sin huecos en las tres tablas
         formulario.addEventListener('submit', function () {
             secciones.forEach(sincronizar);

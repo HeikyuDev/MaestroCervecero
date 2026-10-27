@@ -75,6 +75,16 @@ public class LoteDetalleResponseDTO {
      */
     private VersionRecetaDePlanificacionResponseDTO versionReceta;
     /**
+     * Alcohol por volumen estimado (%) a partir de los objetivos de la receta del lote, con un decimal. Nulo si la
+     * receta no permite calcularlo.
+     */
+    private Double abvEstimado;
+    /**
+     * Litros de alcohol estimados del lote (volumen objetivo x ABV estimado / 100), con un decimal. Nulo si no hay
+     * ABV estimado.
+     */
+    private Double alcoholEstimadoLitros;
+    /**
      * ID del fermentador del lote (equipamiento de su etapa de Fermentación), o {@code null} si no tiene.
      */
     private Long idFermentador;

@@ -13,6 +13,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.receta.Version
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLevadura;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperLupulo;
 import com.github.heikyudev.maestrocervecero.util.mapper.insumo.MapperMalta;
+import com.github.heikyudev.maestrocervecero.util.method.CalculosCerveza;
 import com.github.heikyudev.maestrocervecero.util.method.MetodosVersionado;
 
 /**
@@ -84,6 +85,7 @@ public class MapperReceta {
                 .ogObjetivo(versionRecetaEntity.getOgObjetivo())
                 .fgObjetivo(versionRecetaEntity.getFgObjetivo())
                 .ibuObjetivo(versionRecetaEntity.getIbuObjetivo())
+                .abv(CalculosCerveza.calcularAbv(versionRecetaEntity.getOgObjetivo(), versionRecetaEntity.getFgObjetivo()))
                 .duracionMaceracion(versionRecetaEntity.getDuracionMaceracion())
                 .duracionHervido(versionRecetaEntity.getDuracionHervido())
                 .duracionFermentacion(versionRecetaEntity.getDuracionFermentacion())

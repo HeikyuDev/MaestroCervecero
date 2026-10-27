@@ -1394,6 +1394,78 @@ class RecetaControllerTest {
         return p;
     }
 
+    // ==================== ABV estimado ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-57: el listado muestra la columna ABV (%) junto a OG, FG e IBU, con un decimal y coma decimal")
+    void listado_debeMostrarLaColumnaAbv() throws Exception {
+        when(recetaServicio.filtrarRecetas(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(RecetaResponseDTO.builder().id(7L).version(versionBuilder("Pale Ale").abv(5.0).build()).build()),
+                        PageRequest.of(0, 20), 1));
+
+        mockMvc.perform(get("/recetas"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("title=\"ABV estimado (%) a partir de la OG y la FG objetivo\">ABV (%)</th>")))
+                .andExpect(content().string(matchesPattern("(?s).*>IBU</th>\\s*<th[^>]*>ABV \\(%\\)</th>\\s*<th class=\"col-acciones.*")))
+                .andExpect(content().string(matchesPattern("(?s).*>35<.*data-abv>5,0<.*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-58: el detalle muestra el ABV estimado (%) después del IBU, y un guion si la versión no tiene ABV")
+    void detalle_debeMostrarElAbvEstimado() throws Exception {
+        when(recetaServicio.buscarPorId(7L)).thenReturn(RecetaResponseDTO.builder().id(7L).version(versionBuilder("Pale Ale").abv(5.3).build()).build());
+        when(recetaServicio.buscarPorId(8L)).thenReturn(RecetaResponseDTO.builder().id(8L).version(versionBuilder("Sin abv").build()).build());
+
+        mockMvc.perform(get("/recetas/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*IBU objetivo.*data-abv>.*ABV estimado \\(%\\).*>5,3<.*")));
+        mockMvc.perform(get("/recetas/8"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*ABV estimado \\(%\\).*>-<.*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-59: el formulario de alta trae el ABV estimado de solo lectura en un guion y el gancho que el JavaScript actualiza al escribir la OG y la FG")
+    void formularioAlta_debeMostrarElAbvEstimadoEnGuion() throws Exception {
+        mockMvc.perform(get("/recetas/nuevo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("ABV estimado (%)")))
+                .andExpect(content().string(matchesPattern("(?s).*<output id=\"abvEstimado\" data-abv-estimado[^>]*>-</output>.*")))
+                .andExpect(content().string(not(matchesPattern("(?s).*name=\"abvEstimado\".*"))))
+                .andExpect(content().string(containsString("/js/receta-form.js")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-60: el formulario de modificación pinta el ABV estimado calculado con la OG y la FG de la versión vigente")
+    void formularioEdicion_debeMostrarElAbvEstimado() throws Exception {
+        when(recetaServicio.buscarPorId(7L)).thenReturn(receta(7L, "Pale Ale"));
+        stubInsumos();
+
+        mockMvc.perform(get("/recetas/7/editar"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<output id=\"abvEstimado\" data-abv-estimado[^>]*>5,3</output>.*")));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-RCC-61: al volver a pintar el formulario con errores el ABV estimado sale de la OG y la FG enviadas, y un guion si alguna no se pudo convertir")
+    void alta_conErroresDebeConservarElAbvEstimado() throws Exception {
+        mockMvc.perform(post("/recetas").with(csrf()).param("version.ogObjetivo", "1050").param("version.fgObjetivo", "1010"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("receta/receta-form"))
+                .andExpect(content().string(matchesPattern("(?s).*<output id=\"abvEstimado\" data-abv-estimado[^>]*>5,3</output>.*")));
+        mockMvc.perform(post("/recetas").with(csrf()).param("version.ogObjetivo", "abc").param("version.fgObjetivo", "1010"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<output id=\"abvEstimado\" data-abv-estimado[^>]*>-</output>.*")));
+        mockMvc.perform(post("/recetas").with(csrf()).param("version.ogObjetivo", "1010").param("version.fgObjetivo", "1050"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*<output id=\"abvEstimado\" data-abv-estimado[^>]*>-</output>.*")));
+    }
+
     /** Datos de los insumos que referencian las filas de {@link #receta(Long, String)}. */
     private void stubInsumos() {
         when(maltaServicio.buscarPorId(1L)).thenReturn(MaltaResponseDTO.builder().id(1L).nombre("Pilsen").tipo(TipoMalta.BASE).build());

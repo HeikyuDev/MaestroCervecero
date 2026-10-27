@@ -70,6 +70,14 @@
                 <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
                 <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
             </div>
+            <div data-abv-estimado>
+                <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado a partir de la OG y la FG objetivo de la receta, no es una medición del lote">ABV estimado (%)</span></dt>
+                <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.abvEstimado})}"></th:block></dd>
+            </div>
+            <div data-alcohol-estimado>
+                <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
+                <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.alcoholEstimadoLitros})}"></th:block></dd>
+            </div>
             <!-- Fechas: las estimadas son las vigentes en el cronograma; las reales se muestran cuando ocurrieron -->
             <div data-fecha-inicio-estimada>
                 <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>

@@ -3110,6 +3110,51 @@ class LoteControllerTest {
                 .andExpect(flash().attribute("tipo", "warning"));
     }
 
+    @Test
+    @DisplayName("CP-LCT-157: la cabecera del detalle muestra el ABV estimado y el alcohol estimado en litros con un decimal y un tooltip que aclara que son estimaciones de la receta")
+    void detalle_cabeceraMuestraElAbvYElAlcoholEstimados() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).abvEstimado(5.3).alcoholEstimadoLitros(15.9).build());
+
+        // Act
+        String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, null);
+
+        // Assert
+        String cabecera = texto(bloque(html, "data-lote-cabecera"));
+        assertThat(cabecera).contains("ABV estimado (%) 5,3", "Alcohol estimado (L) 15,9");
+        assertThat(bloque(html, "data-abv-estimado")).contains("data-tooltip=\"Estimado a partir de la OG y la FG objetivo de la receta");
+        assertThat(bloque(html, "data-alcohol-estimado")).contains("data-tooltip=\"Estimado como volumen objetivo x ABV estimado");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-158: la guía de Fermentación muestra el ABV estimado y el alcohol estimado junto a la OG y la FG objetivo")
+    void detalle_guiaDeFermentacionMuestraElAbvYElAlcoholEstimados() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).abvEstimado(5.3).alcoholEstimadoLitros(15.9).build());
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1004L)).thenReturn(List.of());
+
+        // Act
+        String guia = texto(bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "fermentacion"), "data-guia"));
+
+        // Assert
+        assertThat(guia).contains("OG objetivo 1,050", "FG objetivo 1,010", "ABV estimado (%) 5,3", "Alcohol estimado (L) 15,9");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-159: sin ABV estimado la cabecera y la guía de Fermentación muestran un guion en ambos datos")
+    void detalle_sinAbvMuestraGuion() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).build());
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1004L)).thenReturn(List.of());
+
+        // Act
+        String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "fermentacion");
+
+        // Assert
+        assertThat(texto(bloque(html, "data-lote-cabecera"))).contains("ABV estimado (%) - ", "Alcohol estimado (L) - ");
+        assertThat(texto(bloque(html, "data-guia"))).contains("ABV estimado (%) -", "Alcohol estimado (L) -");
+    }
+
     private void stubDetalle(LoteDetalleResponseDTO detalle) {
         when(loteServicio.buscarDetallePorId(12L)).thenReturn(detalle);
     }

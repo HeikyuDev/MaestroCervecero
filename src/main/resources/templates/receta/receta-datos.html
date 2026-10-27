@@ -43,6 +43,10 @@
                 <dt class="text-xs font-medium text-slate-500">IBU objetivo</dt>
                 <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.ibuObjetivo})}"></th:block></dd>
             </div>
+            <div data-abv>
+                <dt class="text-xs font-medium text-slate-500">ABV estimado (%)</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${version.abv})}"></th:block></dd>
+            </div>
         </dl>
     </section>
 
