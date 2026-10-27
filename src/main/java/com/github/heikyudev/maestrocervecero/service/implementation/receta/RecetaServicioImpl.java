@@ -69,6 +69,7 @@ public class RecetaServicioImpl implements IRecetaServicio {
     private static final BigDecimal FG_MINIMA = new BigDecimal("1.000");
     private static final BigDecimal FG_MAXIMA = new BigDecimal("1.040");
     private static final int GRAVEDAD_MAX_DECIMALES = 3;
+    private static final int IBU_MAX_DECIMALES = 1;
 
     private final IRecetaRepository recetaRepository;
     private final IVersionRecetaRepository versionRecetaRepository;
@@ -368,8 +369,10 @@ public class RecetaServicioImpl implements IRecetaServicio {
         if (versionFormDTO.getIbuObjetivo() <= 0) {
             throw new ReglaNegocioException("El IBU objetivo debe ser mayor a 0");
         }
-        ValidacionesNumericas.validarEnteroMayorACeroConMaximo(versionFormDTO.getIbuObjetivo(),
+        ValidacionesNumericas.validarMayorACeroConMaximo(versionFormDTO.getIbuObjetivo(),
                 LimitesTecnicos.IBU_MAXIMO, "El IBU objetivo", "IBU");
+        ValidacionesNumericas.validarMaximoDecimales(versionFormDTO.getIbuObjetivo(),
+                IBU_MAX_DECIMALES, "El IBU objetivo");
         if (versionFormDTO.getDuracionMaceracion() == null) {
             throw new ReglaNegocioException("La duración estimada de la maceración es obligatoria");
         }

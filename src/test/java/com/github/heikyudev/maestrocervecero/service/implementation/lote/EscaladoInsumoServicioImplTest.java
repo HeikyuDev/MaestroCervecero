@@ -92,7 +92,7 @@ class EscaladoInsumoServicioImplTest {
         DetalleLupuloEntity detalleCitra = detalleLupulo(15.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, citra);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
                 .ogObjetivo(1.050)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .volumenBase(20.0)
                 .detallesLupulo(List.of(detalleCascade, detalleCentennial, detalleCitra))
                 .build();
@@ -126,7 +126,7 @@ class EscaladoInsumoServicioImplTest {
         DetalleLupuloEntity detalle = detalleLupulo(15.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, citra);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
                 .ogObjetivo(1.050)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .volumenBase(20.0)
                 .detallesLupulo(List.of(detalle))
                 .build();
@@ -226,7 +226,7 @@ class EscaladoInsumoServicioImplTest {
         DetalleLupuloEntity dryHop = detalleLupulo(5.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, lupuloDoble);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
                 .ogObjetivo(1.050)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .volumenBase(20.0)
                 .detallesMalta(List.of())
                 .detallesLupulo(List.of(whirlpool, dryHop))
@@ -259,7 +259,7 @@ class EscaladoInsumoServicioImplTest {
         LevaduraEntity levadura = crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6);
         LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .detallesLevadura(List.of(detalleLevadura(6.0, levadura)))
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
@@ -290,7 +290,7 @@ class EscaladoInsumoServicioImplTest {
         LevaduraEntity levadura = crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6);
         LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .detallesLevadura(List.of(detalleLevadura(6.0, levadura)))
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
@@ -316,7 +316,7 @@ class EscaladoInsumoServicioImplTest {
         LevaduraEntity levadura = crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6);
         LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .detallesLevadura(List.of(detalleLevadura(6.0, levadura)))
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade)))
@@ -342,7 +342,7 @@ class EscaladoInsumoServicioImplTest {
         LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
         LupuloEntity centennial = crearLupulo(4L, "Centennial", 10.0, FormatoLupulo.PELLET);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .detallesLevadura(List.of(detalleLevadura(6.0, levadura)))
                 .detallesLupulo(List.of(
@@ -372,7 +372,7 @@ class EscaladoInsumoServicioImplTest {
         LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
         LupuloEntity centennial = crearLupulo(4L, "Centennial", 10.0, FormatoLupulo.PELLET);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of()).detallesLevadura(List.of())
                 .detallesLupulo(List.of(
                         detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade),
@@ -402,7 +402,7 @@ class EscaladoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         LupuloEntity cascade = crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of()).detallesLevadura(List.of())
                 .detallesLupulo(List.of(
                         detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, cascade),
@@ -428,7 +428,7 @@ class EscaladoInsumoServicioImplTest {
     void calcularAdicionesLupulo_debeRetornarListaVaciaSinLupulosEnLaEtapa() {
         // === PREPARACION DE DATOS ===
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of()).detallesLevadura(List.of()).detallesLupulo(List.of())
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
@@ -443,7 +443,7 @@ class EscaladoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .detallesLevadura(List.of())
                 .detallesLupulo(List.of())
@@ -466,7 +466,7 @@ class EscaladoInsumoServicioImplTest {
         DetalleLupuloEntity whirlpool = detalleLupulo(10.0, UsoLupulo.WHIRLPOOL, TipoEtapa.MADURACION, 0.0, lupuloDoble);
         DetalleLupuloEntity dryHop = detalleLupulo(5.0, UsoLupulo.DRY_HOP, TipoEtapa.MADURACION, 0.0, lupuloDoble);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of()).detallesLevadura(List.of())
                 .detallesLupulo(List.of(whirlpool, dryHop))
                 .build();
@@ -514,7 +514,7 @@ class EscaladoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .build();
         LoteEntity lote = crearLoteConVersionReceta(versionReceta, 20.0);
@@ -540,7 +540,7 @@ class EscaladoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MaltaEntity pilsen = crearMalta(1L, "Pilsen", 80);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, pilsen)))
                 .detallesLevadura(List.of())
                 .detallesLupulo(List.of())
@@ -590,7 +590,7 @@ class EscaladoInsumoServicioImplTest {
         // === PREPARACION DE DATOS ===
         LupuloEntity lupuloDoble = crearLupulo(23L, "LupuloDoble", 5.0, FormatoLupulo.FLOR);
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of())
                 .detallesLevadura(List.of())
                 .detallesLupulo(List.of(
@@ -732,7 +732,7 @@ class EscaladoInsumoServicioImplTest {
     /** Lote con una malta, un lúpulo de HERVOR y una levadura, y sus equipos reales en las etapas. */
     private static LoteEntity crearLoteConRecetaCompleta() {
         VersionRecetaEntity versionReceta = VersionRecetaEntity.builder()
-                .ogObjetivo(1.050).ibuObjetivo(35).volumenBase(20.0)
+                .ogObjetivo(1.050).ibuObjetivo(35.0).volumenBase(20.0)
                 .detallesMalta(List.of(detalleMalta(100.0, crearMalta(1L, "Pilsen", 80))))
                 .detallesLevadura(List.of(detalleLevadura(6.0, crearLevadura(2L, "LevaduraA", TipoLevadura.ALE, 20_000.0e6))))
                 .detallesLupulo(List.of(detalleLupulo(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, 60.0, crearLupulo(3L, "Cascade", 5.5, FormatoLupulo.PELLET))))

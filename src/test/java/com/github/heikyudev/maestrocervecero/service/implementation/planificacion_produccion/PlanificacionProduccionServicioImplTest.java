@@ -1312,7 +1312,7 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(resultado.getVersion().getId()).isEqualTo(11L);
         assertThat(resultado.getVersion().isEsUltimaVersion()).isFalse();
         assertThat(resultado.getVersion().getNombre()).isEqualTo("Pale Ale").isNotEqualTo("Pale Ale v2");
-        assertThat(resultado.getVersion().getIbuObjetivo()).isEqualTo(35).isNotEqualTo(40);
+        assertThat(resultado.getVersion().getIbuObjetivo()).isEqualTo(35.0).isNotEqualTo(40.0);
         assertThat(resultado.getNumeroVersion()).isEqualTo(2);
         assertThat(resultado.getCantidadVersiones()).isEqualTo(3);
     }
@@ -1419,7 +1419,7 @@ class PlanificacionProduccionServicioImplTest {
         assertThat(version.getRelacionDeEmpaste()).isEqualTo(3.0);
         assertThat(version.getOgObjetivo()).isEqualTo(1.050);
         assertThat(version.getFgObjetivo()).isEqualTo(1.010);
-        assertThat(version.getIbuObjetivo()).isEqualTo(35);
+        assertThat(version.getIbuObjetivo()).isEqualTo(35.0);
         assertThat(version.getDuracionMaceracion()).isEqualTo(60);
         assertThat(version.getDuracionHervido()).isEqualTo(90);
         assertThat(version.getDuracionFermentacion()).isEqualTo(10);
@@ -1572,7 +1572,7 @@ class PlanificacionProduccionServicioImplTest {
         receta.getVersiones().add(versionBase(11L, false, receta));
         VersionRecetaEntity vigente = versionBase(12L, true, receta);
         vigente.setNombre("Pale Ale v2");
-        vigente.setIbuObjetivo(40);
+        vigente.setIbuObjetivo(40.0);
         receta.getVersiones().add(vigente);
         return receta;
     }
@@ -1585,7 +1585,7 @@ class PlanificacionProduccionServicioImplTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .duracionMaceracion(60)
                 .duracionHervido(90)
                 .duracionFermentacion(10)
@@ -1671,7 +1671,7 @@ class PlanificacionProduccionServicioImplTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
-                .ibuObjetivo(40)
+                .ibuObjetivo(40.0)
                 .duracionMaceracion(60)
                 .duracionHervido(60)
                 .duracionFermentacion(14)
@@ -1719,7 +1719,7 @@ class PlanificacionProduccionServicioImplTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
-                .ibuObjetivo(40)
+                .ibuObjetivo(40.0)
                 .duracionMaceracion(60)
                 .duracionHervido(60)
                 .duracionFermentacion(14)

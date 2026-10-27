@@ -25,7 +25,7 @@ class MapperRecetaFormTest {
     private static RecetaResponseDTO receta() {
         VersionRecetaResponseDTO version = VersionRecetaResponseDTO.builder()
                 .id(70L).nombre("Pale Ale").volumenBase(20.0).relacionDeEmpaste(3.0)
-                .ogObjetivo(1.05).fgObjetivo(1.01).ibuObjetivo(35)
+                .ogObjetivo(1.05).fgObjetivo(1.01).ibuObjetivo(35.5)
                 .duracionMaceracion(60).duracionHervido(90).duracionFermentacion(10).duracionMaduracion(4)
                 .detallesMalta(List.of(DetalleMaltaResponseDTO.builder().id(1L).cantidad(4.5)
                         .malta(MaltaResponseDTO.builder().id(11L).nombre("Pilsen").build()).build()))
@@ -52,7 +52,7 @@ class MapperRecetaFormTest {
         assertThat(version.getRelacionDeEmpaste()).isEqualTo(3.0);
         assertThat(version.getOgObjetivo()).isEqualTo(1.05);
         assertThat(version.getFgObjetivo()).isEqualTo(1.01);
-        assertThat(version.getIbuObjetivo()).isEqualTo(35);
+        assertThat(version.getIbuObjetivo()).isEqualTo(35.5);
         assertThat(version.getDuracionMaceracion()).isEqualTo(60);
         assertThat(version.getDuracionHervido()).isEqualTo(90);
         assertThat(version.getDuracionFermentacion()).isEqualTo(10);

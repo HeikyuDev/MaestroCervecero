@@ -46,7 +46,7 @@ public class VersionRecetaEntity implements VersionadoEntity {
     private Double fgObjetivo;
 
     @Column(name = "ibu_objetivo", nullable = false)
-    private Integer ibuObjetivo;
+    private Double ibuObjetivo;
 
     @Column(name = "duracion_maceracion", nullable = false)
     private Integer duracionMaceracion;

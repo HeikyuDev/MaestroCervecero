@@ -67,7 +67,7 @@ public class VersionRecetaFormDTO {
      */
     @NotNull(message = "El IBU objetivo es obligatorio")
     @Positive(message = "El IBU objetivo debe ser mayor a 0")
-    private Integer ibuObjetivo;
+    private Double ibuObjetivo;
 
     /**
      * Duración de la maceración en minutos.

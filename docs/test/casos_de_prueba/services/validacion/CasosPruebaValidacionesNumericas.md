@@ -39,3 +39,5 @@
 | --- | --- | --- | --- | --- |
 | **CP-VN-14** | Longitud dentro del máximo | `validarLongitudMaxima` con `null`, `""` y 100 caracteres (máximo 100) | La longitud no supera el máximo (el nulo se acepta) | No lanza excepción. |
 | **CP-VN-15** | Longitud superior al máximo | 101 caracteres (máximo 100) | La longitud supera el máximo en un carácter | Lanza `ReglaNegocioException`: "El nombre no puede superar 100 caracteres". |
+| **CP-VN-16** | Decimales dentro del máximo | `validarMaximoDecimales` con `null`, NaN, infinitos, 35.0, 35.5, 35.50 y 0.1 (máximo 1) | El valor no tiene más decimales que el máximo, ignorando ceros finales (nulo, NaN e infinitos no se evalúan) | No lanza excepción. |
+| **CP-VN-17** | Decimales por encima del máximo | `validarMaximoDecimales` con 35.55 y 0.25 (máximo 1) y con 1.12345 (máximo 4) | El valor tiene más decimales que el máximo | Lanza `ReglaNegocioException`: "El IBU objetivo no puede tener más de 1 decimal" y "El costo no puede tener más de 4 decimales". |

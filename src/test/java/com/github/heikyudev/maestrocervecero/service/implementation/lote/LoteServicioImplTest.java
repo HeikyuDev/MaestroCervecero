@@ -5829,7 +5829,7 @@ class LoteServicioImplTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .duracionMaceracion(60)
                 .duracionHervido(60)
                 .duracionFermentacion(14)
@@ -5840,7 +5840,7 @@ class LoteServicioImplTest {
                 .build();
     }
 
-    private static VersionRecetaEntity versionRecetaAislada(List<DetalleMaltaEntity> maltas, List<DetalleLupuloEntity> lupulos, List<DetalleLevaduraEntity> levaduras, double ogObjetivo, int ibuObjetivo, double volumenBase) {
+    private static VersionRecetaEntity versionRecetaAislada(List<DetalleMaltaEntity> maltas, List<DetalleLupuloEntity> lupulos, List<DetalleLevaduraEntity> levaduras, double ogObjetivo, double ibuObjetivo, double volumenBase) {
         return VersionRecetaEntity.builder()
                 .id(99L)
                 .nombre("Receta Aislada")

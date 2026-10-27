@@ -46,7 +46,7 @@ public class VersionRecetaResponseDTO {
     /**
      * IBU objetivo de la receta.
      */
-    private Integer ibuObjetivo;
+    private Double ibuObjetivo;
 
     /**
      * Duración de la maceración en minutos.

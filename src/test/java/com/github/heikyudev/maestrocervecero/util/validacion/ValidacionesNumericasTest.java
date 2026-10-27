@@ -205,4 +205,32 @@ class ValidacionesNumericasTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El nombre no puede superar 100 caracteres");
     }
+
+    @Test
+    @DisplayName("CP-VN-16: validarMaximoDecimales acepta nulo, NaN, infinitos y valores con hasta el máximo de decimales (ignorando ceros finales)")
+    void validarMaximoDecimales_debeAceptarHastaElMaximo() {
+        // Act & Assert
+        for (Double noEvaluado : NO_FINITOS) {
+            assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(noEvaluado, 1, "El IBU objetivo")).doesNotThrowAnyException();
+        }
+        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(35.0, 1, "El IBU objetivo")).doesNotThrowAnyException();
+        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(35.5, 1, "El IBU objetivo")).doesNotThrowAnyException();
+        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(35.50, 1, "El IBU objetivo")).doesNotThrowAnyException();
+        assertThatCode(() -> ValidacionesNumericas.validarMaximoDecimales(0.1, 1, "El IBU objetivo")).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("CP-VN-17: validarMaximoDecimales rechaza un valor con más decimales que el máximo y usa singular o plural en el mensaje")
+    void validarMaximoDecimales_debeRechazarDecimalesDeMas() {
+        // Act & Assert
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(35.55, 1, "El IBU objetivo"))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El IBU objetivo no puede tener más de 1 decimal");
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(0.25, 1, "El IBU objetivo"))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El IBU objetivo no puede tener más de 1 decimal");
+        assertThatThrownBy(() -> ValidacionesNumericas.validarMaximoDecimales(1.12345, 4, "El costo"))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo no puede tener más de 4 decimales");
+    }
 }

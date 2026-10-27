@@ -376,8 +376,7 @@ class RecetaServicioImplTest {
     @Test
     @DisplayName("CP-AR-06: altaReceta lanza ReglaNegocioException cuando el IBU objetivo es negativo")
     void altaReceta_debeRechazarIbuObjetivoNegativo() {
-        // Nota: el campo ibuObjetivo es Integer (no admite -0.1 como en el caso de prueba documentado); se usa -1 como límite negativo equivalente.
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ibuObjetivo(-1).build());
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ibuObjetivo(-0.1).build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -389,7 +388,7 @@ class RecetaServicioImplTest {
     @Test
     @DisplayName("CP-AR-07: altaReceta lanza ReglaNegocioException cuando el IBU objetivo es cero (límite inferior)")
     void altaReceta_debeRechazarIbuObjetivoCero() {
-        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ibuObjetivo(0).build());
+        RecetaFormDTO recetaFormDTO = recetaFormDTO(versionValidaBuilder().ibuObjetivo(0.0).build());
 
         assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -1104,6 +1103,28 @@ class RecetaServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @ParameterizedTest(name = "CP-AR-74: {0}")
+    @MethodSource("versionesConIbuObjetivoConMasDeUnDecimal")
+    @DisplayName("CP-AR-74: altaReceta lanza ReglaNegocioException y no consulta la BD cuando el IBU objetivo tiene más de 1 decimal")
+    void altaReceta_debeRechazarIbuObjetivoConMasDeUnDecimal(String descripcion, VersionRecetaFormDTO version) {
+        assertThatThrownBy(() -> recetaServicio.altaReceta(recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El IBU objetivo no puede tener más de 1 decimal");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @ParameterizedTest(name = "CP-AR-75: {0}")
+    @MethodSource("versionesConIbuObjetivoDecimalValido")
+    @DisplayName("CP-AR-75: altaReceta persiste cuando el IBU objetivo tiene a lo sumo 1 decimal")
+    void altaReceta_debePersistirIbuObjetivoConHastaUnDecimal(String descripcion, VersionRecetaFormDTO version) {
+        mockearAltaExitosa(version);
+
+        recetaServicio.altaReceta(recetaFormDTO(version));
+
+        verify(recetaRepository).save(any(RecetaEntity.class));
+    }
+
     @Test
     @DisplayName("CP-AR-68: altaReceta normaliza el nombre que guarda y consulta la unicidad con el valor normalizado")
     void altaReceta_debeNormalizarElNombreQueGuarda() {
@@ -1587,6 +1608,28 @@ class RecetaServicioImplTest {
         verifyNoRepositoryInteractions();
     }
 
+    @ParameterizedTest(name = "CP-MR-40: {0}")
+    @MethodSource("versionesConIbuObjetivoConMasDeUnDecimal")
+    @DisplayName("CP-MR-40: modificarReceta lanza ReglaNegocioException y no consulta la BD cuando el IBU objetivo tiene más de 1 decimal")
+    void modificarReceta_debeRechazarIbuObjetivoConMasDeUnDecimal(String descripcion, VersionRecetaFormDTO version) {
+        assertThatThrownBy(() -> recetaServicio.modificarReceta(1L, recetaFormDTO(version)))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El IBU objetivo no puede tener más de 1 decimal");
+
+        verifyNoRepositoryInteractions();
+    }
+
+    @ParameterizedTest(name = "CP-MR-41: {0}")
+    @MethodSource("versionesConIbuObjetivoDecimalValido")
+    @DisplayName("CP-MR-41: modificarReceta persiste cuando el IBU objetivo tiene a lo sumo 1 decimal")
+    void modificarReceta_debePersistirIbuObjetivoConHastaUnDecimal(String descripcion, VersionRecetaFormDTO version) {
+        mockearModificacionExitosa(version);
+
+        recetaServicio.modificarReceta(1L, recetaFormDTO(version));
+
+        verify(recetaRepository, times(2)).save(any(RecetaEntity.class));
+    }
+
     @Test
     @DisplayName("CP-MR-33: modificarReceta normaliza el nombre que guarda y consulta la unicidad con el valor normalizado")
     void modificarReceta_debeNormalizarElNombreQueGuarda() {
@@ -1887,6 +1930,8 @@ class RecetaServicioImplTest {
         return Stream.of(
                 Arguments.of("volumenBase NaN", versionValidaBuilder().volumenBase(Double.NaN).build(), "El volumen base debe ser mayor a 0"),
                 Arguments.of("volumenBase +Infinity", versionValidaBuilder().volumenBase(Double.POSITIVE_INFINITY).build(), "El volumen base debe ser mayor a 0"),
+                Arguments.of("ibuObjetivo NaN", versionValidaBuilder().ibuObjetivo(Double.NaN).build(), "El IBU objetivo debe ser mayor a 0"),
+                Arguments.of("ibuObjetivo +Infinity", versionValidaBuilder().ibuObjetivo(Double.POSITIVE_INFINITY).build(), "El IBU objetivo debe ser mayor a 0"),
                 Arguments.of("relacionDeEmpaste NaN", versionValidaBuilder().relacionDeEmpaste(Double.NaN).build(), "La relación de empaste debe ser mayor a 0"),
                 Arguments.of("relacionDeEmpaste +Infinity", versionValidaBuilder().relacionDeEmpaste(Double.POSITIVE_INFINITY).build(), "La relación de empaste debe ser mayor a 0"),
                 Arguments.of("cantidad de malta NaN", versionValidaBuilder().detallesMalta(List.of(detalleMaltaFormDTO(Double.NaN, MALTA_ID))).build(), "La cantidad de cada malta debe ser mayor a 0"),
@@ -1902,7 +1947,8 @@ class RecetaServicioImplTest {
         return Stream.of(
                 Arguments.of("volumenBase 100000,01", versionValidaBuilder().volumenBase(100_000.01).build(), "El volumen base no puede superar 100.000 litros"),
                 Arguments.of("relacionDeEmpaste 20,01", versionValidaBuilder().relacionDeEmpaste(20.01).build(), "La relación de empaste no puede superar 20 L/kg"),
-                Arguments.of("ibuObjetivo 501", versionValidaBuilder().ibuObjetivo(501).build(), "El IBU objetivo no puede superar 500 IBU"),
+                Arguments.of("ibuObjetivo 500,1", versionValidaBuilder().ibuObjetivo(500.1).build(), "El IBU objetivo no puede superar 500 IBU"),
+                Arguments.of("ibuObjetivo 501", versionValidaBuilder().ibuObjetivo(501.0).build(), "El IBU objetivo no puede superar 500 IBU"),
                 Arguments.of("duracionMaceracion 10081", versionValidaBuilder().duracionMaceracion(10_081).build(), "La duración estimada de la maceración no puede superar 10.080 minutos"),
                 Arguments.of("duracionHervido 10081", versionValidaBuilder().duracionHervido(10_081).build(), "La duración estimada del hervido no puede superar 10.080 minutos"),
                 Arguments.of("duracionFermentacion 3651", versionValidaBuilder().duracionFermentacion(3_651).build(), "La duración estimada de la fermentación no puede superar 3.650 días"),
@@ -1927,11 +1973,28 @@ class RecetaServicioImplTest {
                 Arguments.of("tiempoDeHervor null", versionValidaBuilder().detallesLupulo(List.of(detalleLupuloFormDTO(30.0, UsoLupulo.HERVOR, TipoEtapa.HERVIDO, null, LUPULO_ID))).build(), "El tiempo de hervor de cada lúpulo con uso Hervor es obligatorio"));
     }
 
+    static Stream<Arguments> versionesConIbuObjetivoConMasDeUnDecimal() {
+        return Stream.of(
+                Arguments.of("ibuObjetivo 35,55", versionValidaBuilder().ibuObjetivo(35.55).build()),
+                Arguments.of("ibuObjetivo 35,05", versionValidaBuilder().ibuObjetivo(35.05).build()),
+                Arguments.of("ibuObjetivo 0,25", versionValidaBuilder().ibuObjetivo(0.25).build()),
+                Arguments.of("ibuObjetivo 499,99", versionValidaBuilder().ibuObjetivo(499.99).build()));
+    }
+
+    static Stream<Arguments> versionesConIbuObjetivoDecimalValido() {
+        return Stream.of(
+                Arguments.of("ibuObjetivo 35,5", versionValidaBuilder().ibuObjetivo(35.5).build()),
+                Arguments.of("ibuObjetivo 35,50 (ceros finales)", versionValidaBuilder().ibuObjetivo(35.50).build()),
+                Arguments.of("ibuObjetivo 0,1 (mínimo positivo con 1 decimal)", versionValidaBuilder().ibuObjetivo(0.1).build()),
+                Arguments.of("ibuObjetivo 499,9", versionValidaBuilder().ibuObjetivo(499.9).build()),
+                Arguments.of("ibuObjetivo 500", versionValidaBuilder().ibuObjetivo(500.0).build()));
+    }
+
     static Stream<Arguments> versionesEnElTecho() {
         return Stream.of(
                 Arguments.of("volumenBase 100000", versionValidaBuilder().volumenBase(100_000.0).build()),
                 Arguments.of("relacionDeEmpaste 20", versionValidaBuilder().relacionDeEmpaste(20.0).build()),
-                Arguments.of("ibuObjetivo 500", versionValidaBuilder().ibuObjetivo(500).build()),
+                Arguments.of("ibuObjetivo 500", versionValidaBuilder().ibuObjetivo(500.0).build()),
                 Arguments.of("duracionMaceracion 10080", versionValidaBuilder().duracionMaceracion(10_080).build()),
                 Arguments.of("duracionHervido 10080", versionValidaBuilder().duracionHervido(10_080).build()),
                 Arguments.of("duracionFermentacion 3650", versionValidaBuilder().duracionFermentacion(3_650).build()),
@@ -1950,7 +2013,7 @@ class RecetaServicioImplTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
-                .ibuObjetivo(40)
+                .ibuObjetivo(40.0)
                 .duracionMaceracion(60)
                 .duracionHervido(60)
                 .duracionFermentacion(14)
@@ -2002,7 +2065,7 @@ class RecetaServicioImplTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.050)
                 .fgObjetivo(1.010)
-                .ibuObjetivo(40)
+                .ibuObjetivo(40.0)
                 .duracionMaceracion(60)
                 .duracionHervido(60)
                 .duracionFermentacion(14)

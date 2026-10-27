@@ -2060,7 +2060,7 @@ class PlanificacionProduccionControllerTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.05)
                 .fgObjetivo(1.01)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .duracionMaceracion(60)
                 .duracionHervido(90)
                 .duracionFermentacion(10)

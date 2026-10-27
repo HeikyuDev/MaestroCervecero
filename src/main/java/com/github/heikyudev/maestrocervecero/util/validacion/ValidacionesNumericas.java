@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.util.validacion;
 
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
@@ -90,6 +91,24 @@ public final class ValidacionesNumericas {
     public static void validarMayorOIgualACeroConMaximo(Double valor, double maximo, String etiqueta, String unidad) {
         validarMayorOIgualACero(valor, etiqueta);
         validarMaximo(valor, maximo, etiqueta, unidad);
+    }
+
+    /**
+     * Valida que el valor no tenga más decimales que los permitidos. Un valor nulo, NaN o infinito no
+     * se evalúa: su validez la resuelven otras validaciones. La comparación se hace con
+     * {@link BigDecimal} sobre la representación decimal del valor, ignorando los ceros finales
+     * (35,50 tiene un decimal).
+     *
+     * @param valor        Valor a validar.
+     * @param maxDecimales Cantidad máxima de decimales (inclusive).
+     * @param etiqueta     Frase que encabeza el mensaje (por ejemplo {@code "El IBU objetivo"}).
+     * @throws ReglaNegocioException Si el valor tiene más decimales que el máximo.
+     */
+    public static void validarMaximoDecimales(Double valor, int maxDecimales, String etiqueta) {
+        if (esFinito(valor) && BigDecimal.valueOf(valor).stripTrailingZeros().scale() > maxDecimales) {
+            throw new ReglaNegocioException(etiqueta + " no puede tener más de " + maxDecimales
+                    + (maxDecimales == 1 ? " decimal" : " decimales"));
+        }
     }
 
     /**

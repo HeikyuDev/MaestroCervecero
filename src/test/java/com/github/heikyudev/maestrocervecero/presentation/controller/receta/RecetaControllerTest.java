@@ -457,7 +457,7 @@ class RecetaControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: 3\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 1050\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 1010\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: 35\"")))
+                .andExpect(content().string(containsString("placeholder=\"Ej: 35,5\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 60\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 90\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 10\"")))
@@ -682,7 +682,7 @@ class RecetaControllerTest {
         assertThat(version.getRelacionDeEmpaste()).isEqualTo(3.0);
         assertThat(version.getOgObjetivo()).isEqualTo(1.05);
         assertThat(version.getFgObjetivo()).isEqualTo(1.01);
-        assertThat(version.getIbuObjetivo()).isEqualTo(35);
+        assertThat(version.getIbuObjetivo()).isEqualTo(35.0);
         assertThat(version.getDuracionMaceracion()).isEqualTo(60);
         assertThat(version.getDuracionHervido()).isEqualTo(90);
         assertThat(version.getDuracionFermentacion()).isEqualTo(10);
@@ -1420,7 +1420,7 @@ class RecetaControllerTest {
                 .relacionDeEmpaste(3.0)
                 .ogObjetivo(1.05)
                 .fgObjetivo(1.01)
-                .ibuObjetivo(35)
+                .ibuObjetivo(35.0)
                 .duracionMaceracion(60)
                 .duracionHervido(90)
                 .duracionFermentacion(10)
