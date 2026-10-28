@@ -13,10 +13,14 @@
         </a>
 
         <div class="flex flex-wrap items-start justify-between gap-4">
-            <div class="flex flex-wrap items-center gap-3">
-                <h1 class="text-2xl font-bold text-slate-900 tracking-tight" th:text="${lote.identificadorInterno}">PALE_ALE-R7-3</h1>
-                <span th:replace="~{planificacion_produccion/formato :: estadoLote(${lote.estado})}"></span>
-                <th:block th:if="${lote.estado.name() == 'CANCELADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(true, ${lote.motivoCancelacion}, ${lote.usuarioCancelacion}, ${lote.fechaCancelacion})}"></th:block></th:block>
+            <div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <h1 class="text-2xl font-bold text-slate-900 tracking-tight" th:text="${lote.identificadorInterno}">LOT-R7-03</h1>
+                    <span th:replace="~{planificacion_produccion/formato :: estadoLote(${lote.estado})}"></span>
+                    <th:block th:if="${lote.estado.name() == 'CANCELADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(true, ${lote.motivoCancelacion}, ${lote.usuarioCancelacion}, ${lote.fechaCancelacion})}"></th:block></th:block>
+                </div>
+                <p th:if="${lote.versionReceta != null and lote.versionReceta.version != null}" data-lote-receta class="mt-1 text-lg font-semibold text-amber-700"
+                   th:text="${lote.versionReceta.version.nombre}">Pale Ale</p>
             </div>
 
             <div class="flex shrink-0 flex-wrap items-center justify-end gap-3">

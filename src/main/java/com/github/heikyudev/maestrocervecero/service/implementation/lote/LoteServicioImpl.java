@@ -62,6 +62,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEtapaLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
+import com.github.heikyudev.maestrocervecero.util.method.GeneradorIdentificador;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.method.CalculosCerveza;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
@@ -82,7 +83,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.text.Normalizer;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,7 +90,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -129,9 +128,6 @@ import java.util.stream.Collectors;
 public class LoteServicioImpl implements ILoteServicio {
 
     private static final int HORAS_POR_DIA = 24;
-
-    // Nombre que usa el código del lote cuando el nombre de la versión de receta no deja ningún carácter utilizable
-    private static final String NOMBRE_POR_DEFECTO_DEL_CODIGO = "LOTE";
 
     // Separación entre dos lotes consecutivos de un fermentador: el día fin + 1 es el de limpieza y el siguiente lote
     // arranca como mínimo el día fin + 2
@@ -207,11 +203,11 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Filtra los lotes para el listado de lotes, del último registrado al primero. Ver
-     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, Pageable)}.
+     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, TipoEtapa, Double, Pageable)}.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idFermentador, String identificadorInterno, EstadoLote estado, Pageable pageable) {
+    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable) {
         // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
         String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
         if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
@@ -220,7 +216,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 1. Paginar solo los IDs, ya ordenados por la consulta (el orden del pageable se ignora: siempre es el mismo)
         Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idFermentador, identificadorInternoNormalizado, estado, pageableSinOrden);
+        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idReceta, identificadorInternoNormalizado, estado, etapaActual, volumenObjetivo, pageableSinOrden);
         if (idsDeLaPagina.isEmpty()) {
             return new PageImpl<>(List.of(), pageableSinOrden, idsDeLaPagina.getTotalElements());
         }
@@ -1651,10 +1647,11 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Genera el identificador interno del lote (nombre normalizado de la versión de receta de la planificación +
-     * "-R" + id de la receta + "-" + número de lote de esa receta, ej. "PILSEN_CLASICA-R7-3"), incrementando de
-     * forma segura el contador de lotes de la receta mediante un bloqueo pesimista, para soportar el registro
-     * concurrente de múltiples lotes de la misma receta. El código se calcula una sola vez al registrar el lote.
+     * Genera el identificador interno del lote ("LOT-R" + id de la receta + "-" + número de lote de esa receta con dos
+     * dígitos como mínimo, ej. "LOT-R7-01" o "LOT-R7-100"), incrementando de forma segura el contador de lotes de la
+     * receta mediante un bloqueo pesimista, para soportar el registro concurrente de múltiples lotes de la misma
+     * receta. El código se calcula una sola vez al registrar el lote. Los lotes anteriores conservan su código; no
+     * pueden coincidir con uno nuevo porque el contador de la receta nunca repite un número.
      */
     private String generarIdentificadorInterno(VersionRecetaEntity versionReceta) {
         RecetaEntity receta = recetaRepository.findByIdParaActualizarContador(versionReceta.getReceta().getId())
@@ -1664,37 +1661,7 @@ public class LoteServicioImpl implements ILoteServicio {
         receta.setContadorLotes(numeroDeLote + 1);
         recetaRepository.save(receta);
 
-        return normalizarNombreParaCodigo(versionReceta.getNombre()) + "-R" + receta.getId() + "-" + numeroDeLote;
-    }
-
-    /**
-     * Normaliza el nombre de la versión de receta para armar el código del lote: sin marcas diacríticas, en
-     * mayúsculas (sin depender del idioma del sistema), con toda secuencia de caracteres distintos de A-Z y 0-9
-     * reemplazada por un único "_", sin "_" en los extremos y cortado a
-     * {@link LimitesTecnicos#LONGITUD_MAXIMA_NOMBRE} caracteres. Si no queda ningún carácter, devuelve "LOTE".
-     */
-    private static String normalizarNombreParaCodigo(String nombre) {
-        if (nombre == null) {
-            return NOMBRE_POR_DEFECTO_DEL_CODIGO;
-        }
-        String sinMarcas = Normalizer.normalize(nombre, Normalizer.Form.NFD).replaceAll("\\p{M}+", "");
-        String normalizado = recortarGuionesBajos(sinMarcas.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_"));
-        if (normalizado.length() > LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE) {
-            normalizado = recortarGuionesBajos(normalizado.substring(0, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE));
-        }
-        return normalizado.isEmpty() ? NOMBRE_POR_DEFECTO_DEL_CODIGO : normalizado;
-    }
-
-    private static String recortarGuionesBajos(String texto) {
-        int desde = 0;
-        int hasta = texto.length();
-        while (desde < hasta && texto.charAt(desde) == '_') {
-            desde++;
-        }
-        while (hasta > desde && texto.charAt(hasta - 1) == '_') {
-            hasta--;
-        }
-        return texto.substring(desde, hasta);
+        return GeneradorIdentificador.generar(GeneradorIdentificador.PREFIJO_LOTE + "-R" + receta.getId(), numeroDeLote);
     }
 
     /**

@@ -160,7 +160,7 @@ class LoteControllerTest {
     @BeforeEach
     void escenarioBase() {
         when(loteServicio.buscarDetallePorId(12L)).thenReturn(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).build());
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01"))));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01"))));
         when(loteServicio.registrarLote(any())).thenReturn(respuestaDeLote());
         when(loteServicio.iniciarLote(any())).thenReturn(respuestaDeLote());
         when(loteServicio.cancelarLote(any(), any())).thenReturn(respuestaDeLote());
@@ -173,7 +173,6 @@ class LoteControllerTest {
         when(maceradorServicio.filtrarMaceradores(any(), any(), any())).thenReturn(Page.empty());
         when(ollaHervorServicio.filtrarOllasHervor(any(), any(), any())).thenReturn(Page.empty());
         when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(Page.empty());
-        when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(Page.empty());
         when(recetaServicio.filtrarRecetas(any(), any())).thenReturn(Page.empty());
         when(recetaServicio.filtrarRecetasConDadasDeBajaConPlanificaciones(any(), any())).thenReturn(Page.empty());
     }
@@ -184,9 +183,9 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-01: el GERENTE_DE_PRODUCCION ve el listado con las columnas, los valores legibles, el botón Nuevo lote y, al final de cada fila, el botón Gestionar lote en la columna Acciones")
     void listar_debeMostrarElListadoAlGerente() throws Exception {
         // Arrange
-        LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01").toBuilder()
+        LoteCronogramaResponseDTO lote = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01").toBuilder()
                 .fechaInicio(LocalDateTime.of(2027, 7, 1, 8, 30)).build();
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)))
@@ -196,8 +195,8 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains("Gestión de Lotes").contains("action=\"/lotes\"").contains("novalidate");
-        assertThat(texto(html)).contains("Código", "Planificación", "Fermentador", "Estado y etapa", "Inicio", "Fin");
-        assertThat(celdas(html, "PALE_ALE-R7-3")).startsWith("PALE_ALE-R7-3", "Plan #7 - Pale Ale", "F-01", "En ejecución Hervido", "Est. 01/07/2027 Real 01/07/2027", "Est. 05/07/2027 Real -");
+        assertThat(texto(html)).contains("Código", "Receta", "Planificación", "Fermentador", "Estado y etapa", "Inicio", "Fin");
+        assertThat(celdas(html, "LOT-R7-03")).startsWith("LOT-R7-03", "Pale Ale", "Plan #7 - Pale Ale", "F-01", "En ejecución Hervido", "Est. 01/07/2027 Real 01/07/2027", "Est. 05/07/2027 Real -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Nuevo lote")
                 .contains("href=\"/lotes/12\"").contains("overflow-x-auto");
         assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
@@ -206,7 +205,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-02: el OPERARIO_DE_PRODUCCION ve el mismo listado con los selectores de planificación y fermentador, sin el botón Nuevo lote")
+    @DisplayName("CP-LCT-02: el OPERARIO_DE_PRODUCCION ve el mismo listado con los selectores de planificación y receta y los seis criterios, sin el botón Nuevo lote")
     void listar_debeMostrarElListadoAlOperarioSinRegistrar() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION)))
@@ -217,7 +216,8 @@ class LoteControllerTest {
         // Assert
         assertThat(html).contains("href=\"/lotes/12\"")
                 .contains("data-buscador-url=\"/lotes/filtros/planificaciones\"")
-                .contains("data-buscador-url=\"/lotes/filtros/fermentadores\"")
+                .contains("data-buscador-url=\"/lotes/filtros/recetas\"")
+                .contains("name=\"etapaActual\"").contains("name=\"volumenObjetivo\"")
                 .doesNotContain("Nuevo lote").doesNotContain("/lotes/nuevo");
     }
 
@@ -229,7 +229,7 @@ class LoteControllerTest {
 
         // Assert
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), pageable.capture());
+        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(20);
         assertThat(pageable.getValue().getSort().getOrderFor("id").getDirection()).isEqualTo(Sort.Direction.DESC);
@@ -244,7 +244,7 @@ class LoteControllerTest {
 
         // Assert
         ArgumentCaptor<Pageable> listado = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), listado.capture());
+        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), listado.capture());
         assertThat(listado.getValue().getPageNumber()).isEqualTo(Paginacion.PAGINA_MAXIMA);
         ArgumentCaptor<Pageable> buscador = ArgumentCaptor.forClass(Pageable.class);
         verify(planificacionServicio).filtrarPlanificacionesProduccion(any(), any(), any(), buscador.capture());
@@ -252,27 +252,29 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-04: los cuatro criterios llegan al service (el código recortado) y el listado los conserva en los selectores, el campo de código y el estado")
+    @DisplayName("CP-LCT-04: los seis criterios llegan al service (el código recortado) y el listado los conserva en los selectores, el campo de código, el estado, la etapa actual y el volumen objetivo")
     void listar_debeAplicarYConservarLosFiltros() throws Exception {
         // Arrange
-        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(2L)).thenReturn(fermentador(2L, "F-02", EstadoOperativo.EN_USO, 400.0, Estado.ACTIVO));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(2L)).thenReturn(receta(2L, "Stout", Estado.ACTIVO));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
-                        .param("idPlanificacion", "7").param("idFermentador", "2").param("codigo", " pale ")
-                        .param("estado", "EN_EJECUCION").param("pagina", "1"))
+                        .param("idPlanificacion", "7").param("idReceta", "2").param("codigo", " pale ")
+                        .param("estado", "EN_EJECUCION").param("etapaActual", "fermentacion").param("volumenObjetivo", "300").param("pagina", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteServicio).filtrarLotesParaListado(eq(7L), eq(2L), eq("pale"), eq(EstadoLote.EN_EJECUCION), pageable.capture());
+        verify(loteServicio).filtrarLotesParaListado(eq(7L), eq(2L), eq("pale"), eq(EstadoLote.EN_EJECUCION), eq(TipoEtapa.FERMENTACION), eq(300.0), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
         assertThat(textoDelSelector(html, "Seleccione planificación")).isEqualTo("Plan #7 - Pale Ale");
-        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("F-02");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Stout");
         assertThat(campo(html, "idPlanificacion")).isEqualTo("7");
-        assertThat(campo(html, "idFermentador")).isEqualTo("2");
+        assertThat(campo(html, "idReceta")).isEqualTo("2");
         assertThat(campo(html, "codigo")).isEqualTo("pale");
+        assertThat(campo(html, "volumenObjetivo")).isEqualTo("300");
+        assertThat(html).contains("<option value=\"FERMENTACION\" selected=\"selected\">Fermentación</option>");
         assertThat(html).contains("<option value=\"EN_EJECUCION\" selected=\"selected\">En ejecución</option>");
     }
 
@@ -281,58 +283,58 @@ class LoteControllerTest {
     void listar_debeTratarLosCriteriosVaciosComoSinFiltro() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
-                        .param("idPlanificacion", "").param("idFermentador", "").param("codigo", "  ").param("estado", ""))
+                        .param("idPlanificacion", "").param("idReceta", "").param("codigo", "  ").param("estado", "").param("etapaActual", "").param("volumenObjetivo", ""))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), any());
-        verifyNoInteractions(planificacionServicio, fermentadorServicio);
-        assertThat(html).contains(">Todos</option>").contains(">Pendiente</option>").contains(">En ejecución</option>")
+        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), any());
+        verifyNoInteractions(planificacionServicio);
+        verify(recetaServicio, never()).buscarActivaODadaDeBajaConPlanificacionesPorId(any());
+        assertThat(html).contains(">Todas</option>").contains(">Molienda</option>").contains(">Envasado</option>").contains(">Todos</option>").contains(">Pendiente</option>").contains(">En ejecución</option>")
                 .contains(">Finalizado</option>").contains(">Cancelado</option>").doesNotContain(ALERTA_ADVERTENCIA);
     }
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(value = Rol.class, names = {"GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION"})
-    @DisplayName("CP-LCT-06: planificación y fermentador son selectores de entidad con buscador en modal y botón para quitar; el único desplegable de la página es el estado")
+    @DisplayName("CP-LCT-06: planificación y receta son selectores de entidad con buscador en modal y botón para quitar; los únicos desplegables de la página son el estado y la etapa actual")
     void listar_losFiltrosSonSelectoresDeEntidad(Rol rol) throws Exception {
         // Arrange
-        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(3L)).thenReturn(fermentador(3L, "F-03", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Porter", Estado.BAJA));
 
         // Act
-        String html = mockMvc.perform(get(URL).with(como(rol)).param("idFermentador", "3"))
+        String html = mockMvc.perform(get(URL).with(como(rol)).param("idReceta", "3"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(html).contains("data-buscador-url=\"/lotes/filtros/planificaciones\"")
-                .contains("data-buscador-url=\"/lotes/filtros/fermentadores\"")
-                .contains("placeholder=\"Seleccione planificación\"").contains("placeholder=\"Seleccione fermentador\"")
+                .contains("data-buscador-url=\"/lotes/filtros/recetas\"")
+                .contains("placeholder=\"Seleccione planificación\"").contains("placeholder=\"Seleccione receta\"")
                 .contains("bi-list-ul").contains("data-selector-limpiar")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta")
-                .contains("placeholder=\"Ej: PALE_ALE-R7-3\"");
-        assertThat(cuenta(html, "<select")).isEqualTo(1);
-        assertThat(html).contains("<select id=\"estado\" name=\"estado\"");
-        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("F-03 (dado de baja)");
+                .contains("placeholder=\"Ej: LOT-R7-03\"");
+        assertThat(cuenta(html, "<select")).isEqualTo(2);
+        assertThat(html).contains("<select id=\"estado\" name=\"estado\"").contains("<select id=\"etapaActual\" name=\"etapaActual\"");
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Porter (dada de baja)");
     }
 
     @Test
-    @DisplayName("CP-LCT-137: un fermentador dado de baja con lotes filtra el listado y se muestra como dado de baja en el selector, sin aviso")
-    void listar_debeFiltrarPorUnFermentadorDadoDeBaja() throws Exception {
+    @DisplayName("CP-LCT-137: una receta dada de baja con planificaciones filtra el listado y se muestra como dada de baja en el selector, sin aviso")
+    void listar_debeFiltrarPorUnaRecetaDadaDeBaja() throws Exception {
         // Arrange
-        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(3L))
-                .thenReturn(fermentador(3L, "FERM-99", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(3L)).thenReturn(receta(3L, "Barley Wine", Estado.BAJA));
 
         // Act
-        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("idFermentador", "3"))
+        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("idReceta", "3"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        verify(loteServicio).filtrarLotesParaListado(isNull(), eq(3L), isNull(), isNull(), any());
-        verify(fermentadorServicio, never()).buscarPorId(any());
-        assertThat(textoDelSelector(html, "Seleccione fermentador")).isEqualTo("FERM-99 (dado de baja)");
-        assertThat(campo(html, "idFermentador")).isEqualTo("3");
+        verify(loteServicio).filtrarLotesParaListado(isNull(), eq(3L), isNull(), isNull(), isNull(), isNull(), any());
+        verify(recetaServicio, never()).buscarPorId(any());
+        assertThat(textoDelSelector(html, "Seleccione receta")).isEqualTo("Barley Wine (dada de baja)");
+        assertThat(campo(html, "idReceta")).isEqualTo("3");
         assertThat(html).doesNotContain(ALERTA_ADVERTENCIA);
     }
 
@@ -341,40 +343,50 @@ class LoteControllerTest {
     void listar_debeIgnorarLosParametrosInvalidosYAvisar() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
-                        .param("idPlanificacion", "abc").param("idFermentador", "-5").param("estado", "XYZ"))
+                        .param("idPlanificacion", "abc").param("idReceta", "-5").param("estado", "XYZ").param("etapaActual", "XYZ"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(html).contains(ALERTA_ADVERTENCIA).contains("La planificación indicada no es válida, se muestran todas. "
-                + "El fermentador indicado no es válido, se muestran todos. El estado indicado no es válido, se muestran todos");
-        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), any());
-        verifyNoInteractions(planificacionServicio, fermentadorServicio);
+                + "La receta indicada no es válida, se muestran todas. El estado indicado no es válido, se muestran todos. "
+                + "La etapa indicada no es válida, se muestran todas");
+        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), any());
+        verifyNoInteractions(planificacionServicio);
+        verify(recetaServicio, never()).buscarActivaODadaDeBajaConPlanificacionesPorId(any());
     }
 
     @Test
-    @DisplayName("CP-LCT-08: una planificación o un fermentador inexistentes se ignoran con una alerta amarilla")
+    @DisplayName("CP-LCT-08: una planificación o una receta inexistentes se ignoran con una alerta amarilla")
     void listar_debeIgnorarLosFiltrosInexistentes() throws Exception {
         // Arrange
         when(planificacionServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la planificación con ID: 99"));
-        when(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el fermentador con ID: 99"));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la receta con ID: 99"));
 
         // Act
-        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("idPlanificacion", "99").param("idFermentador", "99"))
+        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).param("idPlanificacion", "99").param("idReceta", "99"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(html).contains(ALERTA_ADVERTENCIA)
-                .contains("La planificación indicada no existe, se muestran todas. El fermentador indicado no existe, se muestran todos");
-        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), any());
+                .contains("La planificación indicada no existe, se muestran todas. La receta indicada no existe, se muestran todas");
+        verify(loteServicio).filtrarLotesParaListado(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), any());
+    }
+
+    @Test
+    @DisplayName("CP-LCT-160: un volumen objetivo que no es un número no rompe el listado: redirige con la alerta amarilla El valor indicado no es válido")
+    void listar_unVolumenObjetivoInvalidoNoRompeElListado() throws Exception {
+        // Act + Assert
+        assertAvisoDeValorInvalido(mockMvc.perform(get(URL + "?volumenObjetivo=abc").with(como(Rol.GERENTE_DE_PRODUCCION)).header("Referer", "/lotes")));
+        verifyNoInteractions(loteServicio);
     }
 
     @Test
     @DisplayName("CP-LCT-09: la etapa actual solo se muestra en el lote en ejecución; en los otros estados se muestra un guion")
     void listar_laEtapaActualSoloExisteMientrasElLoteSeEjecuta() throws Exception {
         // Arrange
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 loteDeLista(1L, "L-PENDIENTE", EstadoLote.PENDIENTE, null, "F-01"),
                 loteDeLista(2L, "L-EJECUCION", EstadoLote.EN_EJECUCION, TipoEtapa.MADURACION, "F-01"),
                 loteDeLista(3L, "L-FINALIZADO", EstadoLote.FINALIZADO, null, "F-01"),
@@ -395,15 +407,15 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-10: el código se muestra completo y un fermentador ausente se muestra como guion")
     void listar_debeMostrarElCodigoCompletoYElFermentadorAusente() throws Exception {
         // Arrange
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
-                loteDeLista(5L, "PILSEN_CLASICA-R4-3", EstadoLote.PENDIENTE, null, null))));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+                loteDeLista(5L, "LOT-R4-03", EstadoLote.PENDIENTE, null, null))));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(celdas(html, "PILSEN_CLASICA-R4-3")).startsWith("PILSEN_CLASICA-R4-3").element(2).isEqualTo("-");
+        assertThat(celdas(html, "LOT-R4-03")).startsWith("LOT-R4-03").element(3).isEqualTo("-");
     }
 
     @Test
@@ -415,9 +427,9 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains(">Inicio</th>").contains(">Fin</th>").doesNotContain("xl:hidden").doesNotContain("xl:table-cell");
-        List<String> celdas = celdas(html, "PALE_ALE-R7-3");
-        assertThat(celdas.get(4)).isEqualTo("Est. 01/07/2027 Real -");
-        assertThat(celdas.get(5)).isEqualTo("Est. 05/07/2027 Real -");
+        List<String> celdas = celdas(html, "LOT-R7-03");
+        assertThat(celdas.get(5)).isEqualTo("Est. 01/07/2027 Real -");
+        assertThat(celdas.get(6)).isEqualTo("Est. 05/07/2027 Real -");
         assertThat(html).contains("data-fecha-inicio-estimada").contains("data-fecha-fin-estimado").contains("data-fecha-inicio-real").contains("data-fecha-fin-real");
     }
 
@@ -425,12 +437,14 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-12: la paginación muestra la página actual y conserva los filtros en los links de anterior y siguiente")
     void listar_laPaginacionConservaLosFiltros() throws Exception {
         // Arrange
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(
-                List.of(loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, null, "F-01")), PageRequest.of(1, 20), 45));
+        when(recetaServicio.buscarActivaODadaDeBajaConPlanificacionesPorId(2L)).thenReturn(receta(2L, "Stout", Estado.ACTIVO));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(
+                List.of(loteDeLista(12L, "LOT-R7-03", EstadoLote.PENDIENTE, null, "F-01")), PageRequest.of(1, 20), 45));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
-                        .param("idPlanificacion", "7").param("estado", "PENDIENTE").param("pagina", "1"))
+                        .param("idPlanificacion", "7").param("idReceta", "2").param("codigo", "LOT").param("estado", "PENDIENTE")
+                        .param("etapaActual", "MOLIENDA").param("volumenObjetivo", "300").param("pagina", "1"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
@@ -438,15 +452,17 @@ class LoteControllerTest {
         assertThat(texto(html)).contains("45 lotes · Página 2 de 3");
         String anterior = enlaceDe(html, "Anterior");
         String siguiente = enlaceDe(html, "Siguiente");
-        assertThat(anterior).contains("pagina=0").contains("idPlanificacion=7").contains("estado=PENDIENTE");
-        assertThat(siguiente).contains("pagina=2").contains("idPlanificacion=7").contains("estado=PENDIENTE");
+        assertThat(anterior).contains("pagina=0").contains("idPlanificacion=7").contains("idReceta=2").contains("codigo=LOT")
+                .contains("estado=PENDIENTE").contains("etapaActual=MOLIENDA").contains("volumenObjetivo=300");
+        assertThat(siguiente).contains("pagina=2").contains("idPlanificacion=7").contains("idReceta=2").contains("codigo=LOT")
+                .contains("estado=PENDIENTE").contains("etapaActual=MOLIENDA").contains("volumenObjetivo=300");
     }
 
     @Test
     @DisplayName("CP-LCT-13: sin resultados muestra el mensaje en lugar de una tabla vacía")
     void listar_sinResultadosMuestraElMensaje() throws Exception {
         // Arrange
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(Page.empty());
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
 
         // Act + Assert
         mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)))
@@ -462,13 +478,13 @@ class LoteControllerTest {
         for (long i = 1; i <= 20; i++) {
             lotes.add(loteDeLista(i, "L-" + i, EstadoLote.PENDIENTE, null, "F-01"));
         }
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(lotes));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(lotes));
 
         // Act
         mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk());
 
         // Assert
-        verify(loteServicio).filtrarLotesParaListado(any(), any(), any(), any(), any());
+        verify(loteServicio).filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any());
         verifyNoMoreInteractions(loteServicio);
     }
 
@@ -477,9 +493,9 @@ class LoteControllerTest {
     void listar_debeMostrarLaAlertaFlash() throws Exception {
         // Act + Assert
         mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Lote PALE_ALE-R7-3 cancelado correctamente").flashAttr("tipo", "success"))
+                        .flashAttr("mensaje", "Lote LOT-R7-03 cancelado correctamente").flashAttr("tipo", "success"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lote PALE_ALE-R7-3 cancelado correctamente")))
+                .andExpect(content().string(containsString("Lote LOT-R7-03 cancelado correctamente")))
                 .andExpect(content().string(containsString(ALERTA_EXITO)));
     }
 
@@ -634,7 +650,7 @@ class LoteControllerTest {
         mockMvc.perform(post(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).params(formularioValido()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/lotes"))
-                .andExpect(flash().attribute("mensaje", "Lote PALE_ALE-R7-3 creado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Lote LOT-R7-03 creado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
         ArgumentCaptor<LoteFormDTO> formulario = ArgumentCaptor.forClass(LoteFormDTO.class);
@@ -854,7 +870,7 @@ class LoteControllerTest {
 
         // Assert
         assertThat(html).contains("data-lote-cabecera").contains("data-etapa-panel=\"molienda\"");
-        assertThat(texto(bloque(html, "data-lote-cabecera"))).contains("PALE_ALE-R7-3", "Pendiente", "Iniciar lote").doesNotContain("Cancelar lote");
+        assertThat(texto(bloque(html, "data-lote-cabecera"))).contains("LOT-R7-03", "Pendiente", "Iniciar lote").doesNotContain("Cancelar lote");
         assertThat(pestanas(html)).isEqualTo("Molienda Pendiente Maceración Pendiente Hervido Pendiente Fermentación Pendiente Maduración Pendiente Envasado Pendiente");
     }
 
@@ -885,9 +901,10 @@ class LoteControllerTest {
 
         // Assert
         String cabecera = texto(bloque(html, "data-lote-cabecera"));
-        assertThat(cabecera).contains("PALE_ALE-R7-3", "En ejecución", "Plan #7 - Pale Ale", "Pale Ale - versión 3 de 3", "Fermentador F-01",
+        assertThat(cabecera).contains("LOT-R7-03", "En ejecución", "Plan #7 - Pale Ale", "Pale Ale - versión 3 de 3", "Fermentador F-01",
                 "Volumen objetivo 300 L", "Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real 01/07/2027 08:30", "Fin real -", "Volver a lotes");
         assertThat(html).contains("href=\"/planificaciones-produccion/7\"").contains("href=\"/lotes\"");
+        assertThat(texto(elementoConAtributo(html, "p", "data-lote-receta"))).isEqualTo("Pale Ale");
     }
 
     @Test
@@ -1145,14 +1162,14 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-142: una receta con un nombre de 60 caracteres no rompe la lista: la planificación, el código y el fermentador se acortan dentro de un ancho máximo, con puntos suspensivos y el texto completo en un tooltip")
+    @DisplayName("CP-LCT-142: una receta con un nombre de 60 caracteres no rompe la lista: la receta, la planificación y el fermentador se acortan dentro de un ancho máximo, con puntos suspensivos y el texto completo en un tooltip, y el código no se acorta")
     void listar_unaRecetaConNombreLargoNoRompeLaTabla() throws Exception {
         // Arrange
         String nombreLargo = "Imperial Stout Barrel Aged con Cafe Vainilla y Cacao Nibs 27";
         assertThat(nombreLargo).hasSize(60);
-        LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01").toBuilder()
+        LoteCronogramaResponseDTO lote = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01").toBuilder()
                 .nombreReceta(nombreLargo).build();
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
@@ -1163,7 +1180,12 @@ class LoteControllerTest {
         String celda = elementoConAtributo(html, "div", "data-planificacion-etiqueta");
         assertThat(celda).contains("truncate").contains("max-w-[9rem]").contains("data-tooltip=\"" + etiqueta + "\"").contains("tabindex=\"0\"");
         assertThat(texto(celda)).isEqualTo(etiqueta);
-        assertThat(elementoConAtributo(html, "div", "data-lote-codigo")).contains("truncate").contains("max-w-[9rem]");
+        String celdaReceta = elementoConAtributo(html, "div", "data-lote-receta");
+        assertThat(celdaReceta).contains("truncate").contains("max-w-[10rem]").contains("data-tooltip=\"" + nombreLargo + "\"").contains("tabindex=\"0\"");
+        assertThat(texto(celdaReceta)).isEqualTo(nombreLargo);
+        String celdaCodigo = elementoConAtributo(html, "td", "data-lote-codigo");
+        assertThat(celdaCodigo).contains("whitespace-nowrap").doesNotContain("truncate").doesNotContain("max-w-");
+        assertThat(texto(celdaCodigo)).isEqualTo("LOT-R7-03");
         assertThat(elementoConAtributo(html, "div", "data-lote-fermentador")).contains("truncate").contains("max-w-[6rem]");
         assertThat(html).contains("overflow-x-auto");
     }
@@ -1244,13 +1266,13 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-147: el pie de paginación usa el singular con un solo lote (\"1 lote\") y el plural con varios (\"2 lotes\")")
     void listar_laPaginacionPluralizaLaEtiqueta() throws Exception {
         // Arrange
-        LoteCronogramaResponseDTO uno = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
-        LoteCronogramaResponseDTO otro = loteDeLista(13L, "PALE_ALE-R7-4", EstadoLote.PENDIENTE, TipoEtapa.MOLIENDA, "F-02");
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(uno)));
+        LoteCronogramaResponseDTO uno = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
+        LoteCronogramaResponseDTO otro = loteDeLista(13L, "LOT-R7-04", EstadoLote.PENDIENTE, TipoEtapa.MOLIENDA, "F-02");
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(uno)));
 
         // Act
         String singular = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(uno, otro)));
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(uno, otro)));
         String plural = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
@@ -1622,7 +1644,7 @@ class LoteControllerTest {
         // Assert
         Matcher boton = Pattern.compile("<button[^>]*data-motivo-dialogo=\"dialogo-cancelar\"[^>]*>").matcher(html);
         assertThat(boton.find()).isTrue();
-        assertThat(boton.group()).contains("data-motivo-url=\"/lotes/12/cancelar\"").contains("data-motivo-nombre=\"PALE_ALE-R7-3\"").doesNotContain("disabled");
+        assertThat(boton.group()).contains("data-motivo-url=\"/lotes/12/cancelar\"").contains("data-motivo-nombre=\"LOT-R7-03\"").doesNotContain("disabled");
     }
 
     @Test
@@ -1678,7 +1700,7 @@ class LoteControllerTest {
         Matcher iniciar = Pattern.compile("(?s)<form[^>]*action=\"/lotes/12/iniciar\"[^>]*>(.*?)</form>").matcher(pendiente);
         assertThat(iniciar.find()).isTrue();
         assertThat(iniciar.group()).contains("method=\"post\"").contains("name=\"_csrf\"").contains("data-confirmar-titulo=\"Iniciar lote\"")
-                .contains("data-confirmar-mensaje=\"¿Iniciar el lote PALE_ALE-R7-3? Se reservarán los insumos y los equipos pasarán a En uso\"");
+                .contains("data-confirmar-mensaje=\"¿Iniciar el lote LOT-R7-03? Se reservarán los insumos y los equipos pasarán a En uso\"");
         assertThat(pendiente).contains("id=\"dialogo-confirmacion\"");
 
         String[][] etapas = {
@@ -1783,9 +1805,9 @@ class LoteControllerTest {
     void detalle_debeMostrarLaAlertaFlash() throws Exception {
         // Act + Assert
         mockMvc.perform(get(URL + "/12").with(como(Rol.OPERARIO_DE_PRODUCCION))
-                        .flashAttr("mensaje", "Lote PALE_ALE-R7-3 iniciado correctamente").flashAttr("tipo", "success"))
+                        .flashAttr("mensaje", "Lote LOT-R7-03 iniciado correctamente").flashAttr("tipo", "success"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Lote PALE_ALE-R7-3 iniciado correctamente")))
+                .andExpect(content().string(containsString("Lote LOT-R7-03 iniciado correctamente")))
                 .andExpect(content().string(containsString(ALERTA_EXITO)));
     }
 
@@ -1807,7 +1829,7 @@ class LoteControllerTest {
         mockMvc.perform(post(URL + "/12/iniciar").with(como(Rol.OPERARIO_DE_PRODUCCION)).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/lotes/12"))
-                .andExpect(flash().attribute("mensaje", "Lote PALE_ALE-R7-3 iniciado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Lote LOT-R7-03 iniciado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
         verify(loteServicio).iniciarLote(12L);
         verifyNoMoreInteractions(loteServicio);
@@ -1871,7 +1893,7 @@ class LoteControllerTest {
         mockMvc.perform(post(URL + "/12/cancelar").with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).param("motivo", "Se detectó una contaminación en el mosto"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/lotes/12"))
-                .andExpect(flash().attribute("mensaje", "Lote PALE_ALE-R7-3 cancelado correctamente"))
+                .andExpect(flash().attribute("mensaje", "Lote LOT-R7-03 cancelado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
         ArgumentCaptor<CancelacionLoteFormDTO> formulario = ArgumentCaptor.forClass(CancelacionLoteFormDTO.class);
         verify(loteServicio).cancelarLote(eq(12L), formulario.capture());
@@ -2005,7 +2027,7 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-99: finalizar Envasado llama solo a finalizarEnvasado(12) y redirige al detalle con la alerta de éxito del lote finalizado")
     void finalizar_envasado() throws Exception {
         // Act + Assert
-        finalizarCorrectamente("envasado", "Lote PALE_ALE-R7-3 finalizado correctamente");
+        finalizarCorrectamente("envasado", "Lote LOT-R7-03 finalizado correctamente");
         verify(loteServicio).finalizarEnvasado(12L);
         verifyNoMoreInteractions(loteServicio);
     }
@@ -2538,88 +2560,6 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-124: el buscador de fermentadores del filtro devuelve un fragmento con los criterios de identificador, estado operativo e incluir dados de baja")
-    void filtroDeFermentadores_debeDevolverElFragmento() throws Exception {
-        // Arrange
-        when(fermentadorServicio.filtrarFermentadores(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
-                fermentador(1L, "F-01", EstadoOperativo.DISPONIBLE, 330.0, Estado.ACTIVO), fermentador(2L, "F-02", EstadoOperativo.EN_USO, 400.5, Estado.ACTIVO))));
-
-        // Act
-        String html = mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION)))
-                .andExpect(status().isOk())
-                .andExpect(view().name("lote/filtro-fermentador :: buscador"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: FER-01\"").contains("action=\"/lotes/filtros/fermentadores\"").contains("data-modal-buscar");
-        assertThat(texto(html)).contains("Buscar fermentador", "Estado operativo", "Incluir dados de baja", "Identificador Estado operativo Capacidad útil (L)");
-        assertThat(html).contains(">Todos</option>").contains(">Disponible</option>").contains(">En uso</option>").contains(">En limpieza</option>").contains(">En mantenimiento</option>");
-        Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
-        assertThat(casilla.find()).isTrue();
-        assertThat(casilla.group()).contains("type=\"checkbox\"").doesNotContain("checked");
-        assertThat(celdas(html, "F-01")).startsWith("F-01", "Disponible", "330");
-        assertThat(celdas(html, "F-02")).startsWith("F-02", "En uso", "400,5");
-        assertThat(html).contains("data-id=\"1\"").contains("data-texto=\"F-01\"").contains("data-id=\"2\"").contains("data-texto=\"F-02\"");
-    }
-
-    @Test
-    @DisplayName("CP-LCT-125: sin la casilla solo se consultan los fermentadores activos; con ella se suman los dados de baja con lotes, marcados y con su texto")
-    void filtroDeFermentadores_soloActivosODadosDeBaja() throws Exception {
-        // Arrange
-        when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
-                fermentador(1L, "F-01", EstadoOperativo.DISPONIBLE, 330.0, Estado.ACTIVO), fermentador(2L, "F-02", EstadoOperativo.DISPONIBLE, 330.0, Estado.BAJA))));
-
-        // Act
-        mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION)).param("identificador", " f-0 ").param("estadoOperativo", "EN_USO"))
-                .andExpect(status().isOk());
-        String html = mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "true"))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(fermentadorServicio).filtrarFermentadores(eq("f-0"), eq(EstadoOperativo.EN_USO), pageable.capture());
-        assertThat(pageable.getValue().getPageNumber()).isZero();
-        assertThat(pageable.getValue().getPageSize()).isEqualTo(8);
-        assertThat(pageable.getValue().getSort().getOrderFor("identificadorInterno").getDirection()).isEqualTo(Sort.Direction.ASC);
-        verify(fermentadorServicio).filtrarFermentadoresConDadosDeBajaConLotes(isNull(), isNull(), any());
-        verify(fermentadorServicio, times(1)).filtrarFermentadores(any(), any(), any());
-        assertThat(celdas(html, "F-02").get(0)).isEqualTo("F-02 Dado de baja");
-        assertThat(html).contains("data-fermentador-dado-de-baja").contains("data-texto=\"F-02 (dado de baja)\"").contains("data-texto=\"F-01\"");
-        Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
-        assertThat(casilla.find()).isTrue();
-        assertThat(casilla.group()).contains("checked");
-    }
-
-    @Test
-    @DisplayName("CP-LCT-126: la paginación del buscador de fermentadores conserva los tres criterios; sin resultados lo informa y una página negativa pide la primera")
-    void filtroDeFermentadores_paginacionYVacio() throws Exception {
-        // Arrange
-        when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
-                fermentador(9L, "F-09", EstadoOperativo.EN_USO, 330.0, Estado.ACTIVO)), PageRequest.of(1, 8), 17));
-
-        // Act
-        String html = mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION))
-                        .param("identificador", "F").param("estadoOperativo", "EN_USO").param("incluirDadosDeBaja", "true").param("pagina", "1"))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        when(fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), any())).thenReturn(Page.empty());
-        mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(Rol.GERENTE_DE_PRODUCCION)).param("incluirDadosDeBaja", "true").param("pagina", "-3"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se encontraron fermentadores con los criterios indicados")));
-
-        // Assert
-        assertThat(texto(html)).contains("Página 2 de 3");
-        for (String enlace : List.of(enlaceDe(html, "Anterior"), enlaceDe(html, "Siguiente"))) {
-            assertThat(enlace).contains("identificador=F").contains("estadoOperativo=EN_USO").contains("incluirDadosDeBaja=true");
-        }
-        assertThat(enlaceDe(html, "Anterior")).contains("pagina=0");
-        assertThat(enlaceDe(html, "Siguiente")).contains("pagina=2");
-        assertThat(html).contains("data-modal-get=\"true\"");
-        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(fermentadorServicio, times(2)).filtrarFermentadoresConDadosDeBajaConLotes(any(), any(), pageable.capture());
-        assertThat(pageable.getAllValues().get(1).getPageNumber()).isZero();
-    }
-
-    @Test
     @DisplayName("CP-LCT-127: los buscadores del filtro los usan el gerente y el operario porque exigen LOTE_CONSULTAR y no LOTE_REGISTRAR")
     void filtros_losUsanAmbosRoles() throws Exception {
         // Act + Assert
@@ -2628,12 +2568,9 @@ class LoteControllerTest {
                     .andExpect(view().name("lote/filtro-planificacion :: buscador"));
             mockMvc.perform(get(URL + "/filtros/recetas").with(usuario)).andExpect(status().isOk())
                     .andExpect(view().name("planificacion_produccion/buscador-receta :: buscador"));
-            mockMvc.perform(get(URL + "/filtros/fermentadores").with(usuario)).andExpect(status().isOk())
-                    .andExpect(view().name("lote/filtro-fermentador :: buscador"));
         }
         assertRechazado(mockMvc.perform(get(URL + "/filtros/planificaciones").with(conPermisos(Permiso.LOTE_REGISTRAR))));
         assertRechazado(mockMvc.perform(get(URL + "/filtros/recetas").with(conPermisos(Permiso.LOTE_REGISTRAR))));
-        assertRechazado(mockMvc.perform(get(URL + "/filtros/fermentadores").with(conPermisos(Permiso.LOTE_REGISTRAR))));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -2643,7 +2580,6 @@ class LoteControllerTest {
         // Act + Assert
         assertRechazado(mockMvc.perform(get(URL + "/filtros/planificaciones").with(como(rol))));
         assertRechazado(mockMvc.perform(get(URL + "/filtros/recetas").with(como(rol))));
-        assertRechazado(mockMvc.perform(get(URL + "/filtros/fermentadores").with(como(rol))));
         verifyNingunService();
     }
 
@@ -2857,10 +2793,10 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-134: un estado operativo que no existe en los cuatro buscadores de equipos y en el del filtro de fermentadores se ignora con un aviso dentro del fragmento y se buscan todos; el nombre se acepta sin distinguir mayúsculas")
+    @DisplayName("CP-LCT-134: un estado operativo que no existe en los cuatro buscadores de equipos se ignora con un aviso dentro del fragmento y se buscan todos; el nombre se acepta sin distinguir mayúsculas")
     void buscadores_estadoOperativoInvalido() throws Exception {
         // Act + Assert: un valor inválido no rompe el modal
-        for (String ruta : List.of("/buscador/molinos", "/buscador/maceradores", "/buscador/ollas", "/buscador/fermentadores", "/filtros/fermentadores")) {
+        for (String ruta : List.of("/buscador/molinos", "/buscador/maceradores", "/buscador/ollas", "/buscador/fermentadores")) {
             String html = mockMvc.perform(get(URL + ruta).with(como(Rol.GERENTE_DE_PRODUCCION)).param("estadoOperativo", "XYZ"))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
             assertThat(texto(bloque(html, "data-aviso-buscador"))).isEqualTo("El estado operativo indicado no es válido, se muestran todos");
@@ -2869,7 +2805,7 @@ class LoteControllerTest {
         verify(molinoServicio).filtrarMolinos(isNull(), isNull(), any());
         verify(maceradorServicio).filtrarMaceradores(isNull(), isNull(), any());
         verify(ollaHervorServicio).filtrarOllasHervor(isNull(), isNull(), any());
-        verify(fermentadorServicio, times(2)).filtrarFermentadores(isNull(), isNull(), any());
+        verify(fermentadorServicio).filtrarFermentadores(isNull(), isNull(), any());
 
         // Act + Assert: el nombre válido se interpreta y no hay aviso
         String html = mockMvc.perform(get(URL + "/buscador/molinos").with(como(Rol.GERENTE_DE_PRODUCCION)).param("estadoOperativo", "disponible"))
@@ -2895,9 +2831,9 @@ class LoteControllerTest {
         // Act + Assert: un modal no puede recibir una página completa
         String[][] buscadores = {
                 {"/buscador/planificaciones", "pagina"}, {"/buscador/recetas", "pagina"}, {"/buscador/molinos", "pagina"},
-                {"/filtros/planificaciones", "pagina"}, {"/filtros/recetas", "pagina"}, {"/filtros/fermentadores", "pagina"},
+                {"/filtros/planificaciones", "pagina"}, {"/filtros/recetas", "pagina"},
                 {"/buscador/planificaciones", "idReceta"}, {"/filtros/planificaciones", "idReceta"},
-                {"/filtros/recetas", "incluirDadosDeBaja"}, {"/filtros/fermentadores", "incluirDadosDeBaja"}};
+                {"/filtros/recetas", "incluirDadosDeBaja"}};
         for (String[] buscador : buscadores) {
             mockMvc.perform(get(URL + buscador[0]).with(como(Rol.GERENTE_DE_PRODUCCION)).param(buscador[1], "xyz").header("Referer", "/lotes"))
                     .andExpect(status().isBadRequest())
@@ -2938,8 +2874,8 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón de ícono Gestionar lote (bi-gear, con tooltip, igual que los botones de las otras listas) hacia el detalle, y la cabecera y el botón quedan alineados a la derecha dentro de la columna; la fila no es clickeable y el código es texto")
     void listar_cadaFilaTieneElBotonGestionarLote() throws Exception {
         // Arrange
-        LoteCronogramaResponseDTO lote = loteDeLista(12L, "PALE_ALE-R7-3", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
-        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
+        LoteCronogramaResponseDTO lote = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
 
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk())
@@ -2953,7 +2889,7 @@ class LoteControllerTest {
         assertThat(html.substring(html.indexOf("<thead"), html.indexOf("</thead>"))).contains("text-center");
         assertThat(texto(boton.group())).isEmpty();
         assertThat(boton.find()).isFalse();
-        assertThat(celdas(html, "PALE_ALE-R7-3").get(0)).isEqualTo("PALE_ALE-R7-3");
+        assertThat(celdas(html, "LOT-R7-03").get(0)).isEqualTo("LOT-R7-03");
         assertThat(texto(html.substring(html.indexOf("<thead"), html.indexOf("</thead>")))).endsWith("Acciones");
         assertThat(html).doesNotContain("data-fila-lote").doesNotContain("data-href").doesNotContain("/js/lote-lista.js");
         assertThat(html).doesNotContain("bi-eye").doesNotContain("aria-label=\"Ver lote\"");
@@ -3024,7 +2960,7 @@ class LoteControllerTest {
                 new EndpointDeLote("GET /lotes", Permiso.LOTE_CONSULTAR, () -> get(URL)),
                 new EndpointDeLote("GET /lotes/{id}", Permiso.LOTE_CONSULTAR, () -> get(URL + "/12")),
                 new EndpointDeLote("GET /lotes/filtros/planificaciones", Permiso.LOTE_CONSULTAR, () -> get(URL + "/filtros/planificaciones")),
-                new EndpointDeLote("GET /lotes/filtros/fermentadores", Permiso.LOTE_CONSULTAR, () -> get(URL + "/filtros/fermentadores")),
+                new EndpointDeLote("GET /lotes/filtros/recetas", Permiso.LOTE_CONSULTAR, () -> get(URL + "/filtros/recetas")),
                 new EndpointDeLote("GET /lotes/nuevo", Permiso.LOTE_REGISTRAR, () -> get(URL + "/nuevo")),
                 new EndpointDeLote("POST /lotes", Permiso.LOTE_REGISTRAR, () -> post(URL).params(formularioValido())),
                 new EndpointDeLote("POST /lotes/{id}/iniciar", Permiso.LOTE_INICIAR, () -> post(URL + "/12/iniciar")),
@@ -3050,7 +2986,7 @@ class LoteControllerTest {
 
             // Act + Assert: con todos los demás permisos de lotes, consumos y envasados es rechazado
             org.mockito.Mockito.clearInvocations(loteServicio, consumoInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
-                    ollaHervorServicio, fermentadorServicio);
+                    ollaHervorServicio, fermentadorServicio, recetaServicio);
             Permiso[] otros = permisosDeLotes.stream().filter(p -> p != endpoint.permiso()).toArray(Permiso[]::new);
             assertRechazado(mockMvc.perform(endpoint.peticion().get().with(conPermisos(otros)).with(csrf())));
             verifyNingunService();
@@ -3217,7 +3153,7 @@ class LoteControllerTest {
     // ---------- Datos de prueba ----------
 
     private static LoteResponseDTO respuestaDeLote() {
-        return LoteResponseDTO.builder().id(12L).identificadorInterno("PALE_ALE-R7-3").build();
+        return LoteResponseDTO.builder().id(12L).identificadorInterno("LOT-R7-03").build();
     }
 
     private static LoteCronogramaResponseDTO loteDeLista(Long id, String codigo, EstadoLote estado, TipoEtapa etapaActual, String fermentador) {
@@ -3243,11 +3179,11 @@ class LoteControllerTest {
     }
 
     /**
-     * Escenario base del detalle: lote 12 "PALE_ALE-R7-3" de la planificación 7 (Pale Ale, versión 3 de 3), de 300 L,
+     * Escenario base del detalle: lote 12 "LOT-R7-03" de la planificación 7 (Pale Ale, versión 3 de 3), de 300 L,
      * con fermentador "F-01" y la receta con sus duraciones y lúpulos.
      */
     private static LoteDetalleResponseDTO.LoteDetalleResponseDTOBuilder detalle(EstadoLote estado, TipoEtapa porDefecto, List<EtapaLoteResponseDTO> etapas) {
-        return LoteDetalleResponseDTO.builder().id(12L).identificadorInterno("PALE_ALE-R7-3").estado(estado).volumenObjetivo(300.0)
+        return LoteDetalleResponseDTO.builder().id(12L).identificadorInterno("LOT-R7-03").estado(estado).volumenObjetivo(300.0)
                 .fechaInicioEstimada(LocalDate.of(2027, 7, 1)).fechaFinalizacionEstimada(LocalDate.of(2027, 7, 5))
                 .fechaInicio(estado == EstadoLote.PENDIENTE ? null : LocalDateTime.of(2027, 7, 1, 8, 30))
                 .idPlanificacionProduccion(7L).idFermentador(14L).identificadorInternoFermentador("F-01")

@@ -81,7 +81,7 @@ class ControllerAdvicesTest {
     @Test
     @DisplayName("CP-CA-05: en un buscador en modal (ruta con /buscador o /filtros) un valor que no se convierte responde 400 con el mensaje como texto, sin redirigir")
     void valorInvalidoEnUnBuscador_debeResponderElMensajeSinRedirigir() throws Exception {
-        for (String ruta : new String[]{"/lotes/buscador/molinos", "/lotes/filtros/fermentadores"}) {
+        for (String ruta : new String[]{"/lotes/buscador/molinos", "/lotes/filtros/recetas"}) {
             mockMvc.perform(get(ruta).param("pagina", "xyz").header("Referer", "http://localhost/lotes/nuevo"))
                     .andExpect(status().isBadRequest())
                     .andExpect(content().contentType("text/plain;charset=UTF-8"))
@@ -229,7 +229,7 @@ class ControllerAdvicesTest {
             return "pagina";
         }
 
-        @GetMapping({"/lotes/buscador/molinos", "/lotes/filtros/fermentadores"})
+        @GetMapping({"/lotes/buscador/molinos", "/lotes/filtros/recetas"})
         @ResponseBody
         String buscador(@RequestParam(defaultValue = "0") int pagina) {
             return "buscador";

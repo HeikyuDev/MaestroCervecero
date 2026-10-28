@@ -23,7 +23,8 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight"
                 th:text="${reservado} ? 'Nuevo consumo reservado' : 'Nuevo consumo directo'">Nuevo consumo reservado</h1>
             <p class="text-sm text-slate-500">
-                &middot; Lote <strong class="text-slate-900" th:text="${lote.identificadorInterno}">PILSEN-R1-1</strong>
+                &middot; Lote <strong class="text-slate-900" th:text="${lote.identificadorInterno}">LOT-R7-03</strong>
+                <th:block th:if="${lote.versionReceta != null and lote.versionReceta.version != null}">&middot; <span data-lote-receta th:text="${lote.versionReceta.version.nombre}">Pale Ale</span></th:block>
                 &middot; Etapa <strong class="text-slate-900" th:text="${tipoEtapa.etiqueta}">Molienda</strong>
             </p>
         </div>

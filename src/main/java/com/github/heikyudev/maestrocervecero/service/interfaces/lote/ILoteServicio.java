@@ -27,8 +27,8 @@ public interface ILoteServicio {
      * etapa actualmente en curso y volumen objetivo.
      * <p>
      * {@code identificadorInterno} es el código autogenerado que el sistema le asigna al lote al
-     * registrarse (nombre normalizado de la versión de receta + "-R" + id de la receta + "-" + número de lote de esa
-     * receta, ej. "PILSEN_CLASICA-R7-3"), no un dato que el usuario
+     * registrarse ("LOT-R" + id de la receta + "-" + número de lote de esa
+     * receta con dos dígitos como mínimo, ej. "LOT-R7-03"), no un dato que el usuario
      * elija — la búsqueda es por coincidencia parcial, sin distinguir mayúsculas/minúsculas.
      * </p>
      *
@@ -56,8 +56,8 @@ public interface ILoteServicio {
      * <p>
      * Registrar un lote no es lo mismo que iniciarlo: en este paso no se valida stock de insumos
      * ni disponibilidad de los equipos seleccionados. Al registrarse, el sistema genera
-     * automáticamente el identificador interno del lote (nombre normalizado de la versión de receta de la
-     * planificación + "-R" + id de la receta + "-" + número de lote de esa receta, ej. "PILSEN_CLASICA-R7-3") y crea sus 6 etapas en estado PENDIENTE, cada una asociada al equipamiento
+     * automáticamente el identificador interno del lote ("LOT-R" + id de la
+     * receta + "-" + número de lote de esa receta con dos dígitos como mínimo, ej. "LOT-R7-03") y crea sus 6 etapas en estado PENDIENTE, cada una asociada al equipamiento
      * correspondiente (Molino para Molienda, Macerador para Maceración, Olla de Hervor para
      * Hervido, y el mismo Fermentador para Fermentación, Maduración y Envasado).
      * </p>
@@ -469,19 +469,21 @@ public interface ILoteServicio {
      * fechas, nombre de la receta y fecha de cancelación), del último registrado al primero (ID descendente; el orden
      * del {@code pageable} se ignora para que sea siempre el mismo). Cada criterio nulo no restringe.
      * <p>
-     * El filtro por fermentador incluye los lotes de fermentadores dados de baja. {@code identificadorInterno} se busca
+     * El filtro por receta es por la receta de la versión de la planificación del lote e incluye las recetas dadas de baja. {@code identificadorInterno} se busca
      * por coincidencia parcial, sin distinguir mayúsculas, y un texto en blanco equivale a no filtrar. Los lotes de la
      * página se cargan con sus relaciones en una sola consulta. No calcula atrasos ni corrimientos.
      * </p>
      *
      * @param idPlanificacion El ID de la planificación de producción, o {@code null} para no filtrar por ella.
-     * @param idFermentador El ID del fermentador (puede estar dado de baja), o {@code null} para no filtrar por él.
+     * @param idReceta El ID de la receta (puede estar dada de baja), o {@code null} para no filtrar por ella.
      * @param identificadorInterno Texto a buscar dentro del código del lote, o {@code null} para no filtrar por él.
      * @param estado El estado del lote, o {@code null} para no filtrar por él.
+     * @param etapaActual El tipo de etapa actualmente en curso, o {@code null} para no filtrar por ella.
+     * @param volumenObjetivo El volumen objetivo exacto del lote, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación (solo se usa el tamaño y el número de página).
      * @return Una página de lotes en formato {@link LoteCronogramaResponseDTO}.
      */
-    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idFermentador, String identificadorInterno, EstadoLote estado, Pageable pageable);
+    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable);
 
     /**
      * Obtiene el detalle de un lote para su pantalla: la cabecera, las seis etapas en orden del proceso con su equipo y

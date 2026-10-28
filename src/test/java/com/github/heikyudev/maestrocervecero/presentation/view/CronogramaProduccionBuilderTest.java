@@ -79,8 +79,8 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-03: lotes de dos planificaciones conviven intercalados en el carril de un fermentador, ordenados por inicio (eje de 12 días: 8,33 % / 41,67 % y 58,33 % / 33,33 %)")
     void lotesDeDosPlanificaciones_conviveEnUnMismoCarril() {
         // Arrange: se pasan en desorden
-        LoteCronogramaResponseDTO stout = lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(7), fecha(10));
-        LoteCronogramaResponseDTO pale = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
+        LoteCronogramaResponseDTO stout = lote(2L, "LOT-R8-01", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(7), fecha(10));
+        LoteCronogramaResponseDTO pale = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
 
         // Act
         CronogramaProduccionVista vista = construir(List.of(stout, pale), List.of(), null, HOY, LocalDate.of(2027, 6, 30), fecha(11));
@@ -104,15 +104,15 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-04: la etiqueta de la barra dice receta, planificación y lote; el tooltip suma la receta y la planificación a los datos del lote")
     void laBarraSeIdentificaConRecetaPlanificacionYLote() {
         // Arrange
-        LoteCronogramaResponseDTO pale = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
+        LoteCronogramaResponseDTO pale = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
 
         // Act
         Barra barra = construir(List.of(pale), List.of("F-01"), null).getGantt().getCarriles().get(0).getBarras().get(0);
 
         // Assert
-        assertThat(barra.getEtiqueta()).isEqualTo("Pale Ale - Plan #7 - PALE_ALE-R7-1");
+        assertThat(barra.getEtiqueta()).isEqualTo("Pale Ale - Plan #7 - LOT-R7-01");
         assertThat(barra.getEstadoClave()).isEqualTo("pendiente");
-        assertThat(barra.getTooltip()).startsWith("PALE_ALE-R7-1 - Pendiente\nReceta: Pale Ale\nPlanificación: Plan #7 - Pale Ale\nInicio estimado: 01/07/2027\n");
+        assertThat(barra.getTooltip()).startsWith("LOT-R7-01 - Pendiente\nReceta: Pale Ale\nPlanificación: Plan #7 - Pale Ale\nInicio estimado: 01/07/2027\n");
         assertThat(barra.getTooltip()).contains("Fin estimado: 05/07/2027", "Volumen: 300 L", "Molino: M-01", "Macerador: MA-01", "Olla de hervor: O-01", "Fermentador: F-01");
     }
 
@@ -120,13 +120,13 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-05: sin receta ni planificación la etiqueta se reduce al identificador del lote")
     void sinRecetaNiPlanificacion_laEtiquetaEsElIdentificador() {
         // Arrange
-        LoteCronogramaResponseDTO huerfano = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", null, null, fecha(1), fecha(5));
+        LoteCronogramaResponseDTO huerfano = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", null, null, fecha(1), fecha(5));
 
         // Act
         Barra barra = construir(List.of(huerfano), List.of(), null).getGantt().getCarriles().get(0).getBarras().get(0);
 
         // Assert
-        assertThat(barra.getEtiqueta()).isEqualTo("PALE_ALE-R7-1");
+        assertThat(barra.getEtiqueta()).isEqualTo("LOT-R7-01");
         assertThat(barra.getTooltip()).contains("Receta: -", "Planificación: -");
     }
 
@@ -137,8 +137,8 @@ class CronogramaProduccionBuilderTest {
     void destacarUnaPlanificacion_atenuaLasDemas() {
         // Arrange
         List<LoteCronogramaResponseDTO> lotes = List.of(
-                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
-                lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(7), fecha(10)));
+                lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
+                lote(2L, "LOT-R8-01", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(7), fecha(10)));
 
         // Act
         GanttPlanificacionVista destacada = construir(lotes, List.of("F-01"), 7L).getGantt();
@@ -156,9 +156,9 @@ class CronogramaProduccionBuilderTest {
     void destacar_tambienAtenuaLasFilasDeLaCola() {
         // Arrange
         List<LoteCronogramaResponseDTO> lotes = List.of(
-                lote(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
-                lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(7), fecha(10)),
-                lote(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(12), fecha(15)));
+                lote(1L, "LOT-R7-01", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
+                lote(2L, "LOT-R7-02", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(7), fecha(10)),
+                lote(3L, "LOT-R8-01", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(12), fecha(15)));
 
         // Act
         CronogramaProduccionVista conPlan7 = construir(lotes, List.of("F-01"), 7L);
@@ -180,7 +180,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-08: hoy dentro del período, después de las barras (04/07 a 21/07, 18 días, hoy al 91,67 %)")
     void hoyDentroDelPeriodoDespuesDeLasBarras() {
         // Arrange
-        LoteCronogramaResponseDTO lote = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(5), fecha(8));
+        LoteCronogramaResponseDTO lote = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(5), fecha(8));
 
         // Act
         GanttPlanificacionVista gantt = construir(List.of(lote), List.of("F-01"), null, fecha(20), fecha(4), fecha(21)).getGantt();
@@ -197,7 +197,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-09: hoy dentro del período, antes de las barras (30/06 a 09/07, 10 días, hoy al 15 %)")
     void hoyDentroDelPeriodoAntesDeLasBarras() {
         // Arrange
-        LoteCronogramaResponseDTO lote = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(5), fecha(8));
+        LoteCronogramaResponseDTO lote = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(5), fecha(8));
 
         // Act
         GanttPlanificacionVista gantt = construir(List.of(lote), List.of("F-01"), null, fecha(1), LocalDate.of(2027, 6, 30), fecha(9)).getGantt();
@@ -215,9 +215,9 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-10: un lote en ejecución va del inicio real (02/07) al fin estimado (11/07) y los finalizados siguen sus reglas")
     void conservaLasReglasDeCadaEstado() {
         // Arrange
-        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(1), fecha(11))
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "LOT-R7-01", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(1), fecha(11))
                 .fechaInicio(fecha(2).atTime(8, 0)).build();
-        LoteCronogramaResponseDTO finalizado = loteB(2L, "PALE_ALE-R7-2", EstadoLote.FINALIZADO, "F-02", 7L, "Pale Ale", fecha(1), fecha(5))
+        LoteCronogramaResponseDTO finalizado = loteB(2L, "LOT-R7-02", EstadoLote.FINALIZADO, "F-02", 7L, "Pale Ale", fecha(1), fecha(5))
                 .fechaInicio(fecha(2).atTime(9, 0)).fechaFinalizacion(fecha(8).atTime(17, 0)).build();
 
         // Act
@@ -338,9 +338,9 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-16: en un carril el lote en ejecución atrasado llega a hoy (02/07 al 10/07, con la etiqueta \"Atrasado 3 días\") y el pendiente se dibuja corrido 3 días (11/07 al 15/07) en un eje de 16 días, sin limpiezas")
     void atrasoYCorrimientoEnUnCarril_extiendenYDesplazanLasBarras() {
         // Arrange
-        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "LOT-R7-01", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
                 .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
-        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "LOT-R7-02", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
                 .diasDeDesplazamiento(3).build();
 
         // Act
@@ -373,9 +373,9 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-17: el tooltip suma las leyendas de atraso y corrimiento después de \"Receta\" y \"Planificación\" y antes de \"Inicio estimado:\"")
     void tooltipConAtrasoYCorrimiento_ubicaLasLeyendasDespuesDeRecetaYPlanificacion() {
         // Arrange
-        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "LOT-R7-01", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
                 .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
-        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "LOT-R7-02", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
                 .diasDeDesplazamiento(3).build();
 
         // Act
@@ -399,9 +399,9 @@ class CronogramaProduccionBuilderTest {
     void laColaConservaElAtrasoYElCorrimientoSinAlterarElOrden() {
         // Arrange: se pasan en desorden
         List<LoteCronogramaResponseDTO> lotes = List.of(
-                loteB(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(13), fecha(18)).diasDeDesplazamiento(3).build(),
-                loteB(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12)).diasDeDesplazamiento(3).build(),
-                loteB(1L, "PALE_ALE-R7-1", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
+                loteB(3L, "LOT-R7-03", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(13), fecha(18)).diasDeDesplazamiento(3).build(),
+                loteB(2L, "LOT-R7-02", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12)).diasDeDesplazamiento(3).build(),
+                loteB(1L, "LOT-R7-01", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(2), fecha(7))
                         .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build());
 
         // Act
@@ -419,9 +419,9 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-19: al destacar otra planificación el lote en ejecución atrasado se atenúa pero conserva su atraso (3 días) y su etiqueta")
     void unLoteAtenuado_conservaSuAtraso() {
         // Arrange
-        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "STOUT-R8-1", EstadoLote.EN_EJECUCION, "F-01", 8L, "Stout", fecha(2), fecha(7))
+        LoteCronogramaResponseDTO enEjecucion = loteB(1L, "LOT-R8-01", EstadoLote.EN_EJECUCION, "F-01", 8L, "Stout", fecha(2), fecha(7))
                 .fechaInicio(fecha(2).atTime(8, 0)).diasDeAtraso(3).build();
-        LoteCronogramaResponseDTO pendiente = loteB(2L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
+        LoteCronogramaResponseDTO pendiente = loteB(2L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(8), fecha(12))
                 .diasDeDesplazamiento(3).build();
 
         // Act
@@ -444,11 +444,11 @@ class CronogramaProduccionBuilderTest {
     void losCanceladosNoSeDibujanYUnFinalizadoNoOriginaLimpieza() {
         // Arrange
         List<LoteCronogramaResponseDTO> lotes = List.of(
-                loteB(1L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", fecha(1), fecha(3))
+                loteB(1L, "LOT-R7-01", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", fecha(1), fecha(3))
                         .fechaInicio(fecha(1).atTime(8, 0)).fechaFinalizacion(fecha(3).atTime(17, 0)).build(),
-                lote(2L, "PALE_ALE-R7-2", EstadoLote.CANCELADO, "F-01", 7L, "Pale Ale", fecha(5), fecha(8)),
-                lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(10), fecha(12)),
-                lote(4L, "STOUT-R8-1", EstadoLote.CANCELADO, "F-02", 8L, "Stout", fecha(2), fecha(4)));
+                lote(2L, "LOT-R7-02", EstadoLote.CANCELADO, "F-01", 7L, "Pale Ale", fecha(5), fecha(8)),
+                lote(3L, "LOT-R7-03", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(10), fecha(12)),
+                lote(4L, "LOT-R8-01", EstadoLote.CANCELADO, "F-02", 8L, "Stout", fecha(2), fecha(4)));
 
         // Act
         CronogramaProduccionVista vista = construir(lotes, List.of("F-02"), null, fecha(10), LocalDate.of(2027, 6, 30), fecha(13));
@@ -505,7 +505,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-23: los carriles sin lotes o con un único lote no tienen limpieza (lista vacía, no null)")
     void losCarrilesSinLimpieza() {
         // Arrange
-        LoteCronogramaResponseDTO unico = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-02", 7L, "Pale Ale", fecha(1), fecha(5));
+        LoteCronogramaResponseDTO unico = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-02", 7L, "Pale Ale", fecha(1), fecha(5));
 
         // Act
         GanttPlanificacionVista gantt = construir(List.of(unico), List.of("F-01"), null, fecha(1), DESDE, HASTA).getGantt();
@@ -520,10 +520,10 @@ class CronogramaProduccionBuilderTest {
     void losFermentadoresNoSeMezclanParaLaLimpieza() {
         // Arrange
         List<LoteCronogramaResponseDTO> lotes = List.of(
-                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
-                lote(2L, "PALE_ALE-R7-2", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(7), fecha(10)),
-                lote(3L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", fecha(1), fecha(5)),
-                lote(4L, "STOUT-R8-2", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", fecha(6), fecha(10)));
+                lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
+                lote(2L, "LOT-R7-02", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(7), fecha(10)),
+                lote(3L, "LOT-R8-01", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", fecha(1), fecha(5)),
+                lote(4L, "LOT-R8-02", EstadoLote.PENDIENTE, "F-02", 8L, "Stout", fecha(6), fecha(10)));
 
         // Act
         GanttPlanificacionVista gantt = construir(lotes, List.of("F-01", "F-02"), null, fecha(2), LocalDate.of(2027, 6, 30), fecha(11)).getGantt();
@@ -554,11 +554,11 @@ class CronogramaProduccionBuilderTest {
     void laLimpiezaSigueAUnLoteEnEjecucion() {
         // Arrange
         List<LoteCronogramaResponseDTO> lotes = List.of(
-                loteB(1L, "PALE_ALE-R7-1", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", fecha(1), fecha(3))
+                loteB(1L, "LOT-R7-01", EstadoLote.FINALIZADO, "F-01", 7L, "Pale Ale", fecha(1), fecha(3))
                         .fechaInicio(fecha(1).atTime(8, 0)).fechaFinalizacion(fecha(3).atTime(17, 0)).build(),
-                loteB(2L, "PALE_ALE-R7-2", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(5), fecha(8))
+                loteB(2L, "LOT-R7-02", EstadoLote.EN_EJECUCION, "F-01", 7L, "Pale Ale", fecha(5), fecha(8))
                         .fechaInicio(fecha(5).atTime(8, 0)).build(),
-                lote(3L, "PALE_ALE-R7-3", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(10), fecha(12)));
+                lote(3L, "LOT-R7-03", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(10), fecha(12)));
 
         // Act
         GanttPlanificacionVista gantt = construir(lotes, List.of("F-01"), null, fecha(6), LocalDate.of(2027, 6, 30), fecha(13)).getGantt();
@@ -577,7 +577,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-27: el tooltip de la barra lista los equipos del lote (molino, macerador, olla de hervor y fermentador) con sus identificadores")
     void elTooltipListaLosEquiposDelLote() {
         // Arrange
-        LoteCronogramaResponseDTO pale = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
+        LoteCronogramaResponseDTO pale = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5));
 
         // Act
         Barra barra = construir(List.of(pale), List.of("F-01"), null).getGantt().getCarriles().get(0).getBarras().get(0);
@@ -608,7 +608,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-29: el eje es el período, sin márgenes ni ajustes a las barras (01/07 al 20/07, 20 días, marcas cada 7 días, hoy al 47,5 %)")
     void elEjeEsElPeriodo() {
         // Arrange
-        LoteCronogramaResponseDTO lote = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(5), fecha(8));
+        LoteCronogramaResponseDTO lote = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(5), fecha(8));
 
         // Act
         GanttPlanificacionVista gantt = construir(List.of(lote), List.of(), null, fecha(10), DESDE, HASTA).getGantt();
@@ -664,7 +664,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-31: una barra que empieza antes del período se recorta por la izquierda y lo indica (25/06 al 05/07: 0 % / 25 %, continúa antes)")
     void barraRecortadaPorLaIzquierda() {
         // Arrange
-        LoteCronogramaResponseDTO lote = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(-5), fecha(5));
+        LoteCronogramaResponseDTO lote = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(-5), fecha(5));
 
         // Act
         Barra barra = construir(List.of(lote), List.of(), null, HOY, DESDE, HASTA).getGantt().getCarriles().get(0).getBarras().get(0);
@@ -682,7 +682,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-32: una barra que termina después del período se recorta por la derecha y lo indica (15/07 al 25/07: 70 % / 30 %, continúa después)")
     void barraRecortadaPorLaDerecha() {
         // Arrange
-        LoteCronogramaResponseDTO lote = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(15), fecha(25));
+        LoteCronogramaResponseDTO lote = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(15), fecha(25));
 
         // Act
         Barra barra = construir(List.of(lote), List.of(), null, HOY, DESDE, HASTA).getGantt().getCarriles().get(0).getBarras().get(0);
@@ -699,7 +699,7 @@ class CronogramaProduccionBuilderTest {
     @DisplayName("CP-GCB-33: una barra que cubre todo el período se recorta por ambos lados (25/06 al 25/07: 0 % / 100 %)")
     void barraRecortadaPorAmbosLados() {
         // Arrange
-        LoteCronogramaResponseDTO lote = lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(-5), fecha(25));
+        LoteCronogramaResponseDTO lote = lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(-5), fecha(25));
 
         // Act
         Barra barra = construir(List.of(lote), List.of(), null, HOY, DESDE, HASTA).getGantt().getCarriles().get(0).getBarras().get(0);
@@ -1240,8 +1240,8 @@ class CronogramaProduccionBuilderTest {
     /** Lote 1 pendiente del plan 7 (01/07 al 05/07) y lote 2 pendiente del plan 8 (07/07 al 10/07) en "F-01". */
     private static List<LoteCronogramaResponseDTO> lotesDeDosPlanificaciones() {
         return List.of(
-                lote(1L, "PALE_ALE-R7-1", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
-                lote(2L, "STOUT-R8-1", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(7), fecha(10)));
+                lote(1L, "LOT-R7-01", EstadoLote.PENDIENTE, "F-01", 7L, "Pale Ale", fecha(1), fecha(5)),
+                lote(2L, "LOT-R8-01", EstadoLote.PENDIENTE, "F-01", 8L, "Stout", fecha(7), fecha(10)));
     }
 
     /** Un pendiente del 05/07 al 08/07 por cada fermentador "F-01" a "F-nn". */

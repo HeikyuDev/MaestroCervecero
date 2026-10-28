@@ -350,7 +350,7 @@ que las ordena, antes de validar:
   `uk_lote_insumo_insumo_id_identificacion_lote_proveedor` es la garantía final.
 - Búsqueda de barril: bloquea la fila de la solicitud de búsqueda antes de verificar que no tenga una búsqueda registrada.
 
-El identificador interno del lote de producción (por ejemplo `PILSEN_CLASICA-R7-3`) es único por la restricción
+El identificador interno del lote de producción (por ejemplo `LOT-R7-03`, con el número de lote de la receta en dos dígitos como mínimo) es único por la restricción
 `uk_lote_identificador_interno`.
 
 ### Escalado del lote

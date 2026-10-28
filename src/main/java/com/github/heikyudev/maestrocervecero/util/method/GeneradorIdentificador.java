@@ -15,6 +15,7 @@ public final class GeneradorIdentificador {
     public static final String PREFIJO_OLLA_HERVOR = "OLL";
     public static final String PREFIJO_FERMENTADOR = "FER";
     public static final String PREFIJO_BARRIL = "BRL";
+    public static final String PREFIJO_LOTE = "LOT";
 
     private static final int DIGITOS_MINIMOS = 2;
 

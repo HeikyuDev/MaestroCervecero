@@ -124,7 +124,7 @@ class ConsumoInsumoControllerTest {
     private UserDetailServiceImpl userDetailService;
 
     /**
-     * Escenario base: lote 12 "PALE_ALE-R7-3" En ejecución con el Hervido (etapa 33) En curso, mínimo de consumo 80 %,
+     * Escenario base: lote 12 "LOT-R7-03" En ejecución con el Hervido (etapa 33) En curso, mínimo de consumo 80 %,
      * Cascade (reserva "L-123" con saldo) y Citra (reserva vencida "C-900"), y los consumos 7 y 6.
      * Cada caso cambia solo lo que dice.
      */
@@ -164,7 +164,7 @@ class ConsumoInsumoControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("Consumos de Hervido", "PALE_ALE-R7-3", "En curso");
+        assertThat(texto(html)).contains("Consumos de Hervido", "LOT-R7-03", "En curso");
         assertThat(enlaceDe(html, "Volver al lote")).isEqualTo("/lotes/12?etapa=hervido");
         assertThat(html).contains("data-resumen-consumo").contains("data-pestanas-consumo").contains("data-consumos-registrados")
                 .doesNotContain("data-insumos-reservados").doesNotContain("data-consumo-directo").doesNotContain("name=\"cantidadConsumida\"");
@@ -1405,7 +1405,7 @@ class ConsumoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-consumo");
 
         // Assert
-        assertThat(texto(html)).contains("Nuevo consumo reservado", "PALE_ALE-R7-3", "Hervido");
+        assertThat(texto(html)).contains("Nuevo consumo reservado", "LOT-R7-03", "Hervido");
         assertThat(enlaceDe(html, "Volver a consumos")).isEqualTo(URL_PANTALLA + "?tipo=reservado");
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL_PANTALLA + "?tipo=reservado");
         assertThat(formulario).contains("method=\"post\"").contains("action=\"" + URL_PANTALLA + "/reservado\"").contains("novalidate").contains("data-un-solo-envio")
@@ -1435,7 +1435,7 @@ class ConsumoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-consumo");
 
         // Assert
-        assertThat(texto(html)).contains("Nuevo consumo directo", "PALE_ALE-R7-3", "Hervido");
+        assertThat(texto(html)).contains("Nuevo consumo directo", "LOT-R7-03", "Hervido");
         assertThat(enlaceDe(html, "Volver a consumos")).isEqualTo(URL_PANTALLA + "?tipo=directo");
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL_PANTALLA + "?tipo=directo");
         assertThat(formulario).contains("method=\"post\"").contains("action=\"" + URL_PANTALLA + "/directo\"").contains("novalidate").contains("name=\"_csrf\"")
@@ -1995,10 +1995,10 @@ class ConsumoInsumoControllerTest {
     // ---------- Datos de prueba ----------
 
     /**
-     * Lote 12 "PALE_ALE-R7-3" con sus seis etapas (ids 31 a 36, Molienda a Envasado).
+     * Lote 12 "LOT-R7-03" con sus seis etapas (ids 31 a 36, Molienda a Envasado).
      */
     private static LoteDetalleResponseDTO detalle(EstadoLote estado, List<EtapaLoteResponseDTO> etapas) {
-        return LoteDetalleResponseDTO.builder().id(12L).identificadorInterno("PALE_ALE-R7-3").estado(estado).volumenObjetivo(300.0)
+        return LoteDetalleResponseDTO.builder().id(12L).identificadorInterno("LOT-R7-03").estado(estado).volumenObjetivo(300.0)
                 .idPlanificacionProduccion(7L).etapas(etapas).etapaPorDefecto(TipoEtapa.HERVIDO).build();
     }
 

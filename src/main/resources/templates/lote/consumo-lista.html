@@ -22,7 +22,8 @@
         <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight" th:text="|Consumos de ${tipoEtapa.etiqueta}|">Consumos de Hervido</h1>
             <p class="text-sm text-slate-500">
-                &middot; Lote <strong class="text-slate-900" th:text="${lote.identificadorInterno}">PALE_ALE-R7-3</strong>
+                &middot; Lote <strong class="text-slate-900" th:text="${lote.identificadorInterno}">LOT-R7-03</strong>
+                <th:block th:if="${lote.versionReceta != null and lote.versionReceta.version != null}">&middot; <span data-lote-receta th:text="${lote.versionReceta.version.nombre}">Pale Ale</span></th:block>
                 &middot; Etapa <span th:replace="~{lote/formato :: estadoEtapa(${etapaMostrada.estado})}"></span>
             </p>
         </div>

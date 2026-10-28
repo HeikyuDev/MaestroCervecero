@@ -159,7 +159,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="l : ${lotes}" class="hover:bg-slate-50">
-                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.identificadorInterno}">PALE_ALE-1</td>
+                    <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${l.identificadorInterno}">LOT-R7-01</td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${l.identificadorInternoFermentador != null} ? ${l.identificadorInternoFermentador} : '-'">F-01</td>
                     <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoLote(${l.estado})}"></span></td>
                     <td class="px-2 py-3 text-slate-700 whitespace-nowrap xl:hidden">

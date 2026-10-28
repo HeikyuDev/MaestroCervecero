@@ -48,7 +48,7 @@ class MapperLoteCronogramaTest {
 
         // === ASSERTS ===
         assertThat(resultado.getId()).isEqualTo(10L);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-R4-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("LOT-R4-03");
         assertThat(resultado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
         assertThat(resultado.getVolumenObjetivo()).isEqualTo(300.0);
         assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 2));
@@ -161,7 +161,7 @@ class MapperLoteCronogramaTest {
         assertThat(resultado.getIdentificadorInternoOllaHervor()).isNull();
         assertThat(resultado.getEtapaActual()).isNull();
         assertThat(resultado.getId()).isEqualTo(10L);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-R4-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("LOT-R4-03");
         assertThat(resultado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
         assertThat(resultado.getVolumenObjetivo()).isEqualTo(300.0);
         assertThat(resultado.getFechaInicioEstimada()).isEqualTo(LocalDate.of(2026, 11, 2));
@@ -265,7 +265,7 @@ class MapperLoteCronogramaTest {
         LoteCronogramaResponseDTO resultado = MapperLoteCronograma.toDTO(lote);
 
         // === ASSERTS ===
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("PILSEN_CLASICA-R4-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("LOT-R4-03");
         assertThat(resultado.getNombreReceta()).isEqualTo("Pilsen Reserva");
     }
 
@@ -282,7 +282,7 @@ class MapperLoteCronogramaTest {
                 .build();
         LoteEntity lote = LoteEntity.builder()
                 .id(id)
-                .identificadorInterno("PILSEN_CLASICA-R4-3")
+                .identificadorInterno("LOT-R4-03")
                 .estado(estado)
                 .volumenObjetivo(300.0)
                 .fechaInicioEstimada(LocalDate.of(2026, 11, 2))

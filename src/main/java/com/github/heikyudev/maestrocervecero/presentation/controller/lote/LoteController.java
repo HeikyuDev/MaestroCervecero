@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
-import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
@@ -23,7 +22,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLo
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.receta.IRecetaServicio;
-import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AvanceEtapaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.EtapaLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.InsumoRequeridoResponseDTO;
@@ -92,7 +90,6 @@ public class LoteController {
     private static final String VISTA_BUSCADOR_PLANIFICACION = "lote/buscador-planificacion :: buscador";
     private static final String VISTA_BUSCADOR_EQUIPO = "lote/buscador-equipo :: buscador";
     private static final String VISTA_FILTRO_PLANIFICACION = "lote/filtro-planificacion :: buscador";
-    private static final String VISTA_FILTRO_FERMENTADOR = "lote/filtro-fermentador :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "loteForm";
     private static final String URL_LISTA = "/lotes";
     private static final String URL_BUSCADOR_RECETAS = "/lotes/buscador/recetas";
@@ -157,16 +154,18 @@ public class LoteController {
     // ==================== Lista ====================
 
     /**
-     * Lista los lotes, de a 20 y con el último registrado arriba. Los criterios (planificación, fermentador, código y
-     * estado) son opcionales y llegan como texto para poder ignorar un valor mal escrito en vez de fallar el pedido:
-     * un valor inválido o una planificación o un fermentador inexistentes se ignoran con un aviso.
+     * Lista los lotes, de a 20 y con el último registrado arriba. Los criterios (planificación, receta, código, estado,
+     * etapa actual y volumen objetivo) son opcionales y llegan como texto para poder ignorar un valor mal escrito en vez de fallar el pedido:
+     * un valor inválido o una planificación o una receta inexistentes se ignoran con un aviso.
      */
     @GetMapping
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String listarLotes(@RequestParam(required = false) String idPlanificacion,
-                              @RequestParam(required = false) String idFermentador,
+                              @RequestParam(required = false) String idReceta,
                               @RequestParam(required = false) String codigo,
                               @RequestParam(required = false) String estado,
+                              @RequestParam(required = false) String etapaActual,
+                              @RequestParam(required = false) Double volumenObjetivo,
                               @RequestParam(defaultValue = "0") int pagina,
                               Model model) {
         List<String> avisos = new ArrayList<>();
@@ -184,16 +183,17 @@ public class LoteController {
             }
         }
 
-        Long idFermentadorFiltro = aId(idFermentador);
-        String textoFermentador = null;
-        if (vacioANulo(idFermentador) != null && idFermentadorFiltro == null) {
-            avisos.add("El fermentador indicado no es válido, se muestran todos");
-        } else if (idFermentadorFiltro != null) {
-            try {
-                textoFermentador = textoDeFermentador(fermentadorServicio.buscarActivoODadoDeBajaConLotesPorId(idFermentadorFiltro));
-            } catch (RecursoNoEncontradoException e) {
-                avisos.add("El fermentador indicado no existe, se muestran todos");
-                idFermentadorFiltro = null;
+        Long idRecetaFiltro = aId(idReceta);
+        String textoReceta = null;
+        if (vacioANulo(idReceta) != null && idRecetaFiltro == null) {
+            avisos.add("La receta indicada no es válida, se muestran todas");
+        } else if (idRecetaFiltro != null) {
+            RecetaResponseDTO receta = recetaElegida(idRecetaFiltro, recetaServicio::buscarActivaODadaDeBajaConPlanificacionesPorId);
+            if (receta == null) {
+                avisos.add("La receta indicada no existe, se muestran todas");
+                idRecetaFiltro = null;
+            } else {
+                textoReceta = textoDeReceta(receta);
             }
         }
 
@@ -202,18 +202,27 @@ public class LoteController {
             avisos.add("El estado indicado no es válido, se muestran todos");
         }
 
+        TipoEtapa etapaFiltro = aTipoEtapa(etapaActual);
+        if (vacioANulo(etapaActual) != null && etapaFiltro == null) {
+            avisos.add("La etapa indicada no es válida, se muestran todas");
+        }
+
         String codigoFiltro = vacioANulo(codigo);
-        Page<LoteCronogramaResponseDTO> lotes = loteServicio.filtrarLotesParaListado(idPlanificacionFiltro, idFermentadorFiltro,
-                codigoFiltro, estadoFiltro, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+        Page<LoteCronogramaResponseDTO> lotes = loteServicio.filtrarLotesParaListado(idPlanificacionFiltro, idRecetaFiltro,
+                codigoFiltro, estadoFiltro, etapaFiltro, volumenObjetivo, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lotes", lotes);
         model.addAttribute("estados", EstadoLote.values());
         model.addAttribute("filtroIdPlanificacion", idPlanificacionFiltro);
         model.addAttribute("filtroPlanificacionTexto", textoPlanificacion);
-        model.addAttribute("filtroIdFermentador", idFermentadorFiltro);
-        model.addAttribute("filtroFermentadorTexto", textoFermentador);
+        model.addAttribute("filtroIdReceta", idRecetaFiltro);
+        model.addAttribute("filtroRecetaTexto", textoReceta);
         model.addAttribute("filtroCodigo", codigoFiltro);
         model.addAttribute("filtroEstado", estadoFiltro);
+        model.addAttribute("etapas", TipoEtapa.values());
+        model.addAttribute("filtroEtapaActual", etapaFiltro);
+        // El valor ya viene convertido a número: numeroEscrito solo le quita el ".0" (300.0 se muestra como 300)
+        model.addAttribute("filtroVolumenObjetivo", volumenObjetivo == null ? null : numeroEscrito(volumenObjetivo, volumenObjetivo));
         agregarAvisos(model, avisos, ". ");
         return VISTA_LISTA;
     }
@@ -544,35 +553,6 @@ public class LoteController {
         return VISTA_BUSCADOR_RECETA;
     }
 
-    /**
-     * Devuelve el contenido del modal de búsqueda de fermentadores del filtro de la lista (identificador, estado
-     * operativo e "Incluir dados de baja" + resultados), de a 8 y en orden alfabético por identificador. Sin el último
-     * criterio solo se ofrecen los activos; con él se suman los dados de baja que tuvieron lotes, para poder filtrar
-     * su historial.
-     */
-    @GetMapping("/filtros/fermentadores")
-    @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
-    public String filtrarFermentadores(@RequestParam(required = false) String identificador,
-                                       @RequestParam(required = false) String estadoOperativo,
-                                       @RequestParam(defaultValue = "false") boolean incluirDadosDeBaja,
-                                       @RequestParam(defaultValue = "0") int pagina,
-                                       Model model) {
-        EstadoOperativo estado = aEstadoOperativo(estadoOperativo);
-        String identificadorBuscado = vacioANulo(identificador);
-        Pageable pageable = paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR);
-        Page<FermentadorResponseDTO> fermentadores = incluirDadosDeBaja
-                ? fermentadorServicio.filtrarFermentadoresConDadosDeBajaConLotes(identificadorBuscado, estado, pageable)
-                : fermentadorServicio.filtrarFermentadores(identificadorBuscado, estado, pageable);
-
-        model.addAttribute("fermentadores", fermentadores);
-        model.addAttribute("estados", EstadoOperativo.values());
-        model.addAttribute("filtroIdentificador", identificador);
-        model.addAttribute("filtroEstado", estado);
-        model.addAttribute("avisoBuscador", avisoDeEstadoOperativo(estadoOperativo, estado));
-        model.addAttribute("filtroIncluirDadosDeBaja", incluirDadosDeBaja);
-        return VISTA_FILTRO_FERMENTADOR;
-    }
-
     // ==================== Apoyo: detalle ====================
 
     /**
@@ -796,12 +776,6 @@ public class LoteController {
         return planificacion.getEtiqueta();
     }
 
-    private static String textoDeFermentador(FermentadorResponseDTO fermentador) {
-        return fermentador.getEstado() == Estado.BAJA
-                ? fermentador.getIdentificadorInterno() + " (dado de baja)"
-                : fermentador.getIdentificadorInterno();
-    }
-
     /** Muestra los avisos como una sola alerta amarilla, unidos con el separador indicado. */
     private static void agregarAvisos(Model model, List<String> avisos, String separador) {
         if (!avisos.isEmpty()) {
@@ -818,6 +792,19 @@ public class LoteController {
     /** Vuelve al detalle sin fijar la pestaña: el detalle abre la etapa en curso. */
     private static String redirigirAlDetalle(Long id) {
         return "redirect:" + URL_LISTA + "/" + id;
+    }
+
+    /** El tipo de etapa con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno. */
+    private static TipoEtapa aTipoEtapa(String texto) {
+        String limpio = vacioANulo(texto);
+        if (limpio == null) {
+            return null;
+        }
+        try {
+            return TipoEtapa.valueOf(limpio.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** El estado del lote con ese nombre, o {@code null} si el texto está vacío o no corresponde a ninguno. */

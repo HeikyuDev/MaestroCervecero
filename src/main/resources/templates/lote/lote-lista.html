@@ -20,20 +20,20 @@
 
     <!-- Criterios de búsqueda -->
     <form th:action="@{/lotes}" method="get" novalidate
-          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-end">
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
         <div>
             <span class="block text-xs font-medium text-slate-500 mb-1">Planificación</span>
             <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacion', ${filtroIdPlanificacion}, ${filtroPlanificacionTexto},
                     @{/lotes/filtros/planificaciones}, null, null, true, false, 'Seleccione planificación')}"></div>
         </div>
         <div>
-            <span class="block text-xs font-medium text-slate-500 mb-1">Fermentador</span>
-            <div th:replace="~{fragments/selector-entidad :: selector('idFermentador', ${filtroIdFermentador}, ${filtroFermentadorTexto},
-                    @{/lotes/filtros/fermentadores}, null, null, true, false, 'Seleccione fermentador')}"></div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Receta</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idReceta', ${filtroIdReceta}, ${filtroRecetaTexto},
+                    @{/lotes/filtros/recetas}, null, null, true, false, 'Seleccione receta')}"></div>
         </div>
         <div>
             <label for="codigo" class="block text-xs font-medium text-slate-500 mb-1">Código</label>
-            <input type="text" id="codigo" name="codigo" th:value="${filtroCodigo}" autocomplete="off" placeholder="Ej: PALE_ALE-R7-3"
+            <input type="text" id="codigo" name="codigo" th:value="${filtroCodigo}" autocomplete="off" placeholder="Ej: LOT-R7-03"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
         <div>
@@ -44,7 +44,20 @@
                 <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Pendiente</option>
             </select>
         </div>
-        <div class="md:col-span-2 xl:col-span-4 flex items-center justify-end gap-3">
+        <div>
+            <label for="etapaActual" class="block text-xs font-medium text-slate-500 mb-1">Etapa actual</label>
+            <select id="etapaActual" name="etapaActual"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todas</option>
+                <option th:each="e : ${etapas}" th:value="${e}" th:selected="${e == filtroEtapaActual}" th:text="${e.etiqueta}">Molienda</option>
+            </select>
+        </div>
+        <div>
+            <label for="volumenObjetivo" class="block text-xs font-medium text-slate-500 mb-1">Volumen objetivo (L)</label>
+            <input type="number" id="volumenObjetivo" name="volumenObjetivo" th:value="${filtroVolumenObjetivo}" min="0" step="any" autocomplete="off" placeholder="Ej: 300"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div class="md:col-span-2 lg:col-span-3 flex items-center justify-end gap-3">
             <a th:href="@{/lotes}"
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
             <button type="submit"
@@ -60,7 +73,8 @@
         <table class="w-full text-sm text-left">
             <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <tr>
-                <th class="px-1 py-3">Código</th>
+                <th class="px-1 py-3 whitespace-nowrap">Código</th>
+                <th class="px-1 py-3">Receta</th>
                 <th class="px-1 py-3">Planificación</th>
                 <th class="px-1 py-3">Fermentador</th>
                 <th class="px-1 py-3">Estado y etapa</th>
@@ -71,9 +85,10 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="l : ${lotes.content}" class="hover:bg-slate-50">
-                <td class="px-1 py-3 font-medium text-slate-900">
-                    <div class="max-w-[9rem] truncate" data-lote-codigo tabindex="0" th:data-tooltip="${l.identificadorInterno}"
-                         th:text="${l.identificadorInterno}">PALE_ALE-R7-3</div>
+                <td class="px-1 py-3 font-medium text-slate-900 whitespace-nowrap" data-lote-codigo th:text="${l.identificadorInterno}">LOT-R7-03</td>
+                <td class="px-1 py-3 text-slate-700">
+                    <div class="max-w-[10rem] truncate" data-lote-receta tabindex="0"
+                         th:data-tooltip="${l.nombreReceta}" th:text="${l.nombreReceta}">Pale Ale</div>
                 </td>
                 <td class="px-1 py-3 text-slate-700">
                     <div class="max-w-[9rem] truncate" data-planificacion-etiqueta tabindex="0"
@@ -107,7 +122,7 @@
                 </td>
             </tr>
             <tr th:if="${lotes.empty}">
-                <td colspan="7" class="px-4 py-10 text-center text-slate-400">
+                <td colspan="8" class="px-4 py-10 text-center text-slate-400">
                     <i class="bi bi-collection block text-3xl mb-2"></i>
                     No se encontraron lotes con los criterios indicados
                 </td>
@@ -117,8 +132,8 @@
         </div>
 
         <div th:replace="~{fragments/paginacion :: paginacion(${lotes}, 'lote|lotes',
-                ${lotes.hasPrevious()} ? @{/lotes(pagina=${lotes.number - 1}, idPlanificacion=${filtroIdPlanificacion}, idFermentador=${filtroIdFermentador}, codigo=${filtroCodigo}, estado=${filtroEstado})} : null,
-                ${lotes.hasNext()} ? @{/lotes(pagina=${lotes.number + 1}, idPlanificacion=${filtroIdPlanificacion}, idFermentador=${filtroIdFermentador}, codigo=${filtroCodigo}, estado=${filtroEstado})} : null,
+                ${lotes.hasPrevious()} ? @{/lotes(pagina=${lotes.number - 1}, idPlanificacion=${filtroIdPlanificacion}, idReceta=${filtroIdReceta}, codigo=${filtroCodigo}, estado=${filtroEstado}, etapaActual=${filtroEtapaActual}, volumenObjetivo=${filtroVolumenObjetivo})} : null,
+                ${lotes.hasNext()} ? @{/lotes(pagina=${lotes.number + 1}, idPlanificacion=${filtroIdPlanificacion}, idReceta=${filtroIdReceta}, codigo=${filtroCodigo}, estado=${filtroEstado}, etapaActual=${filtroEtapaActual}, volumenObjetivo=${filtroVolumenObjetivo})} : null,
                 false)}"></div>
     </div>
 </div>

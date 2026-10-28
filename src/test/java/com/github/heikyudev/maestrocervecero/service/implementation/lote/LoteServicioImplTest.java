@@ -704,7 +704,7 @@ class LoteServicioImplTest {
         // === ASSERTS ===
         LoteEntity guardado = captor.getValue();
         assertThat(guardado.getEstado()).isEqualTo(EstadoLote.PENDIENTE);
-        assertThat(guardado.getIdentificadorInterno()).isEqualTo("IPA_TEST-R5-3");
+        assertThat(guardado.getIdentificadorInterno()).isEqualTo("LOT-R5-03");
         assertThat(receta.getContadorLotes()).isEqualTo(4L);
         assertThat(guardado.getEtapas()).hasSize(6);
         assertThat(guardado.getEtapas()).allMatch(e -> e.getEstado() == EstadoEtapaLote.PENDIENTE);
@@ -714,7 +714,7 @@ class LoteServicioImplTest {
         assertThat(findEtapa(guardado, TipoEtapa.FERMENTACION).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
         assertThat(findEtapa(guardado, TipoEtapa.MADURACION).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
         assertThat(findEtapa(guardado, TipoEtapa.ENVASADO).getEquipamiento()).isInstanceOf(FermentadorEntity.class);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("IPA_TEST-R5-3");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("LOT-R5-03");
     }
 
     @Test
@@ -845,57 +845,21 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RL-30: registrarLote — el identificador reemplaza tildes, diéresis y eñe por su letra base")
-    void registrarLote_debeReemplazarDiacriticosEnElIdentificador() {
-        assertThat(registrarYObtenerIdentificador("Pilsen Clásica Añeja")).isEqualTo("PILSEN_CLASICA_ANEJA-R5-3");
-        assertThat(registrarYObtenerIdentificador("Cerveza Güemes")).isEqualTo("CERVEZA_GUEMES-R5-3");
-        assertThat(registrarYObtenerIdentificador("Ñandú")).isEqualTo("NANDU-R5-3");
+    @DisplayName("CP-RL-30: registrarLote — el número de lote de la receta se completa con ceros hasta tener dos dígitos como mínimo")
+    void registrarLote_debeCompletarConCerosElNumeroDeLoteDelIdentificador() {
+        assertThat(registrarYObtenerIdentificador("IPA Test", 1L)).isEqualTo("LOT-R5-01");
+        assertThat(registrarYObtenerIdentificador("IPA Test", 9L)).isEqualTo("LOT-R5-09");
+        assertThat(registrarYObtenerIdentificador("IPA Test", 10L)).isEqualTo("LOT-R5-10");
+        assertThat(registrarYObtenerIdentificador("IPA Test", 99L)).isEqualTo("LOT-R5-99");
+        assertThat(registrarYObtenerIdentificador("IPA Test", 100L)).isEqualTo("LOT-R5-100");
     }
 
     @Test
-    @DisplayName("CP-RL-31: registrarLote — toda secuencia de caracteres no alfanuméricos pasa a un solo guion bajo, sin guiones bajos en los extremos")
-    void registrarLote_debeColapsarLosCaracteresNoAlfanumericosEnElIdentificador() {
-        assertThat(registrarYObtenerIdentificador("  IPA -- Doble (v2)!  ")).isEqualTo("IPA_DOBLE_V2-R5-3");
-        assertThat(registrarYObtenerIdentificador("Pale/Ale\u2014Rubia")).isEqualTo("PALE_ALE_RUBIA-R5-3");
-        assertThat(registrarYObtenerIdentificador("__Pale___Ale__")).isEqualTo("PALE_ALE-R5-3");
-    }
-
-    @Test
-    @DisplayName("CP-RL-32: registrarLote — las letras en mayúscula y los dígitos se conservan en el identificador")
-    void registrarLote_debeConservarMayusculasYDigitosEnElIdentificador() {
-        assertThat(registrarYObtenerIdentificador("Stout 2027")).isEqualTo("STOUT_2027-R5-3");
-        assertThat(registrarYObtenerIdentificador("IPA")).isEqualTo("IPA-R5-3");
-        assertThat(registrarYObtenerIdentificador("123")).isEqualTo("123-R5-3");
-    }
-
-    @Test
-    @DisplayName("CP-RL-33: registrarLote — un nombre sin caracteres utilizables usa LOTE en el identificador")
-    void registrarLote_debeUsarLoteSiElNombreNoTieneCaracteresUtilizables() {
-        for (String nombre : new String[]{"***", "¿¿??", "\u9EA6\u9152", null}) {
-            assertThat(registrarYObtenerIdentificador(nombre)).as("nombre: %s", nombre).isEqualTo("LOTE-R5-3");
+    @DisplayName("CP-RL-31: registrarLote — el nombre de la versión de receta no interviene en el identificador")
+    void registrarLote_noDebeUsarElNombreDeLaVersionEnElIdentificador() {
+        for (String nombre : new String[]{"Pilsen Clásica Añeja", "***", "A".repeat(100), null}) {
+            assertThat(registrarYObtenerIdentificador(nombre, 3L)).as("nombre: %s", nombre).isEqualTo("LOT-R5-03");
         }
-    }
-
-    @Test
-    @DisplayName("CP-RL-34: registrarLote — las letras que no se descomponen se tratan como símbolo y la ß pasa a SS en el identificador")
-    void registrarLote_debeTratarLasLetrasSinDescomposicionComoSimboloEnElIdentificador() {
-        assertThat(registrarYObtenerIdentificador("Sm\u00F8rrebr\u00F8d")).isEqualTo("SM_RREBR_D-R5-3");
-        assertThat(registrarYObtenerIdentificador("Wei\u00DFbier")).isEqualTo("WEISSBIER-R5-3");
-    }
-
-    @Test
-    @DisplayName("CP-RL-35: registrarLote — el nombre del identificador se corta a 100 caracteres (límite) y se quita un guion bajo final")
-    void registrarLote_debeCortarElNombreDelIdentificadorACienCaracteres() {
-        assertThat(registrarYObtenerIdentificador("A".repeat(100))).isEqualTo("A".repeat(100) + "-R5-3");
-        assertThat(registrarYObtenerIdentificador("\u00DF".repeat(100))).isEqualTo("S".repeat(100) + "-R5-3");
-        assertThat(registrarYObtenerIdentificador("A".repeat(99) + " B")).isEqualTo("A".repeat(99) + "-R5-3");
-    }
-
-    @Test
-    @DisplayName("CP-RL-36: registrarLote — el identificador usa el nombre de la versión de la planificación, no el de la versión vigente")
-    void registrarLote_debeUsarElNombreDeLaVersionDeLaPlanificacion() {
-        // La receta ya tiene otra versión vigente "Pilsen v2", pero la planificación es de "Pilsen v1"
-        assertThat(registrarYObtenerIdentificador("Pilsen v1")).isEqualTo("PILSEN_V1-R5-3");
     }
 
     @Test
@@ -915,14 +879,14 @@ class LoteServicioImplTest {
         String segundo = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
 
         // === ASSERTS ===
-        assertThat(primero).isEqualTo("IPA_TEST-R5-3");
-        assertThat(segundo).isEqualTo("IPA_TEST-R5-4");
+        assertThat(primero).isEqualTo("LOT-R5-03");
+        assertThat(segundo).isEqualTo("LOT-R5-04");
         assertThat(receta.getContadorLotes()).isEqualTo(5L);
     }
 
     @Test
-    @DisplayName("CP-RL-38: registrarLote — recetas distintas con versiones del mismo nombre no colisionan")
-    void registrarLote_noDebeColisionarEntreRecetasConVersionesDelMismoNombre() {
+    @DisplayName("CP-RL-38: registrarLote — recetas distintas no colisionan")
+    void registrarLote_noDebeColisionarEntreRecetasDistintas() {
         // === PREPARACION DE DATOS ===
         mockearEquipamientoBase();
         mockearConfiguracionYReceta();
@@ -946,8 +910,8 @@ class LoteServicioImplTest {
         String codigo6 = loteServicio.registrarLote(loteFormDTOBuilderBase().idPlanificacionProduccion(2L).build()).getIdentificadorInterno();
 
         // === ASSERTS ===
-        assertThat(codigo5).isEqualTo("IPA-R5-1");
-        assertThat(codigo6).isEqualTo("IPA-R6-1");
+        assertThat(codigo5).isEqualTo("LOT-R5-01");
+        assertThat(codigo6).isEqualTo("LOT-R6-01");
         assertThat(receta5.getContadorLotes()).isEqualTo(2L);
         assertThat(receta6.getContadorLotes()).isEqualTo(2L);
     }
@@ -972,8 +936,8 @@ class LoteServicioImplTest {
         String segundo = loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
 
         // === ASSERTS ===
-        assertThat(primero).isEqualTo("PILSEN_V1-R5-3");
-        assertThat(segundo).isEqualTo("PILSEN_RESERVA-R5-4");
+        assertThat(primero).isEqualTo("LOT-R5-03");
+        assertThat(segundo).isEqualTo("LOT-R5-04");
     }
 
     @Test
@@ -5735,9 +5699,17 @@ class LoteServicioImplTest {
      * {@code nombreVersion} y devuelve el identificador interno con el que se guarda.
      */
     private String registrarYObtenerIdentificador(String nombreVersion) {
+        return registrarYObtenerIdentificador(nombreVersion, 3L);
+    }
+
+    /**
+     * Igual que {@link #registrarYObtenerIdentificador(String)} pero con el contador previo de la receta indicado.
+     */
+    private String registrarYObtenerIdentificador(String nombreVersion, long contadorPrevio) {
         PlanificacionProduccionEntity planificacion = mockearEquipamientoBase();
         planificacion.getVersionReceta().setNombre(nombreVersion);
         mockearConfiguracionYReceta();
+        lenient().when(recetaRepository.findByIdParaActualizarContador(5L)).thenReturn(Optional.of(crearReceta(5L, contadorPrevio)));
         when(loteRepository.buscarUltimaFechaFinalizacionEstimadaPorFermentador(any(), anyList())).thenReturn(Optional.empty());
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         return loteServicio.registrarLote(loteFormDTOBase()).getIdentificadorInterno();
@@ -6093,21 +6065,21 @@ class LoteServicioImplTest {
         Pageable pageable = PageRequest.of(0, 20);
         LoteEntity lote3 = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO);
         lote3.setId(3L);
-        lote3.setIdentificadorInterno("PALE_ALE-R7-3");
+        lote3.setIdentificadorInterno("LOT-R7-03");
         LoteEntity lote1 = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
         lote1.setId(1L);
-        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, PageRequest.of(0, 20)))
+        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 300.0, PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of(3L, 1L), pageable, 45));
         when(loteRepository.buscarParaListadoPorIds(List.of(3L, 1L))).thenReturn(List.of(lote1, lote3));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 300.0, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(45);
         assertThat(resultado.getContent()).extracting(LoteCronogramaResponseDTO::getId).containsExactly(3L, 1L);
         LoteCronogramaResponseDTO primero = resultado.getContent().get(0);
-        assertThat(primero.getIdentificadorInterno()).isEqualTo("PALE_ALE-R7-3");
+        assertThat(primero.getIdentificadorInterno()).isEqualTo("LOT-R7-03");
         assertThat(primero.getEtapaActual()).isEqualTo(TipoEtapa.HERVIDO);
         assertThat(primero.getIdFermentador()).isEqualTo(4L);
         assertThat(primero.getIdentificadorInternoFermentador()).isEqualTo("Fermentador 4");
@@ -6117,20 +6089,20 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FLL-02: filtrarLotesParaListado propaga los cuatro criterios nulos sin restringir la búsqueda")
+    @DisplayName("CP-FLL-02: filtrarLotesParaListado propaga los seis criterios nulos sin restringir la búsqueda")
     void filtrarLotesParaListado_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
         LoteEntity lote = crearLoteMinimo(1L, "IPA-1");
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
         when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(lote));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable);
     }
 
     @Test
@@ -6138,14 +6110,14 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeNormalizarElIdentificadorInterno() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "PALE_ALE-R7", null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   pale_ale-r7  ", null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   lot-r7  ", null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "PALE_ALE-R7", null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, null, pageable);
     }
 
     @Test
@@ -6153,13 +6125,13 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeTratarElCodigoEnBlancoComoNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        loteServicio.filtrarLotesParaListado(null, null, "    ", null, pageable);
+        loteServicio.filtrarLotesParaListado(null, null, "    ", null, null, null, pageable);
 
         // === ASSERTS ===
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable);
     }
 
     @Test
@@ -6167,10 +6139,10 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeRetornarPaginaVaciaSinCargarLotes() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
@@ -6183,15 +6155,15 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeIgnorarElOrdenDelPageable() {
         // === PREPARACION DE DATOS ===
         Pageable pageableConOrden = PageRequest.of(2, 20, Sort.by(Sort.Direction.ASC, "volumenObjetivo"));
-        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(Pageable.class)))
+        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(2, 20), 0));
 
         // === EJECUCION ===
-        loteServicio.filtrarLotesParaListado(null, null, null, null, pageableConOrden);
+        loteServicio.filtrarLotesParaListado(null, null, null, null, null, null, pageableConOrden);
 
         // === ASSERTS ===
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), captor.capture());
+        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(), captor.capture());
         assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
         assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
         assertThat(captor.getValue().getPageSize()).isEqualTo(20);

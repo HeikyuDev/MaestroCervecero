@@ -105,7 +105,7 @@ class EnvasadoLoteControllerTest {
     private UserDetailServiceImpl userDetailService;
 
     /**
-     * Escenario base: lote 12 "PALE_ALE-R7-3" En ejecución, volumen objetivo 300 L, con el Envasado (etapa 36) En curso y
+     * Escenario base: lote 12 "LOT-R7-03" En ejecución, volumen objetivo 300 L, con el Envasado (etapa 36) En curso y
      * el fermentador "F-01" (capacidad útil 330 L). Envasados 7 ("B-001", 50 L), 8 ("B-002", 50 L) y 9 ("B-003", 20 L)
      * Registrados (120 L en total) y 10 ("B-004", 30 L) Anulado. Cada caso cambia solo lo que dice.
      */
@@ -140,7 +140,7 @@ class EnvasadoLoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("Envasados", "PALE_ALE-R7-3", "En curso");
+        assertThat(texto(html)).contains("Envasados", "LOT-R7-03", "En curso");
         assertThat(enlaceDe(html, "Volver al lote")).isEqualTo("/lotes/12?etapa=envasado");
         assertThat(html).contains("data-indicador-envasado").contains("data-registrar-envasado").contains("data-envasados-registrados");
         assertThat(cuenta(html, "<dialog")).isEqualTo(2);
@@ -1034,10 +1034,10 @@ class EnvasadoLoteControllerTest {
     // ---------- Datos de prueba ----------
 
     /**
-     * Lote 12 "PALE_ALE-R7-3" con sus seis etapas (ids 31 a 36, Molienda a Envasado).
+     * Lote 12 "LOT-R7-03" con sus seis etapas (ids 31 a 36, Molienda a Envasado).
      */
     private static LoteDetalleResponseDTO detalle(EstadoLote estado, List<EtapaLoteResponseDTO> etapas) {
-        return LoteDetalleResponseDTO.builder().id(12L).identificadorInterno("PALE_ALE-R7-3").estado(estado).volumenObjetivo(300.0)
+        return LoteDetalleResponseDTO.builder().id(12L).identificadorInterno("LOT-R7-03").estado(estado).volumenObjetivo(300.0)
                 .idPlanificacionProduccion(7L).etapas(etapas).etapaPorDefecto(TipoEtapa.ENVASADO).build();
     }
 

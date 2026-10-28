@@ -27,7 +27,7 @@ public class LoteResponseDTO {
     private Long id;
 
     /**
-     * Código autogenerado del lote (nombre normalizado de la versión de receta + "-R" + id de la receta + "-" + número de lote de esa receta). Ej: "PILSEN_CLASICA-R7-3".
+     * Código autogenerado del lote ("LOT-R" + id de la receta + "-" + número de lote de esa receta con dos dígitos como mínimo). Ej: "LOT-R7-03".
      */
     private String identificadorInterno;
 

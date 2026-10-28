@@ -267,32 +267,40 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
     /**
      * Obtiene una página con los IDs de los lotes que cumplen los criterios del listado de lotes, del último registrado
      * al primero (ID descendente, que es un orden total y por eso estable entre páginas). Cada criterio nulo no
-     * restringe. El fermentador de un lote es el equipamiento de su etapa de Fermentación y puede estar dado de baja.
+     * restringe. La receta de un lote es la de la versión de receta de su planificación.
      * Se pagina sobre los IDs, sin traer colecciones, para poder cargar después los lotes completos de la página en una
      * sola consulta ({@link #buscarParaListadoPorIds(Collection)}).
      *
      * @param idPlanificacion El ID de la planificación de producción, o {@code null} para no filtrar por ella.
-     * @param idFermentador El ID del fermentador, o {@code null} para no filtrar por él.
+     * @param idReceta El ID de la receta (puede estar dada de baja), o {@code null} para no filtrar por ella.
      * @param identificadorInterno Texto a buscar dentro del identificador interno (ya normalizado), o {@code null}.
      * @param estado El estado del lote, o {@code null} para no filtrar por él.
+     * @param etapaActual El tipo de etapa actualmente EN_CURSO, o {@code null} para no filtrar por ella.
+     * @param volumenObjetivo El volumen objetivo exacto del lote, o {@code null} para no filtrar por él.
      * @param pageable Paginación; el orden lo define la consulta.
      * @return Los IDs de la página.
      */
     @Query(value = "SELECT l.id FROM LoteEntity l WHERE "
             + "(:idPlanificacion IS NULL OR l.planificacionProduccion.id = :idPlanificacion) "
-            + "AND (:idFermentador IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity ef WHERE ef.lote = l AND ef.etapa = 'FERMENTACION' AND ef.equipamiento.id = :idFermentador)) "
+            + "AND (:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
             + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estado IS NULL OR l.estado = :estado) "
+            + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
+            + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo) "
             + "ORDER BY l.id DESC",
             countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE "
                     + "(:idPlanificacion IS NULL OR l.planificacionProduccion.id = :idPlanificacion) "
-                    + "AND (:idFermentador IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity ef WHERE ef.lote = l AND ef.etapa = 'FERMENTACION' AND ef.equipamiento.id = :idFermentador)) "
+                    + "AND (:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
                     + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
-                    + "AND (:estado IS NULL OR l.estado = :estado)")
+                    + "AND (:estado IS NULL OR l.estado = :estado) "
+                    + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
+                    + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo)")
     Page<Long> filtrarIdsDeLotesParaListado(@Param("idPlanificacion") Long idPlanificacion,
-                                            @Param("idFermentador") Long idFermentador,
+                                            @Param("idReceta") Long idReceta,
                                             @Param("identificadorInterno") String identificadorInterno,
                                             @Param("estado") EstadoLote estado,
+                                            @Param("etapaActual") TipoEtapa etapaActual,
+                                            @Param("volumenObjetivo") Double volumenObjetivo,
                                             Pageable pageable);
 
     /**
