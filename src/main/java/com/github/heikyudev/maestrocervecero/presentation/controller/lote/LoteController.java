@@ -32,6 +32,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.AdicionLupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -155,7 +156,7 @@ public class LoteController {
 
     /**
      * Lista los lotes, de a 20 y con el último registrado arriba. Los criterios (planificación, receta, código, estado,
-     * etapa actual y volumen objetivo) son opcionales y llegan como texto para poder ignorar un valor mal escrito en vez de fallar el pedido:
+     * etapa actual) son opcionales y llegan como texto para poder ignorar un valor mal escrito en vez de fallar el pedido:
      * un valor inválido o una planificación o una receta inexistentes se ignoran con un aviso.
      */
     @GetMapping
@@ -165,7 +166,6 @@ public class LoteController {
                               @RequestParam(required = false) String codigo,
                               @RequestParam(required = false) String estado,
                               @RequestParam(required = false) String etapaActual,
-                              @RequestParam(required = false) Double volumenObjetivo,
                               @RequestParam(defaultValue = "0") int pagina,
                               Model model) {
         List<String> avisos = new ArrayList<>();
@@ -209,7 +209,7 @@ public class LoteController {
 
         String codigoFiltro = vacioANulo(codigo);
         Page<LoteCronogramaResponseDTO> lotes = loteServicio.filtrarLotesParaListado(idPlanificacionFiltro, idRecetaFiltro,
-                codigoFiltro, estadoFiltro, etapaFiltro, volumenObjetivo, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
+                codigoFiltro, estadoFiltro, etapaFiltro, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_MAS_RECIENTE_PRIMERO));
 
         model.addAttribute("lotes", lotes);
         model.addAttribute("estados", EstadoLote.values());
@@ -221,9 +221,7 @@ public class LoteController {
         model.addAttribute("filtroEstado", estadoFiltro);
         model.addAttribute("etapas", TipoEtapa.values());
         model.addAttribute("filtroEtapaActual", etapaFiltro);
-        // El valor ya viene convertido a número: numeroEscrito solo le quita el ".0" (300.0 se muestra como 300)
-        model.addAttribute("filtroVolumenObjetivo", volumenObjetivo == null ? null : numeroEscrito(volumenObjetivo, volumenObjetivo));
-        agregarAvisos(model, avisos, ". ");
+        agregarAvisos(model, avisos);
         return VISTA_LISTA;
     }
 
@@ -242,13 +240,13 @@ public class LoteController {
 
         Long idPlanificacionIndicada = aId(idPlanificacion);
         if (vacioANulo(idPlanificacion) != null && idPlanificacionIndicada == null) {
-            agregarAvisos(model, List.of("La planificación indicada no es válida"), ". ");
+            agregarAvisos(model, List.of("La planificación indicada no es válida"));
         } else if (idPlanificacionIndicada != null) {
             try {
                 textoPlanificacion = textoDePlanificacion(planificacionServicio.buscarPorId(idPlanificacionIndicada));
                 loteForm.setIdPlanificacionProduccion(idPlanificacionIndicada);
             } catch (RecursoNoEncontradoException e) {
-                agregarAvisos(model, List.of("La planificación indicada no existe"), ". ");
+                agregarAvisos(model, List.of("La planificación indicada no existe"));
             }
         }
 
@@ -301,7 +299,7 @@ public class LoteController {
         if (vacioANulo(etapa) != null) {
             TipoEtapa indicada = aEtapa(etapa);
             if (indicada == null) {
-                agregarAvisos(model, List.of("La etapa indicada no es válida, se muestra la etapa actual"), ". ");
+                agregarAvisos(model, List.of("La etapa indicada no es válida, se muestra la etapa actual"));
             } else {
                 tipoEtapa = indicada;
             }
@@ -776,10 +774,10 @@ public class LoteController {
         return planificacion.getEtiqueta();
     }
 
-    /** Muestra los avisos como una sola alerta amarilla, unidos con el separador indicado. */
-    private static void agregarAvisos(Model model, List<String> avisos, String separador) {
+    /** Muestra los avisos como una sola alerta amarilla, en forma de lista si son varios. */
+    private static void agregarAvisos(Model model, List<String> avisos) {
         if (!avisos.isEmpty()) {
-            model.addAttribute("mensaje", String.join(separador, avisos));
+            model.addAttribute("mensaje", MensajeConLista.deAvisos(avisos));
             model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
         }
     }

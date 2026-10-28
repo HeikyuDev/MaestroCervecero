@@ -59,6 +59,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteDetal
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.VersionRecetaDePlanificacionResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperEtapaLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
@@ -203,11 +204,11 @@ public class LoteServicioImpl implements ILoteServicio {
 
     /**
      * Filtra los lotes para el listado de lotes, del último registrado al primero. Ver
-     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, TipoEtapa, Double, Pageable)}.
+     * {@link ILoteServicio#filtrarLotesParaListado(Long, Long, String, EstadoLote, TipoEtapa, Pageable)}.
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable) {
+    public Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Pageable pageable) {
         // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
         String identificadorInternoNormalizado = NormalizacionTexto.codigo(identificadorInterno);
         if (identificadorInternoNormalizado != null && identificadorInternoNormalizado.isEmpty()) {
@@ -216,7 +217,7 @@ public class LoteServicioImpl implements ILoteServicio {
 
         // 1. Paginar solo los IDs, ya ordenados por la consulta (el orden del pageable se ignora: siempre es el mismo)
         Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
-        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idReceta, identificadorInternoNormalizado, estado, etapaActual, volumenObjetivo, pageableSinOrden);
+        Page<Long> idsDeLaPagina = loteRepository.filtrarIdsDeLotesParaListado(idPlanificacion, idReceta, identificadorInternoNormalizado, estado, etapaActual, pageableSinOrden);
         if (idsDeLaPagina.isEmpty()) {
             return new PageImpl<>(List.of(), pageableSinOrden, idsDeLaPagina.getTotalElements());
         }
@@ -1178,8 +1179,8 @@ public class LoteServicioImpl implements ILoteServicio {
                 .toList();
 
         if (!insumosInsuficientes.isEmpty()) {
-            throw new ReglaNegocioException("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el "
-                    + ValidacionesNumericas.formatearNumero(porcentajeMinimo) + "% mínimo de consumo requerido: " + String.join(", ", insumosInsuficientes));
+            throw new ReglaNegocioException(MensajeConLista.construir("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el "
+                    + ValidacionesNumericas.formatearNumero(porcentajeMinimo) + "% mínimo de consumo requerido:", insumosInsuficientes));
         }
     }
 
@@ -1529,15 +1530,16 @@ public class LoteServicioImpl implements ILoteServicio {
             if (totalDisponible < cantidadRequeridaTotal) {
                 InsumoEntity insumo = insumoPorId.get(idInsumo);
                 String unidad = insumo.getUnidadDeMedida().getSimbolo();
-                faltantes.add("'" + insumo.getNombre() + "' (se requieren " + ValidacionesNumericas.formatearNumero(cantidadRequeridaTotal)
-                        + " " + unidad + " y solo hay " + ValidacionesNumericas.formatearNumero(totalDisponible) + " " + unidad + " disponibles)");
+                faltantes.add(insumo.getNombre() + ": faltan " + ValidacionesNumericas.formatearNumero(Redondeo.redondear(cantidadRequeridaTotal - totalDisponible))
+                        + " " + unidad + " (disponible " + ValidacionesNumericas.formatearNumero(totalDisponible) + " " + unidad
+                        + ", necesario " + ValidacionesNumericas.formatearNumero(cantidadRequeridaTotal) + " " + unidad + ")");
             }
 
             stockPorInsumo.put(idInsumo, lotesDisponibles);
         }
 
         if (!faltantes.isEmpty()) {
-            throw new ReglaNegocioException("Stock disponible insuficiente de los siguientes insumos: " + String.join("; ", faltantes));
+            throw new ReglaNegocioException(MensajeConLista.construir("No hay stock suficiente para iniciar el lote:", faltantes));
         }
 
         return stockPorInsumo;

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Campo numérico con la unidad como sufijo fijo pegado al input (input group), para las cantidades y los precios cuya
+    unidad depende del insumo elegido. La etiqueta queda corta ("Cantidad", "Precio unitario ($)") y la unidad se muestra
+    en el sufijo una vez elegido el insumo; mientras tanto el sufijo muestra "-" y el campo sigue siendo editable. El
+    servidor valida la cantidad y la unidad; el sufijo es solo informativo (se completa desde el JS al elegir el insumo:
+    cualquier [data-unidad-sufijo] del formulario).
+
+    Parámetros: id (id y name del input), valor (valor a mostrar), placeholder, unidad (símbolo del insumo elegido o null),
+    prefijo (texto antes del símbolo, por ejemplo '/ ', o '' ) y error (true si el campo tiene error).
+-->
+<div th:fragment="numero(id, valor, placeholder, unidad, prefijo, error)" data-grupo-unidad class="flex">
+    <input type="number" th:id="${id}" th:name="${id}" step="any" autocomplete="off" th:placeholder="${placeholder}" th:value="${valor}"
+           class="min-w-0 flex-1 px-3 py-2 rounded-l-lg border border-r-0 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+           th:classappend="${error} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+    <span data-unidad-sufijo th:data-prefijo="${prefijo}"
+          class="inline-flex min-w-[3.5rem] shrink-0 items-center justify-center whitespace-nowrap px-3 rounded-r-lg border bg-slate-100 text-sm font-medium text-slate-500"
+          th:classappend="${error} ? 'border-rose-400' : 'border-slate-300'"
+          th:text="${unidad != null and !#strings.isEmpty(unidad)} ? ${prefijo + unidad} : '-'">-</span>
+</div>
+
+</html>

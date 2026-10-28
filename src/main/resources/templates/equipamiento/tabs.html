@@ -1,32 +1,16 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+<html xmlns:th="http://www.thymeleaf.org">
 
-<!--
-    Pestañas del módulo de equipamiento: cada una es su propia URL.
-    activa = 'molinos' | 'maceradores' | 'ollas-hervor' | 'fermentadores'
--->
-<nav th:fragment="tabs(activa)" class="flex flex-wrap gap-1 border-b border-slate-200" aria-label="Equipamiento">
-    <a th:href="@{/equipamiento/molinos}"
-       th:classappend="${activa == 'molinos'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{equipamiento/iconos :: molino('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Molinos
-    </a>
-    <a th:href="@{/equipamiento/maceradores}"
-       th:classappend="${activa == 'maceradores'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{equipamiento/iconos :: macerador('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Maceradores
-    </a>
-    <a th:href="@{/equipamiento/ollas-hervor}"
-       th:classappend="${activa == 'ollas-hervor'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{equipamiento/iconos :: olla('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Ollas de hervor
-    </a>
-    <a th:href="@{/equipamiento/fermentadores}"
-       th:classappend="${activa == 'fermentadores'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{equipamiento/iconos :: fermentador('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Fermentadores
-    </a>
-</nav>
+<!-- Pestañas del módulo de equipamiento (componente fragments/pestanas): cada una es su propia URL. activa = 'molinos' | 'maceradores' | 'ollas-hervor' | 'fermentadores' -->
+<th:block th:fragment="tabs(activa)">
+    <th:block th:replace="~{fragments/pestanas :: pestanas('Equipamiento', 'equipamiento', ~{::enlaces})}">
+        <th:block th:fragment="enlaces">
+            <a th:replace="~{fragments/pestanas :: pestana(@{/equipamiento/molinos}, ${activa == 'molinos'}, 'molinos', ~{equipamiento/iconos :: molino('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Molinos')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/equipamiento/maceradores}, ${activa == 'maceradores'}, 'maceradores', ~{equipamiento/iconos :: macerador('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Maceradores')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/equipamiento/ollas-hervor}, ${activa == 'ollas-hervor'}, 'ollas-hervor', ~{equipamiento/iconos :: olla('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Ollas de hervor')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/equipamiento/fermentadores}, ${activa == 'fermentadores'}, 'fermentadores', ~{equipamiento/iconos :: fermentador('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Fermentadores')}"></a>
+        </th:block>
+    </th:block>
+</th:block>
 
 </html>

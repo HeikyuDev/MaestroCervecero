@@ -833,8 +833,10 @@ class IngresoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-ingreso");
         assertThat(formulario).contains("action=\"" + URL + "/directo\"");
         assertThat(texto(formulario)).contains("Insumo *", "Identificación del lote del proveedor *", "Fecha de vencimiento *", "Fecha de ingreso *",
-                "Cantidad recibida (g, kg o t, según el insumo) *", "Precio por unidad del insumo ($) *", "Precio de cada unidad del insumo que ingresa", "Ver lotes existentes", "Registrar ingreso");
+                "Cantidad recibida *", "Precio unitario ($) *", "Precio de cada unidad del insumo que ingresa", "Ver lotes existentes", "Registrar ingreso");
         assertThat(cuenta(formulario, "title=\"Obligatorio\"")).isEqualTo(6);
+        assertThat(cuenta(formulario, "data-unidad-sufijo")).isEqualTo(2);
+        assertThat(formulario).contains(">-<");
         assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 25\"").contains("placeholder=\"Ej: 12.50\"");
         assertThat(campo(formulario, "fechaIngreso")).isEqualTo(HOY.toString());
         assertThat(textoDelSelector(formulario, "Seleccione insumo")).isEmpty();
@@ -937,7 +939,9 @@ class IngresoInsumoControllerTest {
         assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Pilsen");
         assertThat(campo(html, "idInsumo")).isEqualTo("10");
         assertThat(texto(bloque(html, "data-insumo-elegido"))).isEqualTo("Tipo: Malta");
-        assertThat(texto(html)).contains("Cantidad recibida (kg) *", "Precio por kg ($) *");
+        assertThat(texto(html)).contains("Cantidad recibida *", "Precio unitario ($) *");
+        assertThat(cuenta(html, "data-unidad-sufijo")).isEqualTo(2);
+        assertThat(html).contains(">kg<").contains(">/ kg<");
         assertThat(apertura(html, "data-lote-existente")).doesNotContain("data-deshabilitado").contains("data-buscador-url=\"" + URL_BUSCADOR_LOTES + "?idInsumo=10\"");
     }
 

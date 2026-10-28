@@ -6,7 +6,7 @@
 <!--
     Formulario del ingreso directo (sin orden de compra: stock inicial, donación, etc.). Es una página aparte: al registrar
     vuelve a la pestaña "Directos" y un formulario inválido (o una regla del service) vuelve acá con sus errores y lo que
-    se había cargado. El insumo se elige con el buscador en modal; al elegirlo se muestra su unidad en la cantidad y se
+    se había cargado. El insumo se elige con el buscador en modal; al elegirlo se muestra su unidad como sufijo de la cantidad y del precio (queda "-" mientras no se elige) y se
     habilita "Ver lotes existentes" (comportamiento de /js/ingreso-insumo-form.js, solo de visualización).
 -->
 <div id="ingreso-directo-form-content" class="space-y-6">
@@ -57,20 +57,17 @@
                 </div>
 
                 <div>
-                    <label for="cantidadRecibida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad recibida (<span data-unidad th:text="${insumoElegido != null} ? ${insumoElegido.unidadDeMedida.simbolo} : 'g, kg o t, según el insumo'">g, kg o t, según el insumo</span>) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="cantidadRecibida" name="cantidadRecibida" step="any" autocomplete="off" placeholder="Ej: 25"
-                           th:value="${ingresoForm.cantidadRecibida != null and ingresoForm.cantidadRecibida == ingresoForm.cantidadRecibida.longValue()} ? ${ingresoForm.cantidadRecibida.longValue()} : *{cantidadRecibida}"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('cantidadRecibida')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <label for="cantidadRecibida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad recibida <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <div th:replace="~{fragments/campo-unidad :: numero('cantidadRecibida',
+                            ${ingresoForm.cantidadRecibida != null and ingresoForm.cantidadRecibida == ingresoForm.cantidadRecibida.longValue()} ? ${ingresoForm.cantidadRecibida.longValue()} : *{cantidadRecibida},
+                            'Ej: 25', ${insumoElegido != null} ? ${insumoElegido.unidadDeMedida.simbolo} : null, '', ${#fields.hasErrors('cantidadRecibida')})}"></div>
                     <p th:if="${#fields.hasErrors('cantidadRecibida')}" th:errors="*{cantidadRecibida}" class="mt-1 text-xs text-rose-600"></p>
                 </div>
 
                 <div>
-                    <label for="costoUnitario" class="block text-sm font-medium text-slate-700 mb-1">Precio por <span data-unidad th:text="${insumoElegido != null} ? ${insumoElegido.unidadDeMedida.simbolo} : 'unidad del insumo'">unidad del insumo</span> ($) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="costoUnitario" name="costoUnitario" step="any" autocomplete="off" placeholder="Ej: 12.50"
-                           th:value="*{costoUnitario}"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('costoUnitario')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <label for="costoUnitario" class="block text-sm font-medium text-slate-700 mb-1">Precio unitario ($) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <div th:replace="~{fragments/campo-unidad :: numero('costoUnitario', *{costoUnitario}, 'Ej: 12.50',
+                            ${insumoElegido != null} ? ${insumoElegido.unidadDeMedida.simbolo} : null, '/ ', ${#fields.hasErrors('costoUnitario')})}"></div>
                     <p th:if="${#fields.hasErrors('costoUnitario')}" th:errors="*{costoUnitario}" class="mt-1 text-xs text-rose-600"></p>
                     <p class="mt-1 text-xs text-slate-500">Precio de cada unidad del insumo que ingresa</p>
                 </div>

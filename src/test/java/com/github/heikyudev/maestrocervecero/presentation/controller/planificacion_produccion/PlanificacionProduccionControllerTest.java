@@ -1285,6 +1285,65 @@ class PlanificacionProduccionControllerTest {
         verifyNoInteractions(recetaServicio);
     }
 
+    @Test
+    @DisplayName("CP-PPC-103: quien tiene LOTE_CONSULTAR ve cada barra del estado actual como un enlace al detalle del lote (/lotes/{id}) que conserva el tooltip; la barra deja de ser una imagen")
+    void detalle_lasBarrasSonEnlacesAlDetalleDelLoteConLoteConsultar() throws Exception {
+        // Arrange
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
+                lote(1L, "LOT-R7-01", EstadoLote.FINALIZADO, "F-01"),
+                lote(2L, "LOT-R7-02", EstadoLote.EN_EJECUCION, "F-01"),
+                lote(3L, "LOT-R7-03", EstadoLote.PENDIENTE, "F-02"),
+                lote(4L, "LOT-R7-04", EstadoLote.CANCELADO, "F-02")));
+
+        // Act
+        String html = mockMvc.perform(get("/planificaciones-produccion/7")
+                        .with(user("gerente").roles("GERENTE_DE_PRODUCCION").authorities(
+                                new SimpleGrantedAuthority("ROLE_GERENTE_DE_PRODUCCION"), new SimpleGrantedAuthority("LOTE_CONSULTAR"),
+                                new SimpleGrantedAuthority("PLANIFICACION_PRODUCCION_CONSULTAR"))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        List<String> enlaces = new ArrayList<>();
+        Matcher m = Pattern.compile("<a[^>]*data-gantt-barra-enlace[^>]*>").matcher(html);
+        while (m.find()) {
+            enlaces.add(m.group());
+        }
+        assertThat(enlaces).hasSize(3);
+        for (long id = 1; id <= 3; id++) {
+            String destino = "href=\"/lotes/" + id + "\"";
+            assertThat(enlaces).anyMatch(enlace -> enlace.contains(destino));
+        }
+        assertThat(enlaces).noneMatch(enlace -> enlace.contains("/lotes/4\""));
+        assertThat(enlaces).allSatisfy(enlace -> assertThat(enlace).containsPattern("aria-label=\"[^\"]*(Pendiente|En ejecuci|Finalizado)"));
+        Matcher barra = Pattern.compile("<div[^>]*title=\"LOT-R7-02 - En ejecuci[^>]*>").matcher(html);
+        assertThat(barra.find()).isTrue();
+        assertThat(barra.group()).doesNotContain("role=\"img\"").doesNotContain("tabindex");
+    }
+
+    @Test
+    @DisplayName("CP-PPC-104: quien no tiene LOTE_CONSULTAR (el gerente de compras) ve las barras del estado actual sin enlace, como imagen con tooltip y foco de teclado")
+    void detalle_lasBarrasNoSonEnlacesSinLoteConsultar() throws Exception {
+        // Arrange
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(lote(2L, "LOT-R7-02", EstadoLote.EN_EJECUCION, "F-01")));
+
+        // Act
+        String html = mockMvc.perform(get("/planificaciones-produccion/7")
+                        .with(user("compras").authorities(new SimpleGrantedAuthority("ROLE_GERENTE_DE_COMPRAS"),
+                                new SimpleGrantedAuthority("PLANIFICACION_PRODUCCION_CONSULTAR"))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("gantt-color--en-ejecucion");
+        assertThat(Pattern.compile("<a[^>]*data-gantt-barra-enlace").matcher(html).find()).isFalse();
+        Matcher barra = Pattern.compile("<div[^>]*title=\"LOT-R7-02 - En ejecuci[^>]*>").matcher(html);
+        assertThat(barra.find()).isTrue();
+        assertThat(barra.group()).contains("role=\"img\"").contains("tabindex=\"0\"").containsPattern("aria-label=\"LOT-R7-02 - En ejecuci");
+    }
+
     // ==================== Litros producidos ====================
 
     @Test

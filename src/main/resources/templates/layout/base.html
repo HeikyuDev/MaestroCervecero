@@ -39,7 +39,7 @@
              class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-teal-50 border-teal-200 text-teal-800"
              role="alert">
             <i class="bi bi-check-circle-fill text-xl text-teal-500"></i>
-            <span class="text-sm font-medium" th:text="${mensaje}">Operación exitosa</span>
+            <th:block th:replace="~{fragments/alerta-mensaje :: texto(${mensaje})}"></th:block>
         </div>
 
         <!-- Alerta Flash: Warning (amber) -->
@@ -47,7 +47,7 @@
              class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-amber-50 border-amber-200 text-amber-800"
              role="alert">
             <i class="bi bi-exclamation-triangle-fill text-xl text-amber-500"></i>
-            <span class="text-sm font-medium" th:text="${mensaje}">Advertencia</span>
+            <th:block th:replace="~{fragments/alerta-mensaje :: texto(${mensaje})}"></th:block>
         </div>
 
         <!-- Alerta Flash: Error (rose) -->
@@ -55,7 +55,7 @@
              class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-rose-50 border-rose-200 text-rose-800"
              role="alert">
             <i class="bi bi-x-circle-fill text-xl text-rose-500"></i>
-            <span class="text-sm font-medium" th:text="${mensaje}">Error</span>
+            <th:block th:replace="~{fragments/alerta-mensaje :: texto(${mensaje})}"></th:block>
         </div>
 
         <!-- Alerta Flash: Info (blue) - default -->
@@ -63,7 +63,7 @@
              class="mb-6 p-4 rounded-xl border flex items-center gap-3 shadow-sm bg-blue-50 border-blue-200 text-blue-800"
              role="alert">
             <i class="bi bi-info-circle-fill text-xl text-blue-500"></i>
-            <span class="text-sm font-medium" th:text="${mensaje}">Información</span>
+            <th:block th:replace="~{fragments/alerta-mensaje :: texto(${mensaje})}"></th:block>
         </div>
 
         <!-- Inyección del contenido de cada vista -->

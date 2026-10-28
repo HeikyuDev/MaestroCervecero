@@ -479,11 +479,10 @@ public interface ILoteServicio {
      * @param identificadorInterno Texto a buscar dentro del código del lote, o {@code null} para no filtrar por él.
      * @param estado El estado del lote, o {@code null} para no filtrar por él.
      * @param etapaActual El tipo de etapa actualmente en curso, o {@code null} para no filtrar por ella.
-     * @param volumenObjetivo El volumen objetivo exacto del lote, o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación (solo se usa el tamaño y el número de página).
      * @return Una página de lotes en formato {@link LoteCronogramaResponseDTO}.
      */
-    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Double volumenObjetivo, Pageable pageable);
+    Page<LoteCronogramaResponseDTO> filtrarLotesParaListado(Long idPlanificacion, Long idReceta, String identificadorInterno, EstadoLote estado, TipoEtapa etapaActual, Pageable pageable);
 
     /**
      * Obtiene el detalle de un lote para su pantalla: la cabecera, las seis etapas en orden del proceso con su equipo y

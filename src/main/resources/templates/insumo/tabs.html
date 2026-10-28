@@ -1,23 +1,15 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 
-<!-- Pestañas del módulo de insumos: cada una es su propia URL. activa = 'maltas' | 'lupulos' | 'levaduras' -->
-<nav th:fragment="tabs(activa)" class="flex gap-1 border-b border-slate-200" aria-label="Insumos">
-    <a th:href="@{/insumos/maltas}"
-       th:classappend="${activa == 'maltas'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{insumo/iconos :: malta('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Maltas
-    </a>
-    <a th:href="@{/insumos/lupulos}"
-       th:classappend="${activa == 'lupulos'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{insumo/iconos :: lupulo('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Lúpulos
-    </a>
-    <a th:href="@{/insumos/levaduras}"
-       th:classappend="${activa == 'levaduras'} ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'"
-       class="px-4 py-2 -mb-px text-sm font-semibold border-b-2 transition-colors">
-        <th:block th:replace="~{insumo/iconos :: levadura('inline-block h-4 w-4 mr-1.5 align-[-2px]')}"></th:block>Levaduras
-    </a>
-</nav>
+<!-- Pestañas del módulo de insumos (componente fragments/pestanas): cada una es su propia URL. activa = 'maltas' | 'lupulos' | 'levaduras' -->
+<th:block th:fragment="tabs(activa)">
+    <th:block th:replace="~{fragments/pestanas :: pestanas('Insumos', 'insumos', ~{::enlaces})}">
+        <th:block th:fragment="enlaces">
+            <a th:replace="~{fragments/pestanas :: pestana(@{/insumos/maltas}, ${activa == 'maltas'}, 'maltas', ~{insumo/iconos :: malta('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Maltas')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/insumos/lupulos}, ${activa == 'lupulos'}, 'lupulos', ~{insumo/iconos :: lupulo('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Lúpulos')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/insumos/levaduras}, ${activa == 'levaduras'}, 'levaduras', ~{insumo/iconos :: levadura('inline-block h-4 w-4 mr-1.5 align-[-2px]')}, 'Levaduras')}"></a>
+        </th:block>
+    </th:block>
+</th:block>
 
 </html>

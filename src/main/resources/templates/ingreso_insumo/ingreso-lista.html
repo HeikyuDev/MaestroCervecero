@@ -22,22 +22,12 @@
     </div>
 
     <section data-ingresos-registrados th:attr="data-pestana=${pestana}" class="space-y-4">
-        <nav aria-label="Tipo de ingreso" data-pestanas-ingreso>
-            <ul class="inline-flex gap-2">
-                <li>
-                    <a th:href="@{${urlPantalla}(tipo='compra')}" data-pestana-compra
-                       th:attr="aria-current=${pestana == 'compra'} ? 'page'"
-                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
-                       th:classappend="${pestana == 'compra'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Por compra</a>
-                </li>
-                <li>
-                    <a th:href="@{${urlPantalla}(tipo='directo')}" data-pestana-directo
-                       th:attr="aria-current=${pestana == 'directo'} ? 'page'"
-                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
-                       th:classappend="${pestana == 'directo'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Directos</a>
-                </li>
-            </ul>
-        </nav>
+        <div th:replace="~{fragments/pestanas :: pestanas('Tipo de ingreso', 'ingreso', ~{::enlaces})}">
+            <th:block th:fragment="enlaces">
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='compra')}, ${pestana == 'compra'}, 'compra', null, 'Por compra')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='directo')}, ${pestana == 'directo'}, 'directo', null, 'Directos')}"></a>
+            </th:block>
+        </div>
 
         <!-- Criterios de búsqueda -->
         <form th:action="@{${urlPantalla}}" method="get" novalidate data-filtro-ingresos
@@ -112,7 +102,7 @@
                         </td>
                         <td class="px-3 py-3 text-slate-700 align-top">
                             <div class="max-w-[10rem] truncate font-medium text-slate-900" tabindex="0" th:data-tooltip="${i.loteInsumo.insumo.nombre}" th:text="${i.loteInsumo.insumo.nombre}">Cascade</div>
-                            <div class="max-w-[10rem] truncate text-xs text-slate-500" tabindex="0"
+                            <div class="max-w-[10rem] break-words text-xs text-slate-500" tabindex="0"
                                  th:data-tooltip="|Lote ${i.loteInsumo.identificacionLoteProveedor} · vence ${i.loteInsumo.fechaVencimiento != null ? #temporals.format(i.loteInsumo.fechaVencimiento, 'dd/MM/yyyy') : '-'}|">
                                 Lote <span th:text="${i.loteInsumo.identificacionLoteProveedor}">L-125</span> &middot; vence <th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.loteInsumo.fechaVencimiento})}"></th:block>
                             </div>

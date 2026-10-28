@@ -1305,7 +1305,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessageMatching("Stock disponible insuficiente de los siguientes insumos: 'MaltaB' \\(se requieren \\d+,\\d{1,2} kg y solo hay 2 kg disponibles\\)");
+                .hasMessageMatching("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan \\d+,\\d{1,2} kg \\(disponible 2 kg, necesario \\d+,\\d{1,2} kg\\)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1326,7 +1326,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessageMatching("Stock disponible insuficiente de los siguientes insumos: 'LupuloB' \\(se requieren \\d+,\\d{1,2} g y solo hay 5 g disponibles\\)");
+                .hasMessageMatching("No hay stock suficiente para iniciar el lote:\nLupuloB: faltan \\d+,\\d{1,2} g \\(disponible 5 g, necesario \\d+,\\d{1,2} g\\)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1349,7 +1349,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Stock disponible insuficiente de los siguientes insumos: 'LevaduraB' (se requieren 7,5 g y solo hay 2 g disponibles)");
+                .hasMessage("No hay stock suficiente para iniciar el lote:\nLevaduraB: faltan 5,5 g (disponible 2 g, necesario 7,5 g)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1376,8 +1376,10 @@ class LoteServicioImplTest {
         // que corregir uno, reintentar, y recién ahí enterarse del siguiente.
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessageContaining("MaltaB")
-                .hasMessageContaining("LevaduraB");
+                .hasMessageStartingWith("No hay stock suficiente para iniciar el lote:\n")
+                .hasMessageContaining("\nMaltaB: faltan ")
+                .hasMessageContaining("\nLevaduraB: faltan 5,5 g (disponible 2 g, necesario 7,5 g)")
+                .satisfies(e -> assertThat(e.getMessage().lines()).hasSize(3));
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1465,7 +1467,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Stock disponible insuficiente de los siguientes insumos: 'MaltaB' (se requieren 12,35 kg y solo hay 0,3 kg disponibles)");
+                .hasMessage("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan 12,05 kg (disponible 0,3 kg, necesario 12,35 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -1541,7 +1543,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.iniciarLote(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Stock disponible insuficiente de los siguientes insumos: 'MaltaB' (se requieren 4 kg y solo hay 0 kg disponibles)");
+                .hasMessage("No hay stock suficiente para iniciar el lote:\nMaltaB: faltan 4 kg (disponible 0 kg, necesario 4 kg)");
         verify(loteInsumoRepository, never()).save(any());
         verifyNoInteractions(reservaInsumoRepository);
     }
@@ -2626,7 +2628,7 @@ class LoteServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> loteServicio.finalizarMolienda(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el 100% mínimo de consumo requerido: Malta Pilsen");
+                .hasMessage("No se puede finalizar la etapa: los siguientes insumos no alcanzaron el 100% mínimo de consumo requerido:\nMalta Pilsen");
         verify(loteRepository, never()).save(any());
         verifyNoInteractions(molinoRepository);
     }
@@ -6068,12 +6070,12 @@ class LoteServicioImplTest {
         lote3.setIdentificadorInterno("LOT-R7-03");
         LoteEntity lote1 = crearLoteParaCancelar(EstadoLote.PENDIENTE, null);
         lote1.setId(1L);
-        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 300.0, PageRequest.of(0, 20)))
+        when(loteRepository.filtrarIdsDeLotesParaListado(7L, 4L, "PALE", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, PageRequest.of(0, 20)))
                 .thenReturn(new PageImpl<>(List.of(3L, 1L), pageable, 45));
         when(loteRepository.buscarParaListadoPorIds(List.of(3L, 1L))).thenReturn(List.of(lote1, lote3));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, 300.0, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(7L, 4L, "pale", EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getTotalElements()).isEqualTo(45);
@@ -6089,20 +6091,20 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FLL-02: filtrarLotesParaListado propaga los seis criterios nulos sin restringir la búsqueda")
+    @DisplayName("CP-FLL-02: filtrarLotesParaListado propaga los cinco criterios nulos sin restringir la búsqueda")
     void filtrarLotesParaListado_debePropagarCriteriosNulos() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
         LoteEntity lote = crearLoteMinimo(1L, "IPA-1");
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(1L), pageable, 1));
         when(loteRepository.buscarParaListadoPorIds(List.of(1L))).thenReturn(List.of(lote));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).hasSize(1);
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable);
     }
 
     @Test
@@ -6110,14 +6112,14 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeNormalizarElIdentificadorInterno() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   lot-r7  ", null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(null, null, "   lot-r7  ", null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, "LOT-R7", null, null, pageable);
     }
 
     @Test
@@ -6125,13 +6127,13 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeTratarElCodigoEnBlancoComoNulo() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        loteServicio.filtrarLotesParaListado(null, null, "    ", null, null, null, pageable);
+        loteServicio.filtrarLotesParaListado(null, null, "    ", null, null, pageable);
 
         // === ASSERTS ===
-        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, null, pageable);
+        verify(loteRepository).filtrarIdsDeLotesParaListado(null, null, null, null, null, pageable);
     }
 
     @Test
@@ -6139,10 +6141,10 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeRetornarPaginaVaciaSinCargarLotes() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 20);
-        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
+        when(loteRepository.filtrarIdsDeLotesParaListado(99L, null, null, null, null, pageable)).thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
-        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, null, null, pageable);
+        Page<LoteCronogramaResponseDTO> resultado = loteServicio.filtrarLotesParaListado(99L, null, null, null, null, pageable);
 
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
@@ -6155,15 +6157,15 @@ class LoteServicioImplTest {
     void filtrarLotesParaListado_debeIgnorarElOrdenDelPageable() {
         // === PREPARACION DE DATOS ===
         Pageable pageableConOrden = PageRequest.of(2, 20, Sort.by(Sort.Direction.ASC, "volumenObjetivo"));
-        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(), any(Pageable.class)))
+        when(loteRepository.filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(2, 20), 0));
 
         // === EJECUCION ===
-        loteServicio.filtrarLotesParaListado(null, null, null, null, null, null, pageableConOrden);
+        loteServicio.filtrarLotesParaListado(null, null, null, null, null, pageableConOrden);
 
         // === ASSERTS ===
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), any(), captor.capture());
+        verify(loteRepository).filtrarIdsDeLotesParaListado(any(), any(), any(), any(), any(), captor.capture());
         assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
         assertThat(captor.getValue().getPageNumber()).isEqualTo(2);
         assertThat(captor.getValue().getPageSize()).isEqualTo(20);

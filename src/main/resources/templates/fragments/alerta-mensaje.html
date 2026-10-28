@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+    Texto de una alerta del layout. Un mensaje de una sola línea se muestra como un texto corrido. Un mensaje de varias
+    líneas (ver MensajeConLista) muestra la primera como título y las demás como una lista con viñetas. El texto se
+    escapa siempre (th:text), nunca th:utext.
+-->
+<th:block th:fragment="texto(mensaje)"
+          th:with="lineas=${T(com.github.heikyudev.maestrocervecero.util.MensajeConLista).lineas(mensaje)}">
+    <span th:if="${#lists.size(lineas) <= 1}" class="text-sm font-medium" th:text="${mensaje}">Mensaje</span>
+    <div th:unless="${#lists.size(lineas) <= 1}" class="text-sm font-medium" data-alerta-con-lista>
+        <p class="font-semibold" th:text="${lineas.get(0)}" data-alerta-titulo>Título</p>
+        <ul class="mt-1 list-disc space-y-0.5 pl-5" data-alerta-lista>
+            <li th:each="linea : ${lineas.subList(1, #lists.size(lineas))}" th:text="${linea}">Elemento</li>
+        </ul>
+    </div>
+</th:block>
+</body>
+</html>

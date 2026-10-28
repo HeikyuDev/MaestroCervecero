@@ -6,7 +6,7 @@
  *     su buscador a los ítems de esa orden (parámetro idOrdenCompra). Si se quita la orden, vuelve a deshabilitarlo.
  *   - Selector del ítem de la orden (campo idDetalleCompra): muestra su insumo, su presentación y lo pedido, recibido y
  *     pendiente en presentaciones, y habilita "Ver lotes existentes" para ese insumo.
- *   - Selector del insumo del ingreso directo (campo idInsumo): muestra su tipo y la unidad en la cantidad y en el precio,
+ *   - Selector del insumo del ingreso directo (campo idInsumo): muestra su tipo y su unidad como sufijo de la cantidad y del precio,
  *     y habilita "Ver lotes existentes" para ese insumo.
  *   - "Ver lotes existentes" ([data-lote-existente]): completa la identificación y el vencimiento del lote elegido y deja
  *     el vencimiento de solo lectura. "Limpiar" ([data-lote-limpiar]) desbloquea el vencimiento y vacía los dos campos
@@ -51,12 +51,10 @@
 
     // ---------- Unidad ----------
 
+    /** Muestra {unidad} en el sufijo de cada campo con unidad ([data-unidad-sufijo]); sin unidad queda "-". */
     function fijarUnidad(formulario, unidad) {
-        formulario.querySelectorAll('[data-unidad]').forEach(function (destino) {
-            if (destino.getAttribute('data-unidad-inicial') === null) {
-                destino.setAttribute('data-unidad-inicial', destino.textContent);
-            }
-            destino.textContent = unidad || destino.getAttribute('data-unidad-inicial');
+        formulario.querySelectorAll('[data-unidad-sufijo]').forEach(function (sufijo) {
+            sufijo.textContent = unidad ? (sufijo.getAttribute('data-prefijo') || '') + unidad : '-';
         });
     }
 
@@ -191,12 +189,18 @@
 
     /** Oculta el error de {entrada} (el párrafo rojo de su contenedor) y quita la marca roja del campo. */
     function limpiarErrorDelCampo(entrada) {
-        var contenedor = entrada.parentElement;
+        var grupo = entrada.closest('[data-grupo-unidad]');
+        var contenedor = grupo ? grupo.parentElement : entrada.parentElement;
         if (!contenedor) { return; }
         contenedor.querySelectorAll('p.text-rose-600').forEach(function (error) { error.hidden = true; });
         if (entrada.classList.contains('border-rose-400')) {
             entrada.classList.remove('border-rose-400', 'bg-rose-50');
             entrada.classList.add('border-slate-300');
+            var sufijo = grupo ? grupo.querySelector('[data-unidad-sufijo]') : null;
+            if (sufijo) {
+                sufijo.classList.remove('border-rose-400');
+                sufijo.classList.add('border-slate-300');
+            }
         }
     }
 

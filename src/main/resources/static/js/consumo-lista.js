@@ -6,29 +6,33 @@
  *
  *   - Selector del insumo (campo idInsumo): habilita el selector del lote de insumo y apunta su buscador a los lotes de
  *     ese insumo (parámetro idInsumo), quita el lote que estuviera elegido y su resumen, y muestra la unidad del insumo
- *     en la cantidad a consumir (data-unidad del botón "Elegir"). Si se quita el insumo, vuelve a deshabilitar el lote.
+ *     como sufijo de la cantidad a consumir (data-unidad del botón "Elegir"). Si se quita el insumo, vuelve a deshabilitar el lote.
  *   - Selector del lote de insumo (campo idLoteInsumo): completa [data-lote-elegido] con el vencimiento, la cantidad
  *     (reservada o disponible, según el tipo de consumo) y la marca de vencido que trae el botón "Elegir" del buscador
- *     (data-vencimiento, data-cantidad y data-vencido), y la unidad de la cantidad a consumir (data-unidad).
+ *     (data-vencimiento, data-cantidad y data-vencido), y la unidad del sufijo de la cantidad a consumir (data-unidad).
  */
 (function () {
     'use strict';
-
-    var UNIDAD_SIN_ELEGIR = 'g o kg, según el insumo';
 
     function campoDe(selector) {
         return selector.querySelector('[data-selector-id]').name;
     }
 
-    function ocultarLote(formulario, unidad, textoUnidad) {
+    /** Muestra {unidad} en el sufijo de la cantidad ([data-unidad-sufijo]); sin unidad queda "-". */
+    function fijarUnidad(formulario, unidad) {
+        formulario.querySelectorAll('[data-unidad-sufijo]').forEach(function (sufijo) {
+            sufijo.textContent = unidad ? (sufijo.getAttribute('data-prefijo') || '') + unidad : '-';
+        });
+    }
+
+    function ocultarLote(formulario, unidad) {
         var resumen = formulario.querySelector('[data-lote-elegido]');
         if (resumen) { resumen.hidden = true; }
-        if (unidad) { unidad.textContent = textoUnidad; }
+        fijarUnidad(formulario, unidad);
     }
 
     function alCambiarInsumo(formulario, selector, insumo) {
         var contenedor = formulario.querySelector('[data-selector-lote]');
-        var unidad = formulario.querySelector('[data-unidad]');
         if (!contenedor) { return; }
 
         var lote = contenedor.querySelector('[data-selector]');
@@ -46,14 +50,13 @@
         if (ayuda) { ayuda.hidden = elegido; }
 
         var datos = insumo.datos || {};
-        ocultarLote(formulario, unidad, elegido && datos.unidad ? datos.unidad : UNIDAD_SIN_ELEGIR);
+        ocultarLote(formulario, elegido && datos.unidad ? datos.unidad : '');
     }
 
     function alCambiarLote(formulario, lote) {
         var resumen = formulario.querySelector('[data-lote-elegido]');
         if (!resumen) { return; }
 
-        var unidad = formulario.querySelector('[data-unidad]');
         if (!lote.id) {
             resumen.hidden = true;
             return;
@@ -65,7 +68,7 @@
         resumen.querySelector('[data-lote-cantidad-bloque]').hidden = false;
         resumen.querySelector('[data-lote-vencido]').hidden = datos.vencido !== 'true';
         resumen.hidden = false;
-        if (unidad && datos.unidad) { unidad.textContent = datos.unidad; }
+        if (datos.unidad) { fijarUnidad(formulario, datos.unidad); }
     }
 
     document.addEventListener('selector:cambio', function (evento) {

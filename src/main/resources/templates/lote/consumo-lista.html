@@ -64,7 +64,7 @@
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="r : ${resumen}" class="hover:bg-slate-50">
                     <td class="px-4 py-3 font-medium text-slate-900">
-                        <div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${r.requerido.insumo.nombre}" th:text="${r.requerido.insumo.nombre}">Cascade</div>
+                        <div class="break-words" tabindex="0" th:data-tooltip="${r.requerido.insumo.nombre}" th:text="${r.requerido.insumo.nombre}">Cascade</div>
                     </td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadRequerida}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.requerido.cantidadReservada}, ${r.requerido.unidadDeMedida.simbolo})}"></th:block></td>
@@ -82,22 +82,12 @@
 
     <!-- 2. Consumos de la etapa, una pestaña por tipo -->
     <section data-consumos-registrados th:attr="data-pestana=${pestana}" class="space-y-4">
-        <nav aria-label="Tipo de consumo" data-pestanas-consumo>
-            <ul class="inline-flex gap-2">
-                <li>
-                    <a th:href="@{${urlPantalla}(tipo='reservado')}" data-pestana-reservado
-                       th:attr="aria-current=${pestana == 'reservado'} ? 'page'"
-                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
-                       th:classappend="${pestana == 'reservado'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Reservados</a>
-                </li>
-                <li>
-                    <a th:href="@{${urlPantalla}(tipo='directo')}" data-pestana-directo
-                       th:attr="aria-current=${pestana == 'directo'} ? 'page'"
-                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
-                       th:classappend="${pestana == 'directo'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Directos</a>
-                </li>
-            </ul>
-        </nav>
+        <div th:replace="~{fragments/pestanas :: pestanas('Tipo de consumo', 'consumo', ~{::enlaces})}">
+            <th:block th:fragment="enlaces">
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='reservado')}, ${pestana == 'reservado'}, 'reservado', null, 'Reservados')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='directo')}, ${pestana == 'directo'}, 'directo', null, 'Directos')}"></a>
+            </th:block>
+        </div>
 
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
@@ -140,10 +130,10 @@
                     <tr th:each="c : ${consumos.content}" th:attr="data-consumo=${c.id}" class="hover:bg-slate-50"
                         th:classappend="${c.estado.name() == 'ANULADO'} ? 'opacity-60'">
                         <td class="px-4 py-3 font-medium text-slate-900">
-                            <div class="max-w-[16rem] truncate" tabindex="0" th:data-tooltip="${c.loteInsumo.insumo.nombre}" th:text="${c.loteInsumo.insumo.nombre}">Cascade</div>
+                            <div class="break-words" tabindex="0" th:data-tooltip="${c.loteInsumo.insumo.nombre}" th:text="${c.loteInsumo.insumo.nombre}">Cascade</div>
                         </td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap">
-                            <span class="inline-block max-w-[10rem] truncate align-bottom" tabindex="0" th:data-tooltip="${c.loteInsumo.identificacionLoteProveedor}" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</span>
+                            <span class="inline-block break-words align-bottom" tabindex="0" th:data-tooltip="${c.loteInsumo.identificacionLoteProveedor}" th:text="${c.loteInsumo.identificacionLoteProveedor}">L-123</span>
                             <span th:if="${c.vencidoAlRegistrar}" data-vencido tabindex="0" th:data-tooltip="${'Venció el ' + #temporals.format(c.loteInsumo.fechaVencimiento, 'dd/MM/yyyy')}"
                                       class="ml-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 cursor-help focus:outline-none focus:ring-2 focus:ring-amber-500/40">Vencido</span>
                         </td>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Pestañas de la aplicación: un único diseño (pestaña activa con borde ámbar; las inactivas con borde y fondo neutros que se resaltan al pasar el cursor, para que se vea que se pueden pulsar) para Insumos, Ingresos de insumo,
+    Consumos de insumo, Equipamiento, Barriles y Ubicaciones. Cada pestaña es su propia URL.
+
+    pestanas(etiqueta, clave, enlaces): <nav> con la etiqueta accesible y el atributo data-pestanas-{clave}; enlaces es un fragmento ~{::...} con las pestañas.
+    pestana(url, activa, clave, icono, texto): un enlace. activa es true en la pestaña actual; clave nombra el atributo
+    data-pestana-{clave} del enlace; icono es un fragmento (por ejemplo ~{fragments/pestanas :: bi('bi-globe')}) o null.
+    bi(clase): icono de Bootstrap Icons.
+-->
+<nav th:fragment="pestanas(etiqueta, clave, enlaces)" class="flex flex-wrap gap-1 border-b border-slate-200" th:attr="aria-label=${etiqueta}, __${'data-pestanas-' + clave}__='true'">
+    <th:block th:replace="${enlaces}"></th:block>
+</nav>
+
+<a th:fragment="pestana(url, activa, clave, icono, texto)" th:href="${url}" th:attr="__${'data-pestana-' + clave}__='true', aria-current=${activa} ? 'page'"
+   class="cursor-pointer px-4 py-2 -mb-px text-sm font-semibold rounded-t-lg border border-b-2 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+   th:classappend="${activa} ? 'border-amber-500 bg-white text-amber-600' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700'"><th:block th:replace="${icono != null} ? ${icono} : ~{}"></th:block><th:block th:text="${texto}">Pestaña</th:block></a>
+
+<i th:fragment="bi(clase)" th:class="|bi ${clase} mr-1.5|"></i>
+
+</html>

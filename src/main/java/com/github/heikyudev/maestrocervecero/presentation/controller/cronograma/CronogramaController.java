@@ -13,6 +13,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.F
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.LoteCronogramaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.PlanificacionProduccionResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -227,7 +228,7 @@ public class CronogramaController {
         model.addAttribute("filtroPagina", paginaIndicada == null ? null : paginaActual);
 
         if (!avisos.isEmpty()) {
-            model.addAttribute("mensaje", String.join(". ", avisos));
+            model.addAttribute("mensaje", MensajeConLista.deAvisos(avisos));
             model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
         }
         return VISTA_CRONOGRAMA;

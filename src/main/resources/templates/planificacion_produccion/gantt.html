@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th=${enlazar ? ' hover:brightness-110' : ''}|"http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <!--
     Diagrama de Gantt de una planificación: HTML y CSS propios, sin librerías. No hace ninguna cuenta: dibuja
@@ -26,9 +26,9 @@
     de inicio y fin de planificación.
 
     enlazar: si es verdadero, cada barra es un enlace al detalle del lote (/lotes/{id}) y la barra deja de ser una imagen
-    con tooltip para ser un enlace con el mismo texto; el cronograma lo activa para quien puede consultar lotes.
+    con tooltip para ser un enlace con el mismo texto; el cronograma y el estado actual de una planificación lo activan para quien puede consultar lotes (LOTE_CONSULTAR); sin ese permiso la barra es una imagen con tooltip y foco de teclado.
 
-    Uso: <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, false)}"></div>
+    Uso: <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, ${#authorization.expression('hasAuthority(''LOTE_CONSULTAR'')')})}"></div>
 -->
 <div th:fragment="gantt(vista, enlazar)">
 

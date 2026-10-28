@@ -210,7 +210,7 @@ class ConsumoInsumoControllerTest {
         // Assert
         assertThat(enlaceDe(pestanas, "Reservados")).isEqualTo(URL_PANTALLA + "?tipo=reservado");
         assertThat(enlaceDe(pestanas, "Directos")).isEqualTo(URL_PANTALLA + "?tipo=directo");
-        assertThat(elementoConAtributo(pestanas, "a", "data-pestana-reservado")).contains("aria-current=\"page\"").contains("bg-amber-50");
+        assertThat(elementoConAtributo(pestanas, "a", "data-pestana-reservado")).contains("aria-current=\"page\"").contains("border-amber-500");
         assertThat(elementoConAtributo(pestanas, "a", "data-pestana-directo")).doesNotContain("aria-current");
         assertThat(bloque(html, "data-consumos-registrados")).contains("data-pestana=\"reservado\"");
         assertThat(enlaceDe(html, "Nuevo consumo reservado")).isEqualTo(URL_FORMULARIO_RESERVADO);
@@ -227,7 +227,7 @@ class ConsumoInsumoControllerTest {
         String pestanas = bloque(html, "data-pestanas-consumo");
 
         // Assert
-        assertThat(elementoConAtributo(pestanas, "a", "data-pestana-directo")).contains("aria-current=\"page\"").contains("bg-amber-50");
+        assertThat(elementoConAtributo(pestanas, "a", "data-pestana-directo")).contains("aria-current=\"page\"").contains("border-amber-500");
         assertThat(elementoConAtributo(pestanas, "a", "data-pestana-reservado")).doesNotContain("aria-current");
         assertThat(bloque(html, "data-consumos-registrados")).contains("data-pestana=\"directo\"");
         assertThat(enlaceDe(html, "Nuevo consumo directo")).isEqualTo(URL_FORMULARIO_DIRECTO);
@@ -571,7 +571,8 @@ class ConsumoInsumoControllerTest {
         assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "idLoteInsumo")).isEqualTo("5");
         assertThat(html).contains("data-buscador-url=\"" + URL_PANTALLA + "/reservado/buscador/lotes-insumo?idInsumo=31\"");
-        assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad (g) *");
+        assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad *");
+        assertThat(elementoConAtributo(html, "span", "data-unidad-sufijo")).contains(">g<");
         assertThat(Pattern.compile("<p[^>]*data-lote-elegido[^>]*>").matcher(html).results().findFirst().orElseThrow().group()).doesNotContain("hidden");
         assertThat(texto(elementoConAtributo(html, "p", "data-lote-elegido"))).contains("Vencimiento: 12/03/2028");
         assertThat(Pattern.compile("<span[^>]*data-lote-cantidad-bloque[^>]*>").matcher(html).results().findFirst().orElseThrow().group()).contains("hidden");
@@ -736,7 +737,8 @@ class ConsumoInsumoControllerTest {
         assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Cascade");
         assertThat(campo(html, "idInsumo")).isEqualTo("31");
         assertThat(campo(html, "idLoteInsumo")).isEqualTo("8");
-        assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad (g) *");
+        assertThat(texto(html)).contains("La cantidad consumida es obligatoria", "Cantidad *");
+        assertThat(elementoConAtributo(html, "span", "data-unidad-sufijo")).contains(">g<");
         Matcher elegido = Pattern.compile("<p[^>]*data-lote-elegido[^>]*>").matcher(html);
         assertThat(elegido.find()).isTrue();
         assertThat(elegido.group()).doesNotContain("hidden");
@@ -1415,11 +1417,11 @@ class ConsumoInsumoControllerTest {
                 .contains("data-deshabilitado").contains("data-buscador-base=\"" + URL_BUSCADOR_RESERVADO + "\"").contains("name=\"idLoteInsumo\"").contains("name=\"cantidadConsumida\"").contains("placeholder=\"Ej: 10\"")
                 .doesNotContain("data-selector-menu").doesNotContain("data-selector-alta").doesNotContain("data-selector-limpiar").doesNotContain("<select")
                 .doesNotContain(" required").doesNotContain(" min=").doesNotContain(" pattern=");
-        assertThat(texto(formulario)).contains("Datos del consumo reservado", "Insumo *", "Lote de insumo *", "Elija primero el insumo", "Cantidad (g o kg, según el insumo) *", "Crear consumo reservado");
+        assertThat(texto(formulario)).contains("Datos del consumo reservado", "Insumo *", "Lote de insumo *", "Elija primero el insumo", "Cantidad *", "Crear consumo reservado");
         assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(3);
         assertThat(textoDelSelector(formulario, "Seleccione insumo")).isEmpty();
         assertThat(textoDelSelector(formulario, "Seleccione lote de insumo")).isEmpty();
-        assertThat(elementoConAtributo(formulario, "span", "data-unidad")).contains("g o kg, según el insumo");
+        assertThat(elementoConAtributo(formulario, "span", "data-unidad-sufijo")).contains(">-<");
         assertThat(html).contains("/js/modales.js").contains("/js/consumo-lista.js");
         verifyNoInteractions(reservaInsumoServicio, loteInsumoServicio);
     }
@@ -1440,7 +1442,7 @@ class ConsumoInsumoControllerTest {
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL_PANTALLA + "?tipo=directo");
         assertThat(formulario).contains("method=\"post\"").contains("action=\"" + URL_PANTALLA + "/directo\"").contains("novalidate").contains("name=\"_csrf\"")
                 .contains("data-buscador-url=\"" + URL_BUSCADOR_DIRECTO + "\"").contains("placeholder=\"Seleccione lote de insumo\"").contains("data-buscador-url=\"" + URL_PANTALLA + "/directo/buscador/insumos\"").contains("placeholder=\"Seleccione insumo\"").contains("data-deshabilitado").contains("placeholder=\"Ej: 10\"");
-        assertThat(texto(formulario)).contains("Insumo *", "Lote de insumo *", "Cantidad (g o kg, según el insumo) *", "Crear consumo directo");
+        assertThat(texto(formulario)).contains("Insumo *", "Lote de insumo *", "Cantidad *", "Crear consumo directo");
         assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(3);
     }
 
@@ -1600,7 +1602,7 @@ class ConsumoInsumoControllerTest {
         String formulario = bloque(paginas.get(2), "data-formulario-consumo");
         assertThat(cuenta(formulario, "text-rose-600")).isEqualTo(3);
         assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Seleccione lote de insumo\"").contains("placeholder=\"Ej: 10\"");
-        assertThat(texto(formulario)).contains("Insumo *", "Lote de insumo *", "Cantidad (g o kg, según el insumo) *");
+        assertThat(texto(formulario)).contains("Insumo *", "Lote de insumo *", "Cantidad *");
         Pattern alerta = Pattern.compile("(?s)role=\"alert\"[^>]*>(.*?)</div>");
         Pattern emoji = Pattern.compile("[\\x{1F000}-\\x{1FAFF}\\x{2600}-\\x{27BF}\\x{FE0F}]");
         for (String pagina : paginas) {

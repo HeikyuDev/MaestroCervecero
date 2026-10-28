@@ -133,7 +133,7 @@
                 No hay lotes para mostrar en el diagrama (los lotes cancelados no se dibujan)
             </div>
             <th:block th:unless="${gantt.vacio}">
-                <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, false)}"></div>
+                <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, ${#authorization.expression('hasAuthority(''LOTE_CONSULTAR'')')})}"></div>
             </th:block>
         </div>
     </section>

@@ -276,7 +276,6 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
      * @param identificadorInterno Texto a buscar dentro del identificador interno (ya normalizado), o {@code null}.
      * @param estado El estado del lote, o {@code null} para no filtrar por él.
      * @param etapaActual El tipo de etapa actualmente EN_CURSO, o {@code null} para no filtrar por ella.
-     * @param volumenObjetivo El volumen objetivo exacto del lote, o {@code null} para no filtrar por él.
      * @param pageable Paginación; el orden lo define la consulta.
      * @return Los IDs de la página.
      */
@@ -286,21 +285,18 @@ public interface ILoteRepository extends JpaRepository<LoteEntity, Long> {
             + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:estado IS NULL OR l.estado = :estado) "
             + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
-            + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo) "
             + "ORDER BY l.id DESC",
             countQuery = "SELECT COUNT(l) FROM LoteEntity l WHERE "
                     + "(:idPlanificacion IS NULL OR l.planificacionProduccion.id = :idPlanificacion) "
                     + "AND (:idReceta IS NULL OR l.planificacionProduccion.versionReceta.receta.id = :idReceta) "
                     + "AND (:identificadorInterno IS NULL OR UPPER(l.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estado IS NULL OR l.estado = :estado) "
-                    + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual)) "
-                    + "AND (:volumenObjetivo IS NULL OR l.volumenObjetivo = :volumenObjetivo)")
+                    + "AND (:etapaActual IS NULL OR EXISTS (SELECT 1 FROM EtapaLoteEntity el WHERE el.lote = l AND el.estado = 'EN_CURSO' AND el.etapa = :etapaActual))")
     Page<Long> filtrarIdsDeLotesParaListado(@Param("idPlanificacion") Long idPlanificacion,
                                             @Param("idReceta") Long idReceta,
                                             @Param("identificadorInterno") String identificadorInterno,
                                             @Param("estado") EstadoLote estado,
                                             @Param("etapaActual") TipoEtapa etapaActual,
-                                            @Param("volumenObjetivo") Double volumenObjetivo,
                                             Pageable pageable);
 
     /**
