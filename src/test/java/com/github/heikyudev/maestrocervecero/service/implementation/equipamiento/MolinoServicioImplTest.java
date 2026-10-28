@@ -3,7 +3,7 @@ package com.github.heikyudev.maestrocervecero.service.implementation.equipamient
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.MolinoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
@@ -13,9 +13,11 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -31,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -45,13 +49,19 @@ class MolinoServicioImplTest {
     private IMolinoRepository molinoRepository;
 
     @Mock
-    private IEquipamientoRepository equipamientoRepository;
+    private ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
 
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
 
     @InjectMocks
     private MolinoServicioImpl molinoServicio;
+
+    @BeforeEach
+    void secuenciaDelIdentificador() {
+        // Valor por defecto de la secuencia para los casos de alta que no verifican el número generado
+        lenient().when(secuenciaIdentificadorRepository.siguienteNumeroMolino()).thenReturn(1L);
+    }
 
     // ==================== filtrarMolinos ====================
 
@@ -173,20 +183,19 @@ class MolinoServicioImplTest {
     @Test
     @DisplayName("CP-AM-01: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es nulo")
     void altaMolino_debeRechazarRendimientoNulo() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", null);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(null);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda es obligatorio");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-02: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es negativo")
     void altaMolino_debeRechazarRendimientoNegativo() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", -1.0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(-1.0);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -194,55 +203,26 @@ class MolinoServicioImplTest {
 
         // La validación de negocio se ejecuta antes de cualquier acceso a la base de datos
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-03: altaMolino lanza ReglaNegocioException cuando el rendimiento de molienda es igual a cero (valor límite)")
     void altaMolino_debeRechazarRendimientoIgualACero() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 0.0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(0.0);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
-    }
-
-    @Test
-    @DisplayName("CP-AM-04: altaMolino lanza RecursoDuplicadoException y no persiste cuando el identificador interno ya existe")
-    void altaMolino_debeRechazarIdentificadorDuplicado() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(true);
-
-        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'MOL-01'");
-
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MOL-01");
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AM-05: altaMolino lanza RecursoDuplicadoException cuando el identificador ya existe con distinto case (case-insensitive)")
-    void altaMolino_debeRechazarIdentificadorDuplicadoCaseInsensitive() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("mol-01", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(true);
-
-        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
-                .isInstanceOf(RecursoDuplicadoException.class);
-
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MOL-01");
-        verify(molinoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("CP-AM-06: altaMolino persiste y retorna el DTO correspondiente cuando los datos son válidos (camino feliz)")
     void altaMolino_debePersistirYRetornarDTOCuandoDatosSonValidos() {
         // === PREPARACION DE DATOS ===
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-02", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-02")).thenReturn(false);
+        when(secuenciaIdentificadorRepository.siguienteNumeroMolino()).thenReturn(5L);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(50.0);
         when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> {
             MolinoEntity entidadGuardada = invocation.getArgument(0);
             entidadGuardada.setId(1L);
@@ -256,7 +236,7 @@ class MolinoServicioImplTest {
         ArgumentCaptor<MolinoEntity> captor = ArgumentCaptor.forClass(MolinoEntity.class);
         verify(molinoRepository).save(captor.capture());
         MolinoEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-02");
+        assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-05");
         assertThat(entidadCapturada.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(50.0);
         assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
@@ -264,19 +244,17 @@ class MolinoServicioImplTest {
         assertThat(entidadCapturada.getEstado()).isEqualTo(Estado.ACTIVO);
 
         assertThat(resultado.getId()).isEqualTo(1L);
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-02");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-05");
         assertThat(resultado.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(50.0);
         assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("MOL-02");
     }
 
     @Test
     @DisplayName("CP-AM-07: altaMolino persiste con éxito cuando el rendimiento de molienda está en el límite inferior válido")
     void altaMolino_debePersistirConRendimientoEnLimiteInferiorValido() {
         // === PREPARACION DE DATOS ===
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-03", 0.1);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-03")).thenReturn(false);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(0.1);
         when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> {
             MolinoEntity entidadGuardada = invocation.getArgument(0);
             entidadGuardada.setId(3L);
@@ -296,27 +274,25 @@ class MolinoServicioImplTest {
     @Test
     @DisplayName("CP-AM-08: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son nulos")
     void altaMolino_debeRechazarUsosMaximosAntesMantenimientoNulo() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, null);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(50.0, null);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento son obligatorios");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-09: altaMolino lanza ReglaNegocioException cuando los usos máximos antes de mantenimiento son iguales a cero (valor límite)")
     void altaMolino_debeRechazarUsosMaximosAntesMantenimientoIgualACero() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, 0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(50.0, 0);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     // ==================== modificarMolino ====================
@@ -325,7 +301,7 @@ class MolinoServicioImplTest {
     @DisplayName("CP-MM-01: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el rendimiento de molienda es inválido")
     void modificarMolino_debeRechazarRendimientoInvalido() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 0.0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(0.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
@@ -334,7 +310,6 @@ class MolinoServicioImplTest {
 
         // La existencia del molino se valida antes que las reglas de negocio sobre sus datos
         verify(molinoRepository).findById(1L);
-        verifyNoInteractions(equipamientoRepository);
         verify(molinoRepository, never()).save(any());
     }
 
@@ -342,7 +317,7 @@ class MolinoServicioImplTest {
     @DisplayName("CP-MM-02: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento son inválidos")
     void modificarMolino_debeRechazarUsosMaximosAntesMantenimientoInvalido() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0, 0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(50.0, 0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
@@ -350,31 +325,13 @@ class MolinoServicioImplTest {
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verify(molinoRepository).findById(1L);
-        verifyNoInteractions(equipamientoRepository);
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-MM-03: modificarMolino lanza RecursoDuplicadoException y no persiste cuando el identificador está en uso por otro equipamiento")
-    void modificarMolino_debeRechazarIdentificadorEnUsoPorOtroEquipamiento() {
-        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-EXISTENTE", 50.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L)).thenReturn(true);
-
-        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, molinoFormDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno \'MOL-EXISTENTE\'");
-
-        verify(molinoRepository).findById(1L);
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-EXISTENTE", 1L);
         verify(molinoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("CP-MM-04: modificarMolino lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void modificarMolino_debeLanzarExcepcionSiNoExiste() {
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 50.0);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(50.0);
         when(molinoRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(99L, molinoFormDTO))
@@ -383,15 +340,13 @@ class MolinoServicioImplTest {
 
         verify(molinoRepository).findById(99L);
         verify(molinoRepository, never()).save(any());
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-MM-05: modificarMolino permite modificar molino aunque tenga comprometida una etapa en estado Pendiente de un lote (su escalado queda guardado en la instantánea del lote)")
     void modificarMolino_debePermitirModificarConLotePendiente() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 100.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 1L)).thenReturn(false);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
@@ -405,8 +360,7 @@ class MolinoServicioImplTest {
     @DisplayName("CP-MM-06: modificarMolino permite modificar molino aunque se encuentre en uso (su escalado queda guardado en la instantánea de cada lote)")
     void modificarMolino_debePermitirModificarEnUso() {
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0, EstadoOperativo.EN_USO);
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-01", 100.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 1L)).thenReturn(false);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
@@ -417,12 +371,11 @@ class MolinoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MM-07: modificarMolino actualiza los datos y persiste cuando el ID existe y el identificador está libre (camino feliz)")
+    @DisplayName("CP-MM-07: modificarMolino actualiza los datos y persiste cuando el ID existe, sin cambiar el identificador interno (camino feliz)")
     void modificarMolino_debeActualizarMolinoExistente() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-VIEJO", 90.0);
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("MOL-NUEVO", 100.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-NUEVO", 1L)).thenReturn(false);
+        MolinoFormDTO molinoFormDTO = molinoFormDTO(100.0);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
         when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
@@ -433,32 +386,16 @@ class MolinoServicioImplTest {
         ArgumentCaptor<MolinoEntity> captor = ArgumentCaptor.forClass(MolinoEntity.class);
         verify(molinoRepository).save(captor.capture());
         MolinoEntity entidadCapturada = captor.getValue();
-        assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-NUEVO");
+        assertThat(entidadCapturada.getIdentificadorInterno()).isEqualTo("MOL-VIEJO");
         assertThat(entidadCapturada.getRendimientoMolienda()).isEqualTo(100.0);
         assertThat(entidadCapturada.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
 
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-NUEVO");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-VIEJO");
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(100.0);
         assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(USOS_MAXIMOS_ANTES_MANTENIMIENTO);
         verify(molinoRepository).findById(1L);
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-NUEVO", 1L);
-    }
-
-    @Test
-    @DisplayName("CP-MM-08: modificarMolino permite conservar el propio identificador actual al actualizar otros campos")
-    void modificarMolino_debePermitirConservarIdentificadorPropio() {
-        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-01", 90.0);
-        // Mismo identificador (distinto case): el AndIdNot excluye el propio ID y no debe fallar
-        MolinoFormDTO molinoFormDTO = molinoFormDTO("mol-01", 100.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("MOL-01", 1L)).thenReturn(false);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
-        when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
-
-        MolinoResponseDTO resultado = molinoServicio.modificarMolino(1L, molinoFormDTO);
-
-        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-01");
-        assertThat(resultado.getRendimientoMolienda()).isEqualTo(100.0);
-        verify(molinoRepository).save(molinoEntity);
+        // El identificador interno lo asignó el sistema al dar de alta: modificar no lo cambia ni pide otro número
+        verifyNoInteractions(secuenciaIdentificadorRepository);
     }
 
     // ==================== bajaMolino ====================
@@ -571,60 +508,55 @@ class MolinoServicioImplTest {
     @Test
     @DisplayName("CP-AM-10: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es NaN")
     void altaMolino_debeRechazar_rendimientoNaN() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.NaN, 500);
+        MolinoFormDTO dto = molinoFormDTO(Double.NaN, 500);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-11: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es infinito positivo")
     void altaMolino_debeRechazar_rendimientoInfinito() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.POSITIVE_INFINITY, 500);
+        MolinoFormDTO dto = molinoFormDTO(Double.POSITIVE_INFINITY, 500);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-12: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda es infinito negativo")
     void altaMolino_debeRechazar_rendimientoInfinitoNegativo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.NEGATIVE_INFINITY, 500);
+        MolinoFormDTO dto = molinoFormDTO(Double.NEGATIVE_INFINITY, 500);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-13: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el rendimiento de molienda supera 10.000 kg/h")
     void altaMolino_debeRechazar_rendimientoSuperaElMaximo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 10000.01, 500);
+        MolinoFormDTO dto = molinoFormDTO(10000.01, 500);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El rendimiento de molienda no puede superar 10.000 kg/h");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-14: altaMolino persiste con éxito cuando el rendimiento de molienda es exactamente 10.000 kg/h (valor límite válido)")
     void altaMolino_debeAceptar_rendimientoEnElMaximo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 10000.0, 500);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(false);
+        MolinoFormDTO dto = molinoFormDTO(10000.0, 500);
         when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertThatCode(() -> molinoServicio.altaMolino(dto)).doesNotThrowAnyException();
@@ -635,59 +567,31 @@ class MolinoServicioImplTest {
     @Test
     @DisplayName("CP-AM-15: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento son negativos")
     void altaMolino_debeRechazar_usosNegativos() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, -1);
+        MolinoFormDTO dto = molinoFormDTO(50.0, -1);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento deben ser mayores a 0");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-16: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando los usos máximos antes de mantenimiento superan 100.000")
     void altaMolino_debeRechazar_usosSuperanElMaximo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, 100001);
+        MolinoFormDTO dto = molinoFormDTO(50.0, 100001);
 
         assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AM-17: altaMolino persiste con éxito cuando los usos máximos antes de mantenimiento son exactamente 100.000 (valor límite válido)")
     void altaMolino_debeAceptar_usosEnElMaximo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, 100000);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("MOL-01")).thenReturn(false);
-        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        assertThatCode(() -> molinoServicio.altaMolino(dto)).doesNotThrowAnyException();
-
-        verify(molinoRepository).save(any(MolinoEntity.class));
-    }
-
-    @Test
-    @DisplayName("CP-AM-18: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno tiene 101 caracteres")
-    void altaMolino_debeRechazar_identificadorDe101Caracteres() {
-        MolinoFormDTO dto = molinoFormDTO("A".repeat(101), 50.0, 500);
-
-        assertThatThrownBy(() -> molinoServicio.altaMolino(dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El identificador interno no puede superar 100 caracteres");
-
-        verifyNoInteractions(molinoRepository);
-        verifyNoInteractions(equipamientoRepository);
-    }
-
-    @Test
-    @DisplayName("CP-AM-19: altaMolino persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
-    void altaMolino_debeAceptar_identificadorDe100Caracteres() {
-        MolinoFormDTO dto = molinoFormDTO("A".repeat(100), 50.0, 500);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("A".repeat(100))).thenReturn(false);
+        MolinoFormDTO dto = molinoFormDTO(50.0, 100000);
         when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertThatCode(() -> molinoServicio.altaMolino(dto)).doesNotThrowAnyException();
@@ -698,7 +602,7 @@ class MolinoServicioImplTest {
     @Test
     @DisplayName("CP-MM-09: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el rendimiento de molienda es NaN")
     void modificarMolino_debeRechazar_rendimientoNaN() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", Double.NaN, 500);
+        MolinoFormDTO dto = molinoFormDTO(Double.NaN, 500);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
@@ -706,14 +610,13 @@ class MolinoServicioImplTest {
                 .hasMessage("El rendimiento de molienda debe ser mayor a 0");
 
         verify(molinoRepository).findById(1L);
-        verifyNoInteractions(equipamientoRepository);
         verify(molinoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("CP-MM-10: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el rendimiento de molienda supera 10.000 kg/h")
     void modificarMolino_debeRechazar_rendimientoSuperaElMaximo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 10000.01, 500);
+        MolinoFormDTO dto = molinoFormDTO(10000.01, 500);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
@@ -721,14 +624,13 @@ class MolinoServicioImplTest {
                 .hasMessage("El rendimiento de molienda no puede superar 10.000 kg/h");
 
         verify(molinoRepository).findById(1L);
-        verifyNoInteractions(equipamientoRepository);
         verify(molinoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("CP-MM-11: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando los usos máximos antes de mantenimiento superan 100.000")
     void modificarMolino_debeRechazar_usosSuperanElMaximo() {
-        MolinoFormDTO dto = molinoFormDTO("MOL-01", 50.0, 100001);
+        MolinoFormDTO dto = molinoFormDTO(50.0, 100001);
         when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
 
         assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
@@ -736,36 +638,7 @@ class MolinoServicioImplTest {
                 .hasMessage("Los usos máximos antes de mantenimiento no pueden superar 100.000 usos");
 
         verify(molinoRepository).findById(1L);
-        verifyNoInteractions(equipamientoRepository);
         verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-MM-12: modificarMolino lanza ReglaNegocioException y no consulta la unicidad cuando el identificador interno tiene 101 caracteres")
-    void modificarMolino_debeRechazar_identificadorDe101Caracteres() {
-        MolinoFormDTO dto = molinoFormDTO("A".repeat(101), 50.0, 500);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
-
-        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, dto))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El identificador interno no puede superar 100 caracteres");
-
-        verify(molinoRepository).findById(1L);
-        verifyNoInteractions(equipamientoRepository);
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-MM-13: modificarMolino persiste con éxito cuando el identificador interno tiene exactamente 100 caracteres (valor límite válido)")
-    void modificarMolino_debeAceptar_identificadorDe100Caracteres() {
-        MolinoFormDTO dto = molinoFormDTO("A".repeat(100), 50.0, 500);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(crearMolinoEntity(1L, "MOL-01", 90.0)));
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("A".repeat(100), 1L)).thenReturn(false);
-        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        assertThatCode(() -> molinoServicio.modificarMolino(1L, dto)).doesNotThrowAnyException();
-
-        verify(molinoRepository).save(any(MolinoEntity.class));
     }
 
     // ==================== helpers ====================
@@ -785,13 +658,12 @@ class MolinoServicioImplTest {
                 .build();
     }
 
-    private static MolinoFormDTO molinoFormDTO(String identificadorInterno, Double rendimientoMolienda) {
-        return molinoFormDTO(identificadorInterno, rendimientoMolienda, USOS_MAXIMOS_ANTES_MANTENIMIENTO);
+    private static MolinoFormDTO molinoFormDTO(Double rendimientoMolienda) {
+        return molinoFormDTO(rendimientoMolienda, USOS_MAXIMOS_ANTES_MANTENIMIENTO);
     }
 
-    private static MolinoFormDTO molinoFormDTO(String identificadorInterno, Double rendimientoMolienda, Integer usosMaximosAntesMantenimiento) {
+    private static MolinoFormDTO molinoFormDTO(Double rendimientoMolienda, Integer usosMaximosAntesMantenimiento) {
         return MolinoFormDTO.builder()
-                .identificadorInterno(identificadorInterno)
                 .rendimientoMolienda(rendimientoMolienda)
                 .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .build();
@@ -808,168 +680,64 @@ class MolinoServicioImplTest {
 
     // ==================== normalización y unicidad ====================
 
+    // ==================== identificador interno generado ====================
+
     @Test
-    @DisplayName("CP-AM-20: altaMolino guarda el identificador interno normalizado y consulta la unicidad con ese valor")
-    void altaMolino_debeGuardarElValorNormalizado() {
+    @DisplayName("CP-AM-26: altaMolino asigna el identificador interno generado a partir de la secuencia (MOL-07)")
+    void altaMolino_debeAsignarElIdentificadorInternoGenerado() {
         // === PREPARACION DE DATOS ===
-        MolinoFormDTO formDTO = molinoFormDTO("  fer   01 ", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
+        when(secuenciaIdentificadorRepository.siguienteNumeroMolino()).thenReturn(7L);
         when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
-        molinoServicio.altaMolino(formDTO);
+        var resultado = molinoServicio.altaMolino(molinoFormDTO(50.0));
 
         // === ASSERTS ===
-        ArgumentCaptor<MolinoEntity> captor = ArgumentCaptor.forClass(MolinoEntity.class);
-        verify(molinoRepository).save(captor.capture());
-        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("FER 01");
-        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
-        verify(molinoRepository).flush();
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-07");
     }
 
     @Test
-    @DisplayName("CP-AM-21: altaMolino lanza ReglaNegocioException y no consulta el repositorio cuando el identificador interno está vacío")
-    void altaMolino_debeRechazarValorVacio() {
-        MolinoFormDTO formDTO = molinoFormDTO("   ", 50.0);
+    @DisplayName("CP-AM-27: altaMolino no pide un número de la secuencia cuando falla cualquier validación")
+    void altaMolino_noDebePedirNumeroDeLaSecuenciaSiFallaUnaValidacion() {
+        // === EJECUCION Y ASERTOS ===
+        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO(null))).isInstanceOf(ReglaNegocioException.class);
+        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO(-1.0))).isInstanceOf(ReglaNegocioException.class);
+        assertThatThrownBy(() -> molinoServicio.altaMolino(molinoFormDTO(150.0, 0))).isInstanceOf(ReglaNegocioException.class);
 
-        assertThatThrownBy(() -> molinoServicio.altaMolino(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El identificador interno es obligatorio");
-
-        verifyNoInteractions(molinoRepository);
-    }
-
-    @Test
-    @DisplayName("CP-AM-22: altaMolino lanza RecursoDuplicadoException cuando el identificador interno normalizado ya existe")
-    void altaMolino_debeDetectarDuplicadoConElValorNormalizado() {
-        MolinoFormDTO formDTO = molinoFormDTO("  fer-01 ", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER-01")).thenReturn(true);
-
-        assertThatThrownBy(() -> molinoServicio.altaMolino(formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
-
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER-01");
+        verifyNoInteractions(secuenciaIdentificadorRepository);
         verify(molinoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-AM-23: altaMolino traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
-    void altaMolino_debeTraducirLaViolacionDelIndiceUnico() {
-        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
-        when(molinoRepository.save(any(MolinoEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
-
-        assertThatThrownBy(() -> molinoServicio.altaMolino(formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
-    }
-
-    @Test
-    @DisplayName("CP-AM-24: altaMolino permite reutilizar el identificador interno de un registro dado de baja")
-    void altaMolino_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
-        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
-        // El único registro con ese valor está dado de baja: la consulta solo considera registros activos
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
-        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        assertThatCode(() -> molinoServicio.altaMolino(formDTO)).doesNotThrowAnyException();
-
-        verify(molinoRepository).save(any(MolinoEntity.class));
-    }
-
-    @Test
-    @DisplayName("CP-AM-25: altaMolino permite un identificador que difiere de otro solo en la puntuación")
-    void altaMolino_debeTratarComoDistintosLosIdentificadoresConDistintaPuntuacion() {
-        MolinoFormDTO formDTO = molinoFormDTO("fer 01", 50.0);
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCase("FER 01")).thenReturn(false);
-        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        assertThatCode(() -> molinoServicio.altaMolino(formDTO)).doesNotThrowAnyException();
-
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCase("FER 01");
-        verify(molinoRepository).save(any(MolinoEntity.class));
-    }
-
-    @Test
-    @DisplayName("CP-MM-14: modificarMolino guarda el identificador interno normalizado y consulta la unicidad con ese valor")
-    void modificarMolino_debeGuardarElValorNormalizado() {
+    @DisplayName("CP-AM-28: altaMolino pide el número de la secuencia como último paso, justo antes de guardar")
+    void altaMolino_debePedirElNumeroDeLaSecuenciaAntesDeGuardar() {
         // === PREPARACION DE DATOS ===
-        MolinoFormDTO formDTO = molinoFormDTO("  fer   01 ", 50.0);
-        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
-        when(molinoRepository.save(existente)).thenReturn(existente);
+        when(secuenciaIdentificadorRepository.siguienteNumeroMolino()).thenReturn(1L);
+        when(molinoRepository.save(any(MolinoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // === EJECUCION ===
-        molinoServicio.modificarMolino(1L, formDTO);
+        molinoServicio.altaMolino(molinoFormDTO(50.0));
 
         // === ASSERTS ===
-        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
-        assertThat(formDTO.getIdentificadorInterno()).isEqualTo("  fer   01 ");
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L);
-        verify(molinoRepository).save(existente);
-        verify(molinoRepository).flush();
+        InOrder orden = inOrder(secuenciaIdentificadorRepository, molinoRepository);
+        orden.verify(secuenciaIdentificadorRepository).siguienteNumeroMolino();
+        orden.verify(molinoRepository).save(any(MolinoEntity.class));
     }
 
     @Test
-    @DisplayName("CP-MM-15: modificarMolino lanza ReglaNegocioException cuando el identificador interno está vacío")
-    void modificarMolino_debeRechazarValorVacio() {
-        MolinoFormDTO formDTO = molinoFormDTO("   ", 50.0);
-        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
+    @DisplayName("CP-MM-19: modificarMolino no cambia el identificador interno asignado por el sistema ni pide otro número")
+    void modificarMolino_noDebeCambiarElIdentificadorInterno() {
+        // === PREPARACION DE DATOS ===
+        MolinoEntity molinoEntity = crearMolinoEntity(1L, "MOL-03", 90.0);
+        when(molinoRepository.findById(1L)).thenReturn(Optional.of(molinoEntity));
+        when(molinoRepository.save(molinoEntity)).thenReturn(molinoEntity);
 
-        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El identificador interno es obligatorio");
+        // === EJECUCION ===
+        var resultado = molinoServicio.modificarMolino(1L, molinoFormDTO(50.0));
 
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-MM-16: modificarMolino lanza RecursoDuplicadoException cuando el identificador interno normalizado está en uso por otro registro")
-    void modificarMolino_debeDetectarDuplicadoConElValorNormalizado() {
-        MolinoFormDTO formDTO = molinoFormDTO("  fer-01 ", 50.0);
-        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L)).thenReturn(true);
-
-        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER-01'");
-
-        verify(equipamientoRepository).existsByIdentificadorInternoIgnoreCaseAndIdNot("FER-01", 1L);
-        verify(molinoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-MM-17: modificarMolino traduce la violación del índice único udx_equipamiento_identificador_interno al mensaje de duplicado")
-    void modificarMolino_debeTraducirLaViolacionDelIndiceUnico() {
-        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
-        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
-        when(molinoRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_equipamiento_identificador_interno"));
-
-        assertThatThrownBy(() -> molinoServicio.modificarMolino(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un equipamiento con el identificador interno 'FER 01'");
-    }
-
-    @Test
-    @DisplayName("CP-MM-18: modificarMolino permite reutilizar el identificador interno de un registro dado de baja")
-    void modificarMolino_debePermitirReutilizarElValorDeUnRegistroDadoDeBaja() {
-        MolinoFormDTO formDTO = molinoFormDTO("FER 01", 50.0);
-        MolinoEntity existente = crearMolinoEntity(1L, "Original", 50.0);
-        when(molinoRepository.findById(1L)).thenReturn(Optional.of(existente));
-        // El único otro registro con ese valor está dado de baja: la consulta solo considera registros activos
-        when(equipamientoRepository.existsByIdentificadorInternoIgnoreCaseAndIdNot("FER 01", 1L)).thenReturn(false);
-        when(molinoRepository.save(existente)).thenReturn(existente);
-
-        assertThatCode(() -> molinoServicio.modificarMolino(1L, formDTO)).doesNotThrowAnyException();
-
-        assertThat(existente.getIdentificadorInterno()).isEqualTo("FER 01");
-        verify(molinoRepository).save(existente);
+        // === ASSERTS ===
+        assertThat(molinoEntity.getIdentificadorInterno()).isEqualTo("MOL-03");
+        assertThat(resultado.getIdentificadorInterno()).isEqualTo("MOL-03");
+        verifyNoInteractions(secuenciaIdentificadorRepository);
     }
 }

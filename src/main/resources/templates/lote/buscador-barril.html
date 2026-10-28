@@ -3,9 +3,9 @@
 <body>
 
 <!--
-    Contenido del modal de búsqueda de un barril del envasado: criterio de identificador (texto, nunca un
+    Contenido del modal de búsqueda de un barril del envasado: criterio de identificador interno (texto, nunca un
     desplegable) + resultados con "Elegir". El controller ofrece solo barriles Disponibles, en orden alfabético por
-    identificador. El botón "Elegir" lleva, además del id y el texto, los datos que la pantalla muestra del barril
+    identificador interno. El botón "Elegir" lleva, además del id y el texto, los datos que la pantalla muestra del barril
     elegido (fabricante y capacidad). Si el lote no existe, el controller informa el motivo en mensajeBuscador y el
     fragmento no muestra criterios ni filas.
 -->
@@ -28,8 +28,8 @@
         <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
               class="p-6 grid grid-cols-1 gap-4 items-end sm:grid-cols-[1fr_auto]">
             <div>
-                <label for="buscador-identificador" class="block text-xs font-medium text-slate-500 mb-1">Identificador</label>
-                <input type="text" id="buscador-identificador" name="identificador" th:value="${filtroIdentificador}" autofocus autocomplete="off" placeholder="Ej: B-001"
+                <label for="buscador-identificador" class="block text-xs font-medium text-slate-500 mb-1">Identificador interno</label>
+                <input type="text" id="buscador-identificador" name="identificadorInterno" th:value="${filtroIdentificador}" autofocus autocomplete="off" placeholder="Ej: BRL-01"
                        class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
             </div>
             <button type="submit"
@@ -42,7 +42,8 @@
             <table class="tabla-buscador">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-3 py-3 whitespace-nowrap">Identificador</th>
+                    <th class="px-3 py-3 whitespace-nowrap">Identificador interno</th>
+                    <th class="px-3 py-3 whitespace-nowrap">Número de serie</th>
                     <th class="px-3 py-3 whitespace-nowrap">Capacidad (L)</th>
                     <th class="px-3 py-3 whitespace-nowrap">Fabricante</th>
                     <th class="px-3 py-3 whitespace-nowrap">Estado</th>
@@ -51,26 +52,27 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="b : ${barriles.content}" class="hover:bg-slate-50">
-                    <td class="px-3 py-3 font-medium text-slate-900" th:text="${b.identificador}">B-001</td>
+                    <td class="px-3 py-3 font-medium text-slate-900" th:text="${b.identificadorInterno}">BRL-01</td>
+                    <td class="px-3 py-3 text-slate-700" th:text="${b.numeroSerie}">SN-2024-001</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${b.capacidad})}"></th:block></td>
                     <td class="px-3 py-3 text-slate-700" th:text="${b.fabricante != null} ? ${b.fabricante.nombre} : '-'">Barrilitos SA</td>
                     <td class="px-3 py-3 text-slate-700 whitespace-nowrap" th:text="${b.estadoOperativo.etiqueta}">Disponible</td>
                     <td class="px-3 py-3 text-right">
-                        <button type="button" data-elegir th:data-id="${b.id}" th:data-texto="${b.identificador}"
+                        <button type="button" data-elegir th:data-id="${b.id}" th:data-texto="${b.identificadorInterno}"
                                 th:data-fabricante="${b.fabricante != null} ? ${b.fabricante.nombre} : '-'"
                                 th:data-capacidad="${b.capacidad == b.capacidad.intValue() ? #numbers.formatInteger(b.capacidad.intValue(), 1, 'POINT') : #strings.replace(b.capacidad, '.', ',')}"
                                 class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                     </td>
                 </tr>
                 <tr th:if="${barriles.empty}">
-                    <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron barriles disponibles con los criterios indicados</td>
+                    <td colspan="6" class="px-4 py-8 text-center text-slate-400">No se encontraron barriles disponibles con los criterios indicados</td>
                 </tr>
                 </tbody>
             </table>
 
             <div th:replace="~{fragments/paginacion :: paginacion(${barriles}, 'barril|barriles',
-                    ${barriles.hasPrevious()} ? @{${urlBuscador}(pagina=${barriles.number - 1}, identificador=${filtroIdentificador})} : null,
-                    ${barriles.hasNext()} ? @{${urlBuscador}(pagina=${barriles.number + 1}, identificador=${filtroIdentificador})} : null,
+                    ${barriles.hasPrevious()} ? @{${urlBuscador}(pagina=${barriles.number - 1}, identificadorInterno=${filtroIdentificador})} : null,
+                    ${barriles.hasNext()} ? @{${urlBuscador}(pagina=${barriles.number + 1}, identificadorInterno=${filtroIdentificador})} : null,
                     true)}"></div>
         </div>
     </th:block>

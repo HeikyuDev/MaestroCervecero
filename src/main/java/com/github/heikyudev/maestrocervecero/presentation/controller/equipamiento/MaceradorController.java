@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.equipamien
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MaceradorFormDTO;
-import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMaceradorServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MaceradorResponseDTO;
@@ -99,8 +98,6 @@ public class MaceradorController {
                 agregarMensaje(redirectAttributes, "Macerador creado correctamente", TipoAlerta.SUCCESS);
                 String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, creado.getId());
                 return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -119,13 +116,13 @@ public class MaceradorController {
         MaceradorResponseDTO actual = maceradorServicio.buscarPorId(id);
 
         model.addAttribute(ATRIBUTO_FORMULARIO, MaceradorFormDTO.builder()
-                .identificadorInterno(actual.getIdentificadorInterno())
                 .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .espacioMuerto(actual.getEspacioMuerto())
                 .eficienciaMaceracion(actual.getEficienciaMaceracion())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
+        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -146,13 +143,12 @@ public class MaceradorController {
                 maceradorServicio.modificarMacerador(id, maceradorForm);
                 agregarMensaje(redirectAttributes, "Macerador modificado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
         }
 
+        model.addAttribute("identificadorInterno", maceradorServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

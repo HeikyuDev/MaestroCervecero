@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.equipamien
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
-import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMolinoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MolinoResponseDTO;
@@ -99,8 +98,6 @@ public class MolinoController {
                 agregarMensaje(redirectAttributes, "Molino creado correctamente", TipoAlerta.SUCCESS);
                 String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, creado.getId());
                 return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -119,10 +116,10 @@ public class MolinoController {
         MolinoResponseDTO actual = molinoServicio.buscarPorId(id);
 
         model.addAttribute(ATRIBUTO_FORMULARIO, MolinoFormDTO.builder()
-                .identificadorInterno(actual.getIdentificadorInterno())
                 .rendimientoMolienda(actual.getRendimientoMolienda())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
+        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -143,13 +140,12 @@ public class MolinoController {
                 molinoServicio.modificarMolino(id, molinoForm);
                 agregarMensaje(redirectAttributes, "Molino modificado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
         }
 
+        model.addAttribute("identificadorInterno", molinoServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

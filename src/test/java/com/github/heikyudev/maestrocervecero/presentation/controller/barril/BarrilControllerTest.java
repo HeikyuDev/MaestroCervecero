@@ -77,6 +77,7 @@ class BarrilControllerTest {
 
     @BeforeEach
     void fabricanteBarrilesDelFormulario() {
+        when(barrilServicio.buscarPorId(4L)).thenReturn(barril(4L, "BRL-01", 2L, "Barrilitos SA"));
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
     }
 
@@ -87,15 +88,15 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-01: el GERENTE_DE_PRODUCCION ve el listado con fabricante, capacidad, contenido, estado operativo, las pestañas y las acciones por fila")
     void caso_cp_bct_01() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any()))
-                .thenReturn(new PageImpl<>(List.of(barril(4L, "B-001", 2L, "Barrilitos SA")), PageRequest.of(0, 20), 1));
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(barril(4L, "BRL-01", 2L, "Barrilitos SA")), PageRequest.of(0, 20), 1));
 
         // Act + Assert
         mockMvc.perform(get("/barriles"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("barril/barril-lista"))
                 .andExpect(content().string(containsString("Gestión de Barriles")))
-                .andExpect(content().string(containsString("B-001")))
+                .andExpect(content().string(containsString("BRL-01")))
                 .andExpect(content().string(containsString("Barrilitos SA")))
                 .andExpect(content().string(containsString(">50<")))
                 .andExpect(content().string(containsString(">0<")))
@@ -115,39 +116,39 @@ class BarrilControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-02: sin filtros pide páginas de 20 ordenadas alfabéticamente por identificador, con los criterios en null")
+    @DisplayName("CP-BCT-02: sin filtros pide páginas de 20 ordenadas alfabéticamente por identificador interno, con los criterios en null")
     void caso_cp_bct_02() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
 
         // Act
         mockMvc.perform(get("/barriles")).andExpect(status().isOk());
 
         // Assert
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), captor.capture());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), isNull(), captor.capture());
         assertThat(captor.getValue().getPageSize()).isEqualTo(20);
         assertThat(captor.getValue().getPageNumber()).isEqualTo(0);
         assertThat(captor.getValue().getSort().stream().map(Sort.Order::getProperty).toList())
-                .containsExactly("identificador", "id");
-        assertThat(captor.getValue().getSort().getOrderFor("identificador").isIgnoreCase()).isTrue();
-        assertThat(captor.getValue().getSort().getOrderFor("identificador").getDirection().isAscending()).isTrue();
+                .containsExactly("identificadorInterno", "id");
+        assertThat(captor.getValue().getSort().getOrderFor("identificadorInterno").isIgnoreCase()).isTrue();
+        assertThat(captor.getValue().getSort().getOrderFor("identificadorInterno").getDirection().isAscending()).isTrue();
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-03: el filtro por identificador llega recortado al service; un texto en blanco equivale a no filtrar")
+    @DisplayName("CP-BCT-03: los filtros por identificador interno y por número de serie llegan recortados al service; un texto en blanco equivale a no filtrar")
     void caso_cp_bct_03() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
 
         // Act
-        mockMvc.perform(get("/barriles").param("identificador", " b-0 ")).andExpect(status().isOk());
-        mockMvc.perform(get("/barriles").param("identificador", "   ")).andExpect(status().isOk());
+        mockMvc.perform(get("/barriles").param("identificadorInterno", " b-0 ").param("numeroSerie", " sn-1 ")).andExpect(status().isOk());
+        mockMvc.perform(get("/barriles").param("identificadorInterno", "   ").param("numeroSerie", "   ")).andExpect(status().isOk());
 
         // Assert
-        verify(barrilServicio).filtrarBarriles(eq("b-0"), isNull(), isNull(), isNull(), any());
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(eq("b-0"), eq("sn-1"), isNull(), isNull(), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), isNull(), any());
     }
 
     @Test
@@ -155,13 +156,13 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-04: el filtro por capacidad llega al service como valor exacto")
     void caso_cp_bct_04() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
 
         // Act
         mockMvc.perform(get("/barriles").param("capacidad", "50")).andExpect(status().isOk());
 
         // Assert
-        verify(barrilServicio).filtrarBarriles(isNull(), eq(50.0), isNull(), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), eq(50.0), isNull(), isNull(), any());
     }
 
     @Test
@@ -169,7 +170,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-05: el filtro por estado operativo ofrece las etiquetas del enum; la opción \"Todos\" no filtra")
     void caso_cp_bct_05() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
 
         // Act + Assert
         mockMvc.perform(get("/barriles").param("estadoOperativo", "CON_CERVEZA"))
@@ -183,8 +184,8 @@ class BarrilControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*<option value=\"CON_CERVEZA\"[^>]*selected.*")));
         mockMvc.perform(get("/barriles").param("estadoOperativo", "")).andExpect(status().isOk());
 
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), eq(EstadoOperativoBarril.CON_CERVEZA), isNull(), any());
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), eq(EstadoOperativoBarril.CON_CERVEZA), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), isNull(), any());
     }
 
     @Test
@@ -192,7 +193,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-06: el filtro por fabricante se elige con el selector y se muestra su nombre")
     void caso_cp_bct_06() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act + Assert
@@ -204,7 +205,7 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString("data-selector-limpiar")))
                 .andExpect(content().string(not(containsString("data-selector-menu"))));
 
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), eq(2L), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), eq(2L), any());
     }
 
     @Test
@@ -212,7 +213,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-07: fabricante del filtro inexistente")
     void caso_cp_bct_07() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
         when(fabricanteBarrilServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el fabricante de barril con ID: 99"));
 
         // Act + Assert
@@ -221,25 +222,25 @@ class BarrilControllerTest {
                 .andExpect(content().string(not(matchesPattern("(?s).*name=\"idFabricante\"[^>]*value=\"99\".*"))))
                 .andExpect(content().string(containsString("data-selector-texto value=\"\"")));
 
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), isNull(), isNull(), any());
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-08: los cuatro criterios combinados llegan al service junto con la página pedida")
+    @DisplayName("CP-BCT-08: los cinco criterios combinados llegan al service junto con la página pedida")
     void caso_cp_bct_08() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act
-        mockMvc.perform(get("/barriles").param("identificador", "b-0").param("capacidad", "50")
+        mockMvc.perform(get("/barriles").param("identificadorInterno", "b-0").param("numeroSerie", "sn-1").param("capacidad", "50")
                         .param("estadoOperativo", "DISPONIBLE").param("idFabricante", "2").param("pagina", "1"))
                 .andExpect(status().isOk());
 
         // Assert
         ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(barrilServicio).filtrarBarriles(eq("b-0"), eq(50.0), eq(EstadoOperativoBarril.DISPONIBLE), eq(2L), captor.capture());
+        verify(barrilServicio).filtrarBarriles(eq("b-0"), eq("sn-1"), eq(50.0), eq(EstadoOperativoBarril.DISPONIBLE), eq(2L), captor.capture());
         assertThat(captor.getValue().getPageSize()).isEqualTo(20);
         assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
     }
@@ -249,20 +250,20 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-09: los criterios quedan en el formulario y en los links de paginación")
     void caso_cp_bct_09() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any()))
-                .thenReturn(new PageImpl<>(List.of(barril(4L, "B-001", 2L, "Barrilitos SA")), PageRequest.of(1, 20), 60));
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(barril(4L, "BRL-01", 2L, "Barrilitos SA")), PageRequest.of(1, 20), 60));
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act + Assert
-        mockMvc.perform(get("/barriles").param("identificador", "b-0").param("capacidad", "50")
+        mockMvc.perform(get("/barriles").param("identificadorInterno", "b-0").param("numeroSerie", "sn-1").param("capacidad", "50")
                         .param("estadoOperativo", "DISPONIBLE").param("idFabricante", "2").param("pagina", "1"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("value=\"b-0\"")))
                 .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(matchesPattern("(?s).*<option value=\"DISPONIBLE\"[^>]*selected.*")))
                 .andExpect(content().string(matchesPattern("(?s).*name=\"idFabricante\"[^>]*value=\"2\".*")))
-                .andExpect(content().string(containsString("/barriles?pagina=0&amp;identificador=b-0&amp;capacidad=50&amp;estadoOperativo=DISPONIBLE&amp;idFabricante=2")))
-                .andExpect(content().string(containsString("/barriles?pagina=2&amp;identificador=b-0&amp;capacidad=50&amp;estadoOperativo=DISPONIBLE&amp;idFabricante=2")))
+                .andExpect(content().string(containsString("/barriles?pagina=0&amp;identificadorInterno=b-0&amp;numeroSerie=sn-1&amp;capacidad=50&amp;estadoOperativo=DISPONIBLE&amp;idFabricante=2")))
+                .andExpect(content().string(containsString("/barriles?pagina=2&amp;identificadorInterno=b-0&amp;numeroSerie=sn-1&amp;capacidad=50&amp;estadoOperativo=DISPONIBLE&amp;idFabricante=2")))
                 .andExpect(content().string(matchesPattern("(?s).*href=\"/barriles\"[^>]*>\\s*Limpiar.*")));
     }
 
@@ -271,7 +272,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-10: sin resultados muestra un mensaje claro en vez de una tabla vacía")
     void caso_cp_bct_10() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
 
         // Act + Assert
         mockMvc.perform(get("/barriles"))
@@ -292,7 +293,7 @@ class BarrilControllerTest {
                     .andExpect(flash().attribute("tipo", "warning"));
         }
 
-        verify(barrilServicio, never()).filtrarBarriles(any(), any(), any(), any(), any());
+        verify(barrilServicio, never()).filtrarBarriles(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -304,7 +305,7 @@ class BarrilControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(flash().attribute("tipo", "danger"));
 
-        verify(barrilServicio, never()).filtrarBarriles(any(), any(), any(), any(), any());
+        verify(barrilServicio, never()).filtrarBarriles(any(), any(), any(), any(), any(), any());
     }
 
     // ==================== GET /barriles/buscador/fabricantes ====================
@@ -429,8 +430,11 @@ class BarrilControllerTest {
                 .andExpect(content().string(containsString("Nuevo barril")))
                 .andExpect(content().string(containsString("action=\"/barriles\"")))
                 .andExpect(content().string(containsString("novalidate")))
-                .andExpect(content().string(containsString(">Identificador ")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: B-001\"")))
+                .andExpect(content().string(containsString(">Número de serie ")))
+                .andExpect(content().string(containsString("Se asigna al guardar")))
+                .andExpect(content().string(containsString("Único entre los barriles del mismo fabricante.")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
+                .andExpect(content().string(containsString("placeholder=\"Ej: SN-2024-001\"")))
                 .andExpect(content().string(containsString("Capacidad (L)")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 50\"")))
                 .andExpect(content().string(containsString("Un número mayor a 0 y hasta 1.000.</p>")))
@@ -481,7 +485,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-21: alta correcta delega en el service y redirige al listado con alerta de éxito")
     void caso_cp_bct_21() throws Exception {
         // Arrange
-        when(barrilServicio.altaBarril(any())).thenReturn(barril(9L, "B-001", 2L, "Barrilitos SA"));
+        when(barrilServicio.altaBarril(any())).thenReturn(barril(9L, "BRL-01", 2L, "Barrilitos SA"));
 
         // Act + Assert
         mockMvc.perform(post("/barriles").with(csrf()).params(datosValidos()))
@@ -492,7 +496,7 @@ class BarrilControllerTest {
 
         ArgumentCaptor<BarrilFormDTO> captor = ArgumentCaptor.forClass(BarrilFormDTO.class);
         verify(barrilServicio).altaBarril(captor.capture());
-        assertThat(captor.getValue().getIdentificador()).isEqualTo("B-001");
+        assertThat(captor.getValue().getNumeroSerie()).isEqualTo("SN-2024-001");
         assertThat(captor.getValue().getCapacidad()).isEqualTo(50.0);
         assertThat(captor.getValue().getUsosMaximosAntesMantenimiento()).isEqualTo(100);
         assertThat(captor.getValue().getIdFabricanteBarril()).isEqualTo(2L);
@@ -503,11 +507,11 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-22: sin ningún dato vuelve al formulario con todos los errores, sin llamar al service")
     void caso_cp_bct_22() throws Exception {
         // Act + Assert
-        mockMvc.perform(post("/barriles").with(csrf()).param("identificador", "  "))
+        mockMvc.perform(post("/barriles").with(csrf()).param("numeroSerie", "  "))
                 .andExpect(status().isOk())
                 .andExpect(view().name("barril/barril-form"))
                 .andExpect(content().string(containsString("No se pudo crear el barril")))
-                .andExpect(content().string(containsString("El identificador es obligatorio")))
+                .andExpect(content().string(containsString("El número de serie es obligatorio")))
                 .andExpect(content().string(containsString("La capacidad es obligatoria")))
                 .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")))
                 .andExpect(content().string(containsString("El fabricante de barril es obligatorio")));
@@ -548,7 +552,7 @@ class BarrilControllerTest {
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act + Assert
-        mockMvc.perform(post("/barriles").with(csrf()).param("identificador", "").param("capacidad", "50")
+        mockMvc.perform(post("/barriles").with(csrf()).param("numeroSerie", "").param("capacidad", "50")
                         .param("idFabricanteBarril", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(matchesPattern("(?s).*name=\"idFabricanteBarril\"[^>]*value=\"2\".*")))
@@ -559,19 +563,19 @@ class BarrilControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-26: un identificador duplicado vuelve al formulario con el mensaje del service junto al campo identificador")
+    @DisplayName("CP-BCT-26: un número de serie duplicado vuelve al formulario con el mensaje del service junto al campo número de serie")
     void caso_cp_bct_26() throws Exception {
         // Arrange
-        when(barrilServicio.altaBarril(any())).thenThrow(new RecursoDuplicadoException("Ya existe un barril con el identificador 'B-001' para el fabricante seleccionado"));
+        when(barrilServicio.altaBarril(any())).thenThrow(new RecursoDuplicadoException("Ya existe un barril con el número de serie 'SN-2024-001' para el fabricante seleccionado"));
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act + Assert
         mockMvc.perform(post("/barriles").with(csrf()).params(datosValidos()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("barril/barril-form"))
-                .andExpect(content().string(containsString("Ya existe un barril con el identificador")))
-                .andExpect(content().string(matchesPattern("(?s).*id=\"identificador\"[^>]*border-rose-400.*")))
-                .andExpect(content().string(containsString("value=\"B-001\"")))
+                .andExpect(content().string(containsString("Ya existe un barril con el número de serie")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"numeroSerie\"[^>]*border-rose-400.*")))
+                .andExpect(content().string(containsString("value=\"SN-2024-001\"")))
                 .andExpect(content().string(containsString("value=\"Barrilitos SA\"")));
     }
 
@@ -587,7 +591,7 @@ class BarrilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo crear el barril")))
                 .andExpect(content().string(containsString("Regla incumplida")))
-                .andExpect(content().string(containsString("value=\"B-001\"")));
+                .andExpect(content().string(containsString("value=\"SN-2024-001\"")));
     }
 
     @Test
@@ -605,7 +609,7 @@ class BarrilControllerTest {
                 .andExpect(view().name("barril/barril-form"))
                 .andExpect(content().string(containsString(mensaje)))
                 .andExpect(content().string(containsString("data-selector-texto value=\"\"")))
-                .andExpect(content().string(containsString("value=\"B-001\"")));
+                .andExpect(content().string(containsString("value=\"SN-2024-001\"")));
     }
 
     @Test
@@ -627,7 +631,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-30: el formulario de edición muestra los datos actuales, el fabricante elegido y apunta a la modificación")
     void caso_cp_bct_30() throws Exception {
         // Arrange
-        when(barrilServicio.buscarPorId(4L)).thenReturn(barril(4L, "B-001", 2L, "Barrilitos SA"));
+        when(barrilServicio.buscarPorId(4L)).thenReturn(barril(4L, "BRL-01", 2L, "Barrilitos SA"));
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act + Assert
@@ -635,7 +639,8 @@ class BarrilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("barril/barril-form"))
                 .andExpect(content().string(containsString("Editar barril")))
-                .andExpect(content().string(containsString("value=\"B-001\"")))
+                .andExpect(content().string(containsString("value=\"SN-2024-001\"")))
+                .andExpect(content().string(containsString(">BRL-01<")))
                 .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(not(containsString("value=\"50.0\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
@@ -697,11 +702,11 @@ class BarrilControllerTest {
         when(fabricanteBarrilServicio.buscarPorId(2L)).thenReturn(fabricante(2L, "Barrilitos SA"));
 
         // Act + Assert
-        mockMvc.perform(post("/barriles/4").with(csrf()).param("identificador", "  ").param("idFabricanteBarril", "2"))
+        mockMvc.perform(post("/barriles/4").with(csrf()).param("numeroSerie", "  ").param("idFabricanteBarril", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("action=\"/barriles/4\"")))
                 .andExpect(content().string(containsString("No se pudo modificar el barril")))
-                .andExpect(content().string(containsString("El identificador es obligatorio")))
+                .andExpect(content().string(containsString("El número de serie es obligatorio")))
                 .andExpect(content().string(containsString("value=\"Barrilitos SA\"")));
 
         verify(barrilServicio, never()).modificarBarril(any(), any());
@@ -709,17 +714,17 @@ class BarrilControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-BCT-35: modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service")
+    @DisplayName("CP-BCT-35: modificar con un número de serie duplicado vuelve al formulario de edición con el mensaje del service")
     void caso_cp_bct_35() throws Exception {
         // Arrange
-        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un barril con el identificador 'B-002' para el fabricante seleccionado"));
+        when(barrilServicio.modificarBarril(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un barril con el número de serie 'SN-2' para el fabricante seleccionado"));
 
         // Act + Assert
-        mockMvc.perform(post("/barriles/4").with(csrf()).params(datosCon("identificador", "B-002")))
+        mockMvc.perform(post("/barriles/4").with(csrf()).params(datosCon("numeroSerie", "SN-2")))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el barril")))
-                .andExpect(content().string(containsString("Ya existe un barril con el identificador &#39;B-002&#39; para el fabricante seleccionado")))
-                .andExpect(content().string(matchesPattern("(?s).*id=\"identificador\"[^>]*border-rose-400.*")));
+                .andExpect(content().string(containsString("Ya existe un barril con el número de serie &#39;SN-2&#39; para el fabricante seleccionado")))
+                .andExpect(content().string(matchesPattern("(?s).*id=\"numeroSerie\"[^>]*border-rose-400.*")));
     }
 
     @Test
@@ -734,7 +739,7 @@ class BarrilControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el barril")))
                 .andExpect(content().string(containsString("La capacidad no puede ser menor al contenido actual del barril (30.0 L)")))
-                .andExpect(content().string(containsString("value=\"B-001\"")));
+                .andExpect(content().string(containsString("value=\"SN-2024-001\"")));
     }
 
     @Test
@@ -816,7 +821,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-41: la sidebar del GERENTE_DE_PRODUCCION ofrece \"Gestión de Barriles\" en Administración, justo encima de \"Gestión de Equipamiento\"")
     void caso_cp_bct_41() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(paginaVacia());
 
         // Act + Assert
         mockMvc.perform(get("/barriles"))
@@ -830,7 +835,7 @@ class BarrilControllerTest {
     @DisplayName("CP-BCT-42: la opción permanece resaltada en el formulario de alta y en el de edición")
     void caso_cp_bct_42() throws Exception {
         // Arrange
-        when(barrilServicio.buscarPorId(4L)).thenReturn(barril(4L, "B-001", 2L, "Barrilitos SA"));
+        when(barrilServicio.buscarPorId(4L)).thenReturn(barril(4L, "BRL-01", 2L, "Barrilitos SA"));
         String resaltada = "(?s).*href=\"/barriles\"[^>]*bg-amber-500/10[^>]*>\\s*<i class=\"bi text-lg bi-boxes\"></i>.*";
 
         // Act + Assert
@@ -862,7 +867,7 @@ class BarrilControllerTest {
 
         // Act + Assert
         LinkedMultiValueMap<String, String> sinIdentificador = datosCon("capacidad", "4.5");
-        sinIdentificador.set("identificador", "");
+        sinIdentificador.set("numeroSerie", "");
         mockMvc.perform(post("/barriles").with(csrf()).params(sinIdentificador))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("value=\"4.5\"")));
@@ -884,7 +889,7 @@ class BarrilControllerTest {
 
     private static LinkedMultiValueMap<String, String> datosValidos() {
         LinkedMultiValueMap<String, String> datos = new LinkedMultiValueMap<>();
-        datos.add("identificador", "B-001");
+        datos.add("numeroSerie", "SN-2024-001");
         datos.add("capacidad", "50");
         datos.add("usosMaximosAntesMantenimiento", "100");
         datos.add("idFabricanteBarril", "2");
@@ -903,8 +908,8 @@ class BarrilControllerTest {
         return FabricanteBarrilResponseDTO.builder().id(id).nombre(nombre).build();
     }
 
-    private static BarrilResponseDTO barril(Long id, String identificador, Long idFabricante, String nombreFabricante) {
-        return BarrilResponseDTO.builder().id(id).identificador(identificador).capacidad(50.0).contenidoActual(0.0)
+    private static BarrilResponseDTO barril(Long id, String identificadorInterno, Long idFabricante, String nombreFabricante) {
+        return BarrilResponseDTO.builder().id(id).identificadorInterno(identificadorInterno).numeroSerie("SN-2024-001").capacidad(50.0).contenidoActual(0.0)
                 .estadoOperativo(EstadoOperativoBarril.DISPONIBLE).usosMaximosAntesMantenimiento(100)
                 .fabricante(fabricante(idFabricante, nombreFabricante)).build();
     }

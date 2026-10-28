@@ -1951,7 +1951,7 @@ class CronogramaControllerTest {
 
         // Assert
         assertThat(html).contains("Buscar fermentador").contains("action=\"/cronograma-produccion/buscador/fermentadores\"")
-                .contains("data-modal-buscar").contains("placeholder=\"Ej: F-01\"")
+                .contains("data-modal-buscar").contains("placeholder=\"Ej: FER-01\"")
                 .contains(">Identificador</label>").contains(">Estado operativo</label>").contains("Incluir dados de baja")
                 .contains("type=\"checkbox\"").contains("name=\"incluirDadosDeBaja\"")
                 .contains("Capacidad útil (L)").contains(">330<").contains(">400,5<")

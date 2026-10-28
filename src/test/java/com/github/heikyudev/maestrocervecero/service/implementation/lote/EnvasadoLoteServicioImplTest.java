@@ -1196,7 +1196,7 @@ class EnvasadoLoteServicioImplTest {
     private static BarrilEntity crearBarrilEntity(Long id, Double capacidad, Double contenidoActual, EstadoOperativoBarril estadoOperativo) {
         return BarrilEntity.builder()
                 .id(id)
-                .identificador("BAR-01")
+                .identificadorInterno("BAR-01")
                 .capacidad(capacidad)
                 .contenidoActual(contenidoActual)
                 .estadoOperativo(estadoOperativo)

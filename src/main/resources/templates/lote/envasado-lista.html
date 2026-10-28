@@ -118,7 +118,7 @@
                 <tr th:each="e : ${envasados.content}" th:attr="data-envasado=${e.id}" class="hover:bg-slate-50"
                     th:classappend="${e.estado.name() == 'ANULADO'} ? 'opacity-60'">
                     <td class="px-4 py-3 font-medium text-slate-900">
-                        <div class="max-w-[14rem] truncate" tabindex="0" th:data-tooltip="${e.barril.identificador}" th:text="${e.barril.identificador}">B-001</div>
+                        <div class="max-w-[14rem] truncate" tabindex="0" th:data-tooltip="${e.barril.identificadorInterno}" th:text="${e.barril.identificadorInterno}">BRL-01</div>
                     </td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${e.cantidadEnvasada})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaRegistro})}"></th:block></td>
@@ -129,7 +129,7 @@
                     <td th:if="${operable}" sec:authorize="hasAuthority('ENVASADO_ANULAR')" class="col-acciones px-4 py-3 text-right">
                         <button type="button" th:if="${e.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
                                 th:data-motivo-url="@{/lotes/{id}/envasados/{idEnvasado}/anular(id=${lote.id}, idEnvasado=${e.id})}"
-                                th:data-motivo-nombre="${e.barril.identificador}"
+                                th:data-motivo-nombre="${e.barril.identificadorInterno}"
                                 class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
                     </td>
                 </tr>

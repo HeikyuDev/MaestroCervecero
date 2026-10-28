@@ -37,6 +37,19 @@ public final class GuardadoUnico {
     }
 
     /**
+     * Guarda la entidad y confirma el guardado, sin excepciones propias por índice: una violación de unicidad se informa
+     * con {@link #MENSAJE_DUPLICADO_GENERICO}.
+     *
+     * @param repositorio Repositorio de la entidad.
+     * @param entidad     Entidad a guardar.
+     * @param <T>         Tipo de la entidad.
+     * @return La entidad guardada.
+     */
+    public static <T> T guardar(JpaRepository<T, ?> repositorio, T entidad) {
+        return guardar(repositorio, entidad, Map.of());
+    }
+
+    /**
      * Guarda la entidad y confirma el guardado en la base de datos.
      *
      * @param repositorio          Repositorio de la entidad.

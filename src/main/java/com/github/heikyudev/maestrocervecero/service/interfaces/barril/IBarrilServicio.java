@@ -14,19 +14,20 @@ import org.springframework.data.domain.Pageable;
 public interface IBarrilServicio {
 
     /**
-     * Obtiene una página de barriles activos, filtrados opcionalmente por identificador
+     * Obtiene una página de barriles activos, filtrados opcionalmente por identificador interno y por número de serie
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas), capacidad (coincidencia
      * exacta), estado operativo (coincidencia exacta) y/o fabricante (por su ID). Un parámetro
      * nulo no restringe por ese criterio.
      *
-     * @param identificador Texto a buscar dentro del identificador, o {@code null} para no filtrar por él.
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param numeroSerie Texto a buscar dentro del número de serie, o {@code null} para no filtrar por él.
      * @param capacidad Capacidad exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param idFabricante El ID del fabricante a filtrar, o {@code null} para no filtrar por él.
      * @param pageable Información de paginación.
      * @return Página de BarrilResponseDTO que cumplen los criterios indicados.
      */
-    Page<BarrilResponseDTO> filtrarBarriles(String identificador, Double capacidad, EstadoOperativoBarril estadoOperativo, Long idFabricante, Pageable pageable);
+    Page<BarrilResponseDTO> filtrarBarriles(String identificadorInterno, String numeroSerie, Double capacidad, EstadoOperativoBarril estadoOperativo, Long idFabricante, Pageable pageable);
 
     /**
      * Busca un barril por su ID.

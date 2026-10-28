@@ -60,10 +60,9 @@ public class EnvasadoLoteController {
     private static final String ATRIBUTO_FORMULARIO = "envasadoForm";
 
     /**
-     * Los barriles son maestros: el buscador los ofrece en orden alfabético ascendente por identificador (que se guarda
-     * normalizado en mayúsculas).
+     * Los barriles son maestros: el buscador los ofrece en orden alfabético ascendente por identificador interno.
      */
-    private static final Sort ORDEN_BARRILES = Sort.by(Sort.Order.asc("identificador"), Sort.Order.asc("id"));
+    private static final Sort ORDEN_BARRILES = Sort.by(Sort.Order.asc("identificadorInterno"), Sort.Order.asc("id"));
 
     private final ILoteServicio loteServicio;
     private final IEnvasadoLoteServicio envasadoLoteServicio;
@@ -154,14 +153,14 @@ public class EnvasadoLoteController {
     // ==================== Buscador ====================
 
     /**
-     * Devuelve el contenido del modal de búsqueda de barriles (criterio de identificador + resultados), de a 8. Solo
-     * se ofrecen barriles Disponibles, en orden alfabético por identificador. Un modal no puede redirigir: un lote
+     * Devuelve el contenido del modal de búsqueda de barriles (criterio de identificador interno + resultados), de a 8. Solo
+     * se ofrecen barriles Disponibles, en orden alfabético por identificador interno. Un modal no puede redirigir: un lote
      * inexistente se informa dentro del propio fragmento.
      */
     @GetMapping("/buscador/barriles")
     @PreAuthorize("hasAuthority('ENVASADO_REGISTRAR')")
     public String buscarBarriles(@PathVariable Long idLote,
-                                 @RequestParam(required = false) String identificador,
+                                 @RequestParam(required = false) String identificadorInterno,
                                  @RequestParam(defaultValue = "0") int pagina,
                                  Model model) {
         try {
@@ -171,11 +170,11 @@ public class EnvasadoLoteController {
             return VISTA_BUSCADOR;
         }
 
-        Page<BarrilResponseDTO> barriles = barrilServicio.filtrarBarriles(vacioANulo(identificador), null, EstadoOperativoBarril.DISPONIBLE, null,
+        Page<BarrilResponseDTO> barriles = barrilServicio.filtrarBarriles(vacioANulo(identificadorInterno), null, null, EstadoOperativoBarril.DISPONIBLE, null,
                 PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA_BUSCADOR, ORDEN_BARRILES));
 
         model.addAttribute("barriles", barriles);
-        model.addAttribute("filtroIdentificador", identificador);
+        model.addAttribute("filtroIdentificador", identificadorInterno);
         model.addAttribute("urlBuscador", urlDeLaPantalla(idLote) + "/buscador/barriles");
         return VISTA_BUSCADOR;
     }
@@ -245,7 +244,7 @@ public class EnvasadoLoteController {
             try {
                 BarrilResponseDTO barrilElegido = barrilServicio.buscarPorId(envasadoForm.getIdBarril());
                 model.addAttribute("barrilElegido", barrilElegido);
-                model.addAttribute("barrilElegidoTexto", barrilElegido.getIdentificador());
+                model.addAttribute("barrilElegidoTexto", barrilElegido.getIdentificadorInterno());
             } catch (RecursoNoEncontradoException e) {
                 model.addAttribute("barrilElegido", null);
             }

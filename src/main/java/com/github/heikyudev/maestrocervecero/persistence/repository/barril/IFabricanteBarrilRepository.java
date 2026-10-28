@@ -50,7 +50,7 @@ public interface IFabricanteBarrilRepository extends JpaRepository<FabricanteBar
     /**
      * Verifica si existe un fabricante de barril activo con el nombre dado, ignorando mayúsculas y minúsculas.
      * <p>
-     * Un barril puede repetir identificador entre fabricantes distintos, pero un fabricante no puede repetir
+     * Un barril puede repetir número de serie entre fabricantes distintos, pero un fabricante no puede repetir
      * nombre con otro fabricante activo.
      * </p>
      *

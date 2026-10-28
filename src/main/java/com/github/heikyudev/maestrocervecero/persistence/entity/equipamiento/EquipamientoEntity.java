@@ -52,9 +52,8 @@ public abstract class EquipamientoEntity extends AuditableEntity<String> {
     @EqualsAndHashCode.Include
     private Long id;
 
-    // Sin unique = true a nivel de columna: la unicidad se valida en el service, scopeada
-    // a equipamientos ACTIVOS (ver IEquipamientoRepository). Un identificador usado por un
-    // equipo dado de BAJA queda libre para un equipo nuevo.
+    // Lo genera el sistema al dar de alta (MOL-01, MAC-01, OLL-01, FER-01), nunca se reutiliza y no se modifica.
+    // La unicidad la garantiza el índice udx_equipamiento_identificador_interno.
     @Column(name = "identificador_interno", nullable = false)
     private String identificadorInterno;
 

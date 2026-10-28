@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.equipamien
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
-import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOllaHervorServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OllaHervorResponseDTO;
@@ -99,8 +98,6 @@ public class OllaHervorController {
                 agregarMensaje(redirectAttributes, "Olla de hervor creada correctamente", TipoAlerta.SUCCESS);
                 String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, creado.getId());
                 return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -119,13 +116,13 @@ public class OllaHervorController {
         OllaHervorResponseDTO actual = ollaHervorServicio.buscarPorId(id);
 
         model.addAttribute(ATRIBUTO_FORMULARIO, OllaHervorFormDTO.builder()
-                .identificadorInterno(actual.getIdentificadorInterno())
                 .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .evaporacion(actual.getEvaporacion())
                 .perdidaPorTrub(actual.getPerdidaPorTrub())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
+        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -146,13 +143,12 @@ public class OllaHervorController {
                 ollaHervorServicio.modificarOllaHervor(id, ollaHervorForm);
                 agregarMensaje(redirectAttributes, "Olla de hervor modificada correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
         }
 
+        model.addAttribute("identificadorInterno", ollaHervorServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

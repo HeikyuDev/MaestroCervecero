@@ -158,7 +158,9 @@ class MaceradorControllerTest {
                 .andExpect(content().string(containsString("Nuevo macerador")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/equipamiento/maceradores\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: MAC-01\"")))
+                .andExpect(content().string(containsString("Se asigna al guardar")))
+                .andExpect(content().string(containsString("Lo asigna el sistema y no se puede modificar")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 100\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 2\"")))
@@ -203,7 +205,6 @@ class MaceradorControllerTest {
         when(maceradorServicio.altaMacerador(any())).thenReturn(equipo(9L, "MAC-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/maceradores").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
@@ -216,7 +217,6 @@ class MaceradorControllerTest {
 
         ArgumentCaptor<MaceradorFormDTO> captor = ArgumentCaptor.forClass(MaceradorFormDTO.class);
         verify(maceradorServicio).altaMacerador(captor.capture());
-        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("MAC-01");
         assertThat(captor.getValue().getCapacidadTotal()).isEqualTo(100.0);
         assertThat(captor.getValue().getCapacidadUtil()).isEqualTo(80.0);
         assertThat(captor.getValue().getEspacioMuerto()).isEqualTo(2.0);
@@ -226,13 +226,12 @@ class MaceradorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MCC-10: sin identificador ni datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
+    @DisplayName("CP-MCC-10: sin datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
     void caso_cp_mcc_10() throws Exception {
-        mockMvc.perform(post("/equipamiento/maceradores").with(csrf()).param("identificadorInterno", "  "))
+        mockMvc.perform(post("/equipamiento/maceradores").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/macerador-form"))
                 .andExpect(content().string(containsString("No se pudo crear el macerador")))
-                .andExpect(content().string(containsString("El identificador interno es obligatorio")))
                 .andExpect(content().string(containsString("La capacidad total es obligatoria")))
                 .andExpect(content().string(containsString("La capacidad útil es obligatoria")))
                 .andExpect(content().string(containsString("El espacio muerto es obligatorio")))
@@ -247,7 +246,6 @@ class MaceradorControllerTest {
     @DisplayName("CP-MCC-11: un valor no numérico en un campo numérico muestra un mensaje en español, sin llamar al service")
     void caso_cp_mcc_11() throws Exception {
         mockMvc.perform(post("/equipamiento/maceradores").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "abc"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ingrese un número válido")));
@@ -257,21 +255,23 @@ class MaceradorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MCC-12: un identificador duplicado vuelve al formulario con el mensaje del service y conserva lo tipeado")
+    @DisplayName("CP-MCC-12: un identificador interno enviado en el pedido de alta se ignora: lo genera el sistema")
     void caso_cp_mcc_12() throws Exception {
-        when(maceradorServicio.altaMacerador(any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'MAC-01'"));
+        when(maceradorServicio.altaMacerador(any())).thenReturn(equipo(9L, "MAC-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/maceradores").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
                         .param("eficienciaMaceracion", "75")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("equipamiento/macerador-form"))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("value=\"MAC-01\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/maceradores"))
+                .andExpect(flash().attribute("mensaje", "Macerador creado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(maceradorServicio).altaMacerador(any());
     }
 
     @Test
@@ -281,7 +281,6 @@ class MaceradorControllerTest {
         when(maceradorServicio.altaMacerador(any())).thenThrow(new ReglaNegocioException("Regla incumplida"));
 
         mockMvc.perform(post("/equipamiento/maceradores").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
@@ -299,7 +298,6 @@ class MaceradorControllerTest {
         when(maceradorServicio.altaMacerador(any())).thenReturn(equipo(9L, "MAC-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/maceradores").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
@@ -316,7 +314,6 @@ class MaceradorControllerTest {
     @DisplayName("CP-MCC-15: un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta")
     void caso_cp_mcc_15() throws Exception {
         mockMvc.perform(post("/equipamiento/maceradores").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
@@ -330,7 +327,7 @@ class MaceradorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MCC-16: el formulario de edición muestra los datos actuales y apunta a la modificación")
+    @DisplayName("CP-MCC-16: el formulario de edición muestra los datos actuales, el identificador interno de solo lectura y apunta a la modificación")
     void caso_cp_mcc_16() throws Exception {
         when(maceradorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "MAC-01", EstadoOperativo.DISPONIBLE));
 
@@ -338,7 +335,8 @@ class MaceradorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/macerador-form"))
                 .andExpect(content().string(containsString("Editar macerador")))
-                .andExpect(content().string(containsString("value=\"MAC-01\"")))
+                .andExpect(content().string(containsString(">MAC-01<")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
                 .andExpect(content().string(containsString("value=\"80\"")))
                 .andExpect(content().string(containsString("value=\"2\"")))
@@ -352,7 +350,6 @@ class MaceradorControllerTest {
     @DisplayName("CP-MCC-17: la modificación correcta delega en el service y redirige al listado con alerta de éxito")
     void caso_cp_mcc_17() throws Exception {
         mockMvc.perform(post("/equipamiento/maceradores/4").with(csrf())
-                        .param("identificadorInterno", "OTRO-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
@@ -368,31 +365,31 @@ class MaceradorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MCC-18: modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service")
+    @DisplayName("CP-MCC-18: un identificador interno enviado en el pedido de modificación se ignora: no se puede cambiar")
     void caso_cp_mcc_18() throws Exception {
-        when(maceradorServicio.modificarMacerador(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'MAC-01'"));
-
         mockMvc.perform(post("/equipamiento/maceradores/4").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
                         .param("eficienciaMaceracion", "75")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se pudo modificar el macerador")))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("action=\"/equipamiento/maceradores/4\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/maceradores"))
+                .andExpect(flash().attribute("mensaje", "Macerador modificado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(maceradorServicio).modificarMacerador(eq(4L), any(MaceradorFormDTO.class));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MCC-19: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_mcc_19() throws Exception {
+        when(maceradorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "MAC-01", EstadoOperativo.DISPONIBLE));
         when(maceradorServicio.modificarMacerador(eq(4L), any())).thenThrow(new ReglaNegocioException("Los datos del equipo no son válidos"));
 
         mockMvc.perform(post("/equipamiento/maceradores/4").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")
@@ -400,7 +397,8 @@ class MaceradorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el macerador")))
-                .andExpect(content().string(containsString("Los datos del equipo no son válidos")));
+                .andExpect(content().string(containsString("Los datos del equipo no son válidos")))
+                .andExpect(content().string(containsString(">MAC-01<")));
     }
 
     @Test
@@ -408,7 +406,6 @@ class MaceradorControllerTest {
     @DisplayName("CP-MCC-20: un rol distinto de GERENTE_DE_PRODUCCION no puede modificar")
     void caso_cp_mcc_20() throws Exception {
         mockMvc.perform(post("/equipamiento/maceradores/4").with(csrf())
-                        .param("identificadorInterno", "MAC-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("espacioMuerto", "2")

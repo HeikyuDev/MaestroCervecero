@@ -13,7 +13,7 @@ public final class LimitesTecnicos {
 
     /**
      * Longitud máxima, en caracteres, del nombre de un insumo, de una receta, de un país, de una provincia o de una
-     * localidad, del nombre y el apellido de un usuario y del identificador de un equipo.
+     * localidad, y del nombre y el apellido de un usuario.
      */
     public static final int LONGITUD_MAXIMA_NOMBRE = 100;
 
@@ -34,6 +34,9 @@ public final class LimitesTecnicos {
 
     /** Longitud máxima, en caracteres, de un motivo u observación. */
     public static final int LONGITUD_MAXIMA_MOTIVO = 255;
+
+    /** Longitud máxima, en caracteres, del número de serie de un barril (el máximo de la columna de la base de datos). */
+    public static final int LONGITUD_MAXIMA_NUMERO_SERIE = 255;
 
     /** Longitud máxima, en caracteres, de la identificación del lote asignada por el proveedor (el máximo de la columna de la base de datos). */
     public static final int LONGITUD_MAXIMA_IDENTIFICACION_LOTE = 255;

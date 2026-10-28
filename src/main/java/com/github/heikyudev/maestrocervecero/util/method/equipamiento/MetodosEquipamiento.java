@@ -54,19 +54,4 @@ public class MetodosEquipamiento {
         }
     }
 
-    /**
-     * Valida el identificador interno normalizado de un equipamiento: es obligatorio y no puede superar
-     * {@link LimitesTecnicos#LONGITUD_MAXIMA_NOMBRE} caracteres.
-     *
-     * @param identificadorInterno Identificador interno normalizado a validar.
-     * @throws ReglaNegocioException Si está vacío o supera la longitud máxima.
-     */
-    public static void validarIdentificadorInterno(String identificadorInterno) {
-        if (identificadorInterno == null || identificadorInterno.isEmpty()) {
-            throw new ReglaNegocioException("El identificador interno es obligatorio");
-        }
-        ValidacionesNumericas.validarLongitudMaxima(identificadorInterno,
-                LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El identificador interno");
-    }
-
 }

@@ -123,7 +123,7 @@ class EnvasadoLoteControllerTest {
         when(envasadoLoteServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el envasado de lote con ID: 99"));
         when(envasadoLoteServicio.registrarEnvasadoLote(any(), any())).thenReturn(envasado(11L, ETAPA_ENVASADO, "B-001", 50, EstadoTransaccion.REGISTRADO, null));
         when(envasadoLoteServicio.anularEnvasadoLote(any(), any())).thenReturn(envasado(9L, ETAPA_ENVASADO, "B-003", 20, EstadoTransaccion.ANULADO, "Motivo"));
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 barril(3L, "B-001", 50, "Barrilitos SA"), barril(4L, "B-002", 30, null))));
         when(barrilServicio.buscarPorId(3L)).thenReturn(barril(3L, "B-001", 50, "Barrilitos SA"));
     }
@@ -630,48 +630,48 @@ class EnvasadoLoteControllerTest {
     // ==================== GET /lotes/{idLote}/envasados/buscador/barriles ====================
 
     @Test
-    @DisplayName("CP-LEN-37: el buscador devuelve un fragmento con el criterio Identificador, las columnas y por fila el botón Elegir con el id, el texto, el fabricante y la capacidad")
+    @DisplayName("CP-LEN-37: el buscador devuelve un fragmento con el criterio Identificador interno, las columnas y por fila el botón Elegir con el id, el texto, el fabricante y la capacidad")
     void buscador_fragmento() throws Exception {
         // Act
         String html = buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
         assertThat(html).doesNotContain("<html");
-        assertThat(texto(html)).contains("Buscar barril", "Identificador", "Capacidad (L)", "Fabricante", "Estado", "Disponible", "Barrilitos SA", "Elegir");
+        assertThat(texto(html)).contains("Buscar barril", "Identificador interno", "Número de serie", "SN-B-001", "Capacidad (L)", "Fabricante", "Estado", "Disponible", "Barrilitos SA", "Elegir");
         Matcher formulario = Pattern.compile("<form[^>]*>").matcher(html);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("data-modal-buscar").contains("action=\"" + URL_BUSCADOR + "\"").contains("method=\"get\"");
-        assertThat(html).contains("name=\"identificador\"").contains("placeholder=\"Ej: B-001\"").doesNotContain("<select");
+        assertThat(html).contains("name=\"identificadorInterno\"").contains("placeholder=\"Ej: BRL-01\"").doesNotContain("<select");
         assertThat(botonElegir(html, 3)).contains("data-texto=\"B-001\"").contains("data-capacidad=\"50\"").contains("data-fabricante=\"Barrilitos SA\"");
         assertThat(botonElegir(html, 4)).contains("data-texto=\"B-002\"").contains("data-capacidad=\"30\"").contains("data-fabricante=\"-\"");
     }
 
     @Test
-    @DisplayName("CP-LEN-38: sin parámetros pide al service solo barriles Disponibles, de a 8 y en orden ascendente por identificador")
+    @DisplayName("CP-LEN-38: sin parámetros pide al service solo barriles Disponibles, de a 8 y en orden ascendente por identificador interno")
     void buscador_soloBarrilesDisponibles() throws Exception {
         // Act
         buscador(Rol.OPERARIO_DE_PRODUCCION);
 
         // Assert
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), eq(EstadoOperativoBarril.DISPONIBLE), isNull(), pageable.capture());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), eq(EstadoOperativoBarril.DISPONIBLE), isNull(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(8);
-        assertThat(pageable.getValue().getSort().getOrderFor("identificador").getDirection()).isEqualTo(Sort.Direction.ASC);
+        assertThat(pageable.getValue().getSort().getOrderFor("identificadorInterno").getDirection()).isEqualTo(Sort.Direction.ASC);
     }
 
     @Test
     @DisplayName("CP-LEN-39: el identificador llega recortado al service, uno en blanco equivale a no filtrar y el campo conserva lo escrito")
     void buscador_criterioDeIdentificador() throws Exception {
         // Act
-        String escrito = mockMvc.perform(get(URL_BUSCADOR).param("identificador", " b-001 ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String escrito = mockMvc.perform(get(URL_BUSCADOR).param("identificadorInterno", " b-001 ").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        mockMvc.perform(get(URL_BUSCADOR).param("identificador", "  ").with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk());
+        mockMvc.perform(get(URL_BUSCADOR).param("identificadorInterno", "  ").with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk());
 
         // Assert
-        verify(barrilServicio).filtrarBarriles(eq("b-001"), isNull(), eq(EstadoOperativoBarril.DISPONIBLE), isNull(), any());
-        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), eq(EstadoOperativoBarril.DISPONIBLE), isNull(), any());
-        assertThat(campo(escrito, "identificador")).isEqualTo(" b-001 ");
+        verify(barrilServicio).filtrarBarriles(eq("b-001"), isNull(), isNull(), eq(EstadoOperativoBarril.DISPONIBLE), isNull(), any());
+        verify(barrilServicio).filtrarBarriles(isNull(), isNull(), isNull(), eq(EstadoOperativoBarril.DISPONIBLE), isNull(), any());
+        assertThat(campo(escrito, "identificadorInterno")).isEqualTo(" b-001 ");
     }
 
     @Test
@@ -679,33 +679,33 @@ class EnvasadoLoteControllerTest {
     void buscador_paginacionDeA8() throws Exception {
         // Arrange
         List<BarrilResponseDTO> diez = IntStream.rangeClosed(1, 10).mapToObj(i -> barril((long) i, "B-0" + (i < 10 ? "0" + i : i), 50, "Barrilitos SA")).toList();
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenAnswer(invocacion -> {
-            Pageable pageable = invocacion.getArgument(4);
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenAnswer(invocacion -> {
+            Pageable pageable = invocacion.getArgument(5);
             int desde = (int) pageable.getOffset();
             return new PageImpl<>(diez.subList(desde, Math.min(desde + pageable.getPageSize(), diez.size())), pageable, diez.size());
         });
 
         // Act
-        String primera = mockMvc.perform(get(URL_BUSCADOR).param("identificador", "B-0").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String primera = mockMvc.perform(get(URL_BUSCADOR).param("identificadorInterno", "B-0").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String segunda = mockMvc.perform(get(URL_BUSCADOR).param("identificador", "B-0").param("pagina", "1").with(como(Rol.OPERARIO_DE_PRODUCCION)))
+        String segunda = mockMvc.perform(get(URL_BUSCADOR).param("identificadorInterno", "B-0").param("pagina", "1").with(como(Rol.OPERARIO_DE_PRODUCCION)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(cuenta(primera, "data-elegir")).isEqualTo(8);
         assertThat(texto(primera)).contains("10 barriles", "Página 1 de 2");
-        assertThat(enlaceDe(primera, "Siguiente")).isEqualTo(URL_BUSCADOR + "?pagina=1&identificador=B-0");
+        assertThat(enlaceDe(primera, "Siguiente")).isEqualTo(URL_BUSCADOR + "?pagina=1&identificadorInterno=B-0");
         assertThat(primera).contains("data-modal-get=\"true\"");
         assertThat(cuenta(segunda, "data-elegir")).isEqualTo(2);
         assertThat(texto(segunda)).contains("Página 2 de 2");
-        assertThat(enlaceDe(segunda, "Anterior")).isEqualTo(URL_BUSCADOR + "?pagina=0&identificador=B-0");
+        assertThat(enlaceDe(segunda, "Anterior")).isEqualTo(URL_BUSCADOR + "?pagina=0&identificadorInterno=B-0");
     }
 
     @Test
     @DisplayName("CP-LEN-41: sin resultados muestra el mensaje claro y una página negativa equivale a la primera")
     void buscador_sinResultados() throws Exception {
         // Arrange
-        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any())).thenReturn(Page.empty());
+        when(barrilServicio.filtrarBarriles(any(), any(), any(), any(), any(), any())).thenReturn(Page.empty());
 
         // Act
         String vacio = buscador(Rol.OPERARIO_DE_PRODUCCION);
@@ -715,7 +715,7 @@ class EnvasadoLoteControllerTest {
         assertThat(texto(vacio)).contains("No se encontraron barriles disponibles con los criterios indicados");
         assertThat(vacio).doesNotContain("data-elegir");
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(barrilServicio, times(2)).filtrarBarriles(any(), any(), any(), any(), pageable.capture());
+        verify(barrilServicio, times(2)).filtrarBarriles(any(), any(), any(), any(), any(), pageable.capture());
         assertThat(pageable.getAllValues().get(1).getPageNumber()).isZero();
     }
 
@@ -1071,7 +1071,7 @@ class EnvasadoLoteControllerTest {
     }
 
     private static BarrilResponseDTO barril(Long id, String identificador, double capacidad, String fabricante) {
-        return BarrilResponseDTO.builder().id(id).identificador(identificador).capacidad(capacidad).estadoOperativo(EstadoOperativoBarril.DISPONIBLE)
+        return BarrilResponseDTO.builder().id(id).identificadorInterno(identificador).numeroSerie("SN-" + identificador).capacidad(capacidad).estadoOperativo(EstadoOperativoBarril.DISPONIBLE)
                 .fabricante(fabricante == null ? null : FabricanteBarrilResponseDTO.builder().id(1L).nombre(fabricante).build()).build();
     }
 
@@ -1079,7 +1079,7 @@ class EnvasadoLoteControllerTest {
         return EnvasadoLoteResponseDTO.builder().id(id).cantidadEnvasada(cantidad).estado(estado).motivoAnulacion(motivo)
                 .usuarioAnulacion(motivo != null ? "operario" : null).fechaAnulacion(motivo != null ? LocalDateTime.of(2027, 7, 2, 9, 30) : null)
                 .fechaRegistro(LocalDateTime.of(2027, 7, 1, 10, 15)).etapaLote(EtapaLoteResponseDTO.builder().id(idEtapa).build())
-                .barril(BarrilResponseDTO.builder().id(id + 100).identificador(barril).build()).build();
+                .barril(BarrilResponseDTO.builder().id(id + 100).identificadorInterno(barril).build()).build();
     }
 
     // ---------- Lectura del HTML ----------

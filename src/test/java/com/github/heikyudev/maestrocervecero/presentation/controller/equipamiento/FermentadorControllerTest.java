@@ -156,7 +156,9 @@ class FermentadorControllerTest {
                 .andExpect(content().string(containsString("Nuevo fermentador")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/equipamiento/fermentadores\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: FER-01\"")))
+                .andExpect(content().string(containsString("Se asigna al guardar")))
+                .andExpect(content().string(containsString("Lo asigna el sistema y no se puede modificar")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 100\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 50\"")))
@@ -199,7 +201,6 @@ class FermentadorControllerTest {
         when(fermentadorServicio.altaFermentador(any())).thenReturn(equipo(9L, "FER-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
@@ -210,7 +211,6 @@ class FermentadorControllerTest {
 
         ArgumentCaptor<FermentadorFormDTO> captor = ArgumentCaptor.forClass(FermentadorFormDTO.class);
         verify(fermentadorServicio).altaFermentador(captor.capture());
-        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("FER-01");
         assertThat(captor.getValue().getCapacidadTotal()).isEqualTo(100.0);
         assertThat(captor.getValue().getCapacidadUtil()).isEqualTo(80.0);
         assertThat(captor.getValue().getUsosMaximosAntesMantenimiento()).isEqualTo(50);
@@ -218,13 +218,12 @@ class FermentadorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-FEC-10: sin identificador ni datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
+    @DisplayName("CP-FEC-10: sin datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
     void caso_cp_fec_10() throws Exception {
-        mockMvc.perform(post("/equipamiento/fermentadores").with(csrf()).param("identificadorInterno", "  "))
+        mockMvc.perform(post("/equipamiento/fermentadores").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/fermentador-form"))
                 .andExpect(content().string(containsString("No se pudo crear el fermentador")))
-                .andExpect(content().string(containsString("El identificador interno es obligatorio")))
                 .andExpect(content().string(containsString("La capacidad total es obligatoria")))
                 .andExpect(content().string(containsString("La capacidad útil es obligatoria")))
                 .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")));
@@ -237,7 +236,6 @@ class FermentadorControllerTest {
     @DisplayName("CP-FEC-11: un valor no numérico en un campo numérico muestra un mensaje en español, sin llamar al service")
     void caso_cp_fec_11() throws Exception {
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "abc"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ingrese un número válido")));
@@ -247,19 +245,21 @@ class FermentadorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-FEC-12: un identificador duplicado vuelve al formulario con el mensaje del service y conserva lo tipeado")
+    @DisplayName("CP-FEC-12: un identificador interno enviado en el pedido de alta se ignora: lo genera el sistema")
     void caso_cp_fec_12() throws Exception {
-        when(fermentadorServicio.altaFermentador(any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'FER-01'"));
+        when(fermentadorServicio.altaFermentador(any())).thenReturn(equipo(9L, "FER-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("equipamiento/fermentador-form"))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("value=\"FER-01\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/fermentadores"))
+                .andExpect(flash().attribute("mensaje", "Fermentador creado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(fermentadorServicio).altaFermentador(any());
     }
 
     @Test
@@ -269,7 +269,6 @@ class FermentadorControllerTest {
         when(fermentadorServicio.altaFermentador(any())).thenThrow(new ReglaNegocioException("Regla incumplida"));
 
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
@@ -285,7 +284,6 @@ class FermentadorControllerTest {
         when(fermentadorServicio.altaFermentador(any())).thenReturn(equipo(9L, "FER-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50")
@@ -300,7 +298,6 @@ class FermentadorControllerTest {
     @DisplayName("CP-FEC-15: un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta")
     void caso_cp_fec_15() throws Exception {
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
@@ -312,7 +309,7 @@ class FermentadorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-FEC-16: el formulario de edición muestra los datos actuales y apunta a la modificación")
+    @DisplayName("CP-FEC-16: el formulario de edición muestra los datos actuales, el identificador interno de solo lectura y apunta a la modificación")
     void caso_cp_fec_16() throws Exception {
         when(fermentadorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "FER-01", EstadoOperativo.DISPONIBLE));
 
@@ -320,7 +317,8 @@ class FermentadorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/fermentador-form"))
                 .andExpect(content().string(containsString("Editar fermentador")))
-                .andExpect(content().string(containsString("value=\"FER-01\"")))
+                .andExpect(content().string(containsString(">FER-01<")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
                 .andExpect(content().string(containsString("value=\"80\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/fermentadores/4\"")))
@@ -332,7 +330,6 @@ class FermentadorControllerTest {
     @DisplayName("CP-FEC-17: la modificación correcta delega en el service y redirige al listado con alerta de éxito")
     void caso_cp_fec_17() throws Exception {
         mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
-                        .param("identificadorInterno", "OTRO-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
@@ -346,35 +343,36 @@ class FermentadorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-FEC-18: modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service")
+    @DisplayName("CP-FEC-18: un identificador interno enviado en el pedido de modificación se ignora: no se puede cambiar")
     void caso_cp_fec_18() throws Exception {
-        when(fermentadorServicio.modificarFermentador(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'FER-01'"));
-
         mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
-                        .param("identificadorInterno", "FER-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se pudo modificar el fermentador")))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("action=\"/equipamiento/fermentadores/4\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/fermentadores"))
+                .andExpect(flash().attribute("mensaje", "Fermentador modificado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(fermentadorServicio).modificarFermentador(eq(4L), any(FermentadorFormDTO.class));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-FEC-19: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_fec_19() throws Exception {
+        when(fermentadorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "FER-01", EstadoOperativo.DISPONIBLE));
         when(fermentadorServicio.modificarFermentador(eq(4L), any())).thenThrow(new ReglaNegocioException("Los datos del equipo no son válidos"));
 
         mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el fermentador")))
-                .andExpect(content().string(containsString("Los datos del equipo no son válidos")));
+                .andExpect(content().string(containsString("Los datos del equipo no son válidos")))
+                .andExpect(content().string(containsString(">FER-01<")));
     }
 
     @Test
@@ -382,7 +380,6 @@ class FermentadorControllerTest {
     @DisplayName("CP-FEC-20: un rol distinto de GERENTE_DE_PRODUCCION no puede modificar")
     void caso_cp_fec_20() throws Exception {
         mockMvc.perform(post("/equipamiento/fermentadores/4").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("usosMaximosAntesMantenimiento", "50"))
@@ -434,7 +431,6 @@ class FermentadorControllerTest {
     @DisplayName("CP-FEC-24: al volver con errores los números válidos se muestran con punto y sin ceros sobrantes y un texto inválido deja el campo vacío con su error")
     void caso_cp_fec_24() throws Exception {
         mockMvc.perform(post("/equipamiento/fermentadores").with(csrf())
-                        .param("identificadorInterno", "FER-01")
                         .param("capacidadTotal", "12.5")
                         .param("capacidadUtil", "abc")
                         .param("usosMaximosAntesMantenimiento", "50"))

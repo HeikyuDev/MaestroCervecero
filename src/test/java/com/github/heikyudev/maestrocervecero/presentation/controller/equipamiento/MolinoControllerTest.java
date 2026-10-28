@@ -155,7 +155,9 @@ class MolinoControllerTest {
                 .andExpect(content().string(containsString("Nuevo molino")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/equipamiento/molinos\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: MOL-01\"")))
+                .andExpect(content().string(containsString("Se asigna al guardar")))
+                .andExpect(content().string(containsString("Lo asigna el sistema y no se puede modificar")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 150\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 50\"")))
                 .andExpect(content().string(containsString("Crear molino")))
@@ -197,7 +199,6 @@ class MolinoControllerTest {
         when(molinoServicio.altaMolino(any())).thenReturn(equipo(9L, "MOL-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/molinos").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().is3xxRedirection())
@@ -207,20 +208,18 @@ class MolinoControllerTest {
 
         ArgumentCaptor<MolinoFormDTO> captor = ArgumentCaptor.forClass(MolinoFormDTO.class);
         verify(molinoServicio).altaMolino(captor.capture());
-        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("MOL-01");
         assertThat(captor.getValue().getRendimientoMolienda()).isEqualTo(150.0);
         assertThat(captor.getValue().getUsosMaximosAntesMantenimiento()).isEqualTo(50);
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MOC-10: sin identificador ni datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
+    @DisplayName("CP-MOC-10: sin datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
     void caso_cp_moc_10() throws Exception {
-        mockMvc.perform(post("/equipamiento/molinos").with(csrf()).param("identificadorInterno", "  "))
+        mockMvc.perform(post("/equipamiento/molinos").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/molino-form"))
                 .andExpect(content().string(containsString("No se pudo crear el molino")))
-                .andExpect(content().string(containsString("El identificador interno es obligatorio")))
                 .andExpect(content().string(containsString("El rendimiento de molienda es obligatorio")))
                 .andExpect(content().string(containsString("Los usos máximos antes de mantenimiento son obligatorios")));
 
@@ -232,7 +231,6 @@ class MolinoControllerTest {
     @DisplayName("CP-MOC-11: un valor no numérico en un campo numérico muestra un mensaje en español, sin llamar al service")
     void caso_cp_moc_11() throws Exception {
         mockMvc.perform(post("/equipamiento/molinos").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "abc"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ingrese un número válido")));
@@ -242,18 +240,20 @@ class MolinoControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MOC-12: un identificador duplicado vuelve al formulario con el mensaje del service y conserva lo tipeado")
+    @DisplayName("CP-MOC-12: un identificador interno enviado en el pedido de alta se ignora: lo genera el sistema")
     void caso_cp_moc_12() throws Exception {
-        when(molinoServicio.altaMolino(any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'MOL-01'"));
+        when(molinoServicio.altaMolino(any())).thenReturn(equipo(9L, "MOL-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/molinos").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("equipamiento/molino-form"))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("value=\"MOL-01\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/molinos"))
+                .andExpect(flash().attribute("mensaje", "Molino creado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(molinoServicio).altaMolino(any());
     }
 
     @Test
@@ -263,7 +263,6 @@ class MolinoControllerTest {
         when(molinoServicio.altaMolino(any())).thenThrow(new ReglaNegocioException("Regla incumplida"));
 
         mockMvc.perform(post("/equipamiento/molinos").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
@@ -278,7 +277,6 @@ class MolinoControllerTest {
         when(molinoServicio.altaMolino(any())).thenReturn(equipo(9L, "MOL-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/molinos").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50")
                         .param("retorno", "/lotes/nuevo").param("campo", "idEquipamiento"))
@@ -292,7 +290,6 @@ class MolinoControllerTest {
     @DisplayName("CP-MOC-15: un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta")
     void caso_cp_moc_15() throws Exception {
         mockMvc.perform(post("/equipamiento/molinos").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().is3xxRedirection())
@@ -303,7 +300,7 @@ class MolinoControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MOC-16: el formulario de edición muestra los datos actuales y apunta a la modificación")
+    @DisplayName("CP-MOC-16: el formulario de edición muestra los datos actuales, el identificador interno de solo lectura y apunta a la modificación")
     void caso_cp_moc_16() throws Exception {
         when(molinoServicio.buscarPorId(4L)).thenReturn(equipo(4L, "MOL-01", EstadoOperativo.DISPONIBLE));
 
@@ -311,7 +308,8 @@ class MolinoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/molino-form"))
                 .andExpect(content().string(containsString("Editar molino")))
-                .andExpect(content().string(containsString("value=\"MOL-01\"")))
+                .andExpect(content().string(containsString(">MOL-01<")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("value=\"150\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/molinos/4\"")))
                 .andExpect(content().string(containsString("Guardar cambios")));
@@ -322,7 +320,6 @@ class MolinoControllerTest {
     @DisplayName("CP-MOC-17: la modificación correcta delega en el service y redirige al listado con alerta de éxito")
     void caso_cp_moc_17() throws Exception {
         mockMvc.perform(post("/equipamiento/molinos/4").with(csrf())
-                        .param("identificadorInterno", "OTRO-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().is3xxRedirection())
@@ -335,33 +332,34 @@ class MolinoControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MOC-18: modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service")
+    @DisplayName("CP-MOC-18: un identificador interno enviado en el pedido de modificación se ignora: no se puede cambiar")
     void caso_cp_moc_18() throws Exception {
-        when(molinoServicio.modificarMolino(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'MOL-01'"));
-
         mockMvc.perform(post("/equipamiento/molinos/4").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se pudo modificar el molino")))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("action=\"/equipamiento/molinos/4\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/molinos"))
+                .andExpect(flash().attribute("mensaje", "Molino modificado correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(molinoServicio).modificarMolino(eq(4L), any(MolinoFormDTO.class));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-MOC-19: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_moc_19() throws Exception {
+        when(molinoServicio.buscarPorId(4L)).thenReturn(equipo(4L, "MOL-01", EstadoOperativo.DISPONIBLE));
         when(molinoServicio.modificarMolino(eq(4L), any())).thenThrow(new ReglaNegocioException("Los datos del equipo no son válidos"));
 
         mockMvc.perform(post("/equipamiento/molinos/4").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el molino")))
-                .andExpect(content().string(containsString("Los datos del equipo no son válidos")));
+                .andExpect(content().string(containsString("Los datos del equipo no son válidos")))
+                .andExpect(content().string(containsString(">MOL-01<")));
     }
 
     @Test
@@ -369,7 +367,6 @@ class MolinoControllerTest {
     @DisplayName("CP-MOC-20: un rol distinto de GERENTE_DE_PRODUCCION no puede modificar")
     void caso_cp_moc_20() throws Exception {
         mockMvc.perform(post("/equipamiento/molinos/4").with(csrf())
-                        .param("identificadorInterno", "MOL-01")
                         .param("rendimientoMolienda", "150")
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().is3xxRedirection())

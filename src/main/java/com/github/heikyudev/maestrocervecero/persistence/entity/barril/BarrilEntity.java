@@ -28,10 +28,18 @@ public class BarrilEntity extends AuditableEntity<String> {
     private Long id;
 
     /**
-     * Identificador único asignado para identificar el barril de otros Barriles.
+     * Identificador interno del barril (BRL-01, BRL-02...). Lo genera el sistema al dar de alta, nunca se
+     * reutiliza y no se modifica.
      */
-    @Column(name = "identificador", nullable = false)
-    private String identificador;
+    @Column(name = "identificador_interno", nullable = false)
+    private String identificadorInterno;
+
+    /**
+     * Número de serie del barril, tal como lo ingresó el usuario (se conservan las mayúsculas). Es único entre los
+     * barriles activos del mismo fabricante.
+     */
+    @Column(name = "numero_serie", nullable = false)
+    private String numeroSerie;
 
     /**
      * Capacidad total del barril en litros.

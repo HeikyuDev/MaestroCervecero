@@ -3,7 +3,6 @@ package com.github.heikyudev.maestrocervecero.presentation.controller.equipamien
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
 import com.github.heikyudev.maestrocervecero.presentation.controller.RetornoContextual;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
-import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFermentadorServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.FermentadorResponseDTO;
@@ -99,8 +98,6 @@ public class FermentadorController {
                 agregarMensaje(redirectAttributes, "Fermentador creado correctamente", TipoAlerta.SUCCESS);
                 String vuelta = RetornoContextual.urlDeVuelta(retorno, campo, creado.getId());
                 return "redirect:" + (vuelta != null ? vuelta : URL_LISTA);
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -119,11 +116,11 @@ public class FermentadorController {
         FermentadorResponseDTO actual = fermentadorServicio.buscarPorId(id);
 
         model.addAttribute(ATRIBUTO_FORMULARIO, FermentadorFormDTO.builder()
-                .identificadorInterno(actual.getIdentificadorInterno())
                 .capacidadTotal(actual.getCapacidadTotal())
                 .capacidadUtil(actual.getCapacidadUtil())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
+        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -144,13 +141,12 @@ public class FermentadorController {
                 fermentadorServicio.modificarFermentador(id, fermentadorForm);
                 agregarMensaje(redirectAttributes, "Fermentador modificado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
-            } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificadorInterno", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
         }
 
+        model.addAttribute("identificadorInterno", fermentadorServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

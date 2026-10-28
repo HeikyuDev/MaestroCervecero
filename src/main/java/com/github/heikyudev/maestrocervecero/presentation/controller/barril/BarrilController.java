@@ -52,24 +52,23 @@ public class BarrilController {
     private static final String URL_LISTA = "/barriles";
 
     /**
-     * Los barriles se listan en orden alfabético por identificador (sin distinguir mayúsculas), con el id como desempate.
-     * Se ordena por {@code identificador} porque {@code MetodosControlador.ORDEN_POR_IDENTIFICADOR} ordena por
-     * {@code identificadorInterno}, que barril no tiene.
+     * Los barriles se listan en orden alfabético por identificador interno (sin distinguir mayúsculas), con el id como desempate.
      */
     private static final Sort ORDEN_POR_IDENTIFICADOR_DE_BARRIL = Sort.by(
-            Sort.Order.asc("identificador").ignoreCase(),
+            Sort.Order.asc("identificadorInterno").ignoreCase(),
             Sort.Order.asc("id"));
 
     private final IBarrilServicio barrilServicio;
     private final IFabricanteBarrilServicio fabricanteBarrilServicio;
 
     /**
-     * Lista los barriles activos, paginados de a 20, en orden alfabético por identificador. Los criterios
-     * (identificador, capacidad, estado operativo y fabricante) son opcionales.
+     * Lista los barriles activos, paginados de a 20, en orden alfabético por identificador interno. Los criterios
+     * (identificador interno, número de serie, capacidad, estado operativo y fabricante) son opcionales.
      */
     @GetMapping
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
-    public String listarBarriles(@RequestParam(required = false) String identificador,
+    public String listarBarriles(@RequestParam(required = false) String identificadorInterno,
+                                 @RequestParam(required = false) String numeroSerie,
                                  @RequestParam(required = false) Double capacidad,
                                  @RequestParam(required = false) EstadoOperativoBarril estadoOperativo,
                                  @RequestParam(required = false) Long idFabricante,
@@ -79,12 +78,13 @@ public class BarrilController {
         Long idFabricanteVigente = fabricanteTexto == null ? null : idFabricante;
 
         Page<BarrilResponseDTO> barriles = barrilServicio.filtrarBarriles(
-                vacioANulo(identificador), capacidad, estadoOperativo, idFabricanteVigente,
+                vacioANulo(identificadorInterno), vacioANulo(numeroSerie), capacidad, estadoOperativo, idFabricanteVigente,
                 PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_POR_IDENTIFICADOR_DE_BARRIL));
 
         model.addAttribute("barriles", barriles);
         model.addAttribute("estados", EstadoOperativoBarril.values());
-        model.addAttribute("filtroIdentificador", identificador);
+        model.addAttribute("filtroIdentificador", identificadorInterno);
+        model.addAttribute("filtroNumeroSerie", numeroSerie);
         // El valor ya viene convertido a número: numeroEscrito solo le quita el ".0" (50.0 se muestra como 50)
         model.addAttribute("filtroCapacidad", capacidad == null ? null : numeroEscrito(capacidad, capacidad));
         model.addAttribute("filtroEstado", estadoOperativo);
@@ -137,7 +137,7 @@ public class BarrilController {
                 agregarMensaje(redirectAttributes, "Barril creado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificador", "duplicado", e.getMessage());
+                bindingResult.rejectValue("numeroSerie", "duplicado", e.getMessage());
             } catch (RecursoNoEncontradoException e) {
                 bindingResult.rejectValue("idFabricanteBarril", "noEncontrado", e.getMessage());
             } catch (ReglaNegocioException e) {
@@ -159,11 +159,12 @@ public class BarrilController {
         Long idFabricante = actual.getFabricante().getId();
 
         model.addAttribute(ATRIBUTO_FORMULARIO, BarrilFormDTO.builder()
-                .identificador(actual.getIdentificador())
+                .numeroSerie(actual.getNumeroSerie())
                 .capacidad(actual.getCapacidad())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .idFabricanteBarril(idFabricante)
                 .build());
+        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, idFabricante);
         return VISTA_FORMULARIO;
     }
@@ -185,7 +186,7 @@ public class BarrilController {
                 agregarMensaje(redirectAttributes, "Barril modificado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue("identificador", "duplicado", e.getMessage());
+                bindingResult.rejectValue("numeroSerie", "duplicado", e.getMessage());
             } catch (RecursoNoEncontradoException e) {
                 // Si el fabricante del formulario sigue existiendo, lo que falta es el barril: lo muestra el ControllerAdvices
                 if (nombreFabricante(barrilForm.getIdFabricanteBarril()) != null) {
@@ -197,7 +198,8 @@ public class BarrilController {
             }
         }
 
-        cargarModeloFormulario(model, id,barrilForm.getIdFabricanteBarril());
+        model.addAttribute("identificadorInterno", barrilServicio.buscarPorId(id).getIdentificadorInterno());
+        cargarModeloFormulario(model, id, barrilForm.getIdFabricanteBarril());
         return VISTA_FORMULARIO;
     }
 

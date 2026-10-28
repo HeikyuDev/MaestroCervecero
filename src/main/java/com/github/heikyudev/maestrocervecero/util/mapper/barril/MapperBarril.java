@@ -20,7 +20,8 @@ public class MapperBarril {
 
         return BarrilResponseDTO.builder()
                 .id(barrilEntity.getId())
-                .identificador(barrilEntity.getIdentificador())
+                .identificadorInterno(barrilEntity.getIdentificadorInterno())
+                .numeroSerie(barrilEntity.getNumeroSerie())
                 .capacidad(barrilEntity.getCapacidad())
                 .contenidoActual(barrilEntity.getContenidoActual())
                 .estadoOperativo(barrilEntity.getEstadoOperativo())

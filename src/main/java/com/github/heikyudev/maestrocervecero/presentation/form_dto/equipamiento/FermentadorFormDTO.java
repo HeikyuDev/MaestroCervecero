@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,12 +20,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FermentadorFormDTO {
-
-    /**
-     * Identificador del fermentador. Debe ser único entre los equipamientos activos (case-insensitive).
-     */
-    @NotBlank(message = "El identificador interno es obligatorio")
-    private String identificadorInterno;
 
     /**
      * Capacidad total en litros.

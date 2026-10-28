@@ -452,7 +452,7 @@ public class LoteController {
         Page<FilaEquipo> filas = molinoServicio
                 .filtrarMolinos(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(m -> new FilaEquipo(m.getId(), m.getIdentificadorInterno(), m.getEstadoOperativo(), List.of(m.getRendimientoMolienda())));
-        return cargarBuscadorDeEquipo(model, filas, "molino", "molinos", "M-01", "/lotes/buscador/molinos",
+        return cargarBuscadorDeEquipo(model, filas, "molino", "molinos", "MOL-01", "/lotes/buscador/molinos",
                 List.of("Rendimiento (kg/h)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
@@ -467,7 +467,7 @@ public class LoteController {
         Page<FilaEquipo> filas = maceradorServicio
                 .filtrarMaceradores(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(m -> new FilaEquipo(m.getId(), m.getIdentificadorInterno(), m.getEstadoOperativo(), List.of(m.getCapacidadUtil(), m.getEspacioMuerto())));
-        return cargarBuscadorDeEquipo(model, filas, "macerador", "maceradores", "MA-01", "/lotes/buscador/maceradores",
+        return cargarBuscadorDeEquipo(model, filas, "macerador", "maceradores", "MAC-01", "/lotes/buscador/maceradores",
                 List.of("Capacidad útil (L)", "Espacio muerto (L)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
@@ -482,7 +482,7 @@ public class LoteController {
         Page<FilaEquipo> filas = ollaHervorServicio
                 .filtrarOllasHervor(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(o -> new FilaEquipo(o.getId(), o.getIdentificadorInterno(), o.getEstadoOperativo(), List.of(o.getCapacidadUtil())));
-        return cargarBuscadorDeEquipo(model, filas, "olla de hervor", "ollas de hervor", "OH-01", "/lotes/buscador/ollas",
+        return cargarBuscadorDeEquipo(model, filas, "olla de hervor", "ollas de hervor", "OLL-01", "/lotes/buscador/ollas",
                 List.of("Capacidad útil (L)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 
@@ -497,7 +497,7 @@ public class LoteController {
         Page<FilaEquipo> filas = fermentadorServicio
                 .filtrarFermentadores(vacioANulo(identificador), estado, paginaDeBuscador(pagina, ORDEN_POR_IDENTIFICADOR))
                 .map(f -> new FilaEquipo(f.getId(), f.getIdentificadorInterno(), f.getEstadoOperativo(), List.of(f.getCapacidadUtil())));
-        return cargarBuscadorDeEquipo(model, filas, "fermentador", "fermentadores", "F-01", "/lotes/buscador/fermentadores",
+        return cargarBuscadorDeEquipo(model, filas, "fermentador", "fermentadores", "FER-01", "/lotes/buscador/fermentadores",
                 List.of("Capacidad útil (L)"), identificador, estado, avisoDeEstadoOperativo(estadoOperativo, estado));
     }
 

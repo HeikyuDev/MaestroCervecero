@@ -337,7 +337,7 @@ class SolicitudBusquedaServicioImplTest {
 
         BarrilEntity barril = BarrilEntity.builder()
                 .id(1L)
-                .identificador("BAR-1")
+                .identificadorInterno("BAR-1")
                 .capacidad(50.0)
                 .contenidoActual(0.0)
                 .estadoOperativo(EstadoOperativoBarril.DESPACHADO)

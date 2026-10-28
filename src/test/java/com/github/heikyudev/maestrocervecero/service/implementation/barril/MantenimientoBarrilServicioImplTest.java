@@ -587,7 +587,7 @@ class MantenimientoBarrilServicioImplTest {
 
         return BarrilEntity.builder()
                 .id(id)
-                .identificador("BAR-" + id)
+                .identificadorInterno("BAR-" + id)
                 .capacidad(50.0)
                 .contenidoActual(0.0)
                 .estadoOperativo(estadoOperativo)

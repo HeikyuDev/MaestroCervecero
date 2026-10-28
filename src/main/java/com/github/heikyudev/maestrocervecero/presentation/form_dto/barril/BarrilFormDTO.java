@@ -1,7 +1,9 @@
 package com.github.heikyudev.maestrocervecero.presentation.form_dto.barril;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,10 +25,11 @@ import lombok.Setter;
 public class BarrilFormDTO {
 
     /**
-     * Identificador único asignado para identificar el barril de otros barriles.
+     * Número de serie del barril. Es único entre los barriles activos del mismo fabricante.
      */
-    @NotBlank(message = "El identificador es obligatorio")
-    private String identificador;
+    @NotBlank(message = "El número de serie es obligatorio")
+    @Size(max = LimitesTecnicos.LONGITUD_MAXIMA_NUMERO_SERIE, message = "El número de serie no puede superar 255 caracteres")
+    private String numeroSerie;
 
     /**
      * Capacidad total del barril en litros.

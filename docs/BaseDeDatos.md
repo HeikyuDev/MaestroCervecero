@@ -171,7 +171,8 @@ unicidad y el índice de la base trabajan sobre el mismo valor.
 | Dato | Normalización | Se guarda |
 |---|---|---|
 | Nombres propios, razón social, nombres de insumos y de recetas y demás textos libres (`nombrePropio`) | Recorte de los extremos, colapso de cualquier espacio en blanco (incluidos los no separables) en uno solo, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC | Con las mayúsculas y las tildes escritas |
-| Códigos e identificadores (`codigo`): identificador interno de equipos, identificador de barril, identificación de lote del proveedor | Igual que `nombrePropio` y pasaje a mayúsculas con `Locale.ROOT` | En mayúsculas; la puntuación cuenta |
+| Códigos e identificadores (`codigo`): identificación de lote del proveedor y texto buscado del identificador interno | Igual que `nombrePropio` y pasaje a mayúsculas con `Locale.ROOT` | En mayúsculas; la puntuación cuenta |
+| Número de serie del barril (`nombrePropio`) | Igual que los textos libres | Con las mayúsculas escritas |
 | CUIT (`cuit`) | Eliminación de espacios, guiones, puntos y barras | Solo los 11 dígitos, sin guiones |
 | Correo (`correo`) | Eliminación de caracteres invisibles de ancho cero, recorte, colapso de espacios y minúsculas con `Locale.ROOT` | En minúsculas |
 | Teléfono (`telefono`) | Igual que `nombrePropio` (recorte, colapso de espacios, eliminación de caracteres invisibles de ancho cero y forma Unicode NFC); vacío equivale a nulo | Solo dígitos, hasta 15; es opcional y no tiene unicidad |
@@ -198,10 +199,11 @@ solo rige entre registros activos, por lo que el índice es parcial; la comparac
 CREATE UNIQUE INDEX udx_cliente_email ON cliente (lower(btrim(email))) WHERE estado = 'ACTIVO';
 ```
 
-Los códigos e identificadores se guardan en mayúsculas, por lo que su índice no necesita `lower(...)`:
+Los códigos en mayúsculas no necesitan `lower(...)` en su índice. El número de serie del barril se guarda tal como se
+escribió, por lo que su índice compara ignorando las mayúsculas:
 
 ```sql
-CREATE UNIQUE INDEX udx_barril_identificador ON barril (fabricante_id, identificador) WHERE estado = 'ACTIVO';
+CREATE UNIQUE INDEX udx_barril_numero_serie ON barril (fabricante_id, lower(btrim(numero_serie))) WHERE estado = 'ACTIVO';
 ```
 
 ### Índices únicos de los maestros simples
@@ -218,7 +220,6 @@ CREATE UNIQUE INDEX udx_barril_identificador ON barril (fabricante_id, identific
 | `udx_presentacion_comercial_nombre` | `presentacion_comercial` | `(lower(btrim(nombre)))` | Nombre único |
 | `udx_motivo_ajuste_nombre` | `motivo_ajuste` | `(lower(btrim(nombre)))` | Nombre único |
 | `udx_costo_directo_adicional_nombre` | `costo_directo_adicional` | `(lower(btrim(nombre)))` | Nombre único |
-| `udx_barril_identificador` | `barril` | `(fabricante_id, identificador)` | Identificador único dentro de su fabricante |
 
 El código postal de las localidades es un dato informativo y no tiene unicidad. Si las tablas contienen duplicados entre
 registros activos, la creación del índice falla y deben resolverse antes de migrar.
@@ -278,6 +279,39 @@ vigente), o un padre con más de una versión vigente, la creación del índice 
 `V9__eliminar_unicidad_razon_social_proveedor.sql` elimina el índice `udx_version_proveedor_razon_social` que crea V6.
 El CUIT es el identificador único del proveedor: dos proveedores activos pueden tener la misma razón social si su CUIT
 es distinto. El CUIT y el correo electrónico son únicos entre las versiones vigentes de los proveedores activos.
+
+### Identificador interno generado y número de serie del barril
+
+`V11__identificador_interno_generado_y_numero_serie_barril.sql` crea una secuencia por tipo para el identificador
+interno que genera el sistema al dar de alta, y separa el identificador del barril en número de serie e identificador
+interno.
+
+| Secuencia | Prefijo | Identificador generado |
+|---|---|---|
+| `seq_identificador_mol` | `MOL` | Molino: `MOL-01`, `MOL-02`... |
+| `seq_identificador_mac` | `MAC` | Macerador |
+| `seq_identificador_oll` | `OLL` | Olla de hervor |
+| `seq_identificador_fer` | `FER` | Fermentador |
+| `seq_identificador_brl` | `BRL` | Barril |
+
+- El Service pide el número con una consulta nativa (`SELECT nextval(...)`) como último paso del alta, después de todas
+  las validaciones y justo antes de guardar. `GeneradorIdentificador` arma el texto: prefijo, guion y el número con dos
+  dígitos como mínimo (`MOL-99`, `MOL-100`).
+- Las secuencias no son transaccionales: un número nunca se reutiliza, ni siquiera tras una baja o un alta revertida, y
+  una alta revertida deja un hueco en la numeración. El identificador interno no se edita.
+- Cada secuencia de equipamiento arranca después del mayor sufijo numérico de los identificadores existentes con su
+  prefijo (sin distinguir mayúsculas, incluidos los dados de baja), o en 1 si no hay ninguno. Los equipos existentes
+  conservan su identificador.
+- Barril: la columna `identificador` pasa a `identificador_interno` (`BRL-01`... según el `id` de los barriles
+  existentes) y se agrega `numero_serie`, obligatorio, con el valor que tenía el identificador. La secuencia arranca en
+  la cantidad de barriles más uno.
+
+| Índice | Tabla | Expresión | Regla |
+|---|---|---|---|
+| `udx_barril_numero_serie` | `barril` | `(fabricante_id, lower(btrim(numero_serie))) WHERE estado = 'ACTIVO'` | Número de serie único dentro de su fabricante entre los barriles activos, sin distinguir mayúsculas |
+| `udx_barril_identificador_interno` | `barril` | `(identificador_interno)` | Identificador interno único entre todos los barriles |
+
+`udx_equipamiento_identificador_interno` (V3) se mantiene sin cambios.
 
 **Una sola versión vigente.** Dos protecciones se combinan al modificar un proveedor o una receta:
 

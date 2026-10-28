@@ -21,7 +21,7 @@ Nombres, razones sociales y demás textos libres. Conserva las mayúsculas, las 
 
 ### `codigo(String)`
 
-Códigos e identificadores (identificador interno de equipos, identificador de barril, identificación de lote del proveedor). Se guardan en mayúsculas.
+Códigos e identificadores (identificación de lote del proveedor y texto buscado del identificador interno). Se guardan en mayúsculas.
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |

@@ -23,9 +23,14 @@ public class BarrilResponseDTO {
     private Long id;
 
     /**
-     * Identificador único asignado para identificar el barril de otros barriles.
+     * Identificador interno del barril, generado por el sistema (por ejemplo BRL-01).
      */
-    private String identificador;
+    private String identificadorInterno;
+
+    /**
+     * Número de serie del barril, tal como lo ingresó el usuario.
+     */
+    private String numeroSerie;
 
     /**
      * Capacidad total del barril en litros.

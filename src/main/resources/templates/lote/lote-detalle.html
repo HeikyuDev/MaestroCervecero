@@ -228,7 +228,7 @@
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                     <tr th:each="e : ${envasados}" class="hover:bg-slate-50">
-                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${e.barril.identificador}">B-001</td>
+                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${e.barril.identificadorInterno}">BRL-01</td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${e.cantidadEnvasada})}"></th:block></td>
                         <td class="px-4 py-3 text-slate-700">
                             <span th:replace="~{lote/formato :: estadoTransaccion(${e.estado})}"></span>

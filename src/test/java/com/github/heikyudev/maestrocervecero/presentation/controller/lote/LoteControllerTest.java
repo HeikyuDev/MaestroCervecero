@@ -2243,7 +2243,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: M-01\"").contains("action=\"/lotes/buscador/molinos\"").contains("data-modal-buscar");
+        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: MOL-01\"").contains("action=\"/lotes/buscador/molinos\"").contains("data-modal-buscar");
         assertThat(texto(html)).contains("Buscar molino", "Identificador Estado Rendimiento (kg/h)");
         assertThat(celdas(html, "M-01")).startsWith("M-01", "Disponible", "120,5");
         assertThat(celdas(html, "M-02")).startsWith("M-02", "En uso", "150");
@@ -2264,7 +2264,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("placeholder=\"Ej: MA-01\"").contains("action=\"/lotes/buscador/maceradores\"");
+        assertThat(html).contains("placeholder=\"Ej: MAC-01\"").contains("action=\"/lotes/buscador/maceradores\"");
         assertThat(texto(html)).contains("Buscar macerador", "Identificador Estado Capacidad útil (L) Espacio muerto (L)");
         assertThat(celdas(html, "MA-01")).startsWith("MA-01", "Disponible", "330", "4");
     }
@@ -2283,7 +2283,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("placeholder=\"Ej: OH-01\"").contains("action=\"/lotes/buscador/ollas\"");
+        assertThat(html).contains("placeholder=\"Ej: OLL-01\"").contains("action=\"/lotes/buscador/ollas\"");
         assertThat(texto(html)).contains("Buscar olla de hervor", "Identificador Estado Capacidad útil (L)");
         assertThat(celdas(html, "OH-01")).startsWith("OH-01", "Disponible", "400");
     }
@@ -2302,7 +2302,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).contains("placeholder=\"Ej: F-01\"").contains("action=\"/lotes/buscador/fermentadores\"");
+        assertThat(html).contains("placeholder=\"Ej: FER-01\"").contains("action=\"/lotes/buscador/fermentadores\"");
         assertThat(texto(html)).contains("Buscar fermentador", "Identificador Estado Capacidad útil (L)");
         assertThat(celdas(html, "F-01")).startsWith("F-01", "Disponible", "330");
     }
@@ -2551,7 +2551,7 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: F-01\"").contains("action=\"/lotes/filtros/fermentadores\"").contains("data-modal-buscar");
+        assertThat(html).doesNotContain("<html").contains("placeholder=\"Ej: FER-01\"").contains("action=\"/lotes/filtros/fermentadores\"").contains("data-modal-buscar");
         assertThat(texto(html)).contains("Buscar fermentador", "Estado operativo", "Incluir dados de baja", "Identificador Estado operativo Capacidad útil (L)");
         assertThat(html).contains(">Todos</option>").contains(">Disponible</option>").contains(">En uso</option>").contains(">En limpieza</option>").contains(">En mantenimiento</option>");
         Matcher casilla = Pattern.compile("<input[^>]*name=\"incluirDadosDeBaja\"[^>]*>").matcher(html);
@@ -3350,7 +3350,7 @@ class LoteControllerTest {
 
     private static EnvasadoLoteResponseDTO envasado(String barril, double cantidad, EstadoTransaccion estado, String motivo) {
         return EnvasadoLoteResponseDTO.builder().cantidadEnvasada(cantidad).estado(estado).motivoAnulacion(motivo)
-                .barril(BarrilResponseDTO.builder().identificador(barril).build()).build();
+                .barril(BarrilResponseDTO.builder().identificadorInterno(barril).build()).build();
     }
 
     private static AguaLoteResponseDTO agua(double lavado, List<String> advertencias) {

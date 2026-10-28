@@ -35,12 +35,13 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
     Optional<BarrilEntity> findById(@Param("id") Long id);
 
     /**
-     * Obtiene una página de barriles activos, filtrados opcionalmente por identificador
+     * Obtiene una página de barriles activos, filtrados opcionalmente por identificador interno y por número de serie
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas), capacidad (coincidencia
      * exacta), estado operativo (coincidencia exacta) y/o fabricante (por su ID). Un parámetro
      * nulo no restringe por ese criterio.
      *
-     * @param identificador Texto a buscar dentro del identificador, o {@code null} para no filtrar por él.
+     * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
+     * @param numeroSerie Texto a buscar dentro del número de serie, o {@code null} para no filtrar por él.
      * @param capacidad Capacidad exacta a filtrar, o {@code null} para no filtrar por ella.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
      * @param idFabricante El ID del fabricante a filtrar, o {@code null} para no filtrar por él.
@@ -48,54 +49,57 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
      * @return Una página de barriles activos que cumplen los criterios indicados.
      */
     @Query(value = "SELECT b FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-            + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', CAST(:identificador AS string), '%'))) "
+            + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%'))) "
             + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
             + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
             + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)",
             countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
-                    + "AND (:identificador IS NULL OR UPPER(b.identificador) LIKE UPPER(CONCAT('%', CAST(:identificador AS string), '%'))) "
+                    + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
+            + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%'))) "
                     + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
                     + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
                     + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)")
-    Page<BarrilEntity> filtrarBarriles(@Param("identificador") String identificador,
+    Page<BarrilEntity> filtrarBarriles(@Param("identificadorInterno") String identificadorInterno,
+                                        @Param("numeroSerie") String numeroSerie,
                                         @Param("capacidad") Double capacidad,
                                         @Param("estadoOperativo") EstadoOperativoBarril estadoOperativo,
                                         @Param("idFabricante") Long idFabricante,
                                         Pageable pageable);
 
     /**
-     * Verifica si existe un barril activo con el identificador dado (ignorando mayúsculas y
+     * Verifica si existe un barril activo con el número de serie dado (ignorando mayúsculas y
      * minúsculas) para el fabricante indicado.
      * <p>
-     * Un barril puede repetir identificador entre fabricantes distintos: la unicidad del
-     * identificador de un barril es relativa a su fabricante.
+     * Un barril puede repetir número de serie entre fabricantes distintos: la unicidad del
+     * número de serie de un barril es relativa a su fabricante.
      * </p>
      *
-     * @param identificador El identificador a buscar.
+     * @param numeroSerie El número de serie a buscar.
      * @param fabricanteId El ID del fabricante de barril al que debe pertenecer el barril.
-     * @return {@code true} si ya existe un barril activo con ese identificador para ese fabricante, {@code false} en caso contrario.
+     * @return {@code true} si ya existe un barril activo con ese número de serie para ese fabricante, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM BarrilEntity b "
-            + "WHERE UPPER(b.identificador) = UPPER(:identificador) AND b.fabricante.id = :fabricanteId AND b.estado = 'ACTIVO'")
-    boolean existsByIdentificadorIgnoreCaseAndFabricanteId(@Param("identificador") String identificador, @Param("fabricanteId") Long fabricanteId);
+            + "WHERE UPPER(b.numeroSerie) = UPPER(:numeroSerie) AND b.fabricante.id = :fabricanteId AND b.estado = 'ACTIVO'")
+    boolean existsByNumeroSerieIgnoreCaseAndFabricanteId(@Param("numeroSerie") String numeroSerie, @Param("fabricanteId") Long fabricanteId);
 
     /**
-     * Verifica si existe un barril activo con el identificador dado (ignorando mayúsculas y
+     * Verifica si existe un barril activo con el número de serie dado (ignorando mayúsculas y
      * minúsculas) para el fabricante indicado, excluyendo de la búsqueda al barril con el ID
      * indicado.
      * <p>
-     * Se utiliza en la modificación para permitir conservar el propio identificador actual sin
+     * Se utiliza en la modificación para permitir conservar el propio número de serie actual sin
      * que la validación de unicidad falle contra el mismo registro.
      * </p>
      *
-     * @param identificador El identificador a buscar.
+     * @param numeroSerie El número de serie a buscar.
      * @param fabricanteId El ID del fabricante de barril al que debe pertenecer el barril.
      * @param id El ID del barril a excluir de la verificación.
-     * @return {@code true} si otro barril activo ya posee ese identificador para ese fabricante, {@code false} en caso contrario.
+     * @return {@code true} si otro barril activo ya posee ese número de serie para ese fabricante, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END FROM BarrilEntity b "
-            + "WHERE UPPER(b.identificador) = UPPER(:identificador) AND b.fabricante.id = :fabricanteId AND b.id <> :id AND b.estado = 'ACTIVO'")
-    boolean existsByIdentificadorIgnoreCaseAndFabricanteIdAndIdNot(@Param("identificador") String identificador,
+            + "WHERE UPPER(b.numeroSerie) = UPPER(:numeroSerie) AND b.fabricante.id = :fabricanteId AND b.id <> :id AND b.estado = 'ACTIVO'")
+    boolean existsByNumeroSerieIgnoreCaseAndFabricanteIdAndIdNot(@Param("numeroSerie") String numeroSerie,
                                                                     @Param("fabricanteId") Long fabricanteId,
                                                                     @Param("id") Long id);
 

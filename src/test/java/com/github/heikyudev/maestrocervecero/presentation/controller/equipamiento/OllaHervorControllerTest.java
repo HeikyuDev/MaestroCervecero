@@ -158,7 +158,9 @@ class OllaHervorControllerTest {
                 .andExpect(content().string(containsString("Nueva olla de hervor")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/equipamiento/ollas-hervor\"")))
-                .andExpect(content().string(containsString("placeholder=\"Ej: OLLA-01\"")))
+                .andExpect(content().string(containsString("Se asigna al guardar")))
+                .andExpect(content().string(containsString("Lo asigna el sistema y no se puede modificar")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 100\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 8\"")))
@@ -203,7 +205,6 @@ class OllaHervorControllerTest {
         when(ollaHervorServicio.altaOllaHervor(any())).thenReturn(equipo(9L, "OLLA-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
@@ -216,7 +217,6 @@ class OllaHervorControllerTest {
 
         ArgumentCaptor<OllaHervorFormDTO> captor = ArgumentCaptor.forClass(OllaHervorFormDTO.class);
         verify(ollaHervorServicio).altaOllaHervor(captor.capture());
-        assertThat(captor.getValue().getIdentificadorInterno()).isEqualTo("OLLA-01");
         assertThat(captor.getValue().getCapacidadTotal()).isEqualTo(100.0);
         assertThat(captor.getValue().getCapacidadUtil()).isEqualTo(80.0);
         assertThat(captor.getValue().getEvaporacion()).isEqualTo(8.0);
@@ -226,13 +226,12 @@ class OllaHervorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-OHC-10: sin identificador ni datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
+    @DisplayName("CP-OHC-10: sin datos técnicos vuelve al formulario con todos los errores, sin llamar al service")
     void caso_cp_ohc_10() throws Exception {
-        mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf()).param("identificadorInterno", "  "))
+        mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/olla-form"))
                 .andExpect(content().string(containsString("No se pudo crear la olla de hervor")))
-                .andExpect(content().string(containsString("El identificador interno es obligatorio")))
                 .andExpect(content().string(containsString("La capacidad total es obligatoria")))
                 .andExpect(content().string(containsString("La capacidad útil es obligatoria")))
                 .andExpect(content().string(containsString("La evaporación es obligatoria")))
@@ -247,7 +246,6 @@ class OllaHervorControllerTest {
     @DisplayName("CP-OHC-11: un valor no numérico en un campo numérico muestra un mensaje en español, sin llamar al service")
     void caso_cp_ohc_11() throws Exception {
         mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "abc"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Ingrese un número válido")));
@@ -257,21 +255,23 @@ class OllaHervorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-OHC-12: un identificador duplicado vuelve al formulario con el mensaje del service y conserva lo tipeado")
+    @DisplayName("CP-OHC-12: un identificador interno enviado en el pedido de alta se ignora: lo genera el sistema")
     void caso_cp_ohc_12() throws Exception {
-        when(ollaHervorServicio.altaOllaHervor(any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'OLLA-01'"));
+        when(ollaHervorServicio.altaOllaHervor(any())).thenReturn(equipo(9L, "OLLA-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
                         .param("perdidaPorTrub", "3")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("equipamiento/olla-form"))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("value=\"OLLA-01\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/ollas-hervor"))
+                .andExpect(flash().attribute("mensaje", "Olla de hervor creada correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(ollaHervorServicio).altaOllaHervor(any());
     }
 
     @Test
@@ -281,7 +281,6 @@ class OllaHervorControllerTest {
         when(ollaHervorServicio.altaOllaHervor(any())).thenThrow(new ReglaNegocioException("Regla incumplida"));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
@@ -299,7 +298,6 @@ class OllaHervorControllerTest {
         when(ollaHervorServicio.altaOllaHervor(any())).thenReturn(equipo(9L, "OLLA-01", EstadoOperativo.DISPONIBLE));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
@@ -316,7 +314,6 @@ class OllaHervorControllerTest {
     @DisplayName("CP-OHC-15: un rol distinto de GERENTE_DE_PRODUCCION no puede dar de alta")
     void caso_cp_ohc_15() throws Exception {
         mockMvc.perform(post("/equipamiento/ollas-hervor").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
@@ -330,7 +327,7 @@ class OllaHervorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-OHC-16: el formulario de edición muestra los datos actuales y apunta a la modificación")
+    @DisplayName("CP-OHC-16: el formulario de edición muestra los datos actuales, el identificador interno de solo lectura y apunta a la modificación")
     void caso_cp_ohc_16() throws Exception {
         when(ollaHervorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "OLLA-01", EstadoOperativo.DISPONIBLE));
 
@@ -338,7 +335,8 @@ class OllaHervorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/olla-form"))
                 .andExpect(content().string(containsString("Editar olla de hervor")))
-                .andExpect(content().string(containsString("value=\"OLLA-01\"")))
+                .andExpect(content().string(containsString(">OLLA-01<")))
+                .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
                 .andExpect(content().string(containsString("value=\"80\"")))
                 .andExpect(content().string(containsString("value=\"8\"")))
@@ -352,7 +350,6 @@ class OllaHervorControllerTest {
     @DisplayName("CP-OHC-17: la modificación correcta delega en el service y redirige al listado con alerta de éxito")
     void caso_cp_ohc_17() throws Exception {
         mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
-                        .param("identificadorInterno", "OTRO-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
@@ -368,31 +365,31 @@ class OllaHervorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-OHC-18: modificar con un identificador duplicado vuelve al formulario de edición con el mensaje del service")
+    @DisplayName("CP-OHC-18: un identificador interno enviado en el pedido de modificación se ignora: no se puede cambiar")
     void caso_cp_ohc_18() throws Exception {
-        when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new RecursoDuplicadoException("Ya existe un equipamiento con el identificador interno 'OLLA-01'"));
-
         mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
+                        .param("identificadorInterno", "HACK-99")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
                         .param("perdidaPorTrub", "3")
                         .param("usosMaximosAntesMantenimiento", "50"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("No se pudo modificar la olla de hervor")))
-                .andExpect(content().string(containsString("Ya existe un equipamiento con el identificador interno")))
-                .andExpect(content().string(containsString("action=\"/equipamiento/ollas-hervor/4\"")));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/equipamiento/ollas-hervor"))
+                .andExpect(flash().attribute("mensaje", "Olla de hervor modificada correctamente"))
+                .andExpect(flash().attribute("tipo", "success"));
+
+        verify(ollaHervorServicio).modificarOllaHervor(eq(4L), any(OllaHervorFormDTO.class));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
     @DisplayName("CP-OHC-19: si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario")
     void caso_cp_ohc_19() throws Exception {
+        when(ollaHervorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "OLLA-01", EstadoOperativo.DISPONIBLE));
         when(ollaHervorServicio.modificarOllaHervor(eq(4L), any())).thenThrow(new ReglaNegocioException("Los datos del equipo no son válidos"));
 
         mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
@@ -400,7 +397,8 @@ class OllaHervorControllerTest {
                         .param("usosMaximosAntesMantenimiento", "50"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar la olla de hervor")))
-                .andExpect(content().string(containsString("Los datos del equipo no son válidos")));
+                .andExpect(content().string(containsString("Los datos del equipo no son válidos")))
+                .andExpect(content().string(containsString(">OLLA-01<")));
     }
 
     @Test
@@ -408,7 +406,6 @@ class OllaHervorControllerTest {
     @DisplayName("CP-OHC-20: un rol distinto de GERENTE_DE_PRODUCCION no puede modificar")
     void caso_cp_ohc_20() throws Exception {
         mockMvc.perform(post("/equipamiento/ollas-hervor/4").with(csrf())
-                        .param("identificadorInterno", "OLLA-01")
                         .param("capacidadTotal", "100")
                         .param("capacidadUtil", "80")
                         .param("evaporacion", "8")
