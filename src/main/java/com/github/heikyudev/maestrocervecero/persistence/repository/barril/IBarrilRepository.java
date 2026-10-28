@@ -39,6 +39,12 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas), capacidad (coincidencia
      * exacta), estado operativo (coincidencia exacta) y/o fabricante (por su ID). Un parámetro
      * nulo no restringe por ese criterio.
+     * <p>
+     * El orden es natural por identificador interno: primero el prefijo (sin distinguir mayúsculas) y luego el número,
+     * de modo que {@code 2} va antes que {@code 11} y {@code 11} antes que {@code 100}. Un identificador heredado que no
+     * termina en número queda ordenado por su texto (sin distinguir mayúsculas) entre los que comparten ese prefijo. El
+     * orden del {@code Pageable} solo desempata.
+     * </p>
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
      * @param numeroSerie Texto a buscar dentro del número de serie, o {@code null} para no filtrar por él.
@@ -53,7 +59,7 @@ public interface IBarrilRepository extends JpaRepository<BarrilEntity, Long> {
             + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%'))) "
             + "AND (:capacidad IS NULL OR b.capacidad = :capacidad) "
             + "AND (:estadoOperativo IS NULL OR b.estadoOperativo = :estadoOperativo) "
-            + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante)",
+            + "AND (:idFabricante IS NULL OR b.fabricante.id = :idFabricante) ORDER BY UPPER(function('regexp_replace', b.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', b.identificadorInterno, '^.*[^0-9]', ''), UPPER(b.identificadorInterno), b.id",
             countQuery = "SELECT COUNT(b) FROM BarrilEntity b WHERE b.estado = 'ACTIVO' "
                     + "AND (:identificadorInterno IS NULL OR UPPER(b.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:numeroSerie IS NULL OR UPPER(b.numeroSerie) LIKE UPPER(CONCAT('%', CAST(:numeroSerie AS string), '%'))) "

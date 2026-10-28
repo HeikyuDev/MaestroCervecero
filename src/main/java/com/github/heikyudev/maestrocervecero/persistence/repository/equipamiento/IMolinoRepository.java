@@ -27,6 +27,12 @@ public interface IMolinoRepository extends JpaRepository<MolinoEntity, Long> {
      * Obtiene una página de molinos activos, filtrados opcionalmente por identificador interno
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o estado operativo
      * (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     * <p>
+     * El orden es natural por identificador interno: primero el prefijo (sin distinguir mayúsculas) y luego el número,
+     * de modo que {@code 2} va antes que {@code 11} y {@code 11} antes que {@code 100}. Un identificador heredado que no
+     * termina en número queda ordenado por su texto (sin distinguir mayúsculas) entre los que comparten ese prefijo. El
+     * orden del {@code Pageable} solo desempata.
+     * </p>
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
@@ -35,7 +41,7 @@ public interface IMolinoRepository extends JpaRepository<MolinoEntity, Long> {
      */
     @Query(value = "SELECT mo FROM MolinoEntity mo WHERE mo.estado = 'ACTIVO' "
             + "AND (:identificadorInterno IS NULL OR UPPER(mo.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
-            + "AND (:estadoOperativo IS NULL OR mo.estadoOperativo = :estadoOperativo)",
+            + "AND (:estadoOperativo IS NULL OR mo.estadoOperativo = :estadoOperativo) ORDER BY UPPER(function('regexp_replace', mo.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', mo.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', mo.identificadorInterno, '^.*[^0-9]', ''), UPPER(mo.identificadorInterno), mo.id",
             countQuery = "SELECT COUNT(mo) FROM MolinoEntity mo WHERE mo.estado = 'ACTIVO' "
                     + "AND (:identificadorInterno IS NULL OR UPPER(mo.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR mo.estadoOperativo = :estadoOperativo)")

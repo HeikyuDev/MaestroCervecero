@@ -34,6 +34,12 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
      * de un tipo determinado con todos sus datos técnicos propios, usar el método
      * {@code filtrarX} del repositorio específico de ese tipo en su lugar.
      * </p>
+     * <p>
+     * El orden es natural por identificador interno: primero el prefijo (sin distinguir mayúsculas) y luego el número,
+     * de modo que {@code 2} va antes que {@code 11} y {@code 11} antes que {@code 100}. Un identificador heredado que no
+     * termina en número queda ordenado por su texto (sin distinguir mayúsculas) entre los que comparten ese prefijo. El
+     * orden del {@code Pageable} solo desempata.
+     * </p>
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
      * @param tipoClase Clase concreta de equipamiento a filtrar (ver {@link com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento#getEntityClass()}), o {@code null} para no filtrar por tipo.
@@ -44,7 +50,7 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
     @Query(value = "SELECT e FROM EquipamientoEntity e WHERE e.estado = 'ACTIVO' "
             + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
             + "AND (:tipoClase IS NULL OR TYPE(e) = :tipoClase) "
-            + "AND (:estadoOperativo IS NULL OR e.estadoOperativo = :estadoOperativo)",
+            + "AND (:estadoOperativo IS NULL OR e.estadoOperativo = :estadoOperativo) ORDER BY UPPER(function('regexp_replace', e.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', e.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', e.identificadorInterno, '^.*[^0-9]', ''), UPPER(e.identificadorInterno), e.id",
             countQuery = "SELECT COUNT(e) FROM EquipamientoEntity e WHERE e.estado = 'ACTIVO' "
                     + "AND (:identificadorInterno IS NULL OR UPPER(e.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:tipoClase IS NULL OR TYPE(e) = :tipoClase) "

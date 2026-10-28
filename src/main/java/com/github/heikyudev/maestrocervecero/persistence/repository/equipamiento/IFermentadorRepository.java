@@ -28,6 +28,12 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
      * Obtiene una página de fermentadores activos, filtrados opcionalmente por identificador
      * interno (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o estado operativo
      * (coincidencia exacta). Un parámetro nulo no restringe por ese criterio.
+     * <p>
+     * El orden es natural por identificador interno: primero el prefijo (sin distinguir mayúsculas) y luego el número,
+     * de modo que {@code 2} va antes que {@code 11} y {@code 11} antes que {@code 100}. Un identificador heredado que no
+     * termina en número queda ordenado por su texto (sin distinguir mayúsculas) entre los que comparten ese prefijo. El
+     * orden del {@code Pageable} solo desempata.
+     * </p>
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
@@ -36,7 +42,7 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
      */
     @Query(value = "SELECT f FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' "
             + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
-            + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)",
+            + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo) ORDER BY UPPER(function('regexp_replace', f.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', f.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', f.identificadorInterno, '^.*[^0-9]', ''), UPPER(f.identificadorInterno), f.id",
             countQuery = "SELECT COUNT(f) FROM FermentadorEntity f WHERE f.estado = 'ACTIVO' "
                     + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
                     + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)")
@@ -47,6 +53,12 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
      * cualquier estado, incluso si todos fueron cancelados), filtrados opcionalmente por identificador interno
      * (coincidencia parcial, sin distinguir mayúsculas/minúsculas) y/o estado operativo (coincidencia exacta). Un
      * parámetro nulo no restringe por ese criterio.
+     * <p>
+     * El orden es natural por identificador interno: primero el prefijo (sin distinguir mayúsculas) y luego el número,
+     * de modo que {@code 2} va antes que {@code 11} y {@code 11} antes que {@code 100}. Un identificador heredado que no
+     * termina en número queda ordenado por su texto (sin distinguir mayúsculas) entre los que comparten ese prefijo. El
+     * orden del {@code Pageable} solo desempata.
+     * </p>
      *
      * @param identificadorInterno Texto a buscar dentro del identificador interno, o {@code null} para no filtrar por él.
      * @param estadoOperativo Estado operativo exacto a filtrar, o {@code null} para no filtrar por él.
@@ -56,7 +68,7 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
     @Query(value = "SELECT f FROM FermentadorEntity f WHERE (f.estado = 'ACTIVO' OR (f.estado = 'BAJA' AND EXISTS ("
             + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION'))) "
             + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
-            + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo)",
+            + "AND (:estadoOperativo IS NULL OR f.estadoOperativo = :estadoOperativo) ORDER BY UPPER(function('regexp_replace', f.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', f.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', f.identificadorInterno, '^.*[^0-9]', ''), UPPER(f.identificadorInterno), f.id",
             countQuery = "SELECT COUNT(f) FROM FermentadorEntity f WHERE (f.estado = 'ACTIVO' OR (f.estado = 'BAJA' AND EXISTS ("
                     + "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION'))) "
                     + "AND (:identificadorInterno IS NULL OR UPPER(f.identificadorInterno) LIKE UPPER(CONCAT('%', CAST(:identificadorInterno AS string), '%'))) "
@@ -70,12 +82,18 @@ public interface IFermentadorRepository extends JpaRepository<FermentadorEntity,
      * Sirve para que el cronograma de producción pueda filtrar por un fermentador que ya no está activo y cuyos lotes
      * siguen en el historial.
      * </p>
+     * <p>
+     * El orden es natural por identificador interno: primero el prefijo (sin distinguir mayúsculas) y luego el número,
+     * de modo que {@code 2} va antes que {@code 11} y {@code 11} antes que {@code 100}. Un identificador heredado que no
+     * termina en número queda ordenado por su texto (sin distinguir mayúsculas) entre los que comparten ese prefijo. El
+     * orden del {@code Pageable} solo desempata.
+     * </p>
      *
      * @return Los fermentadores dados de baja con lotes, o una lista vacía si no hay ninguno.
      */
     @Query("SELECT f FROM FermentadorEntity f WHERE f.estado = 'BAJA' AND EXISTS (" +
             "SELECT 1 FROM EtapaLoteEntity e WHERE e.equipamiento.id = f.id AND e.etapa = 'FERMENTACION') " +
-            "ORDER BY f.identificadorInterno ASC")
+            "ORDER BY UPPER(function('regexp_replace', f.identificadorInterno, '[0-9]+$', '')), LENGTH(function('regexp_replace', f.identificadorInterno, '^.*[^0-9]', '')), function('regexp_replace', f.identificadorInterno, '^.*[^0-9]', ''), UPPER(f.identificadorInterno), f.id")
     List<FermentadorEntity> buscarDadosDeBajaConLotes();
 
     /**

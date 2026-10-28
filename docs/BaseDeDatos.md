@@ -313,6 +313,13 @@ interno.
 
 `udx_equipamiento_identificador_interno` (V3) se mantiene sin cambios.
 
+**Orden de los listados.** Las consultas de listado de equipos y de barriles ordenan por identificador interno en orden
+natural, con `regexp_replace` de PostgreSQL dentro del `ORDER BY` de la consulta: primero el prefijo (sin distinguir
+mayúsculas), luego la cantidad de dígitos del número final, luego esos dígitos y, como desempate, el texto completo y el `id`.
+Así `MOL-2` va antes que `MOL-11` y `MOL-11` antes que `MOL-100`. Un identificador heredado que no termina en número
+(por ejemplo `Olla Grande`) se ordena por su texto entre los que comparten ese prefijo. El orden del `Pageable` que
+pasa el Controller solo desempata.
+
 **Una sola versión vigente.** Dos protecciones se combinan al modificar un proveedor o una receta:
 
 1. El Service bloquea la fila del padre (`PESSIMISTIC_WRITE`) antes de validar y de guardar, de modo que las
