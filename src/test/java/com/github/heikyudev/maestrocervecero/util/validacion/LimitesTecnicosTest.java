@@ -54,4 +54,11 @@ class LimitesTecnicosTest {
         assertThat(LimitesTecnicos.CANTIDAD_ENVASADA_MAXIMA_LITROS).isEqualTo(100_000.0);
         assertThat(LimitesTecnicos.ESCALA_CANTIDADES).isEqualTo(4);
     }
+
+    @Test
+    @DisplayName("CP-LT-06: el límite de la cantidad de un ingreso de insumo tiene el valor aprobado")
+    void limiteDeIngresoDeInsumo_debeTenerElValorAprobado() {
+        // Act & Assert
+        assertThat(LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA).isEqualTo(1_000_000.0);
+    }
 }

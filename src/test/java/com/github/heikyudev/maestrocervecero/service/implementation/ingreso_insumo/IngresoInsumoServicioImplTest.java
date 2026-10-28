@@ -212,6 +212,16 @@ class IngresoInsumoServicioImplTest {
         verify(ingresoInsumoRepository).findById(99L);
     }
 
+    @Test
+    @DisplayName("CP-BI-03: buscarPorId lanza ReglaNegocioException cuando el ID es nulo")
+    void buscarPorId_debeRechazarIdNulo() {
+        assertThatThrownBy(() -> ingresoInsumoServicio.buscarPorId(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El ingreso de insumo es obligatorio");
+
+        verifyNoInteractions(ingresoInsumoRepository);
+    }
+
     // ==================== registrarIngresoInsumoPorCompra ====================
 
     @Test
@@ -246,31 +256,25 @@ class IngresoInsumoServicioImplTest {
     @Test
     @DisplayName("CP-RC-03: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la cantidad recibida es nula")
     void registrarPorCompra_debeRechazarCantidadRecibidaNula() {
-        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(null).build();
-        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
-        bloquearOrdenCompra(detalleCompra);
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad recibida debe ser mayor a cero");
+                .hasMessage("La cantidad recibida es obligatoria");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RC-04: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la cantidad recibida es menor o igual a cero")
     void registrarPorCompra_debeRechazarCantidadRecibidaNoPositiva() {
-        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(0.0).build();
-        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
-        bloquearOrdenCompra(detalleCompra);
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad recibida debe ser mayor a cero");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
@@ -307,65 +311,49 @@ class IngresoInsumoServicioImplTest {
     @Test
     @DisplayName("CP-RC-07: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la fecha de ingreso es nula")
     void registrarPorCompra_debeRechazarFechaIngresoNula() {
-        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaIngreso(null).build();
-        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
-        bloquearOrdenCompra(detalleCompra);
-        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de ingreso no puede ser posterior a la fecha actual");
+                .hasMessage("La fecha de ingreso es obligatoria");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RC-08: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la fecha de ingreso es posterior a la fecha actual")
     void registrarPorCompra_debeRechazarFechaIngresoFutura() {
-        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaIngreso(LocalDate.now().plusDays(1)).build();
-        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
-        bloquearOrdenCompra(detalleCompra);
-        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La fecha de ingreso no puede ser posterior a la fecha actual");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RC-09: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la fecha de vencimiento es nula")
     void registrarPorCompra_debeRechazarFechaVencimientoNula() {
-        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaVencimiento(null).build();
-        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
-        bloquearOrdenCompra(detalleCompra);
-        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de vencimiento no puede ser anterior a la fecha actual");
+                .hasMessage("La fecha de vencimiento es obligatoria");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RC-10: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la fecha de vencimiento es anterior a la fecha actual")
     void registrarPorCompra_debeRechazarFechaVencimientoAnterior() {
-        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaVencimiento(LocalDate.now().minusDays(1)).build();
-        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
-        bloquearOrdenCompra(detalleCompra);
-        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La fecha de vencimiento no puede ser anterior a la fecha actual");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
@@ -928,6 +916,225 @@ class IngresoInsumoServicioImplTest {
         orden.verify(ingresoInsumoRepository, atLeastOnce()).findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO);
     }
 
+    @Test
+    @DisplayName("CP-RC-34: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando el formulario es nulo")
+    void registrarPorCompra_caso34() {
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los datos del ingreso de insumo son obligatorios");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-35: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando el ítem de la orden de compra es nulo")
+    void registrarPorCompra_caso35() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).idDetalleCompra(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El ítem de la orden de compra es obligatorio");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-36: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida es NaN")
+    void registrarPorCompra_caso36() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(Double.NaN).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida debe ser mayor a cero");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-37: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida es infinita")
+    void registrarPorCompra_caso37() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(Double.POSITIVE_INFINITY).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida debe ser mayor a cero");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-38: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida supera 1.000.000 por poco")
+    void registrarPorCompra_caso38() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(1_000_000.0001).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida no puede superar 1.000.000");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-39: registrarIngresoInsumoPorCompra acepta una cantidad recibida exactamente igual al máximo de 1.000.000")
+    void registrarPorCompra_caso39() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 1000000, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(1_000_000.0).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        IngresoInsumoResponseDTO resultado = ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadRecibida()).isEqualTo(1_000_000.0);
+        verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RC-40: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida tiene 5 decimales")
+    void registrarPorCompra_caso40() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.12345).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida no puede tener más de 4 decimales");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-41: registrarIngresoInsumoPorCompra acepta una cantidad recibida con 4 decimales")
+    void registrarPorCompra_caso41() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.1234).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        IngresoInsumoResponseDTO resultado = ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadRecibida()).isEqualTo(20.1234);
+        verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RC-42: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando el insumo del ítem está dado de baja, antes de calcular la cantidad pendiente y de buscar el lote")
+    void registrarPorCompra_caso42() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumoDadoDeBaja = MaltaEntity.builder().id(INSUMO_ID).nombre("Malta Pilsen").estado(Estado.BAJA).unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoDadoDeBaja);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar el ingreso porque el insumo está dado de baja");
+
+        verifyNoInteractions(insumoRepository, loteInsumoRepository);
+        verify(ingresoInsumoRepository, never()).findByDetalleCompraIdAndEstado(any(), any());
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RC-43: registrarIngresoInsumoPorCompra valida los datos obligatorios antes de consultar cualquier repositorio aunque el formulario esté vacío")
+    void registrarPorCompra_caso43() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = IngresoInsumoPorCompraFormDTO.builder().build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El ítem de la orden de compra es obligatorio");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-44: registrarIngresoInsumoPorCompra informa primero la cantidad recibida cuando también faltan las fechas")
+    void registrarPorCompra_caso44() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(null).fechaIngreso(null).fechaVencimiento(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida es obligatoria");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-45: registrarIngresoInsumoPorCompra informa primero la fecha de ingreso cuando también falta la fecha de vencimiento")
+    void registrarPorCompra_caso45() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaIngreso(null).fechaVencimiento(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de ingreso es obligatoria");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-46: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida es negativa")
+    void registrarPorCompra_caso46() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(-1.0).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida debe ser mayor a cero");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RC-47: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando el insumo bloqueado está dado de baja aunque el del ítem figurara activo")
+    void registrarPorCompra_caso47() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        InsumoEntity insumoBloqueadoDadoDeBaja = MaltaEntity.builder().id(INSUMO_ID).nombre("Malta Pilsen").estado(Estado.BAJA).unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumoBloqueadoDadoDeBaja));
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar el ingreso porque el insumo está dado de baja");
+
+        verifyNoInteractions(loteInsumoRepository);
+        verify(ingresoInsumoRepository, never()).save(any());
+    }
+
     // ==================== registrarIngresoInsumoDirecto ====================
 
     @Test
@@ -947,105 +1154,97 @@ class IngresoInsumoServicioImplTest {
     @Test
     @DisplayName("CP-RD-02: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando la cantidad recibida es nula")
     void registrarDirecto_debeRechazarCantidadRecibidaNula() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(null).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad recibida debe ser mayor a cero");
+                .hasMessage("La cantidad recibida es obligatoria");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-03: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando la cantidad recibida es menor o igual a cero")
     void registrarDirecto_debeRechazarCantidadRecibidaNoPositiva() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(0.0).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La cantidad recibida debe ser mayor a cero");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-04: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando el costo unitario es nulo")
     void registrarDirecto_debeRechazarCostoUnitarioNulo() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(null).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo unitario debe ser mayor a cero");
+                .hasMessage("El costo unitario es obligatorio");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-05: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando el costo unitario es menor o igual a cero")
     void registrarDirecto_debeRechazarCostoUnitarioNoPositivo() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(BigDecimal.ZERO).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El costo unitario debe ser mayor a cero");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-06: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando la fecha de ingreso es nula")
     void registrarDirecto_debeRechazarFechaIngresoNula() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).fechaIngreso(null).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de ingreso no puede ser posterior a la fecha actual");
+                .hasMessage("La fecha de ingreso es obligatoria");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-07: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando la fecha de ingreso es posterior a la fecha actual")
     void registrarDirecto_debeRechazarFechaIngresoFutura() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).fechaIngreso(LocalDate.now().plusDays(1)).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La fecha de ingreso no puede ser posterior a la fecha actual");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-08: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando la fecha de vencimiento es nula")
     void registrarDirecto_debeRechazarFechaVencimientoNula() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).fechaVencimiento(null).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de vencimiento no puede ser anterior a la fecha actual");
+                .hasMessage("La fecha de vencimiento es obligatoria");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
     @DisplayName("CP-RD-09: registrarIngresoInsumoDirecto lanza ReglaNegocioException cuando la fecha de vencimiento es anterior a la fecha actual")
     void registrarDirecto_debeRechazarFechaVencimientoAnterior() {
-        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumoEntity(INSUMO_ID)));
         IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).fechaVencimiento(LocalDate.now().minusDays(1)).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("La fecha de vencimiento no puede ser anterior a la fecha actual");
 
-        verify(ingresoInsumoRepository, never()).save(any());
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
@@ -1273,6 +1472,239 @@ class IngresoInsumoServicioImplTest {
 
         verify(insumoRepository, never()).buscarPorIdParaIngresar(any());
         verify(ingresoInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RD-20: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando el formulario es nulo")
+    void registrarDirecto_caso20() {
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los datos del ingreso de insumo son obligatorios");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-21: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando el insumo es nulo")
+    void registrarDirecto_caso21() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).idInsumo(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El insumo es obligatorio");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-22: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida es NaN")
+    void registrarDirecto_caso22() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(Double.NaN).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida debe ser mayor a cero");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-23: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida es infinita")
+    void registrarDirecto_caso23() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(Double.POSITIVE_INFINITY).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida debe ser mayor a cero");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-24: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida supera 1.000.000 por poco")
+    void registrarDirecto_caso24() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(1_000_000.0001).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida no puede superar 1.000.000");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-25: registrarIngresoInsumoDirecto acepta una cantidad recibida exactamente igual al máximo de 1.000.000")
+    void registrarDirecto_caso25() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(1_000_000.0).build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        IngresoInsumoResponseDTO resultado = ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadRecibida()).isEqualTo(1_000_000.0);
+        verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RD-26: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad recibida tiene 5 decimales")
+    void registrarDirecto_caso26() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(20.12345).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida no puede tener más de 4 decimales");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-27: registrarIngresoInsumoDirecto acepta una cantidad recibida con 4 decimales")
+    void registrarDirecto_caso27() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(20.1234).build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        IngresoInsumoResponseDTO resultado = ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCantidadRecibida()).isEqualTo(20.1234);
+        verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RD-28: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando el costo unitario supera 1.000.000.000 por poco")
+    void registrarDirecto_caso28() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(new BigDecimal("1000000000.0001")).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario no puede superar 1.000.000.000");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-29: registrarIngresoInsumoDirecto acepta un costo unitario exactamente igual al máximo de 1.000.000.000")
+    void registrarDirecto_caso29() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(new BigDecimal("1000000000")).build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        IngresoInsumoResponseDTO resultado = ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCostoUnitario()).isEqualByComparingTo("1000000000");
+        verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RD-30: registrarIngresoInsumoDirecto lanza ReglaNegocioException y no consulta ningún repositorio cuando el costo unitario tiene 5 decimales")
+    void registrarDirecto_caso30() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(new BigDecimal("8.12345")).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario no puede tener más de 4 decimales");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-31: registrarIngresoInsumoDirecto acepta un costo unitario con 4 decimales y ignora los ceros finales")
+    void registrarDirecto_caso31() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(new BigDecimal("8.123400")).build();
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        stubearLoteNuevoYGuardado(insumo);
+
+        // === EJECUCION ===
+        IngresoInsumoResponseDTO resultado = ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getCostoUnitario()).isEqualByComparingTo("8.1234");
+        verify(ingresoInsumoRepository).save(any(IngresoInsumoEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-RD-32: registrarIngresoInsumoDirecto valida los datos obligatorios antes de consultar cualquier repositorio aunque el formulario esté vacío")
+    void registrarDirecto_caso32() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = IngresoInsumoDirectoFormDTO.builder().build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El insumo es obligatorio");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-33: registrarIngresoInsumoDirecto informa primero la cantidad recibida cuando también faltan el costo unitario y las fechas")
+    void registrarDirecto_caso33() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).cantidadRecibida(null).costoUnitario(null).fechaIngreso(null).fechaVencimiento(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La cantidad recibida es obligatoria");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-34: registrarIngresoInsumoDirecto informa primero el costo unitario cuando también faltan las fechas")
+    void registrarDirecto_caso34() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).costoUnitario(null).fechaIngreso(null).fechaVencimiento(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo unitario es obligatorio");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RD-35: registrarIngresoInsumoDirecto informa primero la fecha de ingreso cuando también falta la fecha de vencimiento")
+    void registrarDirecto_caso35() {
+        // === PREPARACION DE DATOS ===
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID).fechaIngreso(null).fechaVencimiento(null).build();
+
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de ingreso es obligatoria");
+
+        verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     // ==================== anularIngresoInsumo ====================
@@ -1625,6 +2057,28 @@ class IngresoInsumoServicioImplTest {
 
         // === ASSERTS ===
         verifyNoInteractions(ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AI-18: anularIngresoInsumo lanza ReglaNegocioException y no consulta ningún repositorio cuando el ID es nulo")
+    void anular_caso18() {
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(null, anularFormDTO("Error de carga")))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El ingreso de insumo es obligatorio");
+
+        verifyNoInteractions(ingresoInsumoRepository, loteInsumoRepository, ordenCompraRepository);
+    }
+
+    @Test
+    @DisplayName("CP-AI-19: anularIngresoInsumo lanza ReglaNegocioException y no consulta ningún repositorio cuando el formulario es nulo")
+    void anular_caso19() {
+        // === EJECUCION + ASSERTS ===
+        assertThatThrownBy(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, null))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Los datos de la anulación del ingreso de insumo son obligatorios");
+
+        verifyNoInteractions(ingresoInsumoRepository, loteInsumoRepository, ordenCompraRepository);
     }
 
     // ==================== helpers de construcción ====================

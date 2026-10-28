@@ -53,6 +53,11 @@ public class IngresoInsumoResponseDTO {
     private String motivoAnulacion;
 
     /**
+     * Usuario que anuló el ingreso. {@code null} si nunca fue anulado.
+     */
+    private String usuarioAnulacion;
+
+    /**
      * Indica si el ingreso proviene de una orden de compra ({@code COMPRA}) o si se registró sin
      * una orden previa ({@code DIRECTO}).
      */
@@ -68,6 +73,12 @@ public class IngresoInsumoResponseDTO {
      * es {@code DIRECTO}, sin orden de compra asociada.
      */
     private DetalleCompraResponseDTO detalleCompra;
+
+    /**
+     * Identificador de la orden de compra a la que pertenece el ítem recibido. {@code null} cuando el ingreso
+     * es {@code DIRECTO}, sin orden de compra asociada.
+     */
+    private Long idOrdenCompra;
 
     /**
      * Lote de insumo al que se sumó (o que se creó con) la cantidad recibida.
