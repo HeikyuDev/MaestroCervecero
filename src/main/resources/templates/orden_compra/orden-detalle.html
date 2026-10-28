@@ -86,35 +86,40 @@
             <table class="w-full text-sm text-left" data-tabla-items>
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <tr>
-                    <th class="px-3 py-3">Insumo</th>
-                    <th class="px-3 py-3">Presentación comercial</th>
-                    <th class="px-3 py-3 text-right">Cantidad pedida (unidades)</th>
+                    <th class="px-3 py-3">Insumo y presentación</th>
+                    <th class="px-3 py-3 text-right"><span tabindex="0" data-tooltip="Cantidad pedida, en presentaciones comerciales">Pedida</span></th>
                     <th class="px-3 py-3 text-right">
-                        <span tabindex="0" data-tooltip="Cantidad de insumo ya recibida mediante ingresos registrados, en la unidad del insumo">Recibida</span>
+                        <span tabindex="0" data-tooltip="Presentaciones ya recibidas mediante ingresos registrados; debajo, su equivalente en la unidad del insumo">Recibida</span>
                     </th>
                     <th class="px-3 py-3 text-right">
-                        <span tabindex="0" data-tooltip="Cantidad de insumo que resta recibir, en la unidad del insumo">Pendiente</span>
+                        <span tabindex="0" data-tooltip="Presentaciones que restan recibir; debajo, su equivalente en la unidad del insumo">Pendiente</span>
                     </th>
-                    <th class="px-3 py-3 text-right"><span tabindex="0" data-tooltip="Costo de una unidad de la presentación comercial, no del insumo">Costo por presentación ($)</span></th>
+                    <th class="px-3 py-3 text-right"><span tabindex="0" data-tooltip="Costo de una unidad de la presentación comercial, no del insumo">Costo ($)</span></th>
                     <th class="px-3 py-3 text-right">Subtotal ($)</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                 <tr th:each="d : ${orden.detallesCompra}" data-fila-detalle class="hover:bg-slate-50"
                     th:with="insumo=${d.catalogoProveedor.insumo}, presentacion=${d.catalogoProveedor.presentacionComercial}">
-                    <td class="px-3 py-3 font-medium text-slate-900 break-words" th:text="${insumo.nombre}">Pilsen</td>
                     <td class="px-3 py-3">
-                        <span class="block break-words text-slate-700" th:text="${presentacion.nombre}">Bolsa de 25 Kg</span>
+                        <span class="block max-w-[11rem] truncate font-medium text-slate-900" tabindex="0" th:data-tooltip="${insumo.nombre}" th:text="${insumo.nombre}">Pilsen</span>
+                        <span class="block max-w-[11rem] truncate text-xs text-slate-500" tabindex="0" th:data-tooltip="${presentacion.nombre}"><span th:text="${presentacion.nombre}">Bolsa de 25 Kg</span></span>
                         <span class="block text-xs text-slate-500 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${presentacion.cantidad}, ${presentacion.unidadDeMedida?.simbolo})}"></th:block></span>
                     </td>
                     <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" th:text="${d.cantidad}">10</td>
-                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidadRecibida}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></td>
-                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${d.cantidadPendiente}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap">
+                        <span class="block" data-recibida><th:block th:replace="~{receta/formato :: numero(${d.cantidadRecibida})}"></th:block></span>
+                        <span class="block text-xs text-slate-500" data-recibida-insumo><th:block th:replace="~{receta/formato :: medida(${d.cantidadRecibidaEnUnidadDelInsumo}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></span>
+                    </td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap">
+                        <span class="block" data-pendiente><th:block th:replace="~{receta/formato :: numero(${d.cantidadPendiente})}"></th:block></span>
+                        <span class="block text-xs text-slate-500" data-pendiente-insumo><th:block th:replace="~{receta/formato :: medida(${d.cantidadPendienteEnUnidadDelInsumo}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></span>
+                    </td>
                     <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(d.costoUnitario)}">1.250,50</td>
                     <td class="px-3 py-3 text-right font-medium text-slate-900 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(d.subtotal)}">12.505,00</td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(orden.detallesCompra)}">
-                    <td colspan="7" class="px-4 py-6 text-center text-slate-400">La orden no tiene ítems</td>
+                    <td colspan="6" class="px-4 py-6 text-center text-slate-400">La orden no tiene ítems</td>
                 </tr>
                 </tbody>
             </table>

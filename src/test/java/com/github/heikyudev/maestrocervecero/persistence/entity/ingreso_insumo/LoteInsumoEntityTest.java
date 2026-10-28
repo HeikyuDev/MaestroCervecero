@@ -162,6 +162,25 @@ class LoteInsumoEntityTest {
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
     }
 
+    @Test
+    @DisplayName("CP-LIE-11: sumar 0,1 y 0,2 y anular ambos ingresos deja la cantidad actual en 0,0 sin residuo y conserva el PPP")
+    void sumarYAnularIngresos_noDebeDejarResiduoNiAlterarElPPP() {
+        // === PREPARACION DE DATOS ===
+        LoteInsumoEntity loteInsumo = loteInsumo(0.0, 0.0);
+        java.math.BigDecimal costo = new java.math.BigDecimal("7");
+
+        // === EJECUCION ===
+        loteInsumo.sumarIngreso(0.1, costo);
+        loteInsumo.sumarIngreso(0.2, costo);
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.3);
+        loteInsumo.anularIngreso(0.2, costo);
+        loteInsumo.anularIngreso(0.1, costo);
+
+        // === ASSERTS ===
+        assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.0);
+        assertThat(loteInsumo.getCostoUnitarioPPP()).isEqualByComparingTo("7");
+    }
+
     // ==================== helpers de construcción ====================
 
     private static LoteInsumoEntity loteInsumo(double cantidadActual, double cantidadReservada) {

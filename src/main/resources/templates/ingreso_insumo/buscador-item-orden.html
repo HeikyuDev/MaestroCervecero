@@ -4,10 +4,10 @@
 
 <!--
     Contenido del modal de ítems de la orden de compra elegida: los ítems que todavía tienen cantidad pendiente, con
-    "Elegir". Las cantidades (pedido, recibido y pendiente) están en la unidad del insumo. El botón "Elegir" lleva, además
+    "Elegir". Las cantidades (pedido, recibido y pendiente) están en presentaciones comerciales del ítem. El botón "Elegir" lleva, además
     del id del ítem y su texto, los datos que el formulario muestra del ítem elegido: el id y el nombre del insumo, la
-    unidad, lo pendiente, la presentación comercial y la cantidad de insumo que trae una presentación (para el cálculo
-    informativo de presentaciones). Sin orden elegida, o con una orden que ya no está pendiente, el controller informa el
+    unidad, lo pendiente en presentaciones, la presentación comercial y la cantidad de insumo que trae una presentación
+    (para mostrar cuánto ingresa al lote). Sin orden elegida, o con una orden que ya no está pendiente, el controller informa el
     motivo en mensajeBuscador y el fragmento no muestra filas.
 -->
 <div th:fragment="buscador">
@@ -15,7 +15,7 @@
     <div class="flex items-start justify-between gap-4 p-6 pb-0">
         <div>
             <h3 class="text-lg font-semibold text-slate-900">Buscar ítem de la orden</h3>
-            <p class="text-sm text-slate-500" th:text="${textoOrden != null} ? |Orden de compra ${textoOrden}. Elija el ítem que se recibe.| : 'Elija el ítem que se recibe.'">Elija el ítem que se recibe.</p>
+            <p class="text-sm text-slate-500" th:text="${textoOrden != null} ? |Orden de compra ${textoOrden}. Elija el ítem que se recibe. Cantidades en presentaciones.| : 'Elija el ítem que se recibe. Cantidades en presentaciones.'">Elija el ítem que se recibe. Cantidades en presentaciones.</p>
         </div>
         <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
                 class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
@@ -43,17 +43,19 @@
                     <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${f.detalle.catalogoProveedor.insumo.nombre}" th:text="${f.detalle.catalogoProveedor.insumo.nombre}">Cascade</div>
                 </td>
                 <td class="px-3 py-3 text-slate-700">
-                    <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${f.presentacion}" th:text="${f.presentacion}">Bolsa (25 kg)</div>
+                    <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${f.presentacion}" th:text="${f.presentacion}">Bolsa 25 kg (25 kg)</div>
                 </td>
-                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.pedido}, ${f.unidad})}"></th:block></td>
-                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.detalle.cantidadRecibida}, ${f.unidad})}"></th:block></td>
-                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.detalle.cantidadPendiente}, ${f.unidad})}"></th:block></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><span th:text="${f.pedido}">4</span></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><span th:text="${f.recibido}">1</span></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><span th:text="${f.pendiente}">3</span></td>
                 <td class="px-3 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${f.detalle.id}" th:data-texto="${f.texto}"
                             th:data-insumo-id="${f.detalle.catalogoProveedor.insumo.id}"
                             th:data-insumo="${f.detalle.catalogoProveedor.insumo.nombre}"
                             th:data-unidad="${f.unidad}"
-                            th:data-pendiente="${(f.detalle.cantidadPendiente == f.detalle.cantidadPendiente.intValue() ? #numbers.formatInteger(f.detalle.cantidadPendiente.intValue(), 1, 'POINT') : #strings.replace(f.detalle.cantidadPendiente, '.', ',')) + ' ' + f.unidad}"
+                            th:data-pedido="${f.pedido}"
+                            th:data-recibido="${f.recibido}"
+                            th:data-pendiente="${f.pendiente + ' ' + f.nombrePresentacion}"
                             th:data-presentacion="${f.presentacion}"
                             th:data-factor="${f.factor}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>

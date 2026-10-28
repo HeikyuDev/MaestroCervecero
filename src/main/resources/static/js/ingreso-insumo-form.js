@@ -4,20 +4,27 @@
  *
  *   - Selector de la orden de compra (campo idOrdenCompra): quita el ítem elegido, habilita el selector del ítem y apunta
  *     su buscador a los ítems de esa orden (parámetro idOrdenCompra). Si se quita la orden, vuelve a deshabilitarlo.
- *   - Selector del ítem de la orden (campo idDetalleCompra): muestra su insumo, su presentación y lo que queda pendiente,
- *     la unidad en la cantidad recibida y habilita "Ver lotes existentes" para ese insumo.
- *   - Selector del insumo del ingreso directo (campo idInsumo): muestra su tipo, la unidad en la cantidad y el costo, y
- *     habilita "Ver lotes existentes" para ese insumo.
+ *   - Selector del ítem de la orden (campo idDetalleCompra): muestra su insumo, su presentación y lo pedido, recibido y
+ *     pendiente en presentaciones, y habilita "Ver lotes existentes" para ese insumo.
+ *   - Selector del insumo del ingreso directo (campo idInsumo): muestra su tipo y la unidad en la cantidad y en el precio,
+ *     y habilita "Ver lotes existentes" para ese insumo.
  *   - "Ver lotes existentes" ([data-lote-existente]): completa la identificación y el vencimiento del lote elegido y deja
  *     el vencimiento de solo lectura. "Limpiar" ([data-lote-limpiar]) desbloquea el vencimiento y vacía los dos campos
  *     para escribir un lote nuevo. Cambiar el insumo, o escribir otra identificación, también desbloquea el vencimiento.
- *   - La cantidad recibida (en la unidad del insumo) informa a cuántas presentaciones comerciales del ítem equivale
- *     (data-factor y data-presentacion del formulario: la cantidad de insumo que trae una presentación y su nombre).
+ *   - Al escribir en un campo, se oculta el mensaje de error que mostraba debajo y se quita su marca roja (solo visual: el
+ *     servidor vuelve a validar al enviar).
+ *   - La cantidad de presentaciones recibidas del ingreso por compra informa cuánto insumo ingresa al lote (data-factor
+ *     y data-unidad-item del formulario: la cantidad de insumo que trae una presentación y el símbolo de su unidad).
  */
 (function () {
     'use strict';
 
-    var FORMATO = new Intl.NumberFormat('es-AR', {maximumFractionDigits: 1});
+    /** El número con el formato de la aplicación: miles con punto, coma decimal y hasta 4 decimales ("1.250,5"). */
+    function formatearNumero(numero) {
+        var partes = (Math.round(numero * 10000) / 10000).toFixed(4).replace(/0+$/, '').replace(/\.$/, '').split('.');
+        partes[0] = partes[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return partes.join(',');
+    }
 
     function campoDe(selector) {
         var id = selector.querySelector('[data-selector-id]');
@@ -118,12 +125,13 @@
         if (elegido) {
             resumen.querySelector('[data-item-insumo]').textContent = datos.insumo || '';
             resumen.querySelector('[data-item-presentacion]').textContent = datos.presentacion || '';
+            resumen.querySelector('[data-item-pedido]').textContent = datos.pedido || '';
+            resumen.querySelector('[data-item-recibido]').textContent = datos.recibido || '';
             resumen.querySelector('[data-item-pendiente]').textContent = datos.pendiente || '';
         }
         formulario.setAttribute('data-factor', elegido && datos.factor ? datos.factor : '');
-        formulario.setAttribute('data-presentacion', elegido && datos.presentacion ? datos.presentacion : '');
-        fijarUnidad(formulario, elegido ? datos.unidad : '');
-        actualizarEquivalencia(formulario);
+        formulario.setAttribute('data-unidad-item', elegido && datos.unidad ? datos.unidad : '');
+        actualizarIngresaAlLote(formulario);
     }
 
     function alCambiarOrden(formulario, orden) {
@@ -161,24 +169,35 @@
         alCambiarInsumo(formulario, elegido ? insumo.id : null);
     }
 
-    // ---------- Equivalencia en presentaciones ----------
+    // ---------- Insumo que ingresa al lote ----------
 
-    function actualizarEquivalencia(formulario) {
-        var salida = formulario.querySelector('[data-equivalencia]');
-        var entrada = formulario.querySelector('#cantidadRecibida');
+    /** Muestra "Ingresan N kg al lote" con las presentaciones cargadas por lo que trae cada una; solo informa. */
+    function actualizarIngresaAlLote(formulario) {
+        var salida = formulario.querySelector('[data-ingresa-al-lote]');
+        var entrada = formulario.querySelector('#cantidadPresentaciones');
         if (!salida || !entrada) { return; }
         var factor = parseFloat(formulario.getAttribute('data-factor'));
-        var cantidad = parseFloat(entrada.value);
-        if (!(factor > 0) || !(cantidad > 0)) {
+        var presentaciones = parseFloat(entrada.value);
+        if (!(factor > 0) || !(presentaciones > 0)) {
             salida.hidden = true;
-            salida.textContent = '';
             return;
         }
-        var presentaciones = cantidad / factor;
-        var unica = Math.abs(presentaciones - 1) < 0.05;
-        salida.textContent = 'Equivale a ' + FORMATO.format(presentaciones) + (unica ? ' presentación' : ' presentaciones')
-            + ' de ' + (formulario.getAttribute('data-presentacion') || '');
+        salida.querySelector('[data-ingresa-valor]').textContent =
+            formatearNumero(presentaciones * factor) + ' ' + (formulario.getAttribute('data-unidad-item') || '');
         salida.hidden = false;
+    }
+
+    // ---------- Error del campo ----------
+
+    /** Oculta el error de {entrada} (el párrafo rojo de su contenedor) y quita la marca roja del campo. */
+    function limpiarErrorDelCampo(entrada) {
+        var contenedor = entrada.parentElement;
+        if (!contenedor) { return; }
+        contenedor.querySelectorAll('p.text-rose-600').forEach(function (error) { error.hidden = true; });
+        if (entrada.classList.contains('border-rose-400')) {
+            entrada.classList.remove('border-rose-400', 'bg-rose-50');
+            entrada.classList.add('border-slate-300');
+        }
     }
 
     // ---------- Eventos ----------
@@ -211,8 +230,11 @@
     document.addEventListener('input', function (evento) {
         var formulario = evento.target.closest ? evento.target.closest('[data-formulario-ingreso]') : null;
         if (!formulario) { return; }
-        if (evento.target.id === 'cantidadRecibida') {
-            actualizarEquivalencia(formulario);
+        if (evento.target.matches && evento.target.matches('input:not([data-selector-texto]), select, textarea')) {
+            limpiarErrorDelCampo(evento.target);
+        }
+        if (evento.target.id === 'cantidadPresentaciones') {
+            actualizarIngresaAlLote(formulario);
         } else if (evento.target.id === 'identificacionLoteProveedor' && bloqueado(formulario)) {
             // Otra identificación ya no es el lote elegido: el vencimiento vuelve a ser editable
             desbloquearLote(formulario, false);
@@ -220,5 +242,5 @@
         }
     });
 
-    document.querySelectorAll('[data-formulario-ingreso]').forEach(actualizarEquivalencia);
+    document.querySelectorAll('[data-formulario-ingreso]').forEach(actualizarIngresaAlLote);
 })();

@@ -38,6 +38,8 @@ class MapperOrdenCompraTest {
         assertThat(resultado.getDetallesCompra()).allSatisfy(detalle -> {
             assertThat(detalle.getCantidadRecibida()).isNull();
             assertThat(detalle.getCantidadPendiente()).isNull();
+            assertThat(detalle.getCantidadRecibidaEnUnidadDelInsumo()).isNull();
+            assertThat(detalle.getCantidadPendienteEnUnidadDelInsumo()).isNull();
         });
     }
 
@@ -84,12 +86,14 @@ class MapperOrdenCompraTest {
         DetalleCompraResponseDTO detalle = resultado.getDetallesCompra().get(0);
         assertThat(detalle.getCantidadRecibida()).isEqualTo(0.3333);
         assertThat(detalle.getCantidadPendiente()).isEqualTo(1.6667);
+        assertThat(detalle.getCantidadRecibidaEnUnidadDelInsumo()).isEqualTo(0.3333);
+        assertThat(detalle.getCantidadPendienteEnUnidadDelInsumo()).isEqualTo(1.6667);
         assertThat(detalle.getSubtotal()).isEqualByComparingTo("20.0000");
         assertThat(resultado.getTotal()).isEqualByComparingTo("20.0000");
     }
 
     @Test
-    @DisplayName("CP-MOC-05: toDTOConCantidades convierte la presentación comercial a la unidad del insumo al calcular la cantidad pendiente")
+    @DisplayName("CP-MOC-05: toDTOConCantidades informa recibida y pendiente en presentaciones, convirtiendo la presentación comercial a la unidad del insumo, y su equivalente en la unidad del insumo")
     void toDTOConCantidades_debeConvertirLaPresentacionALaUnidadDelInsumo() {
         // === PREPARACION DE DATOS ===
         OrdenCompraEntity orden = ordenCompra();
@@ -100,8 +104,10 @@ class MapperOrdenCompraTest {
 
         // === ASSERTS ===
         DetalleCompraResponseDTO detalle = resultado.getDetallesCompra().get(0);
-        assertThat(detalle.getCantidadRecibida()).isEqualTo(50.5);
-        assertThat(detalle.getCantidadPendiente()).isEqualTo(74.5);
+        assertThat(detalle.getCantidadRecibida()).isEqualTo(2.02);
+        assertThat(detalle.getCantidadPendiente()).isEqualTo(2.98);
+        assertThat(detalle.getCantidadRecibidaEnUnidadDelInsumo()).isEqualTo(50.5);
+        assertThat(detalle.getCantidadPendienteEnUnidadDelInsumo()).isEqualTo(74.5);
     }
 
     @Test

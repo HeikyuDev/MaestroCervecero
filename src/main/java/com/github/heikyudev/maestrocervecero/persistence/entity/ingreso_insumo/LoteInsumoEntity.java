@@ -64,7 +64,7 @@ public class LoteInsumoEntity {
         BigDecimal valorActual = this.costoUnitarioPPP.multiply(BigDecimal.valueOf(this.cantidadActual));
         BigDecimal valorNuevo = costoUnitario.multiply(BigDecimal.valueOf(cantidad));
 
-        this.cantidadActual += cantidad;
+        this.cantidadActual = Redondeo.redondear(this.cantidadActual + cantidad);
 
         if (this.cantidadActual != 0) {
             this.costoUnitarioPPP = valorActual.add(valorNuevo)
@@ -78,7 +78,7 @@ public class LoteInsumoEntity {
         BigDecimal valorActual = this.costoUnitarioPPP.multiply(BigDecimal.valueOf(this.cantidadActual));
         BigDecimal valorARevertir = costoUnitario.multiply(BigDecimal.valueOf(cantidad));
 
-        this.cantidadActual -= cantidad;
+        this.cantidadActual = Redondeo.redondear(this.cantidadActual - cantidad);
 
         if (this.cantidadActual > 0) {
             this.costoUnitarioPPP = valorActual.subtract(valorARevertir)

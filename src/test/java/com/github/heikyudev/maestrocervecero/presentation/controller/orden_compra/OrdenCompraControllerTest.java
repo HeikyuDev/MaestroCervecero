@@ -670,11 +670,11 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString("data-total>12.505,2468<")))
                 .andExpect(content().string(containsString("Total ($)")))
                 // Columnas de los ítems, con la unidad en el encabezado
-                .andExpect(content().string(containsString(">Cantidad pedida (unidades)<")))
-                .andExpect(content().string(containsString("Costo por presentación ($)")))
+                .andExpect(content().string(containsString(">Pedida<")))
+                .andExpect(content().string(containsString(">Costo ($)<")))
                 .andExpect(content().string(containsString("Subtotal ($)")))
-                .andExpect(content().string(containsString("data-tooltip=\"Cantidad de insumo ya recibida mediante ingresos registrados, en la unidad del insumo\"")))
-                .andExpect(content().string(containsString("data-tooltip=\"Cantidad de insumo que resta recibir, en la unidad del insumo\"")))
+                .andExpect(content().string(containsString("data-tooltip=\"Presentaciones ya recibidas mediante ingresos registrados; debajo, su equivalente en la unidad del insumo\"")))
+                .andExpect(content().string(containsString("data-tooltip=\"Presentaciones que restan recibir; debajo, su equivalente en la unidad del insumo\"")))
                 // Acciones y diálogos de cierre, con el token CSRF en cada formulario
                 .andExpect(content().string(containsString("data-motivo-url=\"/ordenes-compra/9/finalizar\"")))
                 .andExpect(content().string(containsString("data-motivo-url=\"/ordenes-compra/9/anular\"")))
@@ -690,9 +690,9 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(matchesPattern(ENLACE_RESALTADO)))
                 .andReturn().getResponse().getContentAsString();
 
-        // Assert: las cantidades recibida y pendiente van con la unidad del insumo, y los importes con el formato de la aplicación
+        // Assert: las cantidades recibida y pendiente van en presentaciones con su equivalente en la unidad del insumo, y los importes con el formato de la aplicación
         String filas = html.substring(html.indexOf("<tbody"), html.indexOf("</tbody>"));
-        assertThat(filas).contains(">100 kg<", ">150 kg<", ">0 g<", ">2.000 g<", ">10<", ">2<", ">1.250,50<", ">12.505,00<", ">0,1234<", ">0,2468<");
+        assertThat(filas).contains(">100 kg<", ">150 kg<", ">0 g<", ">2.000 g<", ">10<", ">4<", ">6<", ">0<", ">2<", ">1.250,50<", ">12.505,00<", ">0,1234<", ">0,2468<");
         assertThat(filas.indexOf("Pilsen")).isLessThan(filas.indexOf("Cascade"));
         assertThat(filas).contains(">25 kg<", ">1 kg<");
     }
@@ -1372,15 +1372,17 @@ class OrdenCompraControllerTest {
     }
 
     /**
-     * Una orden como la devuelve el detalle: dos ítems (10 bolsas de Pilsen de 25 kg a 1.250,50 con 100 kg recibidos y
+     * Una orden como la devuelve el detalle: dos ítems (10 bolsas de Pilsen de 25 kg a 1.250,50 con 4 bolsas (100 kg) recibidas y
      * 2 bolsas de Cascade de 1 kg a 0,1234 sin recibir nada) con sus cantidades recibida y pendiente.
      */
     private static OrdenCompraResponseDTO ordenConDetalle(EstadoSolicitud estado) {
         DetalleCompraResponseDTO pilsen = DetalleCompraResponseDTO.builder().id(1L).cantidad(10).costoUnitario(new BigDecimal("1250.50"))
-                .subtotal(new BigDecimal("12505.00")).cantidadRecibida(100.0).cantidadPendiente(150.0)
+                .subtotal(new BigDecimal("12505.00")).cantidadRecibida(4.0).cantidadPendiente(6.0)
+                .cantidadRecibidaEnUnidadDelInsumo(100.0).cantidadPendienteEnUnidadDelInsumo(150.0)
                 .catalogoProveedor(item(100L, malta(11L, "Pilsen"), presentacion(5L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO))).build();
         DetalleCompraResponseDTO cascade = DetalleCompraResponseDTO.builder().id(2L).cantidad(2).costoUnitario(new BigDecimal("0.1234"))
-                .subtotal(new BigDecimal("0.2468")).cantidadRecibida(0.0).cantidadPendiente(2000.0)
+                .subtotal(new BigDecimal("0.2468")).cantidadRecibida(0.0).cantidadPendiente(2.0)
+                .cantidadRecibidaEnUnidadDelInsumo(0.0).cantidadPendienteEnUnidadDelInsumo(2000.0)
                 .catalogoProveedor(item(102L, lupulo(12L, "Cascade"), presentacion(7L, "Bolsa de 1 Kg", 1.0, UnidadDeMedida.KILOGRAMO))).build();
         return OrdenCompraResponseDTO.builder().id(9L).fechaEntregaEstimada(LocalDate.parse("2027-07-15")).estado(estado)
                 .planificacionProduccion(planificacion()).proveedor(versionProveedor(List.of()))

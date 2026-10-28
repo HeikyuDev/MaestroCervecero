@@ -178,7 +178,7 @@ class OrdenCompraServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-03: buscarPorId informa por ítem la cantidad recibida y la pendiente, el subtotal, y el total de la orden")
+    @DisplayName("CP-BI-03: buscarPorId informa por ítem las presentaciones recibidas y pendientes (con su equivalente en la unidad del insumo), el subtotal, y el total de la orden")
     void buscarPorId_debeInformarCantidadesRecibidaYPendienteYTotales() {
         // === PREPARACION DE DATOS ===
         // 5 bolsas de 25.000 g para un insumo en KILOGRAMO = 125 kg solicitados
@@ -194,8 +194,10 @@ class OrdenCompraServicioImplTest {
 
         // === ASSERTS ===
         DetalleCompraResponseDTO detalle = resultado.getDetallesCompra().get(0);
-        assertThat(detalle.getCantidadRecibida()).isEqualTo(50.5);
-        assertThat(detalle.getCantidadPendiente()).isEqualTo(74.5);
+        assertThat(detalle.getCantidadRecibida()).isEqualTo(2.02);
+        assertThat(detalle.getCantidadPendiente()).isEqualTo(2.98);
+        assertThat(detalle.getCantidadRecibidaEnUnidadDelInsumo()).isEqualTo(50.5);
+        assertThat(detalle.getCantidadPendienteEnUnidadDelInsumo()).isEqualTo(74.5);
         assertThat(detalle.getSubtotal()).isEqualByComparingTo("62.5000");
         assertThat(resultado.getTotal()).isEqualByComparingTo("62.5000");
         verify(ingresoInsumoRepository).findByDetalleCompraIdAndEstado(10L, EstadoTransaccion.REGISTRADO);
@@ -216,7 +218,8 @@ class OrdenCompraServicioImplTest {
 
         // === ASSERTS ===
         assertThat(resultado.getDetallesCompra().get(0).getCantidadRecibida()).isEqualTo(0.0);
-        assertThat(resultado.getDetallesCompra().get(0).getCantidadPendiente()).isEqualTo(125.0);
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadPendiente()).isEqualTo(5.0);
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadPendienteEnUnidadDelInsumo()).isEqualTo(125.0);
     }
 
     @Test
@@ -234,8 +237,9 @@ class OrdenCompraServicioImplTest {
         OrdenCompraResponseDTO resultado = ordenCompraServicio.buscarPorId(1L);
 
         // === ASSERTS ===
-        assertThat(resultado.getDetallesCompra().get(0).getCantidadRecibida()).isEqualTo(0.3);
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadRecibida()).isEqualTo(3.0);
         assertThat(resultado.getDetallesCompra().get(0).getCantidadPendiente()).isEqualTo(0.0);
+        assertThat(resultado.getDetallesCompra().get(0).getCantidadRecibidaEnUnidadDelInsumo()).isEqualTo(0.3);
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.github.heikyudev.maestrocervecero.presentation.form_dto.ingreso_insu
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -49,10 +50,12 @@ public class IngresoInsumoPorCompraFormDTO {
     private LocalDate fechaIngreso;
 
     /**
-     * Cantidad recibida, en la unidad de medida del insumo.
+     * Cantidad de presentaciones comerciales del ítem que llegaron (ej. 2 bolsas). El service la convierte a la
+     * unidad de medida del insumo con el contenido de la presentación.
      */
-    @NotNull(message = "La cantidad recibida es obligatoria")
-    private Double cantidadRecibida;
+    @NotNull(message = "La cantidad de presentaciones recibidas es obligatoria")
+    @Positive(message = "La cantidad de presentaciones recibidas debe ser mayor a cero")
+    private Integer cantidadPresentaciones;
 
     /**
      * Fecha de vencimiento del lote recibido. Junto con {@code identificacionLoteProveedor},

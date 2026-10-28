@@ -148,7 +148,7 @@ class IngresoInsumoControllerTest {
         when(ordenCompraServicio.buscarPorId(7L)).thenReturn(ordenSiete(EstadoSolicitud.PENDIENTE));
         when(ordenCompraServicio.buscarPorId(8L)).thenReturn(orden(8L, EstadoSolicitud.FINALIZADA, List.of()));
         when(ordenCompraServicio.buscarPorId(9L)).thenReturn(orden(9L, EstadoSolicitud.PENDIENTE,
-                List.of(detalle(90L, 2, 0.0, 50.0, pilsen(), "Saco", 25.0, UnidadDeMedida.KILOGRAMO))));
+                List.of(detalle(90L, 2, 0.0, 2.0, pilsen(), "Saco", 25.0, UnidadDeMedida.KILOGRAMO))));
         when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(
                 List.of(ordenSiete(EstadoSolicitud.PENDIENTE)), PageRequest.of(0, 8), 1));
         when(proveedorServicio.buscarPorId(3L)).thenReturn(ProveedorResponseDTO.builder().id(3L).version(proveedor()).build());
@@ -183,15 +183,15 @@ class IngresoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-IIC-02: la pestaña Por compra muestra fecha, insumo, lote, vencimiento, cantidad con su unidad, costo, enlace a la orden, estado y la acción Anular solo del ingreso registrado")
+    @DisplayName("CP-IIC-02: la pestaña Por compra muestra fecha, insumo, lote, vencimiento, cantidad en presentaciones con su equivalente, precio por presentación y por unidad del insumo (en celdas de dos líneas), enlace a la orden, estado y la acción Anular solo del ingreso registrado")
     void lista_debeMostrarLasColumnasDeCadaIngreso() throws Exception {
         // Act
         String html = html(Rol.ENCARGADO_DE_DEPOSITO);
 
         // Assert
-        assertThat(texto(bloque(html, "thead"))).isEqualTo("Fecha de ingreso Insumo Lote del proveedor Vencimiento Cantidad recibida Costo unitario ($/unidad del insumo) Orden de compra Estado Acciones");
-        assertThat(celdas(html, "data-ingreso=\"21\"")).containsExactly("01/07/2027", "Pilsen", "L-125", "12/03/2028", "50 kg", "12,50", "N.º 7", "Registrado", "Anular");
-        assertThat(celdas(html, "data-ingreso=\"20\"")).containsExactly("01/07/2027", "Pilsen", "L-125", "12/03/2028", "50 kg", "12,50", "N.º 7", "Anulado", "");
+        assertThat(texto(bloque(html, "thead"))).isEqualTo("Ingreso Insumo y lote Cantidad Precio ($) Orden Acciones");
+        assertThat(celdas(html, "data-ingreso=\"21\"")).containsExactly("01/07/2027 Registrado", "Pilsen Lote L-125 · vence 12/03/2028", "2 Bolsa 25 kg 50 kg", "12.000,00 = 480,00 / kg", "N.º 7", "Anular");
+        assertThat(celdas(html, "data-ingreso=\"20\"")).containsExactly("01/07/2027 Anulado", "Pilsen Lote L-125 · vence 12/03/2028", "2 Bolsa 25 kg 50 kg", "12.000,00 = 480,00 / kg", "N.º 7", "");
         assertThat(enlaceDe(html, "N.º 7")).isEqualTo("/ordenes-compra/7");
         assertThat(elementoConAtributo(html, "tr", "data-ingreso=\"21\"")).contains("data-motivo-dialogo=\"dialogo-anular\"").contains("data-motivo-url=\"/ingresos-insumo/21/anular\"");
         assertThat(elementoConAtributo(html, "tr", "data-ingreso=\"20\"")).doesNotContain("data-motivo-url").contains("opacity-60");
@@ -207,7 +207,7 @@ class IngresoInsumoControllerTest {
         // Assert
         verify(ingresoInsumoServicio).filtrarIngresoInsumo(isNull(), isNull(), isNull(), eq(TipoIngreso.DIRECTO), isNull(), any(Pageable.class));
         assertThat(html).contains("data-pestana=\"directo\"").doesNotContain("data-orden-compra");
-        assertThat(texto(bloque(html, "thead"))).doesNotContain("Orden de compra").endsWith("Estado Acciones");
+        assertThat(texto(bloque(html, "thead"))).doesNotContain("Orden").endsWith("Precio ($) Acciones");
         assertThat(enlaceDe(html, "Nuevo ingreso directo")).isEqualTo(URL_FORMULARIO_DIRECTO);
         assertThat(elementoConAtributo(html, "a", "data-pestana-directo")).contains("aria-current=\"page\"");
         assertThat(elementoConAtributo(html, "a", "data-pestana-compra")).doesNotContain("aria-current");
@@ -355,7 +355,7 @@ class IngresoInsumoControllerTest {
         String fila = elementoConAtributo(html(Rol.ENCARGADO_DE_DEPOSITO), "tr", "data-ingreso=\"21\"");
 
         // Assert
-        assertThat(fila).contains("data-tooltip=\"Pilsen\"").contains("data-tooltip=\"L-125\"").contains("truncate");
+        assertThat(fila).contains("data-tooltip=\"Pilsen\"").contains("data-tooltip=\"Lote L-125 · vence 12/03/2028\"").contains("truncate");
     }
 
     @Test
@@ -400,7 +400,34 @@ class IngresoInsumoControllerTest {
         }
     }
 
-    // ==================== GET /ingresos-insumo/compra/nuevo ====================
+    @Test
+    @DisplayName("CP-IIC-68: la pestaña Directos muestra la cantidad y el precio por unidad en la unidad del insumo, en una sola columna de precio")
+    void lista_pestanaDirectosMuestraElPrecioPorUnidadDelInsumo() throws Exception {
+        // Arrange
+        when(ingresoInsumoServicio.filtrarIngresoInsumo(any(), any(), any(), eq(TipoIngreso.DIRECTO), any(), any()))
+                .thenReturn(paginaDe(ingresoDirecto(30L, EstadoTransaccion.REGISTRADO)));
+
+        // Act
+        String html = mockMvc.perform(get(URL).param("tipo", "directo").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        assertThat(texto(bloque(html, "thead"))).isEqualTo("Ingreso Insumo y lote Cantidad Precio ($) Acciones");
+        assertThat(celdas(html, "data-ingreso=\"30\"")).containsExactly("01/07/2027 Registrado", "Pilsen Lote L-125 · vence 12/03/2028", "50 kg", "12,50 / kg", "Anular");
+        assertThat(html).doesNotContain("data-precio-presentacion");
+    }
+
+    @Test
+    @DisplayName("CP-IIC-69: la cabecera del precio es corta y su tooltip explica la relación entre el precio por presentación y por unidad; la tabla compacta conserva sus ganchos y la columna Acciones fija")
+    void lista_cabeceraDelPrecioYTablaCompacta() throws Exception {
+        // Act
+        String html = html(Rol.ENCARGADO_DE_DEPOSITO);
+
+        // Assert
+        assertThat(texto(bloque(html, "thead"))).contains("Precio ($)").doesNotContain("Precio por");
+        assertThat(html).contains("12.000 por Bolsa 25 kg = 480 por kg").contains("data-precio-presentacion").contains("data-precio-unidad").contains("col-acciones");
+        assertThat(html).doesNotContain("whitespace-nowrap\">Cantidad recibida").contains("overflow-x-auto");
+    }
 
     @Test
     @DisplayName("CP-IIC-16: el formulario por compra vacío tiene los campos con asterisco rojo y placeholder de ejemplo, la fecha de ingreso de hoy, el ítem y los lotes existentes deshabilitados y los dos botones de registro")
@@ -415,18 +442,20 @@ class IngresoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-ingreso");
         assertThat(formulario).contains("action=\"" + URL + "/compra\"");
         assertThat(texto(formulario)).contains("Orden de compra *", "Ítem de la orden *", "Identificación del lote del proveedor *", "Fecha de vencimiento *",
-                "Fecha de ingreso *", "Cantidad recibida (g, kg o t, según el insumo) *", "Se guarda en mayúsculas y sin espacios de más", "Elija primero la orden de compra",
+                "Fecha de ingreso *", "Cantidad de presentaciones recibidas *", "Se guarda en mayúsculas y sin espacios de más", "Elija primero la orden de compra",
                 "Ver lotes existentes", "Elija primero el insumo", "Solo se ofrecen órdenes pendientes", "Registrar y cargar otro ítem de esta orden", "Registrar ingreso");
         assertThat(cuenta(formulario, "title=\"Obligatorio\"")).isEqualTo(6);
         assertThat(formulario).contains("placeholder=\"Seleccione orden de compra\"").contains("placeholder=\"Seleccione ítem de la orden\"")
-                .contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 25\"");
+                .contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 2\"");
         assertThat(cuenta(formulario, "placeholder=\"Ej: 15/07/2027\"")).isEqualTo(2);
         assertThat(campo(formulario, "fechaIngreso")).isEqualTo(HOY.toString());
         assertThat(textoDelSelector(formulario, "Seleccione orden de compra")).isEmpty();
         assertThat(apertura(formulario, "data-selector-item")).contains("data-deshabilitado");
         assertThat(apertura(formulario, "data-lote-existente")).contains("data-deshabilitado");
         assertThat(elementoConAtributo(formulario, "button", "name=\"cargarOtro\"")).contains("type=\"submit\"");
-        assertThat(formulario).contains("data-lote-limpiar").contains("data-equivalencia");
+        assertThat(formulario).contains("data-lote-limpiar").contains("data-ingresa-al-lote");
+        assertThat(apertura(formulario, "data-ingresa-al-lote")).contains("hidden");
+        assertThat(formulario).doesNotContain("Cantidad recibida");
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL + "?tipo=compra");
         assertThat(enlaceDe(html, "Volver a ingresos")).isEqualTo(URL + "?tipo=compra");
         verifyNoInteractions(ingresoInsumoServicio);
@@ -494,7 +523,7 @@ class IngresoInsumoControllerTest {
         verify(ingresoInsumoServicio).registrarIngresoInsumoPorCompra(dto.capture());
         assertThat(dto.getValue().getIdDetalleCompra()).isEqualTo(70L);
         assertThat(dto.getValue().getIdentificacionLoteProveedor()).isEqualTo("l-125");
-        assertThat(dto.getValue().getCantidadRecibida()).isEqualTo(25.5);
+        assertThat(dto.getValue().getCantidadPresentaciones()).isEqualTo(2);
         assertThat(dto.getValue().getFechaIngreso()).isEqualTo(HOY);
         assertThat(dto.getValue().getFechaVencimiento()).isEqualTo(HOY.plusYears(1));
     }
@@ -542,7 +571,7 @@ class IngresoInsumoControllerTest {
     void registrarPorCompra_reglaDeLaCantidadVuelveAlFormulario() throws Exception {
         // Arrange
         when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any()))
-                .thenThrow(new ReglaNegocioException("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (75.0)", "cantidadRecibida"));
+                .thenThrow(new ReglaNegocioException("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (3)", "cantidadPresentaciones"));
 
         // Act
         String html = mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO)).param("idOrdenCompra", "7"))
@@ -551,13 +580,15 @@ class IngresoInsumoControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        String mensaje = "La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (75.0)";
+        String mensaje = "La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (3)";
         assertThat(cuenta(texto(html), mensaje)).isEqualTo(2);
         assertThat(texto(html)).contains("No se pudo registrar el ingreso");
-        assertThat(etiquetaDelCampo(html, "cantidadRecibida")).contains("border-rose-400");
+        assertThat(etiquetaDelCampo(html, "cantidadPresentaciones")).contains("border-rose-400");
         assertThat(etiquetaDelCampo(html, "identificacionLoteProveedor")).doesNotContain("border-rose-400");
         assertThat(campo(html, "identificacionLoteProveedor")).isEqualTo("l-125");
-        assertThat(campo(html, "cantidadRecibida")).isEqualTo("25.5");
+        assertThat(campo(html, "cantidadPresentaciones")).isEqualTo("2");
+        assertThat(texto(html)).contains("Ingresan 50 kg al lote");
+        assertThat(apertura(html, "data-ingresa-al-lote")).doesNotContain("hidden");
         assertThat(campo(html, "fechaVencimiento")).isEqualTo(HOY.plusYears(1).toString());
         assertThat(campo(html, "fechaIngreso")).isEqualTo(HOY.toString());
     }
@@ -637,21 +668,23 @@ class IngresoInsumoControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("La identificación del lote del proveedor es obligatoria", "La fecha de ingreso es obligatoria", "La cantidad recibida es obligatoria",
+        assertThat(texto(html)).contains("La identificación del lote del proveedor es obligatoria", "La fecha de ingreso es obligatoria", "La cantidad de presentaciones recibidas es obligatoria",
                 "La fecha de vencimiento es obligatoria", "El ítem de la orden de compra es obligatorio");
         verify(ingresoInsumoServicio, never()).registrarIngresoInsumoPorCompra(any());
     }
 
     @Test
-    @DisplayName("CP-IIC-30: valores que no son del tipo del campo (cantidad, fecha o ítem) vuelven al formulario con un mensaje claro y sin llamar al service")
+    @DisplayName("CP-IIC-30: valores que no son del tipo del campo (cantidad de presentaciones decimal, fecha o ítem) vuelven al formulario con un mensaje claro y sin llamar al service")
     void registrarPorCompra_valoresDeTipoInvalido() throws Exception {
         // Act
         String html = mockMvc.perform(post(URL + "/compra").with(como(Rol.ENCARGADO_DE_DEPOSITO)).with(csrf())
-                        .param("cantidadRecibida", "abc").param("fechaIngreso", "no-es-fecha").param("idDetalleCompra", "x"))
+                        .param("cantidadPresentaciones", "2.5").param("fechaIngreso", "no-es-fecha").param("idDetalleCompra", "x"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(html)).contains("Ingrese un número válido", "El valor ingresado no es una fecha válida", "Ingrese un número entero válido");
+        assertThat(texto(html)).contains("El valor ingresado no es una fecha válida");
+        // Cada error aparece en el campo y en el resumen: el de la cantidad y el del ítem
+        assertThat(cuenta(texto(html), "Ingrese un número entero válido")).isEqualTo(4);
         verify(ingresoInsumoServicio, never()).registrarIngresoInsumoPorCompra(any());
     }
 
@@ -659,7 +692,7 @@ class IngresoInsumoControllerTest {
     @DisplayName("CP-IIC-31: tras un rechazo, el formulario conserva la orden y el ítem elegidos, muestra lo pendiente, la unidad y los lotes existentes del insumo habilitados")
     void registrarPorCompra_rechazoConservaLaOrdenYElItem() throws Exception {
         // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a cero"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero"));
 
         // Act
         String html = mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO)).param("idOrdenCompra", "7"))
@@ -671,16 +704,16 @@ class IngresoInsumoControllerTest {
         assertThat(campo(html, "idDetalleCompra")).isEqualTo("70");
         assertThat(apertura(html, "data-selector-item")).doesNotContain("data-deshabilitado");
         assertThat(apertura(html, "data-lote-existente")).doesNotContain("data-deshabilitado").contains("data-buscador-url=\"" + URL_BUSCADOR_LOTES + "?idInsumo=10\"");
-        assertThat(apertura(html, "data-formulario-ingreso")).contains("data-factor=\"25\"").contains("data-presentacion=\"Bolsa (25 kg)\"");
-        assertThat(texto(bloque(html, "data-item-elegido"))).isEqualTo("Insumo: Pilsen · Presentación: Bolsa (25 kg) · Pendiente: 75 kg");
-        assertThat(texto(html)).contains("Cantidad recibida (kg) *");
+        assertThat(apertura(html, "data-formulario-ingreso")).contains("data-factor=\"25\"").contains("data-unidad-item=\"kg\"");
+        assertThat(texto(bloque(html, "data-item-elegido"))).isEqualTo("Insumo: Pilsen · Presentación: Bolsa (25 kg) · Pedido: 4 · Recibido: 1 · Pendiente: 3 Bolsa");
+        assertThat(texto(html)).contains("Cantidad de presentaciones recibidas *", "Ingresan 50 kg al lote");
     }
 
     @Test
     @DisplayName("CP-IIC-32: un rechazo con una orden que ya no existe vuelve al formulario con los selectores vacíos, sin error")
     void registrarPorCompra_rechazoConOrdenInexistente() throws Exception {
         // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a cero"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero"));
         when(ordenCompraServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la orden de compra con ID: 99"));
 
         // Act
@@ -697,7 +730,7 @@ class IngresoInsumoControllerTest {
     void registrarPorCompra_laOrdenEsUnParametroDeLaPantalla() throws Exception {
         // Act + Assert
         mockMvc.perform(post(URL + "/compra").with(como(Rol.ENCARGADO_DE_DEPOSITO)).with(csrf()).param("idDetalleCompra", "70").param("identificacionLoteProveedor", "L-1")
-                        .param("fechaIngreso", HOY.toString()).param("cantidadRecibida", "5").param("fechaVencimiento", HOY.plusDays(30).toString()))
+                        .param("fechaIngreso", HOY.toString()).param("cantidadPresentaciones", "5").param("fechaVencimiento", HOY.plusDays(30).toString()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(URL + "?tipo=compra"));
         verify(ingresoInsumoServicio).registrarIngresoInsumoPorCompra(any());
@@ -746,11 +779,11 @@ class IngresoInsumoControllerTest {
                 DetalleCompraResponseDTO.builder().id(110L).cantidad(1).cantidadPendiente(10.0).build(),
                 DetalleCompraResponseDTO.builder().id(111L).cantidad(1).build())).build());
         when(ordenCompraServicio.buscarPorId(12L)).thenReturn(OrdenCompraResponseDTO.builder().id(12L).estado(EstadoSolicitud.PENDIENTE).build());
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a cero", "cantidadRecibida"));
+        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero", "cantidadPresentaciones"));
 
         // Act
         String formulario = mockMvc.perform(post(URL + "/compra").with(como(Rol.ENCARGADO_DE_DEPOSITO)).with(csrf()).param("idOrdenCompra", "11").param("idDetalleCompra", "110")
-                        .param("identificacionLoteProveedor", "L-1").param("fechaIngreso", HOY.toString()).param("cantidadRecibida", "0").param("fechaVencimiento", HOY.plusDays(9).toString()))
+                        .param("identificacionLoteProveedor", "L-1").param("fechaIngreso", HOY.toString()).param("cantidadPresentaciones", "0").param("fechaVencimiento", HOY.plusDays(9).toString()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String items = mockMvc.perform(get(URL_BUSCADOR_ITEMS).param("idOrdenCompra", "11").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -760,7 +793,7 @@ class IngresoInsumoControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(formulario)).contains("La cantidad recibida debe ser mayor a cero");
+        assertThat(texto(formulario)).contains("La cantidad de presentaciones recibidas debe ser mayor a cero");
         assertThat(textoDelSelector(formulario, "Seleccione ítem de la orden")).isEmpty();
         assertThat(items + sinDetalles).doesNotContain("data-elegir");
         assertThat(texto(items)).contains("La orden no tiene ítems pendientes de recibir");
@@ -772,7 +805,7 @@ class IngresoInsumoControllerTest {
     void registrar_elCampoLoIndicaElService() throws Exception {
         // Arrange
         when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any()))
-                .thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a cero"))
+                .thenThrow(new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero"))
                 .thenThrow(new ReglaNegocioException("El costo unitario debe ser mayor a cero", "costoUnitario"));
 
         // Act
@@ -780,7 +813,7 @@ class IngresoInsumoControllerTest {
         String campoAjeno = mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(cuenta(texto(sinCampo), "La cantidad recibida debe ser mayor a cero")).isEqualTo(1);
+        assertThat(cuenta(texto(sinCampo), "La cantidad de presentaciones recibidas debe ser mayor a cero")).isEqualTo(1);
         assertThat(cuenta(texto(campoAjeno), "El costo unitario debe ser mayor a cero")).isEqualTo(1);
         assertThat(sinCampo + campoAjeno).doesNotContain("border-rose-400");
     }
@@ -800,7 +833,7 @@ class IngresoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-ingreso");
         assertThat(formulario).contains("action=\"" + URL + "/directo\"");
         assertThat(texto(formulario)).contains("Insumo *", "Identificación del lote del proveedor *", "Fecha de vencimiento *", "Fecha de ingreso *",
-                "Cantidad recibida (g, kg o t, según el insumo) *", "Costo unitario ($ por unidad del insumo) *", "Ver lotes existentes", "Registrar ingreso");
+                "Cantidad recibida (g, kg o t, según el insumo) *", "Precio por unidad del insumo ($) *", "Precio de cada unidad del insumo que ingresa", "Ver lotes existentes", "Registrar ingreso");
         assertThat(cuenta(formulario, "title=\"Obligatorio\"")).isEqualTo(6);
         assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 25\"").contains("placeholder=\"Ej: 12.50\"");
         assertThat(campo(formulario, "fechaIngreso")).isEqualTo(HOY.toString());
@@ -904,7 +937,7 @@ class IngresoInsumoControllerTest {
         assertThat(textoDelSelector(html, "Seleccione insumo")).isEqualTo("Pilsen");
         assertThat(campo(html, "idInsumo")).isEqualTo("10");
         assertThat(texto(bloque(html, "data-insumo-elegido"))).isEqualTo("Tipo: Malta");
-        assertThat(texto(html)).contains("Cantidad recibida (kg) *", "Costo unitario ($ por kg) *");
+        assertThat(texto(html)).contains("Cantidad recibida (kg) *", "Precio por kg ($) *");
         assertThat(apertura(html, "data-lote-existente")).doesNotContain("data-deshabilitado").contains("data-buscador-url=\"" + URL_BUSCADOR_LOTES + "?idInsumo=10\"");
     }
 
@@ -1065,7 +1098,7 @@ class IngresoInsumoControllerTest {
     // ==================== GET .../compra/buscador/items ====================
 
     @Test
-    @DisplayName("CP-IIC-50: el buscador de ítems ofrece solo los ítems de la orden con cantidad pendiente, por insumo, con pedido, recibido y pendiente en la unidad del insumo")
+    @DisplayName("CP-IIC-50: el buscador de ítems ofrece solo los ítems de la orden con cantidad pendiente, por insumo, con pedido, recibido y pendiente en presentaciones")
     void buscadorItems_soloLosPendientes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_BUSCADOR_ITEMS).param("idOrdenCompra", "7").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
@@ -1076,16 +1109,16 @@ class IngresoInsumoControllerTest {
         // Assert
         assertThat(texto(html)).contains("Orden de compra N.º 7 - Malterías del Sur S.A.");
         assertThat(texto(html)).doesNotContain("Cascade");
-        assertThat(celdas(html, "data-id=\"73\"")).containsExactly("Citra", "Bolsa (1 kg)", "2.000 g", "0 g", "2.000 g", "Elegir");
-        assertThat(celdas(html, "data-id=\"70\"")).containsExactly("Pilsen", "Bolsa (25 kg)", "100 kg", "25 kg", "75 kg", "Elegir");
-        assertThat(celdas(html, "data-id=\"72\"")).containsExactly("Caramelo", "Saco (25 kg)", "50 kg", "0 kg", "50 kg", "Elegir");
+        assertThat(celdas(html, "data-id=\"73\"")).containsExactly("Citra", "Bolsa (1 kg)", "2", "0", "2", "Elegir");
+        assertThat(celdas(html, "data-id=\"70\"")).containsExactly("Pilsen", "Bolsa (25 kg)", "4", "1", "3", "Elegir");
+        assertThat(celdas(html, "data-id=\"72\"")).containsExactly("Caramelo", "Saco (25 kg)", "2", "0", "2", "Elegir");
         assertThat(html.indexOf("data-id=\"72\"")).isLessThan(html.indexOf("data-id=\"73\""));
         assertThat(html.indexOf("data-id=\"73\"")).isLessThan(html.indexOf("data-id=\"70\""));
         assertThat(html).doesNotContain("data-id=\"71\"");
     }
 
     @Test
-    @DisplayName("CP-IIC-51: el botón Elegir del ítem lleva el insumo, la unidad, lo pendiente, la presentación y la cantidad de insumo por presentación (también convertida de kg a g)")
+    @DisplayName("CP-IIC-51: el botón Elegir del ítem lleva el insumo, la unidad, lo pedido, recibido y pendiente en presentaciones, la presentación y la cantidad de insumo por presentación (también convertida de kg a g)")
     void buscadorItems_datosDelBotonElegir() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_BUSCADOR_ITEMS).param("idOrdenCompra", "7").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
@@ -1093,15 +1126,15 @@ class IngresoInsumoControllerTest {
 
         // Assert
         assertThat(botonElegir(html, 70L)).contains("data-texto=\"Pilsen - Bolsa\"").contains("data-insumo-id=\"10\"").contains("data-insumo=\"Pilsen\"")
-                .contains("data-unidad=\"kg\"").contains("data-pendiente=\"75 kg\"").contains("data-presentacion=\"Bolsa (25 kg)\"").contains("data-factor=\"25\"").contains("shrink-0");
-        assertThat(botonElegir(html, 73L)).contains("data-unidad=\"g\"").contains("data-pendiente=\"2.000 g\"").contains("data-factor=\"1000\"");
+                .contains("data-unidad=\"kg\"").contains("data-pedido=\"4\"").contains("data-recibido=\"1\"").contains("data-pendiente=\"3 Bolsa\"").contains("data-presentacion=\"Bolsa (25 kg)\"").contains("data-factor=\"25\"").contains("shrink-0");
+        assertThat(botonElegir(html, 73L)).contains("data-unidad=\"g\"").contains("data-pendiente=\"2 Bolsa\"").contains("data-factor=\"1000\"");
     }
 
     @Test
     @DisplayName("CP-IIC-52: sin orden elegida, con una orden que ya no está pendiente o sin ítems pendientes, el buscador de ítems lo informa dentro del modal sin filas")
     void buscadorItems_mensajes() throws Exception {
         // Arrange
-        when(ordenCompraServicio.buscarPorId(10L)).thenReturn(orden(10L, EstadoSolicitud.PENDIENTE, List.of(detalle(100L, 1, 25.0, 0.0, pilsen(), "Bolsa", 25.0, UnidadDeMedida.KILOGRAMO))));
+        when(ordenCompraServicio.buscarPorId(10L)).thenReturn(orden(10L, EstadoSolicitud.PENDIENTE, List.of(detalle(100L, 1, 1.0, 0.0, pilsen(), "Bolsa", 25.0, UnidadDeMedida.KILOGRAMO))));
 
         // Act
         String sinOrden = mockMvc.perform(get(URL_BUSCADOR_ITEMS).with(como(Rol.ENCARGADO_DE_DEPOSITO))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
@@ -1338,7 +1371,7 @@ class IngresoInsumoControllerTest {
 
     private static MockHttpServletRequestBuilder postCompra(RequestPostProcessor usuario) {
         MockHttpServletRequestBuilder peticion = post(URL + "/compra").param("idDetalleCompra", "70").param("identificacionLoteProveedor", "l-125")
-                .param("fechaIngreso", HOY.toString()).param("cantidadRecibida", "25.5").param("fechaVencimiento", HOY.plusYears(1).toString());
+                .param("fechaIngreso", HOY.toString()).param("cantidadPresentaciones", "2").param("fechaVencimiento", HOY.plusYears(1).toString());
         return usuario == null ? peticion : peticion.with(usuario).with(csrf());
     }
 
@@ -1411,7 +1444,11 @@ class IngresoInsumoControllerTest {
 
     private static IngresoInsumoResponseDTO ingresoCompra(Long id, EstadoTransaccion estado, String motivo, Long idOrden) {
         return IngresoInsumoResponseDTO.builder().id(id).tipoIngreso(TipoIngreso.COMPRA).estado(estado).fechaIngreso(LocalDate.of(2027, 7, 1))
-                .cantidadRecibida(50.0).costoUnitario(new BigDecimal("12.5")).idOrdenCompra(idOrden)
+                .cantidadRecibida(50.0).cantidadPresentaciones(2.0).costoUnitario(new BigDecimal("480")).idOrdenCompra(idOrden)
+                .detalleCompra(DetalleCompraResponseDTO.builder().id(70L).cantidad(4).costoUnitario(new BigDecimal("12000"))
+                        .catalogoProveedor(CatalogoProveedorResponseDTO.builder().id(1070L).insumo(pilsen())
+                                .presentacionComercial(PresentacionComercialResponseDTO.builder().id(2070L).nombre("Bolsa 25 kg").cantidad(25.0)
+                                        .unidadDeMedida(UnidadDeMedida.KILOGRAMO).build()).build()).build())
                 .motivoAnulacion(motivo).usuarioAnulacion(motivo == null ? null : "encargado")
                 .fechaAnulacion(motivo == null ? null : LocalDateTime.of(2027, 7, 2, 9, 30))
                 .loteInsumo(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0, false)).build();
@@ -1423,15 +1460,15 @@ class IngresoInsumoControllerTest {
                 .loteInsumo(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0, false)).build();
     }
 
-    /** Orden 7 de Malterías del Sur, para el plan 5: Pilsen (75 kg pendientes), Cascade (sin pendiente), Caramelo y Citra. */
+    /** Orden 7 de Malterías del Sur, para el plan 5: Pilsen (3 de 4 bolsas pendientes), Cascade (sin pendiente), Caramelo y Citra. */
     private static OrdenCompraResponseDTO ordenSiete(EstadoSolicitud estado) {
         InsumoResponseDTO caramelo = MaltaResponseDTO.builder().id(11L).nombre("Caramelo").unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
         InsumoResponseDTO citra = LupuloResponseDTO.builder().id(32L).nombre("Citra").unidadDeMedida(UnidadDeMedida.GRAMO).build();
         return orden(7L, estado, List.of(
-                detalle(70L, 4, 25.0, 75.0, pilsen(), "Bolsa", 25.0, UnidadDeMedida.KILOGRAMO),
-                detalle(71L, 2, 1000.0, 0.0, cascade(), "Pack", 500.0, UnidadDeMedida.GRAMO),
-                detalle(72L, 2, 0.0, 50.0, caramelo, "Saco", 25.0, UnidadDeMedida.KILOGRAMO),
-                detalle(73L, 2, 0.0, 2000.0, citra, "Bolsa", 1.0, UnidadDeMedida.KILOGRAMO)));
+                detalle(70L, 4, 1.0, 3.0, pilsen(), "Bolsa", 25.0, UnidadDeMedida.KILOGRAMO),
+                detalle(71L, 2, 2.0, 0.0, cascade(), "Pack", 500.0, UnidadDeMedida.GRAMO),
+                detalle(72L, 2, 0.0, 2.0, caramelo, "Saco", 25.0, UnidadDeMedida.KILOGRAMO),
+                detalle(73L, 2, 0.0, 2.0, citra, "Bolsa", 1.0, UnidadDeMedida.KILOGRAMO)));
     }
 
     private static OrdenCompraResponseDTO orden(Long id, EstadoSolicitud estado, List<DetalleCompraResponseDTO> detalles) {

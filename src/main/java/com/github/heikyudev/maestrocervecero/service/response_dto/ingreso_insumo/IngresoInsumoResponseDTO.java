@@ -38,7 +38,13 @@ public class IngresoInsumoResponseDTO {
     private Double cantidadRecibida;
 
     /**
-     * Costo unitario al que se recibió el insumo.
+     * Cantidad de presentaciones comerciales que equivale la cantidad recibida (ej. 2 bolsas). {@code null} cuando el
+     * ingreso es {@code DIRECTO}, sin presentación asociada.
+     */
+    private Double cantidadPresentaciones;
+
+    /**
+     * Costo unitario al que se recibió el insumo, por unidad de medida del insumo.
      */
     private BigDecimal costoUnitario;
 

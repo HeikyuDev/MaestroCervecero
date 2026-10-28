@@ -55,6 +55,10 @@ public interface IIngresoInsumoServicio {
      * Solo procede sobre órdenes en estado {@code PENDIENTE}. Si con este ingreso todos los ítems de la orden
      * quedan completamente recibidos, la orden se finaliza automáticamente.
      * </p>
+     * <p>
+     * La cantidad se informa en presentaciones del ítem (por ejemplo, 2 bolsas); el ingreso y el lote guardan la
+     * cantidad equivalente en la unidad de medida del insumo.
+     * </p>
      *
      * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar.
      * @return El ingreso de insumo registrado.

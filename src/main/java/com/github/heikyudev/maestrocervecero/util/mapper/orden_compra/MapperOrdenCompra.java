@@ -36,7 +36,8 @@ public class MapperOrdenCompra {
      * las cantidades recibida y pendiente.
      *
      * @param ordenCompraEntity Entidad de orden de compra a convertir.
-     * @param cantidadRecibidaPorDetalle Resuelve la cantidad ya recibida de cada ítem, en la unidad de medida base del insumo.
+     * @param cantidadRecibidaPorDetalle Resuelve la cantidad ya recibida de cada ítem, en la unidad de medida base del insumo; el
+     *                                   mapper la informa en presentaciones y en esa unidad.
      * @return Objeto DTO correspondiente o {@code null} si la entidad de entrada es nula.
      */
     public static OrdenCompraResponseDTO toDTOConCantidades(OrdenCompraEntity ordenCompraEntity, ToDoubleFunction<DetalleCompraEntity> cantidadRecibidaPorDetalle) {

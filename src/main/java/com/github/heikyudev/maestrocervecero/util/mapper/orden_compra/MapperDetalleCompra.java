@@ -37,7 +37,8 @@ public class MapperDetalleCompra {
 
     /**
      * Mapea una instancia de {@link DetalleCompraEntity} a {@link DetalleCompraResponseDTO} informando además las
-     * cantidades recibida y pendiente, ambas redondeadas a la escala de las cantidades.
+     * cantidades recibida y pendiente, ambas redondeadas a la escala de las cantidades: en presentaciones
+     * ({@code cantidadRecibida} y {@code cantidadPendiente}) y su equivalente en la unidad del insumo.
      *
      * @param detalleCompraEntity Entidad de detalle de compra a convertir.
      * @param cantidadRecibida Cantidad ya recibida del ítem, en la unidad de medida base del insumo.
@@ -49,13 +50,17 @@ public class MapperDetalleCompra {
         }
 
         double cantidadPendiente = CantidadesDetalleCompra.calcularCantidadPendiente(detalleCompraEntity, cantidadRecibida);
+        double presentacionesRecibidas = CantidadesDetalleCompra.convertirAPresentaciones(detalleCompraEntity, cantidadRecibida);
+        double presentacionesPendientes = CantidadesDetalleCompra.calcularPresentacionesPendientes(detalleCompraEntity, cantidadRecibida);
         return DetalleCompraResponseDTO.builder()
                 .id(detalleCompraEntity.getId())
                 .cantidad(detalleCompraEntity.getCantidad())
                 .costoUnitario(detalleCompraEntity.getCostoUnitario())
                 .subtotal(calcularSubtotal(detalleCompraEntity))
-                .cantidadRecibida(Redondeo.redondear(cantidadRecibida))
-                .cantidadPendiente(Redondeo.redondear(cantidadPendiente))
+                .cantidadRecibida(presentacionesRecibidas)
+                .cantidadPendiente(presentacionesPendientes)
+                .cantidadRecibidaEnUnidadDelInsumo(Redondeo.redondear(cantidadRecibida))
+                .cantidadPendienteEnUnidadDelInsumo(Redondeo.redondear(cantidadPendiente))
                 .catalogoProveedor(MapperCatalogoProveedor.toDTO(detalleCompraEntity.getCatalogoProveedor()))
                 .build();
     }

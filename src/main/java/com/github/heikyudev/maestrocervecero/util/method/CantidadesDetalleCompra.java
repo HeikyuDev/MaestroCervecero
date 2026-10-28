@@ -5,6 +5,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 
+import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -66,6 +68,49 @@ public final class CantidadesDetalleCompra {
         InsumoEntity insumo = detalleCompraEntity.getCatalogoProveedor().getInsumo();
         return insumo.getUnidadDeMedida()
                 .desdeGramos(presentacionComercial.getUnidadDeMedida().aGramos(presentacionComercial.getCantidad()));
+    }
+
+    /**
+     * Convierte una cantidad de presentaciones del ítem a la unidad de medida del insumo: el número de presentaciones
+     * por el contenido de cada una, redondeado a la escala de las cantidades (ej. 2 bolsas de 25 kg de un insumo en
+     * kg son 50 kg).
+     *
+     * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
+     * @param presentaciones Cantidad de presentaciones.
+     * @return Cantidad de insumo equivalente, en la unidad de medida base del insumo.
+     */
+    public static double convertirPresentacionesAUnidadDelInsumo(DetalleCompraEntity detalleCompraEntity, int presentaciones) {
+        return Redondeo.redondear(presentaciones * calcularCantidadPorPresentacion(detalleCompraEntity));
+    }
+
+    /**
+     * Convierte una cantidad de insumo a presentaciones del ítem: la cantidad dividida por el contenido de cada
+     * presentación, redondeada a la escala de las cantidades para no arrastrar el residuo de la coma flotante.
+     *
+     * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
+     * @param cantidadEnUnidadDelInsumo Cantidad de insumo, en la unidad de medida base del insumo.
+     * @return Cantidad equivalente en presentaciones.
+     * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a cero.
+     */
+    public static double convertirAPresentaciones(DetalleCompraEntity detalleCompraEntity, double cantidadEnUnidadDelInsumo) {
+        double cantidadPorPresentacion = calcularCantidadPorPresentacion(detalleCompraEntity);
+        if (!(cantidadPorPresentacion > 0)) {
+            throw new IllegalStateException("La presentación comercial del ítem no trae una cantidad de insumo mayor a cero");
+        }
+        return Redondeo.redondear(cantidadEnUnidadDelInsumo / cantidadPorPresentacion);
+    }
+
+    /**
+     * Calcula las presentaciones que restan recibir de un ítem: las pedidas menos las ya recibidas, estas últimas
+     * convertidas desde la unidad del insumo. Es la misma cantidad pendiente que {@link #calcularCantidadPendiente},
+     * expresada en presentaciones y redondeada a la escala de las cantidades.
+     *
+     * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
+     * @param cantidadYaRecibida Cantidad ya recibida del ítem, en la unidad de medida base del insumo.
+     * @return Presentaciones pendientes de entrega.
+     */
+    public static double calcularPresentacionesPendientes(DetalleCompraEntity detalleCompraEntity, double cantidadYaRecibida) {
+        return Redondeo.redondear(detalleCompraEntity.getCantidad() - convertirAPresentaciones(detalleCompraEntity, cantidadYaRecibida));
     }
 
     /**

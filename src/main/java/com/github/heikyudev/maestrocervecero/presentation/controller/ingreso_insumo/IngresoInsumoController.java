@@ -52,6 +52,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -121,7 +123,7 @@ public class IngresoInsumoController {
     private static final Sort ORDEN_INGRESOS = Sort.by(Sort.Order.desc("fechaIngreso"), Sort.Order.desc("id"));
 
     /** Los campos del formulario por compra a los que se asocia el rechazo de una regla del service. */
-    private static final Set<String> CAMPOS_COMPRA = Set.of("identificacionLoteProveedor", "fechaIngreso", "cantidadRecibida",
+    private static final Set<String> CAMPOS_COMPRA = Set.of("identificacionLoteProveedor", "fechaIngreso", "cantidadPresentaciones",
             "fechaVencimiento", "idDetalleCompra");
     /** Los campos del formulario directo a los que se asocia el rechazo de una regla del service. */
     private static final Set<String> CAMPOS_DIRECTO = Set.of("identificacionLoteProveedor", "fechaIngreso", "cantidadRecibida",
@@ -135,17 +137,21 @@ public class IngresoInsumoController {
     private final IPlanificacionProduccionServicio planificacionServicio;
 
     /**
-     * Una fila del buscador de ítems de la orden: el ítem con sus cantidades en la unidad del insumo y los datos que el
+     * Una fila del buscador de ítems de la orden: el ítem con sus cantidades en presentaciones y los datos que el
      * formulario muestra del ítem elegido.
      */
     @Value
     public static class FilaDeItem {
         DetalleCompraResponseDTO detalle;
-        /** Cantidad total pedida, en la unidad del insumo. */
-        Double pedido;
+        /** Presentaciones pedidas, recibidas y pendientes, ya formateadas para mostrarlas (por ejemplo "1.250" o "2,5"). */
+        String pedido;
+        String recibido;
+        String pendiente;
         /** Cantidad de insumo que trae una presentación comercial, en la unidad del insumo, como número sin notación científica. */
         String factor;
-        /** La presentación comercial con su contenido, por ejemplo "Bolsa (25 kg)". */
+        /** El nombre de la presentación comercial, por ejemplo "Bolsa 25 kg". */
+        String nombrePresentacion;
+        /** La presentación comercial con su contenido, por ejemplo "Bolsa 25 kg (25 kg)". */
         String presentacion;
         String unidad;
         String texto;
@@ -356,7 +362,7 @@ public class IngresoInsumoController {
 
     /**
      * Devuelve el contenido del modal de ítems de la orden elegida: los ítems que todavía tienen cantidad pendiente, en
-     * orden alfabético por insumo, con lo pedido, lo recibido y lo pendiente en la unidad del insumo. Un modal no puede
+     * orden alfabético por insumo, con lo pedido, lo recibido y lo pendiente en presentaciones. Un modal no puede
      * redirigir: una orden sin elegir o que ya no está pendiente se informan dentro del propio fragmento; una orden que no
      * existe la resuelve el {@code ControllerAdvices} con el motivo como texto.
      */
@@ -433,8 +439,8 @@ public class IngresoInsumoController {
 
     /**
      * Carga lo que la vista del formulario por compra necesita además del DTO: la orden elegida, el ítem elegido de esa
-     * orden (con su insumo, su unidad y lo que le queda pendiente) y las URL de los buscadores. Lo que ya no existe deja el
-     * selector vacío.
+     * orden (con su insumo, su unidad y lo que le queda pendiente en presentaciones), lo que ingresa al lote con las
+     * presentaciones cargadas y las URL de los buscadores. Lo que ya no existe deja el selector vacío.
      */
     private void cargarModeloCompra(Model model, IngresoInsumoPorCompraFormDTO ingresoForm, OrdenCompraResponseDTO orden) {
         model.addAttribute("urlAccion", URL_LISTA + "/compra");
@@ -450,6 +456,8 @@ public class IngresoInsumoController {
                 .filter(fila -> ingresoForm.getIdDetalleCompra().equals(fila.getDetalle().getId()))
                 .findFirst().orElse(null);
         model.addAttribute("itemElegido", item);
+        model.addAttribute("ingresaAlLote", item == null || ingresoForm.getCantidadPresentaciones() == null || ingresoForm.getCantidadPresentaciones() <= 0
+                ? null : textoDeIngresaAlLote(item, ingresoForm.getCantidadPresentaciones()));
         model.addAttribute("idInsumoElegido", item == null ? null : item.getDetalle().getCatalogoProveedor().getInsumo().getId());
     }
 
@@ -521,7 +529,7 @@ public class IngresoInsumoController {
 
     /**
      * Los ítems de la orden con cantidad pendiente mayor a cero, en orden alfabético por insumo y presentación, con sus
-     * cantidades en la unidad del insumo.
+     * cantidades en presentaciones.
      */
     private static List<FilaDeItem> itemsPendientes(OrdenCompraResponseDTO orden) {
         if (orden.getDetallesCompra() == null) {
@@ -544,10 +552,26 @@ public class IngresoInsumoController {
         UnidadDeMedida unidad = insumo.getUnidadDeMedida();
         double factor = unidad.desdeGramos(presentacion.getUnidadDeMedida().aGramos(presentacion.getCantidad()));
         String contenido = textoDeNumero(presentacion.getCantidad()) + " " + presentacion.getUnidadDeMedida().getSimbolo();
-        return new FilaDeItem(detalle, Redondeo.redondear(factor * detalle.getCantidad()),
-                BigDecimal.valueOf(factor).setScale(6, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString(),
-                presentacion.getNombre() + " (" + contenido + ")", unidad.getSimbolo(),
+        return new FilaDeItem(detalle, textoDeCantidad(detalle.getCantidad()), textoDeCantidad(detalle.getCantidadRecibida()),
+                textoDeCantidad(detalle.getCantidadPendiente()), BigDecimal.valueOf(factor).setScale(6, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString(),
+                presentacion.getNombre(), presentacion.getNombre() + " (" + contenido + ")", unidad.getSimbolo(),
                 insumo.getNombre() + " - " + presentacion.getNombre());
+    }
+
+    /** Lo que ingresa al lote con esas presentaciones, en la unidad del insumo, por ejemplo "50 kg". */
+    private static String textoDeIngresaAlLote(FilaDeItem item, int presentaciones) {
+        return textoDeCantidad(Redondeo.redondear(presentaciones * Double.parseDouble(item.getFactor()))) + " " + item.getUnidad();
+    }
+
+    /** La cantidad con el formato de la aplicación: separador de miles {@code .}, coma decimal y hasta 4 decimales. */
+    private static String textoDeCantidad(Number cantidad) {
+        if (cantidad == null) {
+            return "-";
+        }
+        DecimalFormatSymbols simbolos = new DecimalFormatSymbols(Locale.ROOT);
+        simbolos.setGroupingSeparator('.');
+        simbolos.setDecimalSeparator(',');
+        return new DecimalFormat("#,##0.####", simbolos).format(cantidad);
     }
 
     /** El número sin ceros sobrantes ("25" y no "25.0"). */

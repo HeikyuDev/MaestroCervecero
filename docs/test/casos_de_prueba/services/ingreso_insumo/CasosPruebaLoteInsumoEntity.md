@@ -31,3 +31,4 @@ Casos de prueba de los métodos de dominio de `LoteInsumoEntity` (no de un servi
 |---|---|---|---|---|
 |**CP-LIE-09**|Revertir tres consumos reservados de 0,1|`cantidadActual: 0.0`, `cantidadReservada: 0.0`; tres `revertirConsumo(0.1)`|Cada resultado se redondea|`cantidadActual = 0.3` y `cantidadReservada = 0.3`.|
 |**CP-LIE-10**|Revertir tres consumos directos de 0,1|`cantidadActual: 0.0`, `cantidadReservada: 0.0`; tres `revertirConsumoDirecto(0.1)`|Cada resultado se redondea|`cantidadActual = 0.3`; `cantidadReservada` sin cambios (`0.0`).|
+|**CP-LIE-11**|Sumar 0,1 y 0,2 y anular ambos ingresos|`cantidadActual: 0.0`, PPP `0`; `sumarIngreso(0.1, 7)`, `sumarIngreso(0.2, 7)`, `anularIngreso(0.2, 7)`, `anularIngreso(0.1, 7)`|Cada resultado se redondea y el PPP no se recalcula si el lote queda sin stock|`cantidadActual = 0.3` tras los ingresos y `0.0` tras las anulaciones; PPP = `7`.|

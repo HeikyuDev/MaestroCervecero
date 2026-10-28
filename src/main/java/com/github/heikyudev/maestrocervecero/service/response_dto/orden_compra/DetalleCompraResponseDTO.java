@@ -39,18 +39,31 @@ public class DetalleCompraResponseDTO {
     private BigDecimal subtotal;
 
     /**
-     * Cantidad de insumo ya recibida de este ítem mediante ingresos en estado {@code REGISTRADO}, en la unidad de
-     * medida base del insumo y redondeada a la escala de las cantidades.
+     * Presentaciones ya recibidas de este ítem mediante ingresos en estado {@code REGISTRADO}, redondeadas a la escala
+     * de las cantidades.
      * Solo se informa en el detalle de una orden de compra; en los listados queda en {@code null}.
      */
     private Double cantidadRecibida;
 
     /**
-     * Cantidad de insumo que resta recibir de este ítem, en la unidad de medida base del insumo y redondeada a la
-     * escala de las cantidades.
+     * Presentaciones que restan recibir de este ítem, redondeadas a la escala de las cantidades.
      * Solo se informa en el detalle de una orden de compra; en los listados queda en {@code null}.
      */
     private Double cantidadPendiente;
+
+    /**
+     * Cantidad de insumo ya recibida de este ítem, en la unidad de medida base del insumo y redondeada a la escala de
+     * las cantidades: el equivalente de {@code cantidadRecibida}.
+     * Solo se informa en el detalle de una orden de compra; en los listados queda en {@code null}.
+     */
+    private Double cantidadRecibidaEnUnidadDelInsumo;
+
+    /**
+     * Cantidad de insumo que resta recibir de este ítem, en la unidad de medida base del insumo y redondeada a la
+     * escala de las cantidades: el equivalente de {@code cantidadPendiente}.
+     * Solo se informa en el detalle de una orden de compra; en los listados queda en {@code null}.
+     */
+    private Double cantidadPendienteEnUnidadDelInsumo;
 
     /**
      * Ítem del catálogo del proveedor solicitado (insumo + presentación comercial).

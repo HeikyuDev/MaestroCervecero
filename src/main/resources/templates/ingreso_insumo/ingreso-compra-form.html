@@ -7,9 +7,10 @@
     Formulario del ingreso por compra. Es una página aparte: al registrar vuelve a la pestaña "Por compra" y un formulario
     inválido (o una regla del service) vuelve acá con sus errores y lo que se había cargado. La orden de compra se elige
     con el buscador en modal (solo pendientes) y luego el ítem de esa orden, que queda deshabilitado hasta tener la orden; al
-    cambiar la orden se quita el ítem. Al elegir el ítem se muestran su insumo, la unidad y lo pendiente, se habilita
-    "Ver lotes existentes" y la cantidad (en la unidad del insumo) informa a cuántas presentaciones equivale (comportamiento
-    de /js/ingreso-insumo-form.js, solo de visualización). "Registrar y cargar otro ítem de esta orden" vuelve al
+    cambiar la orden se quita el ítem. Al elegir el ítem se muestran su insumo, su presentación y lo pedido, recibido y
+    pendiente en presentaciones, y se habilita "Ver lotes existentes". La cantidad se carga en presentaciones (un número
+    entero, por ejemplo 2 bolsas) y debajo se informa cuánto insumo ingresa al lote (comportamiento de
+    /js/ingreso-insumo-form.js, solo de visualización). "Registrar y cargar otro ítem de esta orden" vuelve al
     formulario con la misma orden mientras siga pendiente.
 -->
 <div id="ingreso-compra-form-content" class="space-y-6">
@@ -24,7 +25,7 @@
     </div>
 
     <form id="ingreso-form" th:action="@{${urlAccion}}" th:object="${ingresoForm}" method="post" novalidate data-un-solo-envio data-formulario-ingreso
-          th:attr="data-factor=${itemElegido != null} ? ${itemElegido.factor}, data-presentacion=${itemElegido != null} ? ${itemElegido.presentacion}"
+          th:attr="data-factor=${itemElegido != null} ? ${itemElegido.factor}, data-unidad-item=${itemElegido != null} ? ${itemElegido.unidad}"
           class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
 
         <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar el ingreso')}"></div>
@@ -51,8 +52,10 @@
                     <p th:if="${#fields.hasErrors('idDetalleCompra')}" th:errors="*{idDetalleCompra}" class="mt-1 text-xs text-rose-600"></p>
                     <p data-item-elegido th:hidden="${itemElegido == null}" class="mt-2 text-xs text-slate-500">
                         Insumo: <strong class="text-slate-700" data-item-insumo th:text="${itemElegido != null} ? ${itemElegido.detalle.catalogoProveedor.insumo.nombre}">Cascade</strong>
-                        &middot; Presentación: <span data-item-presentacion th:text="${itemElegido != null} ? ${itemElegido.presentacion}">Bolsa (25 kg)</span>
-                        &middot; Pendiente: <span data-item-pendiente><th:block th:if="${itemElegido != null}"><th:block th:replace="~{receta/formato :: medida(${itemElegido.detalle.cantidadPendiente}, ${itemElegido.unidad})}"></th:block></th:block></span>
+                        &middot; Presentación: <span data-item-presentacion th:text="${itemElegido != null} ? ${itemElegido.presentacion}">Bolsa 25 kg (25 kg)</span>
+                        &middot; Pedido: <span data-item-pedido th:text="${itemElegido != null} ? ${itemElegido.pedido}">4</span>
+                        &middot; Recibido: <span data-item-recibido th:text="${itemElegido != null} ? ${itemElegido.recibido}">1</span>
+                        &middot; Pendiente: <span data-item-pendiente th:text="${itemElegido != null} ? ${itemElegido.pendiente + ' ' + itemElegido.nombrePresentacion}">3 Bolsa 25 kg</span>
                     </p>
                 </div>
             </div>
@@ -74,13 +77,13 @@
                 </div>
 
                 <div>
-                    <label for="cantidadRecibida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad recibida (<span data-unidad th:text="${itemElegido != null} ? ${itemElegido.unidad} : 'g, kg o t, según el insumo'">g, kg o t, según el insumo</span>) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="cantidadRecibida" name="cantidadRecibida" step="any" autocomplete="off" placeholder="Ej: 25"
-                           th:value="${ingresoForm.cantidadRecibida != null and ingresoForm.cantidadRecibida == ingresoForm.cantidadRecibida.longValue()} ? ${ingresoForm.cantidadRecibida.longValue()} : *{cantidadRecibida}"
+                    <label for="cantidadPresentaciones" class="block text-sm font-medium text-slate-700 mb-1">Cantidad de presentaciones recibidas <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="cantidadPresentaciones" name="cantidadPresentaciones" step="1" autocomplete="off" placeholder="Ej: 2"
+                           th:value="*{cantidadPresentaciones}"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('cantidadRecibida')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('cantidadRecibida')}" th:errors="*{cantidadRecibida}" class="mt-1 text-xs text-rose-600"></p>
-                    <p data-equivalencia hidden class="mt-1 text-xs text-slate-500"></p>
+                           th:classappend="${#fields.hasErrors('cantidadPresentaciones')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('cantidadPresentaciones')}" th:errors="*{cantidadPresentaciones}" class="mt-1 text-xs text-rose-600"></p>
+                    <p data-ingresa-al-lote th:hidden="${ingresaAlLote == null}" class="mt-1 text-xs text-slate-500">Ingresan <strong class="text-slate-700" data-ingresa-valor th:text="${ingresaAlLote}">50 kg</strong> al lote</p>
                 </div>
             </div>
         </section>

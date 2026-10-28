@@ -123,9 +123,10 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * de finalización y sin motivo (el motivo solo existe en la finalización forzada).
      * </p>
      *
-     * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar.
+     * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar. La cantidad se informa en presentaciones del
+     *                                      ítem (ej. 2 bolsas); el service la convierte a la unidad del insumo.
      * @return El ingreso de insumo registrado.
-     * @throws ReglaNegocioException Si faltan los datos del ingreso o el ítem de la orden, si la cantidad recibida no fue informada, es menor o igual a cero, supera 1.000.000 o tiene más de 4 decimales, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, si la orden de compra del ítem no está en estado {@code PENDIENTE}, si el insumo del ítem está dado de baja, si la cantidad recibida supera la cantidad pendiente de entrega del ítem, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
+     * @throws ReglaNegocioException Si faltan los datos del ingreso o el ítem de la orden, si la cantidad de presentaciones recibidas no fue informada o es menor o igual a cero, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, si la orden de compra del ítem no está en estado {@code PENDIENTE}, si el insumo del ítem está dado de baja, si las presentaciones recibidas superan las presentaciones pendientes de entrega del ítem, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
      * @throws RecursoNoEncontradoException Si el ítem de detalle de compra referenciado o su orden de compra no existen.
      */
     @Override
@@ -139,8 +140,8 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         if (ingresoInsumoPorCompraFormDTO.getIdDetalleCompra() == null) {
             throw new ReglaNegocioException("El ítem de la orden de compra es obligatorio", "idDetalleCompra");
         }
-        Double cantidadRecibida = ingresoInsumoPorCompraFormDTO.getCantidadRecibida();
-        validarCantidadRecibida(cantidadRecibida);
+        Integer cantidadPresentaciones = ingresoInsumoPorCompraFormDTO.getCantidadPresentaciones();
+        validarCantidadPresentaciones(cantidadPresentaciones);
         LocalDate fechaIngreso = ingresoInsumoPorCompraFormDTO.getFechaIngreso();
         validarFechaIngreso(fechaIngreso);
         LocalDate fechaVencimiento = ingresoInsumoPorCompraFormDTO.getFechaVencimiento();
@@ -165,13 +166,17 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("No se puede registrar el ingreso porque el insumo está dado de baja");
         }
 
-        // 5. Validar que la cantidad recibida no supere la cantidad pendiente de entrega del ítem.
-        //    Ambos valores se redondean a la escala de las cantidades: el mismo criterio con el que se decide si la orden
+        // 5. Validar que las presentaciones recibidas no superen las presentaciones pendientes de entrega del ítem.
+        //    El pendiente se redondea a la escala de las cantidades: el mismo criterio con el que se decide si la orden
         //    quedó completamente recibida, para que el residuo de la coma flotante (0,1 + 0,2) no rechace un ingreso exacto
-        double cantidadPendiente = Redondeo.redondear(calcularCantidadPendiente(detalleCompraEntity));
-        if (Redondeo.redondear(cantidadRecibida) > cantidadPendiente) {
-            throw new ReglaNegocioException("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (" + cantidadPendiente + ")", "cantidadRecibida");
+        double presentacionesPendientes = calcularPresentacionesPendientes(detalleCompraEntity);
+        if (cantidadPresentaciones > presentacionesPendientes) {
+            throw new ReglaNegocioException("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem ("
+                    + ValidacionesNumericas.formatearNumero(presentacionesPendientes) + ")", "cantidadPresentaciones");
         }
+
+        // La cantidad que ingresa al lote y al ingreso es la de insumo, en su unidad: presentaciones por contenido de cada una
+        double cantidadRecibida = CantidadesDetalleCompra.convertirPresentacionesAUnidadDelInsumo(detalleCompraEntity, cantidadPresentaciones);
 
         // 6. Resolver el insumo del ítem y validar/localizar el lote de insumo correspondiente,
         //    sin mutarlo todavía: si hay conflicto de vencimiento, esto lanza antes de tocar nada
@@ -384,6 +389,22 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
+     * Valida la cantidad de presentaciones recibidas de un ingreso por compra: informada y mayor a cero. El máximo lo
+     * fija lo que resta recibir del ítem.
+     *
+     * @param cantidadPresentaciones Cantidad de presentaciones a validar.
+     * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero.
+     */
+    private static void validarCantidadPresentaciones(Integer cantidadPresentaciones) {
+        if (cantidadPresentaciones == null) {
+            throw new ReglaNegocioException("La cantidad de presentaciones recibidas es obligatoria", "cantidadPresentaciones");
+        }
+        if (cantidadPresentaciones <= 0) {
+            throw new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero", "cantidadPresentaciones");
+        }
+    }
+
+    /**
      * Valida la cantidad recibida de un ingreso, expresada en la unidad de medida del insumo: informada, un número
      * finito mayor a cero, que no supere {@link LimitesTecnicos#CANTIDAD_INGRESO_MAXIMA} y con no más de
      * {@link LimitesTecnicos#ESCALA_CANTIDADES} decimales.
@@ -443,6 +464,19 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         double cantidadYaRecibida = CantidadesDetalleCompra.sumarCantidadRecibida(
                 ingresoInsumoRepository.findByDetalleCompraIdAndEstado(detalleCompraEntity.getId(), EstadoTransaccion.REGISTRADO));
         return CantidadesDetalleCompra.calcularCantidadPendiente(detalleCompraEntity, cantidadYaRecibida);
+    }
+
+    /**
+     * Calcula las presentaciones que restan recibir de un ítem de detalle de compra: las pedidas menos las ya recibidas
+     * mediante ingresos en estado {@code REGISTRADO}, estas últimas convertidas desde la unidad del insumo.
+     *
+     * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
+     * @return Presentaciones pendientes de entrega.
+     */
+    private double calcularPresentacionesPendientes(DetalleCompraEntity detalleCompraEntity) {
+        double cantidadYaRecibida = CantidadesDetalleCompra.sumarCantidadRecibida(
+                ingresoInsumoRepository.findByDetalleCompraIdAndEstado(detalleCompraEntity.getId(), EstadoTransaccion.REGISTRADO));
+        return CantidadesDetalleCompra.calcularPresentacionesPendientes(detalleCompraEntity, cantidadYaRecibida);
     }
 
     /**

@@ -8,7 +8,10 @@
     Pantalla de ingresos de insumo. Dos pestañas (enlaces, funcionan sin JavaScript): "Por compra" y "Directos", cada una
     con los ingresos de su tipo, el último arriba, y el botón que lleva a su formulario. Los criterios de búsqueda
     (insumo, identificación del lote del proveedor, estado y fecha de ingreso) se aplican a la pestaña activa. Un ingreso
-    registrado se puede anular con un motivo; el detalle de una anulación se ve en un diálogo.
+    registrado se puede anular con un motivo; el detalle de una anulación se ve en un diálogo. La tabla es compacta (entra en unos 700 px): cada
+    celda lleva dos líneas. Ingreso: fecha y estado; Insumo y lote: insumo y lote con su vencimiento; Cantidad: en "Por compra" las
+    presentaciones y debajo su equivalente en la unidad del insumo, en "Directos" la cantidad en la unidad del insumo; Precio: en
+    "Por compra" el de la presentación y debajo el de la unidad del insumo, en "Directos" el de la unidad del insumo.
 -->
 <div id="ingreso-lista-content" class="space-y-6">
 
@@ -86,41 +89,64 @@
                 <table class="w-full text-sm text-left">
                     <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
-                        <th class="px-3 py-3 whitespace-nowrap">Fecha de ingreso</th>
-                        <th class="px-3 py-3 whitespace-nowrap">Insumo</th>
-                        <th class="px-3 py-3 whitespace-nowrap">Lote del proveedor</th>
-                        <th class="px-3 py-3 whitespace-nowrap">Vencimiento</th>
-                        <th class="px-3 py-3 whitespace-nowrap">Cantidad recibida</th>
-                        <th class="px-3 py-3 whitespace-nowrap text-right"><span tabindex="0" data-tooltip="Costo por unidad de medida del insumo (g, kg o t), no por presentación comercial">Costo unitario ($/unidad del insumo)</span></th>
-                        <th th:if="${pestana == 'compra'}" class="px-3 py-3 whitespace-nowrap">Orden de compra</th>
-                        <th class="px-3 py-3 whitespace-nowrap">Estado</th>
-                        <th sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right whitespace-nowrap">Acciones</th>
+                        <th class="px-3 py-3">Ingreso</th>
+                        <th class="px-3 py-3">Insumo y lote</th>
+                        <th class="px-3 py-3">Cantidad</th>
+                        <th class="px-3 py-3 text-right" data-columna-precio>
+                            <span th:if="${pestana == 'compra'}" tabindex="0" data-tooltip="Arriba, el precio de una presentación del ítem de la orden; debajo, el precio de cada unidad del insumo (el de la presentación dividido por lo que trae). Por ejemplo, 12.000 por Bolsa 25 kg = 480 por kg">Precio ($)</span>
+                            <span th:if="${pestana == 'directo'}" tabindex="0" data-tooltip="Precio de cada unidad del insumo (g, kg o t), tal como se cargó en el ingreso">Precio ($)</span>
+                        </th>
+                        <th th:if="${pestana == 'compra'}" class="px-3 py-3">Orden</th>
+                        <th sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right">Acciones</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                     <tr th:each="i : ${ingresos.content}" th:attr="data-ingreso=${i.id}" class="hover:bg-slate-50"
                         th:classappend="${i.estado.name() == 'ANULADO'} ? 'opacity-60'">
-                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.fechaIngreso})}"></th:block></td>
-                        <td class="px-3 py-3 font-medium text-slate-900">
-                            <div class="max-w-[14rem] truncate" tabindex="0" th:data-tooltip="${i.loteInsumo.insumo.nombre}" th:text="${i.loteInsumo.insumo.nombre}">Cascade</div>
+                        <td class="px-3 py-3 text-slate-700 align-top">
+                            <span class="block whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.fechaIngreso})}"></th:block></span>
+                            <span class="mt-1 block whitespace-nowrap">
+                                <span th:replace="~{lote/formato :: estadoTransaccion(${i.estado})}"></span>
+                                <th:block th:if="${i.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${i.motivoAnulacion}, ${i.usuarioAnulacion}, ${i.fechaAnulacion})}"></th:block></th:block>
+                            </span>
                         </td>
-                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
-                            <span class="inline-block max-w-[10rem] truncate align-bottom" tabindex="0" th:data-tooltip="${i.loteInsumo.identificacionLoteProveedor}" th:text="${i.loteInsumo.identificacionLoteProveedor}">L-125</span>
+                        <td class="px-3 py-3 text-slate-700 align-top">
+                            <div class="max-w-[10rem] truncate font-medium text-slate-900" tabindex="0" th:data-tooltip="${i.loteInsumo.insumo.nombre}" th:text="${i.loteInsumo.insumo.nombre}">Cascade</div>
+                            <div class="max-w-[10rem] truncate text-xs text-slate-500" tabindex="0"
+                                 th:data-tooltip="|Lote ${i.loteInsumo.identificacionLoteProveedor} · vence ${i.loteInsumo.fechaVencimiento != null ? #temporals.format(i.loteInsumo.fechaVencimiento, 'dd/MM/yyyy') : '-'}|">
+                                Lote <span th:text="${i.loteInsumo.identificacionLoteProveedor}">L-125</span> &middot; vence <th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.loteInsumo.fechaVencimiento})}"></th:block>
+                            </div>
                         </td>
-                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.loteInsumo.fechaVencimiento})}"></th:block></td>
-                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadRecibida}, ${i.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
-                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap text-right" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoUnitario)}">12,50</td>
-                        <td th:if="${pestana == 'compra'}" class="px-3 py-3 text-slate-700 whitespace-nowrap">
+                        <td class="px-3 py-3 text-slate-700 align-top" data-cantidad>
+                            <th:block th:if="${pestana == 'compra' and i.cantidadPresentaciones != null and i.detalleCompra != null}">
+                                <div class="max-w-[9rem] truncate" tabindex="0"
+                                     th:data-tooltip="${i.detalleCompra.catalogoProveedor.presentacionComercial.nombre}">
+                                    <th:block th:replace="~{receta/formato :: numero(${i.cantidadPresentaciones})}"></th:block>
+                                    <span th:text="${i.detalleCompra.catalogoProveedor.presentacionComercial.nombre}">Bolsa 25 kg</span>
+                                </div>
+                                <div class="text-xs text-slate-500 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadRecibida}, ${i.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></div>
+                            </th:block>
+                            <th:block th:unless="${pestana == 'compra' and i.cantidadPresentaciones != null and i.detalleCompra != null}">
+                                <span class="whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadRecibida}, ${i.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></span>
+                            </th:block>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700 text-right align-top whitespace-nowrap" data-precio>
+                            <th:block th:if="${pestana == 'compra'}">
+                                <span class="block" data-precio-presentacion
+                                      th:text="${i.detalleCompra != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.detalleCompra.costoUnitario)} : '-'">12.000,00</span>
+                                <span class="block text-xs text-slate-500" data-precio-unidad
+                                      th:text="${'= ' + T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoUnitario) + ' / ' + i.loteInsumo.insumo.unidadDeMedida.simbolo}">= 480,00 / kg</span>
+                            </th:block>
+                            <span th:if="${pestana == 'directo'}" data-precio-unidad
+                                  th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoUnitario) + ' / ' + i.loteInsumo.insumo.unidadDeMedida.simbolo}">12,50 / kg</span>
+                        </td>
+                        <td th:if="${pestana == 'compra'}" class="px-3 py-3 text-slate-700 whitespace-nowrap align-top">
                             <a th:if="${i.idOrdenCompra != null}" sec:authorize="hasAnyRole('GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')" data-orden-compra
                                th:href="@{/ordenes-compra/{id}(id=${i.idOrdenCompra})}" th:text="|N.º ${i.idOrdenCompra}|"
                                class="font-medium text-amber-700 hover:underline">N.º 7</a>
                             <span th:if="${i.idOrdenCompra == null}">-</span>
                         </td>
-                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
-                            <span th:replace="~{lote/formato :: estadoTransaccion(${i.estado})}"></span>
-                            <th:block th:if="${i.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${i.motivoAnulacion}, ${i.usuarioAnulacion}, ${i.fechaAnulacion})}"></th:block></th:block>
-                        </td>
-                        <td sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right">
+                        <td sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right align-top">
                             <button type="button" th:if="${i.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
                                     th:data-motivo-url="@{/ingresos-insumo/{id}/anular(id=${i.id})}"
                                     th:data-motivo-nombre="|${i.loteInsumo.insumo.nombre} (${i.loteInsumo.identificacionLoteProveedor})|"
@@ -128,7 +154,7 @@
                         </td>
                     </tr>
                     <tr th:if="${ingresos.empty}">
-                        <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                        <td th:colspan="${pestana == 'compra'} ? 6 : 5" class="px-4 py-10 text-center text-slate-400">
                             <i class="bi bi-box-arrow-in-down block text-3xl mb-2"></i>
                             <span th:text="${pestana == 'compra'} ? 'No se encontraron ingresos por compra con los criterios indicados' : 'No se encontraron ingresos directos con los criterios indicados'">No se encontraron ingresos por compra con los criterios indicados</span>
                         </td>
