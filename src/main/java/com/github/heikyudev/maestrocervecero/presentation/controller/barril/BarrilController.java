@@ -164,7 +164,6 @@ public class BarrilController {
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .idFabricanteBarril(idFabricante)
                 .build());
-        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, idFabricante);
         return VISTA_FORMULARIO;
     }
@@ -198,7 +197,6 @@ public class BarrilController {
             }
         }
 
-        model.addAttribute("identificadorInterno", barrilServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, barrilForm.getIdFabricanteBarril());
         return VISTA_FORMULARIO;
     }

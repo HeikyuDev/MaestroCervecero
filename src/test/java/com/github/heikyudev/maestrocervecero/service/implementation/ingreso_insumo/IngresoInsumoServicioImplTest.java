@@ -25,6 +25,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ingreso_insumo.IngresoInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
+import com.github.heikyudev.maestrocervecero.util.method.CantidadesDetalleCompra;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1135,6 +1136,123 @@ class IngresoInsumoServicioImplTest {
         verify(ingresoInsumoRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("CP-RC-48: registrarIngresoInsumoPorCompra convierte el costo por presentación en costo por unidad del insumo: 12000 por bolsa de 25 kg de un insumo en kg es 480 por kg, en el ingreso y en el PPP del lote")
+    void registrarPorCompra_debeConvertirElCostoPorPresentacionAUnidadDelInsumo() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleConPresentacion(insumo, 4, new BigDecimal("12000"), 25.0, UnidadDeMedida.KILOGRAMO);
+        stubearIngresoPorCompra(detalleCompra, insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build());
+
+        // === ASSERTS ===
+        ArgumentCaptor<IngresoInsumoEntity> ingreso = ArgumentCaptor.forClass(IngresoInsumoEntity.class);
+        verify(ingresoInsumoRepository).save(ingreso.capture());
+        assertThat(ingreso.getValue().getCostoUnitario()).isEqualByComparingTo("480");
+        assertThat(ingreso.getValue().getLoteInsumo().getCostoUnitarioPPP()).isEqualByComparingTo("480");
+    }
+
+    @Test
+    @DisplayName("CP-RC-49: registrarIngresoInsumoPorCompra convierte el costo cuando la presentación está en una unidad distinta a la del insumo: 12000 por bolsa de 25000 g de un insumo en kg es 480 por kg")
+    void registrarPorCompra_debeConvertirElCostoConPresentacionEnGramos() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleConPresentacion(insumo, 4, new BigDecimal("12000"), 25000.0, UnidadDeMedida.GRAMO);
+        stubearIngresoPorCompra(detalleCompra, insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build());
+
+        // === ASSERTS ===
+        ArgumentCaptor<IngresoInsumoEntity> ingreso = ArgumentCaptor.forClass(IngresoInsumoEntity.class);
+        verify(ingresoInsumoRepository).save(ingreso.capture());
+        assertThat(ingreso.getValue().getCostoUnitario()).isEqualByComparingTo("480");
+    }
+
+    @Test
+    @DisplayName("CP-RC-50: registrarIngresoInsumoPorCompra conserva el costo cuando la presentación trae una unidad del insumo")
+    void registrarPorCompra_debeConservarElCostoConPresentacionDeUnaUnidad() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleConPresentacion(insumo, 100, new BigDecimal("12.5"), 1.0, UnidadDeMedida.KILOGRAMO);
+        stubearIngresoPorCompra(detalleCompra, insumo);
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).build());
+
+        // === ASSERTS ===
+        ArgumentCaptor<IngresoInsumoEntity> ingreso = ArgumentCaptor.forClass(IngresoInsumoEntity.class);
+        verify(ingresoInsumoRepository).save(ingreso.capture());
+        assertThat(ingreso.getValue().getCostoUnitario()).isEqualByComparingTo("12.5");
+    }
+
+    @Test
+    @DisplayName("CP-RC-51: el costo por unidad del insumo se redondea a 4 decimales (HALF_UP) cuando la división no es exacta: 10 por presentación de 3 kg es 3,3333; 20 por presentación de 3 kg es 6,6667")
+    void registrarPorCompra_debeRedondearElCostoConvertido() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleConPresentacion(insumo, 10, BigDecimal.TEN, 3.0, UnidadDeMedida.KILOGRAMO);
+
+        // === EJECUCION + ASSERTS ===
+        assertThat(CantidadesDetalleCompra.calcularCostoPorUnidadDelInsumo(detalleCompra)).isEqualTo(new BigDecimal("3.3333"));
+        detalleCompra.setCostoUnitario(new BigDecimal("20"));
+        assertThat(CantidadesDetalleCompra.calcularCostoPorUnidadDelInsumo(detalleCompra)).isEqualTo(new BigDecimal("6.6667"));
+    }
+
+    @Test
+    @DisplayName("CP-RC-52: registrarIngresoInsumoPorCompra suma al PPP de un lote existente (con ingresos directos) usando el costo por unidad del insumo: 10 kg a 100 más 20 kg a 480 dan 353,3333")
+    void registrarPorCompra_debeMezclarElPppConUnIngresoDirecto() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleConPresentacion(insumo, 4, new BigDecimal("12000"), 25.0, UnidadDeMedida.KILOGRAMO);
+        IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(20.0).build();
+        LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", formDTO.getFechaVencimiento(), 10.0, 0.0);
+        loteExistente.setCostoUnitarioPPP(new BigDecimal("100"));
+        stubearIngresoPorCompra(detalleCompra, insumo);
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteExistente.getCantidadActual()).isEqualTo(30.0);
+        assertThat(loteExistente.getCostoUnitarioPPP()).isEqualByComparingTo("353.3333");
+    }
+
+    @Test
+    @DisplayName("CP-RC-53: las excepciones de negocio de los campos del ingreso indican el campo del formulario al que se refieren y las que no son de un campo no indican ninguno")
+    void registrar_lasExcepcionesIndicanElCampo() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumo);
+        IngresoInsumoPorCompraFormDTO conflicto = porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaVencimiento(LocalDate.now().plusMonths(9)).build();
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        when(detalleCompraRepository.buscarPorIdParaIngresar(99L)).thenReturn(Optional.empty());
+        bloquearOrdenCompra(detalleCompra);
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001"))
+                .thenReturn(Optional.of(loteInsumoEntity(1L, insumo, "L-2025-001", LocalDate.now().plusMonths(3), 10.0, 0.0)));
+        when(insumoRepository.findById(99L)).thenReturn(Optional.empty());
+
+        // === EJECUCION + ASSERTS ===
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(null).build()))).isEqualTo("cantidadRecibida");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadRecibida(500.0).build()))).isEqualTo("cantidadRecibida");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaIngreso(null).build()))).isEqualTo("fechaIngreso");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).fechaVencimiento(null).build()))).isEqualTo("fechaVencimiento");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor(" ").build()))).isEqualTo("identificacionLoteProveedor");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).identificacionLoteProveedor("X".repeat(256)).build()))).isEqualTo("identificacionLoteProveedor");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(null).build()))).isEqualTo("idDetalleCompra");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(99L).build()))).isEqualTo("idDetalleCompra");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(conflicto))).isEqualTo("fechaVencimiento");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(directoValidoBuilder(null).build()))).isEqualTo("idInsumo");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(directoValidoBuilder(99L).build()))).isEqualTo("idInsumo");
+        assertThat(campoDe(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(directoValidoBuilder(INSUMO_ID).costoUnitario(BigDecimal.ZERO).build()))).isEqualTo("costoUnitario");
+        assertThat(campoDe(() -> ingresoInsumoServicio.anularIngresoInsumo(1L, anularFormDTO(" ")))).isNull();
+    }
+
     // ==================== registrarIngresoInsumoDirecto ====================
 
     @Test
@@ -2082,6 +2200,31 @@ class IngresoInsumoServicioImplTest {
     }
 
     // ==================== helpers de construcción ====================
+
+    private static String campoDe(Runnable accion) {
+        try {
+            accion.run();
+        } catch (ReglaNegocioException e) {
+            return e.getCampo();
+        } catch (RecursoNoEncontradoException e) {
+            return e.getCampo();
+        }
+        throw new AssertionError("Se esperaba una excepción de negocio");
+    }
+
+    private void stubearIngresoPorCompra(DetalleCompraEntity detalleCompra, InsumoEntity insumo) {
+        when(detalleCompraRepository.buscarPorIdParaIngresar(DETALLE_COMPRA_ID)).thenReturn(Optional.of(detalleCompra));
+        bloquearOrdenCompra(detalleCompra);
+        when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
+        stubearLoteNuevoYGuardado(insumo);
+    }
+
+    /** Ítem pedido con una presentación comercial del contenido y la unidad indicados. */
+    private static DetalleCompraEntity detalleConPresentacion(InsumoEntity insumo, int cantidad, BigDecimal costoUnitario, double contenido, UnidadDeMedida unidad) {
+        DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, cantidad, costoUnitario, EstadoSolicitud.PENDIENTE, insumo);
+        detalleCompra.getCatalogoProveedor().setPresentacionComercial(presentacionComercialEntity(contenido, unidad));
+        return detalleCompra;
+    }
 
     private void stubearLoteNuevoYGuardado(InsumoEntity insumo) {
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));

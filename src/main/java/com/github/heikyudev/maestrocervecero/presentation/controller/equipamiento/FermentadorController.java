@@ -120,7 +120,6 @@ public class FermentadorController {
                 .capacidadUtil(actual.getCapacidadUtil())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
-        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -146,7 +145,6 @@ public class FermentadorController {
             }
         }
 
-        model.addAttribute("identificadorInterno", fermentadorServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

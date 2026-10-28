@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/base :: layout(~{::#ingreso-compra-form-content}, 'ingresos-insumo')}">
+<body>
+
+<!--
+    Formulario del ingreso por compra. Es una página aparte: al registrar vuelve a la pestaña "Por compra" y un formulario
+    inválido (o una regla del service) vuelve acá con sus errores y lo que se había cargado. La orden de compra se elige
+    con el buscador en modal (solo pendientes) y luego el ítem de esa orden, que queda deshabilitado hasta tener la orden; al
+    cambiar la orden se quita el ítem. Al elegir el ítem se muestran su insumo, la unidad y lo pendiente, se habilita
+    "Ver lotes existentes" y la cantidad (en la unidad del insumo) informa a cuántas presentaciones equivale (comportamiento
+    de /js/ingreso-insumo-form.js, solo de visualización). "Registrar y cargar otro ítem de esta orden" vuelve al
+    formulario con la misma orden mientras siga pendiente.
+-->
+<div id="ingreso-compra-form-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <a th:href="${urlCancelar}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i> Volver a ingresos
+        </a>
+        <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight">Nuevo ingreso por compra</h1>
+        <p class="mt-1 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
+    </div>
+
+    <form id="ingreso-form" th:action="@{${urlAccion}}" th:object="${ingresoForm}" method="post" novalidate data-un-solo-envio data-formulario-ingreso
+          th:attr="data-factor=${itemElegido != null} ? ${itemElegido.factor}, data-presentacion=${itemElegido != null} ? ${itemElegido.presentacion}"
+          class="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
+
+        <div th:replace="~{fragments/form-errors :: resumen('No se pudo registrar el ingreso')}"></div>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Orden de compra e ítem recibido</h2>
+
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Orden de compra <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div th:replace="~{fragments/selector-entidad :: selector('idOrdenCompra', ${idOrdenElegida}, ${ordenElegidaTexto},
+                            ${urlBuscadorOrdenes}, null, null, false, false, 'Seleccione orden de compra')}"></div>
+                    <p class="mt-1 text-xs text-slate-500">Solo se ofrecen órdenes pendientes.</p>
+                </div>
+
+                <div>
+                    <span class="block text-sm font-medium text-slate-700 mb-1">Ítem de la orden <span class="text-rose-600" title="Obligatorio">*</span></span>
+                    <div data-selector-item th:data-buscador-base="${urlBuscadorItems}" th:data-deshabilitado="${idOrdenElegida == null} ? 'true'"
+                         th:classappend="${idOrdenElegida == null} ? 'opacity-50'">
+                        <div th:replace="~{fragments/selector-entidad :: selector('idDetalleCompra', ${itemElegido != null} ? ${itemElegido.detalle.id} : *{idDetalleCompra}, ${itemElegido != null} ? ${itemElegido.texto} : null,
+                                ${idOrdenElegida != null} ? ${urlBuscadorItems + '?idOrdenCompra=' + idOrdenElegida} : ${urlBuscadorItems}, null, null, false, ${#fields.hasErrors('idDetalleCompra')}, 'Seleccione ítem de la orden')}"></div>
+                    </div>
+                    <p data-ayuda-item th:hidden="${idOrdenElegida != null}" class="mt-1 text-xs text-slate-500">Elija primero la orden de compra.</p>
+                    <p th:if="${#fields.hasErrors('idDetalleCompra')}" th:errors="*{idDetalleCompra}" class="mt-1 text-xs text-rose-600"></p>
+                    <p data-item-elegido th:hidden="${itemElegido == null}" class="mt-2 text-xs text-slate-500">
+                        Insumo: <strong class="text-slate-700" data-item-insumo th:text="${itemElegido != null} ? ${itemElegido.detalle.catalogoProveedor.insumo.nombre}">Cascade</strong>
+                        &middot; Presentación: <span data-item-presentacion th:text="${itemElegido != null} ? ${itemElegido.presentacion}">Bolsa (25 kg)</span>
+                        &middot; Pendiente: <span data-item-pendiente><th:block th:if="${itemElegido != null}"><th:block th:replace="~{receta/formato :: medida(${itemElegido.detalle.cantidadPendiente}, ${itemElegido.unidad})}"></th:block></th:block></span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="p-6">
+            <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos de la recepción</h2>
+
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div th:replace="~{ingreso_insumo/ingreso-campos :: lote(${urlBuscadorLotes}, ${idInsumoElegido})}"></div>
+
+                <div>
+                    <label for="fechaIngreso" class="block text-sm font-medium text-slate-700 mb-1">Fecha de ingreso <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="date" id="fechaIngreso" name="fechaIngreso" autocomplete="off" placeholder="Ej: 15/07/2027"
+                           th:value="*{fechaIngreso}"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('fechaIngreso')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('fechaIngreso')}" th:errors="*{fechaIngreso}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+
+                <div>
+                    <label for="cantidadRecibida" class="block text-sm font-medium text-slate-700 mb-1">Cantidad recibida (<span data-unidad th:text="${itemElegido != null} ? ${itemElegido.unidad} : 'g, kg o t, según el insumo'">g, kg o t, según el insumo</span>) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                    <input type="number" id="cantidadRecibida" name="cantidadRecibida" step="any" autocomplete="off" placeholder="Ej: 25"
+                           th:value="${ingresoForm.cantidadRecibida != null and ingresoForm.cantidadRecibida == ingresoForm.cantidadRecibida.longValue()} ? ${ingresoForm.cantidadRecibida.longValue()} : *{cantidadRecibida}"
+                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                           th:classappend="${#fields.hasErrors('cantidadRecibida')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                    <p th:if="${#fields.hasErrors('cantidadRecibida')}" th:errors="*{cantidadRecibida}" class="mt-1 text-xs text-rose-600"></p>
+                    <p data-equivalencia hidden class="mt-1 text-xs text-slate-500"></p>
+                </div>
+            </div>
+        </section>
+
+        <div class="p-6 flex flex-wrap items-center justify-end gap-3 bg-slate-50 rounded-b-xl">
+            <a th:href="${urlCancelar}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</a>
+            <button type="submit" name="cargarOtro" value="true" data-cargar-otro
+                    class="px-5 py-2 rounded-lg text-sm font-semibold border border-amber-500 text-amber-700 bg-white hover:bg-amber-50 shadow-sm transition-colors">Registrar y cargar otro ítem de esta orden</button>
+            <button type="submit"
+                    class="px-5 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">Registrar ingreso</button>
+        </div>
+    </form>
+
+    <script th:src="@{/js/ingreso-insumo-form.js}" defer></script>
+</div>
+
+</body>
+</html>

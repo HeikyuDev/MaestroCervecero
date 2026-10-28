@@ -122,7 +122,6 @@ public class MaceradorController {
                 .eficienciaMaceracion(actual.getEficienciaMaceracion())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
-        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -148,7 +147,6 @@ public class MaceradorController {
             }
         }
 
-        model.addAttribute("identificadorInterno", maceradorServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

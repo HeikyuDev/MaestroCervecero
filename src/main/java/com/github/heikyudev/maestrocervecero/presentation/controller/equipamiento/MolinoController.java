@@ -119,7 +119,6 @@ public class MolinoController {
                 .rendimientoMolienda(actual.getRendimientoMolienda())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
-        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -145,7 +144,6 @@ public class MolinoController {
             }
         }
 
-        model.addAttribute("identificadorInterno", molinoServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

@@ -122,7 +122,6 @@ public class OllaHervorController {
                 .perdidaPorTrub(actual.getPerdidaPorTrub())
                 .usosMaximosAntesMantenimiento(actual.getUsosMaximosAntesMantenimiento())
                 .build());
-        model.addAttribute("identificadorInterno", actual.getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }
@@ -148,7 +147,6 @@ public class OllaHervorController {
             }
         }
 
-        model.addAttribute("identificadorInterno", ollaHervorServicio.buscarPorId(id).getIdentificadorInterno());
         cargarModeloFormulario(model, id, null, null);
         return VISTA_FORMULARIO;
     }

@@ -13,6 +13,8 @@
 
 ### 2. `registrarIngresoInsumoPorCompra(IngresoInsumoPorCompraFormDTO ingresoInsumoPorCompraFormDTO)`
 
+El costo unitario del ítem de la orden es por unidad de presentación (el subtotal es cantidad de presentaciones por costo unitario). El ingreso y el costo promedio ponderado del lote son por unidad de medida del insumo: el costo del ítem se divide por la cantidad de insumo que trae una presentación, convertida a la unidad del insumo (`CantidadesDetalleCompra.calcularCostoPorUnidadDelInsumo`, 4 decimales, `HALF_UP`). La anulación revierte el aporte al PPP con el costo guardado en el ingreso.
+
 La identificación del lote del proveedor se normaliza como un código (mayúsculas, sin espacios en los extremos, espacios internos colapsados; la puntuación cuenta) y es única por insumo. Antes de buscar el lote se bloquea la fila del insumo (`PESSIMISTIC_WRITE`), de modo que dos ingresos simultáneos del mismo lote nuevo se ejecutan uno a uno.
 
 El ingreso bloquea primero la fila del ítem de la orden (`buscarPorIdParaIngresar`) y luego la de la orden de compra (`buscarPorIdParaCambiarEstado`, `PESSIMISTIC_WRITE`), de modo que no se cruza con una anulación o una finalización de la orden, y solo procede si la orden está `PENDIENTE`. Si con el ingreso todos los ítems de la orden quedan completamente recibidos (cantidad pendiente igual a cero, contando los ingresos `REGISTRADO` incluido el nuevo), la orden se finaliza automáticamente: `estado = FINALIZADA`, `fechaFinalizacion` con la fecha y hora actuales y `motivoFinalizacion = null` (sin motivo, a diferencia de la finalización manual, que siempre lo tiene).
@@ -58,7 +60,14 @@ Los datos del formulario se validan primero, antes de consultar cualquier reposi
 |**CP-RC-44**|Orden de los mensajes: cantidad antes que las fechas|`cantidadRecibida`, `fechaIngreso` y `fechaVencimiento` nulos|Se informa el primer dato faltante en el orden de validación|Lanza `ReglaNegocioException` ("La cantidad recibida es obligatoria"). No consulta ningún repositorio ni persiste el ingreso.|
 |**CP-RC-45**|Orden de los mensajes: fecha de ingreso antes que la de vencimiento|`fechaIngreso` y `fechaVencimiento` nulas|Se informa el primer dato faltante en el orden de validación|Lanza `ReglaNegocioException` ("La fecha de ingreso es obligatoria"). No consulta ningún repositorio ni persiste el ingreso.|
 |**CP-RC-46**|Cantidad recibida negativa|Ingreso válido con `cantidadRecibida: -1.0`|`cantidadRecibida <= 0` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La cantidad recibida debe ser mayor a cero"). No consulta ningún repositorio ni persiste el ingreso.|
-|**CP-RC-47**|Insumo bloqueado dado de baja|Ítem cuyo insumo figura activo; `buscarPorIdParaIngresar(1L)` devuelve el insumo en `estado = BAJA`|El insumo bloqueado está dado de baja $ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("No se puede registrar el ingreso porque el insumo está dado de baja"). No busca el lote ni persiste el ingreso.
+|**CP-RC-47**|Insumo bloqueado dado de baja|Ítem cuyo insumo figura activo; `buscarPorIdParaIngresar(1L)` devuelve el insumo en `estado = BAJA`|El insumo bloqueado está dado de baja $
+|**CP-RC-48**|Costo por presentación convertido a unidad del insumo|Insumo en kg; ítem de 4 bolsas de 25 kg a `costoUnitario: 12000` por bolsa; ingreso de `20` kg|El costo del ítem es por presentación y el del ingreso por unidad del insumo|El ingreso y el costo promedio ponderado del lote quedan en `480` por kg (`12000 / 25`).|
+|**CP-RC-49**|Presentación en una unidad distinta a la del insumo|Insumo en kg; presentación de `25000` g a `12000` por unidad|La cantidad de la presentación se convierte a la unidad del insumo antes de dividir|El ingreso queda con `costoUnitario = 480`.|
+|**CP-RC-50**|Presentación de una unidad del insumo|Insumo en kg; presentación de `1` kg a `12.5`|El divisor es `1`|El ingreso queda con `costoUnitario = 12.5`.|
+|**CP-RC-51**|División no exacta|Presentación de `3` kg a `10` y a `20`|Redondeo a 4 decimales, `HALF_UP`|`CantidadesDetalleCompra.calcularCostoPorUnidadDelInsumo` devuelve `3.3333` y `6.6667`.|
+|**CP-RC-52**|PPP del lote mezclado con ingresos directos|Lote existente de `10` kg con PPP `100`; ingreso por compra de `20` kg a `12000` por bolsa de 25 kg|El PPP usa el costo por unidad del insumo|La cantidad del lote pasa a `30` y el PPP a `353.3333` (`(10 x 100 + 20 x 480) / 30`).|
+|**CP-RC-53**|Campo del formulario en las excepciones|Cantidad, fechas, identificación del lote, ítem, insumo y costo inválidos o inexistentes; conflicto de vencimiento; anulación con motivo en blanco|Las excepciones de negocio de un campo del formulario lo indican|`getCampo()` devuelve `cantidadRecibida`, `fechaIngreso`, `fechaVencimiento`, `identificacionLoteProveedor`, `idDetalleCompra`, `idInsumo` o `costoUnitario` según el caso (el conflicto de vencimiento, `fechaVencimiento`); la anulación con motivo en blanco devuelve `null`.|
+ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("No se puede registrar el ingreso porque el insumo está dado de baja"). No busca el lote ni persiste el ingreso.
 
 ### 3. `registrarIngresoInsumoDirecto(IngresoInsumoDirectoFormDTO ingresoInsumoDirectoFormDTO)`
 
@@ -124,4 +133,5 @@ El ingreso se carga bloqueando su fila (`buscarPorIdParaAnular`, `PESSIMISTIC_WR
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-BI-03**|ID nulo|`id: null`|El ID es nulo $ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El ingreso de insumo es obligatorio"). No consulta ningún repositorio.|
+|**CP-BI-03**|ID nulo|`id: null`|El ID es nulo $
+ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El ingreso de insumo es obligatorio"). No consulta ningún repositorio.|

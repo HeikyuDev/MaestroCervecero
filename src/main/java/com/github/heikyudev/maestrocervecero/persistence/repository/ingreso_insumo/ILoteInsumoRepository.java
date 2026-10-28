@@ -197,4 +197,26 @@ public interface ILoteInsumoRepository extends JpaRepository<LoteInsumoEntity, L
                                                                      @Param("identificacion") String identificacion,
                                                                      @Param("hoy") LocalDate hoy,
                                                                      Pageable pageable);
+
+    /**
+     * Filtra los lotes de un insumo sin importar su saldo (también los agotados), para elegir el lote existente al
+     * registrar un ingreso. Un criterio de texto nulo no restringe.
+     * <p>
+     * El orden lo define la consulta, para que la paginación sea estable: por fecha de vencimiento ascendente y, ante
+     * igual fecha, por ID.
+     * </p>
+     *
+     * @param idInsumo El ID del insumo.
+     * @param identificacion Texto a buscar dentro de la identificación del lote del proveedor (ya normalizado), o {@code null}.
+     * @param pageable Paginación; el orden lo define la consulta.
+     * @return Una página de lotes de insumo con su insumo cargado.
+     */
+    @Query(value = "SELECT li FROM LoteInsumoEntity li JOIN FETCH li.insumo i WHERE i.id = :idInsumo "
+            + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
+            + "ORDER BY li.fechaVencimiento ASC, li.id ASC",
+            countQuery = "SELECT COUNT(li) FROM LoteInsumoEntity li JOIN li.insumo i WHERE i.id = :idInsumo "
+                    + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
+    Page<LoteInsumoEntity> filtrarLotesInsumoPorInsumo(@Param("idInsumo") Long idInsumo,
+                                                       @Param("identificacion") String identificacion,
+                                                       Pageable pageable);
 }

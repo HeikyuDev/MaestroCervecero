@@ -156,8 +156,8 @@ class FermentadorControllerTest {
                 .andExpect(content().string(containsString("Nuevo fermentador")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/equipamiento/fermentadores\"")))
-                .andExpect(content().string(containsString("Se asigna al guardar")))
-                .andExpect(content().string(containsString("Lo asigna el sistema y no se puede modificar")))
+                .andExpect(content().string(not(containsString("Se asigna al guardar"))))
+                .andExpect(content().string(not(containsString("Identificador interno"))))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 100\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 80\"")))
@@ -309,7 +309,7 @@ class FermentadorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-FEC-16: el formulario de edición muestra los datos actuales, el identificador interno de solo lectura y apunta a la modificación")
+    @DisplayName("CP-FEC-16: el formulario de edición muestra los datos actuales, y apunta a la modificación")
     void caso_cp_fec_16() throws Exception {
         when(fermentadorServicio.buscarPorId(4L)).thenReturn(equipo(4L, "FER-01", EstadoOperativo.DISPONIBLE));
 
@@ -317,7 +317,7 @@ class FermentadorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/fermentador-form"))
                 .andExpect(content().string(containsString("Editar fermentador")))
-                .andExpect(content().string(containsString(">FER-01<")))
+                .andExpect(content().string(not(containsString("FER-01"))))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("value=\"100\"")))
                 .andExpect(content().string(containsString("value=\"80\"")))                .andExpect(content().string(containsString("value=\"50\"")))
@@ -372,7 +372,7 @@ class FermentadorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el fermentador")))
                 .andExpect(content().string(containsString("Los datos del equipo no son válidos")))
-                .andExpect(content().string(containsString(">FER-01<")));
+                .andExpect(content().string(not(containsString("FER-01"))));
     }
 
     @Test

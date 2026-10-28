@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#ingreso-lista-content}, 'ingresos-insumo')}">
+<body>
+
+<!--
+    Pantalla de ingresos de insumo. Dos pestañas (enlaces, funcionan sin JavaScript): "Por compra" y "Directos", cada una
+    con los ingresos de su tipo, el último arriba, y el botón que lleva a su formulario. Los criterios de búsqueda
+    (insumo, identificación del lote del proveedor, estado y fecha de ingreso) se aplican a la pestaña activa. Un ingreso
+    registrado se puede anular con un motivo; el detalle de una anulación se ve en un diálogo.
+-->
+<div id="ingreso-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Ingresos de Insumo</h1>
+        <p class="text-sm text-slate-500">Ingresos de insumo registrados, con el último ingreso arriba.</p>
+    </div>
+
+    <section data-ingresos-registrados th:attr="data-pestana=${pestana}" class="space-y-4">
+        <nav aria-label="Tipo de ingreso" data-pestanas-ingreso>
+            <ul class="inline-flex gap-2">
+                <li>
+                    <a th:href="@{${urlPantalla}(tipo='compra')}" data-pestana-compra
+                       th:attr="aria-current=${pestana == 'compra'} ? 'page'"
+                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
+                       th:classappend="${pestana == 'compra'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Por compra</a>
+                </li>
+                <li>
+                    <a th:href="@{${urlPantalla}(tipo='directo')}" data-pestana-directo
+                       th:attr="aria-current=${pestana == 'directo'} ? 'page'"
+                       class="block px-4 py-2 rounded-lg border text-sm font-semibold transition-colors"
+                       th:classappend="${pestana == 'directo'} ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">Directos</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Criterios de búsqueda -->
+        <form th:action="@{${urlPantalla}}" method="get" novalidate data-filtro-ingresos
+              class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <input type="hidden" name="tipo" th:value="${pestana}">
+            <div>
+                <span class="block text-xs font-medium text-slate-500 mb-1">Insumo</span>
+                <div th:replace="~{fragments/selector-entidad :: selector('idInsumo', ${filtroIdInsumo}, ${filtroInsumoTexto},
+                        @{${urlFiltroInsumos}}, null, null, true, false, 'Seleccione insumo')}"></div>
+            </div>
+            <div>
+                <label for="identificacion" class="block text-xs font-medium text-slate-500 mb-1">Identificación del lote del proveedor</label>
+                <input type="text" id="identificacion" name="identificacion" th:value="${filtroIdentificacion}" autocomplete="off" placeholder="Ej: L-125"
+                       class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            </div>
+            <div>
+                <label for="estado" class="block text-xs font-medium text-slate-500 mb-1">Estado</label>
+                <select id="estado" name="estado"
+                        class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                    <option value="">Todos</option>
+                    <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Registrado</option>
+                </select>
+            </div>
+            <div>
+                <label for="fechaIngreso" class="block text-xs font-medium text-slate-500 mb-1">Fecha de ingreso</label>
+                <input type="date" id="fechaIngreso" name="fechaIngreso" th:value="${filtroFechaIngreso}" autocomplete="off" placeholder="Ej: 15/07/2027"
+                       class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            </div>
+            <div class="md:col-span-2 flex items-center justify-end gap-3">
+                <a th:href="@{${urlPantalla}(tipo=${pestana})}"
+                   class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+                <button type="submit"
+                        class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </form>
+
+        <!-- Ingresos de la pestaña -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-end gap-3">
+                <a sec:authorize="hasAuthority('INGRESO_INSUMO_REGISTRAR')" th:href="@{${urlNuevo}}" data-nuevo-ingreso
+                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                    <i class="bi bi-plus-lg"></i>
+                    <span th:text="${pestana == 'compra'} ? 'Nuevo ingreso por compra' : 'Nuevo ingreso directo'">Nuevo ingreso por compra</span>
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-3 py-3 whitespace-nowrap">Fecha de ingreso</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Insumo</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Lote del proveedor</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Vencimiento</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Cantidad recibida</th>
+                        <th class="px-3 py-3 whitespace-nowrap text-right"><span tabindex="0" data-tooltip="Costo por unidad de medida del insumo (g, kg o t), no por presentación comercial">Costo unitario ($/unidad del insumo)</span></th>
+                        <th th:if="${pestana == 'compra'}" class="px-3 py-3 whitespace-nowrap">Orden de compra</th>
+                        <th class="px-3 py-3 whitespace-nowrap">Estado</th>
+                        <th sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right whitespace-nowrap">Acciones</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="i : ${ingresos.content}" th:attr="data-ingreso=${i.id}" class="hover:bg-slate-50"
+                        th:classappend="${i.estado.name() == 'ANULADO'} ? 'opacity-60'">
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.fechaIngreso})}"></th:block></td>
+                        <td class="px-3 py-3 font-medium text-slate-900">
+                            <div class="max-w-[14rem] truncate" tabindex="0" th:data-tooltip="${i.loteInsumo.insumo.nombre}" th:text="${i.loteInsumo.insumo.nombre}">Cascade</div>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
+                            <span class="inline-block max-w-[10rem] truncate align-bottom" tabindex="0" th:data-tooltip="${i.loteInsumo.identificacionLoteProveedor}" th:text="${i.loteInsumo.identificacionLoteProveedor}">L-125</span>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${i.loteInsumo.fechaVencimiento})}"></th:block></td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadRecibida}, ${i.loteInsumo.insumo.unidadDeMedida.simbolo})}"></th:block></td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap text-right" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoUnitario)}">12,50</td>
+                        <td th:if="${pestana == 'compra'}" class="px-3 py-3 text-slate-700 whitespace-nowrap">
+                            <a th:if="${i.idOrdenCompra != null}" sec:authorize="hasAnyRole('GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')" data-orden-compra
+                               th:href="@{/ordenes-compra/{id}(id=${i.idOrdenCompra})}" th:text="|N.º ${i.idOrdenCompra}|"
+                               class="font-medium text-amber-700 hover:underline">N.º 7</a>
+                            <span th:if="${i.idOrdenCompra == null}">-</span>
+                        </td>
+                        <td class="px-3 py-3 text-slate-700 whitespace-nowrap">
+                            <span th:replace="~{lote/formato :: estadoTransaccion(${i.estado})}"></span>
+                            <th:block th:if="${i.estado.name() == 'ANULADO'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${i.motivoAnulacion}, ${i.usuarioAnulacion}, ${i.fechaAnulacion})}"></th:block></th:block>
+                        </td>
+                        <td sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right">
+                            <button type="button" th:if="${i.estado.name() == 'REGISTRADO'}" data-motivo-dialogo="dialogo-anular"
+                                    th:data-motivo-url="@{/ingresos-insumo/{id}/anular(id=${i.id})}"
+                                    th:data-motivo-nombre="|${i.loteInsumo.insumo.nombre} (${i.loteInsumo.identificacionLoteProveedor})|"
+                                    class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors">Anular</button>
+                        </td>
+                    </tr>
+                    <tr th:if="${ingresos.empty}">
+                        <td colspan="9" class="px-4 py-10 text-center text-slate-400">
+                            <i class="bi bi-box-arrow-in-down block text-3xl mb-2"></i>
+                            <span th:text="${pestana == 'compra'} ? 'No se encontraron ingresos por compra con los criterios indicados' : 'No se encontraron ingresos directos con los criterios indicados'">No se encontraron ingresos por compra con los criterios indicados</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:replace="~{fragments/paginacion :: paginacion(${ingresos}, 'ingreso|ingresos',
+                    ${ingresos.hasPrevious()} ? @{${urlPantalla}(tipo=${pestana}, pagina=${ingresos.number - 1}, idInsumo=${filtroIdInsumo}, identificacion=${filtroIdentificacion}, estado=${filtroEstado}, fechaIngreso=${filtroFechaIngreso})} : null,
+                    ${ingresos.hasNext()} ? @{${urlPantalla}(tipo=${pestana}, pagina=${ingresos.number + 1}, idInsumo=${filtroIdInsumo}, identificacion=${filtroIdentificacion}, estado=${filtroEstado}, fechaIngreso=${filtroFechaIngreso})} : null,
+                    false)}"></div>
+        </div>
+    </section>
+
+    <!-- Diálogo del motivo de la anulación -->
+    <th:block sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')">
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular ingreso de insumo',
+                'Se anula el ingreso, se descuenta su cantidad del lote y queda registrado el motivo.',
+                'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                'Se cargó la cantidad equivocada')}"></div>
+    </th:block>
+</div>
+
+</body>
+</html>

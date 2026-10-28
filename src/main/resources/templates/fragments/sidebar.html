@@ -84,6 +84,11 @@
             <th:block sec:authorize="hasAnyRole('GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')">
                 <a th:replace="~{fragments/sidebar ::enlace('/ordenes-compra', ${opcionActiva}, 'ordenes-compra', 'bi-cart3', 'Órdenes de Compra')}"></a>
             </th:block>
+
+            <!-- INGRESOS DE INSUMO (Encargado de Depósito: quien puede consultar ingresos) -->
+            <th:block sec:authorize="hasAuthority('INGRESO_INSUMO_CONSULTAR')">
+                <a th:replace="~{fragments/sidebar ::enlace('/ingresos-insumo', ${opcionActiva}, 'ingresos-insumo', 'bi-box-arrow-in-down', 'Ingresos de Insumo')}"></a>
+            </th:block>
         </th:block>
 
         <!--

@@ -56,6 +56,22 @@ public class LoteInsumoServicioImpl implements ILoteInsumoServicio {
     }
 
     /**
+     * Filtra los lotes de un insumo sin importar su saldo, por fecha de vencimiento ascendente, marcando los vencidos.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LoteInsumoResponseDTO> filtrarLotesInsumoPorInsumo(Long idInsumo, String identificacion, Pageable pageable) {
+        if (idInsumo == null) {
+            return Page.empty(pageable);
+        }
+        LocalDate hoy = LocalDate.now();
+        // El orden lo define la consulta: el del pageable se ignora para que la paginación sea siempre estable
+        Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return loteInsumoRepository.filtrarLotesInsumoPorInsumo(idInsumo, textoONulo(NormalizacionTexto.codigo(identificacion)), pageableSinOrden)
+                .map(loteInsumo -> MapperLoteInsumo.toDTO(loteInsumo, hoy));
+    }
+
+    /**
      * Busca un lote de insumo por su identificador único.
      */
     @Override

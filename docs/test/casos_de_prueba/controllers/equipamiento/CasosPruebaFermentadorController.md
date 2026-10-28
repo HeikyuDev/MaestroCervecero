@@ -29,7 +29,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-FEC-06** | El formulario de alta muestra los campos con asterisco, placeholders y la ayuda de cada regla | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `equipamiento/fermentador-form`. Muestra "Nuevo fermentador", el asterisco rojo de obligatorio, `action="/equipamiento/fermentadores"`, el placeholder de cada campo de datos técnicos, el identificador interno de solo lectura ("Se asigna al guardar" y la ayuda "Lo asigna el sistema y no se puede modificar") y ningún campo `identificadorInterno`, el botón "Crear fermentador" y el link "Volver a fermentadores". No incluye el campo `retorno` ni el panel de errores. |
+| **CP-FEC-06** | El formulario de alta muestra los campos con asterisco, placeholders y la ayuda de cada regla | Rol `GERENTE_DE_PRODUCCION` | El rol está autorizado | Responde 200 con la vista `equipamiento/fermentador-form`. Muestra "Nuevo fermentador", el asterisco rojo de obligatorio, `action="/equipamiento/fermentadores"`, el placeholder de cada campo de datos técnicos, ningún campo ni texto del identificador interno (el sistema lo asigna al guardar), el botón "Crear fermentador" y el link "Volver a fermentadores". No incluye el campo `retorno` ni el panel de errores. |
 | **CP-FEC-07** | Abierto desde otro formulario (retorno y campo) los conserva y cancelar vuelve a ese formulario; un retorno externo se descarta | `retorno: "/lotes/nuevo"`, `campo: "idEquipamiento"`; y por separado `retorno: "//sitio-malicioso.com"` | Solo se aceptan rutas internas | Con una ruta interna incluye los campos ocultos `retorno` y `campo`, y el link de volver dice "Volver al formulario anterior" y apunta a `/lotes/nuevo?desdeAlta=1`. Con una ruta externa la descarta: no hay campo `retorno` ni aparece el sitio externo. |
 | **CP-FEC-08** | El OPERARIO_DE_PRODUCCION no puede abrir el formulario de alta | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. |
 
@@ -54,7 +54,7 @@
 
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
-| **CP-FEC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `FER-01` con su descripción y datos técnicos | Fermentador existe | Responde 200 con la vista `equipamiento/fermentador-form`: título "Editar fermentador", el identificador interno como texto de solo lectura (sin campo editable) y los datos técnicos actuales; los números sin ceros sobrantes: capacidad total `100` y capacidad útil `80`), `action="/equipamiento/fermentadores/4"` y el botón "Guardar cambios". |
+| **CP-FEC-16** | El formulario de edición muestra los datos actuales y apunta a la modificación | Rol `GERENTE_DE_PRODUCCION`, `id: 4`. El service devuelve `FER-01` con su descripción y datos técnicos | Fermentador existe | Responde 200 con la vista `equipamiento/fermentador-form`: título "Editar fermentador", sin el identificador interno, y los datos técnicos actuales; los números sin ceros sobrantes: capacidad total `100` y capacidad útil `80`), `action="/equipamiento/fermentadores/4"` y el botón "Guardar cambios". |
 
 ---
 
@@ -64,7 +64,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-FEC-17** | La modificación correcta delega en el service y redirige al listado con alerta de éxito | Rol `GERENTE_DE_PRODUCCION`, `id: 4`, datos válidos | Formulario válido | Llama a `modificarFermentador(4, ...)`. Redirige a `/equipamiento/fermentadores` con la alerta "Fermentador modificado correctamente" de tipo `success`. |
 | **CP-FEC-18** | Un identificador interno enviado en el pedido de modificación se ignora: no se puede cambiar | Rol `GERENTE_DE_PRODUCCION`, `id: 4`, datos válidos y el parámetro `identificadorInterno: "HACK-99"` | El `FormDTO` no tiene `identificadorInterno` | Llama a `modificarFermentador(4, ...)` igual que sin el parámetro y redirige al listado con la alerta de éxito. |
-| **CP-FEC-19** | Si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("Los datos del equipo no son válidos")` | Regla de negocio incumplida | Vuelve al formulario de edición y muestra el motivo en el panel de errores, conservando lo tipeado y mostrando el identificador interno actual de solo lectura (lo consulta con `buscarPorId`). |
+| **CP-FEC-19** | Si el service rechaza la modificación por una regla de negocio, el motivo se muestra en el formulario | El service lanza `ReglaNegocioException("Los datos del equipo no son válidos")` | Regla de negocio incumplida | Vuelve al formulario de edición y muestra el motivo en el panel de errores y conservando lo tipeado. |
 | **CP-FEC-20** | Un rol distinto de GERENTE_DE_PRODUCCION no puede modificar | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---

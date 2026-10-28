@@ -365,7 +365,7 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString("Agregar ítem")))
                 .andExpect(content().string(containsString(">No hay ítems en la orden<")))
                 .andExpect(content().string(containsString("<template data-plantilla=\"item\">")))
-                .andExpect(content().string(containsString("Costo unitario ($)")))
+                .andExpect(content().string(containsString("Costo por presentación ($)")))
                 .andExpect(content().string(containsString("Subtotal ($)")))
                 .andExpect(content().string(containsString("Total ($):")))
                 .andExpect(content().string(containsString("/js/orden-compra-form.js")))
@@ -671,7 +671,7 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString("Total ($)")))
                 // Columnas de los ítems, con la unidad en el encabezado
                 .andExpect(content().string(containsString(">Cantidad pedida (unidades)<")))
-                .andExpect(content().string(containsString("Costo unitario ($)")))
+                .andExpect(content().string(containsString("Costo por presentación ($)")))
                 .andExpect(content().string(containsString("Subtotal ($)")))
                 .andExpect(content().string(containsString("data-tooltip=\"Cantidad de insumo ya recibida mediante ingresos registrados, en la unidad del insumo\"")))
                 .andExpect(content().string(containsString("data-tooltip=\"Cantidad de insumo que resta recibir, en la unidad del insumo\"")))

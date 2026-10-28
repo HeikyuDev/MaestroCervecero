@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+    Contenido del modal de búsqueda de la orden de compra de un ingreso por compra: criterios de proveedor, planificación
+    de producción y fecha de entrega estimada + resultados con "Elegir". Solo ofrece órdenes pendientes, el único estado
+    sobre el que se registran ingresos. Los buscadores de proveedor y de planificación se abren en un modal sobre este.
+-->
+<div th:fragment="buscador">
+
+    <div class="flex items-start justify-between gap-4 p-6 pb-0">
+        <div>
+            <h3 class="text-lg font-semibold text-slate-900">Buscar orden de compra</h3>
+            <p class="text-sm text-slate-500">Filtre y elija la orden pendiente que se recibe.</p>
+        </div>
+        <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
+                class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <form th:action="@{${urlBuscador}}" method="get" data-modal-buscar novalidate
+          class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Proveedor</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idProveedor', ${filtroIdProveedor}, ${filtroProveedorTexto},
+                    @{${urlBuscadorProveedores}}, null, null, true, false, 'Seleccione proveedor')}"></div>
+        </div>
+        <div>
+            <span class="block text-xs font-medium text-slate-500 mb-1">Planificación de producción</span>
+            <div th:replace="~{fragments/selector-entidad :: selector('idPlanificacion', ${filtroIdPlanificacion}, ${filtroPlanificacionTexto},
+                    @{${urlBuscadorPlanificaciones}}, null, null, true, false, 'Seleccione planificación')}"></div>
+        </div>
+        <div>
+            <label for="buscador-fecha-entrega" class="block text-xs font-medium text-slate-500 mb-1">Fecha de entrega estimada</label>
+            <input type="date" id="buscador-fecha-entrega" name="fechaEntregaEstimada" th:value="${filtroFechaEntregaEstimada}" autocomplete="off" placeholder="Ej: 15/07/2027"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div class="flex justify-end">
+            <button type="submit"
+                    class="inline-flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <div class="border-t border-slate-100">
+        <table class="tabla-buscador">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-3 py-3 whitespace-nowrap">N.º</th>
+                <th class="px-3 py-3 whitespace-nowrap">Planificación</th>
+                <th class="px-3 py-3 whitespace-nowrap">Proveedor</th>
+                <th class="px-3 py-3 whitespace-nowrap">Entrega estimada</th>
+                <th class="px-3 py-3 text-right"></th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="o : ${ordenes.content}" class="hover:bg-slate-50">
+                <td class="px-3 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${o.id}">7</td>
+                <td class="px-3 py-3 text-slate-700">
+                    <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${o.planificacionProduccion.etiqueta}" th:text="${o.planificacionProduccion.etiqueta}">Plan #7 - Pale Ale</div>
+                </td>
+                <td class="px-3 py-3 text-slate-700">
+                    <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${o.proveedor.razonSocial}" th:text="${o.proveedor.razonSocial}">Malterías del Sur S.A.</div>
+                </td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${o.fechaEntregaEstimada})}"></th:block></td>
+                <td class="px-3 py-3 text-right">
+                    <button type="button" data-elegir th:data-id="${o.id}" th:data-texto="${textosPorId.get(o.id)}"
+                            class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
+                </td>
+            </tr>
+            <tr th:if="${ordenes.empty}">
+                <td colspan="5" class="px-4 py-8 text-center text-slate-400">No se encontraron órdenes de compra pendientes con los criterios indicados</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${ordenes}, 'orden de compra|órdenes de compra',
+                ${ordenes.hasPrevious()} ? @{${urlBuscador}(pagina=${ordenes.number - 1}, idProveedor=${filtroIdProveedor}, idPlanificacion=${filtroIdPlanificacion}, fechaEntregaEstimada=${filtroFechaEntregaEstimada})} : null,
+                ${ordenes.hasNext()} ? @{${urlBuscador}(pagina=${ordenes.number + 1}, idProveedor=${filtroIdProveedor}, idPlanificacion=${filtroIdPlanificacion}, fechaEntregaEstimada=${filtroFechaEntregaEstimada})} : null,
+                true)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

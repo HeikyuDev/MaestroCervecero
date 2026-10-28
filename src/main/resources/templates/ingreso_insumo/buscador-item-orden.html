@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+    Contenido del modal de ítems de la orden de compra elegida: los ítems que todavía tienen cantidad pendiente, con
+    "Elegir". Las cantidades (pedido, recibido y pendiente) están en la unidad del insumo. El botón "Elegir" lleva, además
+    del id del ítem y su texto, los datos que el formulario muestra del ítem elegido: el id y el nombre del insumo, la
+    unidad, lo pendiente, la presentación comercial y la cantidad de insumo que trae una presentación (para el cálculo
+    informativo de presentaciones). Sin orden elegida, o con una orden que ya no está pendiente, el controller informa el
+    motivo en mensajeBuscador y el fragmento no muestra filas.
+-->
+<div th:fragment="buscador">
+
+    <div class="flex items-start justify-between gap-4 p-6 pb-0">
+        <div>
+            <h3 class="text-lg font-semibold text-slate-900">Buscar ítem de la orden</h3>
+            <p class="text-sm text-slate-500" th:text="${textoOrden != null} ? |Orden de compra ${textoOrden}. Elija el ítem que se recibe.| : 'Elija el ítem que se recibe.'">Elija el ítem que se recibe.</p>
+        </div>
+        <button type="button" data-cerrar-modal title="Cerrar" aria-label="Cerrar"
+                class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <p th:if="${mensajeBuscador != null}" data-mensaje-buscador class="p-6 text-sm text-slate-500" th:text="${mensajeBuscador}">Elija primero la orden de compra</p>
+
+    <div th:if="${mensajeBuscador == null}" class="mt-4 border-t border-slate-100">
+        <table class="tabla-buscador">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-3 py-3 whitespace-nowrap">Insumo</th>
+                <th class="px-3 py-3 whitespace-nowrap">Presentación</th>
+                <th class="px-3 py-3 whitespace-nowrap">Pedido</th>
+                <th class="px-3 py-3 whitespace-nowrap">Recibido</th>
+                <th class="px-3 py-3 whitespace-nowrap">Pendiente</th>
+                <th class="px-3 py-3 text-right"></th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="f : ${items}" class="hover:bg-slate-50">
+                <td class="px-3 py-3 font-medium text-slate-900">
+                    <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${f.detalle.catalogoProveedor.insumo.nombre}" th:text="${f.detalle.catalogoProveedor.insumo.nombre}">Cascade</div>
+                </td>
+                <td class="px-3 py-3 text-slate-700">
+                    <div class="max-w-[10rem] truncate" tabindex="0" th:data-tooltip="${f.presentacion}" th:text="${f.presentacion}">Bolsa (25 kg)</div>
+                </td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.pedido}, ${f.unidad})}"></th:block></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.detalle.cantidadRecibida}, ${f.unidad})}"></th:block></td>
+                <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${f.detalle.cantidadPendiente}, ${f.unidad})}"></th:block></td>
+                <td class="px-3 py-3 text-right">
+                    <button type="button" data-elegir th:data-id="${f.detalle.id}" th:data-texto="${f.texto}"
+                            th:data-insumo-id="${f.detalle.catalogoProveedor.insumo.id}"
+                            th:data-insumo="${f.detalle.catalogoProveedor.insumo.nombre}"
+                            th:data-unidad="${f.unidad}"
+                            th:data-pendiente="${(f.detalle.cantidadPendiente == f.detalle.cantidadPendiente.intValue() ? #numbers.formatInteger(f.detalle.cantidadPendiente.intValue(), 1, 'POINT') : #strings.replace(f.detalle.cantidadPendiente, '.', ',')) + ' ' + f.unidad}"
+                            th:data-presentacion="${f.presentacion}"
+                            th:data-factor="${f.factor}"
+                            class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(items)}">
+                <td colspan="6" class="px-4 py-8 text-center text-slate-400">La orden no tiene ítems pendientes de recibir</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

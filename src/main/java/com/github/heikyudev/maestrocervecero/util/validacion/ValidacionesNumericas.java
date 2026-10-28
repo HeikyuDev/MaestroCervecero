@@ -153,8 +153,17 @@ public final class ValidacionesNumericas {
      * @throws ReglaNegocioException Si el texto tiene más caracteres que el máximo.
      */
     public static void validarLongitudMaxima(String valor, int maximo, String etiqueta) {
+        validarLongitudMaxima(valor, maximo, etiqueta, null);
+    }
+
+    /**
+     * Igual que {@link #validarLongitudMaxima(String, int, String)}, indicando en la excepción el campo del formulario afectado.
+     *
+     * @param campo Nombre del campo del formulario, o {@code null}.
+     */
+    public static void validarLongitudMaxima(String valor, int maximo, String etiqueta, String campo) {
         if (valor != null && valor.length() > maximo) {
-            throw new ReglaNegocioException(etiqueta + " no puede superar " + maximo + " caracteres");
+            throw new ReglaNegocioException(etiqueta + " no puede superar " + maximo + " caracteres", campo);
         }
     }
 

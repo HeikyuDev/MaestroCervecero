@@ -137,7 +137,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("Los datos del ingreso de insumo son obligatorios");
         }
         if (ingresoInsumoPorCompraFormDTO.getIdDetalleCompra() == null) {
-            throw new ReglaNegocioException("El ítem de la orden de compra es obligatorio");
+            throw new ReglaNegocioException("El ítem de la orden de compra es obligatorio", "idDetalleCompra");
         }
         Double cantidadRecibida = ingresoInsumoPorCompraFormDTO.getCantidadRecibida();
         validarCantidadRecibida(cantidadRecibida);
@@ -150,7 +150,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         //    que dos ingresos concurrentes sobre el mismo ítem calculen la misma cantidad pendiente
         //    y, juntos, terminen recibiendo más de lo solicitado
         DetalleCompraEntity detalleCompraEntity = detalleCompraRepository.buscarPorIdParaIngresar(ingresoInsumoPorCompraFormDTO.getIdDetalleCompra())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de detalle de compra con ID: " + ingresoInsumoPorCompraFormDTO.getIdDetalleCompra()));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el ítem de detalle de compra con ID: " + ingresoInsumoPorCompraFormDTO.getIdDetalleCompra(), "idDetalleCompra"));
 
         // 3. Localizar, bloqueándola para escritura, la orden de compra de ese ítem y validar que se encuentre en
         //    estado PENDIENTE: una anulación o una finalización simultáneas de la orden esperan a este ingreso
@@ -170,7 +170,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
         //    quedó completamente recibida, para que el residuo de la coma flotante (0,1 + 0,2) no rechace un ingreso exacto
         double cantidadPendiente = Redondeo.redondear(calcularCantidadPendiente(detalleCompraEntity));
         if (Redondeo.redondear(cantidadRecibida) > cantidadPendiente) {
-            throw new ReglaNegocioException("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (" + cantidadPendiente + ")");
+            throw new ReglaNegocioException("La cantidad recibida no puede superar la cantidad pendiente de entrega del ítem (" + cantidadPendiente + ")", "cantidadRecibida");
         }
 
         // 6. Resolver el insumo del ítem y validar/localizar el lote de insumo correspondiente,
@@ -180,13 +180,15 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 7. Recién si todas las validaciones pasaron, sumar la cantidad recibida al lote y
         //    persistirlo
-        loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, detalleCompraEntity.getCostoUnitario());
+        // El costo del ítem es por presentación: el ingreso y el costo promedio del lote son por unidad del insumo
+        BigDecimal costoPorUnidadDelInsumo = CantidadesDetalleCompra.calcularCostoPorUnidadDelInsumo(detalleCompraEntity);
+        loteInsumoEntity = sumarIngresoAlLote(loteInsumoEntity, cantidadRecibida, costoPorUnidadDelInsumo);
 
         // 8. Construir y persistir el ingreso de insumo
         IngresoInsumoEntity ingresoInsumoEntity = IngresoInsumoEntity.builder()
                 .fechaIngreso(fechaIngreso)
                 .cantidadRecibida(cantidadRecibida)
-                .costoUnitario(detalleCompraEntity.getCostoUnitario())
+                .costoUnitario(costoPorUnidadDelInsumo)
                 .tipoIngreso(TipoIngreso.COMPRA)
                 .estado(EstadoTransaccion.REGISTRADO)
                 .detalleCompra(detalleCompraEntity)
@@ -223,7 +225,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("Los datos del ingreso de insumo son obligatorios");
         }
         if (ingresoInsumoDirectoFormDTO.getIdInsumo() == null) {
-            throw new ReglaNegocioException("El insumo es obligatorio");
+            throw new ReglaNegocioException("El insumo es obligatorio", "idInsumo");
         }
         Double cantidadRecibida = ingresoInsumoDirectoFormDTO.getCantidadRecibida();
         validarCantidadRecibida(cantidadRecibida);
@@ -235,7 +237,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
         // 2. Validar que el insumo a ingresar esté registrado (y activo)
         InsumoEntity insumoEntity = insumoRepository.findById(ingresoInsumoDirectoFormDTO.getIdInsumo())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + ingresoInsumoDirectoFormDTO.getIdInsumo()));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + ingresoInsumoDirectoFormDTO.getIdInsumo(), "idInsumo"));
 
         // 3. Validar/localizar el lote de insumo correspondiente, sin mutarlo todavía
         LoteInsumoEntity loteInsumoEntity = resolverLoteInsumo(insumoEntity, ingresoInsumoDirectoFormDTO.getIdentificacionLoteProveedor(), fechaVencimiento);
@@ -359,10 +361,10 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      */
     private static void validarFechaIngreso(LocalDate fechaIngreso) {
         if (fechaIngreso == null) {
-            throw new ReglaNegocioException("La fecha de ingreso es obligatoria");
+            throw new ReglaNegocioException("La fecha de ingreso es obligatoria", "fechaIngreso");
         }
         if (fechaIngreso.isAfter(LocalDate.now())) {
-            throw new ReglaNegocioException("La fecha de ingreso no puede ser posterior a la fecha actual");
+            throw new ReglaNegocioException("La fecha de ingreso no puede ser posterior a la fecha actual", "fechaIngreso");
         }
     }
 
@@ -374,10 +376,10 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      */
     private static void validarFechaVencimiento(LocalDate fechaVencimiento) {
         if (fechaVencimiento == null) {
-            throw new ReglaNegocioException("La fecha de vencimiento es obligatoria");
+            throw new ReglaNegocioException("La fecha de vencimiento es obligatoria", "fechaVencimiento");
         }
         if (fechaVencimiento.isBefore(LocalDate.now())) {
-            throw new ReglaNegocioException("La fecha de vencimiento no puede ser anterior a la fecha actual");
+            throw new ReglaNegocioException("La fecha de vencimiento no puede ser anterior a la fecha actual", "fechaVencimiento");
         }
     }
 
@@ -391,14 +393,14 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      */
     private static void validarCantidadRecibida(Double cantidadRecibida) {
         if (cantidadRecibida == null) {
-            throw new ReglaNegocioException("La cantidad recibida es obligatoria");
+            throw new ReglaNegocioException("La cantidad recibida es obligatoria", "cantidadRecibida");
         }
         if (!Double.isFinite(cantidadRecibida) || cantidadRecibida <= 0) {
-            throw new ReglaNegocioException("La cantidad recibida debe ser mayor a cero");
+            throw new ReglaNegocioException("La cantidad recibida debe ser mayor a cero", "cantidadRecibida");
         }
         if (cantidadRecibida > LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA) {
             throw new ReglaNegocioException("La cantidad recibida no puede superar "
-                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA));
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.CANTIDAD_INGRESO_MAXIMA), "cantidadRecibida");
         }
         ValidacionesNumericas.validarMaximoDecimales(cantidadRecibida, LimitesTecnicos.ESCALA_CANTIDADES, "La cantidad recibida");
     }
@@ -412,18 +414,18 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      */
     private static void validarCostoUnitario(BigDecimal costoUnitario) {
         if (costoUnitario == null) {
-            throw new ReglaNegocioException("El costo unitario es obligatorio");
+            throw new ReglaNegocioException("El costo unitario es obligatorio", "costoUnitario");
         }
         if (costoUnitario.signum() <= 0) {
-            throw new ReglaNegocioException("El costo unitario debe ser mayor a cero");
+            throw new ReglaNegocioException("El costo unitario debe ser mayor a cero", "costoUnitario");
         }
         if (costoUnitario.compareTo(BigDecimal.valueOf(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO)) > 0) {
             throw new ReglaNegocioException("El costo unitario no puede superar "
-                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO));
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.COSTO_UNITARIO_COMPRA_MAXIMO), "costoUnitario");
         }
         if (costoUnitario.stripTrailingZeros().scale() > LimitesTecnicos.ESCALA_COSTO_UNITARIO) {
             throw new ReglaNegocioException("El costo unitario no puede tener más de "
-                    + LimitesTecnicos.ESCALA_COSTO_UNITARIO + " decimales");
+                    + LimitesTecnicos.ESCALA_COSTO_UNITARIO + " decimales", "costoUnitario");
         }
     }
 
@@ -493,10 +495,10 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     private LoteInsumoEntity resolverLoteInsumo(InsumoEntity insumoEntity, String identificacionLoteProveedor, LocalDate fechaVencimiento) {
         String identificacion = NormalizacionTexto.codigo(identificacionLoteProveedor);
         if (identificacion == null || identificacion.isEmpty()) {
-            throw new ReglaNegocioException("La identificación del lote del proveedor es obligatoria");
+            throw new ReglaNegocioException("La identificación del lote del proveedor es obligatoria", "identificacionLoteProveedor");
         }
         ValidacionesNumericas.validarLongitudMaxima(identificacion, LimitesTecnicos.LONGITUD_MAXIMA_IDENTIFICACION_LOTE,
-                "La identificación del lote del proveedor");
+                "La identificación del lote del proveedor", "identificacionLoteProveedor");
 
         InsumoEntity insumoBloqueado = insumoRepository.buscarPorIdParaIngresar(insumoEntity.getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el insumo con ID: " + insumoEntity.getId()));
@@ -509,7 +511,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
                 .map(loteInsumoEntity -> {
                     if (!loteInsumoEntity.getFechaVencimiento().equals(fechaVencimiento)) {
                         throw new ReglaNegocioException("Ya existe un lote del insumo con la identificación de lote de proveedor '"
-                                + identificacion + "' pero con una fecha de vencimiento distinta");
+                                + identificacion + "' pero con una fecha de vencimiento distinta", "fechaVencimiento");
                     }
                     return loteInsumoEntity;
                 })
@@ -522,6 +524,6 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
 
     private static ReglaNegocioException loteRegistradoEnSimultaneo(String identificacionLoteProveedor) {
         return new ReglaNegocioException("El lote del insumo con la identificación de lote de proveedor '" + identificacionLoteProveedor
-                + "' fue registrado por otra persona al mismo tiempo, intente nuevamente");
+                + "' fue registrado por otra persona al mismo tiempo, intente nuevamente", "identificacionLoteProveedor");
     }
 }

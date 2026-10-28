@@ -155,8 +155,8 @@ class MolinoControllerTest {
                 .andExpect(content().string(containsString("Nuevo molino")))
                 .andExpect(content().string(containsString(OBLIGATORIO)))
                 .andExpect(content().string(containsString("action=\"/equipamiento/molinos\"")))
-                .andExpect(content().string(containsString("Se asigna al guardar")))
-                .andExpect(content().string(containsString("Lo asigna el sistema y no se puede modificar")))
+                .andExpect(content().string(not(containsString("Se asigna al guardar"))))
+                .andExpect(content().string(not(containsString("Identificador interno"))))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 150\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: 50\"")))
@@ -300,7 +300,7 @@ class MolinoControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-MOC-16: el formulario de edición muestra los datos actuales, el identificador interno de solo lectura y apunta a la modificación")
+    @DisplayName("CP-MOC-16: el formulario de edición muestra los datos actuales, y apunta a la modificación")
     void caso_cp_moc_16() throws Exception {
         when(molinoServicio.buscarPorId(4L)).thenReturn(equipo(4L, "MOL-01", EstadoOperativo.DISPONIBLE));
 
@@ -308,7 +308,7 @@ class MolinoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("equipamiento/molino-form"))
                 .andExpect(content().string(containsString("Editar molino")))
-                .andExpect(content().string(containsString(">MOL-01<")))
+                .andExpect(content().string(not(containsString("MOL-01"))))
                 .andExpect(content().string(not(containsString("name=\"identificadorInterno\""))))
                 .andExpect(content().string(containsString("value=\"150\"")))                .andExpect(content().string(containsString("value=\"50\"")))
                 .andExpect(content().string(containsString("action=\"/equipamiento/molinos/4\"")))
@@ -359,7 +359,7 @@ class MolinoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo modificar el molino")))
                 .andExpect(content().string(containsString("Los datos del equipo no son válidos")))
-                .andExpect(content().string(containsString(">MOL-01<")));
+                .andExpect(content().string(not(containsString("MOL-01"))));
     }
 
     @Test

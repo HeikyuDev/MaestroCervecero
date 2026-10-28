@@ -5,6 +5,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEnt
 import com.github.heikyudev.maestrocervecero.persistence.entity.orden_compra.DetalleCompraEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.proveedor.PresentacionComercialEntity;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -47,12 +49,43 @@ public final class CantidadesDetalleCompra {
      * @return Cantidad pendiente de entrega, en la unidad de medida base del insumo.
      */
     public static double calcularCantidadPendiente(DetalleCompraEntity detalleCompraEntity, double cantidadYaRecibida) {
-        PresentacionComercialEntity presentacionComercial = detalleCompraEntity.getCatalogoProveedor().getPresentacionComercial();
-        InsumoEntity insumo = detalleCompraEntity.getCatalogoProveedor().getInsumo();
-        double cantidadPorUnidadEnUnidadDelInsumo = insumo.getUnidadDeMedida()
-                .desdeGramos(presentacionComercial.getUnidadDeMedida().aGramos(presentacionComercial.getCantidad()));
-        double cantidadTotalSolicitada = cantidadPorUnidadEnUnidadDelInsumo * detalleCompraEntity.getCantidad();
+        double cantidadTotalSolicitada = calcularCantidadPorPresentacion(detalleCompraEntity) * detalleCompraEntity.getCantidad();
 
         return cantidadTotalSolicitada - cantidadYaRecibida;
+    }
+
+    /**
+     * Calcula cuánto insumo trae cada unidad de la presentación comercial de un ítem, expresado en la unidad de
+     * medida del insumo (ej. una bolsa de 25000 g de un insumo que se trackea en KILOGRAMO trae 25).
+     *
+     * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
+     * @return Cantidad de insumo por unidad de presentación, en la unidad de medida base del insumo.
+     */
+    public static double calcularCantidadPorPresentacion(DetalleCompraEntity detalleCompraEntity) {
+        PresentacionComercialEntity presentacionComercial = detalleCompraEntity.getCatalogoProveedor().getPresentacionComercial();
+        InsumoEntity insumo = detalleCompraEntity.getCatalogoProveedor().getInsumo();
+        return insumo.getUnidadDeMedida()
+                .desdeGramos(presentacionComercial.getUnidadDeMedida().aGramos(presentacionComercial.getCantidad()));
+    }
+
+    /**
+     * Calcula el costo por unidad de medida del insumo de un ítem de compra.
+     * <p>
+     * El costo unitario del ítem es por unidad de presentación (el subtotal de la orden es cantidad de presentaciones
+     * por costo unitario); el ingreso y el costo promedio del lote son por unidad del insumo. Se divide el costo de la
+     * presentación por la cantidad de insumo que trae, con 4 decimales y redondeo {@code HALF_UP}.
+     * </p>
+     *
+     * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
+     * @return Costo por unidad de medida del insumo, con 4 decimales.
+     * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a cero.
+     */
+    public static BigDecimal calcularCostoPorUnidadDelInsumo(DetalleCompraEntity detalleCompraEntity) {
+        double cantidadPorPresentacion = calcularCantidadPorPresentacion(detalleCompraEntity);
+        if (!(cantidadPorPresentacion > 0)) {
+            throw new IllegalStateException("La presentación comercial del ítem no trae una cantidad de insumo mayor a cero");
+        }
+        return detalleCompraEntity.getCostoUnitario()
+                .divide(BigDecimal.valueOf(cantidadPorPresentacion), 4, RoundingMode.HALF_UP);
     }
 }
