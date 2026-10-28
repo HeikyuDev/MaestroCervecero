@@ -62,7 +62,7 @@
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
                            th:classappend="${#fields.hasErrors('correo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
                     <p th:if="${#fields.hasErrors('correo')}" th:errors="*{correo}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('correo')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas y no puede repetirse en otro usuario.</p>
+                    <p th:unless="${#fields.hasErrors('correo')}" class="mt-1 text-xs text-slate-400">Se guarda en minúsculas.</p>
                 </div>
 
             </div>

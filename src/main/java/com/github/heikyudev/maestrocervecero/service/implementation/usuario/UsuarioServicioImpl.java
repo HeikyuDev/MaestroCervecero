@@ -38,11 +38,6 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      */
     private static final String INDICE_USERNAME = "udx_usuarios_username";
 
-    /**
-     * Índice único de la base de datos que garantiza que no haya dos usuarios activos con el mismo correo electrónico.
-     */
-    private static final String INDICE_CORREO = "udx_usuarios_correo";
-
     // Inyecto el repositorio gracias a LOMBOK
     private final IUsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
@@ -91,14 +86,14 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * Registra un nuevo usuario en el sistema.
      * <p>
      * Normaliza los datos de texto (el nombre de usuario y el correo electrónico se guardan en minúsculas),
-     * valida que sean correctos y que el nombre de usuario y el correo electrónico no estén registrados en otro
-     * usuario activo (sin distinguir mayúsculas). La contraseña nunca se normaliza: se valida tal como se
+     * valida que sean correctos y que el nombre de usuario no esté registrado en otro
+     * usuario activo (sin distinguir mayúsculas); el correo electrónico puede repetirse entre usuarios. La contraseña nunca se normaliza: se valida tal como se
      * recibe y se guarda encriptada. Registra el evento en la auditoría.
      * </p>
      *
      * @param usuarioFormDTO Objeto DTO que contiene los datos de creación del usuario.
      * @return {@link UsuarioResponseDTO} representativo del usuario guardado en la base de datos.
-     * @throws RecursoDuplicadoException Si el username o el correo electrónico provistos ya pertenecen a un usuario activo.
+     * @throws RecursoDuplicadoException Si el username provisto ya pertenece a un usuario activo.
      * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido o el correo electrónico faltan o superan su longitud máxima, si el nombre de usuario tiene caracteres no permitidos, si el correo electrónico no tiene un formato válido, si el teléfono informado no tiene solo dígitos o supera los 15, si la contraseña no fue informada, o si no cumple las reglas de {@link MetodosPassword} (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
@@ -120,12 +115,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
             throw usernameDuplicado(username);
         }
 
-        // 4. Validar si el correo electrónico ya esta registrado
-        if (usuarioRepository.existsByCorreo(correo)) {
-            throw correoDuplicado(correo);
-        }
-
-        // 5. Validar que se haya informado una contraseña y que cumpla las reglas (el encoder no
+        // 4. Validar que se haya informado una contraseña y que cumpla las reglas (el encoder no
         //    acepta null ni más de 72 bytes: lanzaría una excepción sin controlar en lugar de una
         //    regla de negocio clara)
         if (usuarioFormDTO.getPassword() == null || usuarioFormDTO.getPassword().isEmpty()) {
@@ -133,7 +123,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         }
         MetodosPassword.validarPassword(usuarioFormDTO.getPassword());
 
-        // 6. Creo la entidad que se va a almacenar en la base de datos
+        // 5. Creo la entidad que se va a almacenar en la base de datos
         UsuarioEntity usuarioEntity = UsuarioEntity.builder()
                 .username(username)
                 .password(passwordEncoder.encode(usuarioFormDTO.getPassword()))
@@ -145,11 +135,10 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
                 .estado(Estado.ACTIVO)
                 .build();
 
-        // 7. Guardo la entidad en la base de datos (un pedido simultáneo que viole un índice único se traduce al mensaje del campo)
+        // 6. Guardo la entidad en la base de datos (un pedido simultáneo que viole un índice único se traduce al mensaje del campo)
         //    y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(GuardadoUnico.guardar(usuarioRepository, usuarioEntity, Map.of(
-                INDICE_USERNAME, () -> usernameDuplicado(username),
-                INDICE_CORREO, () -> correoDuplicado(correo))));
+                INDICE_USERNAME, () -> usernameDuplicado(username))));
     }
 
     /**
@@ -157,7 +146,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * <p>
      * Normaliza y valida los datos de texto antes de consultar la base de datos. Si el nombre de usuario
      * fue modificado respecto a su estado actual, valida la no colisión con otros usuarios activos; el correo
-     * electrónico se valida excluyendo al propio usuario. Actualiza la contraseña únicamente si se envía un valor
+     * electrónico puede repetirse entre usuarios. Actualiza la contraseña únicamente si se envía un valor
      * no nulo ni vacío, y en ese caso debe cumplir las reglas de {@link MetodosPassword}; la contraseña nunca se
      * normaliza.
      * </p>
@@ -166,7 +155,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
      * @param usuarioFormDTO DTO con la información actualizada.
      * @return {@link UsuarioResponseDTO} representativo del usuario con los cambios aplicados.
      * @throws RecursoNoEncontradoException Si no se localiza el usuario por el ID proporcionado.
-     * @throws RecursoDuplicadoException Si el nuevo username o el nuevo correo electrónico ya se encuentran asignados a otra cuenta activa.
+     * @throws RecursoDuplicadoException Si el nuevo username ya se encuentra asignado a otra cuenta activa.
      * @throws ReglaNegocioException Si el nombre de usuario, el nombre, el apellido o el correo electrónico faltan o superan su longitud máxima, si el nombre de usuario tiene caracteres no permitidos, si el correo electrónico no tiene un formato válido, si el teléfono informado no tiene solo dígitos o supera los 15, o si se envía una contraseña que no cumple las reglas (entre 8 y 72 caracteres, sin espacios en blanco).
      */
     @Override
@@ -193,13 +182,7 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
             }
         }
 
-        // 4. Se valida duplicación del correo excluyendo el propio ID, de modo que conservar
-        //    el correo actual (incluso con distinto case) no falla contra el mismo registro
-        if (usuarioRepository.existsByCorreoAndIdNot(correo, id)) {
-            throw correoDuplicado(correo);
-        }
-
-        // 5. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
+        // 4. La contraseña es opcional: vacía (o no enviada) significa "conservar la actual". Si se
         //    envía algo, tiene que ser válida: un texto en blanco NO cuenta como "no enviada", se
         //    rechaza. Se valida antes de tocar la entidad.
         String password = usuarioFormDTO.getPassword();
@@ -215,16 +198,15 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
         usuarioEntity.setTelefono(telefono);
         usuarioEntity.setRol(usuarioFormDTO.getRol());
 
-        // 6. La contraseña solo se actualiza si fue enviada, y se encripta
+        // 5. La contraseña solo se actualiza si fue enviada, y se encripta
         if (cambiaPassword) {
             usuarioEntity.setPassword(passwordEncoder.encode(password));
         }
 
-        // 7. Persisto la entidad actualizada (un pedido simultáneo que viole un índice único se traduce al mensaje del campo)
+        // 6. Persisto la entidad actualizada (un pedido simultáneo que viole un índice único se traduce al mensaje del campo)
         //    y devuelvo el DTO correspondiente
         return MapperUsuario.toDTO(GuardadoUnico.guardar(usuarioRepository, usuarioEntity, Map.of(
-                INDICE_USERNAME, () -> usernameDuplicado(username),
-                INDICE_CORREO, () -> correoDuplicado(correo))));
+                INDICE_USERNAME, () -> usernameDuplicado(username))));
     }
 
     /**
@@ -294,9 +276,5 @@ public class UsuarioServicioImpl implements IUsuarioServicio {
 
     private static RecursoDuplicadoException usernameDuplicado(String username) {
         return new RecursoDuplicadoException("Ya existe un usuario con el nombre de usuario '" + username + "'");
-    }
-
-    private static RecursoDuplicadoException correoDuplicado(String correo) {
-        return new RecursoDuplicadoException("Ya existe un usuario con el correo electrónico '" + correo + "'");
     }
 }

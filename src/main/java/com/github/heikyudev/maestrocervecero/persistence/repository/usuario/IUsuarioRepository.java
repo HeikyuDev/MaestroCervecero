@@ -72,28 +72,6 @@ public interface IUsuarioRepository extends JpaRepository<UsuarioEntity, Long> {
     boolean existsByUsername(@Param("username") String username);
 
     /**
-     * Verifica si existe un usuario activo con el correo electrónico dado, ignorando mayúsculas y minúsculas.
-     * @param correo El correo electrónico a buscar.
-     * @return true si existe un usuario activo con el correo electrónico dado, false en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u WHERE LOWER(u.correo) = LOWER(:correo) AND u.estado = 'ACTIVO'")
-    boolean existsByCorreo(@Param("correo") String correo);
-
-    /**
-     * Verifica si existe un usuario activo con el correo electrónico dado, ignorando mayúsculas y minúsculas,
-     * excluyendo de la búsqueda al usuario con el ID indicado.
-     * <p>
-     * Se utiliza en la modificación para permitir conservar el propio correo electrónico actual sin que la
-     * validación de unicidad falle contra el mismo registro.
-     * </p>
-     * @param correo El correo electrónico a buscar.
-     * @param id El ID del usuario a excluir de la verificación.
-     * @return true si otro usuario activo ya posee ese correo electrónico, false en caso contrario.
-     */
-    @Query("SELECT CASE WHEN COUNT(u) > 0 THEN true ELSE false END FROM UsuarioEntity u WHERE LOWER(u.correo) = LOWER(:correo) AND u.id <> :id AND u.estado = 'ACTIVO'")
-    boolean existsByCorreoAndIdNot(@Param("correo") String correo, @Param("id") Long id);
-
-    /**
      * Filtra los usuarios activos, opcionalmente por nombre, apellido, correo electrónico, username y/o rol
      * (coincidencia parcial y sin distinguir mayúsculas/minúsculas para los cuatro primeros, exacta
      * para el rol). Un parámetro nulo no restringe por ese criterio.

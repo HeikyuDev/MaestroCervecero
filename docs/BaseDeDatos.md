@@ -240,11 +240,10 @@ que coincidan con lo que guarda el Service y con el nombre de usuario que se nor
 | Índice | Tabla | Expresión | Regla |
 |---|---|---|---|
 | `udx_usuarios_username` | `usuarios` | `(lower(btrim(username)))` | Nombre de usuario único entre usuarios activos |
-| `udx_usuarios_correo` | `usuarios` | `(lower(btrim(correo)))` | Correo electrónico único entre usuarios activos |
 | `udx_cliente_email` | `cliente` | `(lower(btrim(email)))` | Correo electrónico único entre clientes activos |
 
 El teléfono de usuarios y clientes no tiene unicidad, y el nombre de un cliente tampoco. Si las tablas contienen nombres
-de usuario o correos repetidos entre registros activos (ignorando mayúsculas y espacios en los extremos), la creación del
+de usuario (de usuarios) o correos (de clientes) repetidos entre registros activos (ignorando mayúsculas y espacios en los extremos), la creación del
 índice falla y deben resolverse antes de migrar.
 
 `V6__indices_unicos_proveedor_receta.sql` crea los índices únicos de los módulos versionados (proveedor y receta), agrega
@@ -312,6 +311,12 @@ interno.
 | `udx_barril_identificador_interno` | `barril` | `(identificador_interno)` | Identificador interno único entre todos los barriles |
 
 `udx_equipamiento_identificador_interno` (V3) se mantiene sin cambios.
+
+### Correo de usuario sin unicidad
+
+`V12__eliminar_unicidad_correo_usuario.sql` elimina el índice `udx_usuarios_correo` que crea V5. Una misma persona puede
+tener varios usuarios (por ejemplo, con distintos roles) y compartir el correo electrónico: el correo de un usuario solo
+se valida por formato y longitud. El nombre de usuario (`udx_usuarios_username`) sigue siendo único entre usuarios activos.
 
 **Orden de los listados.** Las consultas de listado de equipos y de barriles ordenan por identificador interno en orden
 natural, con `regexp_replace` de PostgreSQL dentro del `ORDER BY` de la consulta: primero el prefijo (sin distinguir

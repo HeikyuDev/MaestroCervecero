@@ -600,33 +600,6 @@ class UsuarioControllerTest {
 
     @Test
     @WithMockUser(roles = "ADMINISTRADOR")
-    @DisplayName("CP-UC-35: correo electrónico duplicado en el alta vuelve al formulario con el error asociado al campo correo")
-    void alta_debeMostrarErrorEnElCampoCorreoCuandoElCorreoEstaDuplicado() throws Exception {
-        doThrow(new RecursoDuplicadoException("Ya existe un usuario con el correo electrónico 'carlos@mail.com'")).when(usuarioServicio).altaUsuario(any());
-
-        mockMvc.perform(post("/usuarios").with(csrf()).params(paramsValidos("carlos")))
-                .andExpect(status().isOk())
-                .andExpect(view().name("usuario/usuario-form"))
-                .andExpect(model().attributeHasFieldErrors("usuarioForm", "correo"))
-                .andExpect(content().string(containsString("Ya existe un usuario con el correo electrónico &#39;carlos@mail.com&#39;")));
-    }
-
-    @Test
-    @WithMockUser(username = "admin", roles = "ADMINISTRADOR")
-    @DisplayName("CP-UC-36: correo electrónico en uso por otra cuenta al modificar vuelve al formulario con el error asociado al campo correo")
-    void modificar_debeMostrarErrorEnElCampoCorreoCuandoElCorreoEstaEnUso() throws Exception {
-        when(usuarioServicio.buscarPorId(7L)).thenReturn(usuario(7L, "carlos", Rol.GERENTE_DE_COMPRAS));
-        doThrow(new RecursoDuplicadoException("Ya existe un usuario con el correo electrónico 'carlos@mail.com'")).when(usuarioServicio).modificarUsuario(eq(7L), any());
-
-        mockMvc.perform(post("/usuarios/7").with(csrf()).params(paramsValidos("carlos")))
-                .andExpect(status().isOk())
-                .andExpect(view().name("usuario/usuario-form"))
-                .andExpect(model().attributeHasFieldErrors("usuarioForm", "correo"))
-                .andExpect(content().string(containsString("Ya existe un usuario con el correo electrónico &#39;carlos@mail.com&#39;")));
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMINISTRADOR")
     @DisplayName("CP-UC-37: el teléfono es opcional: un alta sin teléfono es válida y llega al service")
     void alta_debeAceptarUnAltaSinTelefono() throws Exception {
         org.springframework.util.LinkedMultiValueMap<String, String> params = paramsValidos("carlos");
@@ -647,7 +620,7 @@ class UsuarioControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Se guarda en minúsculas. Puede usar letras, números, punto, guion y guion bajo")))
                 .andExpect(content().string(containsString("Solo dígitos")))
-                .andExpect(content().string(containsString("Se guarda en minúsculas y no puede repetirse en otro usuario")));
+                .andExpect(content().string(containsString("Se guarda en minúsculas.</p>")));
     }
 
     @Test

@@ -661,7 +661,6 @@ class UsuarioServicioImplTest {
                 .nombre("  Juan   Carlos ").apellido("  Pérez   Gómez ").correo("  JUAN@Mail.COM ").telefono(" 3511234567 ")
                 .rol(Rol.GERENTE_DE_COMPRAS).build();
         when(usuarioRepository.existsByUsername("jperez")).thenReturn(false);
-        when(usuarioRepository.existsByCorreo("juan@mail.com")).thenReturn(false);
         when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
         when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -679,7 +678,6 @@ class UsuarioServicioImplTest {
         assertThat(guardada.getTelefono()).isEqualTo("3511234567");
         assertThat(formDTO.getUsername()).isEqualTo("  JPerez ");
         verify(usuarioRepository).existsByUsername("jperez");
-        verify(usuarioRepository).existsByCorreo("juan@mail.com");
         verify(passwordEncoder).encode("ClaveSegura123");
         verify(usuarioRepository).flush();
     }
@@ -743,25 +741,25 @@ class UsuarioServicioImplTest {
                 .hasMessage("Ya existe un usuario con el nombre de usuario 'juanperez'");
 
         verify(usuarioRepository).existsByUsername("juanperez");
-        verify(usuarioRepository, never()).existsByCorreo(any());
         verify(usuarioRepository, never()).save(any());
         verifyNoInteractions(passwordEncoder);
     }
 
     @Test
-    @DisplayName("CP-AU-16: altaUsuario lanza RecursoDuplicadoException cuando el correo electrónico normalizado ya está registrado")
-    void altaUsuario_debeRechazarCorreoDuplicado() {
+    @DisplayName("CP-AU-16: altaUsuario permite un correo electrónico que ya usa otro usuario activo")
+    void altaUsuario_debePermitirUnCorreoCompartidoConOtroUsuario() {
+        // === PREPARACION DE DATOS ===
         UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "  JUAN@Mail.com ", "1111", Rol.OPERARIO_DE_PRODUCCION);
         when(usuarioRepository.existsByUsername("juan")).thenReturn(false);
-        when(usuarioRepository.existsByCorreo("juan@mail.com")).thenReturn(true);
+        when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
+        when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un usuario con el correo electrónico 'juan@mail.com'");
+        // === EJECUCION ===
+        UsuarioResponseDTO resultado = usuarioServicio.altaUsuario(formDTO);
 
-        verify(usuarioRepository).existsByCorreo("juan@mail.com");
-        verify(usuarioRepository, never()).save(any());
-        verifyNoInteractions(passwordEncoder);
+        // === ASSERTS ===
+        assertThat(resultado.getCorreo()).isEqualTo("juan@mail.com");
+        verify(usuarioRepository).save(any(UsuarioEntity.class));
     }
 
     @Test
@@ -819,24 +817,11 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AU-21: altaUsuario traduce la violación del índice único udx_usuarios_correo al mensaje de correo electrónico duplicado")
-    void altaUsuario_debeTraducirLaViolacionDelIndiceDelCorreo() {
-        UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
-        when(usuarioRepository.save(any(UsuarioEntity.class))).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_usuarios_correo"));
-
-        assertThatThrownBy(() -> usuarioServicio.altaUsuario(formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un usuario con el correo electrónico 'juan@mail.com'");
-    }
-
-    @Test
-    @DisplayName("CP-AU-22: altaUsuario permite reutilizar el nombre de usuario y el correo electrónico de un usuario dado de baja")
+    @DisplayName("CP-AU-22: altaUsuario permite reutilizar el nombre de usuario de un usuario dado de baja")
     void altaUsuario_debePermitirReutilizarLosValoresDeUnUsuarioDadoDeBaja() {
         UsuarioFormDTO formDTO = usuarioFormDTO("juan", "ClaveSegura123", "Juan", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        // El único usuario con esos valores está dado de baja: las consultas solo consideran usuarios activos
+        // El único usuario con ese nombre de usuario está dado de baja: la consulta solo considera usuarios activos
         when(usuarioRepository.existsByUsername("juan")).thenReturn(false);
-        when(usuarioRepository.existsByCorreo("juan@mail.com")).thenReturn(false);
         when(passwordEncoder.encode("ClaveSegura123")).thenReturn("hash");
         when(usuarioRepository.save(any(UsuarioEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -854,7 +839,6 @@ class UsuarioServicioImplTest {
                 .correo("  NUEVO@Mail.COM ").telefono(" 3511234567 ").rol(Rol.GERENTE_DE_COMPRAS).build();
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
         when(usuarioRepository.existsByUsername("nuevouser")).thenReturn(false);
-        when(usuarioRepository.existsByCorreoAndIdNot("nuevo@mail.com", 1L)).thenReturn(false);
         when(usuarioRepository.save(existente)).thenReturn(existente);
 
         // === EJECUCION ===
@@ -868,7 +852,6 @@ class UsuarioServicioImplTest {
         assertThat(existente.getTelefono()).isEqualTo("3511234567");
         assertThat(formDTO.getUsername()).isEqualTo("  NuevoUser ");
         verify(usuarioRepository).existsByUsername("nuevouser");
-        verify(usuarioRepository).existsByCorreoAndIdNot("nuevo@mail.com", 1L);
         verify(usuarioRepository).flush();
     }
 
@@ -909,35 +892,16 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MU-14: modificarUsuario lanza RecursoDuplicadoException cuando el correo electrónico normalizado está en uso por otra cuenta")
-    void modificarUsuario_debeRechazarCorreoEnUsoPorOtraCuenta() {
+    @DisplayName("CP-MU-14: modificarUsuario permite un correo electrónico que ya usa otro usuario activo")
+    void modificarUsuario_debePermitirUnCorreoCompartidoConOtroUsuario() {
         UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "  OTRO@Mail.com ", "1111", Rol.OPERARIO_DE_PRODUCCION);
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
-        when(usuarioRepository.existsByCorreoAndIdNot("otro@mail.com", 1L)).thenReturn(true);
-
-        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un usuario con el correo electrónico 'otro@mail.com'");
-
-        verify(usuarioRepository, never()).save(any());
-        assertThat(existente.getCorreo()).isEqualTo("juan@mail.com");
-    }
-
-    @Test
-    @DisplayName("CP-MU-15: modificarUsuario permite conservar el propio correo electrónico con distinta capitalización")
-    void modificarUsuario_debePermitirConservarElCorreoPropio() {
-        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "JUAN@Mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
-        // La consulta excluye el propio ID: no encuentra otro usuario con ese correo
-        when(usuarioRepository.existsByCorreoAndIdNot("juan@mail.com", 1L)).thenReturn(false);
         when(usuarioRepository.save(existente)).thenReturn(existente);
 
         usuarioServicio.modificarUsuario(1L, formDTO);
 
-        assertThat(existente.getCorreo()).isEqualTo("juan@mail.com");
-        verify(usuarioRepository).existsByCorreoAndIdNot("juan@mail.com", 1L);
+        assertThat(existente.getCorreo()).isEqualTo("otro@mail.com");
         verify(usuarioRepository).save(existente);
     }
 
@@ -984,27 +948,13 @@ class UsuarioServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-MU-19: modificarUsuario traduce la violación del índice único udx_usuarios_correo al mensaje de correo electrónico en uso")
-    void modificarUsuario_debeTraducirLaViolacionDelIndiceDelCorreo() {
-        UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        UsuarioFormDTO formDTO = usuarioFormDTO("juan", null, "Juan Perez", "otro@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
-        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
-        when(usuarioRepository.save(existente)).thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_usuarios_correo"));
-
-        assertThatThrownBy(() -> usuarioServicio.modificarUsuario(1L, formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un usuario con el correo electrónico 'otro@mail.com'");
-    }
-
-    @Test
-    @DisplayName("CP-MU-20: modificarUsuario permite reutilizar el nombre de usuario y el correo electrónico de un usuario dado de baja")
+    @DisplayName("CP-MU-20: modificarUsuario permite reutilizar el nombre de usuario de un usuario dado de baja")
     void modificarUsuario_debePermitirReutilizarLosValoresDeUnUsuarioDadoDeBaja() {
         UsuarioEntity existente = crearUsuarioEntity(1L, "juan", "hash", "Juan Perez", "juan@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         UsuarioFormDTO formDTO = usuarioFormDTO("pedro", null, "Juan Perez", "pedro@mail.com", "1111", Rol.OPERARIO_DE_PRODUCCION);
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(existente));
-        // El único otro usuario con esos valores está dado de baja: las consultas solo consideran usuarios activos
+        // El único otro usuario con ese nombre de usuario está dado de baja: la consulta solo considera usuarios activos
         when(usuarioRepository.existsByUsername("pedro")).thenReturn(false);
-        when(usuarioRepository.existsByCorreoAndIdNot("pedro@mail.com", 1L)).thenReturn(false);
         when(usuarioRepository.save(existente)).thenReturn(existente);
 
         assertThatCode(() -> usuarioServicio.modificarUsuario(1L, formDTO)).doesNotThrowAnyException();

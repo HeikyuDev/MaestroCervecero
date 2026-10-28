@@ -120,7 +120,7 @@ public class UsuarioController {
                 agregarMensaje(redirectAttributes, "Usuario creado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:/usuarios";
             } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue(campoDuplicado(e), "duplicado", e.getMessage());
+                bindingResult.rejectValue("username", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -185,7 +185,7 @@ public class UsuarioController {
                 agregarMensaje(redirectAttributes, "Usuario modificado correctamente", TipoAlerta.SUCCESS);
                 return "redirect:/usuarios";
             } catch (RecursoDuplicadoException e) {
-                bindingResult.rejectValue(campoDuplicado(e), "duplicado", e.getMessage());
+                bindingResult.rejectValue("username", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
                 bindingResult.reject("reglaNegocio", e.getMessage());
             }
@@ -216,14 +216,6 @@ public class UsuarioController {
         model.addAttribute("usuarioId", usuarioId);
         model.addAttribute("esCuentaPropia", cuentaPropia);
         model.addAttribute("reglasPassword", MetodosPassword.MENSAJE_INVALIDA);
-    }
-
-    /**
-     * Campo del formulario al que corresponde un duplicado: el correo electrónico o, en cualquier otro caso, el
-     * nombre de usuario (los dos únicos datos con unicidad).
-     */
-    private static String campoDuplicado(RecursoDuplicadoException e) {
-        return e.getMessage().contains("correo electrónico") ? "correo" : "username";
     }
 
     private static boolean esCuentaPropia(UsuarioResponseDTO usuario, Authentication authentication) {
