@@ -104,10 +104,7 @@
                     </div>
                 </td>
                 <td class="col-acciones px-2 py-3 text-center">
-                    <a th:href="@{/lotes/{id}(id=${l.id})}" data-gestionar-lote title="Gestionar lote" aria-label="Gestionar lote"
-                       class="inline-flex items-center justify-center p-2 rounded-lg border border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-sm transition-colors">
-                        <i class="bi bi-gear text-lg"></i>
-                    </a>
+                    <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${l.id})}, 'Abrir ' + ${l.identificadorInterno})}"></th:block>
                 </td>
             </tr>
             <tr th:if="${lotes.empty}">

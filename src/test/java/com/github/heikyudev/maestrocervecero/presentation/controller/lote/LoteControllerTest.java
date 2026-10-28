@@ -180,7 +180,7 @@ class LoteControllerTest {
     // ==================== GET /lotes ====================
 
     @Test
-    @DisplayName("CP-LCT-01: el GERENTE_DE_PRODUCCION ve el listado con las columnas, los valores legibles, el botón Nuevo lote y, al final de cada fila, el botón Gestionar lote en la columna Acciones")
+    @DisplayName("CP-LCT-01: el GERENTE_DE_PRODUCCION ve el listado con las columnas, los valores legibles, el botón Nuevo lote y, al final de cada fila, el botón Abrir en la columna Acciones")
     void listar_debeMostrarElListadoAlGerente() throws Exception {
         // Arrange
         LoteCronogramaResponseDTO lote = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01").toBuilder()
@@ -201,7 +201,7 @@ class LoteControllerTest {
                 .contains("href=\"/lotes/12\"").contains("overflow-x-auto");
         assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
         assertThat(texto(html)).contains("Acciones");
-        assertThat(html).contains("title=\"Gestionar lote\"").contains("aria-label=\"Gestionar lote\"");
+        assertThat(html).contains("data-boton-abrir").contains("aria-label=\"Abrir LOT-R7-03\"").doesNotContain("data-tooltip=\"Abrir");
     }
 
     @Test
@@ -2868,8 +2868,8 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón de ícono Gestionar lote (bi-gear, con tooltip, igual que los botones de las otras listas) hacia el detalle, y la cabecera y el botón quedan alineados a la derecha dentro de la columna; la fila no es clickeable y el código es texto")
-    void listar_cadaFilaTieneElBotonGestionarLote() throws Exception {
+    @DisplayName("CP-LCT-138: la última columna de la lista, Acciones, tiene en cada fila el botón estándar Abrir (flecha bi-arrow-right, sin tooltip y con aria-label corto) hacia el detalle, y la cabecera y el botón quedan centrados dentro de la columna; la fila no es clickeable y el código es texto")
+    void listar_cadaFilaTieneElBotonAbrir() throws Exception {
         // Arrange
         LoteCronogramaResponseDTO lote = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
         when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
@@ -2879,17 +2879,17 @@ class LoteControllerTest {
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        Matcher boton = Pattern.compile("<a[^>]*data-gestionar-lote[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
+        Matcher boton = Pattern.compile("<a[^>]*data-boton-abrir[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
         assertThat(boton.find()).isTrue();
-        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("title=\"Gestionar lote\"").contains("aria-label=\"Gestionar lote\"").contains("bi-gear").contains("hover:bg-amber-500");
+        assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("aria-label=\"Abrir LOT-R7-03\"").doesNotContain("data-tooltip=\"Abrir").contains("bi-arrow-right").contains("hover:bg-amber-500").doesNotContain("bi-gear").doesNotContain("data-tooltip").doesNotContain("title=");
         assertThat(html).doesNotContain("sticky right-0").contains("text-center");
         assertThat(html.substring(html.indexOf("<thead"), html.indexOf("</thead>"))).contains("text-center");
-        assertThat(texto(boton.group())).isEmpty();
+        assertThat(texto(boton.group())).isEqualTo("Abrir");
         assertThat(boton.find()).isFalse();
         assertThat(celdas(html, "LOT-R7-03").get(0)).startsWith("LOT-R7-03");
         assertThat(texto(html.substring(html.indexOf("<thead"), html.indexOf("</thead>")))).endsWith("Acciones");
         assertThat(html).doesNotContain("data-fila-lote").doesNotContain("data-href").doesNotContain("/js/lote-lista.js");
-        assertThat(html).doesNotContain("bi-eye").doesNotContain("aria-label=\"Ver lote\"");
+        assertThat(html).doesNotContain("bi-eye").doesNotContain("bi-gear").doesNotContain("aria-label=\"Ver lote\"");
     }
 
     @Test

@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * Criterio de detección de la columna de acciones:
  * - Encabezado: el último th del thead de la tabla tiene el texto "Acciones" o "Mover", o está vacío.
- * - Celdas: la última celda td de una fila (sin colspan) contiene un botón o un enlace con aria-label.
+ * - Celdas: la última celda td de una fila (sin colspan) contiene un botón, un enlace con aria-label o el fragmento fragments/boton-abrir.
  * Las plantillas buscador-*.html y filtro-*.html quedan fuera: su tabla .tabla-buscador tiene su propio estilo.
  */
 class ColumnaAccionesStickyTest {
@@ -45,7 +45,7 @@ class ColumnaAccionesStickyTest {
     private static final Pattern TD = Pattern.compile("<td\\b" + ATRIBUTOS + ">(.*?)</td>", Pattern.DOTALL);
     private static final Pattern DIV = Pattern.compile("<div\\b" + ATRIBUTOS + ">");
     private static final Pattern ETIQUETA = Pattern.compile("<[^>]*>");
-    private static final Pattern ACCION = Pattern.compile("<button\\b|<a\\b" + ATRIBUTOS + "aria-label=");
+    private static final Pattern ACCION = Pattern.compile("<button\\b|<a\\b" + ATRIBUTOS + "aria-label=|fragments/boton-abrir");
 
     @Test
     @DisplayName("CP-CAS-01 - El encabezado de toda columna de acciones lleva la clase col-acciones")
