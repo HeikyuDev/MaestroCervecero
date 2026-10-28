@@ -1083,7 +1083,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-58: hasta 5 fermentadores caben en una pagina: 3 carriles y 3 colas, \"Pagina 1 de 1\", \"3 fermentadores\" y ambos botones de pagina desactivados")
+    @DisplayName("CP-CGC-58: hasta 5 fermentadores caben en una pagina: 3 carriles y 3 colas, sin paginador")
     void paginacion_unaSolaPagina() throws Exception {
         // Arrange
         fermentadoresActivos(3);
@@ -1095,9 +1095,41 @@ class CronogramaControllerTest {
         // Assert
         assertThat(carriles(html)).isEqualTo(3);
         assertThat(cuenta(html, "data-cola-fermentador=")).isEqualTo(3);
-        assertThat(html).contains("Página 1 de 1").contains("3 fermentadores");
-        assertThat(html).doesNotContainPattern("<a[^>]*data-pagina-anterior").doesNotContainPattern("<a[^>]*data-pagina-siguiente");
-        assertThat(html).containsPattern("<span[^>]*data-pagina-anterior").containsPattern("<span[^>]*data-pagina-siguiente");
+        assertThat(html).doesNotContain("data-paginacion").doesNotContain("Página 1 de 1").doesNotContain("data-pagina-anterior").doesNotContain("data-pagina-siguiente");
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-110: con exactamente 5 fermentadores hay una sola pagina: 5 carriles y 5 colas, sin paginador")
+    void paginacion_cincoFermentadoresSinPaginador() throws Exception {
+        // Arrange
+        fermentadoresActivos(5);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(5, LocalDate.now().plusDays(1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(carriles(html)).isEqualTo(5);
+        assertThat(cuenta(html, "data-cola-fermentador=")).isEqualTo(5);
+        assertThat(html).doesNotContain("data-paginacion").doesNotContain("Página 1 de 1");
+    }
+
+    @Test
+    @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
+    @DisplayName("CP-CGC-111: con 6 fermentadores hay dos paginas: la primera muestra 5 carriles y el paginador con \"Página 1 de 2\" y \"6 fermentadores\"")
+    void paginacion_seisFermentadoresConPaginador() throws Exception {
+        // Arrange
+        fermentadoresActivos(6);
+        when(loteServicio.listarLotesParaCronograma(any(), any(), any())).thenReturn(lotesDeFermentadores(6, LocalDate.now().plusDays(1)));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(carriles(html)).isEqualTo(5);
+        assertThat(html).contains("data-paginacion").contains("Página 1 de 2").contains("6 fermentadores");
+        assertThat(href(html, "data-pagina-siguiente")).isEqualTo("/cronograma-produccion?pagina=2");
     }
 
     @Test
@@ -1209,7 +1241,7 @@ class CronogramaControllerTest {
         String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(html).contains("Página 1 de 1").contains("3 fermentadores");
+        assertThat(html).doesNotContain("data-paginacion");
         assertThat(colas(html)).containsExactly("F-03", "F-17", "F-42");
         assertThat(carriles(html)).isEqualTo(3);
         assertThat(html).doesNotContain("<option");
@@ -1234,7 +1266,7 @@ class CronogramaControllerTest {
 
     @Test
     @WithMockUser(authorities = {"ROLE_GERENTE_DE_PRODUCCION", "LOTE_CONSULTAR", "LOTE_REGISTRAR", "PLANIFICACION_PRODUCCION_CONSULTAR"})
-    @DisplayName("CP-CGC-65: con el filtro de fermentador solo se ve ese fermentador: llega al service, un carril, su cola, \"Pagina 1 de 1\" y \"1 fermentador\"")
+    @DisplayName("CP-CGC-65: con el filtro de fermentador solo se ve ese fermentador: llega al service, un carril, su cola y sin paginador")
     void filtro_unFermentador() throws Exception {
         // Arrange
         fermentadores(1L, "F-01", 2L, "F-02");
@@ -1248,7 +1280,7 @@ class CronogramaControllerTest {
         verify(loteServicio).listarLotesParaCronograma(2L, desdeDefecto(), hastaDefecto());
         assertThat(carriles(html)).isEqualTo(1);
         assertThat(colas(html)).containsExactly("F-02");
-        assertThat(html).contains("Página 1 de 1").contains("1 fermentador").doesNotContain("1 fermentadores");
+        assertThat(html).doesNotContain("data-paginacion").doesNotContain("Página 1 de 1");
     }
 
     @Test
@@ -1389,8 +1421,9 @@ class CronogramaControllerTest {
         assertThat(segunda).contains("data-gantt-continua-despues").doesNotContain("data-gantt-continua-antes").contains("Continúa después del período")
                 .contains("Fin estimado: 25/07/2027");
         assertThat(tercera).doesNotContain("data-gantt-continua").doesNotContain("Continúa");
-        assertThat(cuenta(html, "bi-chevron-left")).isEqualTo(2);
-        assertThat(cuenta(html, "bi-chevron-right")).isEqualTo(2);
+        // Con un solo fermentador no hay paginador: cada ícono aparece una única vez, en la barra recortada
+        assertThat(cuenta(html, "bi-chevron-left")).isEqualTo(1);
+        assertThat(cuenta(html, "bi-chevron-right")).isEqualTo(1);
     }
 
     @Test
@@ -1458,7 +1491,7 @@ class CronogramaControllerTest {
         assertThat(colas(html)).containsExactly("F-01", "F-02");
         assertThat(carriles(html)).isEqualTo(2);
         assertThat(cuenta(html, "No hay lotes pendientes en este fermentador")).isEqualTo(2);
-        assertThat(html).contains("Página 1 de 1").contains("2 fermentadores").doesNotContain(ALERTA_ADVERTENCIA);
+        assertThat(html).doesNotContain("data-paginacion").doesNotContain(ALERTA_ADVERTENCIA);
         assertThat(html).doesNotContain("<option");
     }
 
@@ -2184,7 +2217,7 @@ class CronogramaControllerTest {
     // ==================== Operario en solo lectura ====================
 
     @Test
-    @DisplayName("CP-CGC-79: el OPERARIO_DE_PRODUCCION ve el cronograma con el diagrama, los filtros de fermentador, planificacion a destacar y periodo, la paginacion y las colas de cada fermentador")
+    @DisplayName("CP-CGC-79: el OPERARIO_DE_PRODUCCION ve el cronograma con el diagrama, los filtros de fermentador, planificacion a destacar y periodo, las colas de cada fermentador y ningun paginador con una sola pagina")
     void operario_veElCronograma() throws Exception {
         // Arrange
         escenarioDelOperario();
@@ -2209,7 +2242,7 @@ class CronogramaControllerTest {
                 .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-2")))
                 .andExpect(content().string(containsString("Pale Ale - Plan #7 - PALE_ALE-R7-3")))
                 .andExpect(content().string(containsString("Stout - Plan #8 - STOUT-R8-1")))
-                .andExpect(content().string(containsString("data-paginacion")))
+                .andExpect(content().string(not(containsString("data-paginacion"))))
                 .andExpect(content().string(containsString("data-cola-fermentador=\"F-01\"")))
                 .andExpect(content().string(containsString("data-cola-fermentador=\"F-02\"")));
 
