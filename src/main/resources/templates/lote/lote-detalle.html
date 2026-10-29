@@ -156,9 +156,22 @@
             <th:block th:case="'ENVASADO'"><div th:replace="~{lote/lote-guias :: envasado}"></div></th:block>
         </section>
 
-        <!-- 3. Insumos de la etapa, con el avance para finalizar y, al pie, el acceso a la pantalla de consumos -->
+        <!-- 3. Insumos de la etapa, con el avance para finalizar y, en la cabecera, el acceso a la pantalla de consumos y el menú con las reservas -->
         <section th:unless="${#lists.isEmpty(requeridos)}" data-insumos-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
+            <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-slate-700">Insumos de la etapa</h2>
+                <div th:if="${tipoEtapa.permiteRegistrarConsumo}" class="flex items-center gap-2">
+                    <a sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')" data-ir-consumos th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
+                       class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                        <i class="bi bi-list-check"></i> Gestionar consumos
+                    </a>
+                    <div th:replace="~{fragments/menu-opciones :: menu('Más opciones de insumos de la etapa', ~{::opciones})}">
+                        <th:block th:fragment="opciones">
+                            <button th:replace="~{fragments/menu-opciones :: opcionDialogo('bi-bookmarks', 'Ver reservas de la etapa', 'dialogo-reservas-etapa')}"></button>
+                        </th:block>
+                    </div>
+                </div>
+            </div>
             <p th:if="${#lists.isEmpty(requeridos)}" class="px-5 py-6 text-sm text-slate-400">Esta etapa no consume insumos</p>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-left">
@@ -183,40 +196,6 @@
                 </table>
             </div>
 
-            <!-- Historial de las reservas de la etapa (solo lectura): se conservan aunque se consuman o se liberen -->
-            <div th:unless="${#lists.isEmpty(reservasEtapa)}" data-reservas-etapa class="border-t border-slate-100">
-                <h3 class="px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Reservas de la etapa</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        <tr>
-                            <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Lote de insumo</th>
-                            <th class="px-4 py-3 whitespace-nowrap" title="Cantidad reservada originalmente">Reservada</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Consumida</th>
-                            <th class="px-4 py-3 whitespace-nowrap" title="Saldo devuelto al stock al liberar la reserva">Liberada</th>
-                            <th class="px-4 py-3 whitespace-nowrap" title="Cantidad que una merma le quitó a la reserva">Reducida por ajuste</th>
-                            <th class="px-4 py-3 whitespace-nowrap" title="Saldo que todavía está reservado">Pendiente</th>
-                            <th class="px-4 py-3 whitespace-nowrap">Estado</th>
-                        </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                        <tr th:each="r : ${reservasEtapa}" th:attr="data-reserva-estado=${r.estado.name()}" class="hover:bg-slate-50"
-                            th:with="simbolo=${r.loteInsumo.insumo.unidadDeMedida.simbolo}">
-                            <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${r.loteInsumo.insumo.nombre}">Pilsen</td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${r.loteInsumo.identificacionLoteProveedor}">L-2026-01</td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReservada}, ${simbolo})}"></th:block></td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadConsumida}, ${simbolo})}"></th:block></td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadLiberada}, ${simbolo})}"></th:block></td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReducidaPorAjuste}, ${simbolo})}"></th:block></td>
-                            <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadPendiente}, ${simbolo})}"></th:block></td>
-                            <td class="px-4 py-3"><span th:replace="~{lote/formato :: estadoReserva(${r.estado})}"></span></td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
             <!-- Avance hacia el mínimo de consumo: informativo, no bloquea el botón de finalizar -->
             <th:block th:if="${etapaOperable and avance != null}">
                 <p th:if="${avance.porcentajeMinimo == null or avance.porcentajeMinimo == 0}" data-avance
@@ -234,25 +213,61 @@
                 </div>
             </th:block>
 
-            <!-- Pie de la tarjeta: acceso a la pantalla de consumos de la etapa -->
-            <div th:if="${tipoEtapa.permiteRegistrarConsumo}" sec:authorize="hasAuthority('CONSUMO_INSUMO_CONSULTAR')"
-                 class="px-5 py-3 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
-                <p class="text-sm text-slate-500">Registre y consulte los consumos de esta etapa.</p>
-                <a data-ir-consumos th:href="@{/lotes/{id}/etapas/{etapa}/consumos(id=${lote.id}, etapa=${slugEtapa})}"
-                   class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-                    <i class="bi bi-list-check"></i> Gestionar consumos
-                </a>
-            </div>
+            <!-- Reservas de la etapa (trazabilidad, solo lectura): historial completo, también en etapas cerradas y lotes pasados -->
+            <dialog id="dialogo-reservas-etapa" data-dialogo-informativo aria-labelledby="dialogo-reservas-etapa-titulo"
+                    class="m-auto w-full max-w-4xl overflow-x-hidden rounded-xl p-0 shadow-xl backdrop:bg-slate-900/50">
+                <div class="flex items-start justify-between gap-4 p-6 pb-3">
+                    <h3 id="dialogo-reservas-etapa-titulo" class="text-lg font-semibold text-slate-900">Reservas de la etapa</h3>
+                    <button type="button" data-cerrar-dialogo title="Cerrar" aria-label="Cerrar"
+                            class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <p th:if="${#lists.isEmpty(reservasEtapa)}" data-reservas-vacias class="px-6 pb-6 text-sm text-slate-400">La etapa no tiene reservas</p>
+                <div th:unless="${#lists.isEmpty(reservasEtapa)}" class="overflow-x-auto" data-reservas-etapa>
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Lote de insumo</th>
+                                    <th class="px-4 py-3 whitespace-nowrap" title="Cantidad reservada originalmente">Reservada</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Consumida</th>
+                                    <th class="px-4 py-3 whitespace-nowrap" title="Saldo devuelto al stock al liberar la reserva">Liberada</th>
+                                    <th class="px-4 py-3 whitespace-nowrap" title="Cantidad que una merma le quitó a la reserva">Reducida por ajuste</th>
+                                    <th class="px-4 py-3 whitespace-nowrap" title="Saldo que todavía está reservado">Pendiente</th>
+                                    <th class="px-4 py-3 whitespace-nowrap">Estado</th>
+                                </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                <tr th:each="r : ${reservasEtapa}" th:attr="data-reserva-estado=${r.estado.name()}" class="hover:bg-slate-50"
+                                    th:with="simbolo=${r.loteInsumo.insumo.unidadDeMedida.simbolo}">
+                                    <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${r.loteInsumo.insumo.nombre}">Pilsen</td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${r.loteInsumo.identificacionLoteProveedor}">L-2026-01</td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReservada}, ${simbolo})}"></th:block></td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadConsumida}, ${simbolo})}"></th:block></td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadLiberada}, ${simbolo})}"></th:block></td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadReducidaPorAjuste}, ${simbolo})}"></th:block></td>
+                                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${r.cantidadPendiente}, ${simbolo})}"></th:block></td>
+                                    <td class="px-4 py-3"><span th:replace="~{lote/formato :: estadoReserva(${r.estado})}"></span></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                <div class="p-4 flex justify-end border-t border-slate-100">
+                    <button type="button" data-cerrar-dialogo
+                            class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Cerrar</button>
+                </div>
+            </dialog>
         </section>
 
-        <!-- 4. Envasados registrados (solo Envasado), con el acceso a registrar un envasado -->
+        <!-- 4. Envasados registrados (solo Envasado), con el acceso a la pantalla de gestión de envasados -->
         <section th:if="${tipoEtapa.permiteRegistrarEnvasado}" data-registros-etapa class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
                 <h2 class="text-sm font-semibold text-slate-700">Envasados registrados</h2>
-                <a th:if="${etapaOperable}" sec:authorize="hasAuthority('ENVASADO_REGISTRAR')" data-ir-envasados
+                <a sec:authorize="hasAuthority('ENVASADO_CONSULTAR')" data-ir-envasados
                    th:href="@{/lotes/{id}/envasados(id=${lote.id})}"
                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
-                    <i class="bi bi-plus-lg"></i> Nuevo envasado
+                    <i class="bi bi-box-seam"></i> Gestionar envasados
                 </a>
             </div>
             <p th:if="${#lists.isEmpty(envasados)}" class="px-5 py-6 text-sm text-slate-400">No hay envasados registrados</p>
@@ -292,6 +307,7 @@
             <div th:replace="~{fragments/dialogo-confirmacion :: dialogo}"></div>
         </th:block>
     </th:block>
+    <script th:src="@{/js/menu-opciones.js}" defer></script>
 </div>
 
 </body>

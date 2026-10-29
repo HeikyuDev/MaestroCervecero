@@ -1437,7 +1437,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-59: el pie de la sección Insumos de la etapa tiene el texto de ayuda a la izquierda y el botón Gestionar consumos a la derecha, con el ícono bi-list-check, hacia la pantalla de consumos de la etapa")
+    @DisplayName("CP-LCT-59: la cabecera de la sección Insumos de la etapa tiene el título a la izquierda y a la derecha el botón Gestionar consumos (ícono bi-list-check, hacia la pantalla de consumos de la etapa) y el menú de tres puntos con la opción Ver reservas de la etapa, sin pie")
     void detalle_botonRegistrarConsumo() throws Exception {
         // Arrange
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0)));
@@ -1447,9 +1447,15 @@ class LoteControllerTest {
 
         // Assert
         String insumos = bloque(html, "data-insumos-etapa");
-        assertThat(texto(insumos)).endsWith("Registre y consulte los consumos de esta etapa. Gestionar consumos");
+        assertThat(texto(insumos)).startsWith("Insumos de la etapa Gestionar consumos Ver reservas de la etapa");
         assertThat(insumos).contains("data-ir-consumos").contains("href=\"/lotes/12/etapas/hervido/consumos\"").contains("bi-list-check")
-                .contains("bg-amber-500").doesNotContain("bi-box-arrow-in-down");
+                .contains("bg-amber-500").doesNotContain("bi-box-arrow-in-down").doesNotContain("Registre y consulte los consumos de esta etapa");
+        // El botón de tres puntos solo tiene aria-label (sin tooltip ni title) y su opción abre el diálogo de reservas
+        Matcher puntos = Pattern.compile("(?s)<button[^>]*data-menu-abrir[^>]*>").matcher(insumos);
+        assertThat(puntos.find()).isTrue();
+        assertThat(puntos.group()).contains("aria-label=\"Más opciones de insumos de la etapa\"").contains("aria-haspopup=\"menu\"").doesNotContain("title=").doesNotContain("data-tooltip");
+        assertThat(insumos).contains("bi-three-dots-vertical").contains("data-abrir-dialogo=\"dialogo-reservas-etapa\"");
+        assertThat(html).contains("/js/menu-opciones.js");
         assertThat(html).doesNotContain("Nuevo consumo");
     }
 
@@ -1565,7 +1571,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-65: la pestaña de Envasado ofrece Finalizar envasado en la franja de estado y Nuevo envasado en la cabecera de los envasados registrados al operario, sin Gestionar consumos, y ninguno de los dos al gerente")
+    @DisplayName("CP-LCT-65: la pestaña de Envasado ofrece Finalizar envasado en la franja de estado y Gestionar envasados en la cabecera de los envasados registrados al operario, sin Gestionar consumos, y ninguno de los dos al gerente")
     void detalle_pestaniaDeEnvasadoConSusAcciones() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.ENVASADO, etapasEnCurso(TipoEtapa.ENVASADO)).build());
@@ -1576,9 +1582,9 @@ class LoteControllerTest {
 
         // Assert
         assertThat(texto(bloque(operario, "data-franja-estado"))).contains("Finalizar envasado");
-        assertThat(texto(bloque(operario, "data-registros-etapa"))).startsWith("Envasados registrados Nuevo envasado");
-        assertThat(operario).doesNotContain("Nuevo consumo").doesNotContain("Gestionar consumos");
-        assertThat(operario).contains("href=\"/lotes/12/envasados\"");
+        assertThat(texto(bloque(operario, "data-registros-etapa"))).startsWith("Envasados registrados Gestionar envasados");
+        assertThat(operario).doesNotContain("Nuevo consumo").doesNotContain("Gestionar consumos").doesNotContain("Nuevo envasado");
+        assertThat(bloque(operario, "data-registros-etapa")).contains("data-ir-envasados").contains("href=\"/lotes/12/envasados\"").contains("bi-box-seam").contains("bg-amber-500");
         Matcher formulario = Pattern.compile("(?s)<form[^>]*action=\"/lotes/12/etapas/envasado/finalizar\"[^>]*>(.*?)</form>").matcher(operario);
         assertThat(formulario.find()).isTrue();
         assertThat(formulario.group()).contains("name=\"_csrf\"").contains("data-confirmar-titulo=\"Finalizar envasado\"")
@@ -3252,7 +3258,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-160: la sección Insumos de la etapa lista las reservas con su historial (insumo, lote de insumo, reservada, consumida, liberada, reducida por ajuste, pendiente y estado), las activas primero")
+    @DisplayName("CP-LCT-160: la opción Ver reservas de la etapa abre un diálogo con las reservas y su historial (insumo, lote de insumo, reservada, consumida, liberada, reducida por ajuste, pendiente y estado), las activas primero")
     void detalle_reservasDeLaEtapaConHistorial() throws Exception {
         // Arrange
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 5.0, 20.0)));
@@ -3266,7 +3272,9 @@ class LoteControllerTest {
 
         // Assert
         String reservas = bloque(html, "data-reservas-etapa");
-        assertThat(texto(reservas)).startsWith("Reservas de la etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida por ajuste Pendiente Estado");
+        assertThat(texto(reservas)).startsWith("Insumo Lote de insumo Reservada Consumida Liberada Reducida por ajuste Pendiente Estado");
+        String dialogo = elementoConAtributo(html, "dialog", "id=\"dialogo-reservas-etapa\"");
+        assertThat(dialogo).contains("data-dialogo-informativo").contains("max-w-4xl").contains("overflow-x-auto").contains("Reservas de la etapa").doesNotContain("data-reservas-vacias");
         assertThat(reservas.indexOf("L-ACT")).isLessThan(reservas.indexOf("L-OLD"));
         assertThat(reservas.indexOf("L-OLD")).isLessThan(reservas.indexOf("L-LIB"));
         assertThat(texto(reservas)).contains("L-ACT 8 g 3 g 0 g 0 g 5 g Activa")
@@ -3296,7 +3304,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-162: sin reservas en la etapa no se muestra la tabla de reservas, y una etapa que no consume insumos no consulta reservas")
+    @DisplayName("CP-LCT-162: sin reservas el diálogo informa que la etapa no tiene reservas, y una etapa que no consume insumos no tiene diálogo ni consulta reservas")
     void detalle_sinReservas() throws Exception {
         // Arrange
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0)));
@@ -3307,8 +3315,27 @@ class LoteControllerTest {
         String maceracion = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "maceracion");
 
         // Assert
-        assertThat(hervido).doesNotContain("data-reservas-etapa").doesNotContain("Reservas de la etapa");
-        assertThat(maceracion).doesNotContain("data-reservas-etapa");
+        assertThat(hervido).doesNotContain("data-reservas-etapa").contains("data-reservas-vacias").contains("La etapa no tiene reservas");
+        assertThat(maceracion).doesNotContain("data-reservas-etapa").doesNotContain("dialogo-reservas-etapa");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-163: Gestionar envasados aparece al operario en Envasado también con la etapa finalizada y el lote finalizado, hacia la misma pantalla de gestión, y la opción Ver reservas no depende del estado")
+    void detalle_gestionarEnvasadosEnUnLoteFinalizado() throws Exception {
+        // Arrange
+        List<EtapaLoteResponseDTO> cerradas = etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
+                EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA);
+        stubDetalle(detalle(EstadoLote.FINALIZADO, null, cerradas).build());
+
+        // Act
+        String envasado = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "envasado");
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 0.0, 25.0)));
+        String hervido = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
+
+        // Assert
+        assertThat(bloque(envasado, "data-registros-etapa")).contains("data-ir-envasados").contains("href=\"/lotes/12/envasados\"").contains("Gestionar envasados");
+        assertThat(envasado).doesNotContain("Nuevo envasado");
+        assertThat(bloque(hervido, "data-insumos-etapa")).contains("data-ir-consumos").contains("data-abrir-dialogo=\"dialogo-reservas-etapa\"");
     }
 
     private static LupuloResponseDTO cascade() {

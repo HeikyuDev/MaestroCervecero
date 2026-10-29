@@ -30,7 +30,7 @@
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Datos del proveedor</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
                     <label for="razonSocial" class="block text-sm font-medium text-slate-700 mb-1">Razón social <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="text" id="razonSocial" th:field="*{version.razonSocial}" autofocus autocomplete="off" placeholder="Ej: Malterías del Sur S.A."
@@ -67,7 +67,7 @@
                     <p th:unless="${#fields.hasErrors('version.telefono')}" class="mt-1 text-xs text-slate-400">Opcional. Solo dígitos, hasta 15.</p>
                 </div>
 
-                <div>
+                <div class="md:col-span-2">
                     <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Correo electrónico <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="email" id="email" th:field="*{version.email}" autocomplete="off" placeholder="Ej: ventas@malteriasdelsur.com"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
@@ -76,7 +76,12 @@
                     <p th:unless="${#fields.hasErrors('version.email')}" class="mt-1 text-xs text-slate-400">Único entre los proveedores, sin distinguir mayúsculas. Hasta 255 caracteres.</p>
                 </div>
 
-                <div>
+                <div class="md:col-span-3">
+                    <div th:replace="~{fragments/ubicacion-enlazada :: ubicacion('version.idLocalidad', *{version.idLocalidad}, ${textoLocalidad}, ${idProvinciaElegida},
+                            ${textoProvincia}, ${idPaisElegido}, ${textoPais}, true, ${#fields.hasErrors('version.idLocalidad')})}"></div>
+                    <p th:if="${#fields.hasErrors('version.idLocalidad')}" th:errors="*{version.idLocalidad}" class="mt-1 text-xs text-rose-600"></p>
+                </div>
+                <div class="md:col-span-3">
                     <label for="direccion" class="block text-sm font-medium text-slate-700 mb-1">Dirección <span class="text-rose-600" title="Obligatorio">*</span></label>
                     <input type="text" id="direccion" th:field="*{version.direccion}" autocomplete="off" placeholder="Ej: Av. Italia 1234"
                            class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
@@ -85,11 +90,6 @@
                     <p th:unless="${#fields.hasErrors('version.direccion')}" class="mt-1 text-xs text-slate-400">Hasta 255 caracteres.</p>
                 </div>
 
-                <div class="md:col-span-2">
-                    <div th:replace="~{fragments/ubicacion-enlazada :: ubicacion('version.idLocalidad', *{version.idLocalidad}, ${textoLocalidad}, ${idProvinciaElegida},
-                            ${textoProvincia}, ${idPaisElegido}, ${textoPais}, true, ${#fields.hasErrors('version.idLocalidad')})}"></div>
-                    <p th:if="${#fields.hasErrors('version.idLocalidad')}" th:errors="*{version.idLocalidad}" class="mt-1 text-xs text-rose-600"></p>
-                </div>
             </div>
         </section>
 

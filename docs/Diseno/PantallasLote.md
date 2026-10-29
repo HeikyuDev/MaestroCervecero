@@ -194,27 +194,24 @@ Las seis pestañas tienen las mismas secciones, en este orden. Lo que cambia es 
 +- 2. TARJETA GUÍA (según la etapa) -----------------------------------------------------+
 | ...                                                                                      |
 +- 3. INSUMOS DE LA ETAPA ---------------------------------------------------------------+
+| Insumos de la etapa                          [ Gestionar consumos ]c  [ ⋮ ]             |
+|                                              menú: Ver reservas de la etapa             |
 | Insumo     Requerido (g)   Reservado (g)   Consumido (g)   Avance                       |
 | Cascade    25              10              15              15 de 25 g                   |
 | Citra      15              15              0               0 de 15 g                    |
-| Reservas de la etapa                                                                     |
-| Insumo  Lote   Reservada  Consumida  Liberada  Reducida  Pendiente  Estado               |
-| Citra   L-02   15 g       0 g        0 g       0 g       15 g       Activa               |
-| Cascade L-01   25 g       15 g       0 g        0 g       10 g       Activa               |
 | Avance para finalizar:  Cascade 60% de 80% requerido (!)                                 |
 |                         Citra 0% de 80% requerido (!)                                   |
-| Registre y consulte los consumos de esta etapa          [ Gestionar consumos ]c         |
 +------------------------------------------------------------------------------------------+
 o = solo el operario, con el lote En ejecución y esta etapa En curso.
 c = quien tiene CONSUMO_INSUMO_CONSULTAR (el operario), en las etapas que consumen insumos y con cualquier estado.
 ```
 
 - La franja de estado lleva el nombre de la etapa y, a la derecha, "Finalizar etapa" (en Envasado, "Finalizar envasado"), la acción principal: es un formulario POST con confirmación cuando hay JavaScript. No hay una tarjeta de acciones aparte.
-- El pie de la sección de insumos tiene, a la izquierda, el texto de ayuda "Registre y consulte los consumos de esta etapa" y, a la derecha, el botón sólido ámbar "Gestionar consumos" (ícono `bi-list-check`), que lleva a la pantalla 4. Los consumos registrados no se listan en la pestaña: se consultan en esa pantalla.
-- Bajo la tabla de insumos, "Reservas de la etapa" lista las reservas de esa etapa con su historial, en solo lectura: insumo, lote de insumo (su identificación), reservada (la cantidad original), consumida, liberada, reducida por ajuste, pendiente y estado (etiqueta de color: Activa, Consumida o Liberada). Una reserva nunca se borra: al finalizar la etapa o cancelar el lote el saldo pendiente pasa a liberada y la reserva queda Liberada, por lo que las reservas de etapas cerradas y de lotes finalizados o cancelados se siguen viendo. Las activas van primero. Se muestra con el mismo permiso que ver el lote (`LOTE_CONSULTAR`) y solo si la etapa tiene reservas.
+- La cabecera de la sección de insumos tiene el título a la izquierda y, a la derecha, el botón sólido ámbar "Gestionar consumos" (ícono `bi-list-check`), que lleva a la pantalla 4, y un botón de tres puntos (`bi-three-dots-vertical`, solo `aria-label`, sin tooltip) con la opción "Ver reservas de la etapa". La tarjeta no tiene pie. Los consumos registrados no se listan en la pestaña: se consultan en esa pantalla.
+- "Ver reservas de la etapa" abre un diálogo (ancho `max-w-4xl`, con scroll horizontal si hace falta) titulado "Reservas de la etapa" con el historial de las reservas de esa etapa, en solo lectura: insumo, lote de insumo (su identificación), reservada (la cantidad original), consumida, liberada, reducida por ajuste, pendiente y estado (etiqueta de color: Activa, Consumida o Liberada). Las activas van primero y sin reservas dice "La etapa no tiene reservas". Una reserva nunca se borra: al finalizar la etapa o cancelar el lote el saldo pendiente pasa a liberada y la reserva queda Liberada, por lo que la opción está disponible también en etapas cerradas y en lotes finalizados o cancelados, con el mismo permiso que ver el lote (`LOTE_CONSULTAR`).
 - El avance, bajo la tabla, muestra por insumo el porcentaje consumido frente al mínimo exigido ("75% de 80% requerido"). Con mínimo 0 dice "Sin consumo mínimo requerido". Solo aparece con la etapa en curso. El botón siempre está habilitado: el avance es informativo y, si no se alcanza el mínimo, el service rechaza y su mensaje se muestra en una alerta.
 - La tarjeta de insumos solo existe en las etapas que consumen insumos: en una etapa sin insumos (Maceración, Envasado, o una etapa que la receta no usa) no se muestra la tarjeta ni el botón "Gestionar consumos".
-- En Envasado, una sección lista los envasados registrados (barril, cantidad y estado; los anulados llevan el botón "Ver detalle de la anulación") y en su cabecera lleva "Nuevo envasado" para el operario con el envasado en curso (lleva a la pantalla 5).
+- En Envasado, una sección lista los envasados registrados (barril, cantidad y estado; los anulados llevan el botón "Ver detalle de la anulación") y en su cabecera lleva el botón sólido ámbar "Gestionar envasados" (ícono `bi-box-seam`) con `ENVASADO_CONSULTAR`, en cualquier estado de la etapa o del lote, que lleva a la pantalla 5, donde está "Nuevo envasado".
 - Lo consumido frente a lo requerido se muestra solo en la tabla de insumos; la guía no lo repite.
 
 ### 6.4 Tarjeta guía de cada etapa
@@ -400,9 +397,10 @@ Cola pendiente de F-01
 | Nuevo lote (estado de la planificación) | `LOTE_REGISTRAR` | - (planificación Pendiente) | - |
 | Iniciar lote (con confirmación) | `LOTE_INICIAR` | Pendiente | - |
 | Cancelar lote | `LOTE_ANULAR` | Pendiente o En ejecución (desactivado con envasados registrados) | - |
-| Gestionar consumos (pie de los insumos) | `CONSUMO_INSUMO_CONSULTAR` | Cualquiera | Cualquiera, de una etapa que consume insumos |
+| Gestionar consumos (cabecera de los insumos) | `CONSUMO_INSUMO_CONSULTAR` | Cualquiera | Cualquiera, de una etapa que consume insumos |
 | Nuevo consumo / Anular consumo (pantalla 4) | `CONSUMO_INSUMO_REGISTRAR` / `CONSUMO_INSUMO_ANULAR` | En ejecución | En curso |
-| Nuevo envasado (cabecera de los envasados) | `ENVASADO_REGISTRAR` | En ejecución | Envasado en curso |
+| Gestionar envasados (cabecera de los envasados) | `ENVASADO_CONSULTAR` | Cualquiera | Etapa de Envasado, cualquier estado |
+| Ver reservas de la etapa (menú de los insumos) | `LOTE_CONSULTAR` | Cualquiera | Cualquiera, de una etapa que consume insumos |
 | Crear / Anular envasado (pantalla 5) | `ENVASADO_REGISTRAR` / `ENVASADO_ANULAR` | En ejecución | Envasado en curso |
 | Finalizar etapa (seis, con confirmación; siempre habilitado) | `LOTE_FINALIZAR_<ETAPA>` | En ejecución | Esa etapa en curso |
 | Subir / Bajar (cronograma) | `LOTE_REGISTRAR` | Pendiente | - |
@@ -426,7 +424,7 @@ Un clic es un clic de mouse o un toque. Escribir en un campo no se cuenta como c
 | Registrar un consumo directo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; pestaña "Directos"; "Nuevo consumo directo"; elegir el insumo ("Elegir"); abrir el selector del lote de insumo; "Elegir"; escribir la cantidad; "Crear consumo directo" | 10 y 1 escritura |
 | Anular un consumo | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar consumos"; "Anular" en la fila; escribir el motivo; confirmar | 5 y 1 escritura |
 | Finalizar la etapa en curso | Operario | "Gestión de Lotes"; abrir el lote; "Finalizar etapa"; confirmar (vuelve al detalle, que abre la etapa siguiente) | 4 |
-| Registrar el primer envasado | Operario | "Gestión de Lotes"; abrir el lote; "Nuevo envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 6 y 1 escritura |
+| Registrar el primer envasado | Operario | "Gestión de Lotes"; abrir el lote; "Gestionar envasados"; "Nuevo envasado"; abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 6 y 1 escritura |
 | Registrar otro envasado (ya en la pantalla) | Operario | abrir el selector del barril; "Elegir"; escribir la cantidad; "Crear envasado" | 3 y 1 escritura |
 | Finalizar el envasado | Operario | "Volver al lote" (o "Gestión de Lotes" y abrir el lote); "Finalizar envasado"; confirmar | 3 (4 desde la sidebar) |
 | Revisar qué se consumió en una etapa pasada | Operario | abrir el lote; clic en la pestaña de la etapa; "Gestionar consumos" | 4 |

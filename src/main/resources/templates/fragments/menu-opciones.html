@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Menú de opciones (botón de tres puntos): patrón para las acciones secundarias o de trazabilidad de una tarjeta, que no
+    son la acción principal. El botón solo tiene aria-label (sin tooltip ni title) y despliega un menú pequeño. Se cierra
+    al hacer clic afuera o con Escape (el foco vuelve al botón) y se maneja con el teclado: Enter, Espacio o flecha abajo
+    lo abren y las flechas recorren las opciones. El comportamiento lo da /js/menu-opciones.js.
+
+    menu(etiqueta, opciones): etiqueta es el aria-label del botón (por ejemplo 'Más opciones de la etapa') y opciones un
+    fragmento ~{::opciones} con las opciones, declarado dentro del uso con <th:block th:fragment="opciones">.
+    opcionDialogo(icono, texto, idDialogo): una opción que abre el <dialog> indicado (data-abrir-dialogo). El diálogo
+    informativo lleva data-dialogo-informativo y su botón data-cerrar-dialogo.
+
+    Uso: <div th:replace="~{fragments/menu-opciones :: menu('Más opciones de la etapa', ~{::opciones})}">
+             <th:block th:fragment="opciones">
+                 <button th:replace="~{fragments/menu-opciones :: opcionDialogo('bi-bookmarks', 'Ver reservas de la etapa', 'dialogo-reservas-etapa')}"></button>
+             </th:block>
+         </div>
+-->
+<div th:fragment="menu(etiqueta, opciones)" data-menu-opciones class="relative">
+    <button type="button" data-menu-abrir aria-haspopup="menu" aria-expanded="false" th:aria-label="${etiqueta}"
+            class="inline-flex items-center px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+        <i class="bi bi-three-dots-vertical"></i>
+    </button>
+    <div data-menu-panel hidden role="menu"
+         class="absolute right-0 top-full mt-1 z-20 min-w-max rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <th:block th:replace="${opciones}"></th:block>
+    </div>
+</div>
+
+<button th:fragment="opcionDialogo(icono, texto, idDialogo)" type="button" role="menuitem" data-menu-opcion th:attr="data-abrir-dialogo=${idDialogo}"
+        class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-700 hover:bg-amber-50 hover:text-amber-700 focus:bg-amber-50 focus:outline-none transition-colors">
+    <i class="bi" th:classappend="${icono}"></i>
+    <span th:text="${texto}">Opción</span>
+</button>
+
+</html>

@@ -27,7 +27,7 @@
     <!-- Datos del proveedor -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos del proveedor</h2>
-        <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <dl class="p-5 grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
             <div>
                 <dt class="text-xs font-medium text-slate-500">Razón social</dt>
                 <dd class="mt-1 font-medium text-slate-900 break-words" th:text="${version.razonSocial}">Malterías del Sur S.A.</dd>
@@ -44,13 +44,9 @@
                 <dt class="text-xs font-medium text-slate-500">Teléfono</dt>
                 <dd class="mt-1 text-slate-900" th:text="${version.telefono != null and !#strings.isEmpty(version.telefono)} ? ${version.telefono} : '-'">3584123456</dd>
             </div>
-            <div>
+            <div class="lg:col-span-2">
                 <dt class="text-xs font-medium text-slate-500">Correo electrónico</dt>
                 <dd class="mt-1 text-slate-900 break-words" th:text="${version.email}">ventas@malteriasdelsur.com</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Dirección</dt>
-                <dd class="mt-1 text-slate-900 break-words" th:text="${version.direccion}">Av. Italia 1234</dd>
             </div>
             <div>
                 <dt class="text-xs font-medium text-slate-500">País</dt>
@@ -66,6 +62,10 @@
                 <dt class="text-xs font-medium text-slate-500">Localidad</dt>
                 <dd class="mt-1 text-slate-900"
                     th:text="${version.localidad != null} ? ${version.localidad.nombre} : '-'">Río Cuarto</dd>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3">
+                <dt class="text-xs font-medium text-slate-500">Dirección</dt>
+                <dd class="mt-1 text-slate-900 break-words" th:text="${version.direccion}">Av. Italia 1234</dd>
             </div>
         </dl>
     </section>

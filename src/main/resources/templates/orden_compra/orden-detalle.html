@@ -54,6 +54,21 @@
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la orden</h2>
         <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
             <div>
+                <dt class="text-xs font-medium text-slate-500">Planificación de producción</dt>
+                <dd class="mt-1 font-medium text-slate-900 break-words" th:text="${orden.planificacionProduccion.etiqueta}">Plan #7 - Pale Ale</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Proveedor</dt>
+                <dd class="mt-1 text-slate-900 break-words">
+                    <span class="font-medium" th:text="${orden.proveedor.razonSocial}">Malterías del Sur S.A.</span>
+                    <span class="block text-xs text-slate-500 whitespace-nowrap">CUIT <th:block th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(orden.proveedor.cuit)}">30-71234567-8</th:block></span>
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Fecha de entrega estimada</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${orden.fechaEntregaEstimada})}"></th:block></dd>
+            </div>
+            <div>
                 <dt class="text-xs font-medium text-slate-500">Estado</dt>
                 <dd class="mt-1 flex items-center gap-2">
                     <span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${orden.estado})}"></span>
@@ -72,21 +87,6 @@
                         <i class="bi bi-info-circle" aria-hidden="true"></i>
                     </button>
                 </dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Planificación de producción</dt>
-                <dd class="mt-1 font-medium text-slate-900 break-words" th:text="${orden.planificacionProduccion.etiqueta}">Plan #7 - Pale Ale</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Proveedor</dt>
-                <dd class="mt-1 text-slate-900 break-words">
-                    <span class="font-medium" th:text="${orden.proveedor.razonSocial}">Malterías del Sur S.A.</span>
-                    <span class="block text-xs text-slate-500 whitespace-nowrap">CUIT <th:block th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(orden.proveedor.cuit)}">30-71234567-8</th:block></span>
-                </dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Fecha de entrega estimada</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${orden.fechaEntregaEstimada})}"></th:block></dd>
             </div>
             <div>
                 <dt class="text-xs font-medium text-slate-500">Total ($)</dt>
