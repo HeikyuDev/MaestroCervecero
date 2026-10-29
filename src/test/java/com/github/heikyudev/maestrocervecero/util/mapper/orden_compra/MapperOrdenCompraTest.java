@@ -111,6 +111,46 @@ class MapperOrdenCompraTest {
     }
 
     @Test
+    @DisplayName("CP-MOC-08: toDTOConCantidades informa los totales de presentaciones pedidas, recibidas y pendientes y el porcentaje recibido")
+    void toDTOConCantidades_debeInformarLaCompletitudDeLaOrden() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraEntity orden = ordenCompra();
+        agregarDetalle(orden, 1L, 5, new BigDecimal("10.0000"), 25000.0, UnidadDeMedida.GRAMO);
+        agregarDetalle(orden, 2L, 3, new BigDecimal("10.0000"), 25000.0, UnidadDeMedida.GRAMO);
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO resultado = MapperOrdenCompra.toDTOConCantidades(orden, detalle -> detalle.getId() == 1L ? 50.0 : 75.0);
+
+        // === ASSERTS ===
+        assertThat(resultado.getTotalItems()).isEqualTo(2);
+        assertThat(resultado.getTotalPedidas()).isEqualTo(8);
+        assertThat(resultado.getTotalRecibidas()).isEqualTo(5.0);
+        assertThat(resultado.getTotalPendientes()).isEqualTo(3.0);
+        assertThat(resultado.getPorcentajeRecibido()).isEqualTo(63);
+    }
+
+    @Test
+    @DisplayName("CP-MOC-09: el porcentaje recibido no pasa de 100 aunque se reciba de más, y sin cantidades recibidas los totales recibidos y el porcentaje quedan en null")
+    void toDTO_debeLimitarElPorcentajeYOmitirLosTotalesSinCantidades() {
+        // === PREPARACION DE DATOS ===
+        OrdenCompraEntity orden = ordenCompra();
+        agregarDetalle(orden, 1L, 4, new BigDecimal("10.0000"), 25000.0, UnidadDeMedida.GRAMO);
+
+        // === EJECUCION ===
+        OrdenCompraResponseDTO conExceso = MapperOrdenCompra.toDTOConCantidades(orden, detalle -> 150.0);
+        OrdenCompraResponseDTO sinCantidades = MapperOrdenCompra.toDTO(orden);
+
+        // === ASSERTS ===
+        assertThat(conExceso.getPorcentajeRecibido()).isEqualTo(100);
+        assertThat(conExceso.getTotalPendientes()).isZero();
+        assertThat(sinCantidades.getTotalItems()).isEqualTo(1);
+        assertThat(sinCantidades.getTotalPedidas()).isEqualTo(4);
+        assertThat(sinCantidades.getTotalRecibidas()).isNull();
+        assertThat(sinCantidades.getTotalPendientes()).isNull();
+        assertThat(sinCantidades.getPorcentajeRecibido()).isNull();
+    }
+
+    @Test
     @DisplayName("CP-MOC-06: toDTO y toDTOConCantidades retornan null cuando la orden es nula")
     void toDTO_debeRetornarNullConOrdenNula() {
         // === EJECUCION + ASSERTS ===

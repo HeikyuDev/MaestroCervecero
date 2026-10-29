@@ -87,6 +87,22 @@
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-eye text-lg"></i>
                         </a>
+                        <th:block th:if="${o.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
+                            <button type="button" title="Finalizar orden de compra" aria-label="Finalizar orden de compra"
+                                    data-motivo-dialogo="dialogo-finalizar"
+                                    th:data-motivo-url="@{/ordenes-compra/{id}/finalizar(id=${o.id})}"
+                                    th:data-motivo-nombre="|Orden de compra #${o.id}|"
+                                    class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                                <i class="bi bi-check2-circle text-lg"></i>
+                            </button>
+                            <button type="button" title="Anular orden de compra" aria-label="Anular orden de compra"
+                                    data-motivo-dialogo="dialogo-anular"
+                                    th:data-motivo-url="@{/ordenes-compra/{id}/anular(id=${o.id})}"
+                                    th:data-motivo-nombre="|Orden de compra #${o.id}|"
+                                    class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
+                                <i class="bi bi-x-circle text-lg"></i>
+                            </button>
+                        </th:block>
                     </div>
                 </td>
             </tr>
@@ -105,6 +121,17 @@
                 ${ordenes.hasNext()} ? @{/ordenes-compra(pagina=${ordenes.number + 1}, idPlanificacion=${filtroIdPlanificacion}, idProveedor=${filtroIdProveedor}, estado=${filtroEstado}, fechaEntregaEstimada=${filtroFechaEntregaEstimada})} : null,
                 false)}"></div>
     </div>
+
+    <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-finalizar', 'Finalizar orden de compra',
+                'Se cierra de forma manual y queda registrado el motivo; no se podrá reabrir. Solo procede si ya tiene un ingreso de insumo registrado. El motivo admite hasta 255 caracteres.',
+                'Confirmar finalización', 'bg-emerald-600 hover:bg-emerald-700', 'bi-check2-circle',
+                'El proveedor no puede entregar el resto de los ítems')}"></div>
+        <div th:replace="~{fragments/dialogo-motivo :: dialogo('dialogo-anular', 'Anular orden de compra',
+                'Se anula y queda registrado el motivo. Requiere que no tenga ingresos de insumo registrados. El motivo admite hasta 255 caracteres.',
+                'Confirmar anulación', 'bg-rose-600 hover:bg-rose-700', 'bi-x-circle',
+                'La orden se cargó con un proveedor equivocado')}"></div>
+    </th:block>
 </div>
 
 </body>

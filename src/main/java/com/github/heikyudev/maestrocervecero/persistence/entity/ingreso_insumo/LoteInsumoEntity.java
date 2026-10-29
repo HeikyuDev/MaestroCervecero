@@ -11,7 +11,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "lote_insumo", uniqueConstraints = @UniqueConstraint(columnNames = {"insumo_id", "identificacion_lote_proveedor"}))
+@Table(name = "lote_insumo")
 @Getter
 @Setter
 @Builder
@@ -33,6 +33,10 @@ public class LoteInsumoEntity {
     @Builder.Default
     private Double cantidadReservada = 0.0;
 
+    /**
+     * Identificación del lote tal como la imprime el proveedor (conserva las mayúsculas). Insumo e identificación
+     * son únicos sin distinguir mayúsculas: lo garantiza el índice {@code udx_lote_insumo_insumo_identificacion}.
+     */
     @Column(name = "identificacion_lote_proveedor", nullable = false)
     private String identificacionLoteProveedor;
 

@@ -24,6 +24,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnicoTest;
+import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,7 +93,7 @@ class ProveedorServicioImplTest {
         Pageable pageable = PageRequest.of(0, 10);
         ProveedorEntity proveedor1 = crearProveedorEntityConVersionActiva(1L, "Maltería del Sur S.A.", "30-11111111-1");
         ProveedorEntity proveedor2 = crearProveedorEntityConVersionActiva(2L, "Maltería del Norte S.A.", "30-22222222-2");
-        when(proveedorRepository.filtrarProveedores("Maltería", "Sur", "30111111111", LOCALIDAD_ID, pageable))
+        when(proveedorRepository.filtrarProveedores("Maltería", "Sur", "30-11111111-1", LOCALIDAD_ID, pageable))
                 .thenReturn(new PageImpl<>(List.of(proveedor1, proveedor2), pageable, 2));
 
         // === EJECUCION ===
@@ -102,7 +103,7 @@ class ProveedorServicioImplTest {
         assertThat(resultado.getTotalElements()).isEqualTo(2);
         assertThat(resultado.getContent()).hasSize(2);
         assertThat(resultado.getContent().get(0).getVersion().getRazonSocial()).isEqualTo("Maltería del Sur S.A.");
-        verify(proveedorRepository).filtrarProveedores("Maltería", "Sur", "30111111111", LOCALIDAD_ID, pageable);
+        verify(proveedorRepository).filtrarProveedores("Maltería", "Sur", "30-11111111-1", LOCALIDAD_ID, pageable);
     }
 
     @Test
@@ -144,14 +145,14 @@ class ProveedorServicioImplTest {
     void filtrarProveedores_debeNormalizarLosTextosBuscados() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(proveedorRepository.filtrarProveedores("Maltería del Sur", "Sur", "30111111111", null, pageable))
+        when(proveedorRepository.filtrarProveedores("Maltería del Sur", "Sur", "30-11111111-1", null, pageable))
                 .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
         // === EJECUCION ===
         proveedorServicio.filtrarProveedores("   Maltería   del  Sur ", "  Sur ", " 30-11111111-1 ", null, pageable);
 
         // === ASSERTS ===
-        verify(proveedorRepository).filtrarProveedores("Maltería del Sur", "Sur", "30111111111", null, pageable);
+        verify(proveedorRepository).filtrarProveedores("Maltería del Sur", "Sur", "30-11111111-1", null, pageable);
     }
 
     @Test
@@ -207,11 +208,11 @@ class ProveedorServicioImplTest {
     void altaProveedor_debeRechazarCuitDuplicado() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().cuit("30111111111").build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30111111111")).thenReturn(true);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-11111111-1")).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor con el CUIT '30111111111'");
+                .hasMessage("Ya existe un proveedor con el CUIT 30-11111111-1");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -222,7 +223,7 @@ class ProveedorServicioImplTest {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().idLocalidad(99L).build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getCuit())).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()))).thenReturn(false);
         when(localidadRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO))
@@ -240,7 +241,7 @@ class ProveedorServicioImplTest {
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getCuit())).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()))).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(PRESENTACION_ID)).thenReturn(Optional.of(presentacionComercialEntity(PRESENTACION_ID)));
         when(insumoRepository.findById(99L)).thenReturn(Optional.empty());
@@ -260,7 +261,7 @@ class ProveedorServicioImplTest {
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getCuit())).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()))).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -326,7 +327,7 @@ class ProveedorServicioImplTest {
                 .email("  Contacto@MalteriaDelSur.COM ")
                 .direccion("  Ruta 5   Km 120 ")
                 .build();
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30123456789")).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-12345678-9")).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue("contacto@malteriadelsur.com")).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -341,7 +342,7 @@ class ProveedorServicioImplTest {
         VersionProveedorEntity versionGuardada = captor.getValue().getVersiones().get(0);
         assertThat(versionGuardada.getRazonSocial()).isEqualTo("Maltería del Sur S.A.");
         assertThat(versionGuardada.getNombreComercial()).isEqualTo("Maltería del Sur");
-        assertThat(versionGuardada.getCuit()).isEqualTo("30123456789");
+        assertThat(versionGuardada.getCuit()).isEqualTo("30-12345678-9");
         assertThat(versionGuardada.getTelefono()).isEqualTo("1122334455");
         assertThat(versionGuardada.getEmail()).isEqualTo("contacto@malteriadelsur.com");
         assertThat(versionGuardada.getDireccion()).isEqualTo("Ruta 5 Km 120");
@@ -394,17 +395,17 @@ class ProveedorServicioImplTest {
     void altaProveedor_debeRechazarCuitInvalido(String descripcion, VersionProveedorFormDTO version) {
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(version)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El CUIT debe tener 11 dígitos");
+                .hasMessage("El CUIT debe tener exactamente 11 dígitos");
 
         verifyNoRepositoryInteractions();
     }
 
     @ParameterizedTest(name = "CP-AP-13: CUIT {0}")
     @ValueSource(strings = {"30-12345678-9", "30 12345678 9", "30.12345678.9", " 30123456789 "})
-    @DisplayName("CP-AP-13: altaProveedor acepta un CUIT con separadores y lo guarda solo con sus 11 dígitos")
+    @DisplayName("CP-AP-13: altaProveedor acepta un CUIT con o sin separadores y lo guarda con el formato XX-XXXXXXXX-X")
     void altaProveedor_debeGuardarElCuitSoloConDigitos(String cuit) {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().cuit(cuit).build();
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30123456789")).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-12345678-9")).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
         when(proveedorRepository.save(any(ProveedorEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -413,7 +414,7 @@ class ProveedorServicioImplTest {
 
         ArgumentCaptor<ProveedorEntity> captor = ArgumentCaptor.forClass(ProveedorEntity.class);
         verify(proveedorRepository).save(captor.capture());
-        assertThat(captor.getValue().getVersiones().get(0).getCuit()).isEqualTo("30123456789");
+        assertThat(captor.getValue().getVersiones().get(0).getCuit()).isEqualTo("30-12345678-9");
     }
 
     @ParameterizedTest(name = "CP-AP-14: {0}")
@@ -476,7 +477,7 @@ class ProveedorServicioImplTest {
     @DisplayName("CP-AP-17: altaProveedor lanza RecursoDuplicadoException cuando el correo electrónico ya está registrado por un proveedor activo")
     void altaProveedor_debeRechazarCorreoDuplicado() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().email("  CONTACTO@malteriadelsur.com ").build();
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(versionFormDTO.getCuit())).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()))).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue("contacto@malteriadelsur.com")).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)))
@@ -490,11 +491,24 @@ class ProveedorServicioImplTest {
     @DisplayName("CP-AP-19: altaProveedor detecta el CUIT duplicado aunque se escriba con guiones")
     void altaProveedor_debeDetectarCuitDuplicadoConSeparadores() {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().cuit("30-11111111-1").build();
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30111111111")).thenReturn(true);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-11111111-1")).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor con el CUIT '30111111111'");
+                .hasMessage("Ya existe un proveedor con el CUIT 30-11111111-1");
+
+        verify(proveedorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AP-41: altaProveedor detecta el CUIT duplicado aunque se escriba solo con dígitos, porque se compara con el formato XX-XXXXXXXX-X")
+    void altaProveedor_debeDetectarCuitDuplicadoEscritoSoloConDigitos() {
+        VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().cuit("20123456786").build();
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("20-12345678-6")).thenReturn(true);
+
+        assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)))
+                .isInstanceOf(RecursoDuplicadoException.class)
+                .hasMessage("Ya existe un proveedor con el CUIT 20-12345678-6");
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -522,7 +536,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.altaProveedor(proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor con el CUIT '30123456789'");
+                .hasMessage("Ya existe un proveedor con el CUIT 30-12345678-9");
     }
 
     @Test
@@ -741,8 +755,8 @@ class ProveedorServicioImplTest {
         // Arrange
         VersionProveedorFormDTO conCuitRepetido = versionValidaBuilder().cuit("30111111111").build();
         VersionProveedorFormDTO conCorreoRepetido = versionValidaBuilder().cuit("30222222222").email("contacto@malteriadelsur.com").build();
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30111111111")).thenReturn(true);
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30222222222")).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-11111111-1")).thenReturn(true);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue("30-22222222-2")).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue("contacto@malteriadelsur.com")).thenReturn(true);
 
         // Act
@@ -788,11 +802,11 @@ class ProveedorServicioImplTest {
         when(proveedorRepository.findByIdParaActualizarVersiones(1L))
                 .thenReturn(Optional.of(crearProveedorEntityConVersionActiva(1L, "Maltería del Norte S.A.", "30987654321")));
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(true);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor con el CUIT '" + versionFormDTO.getCuit() + "'");
+                .hasMessage("Ya existe un proveedor con el CUIT " + ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()));
 
         verify(proveedorRepository, never()).save(any());
     }
@@ -809,7 +823,7 @@ class ProveedorServicioImplTest {
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                "30111111111", 1L)).thenReturn(false);
+                "30-11111111-1", 1L)).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
                 versionFormDTO.getEmail(), 1L)).thenReturn(false);
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
@@ -851,7 +865,7 @@ class ProveedorServicioImplTest {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().idLocalidad(99L).build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -877,7 +891,7 @@ class ProveedorServicioImplTest {
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(PRESENTACION_ID)).thenReturn(Optional.of(presentacionComercialEntity(PRESENTACION_ID)));
@@ -902,7 +916,7 @@ class ProveedorServicioImplTest {
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         when(presentacionComercialRepository.findById(99L)).thenReturn(Optional.empty());
@@ -926,7 +940,7 @@ class ProveedorServicioImplTest {
                 .build();
         ProveedorFormDTO proveedorFormDTO = proveedorFormDTO(versionFormDTO);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -956,7 +970,7 @@ class ProveedorServicioImplTest {
         VersionProveedorEntity version3 = crearVersionProveedorEntity(12L, "Maltería del Sur S.A.", "30-11111111-1", true);
         ProveedorEntity proveedorEntityExistente = crearProveedorEntityConVersiones(1L, version1, version2, version3);
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -986,7 +1000,7 @@ class ProveedorServicioImplTest {
                 .direccion("  Ruta 5   Km 120 ")
                 .build();
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30123456789", 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30-12345678-9", 1L)).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot("contacto@malteriadelsur.com", 1L)).thenReturn(false);
         when(localidadRepository.findById(LOCALIDAD_ID)).thenReturn(Optional.of(localidadEntity(LOCALIDAD_ID)));
         mockearCatalogo(versionFormDTO);
@@ -999,7 +1013,7 @@ class ProveedorServicioImplTest {
         VersionProveedorEntity nuevaVersion = proveedorEntityExistente.getVersiones().get(1);
         assertThat(nuevaVersion.getRazonSocial()).isEqualTo("Maltería del Sur S.A.");
         assertThat(nuevaVersion.getNombreComercial()).isEqualTo("Maltería del Sur");
-        assertThat(nuevaVersion.getCuit()).isEqualTo("30123456789");
+        assertThat(nuevaVersion.getCuit()).isEqualTo("30-12345678-9");
         assertThat(nuevaVersion.getTelefono()).isEqualTo("1122334455");
         assertThat(nuevaVersion.getEmail()).isEqualTo("contacto@malteriadelsur.com");
         assertThat(nuevaVersion.getDireccion()).isEqualTo("Ruta 5 Km 120");
@@ -1034,7 +1048,7 @@ class ProveedorServicioImplTest {
     void modificarProveedor_debeRechazarCuitInvalido(String descripcion, VersionProveedorFormDTO version) {
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(version)))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El CUIT debe tener 11 dígitos");
+                .hasMessage("El CUIT debe tener exactamente 11 dígitos");
 
         verifyNoRepositoryInteractions();
     }
@@ -1068,7 +1082,7 @@ class ProveedorServicioImplTest {
         VersionProveedorFormDTO versionFormDTO = versionValidaBuilder().email("  CONTACTO@malteriadelsur.com ").build();
         when(proveedorRepository.findByIdParaActualizarVersiones(1L))
                 .thenReturn(Optional.of(crearProveedorEntityConVersionActiva(1L, "Maltería del Norte S.A.", "30987654321")));
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getCuit(), 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot("contacto@malteriadelsur.com", 1L)).thenReturn(true);
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
@@ -1104,7 +1118,7 @@ class ProveedorServicioImplTest {
 
         assertThatThrownBy(() -> proveedorServicio.modificarProveedor(1L, proveedorFormDTO(versionFormDTO)))
                 .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un proveedor con el CUIT '30123456789'");
+                .hasMessage("Ya existe un proveedor con el CUIT 30-12345678-9");
     }
 
     @Test
@@ -1178,7 +1192,7 @@ class ProveedorServicioImplTest {
 
         InOrder orden = inOrder(proveedorRepository, versionProveedorRepository);
         orden.verify(proveedorRepository).findByIdParaActualizarVersiones(1L);
-        orden.verify(versionProveedorRepository).existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(versionFormDTO.getCuit(), 1L);
+        orden.verify(versionProveedorRepository).existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L);
         verify(proveedorRepository, never()).findById(any());
     }
 
@@ -1321,8 +1335,8 @@ class ProveedorServicioImplTest {
         VersionProveedorFormDTO conCorreoRepetido = versionValidaBuilder().cuit("30222222222").email("contacto@malteriadelsur.com").build();
         when(proveedorRepository.findByIdParaActualizarVersiones(1L))
                 .thenReturn(Optional.of(crearProveedorEntityConVersionActiva(1L, "Maltería del Norte S.A.", "30987654321")));
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30111111111", 1L)).thenReturn(true);
-        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30222222222", 1L)).thenReturn(false);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30-11111111-1", 1L)).thenReturn(true);
+        when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot("30-22222222-2", 1L)).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot("contacto@malteriadelsur.com", 1L)).thenReturn(true);
 
         // Act
@@ -1505,7 +1519,7 @@ class ProveedorServicioImplTest {
      */
     private void mockearAltaSinGuardado(VersionProveedorFormDTO versionFormDTO) {
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrue(
-                versionFormDTO.getCuit())).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()))).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrue(
                 versionFormDTO.getEmail())).thenReturn(false);
         when(localidadRepository.findById(versionFormDTO.getIdLocalidad())).thenReturn(Optional.of(localidadEntity(versionFormDTO.getIdLocalidad())));
@@ -1519,7 +1533,7 @@ class ProveedorServicioImplTest {
     private void mockearModificacionSinGuardado(VersionProveedorFormDTO versionFormDTO, ProveedorEntity proveedorEntityExistente) {
         when(proveedorRepository.findByIdParaActualizarVersiones(1L)).thenReturn(Optional.of(proveedorEntityExistente));
         when(versionProveedorRepository.existsByCuitAndEsUltimaVersionTrueAndProveedorIdNot(
-                versionFormDTO.getCuit(), 1L)).thenReturn(false);
+                ValidacionesTexto.formatearCuit(versionFormDTO.getCuit()), 1L)).thenReturn(false);
         when(versionProveedorRepository.existsByEmailIgnoreCaseAndEsUltimaVersionTrueAndProveedorIdNot(
                 versionFormDTO.getEmail(), 1L)).thenReturn(false);
         when(localidadRepository.findById(versionFormDTO.getIdLocalidad())).thenReturn(Optional.of(localidadEntity(versionFormDTO.getIdLocalidad())));

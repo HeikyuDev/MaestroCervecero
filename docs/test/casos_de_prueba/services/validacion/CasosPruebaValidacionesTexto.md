@@ -16,8 +16,8 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-VT-01** | CUIT válidos | `20123456786`, `30546689979` (YPF S.A.), `30703088534` (MercadoLibre S.R.L.), `33693450239` (AFIP), `30500010912`, `27200000000` | Tiene 11 dígitos ASCII | No lanza excepción. |
-| **CP-VT-02** | Largo distinto de 11 | `null`, `""`, `2012345678` (10), `201234567866` (12), `123`, `20 12345678 6`, `20-12345678-6` | La cantidad de caracteres no es 11 | Lanza `ReglaNegocioException`: "El CUIT debe tener 11 dígitos". |
-| **CP-VT-03** | 11 caracteres que no son todos dígitos ASCII | `2012345678a`, `2O123456786` (letra O), `abcdefghijk`, `20123456 86`, once dígitos arábigos orientales | Algún carácter no es un dígito `0-9` | Lanza `ReglaNegocioException`: "El CUIT debe tener 11 dígitos". |
+| **CP-VT-02** | Largo distinto de 11 | `null`, `""`, `2012345678` (10), `201234567866` (12), `123`, `20 12345678 6`, `20-12345678-6` | La cantidad de caracteres no es 11 | Lanza `ReglaNegocioException`: "El CUIT debe tener exactamente 11 dígitos". |
+| **CP-VT-03** | 11 caracteres que no son todos dígitos ASCII | `2012345678a`, `2O123456786` (letra O), `abcdefghijk`, `20123456 86`, once dígitos arábigos orientales | Algún carácter no es un dígito `0-9` | Lanza `ReglaNegocioException`: "El CUIT debe tener exactamente 11 dígitos". |
 
 ### `formatearCuit(String)`
 

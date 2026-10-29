@@ -84,6 +84,10 @@
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${x.version.catalogoProveedor != null} ? ${#lists.size(x.version.catalogoProveedor)} : 0">3</td>
                 <td class="col-acciones px-2 py-3 whitespace-nowrap">
                     <div class="flex items-center justify-end gap-1">
+                        <a th:href="@{/proveedores/{id}(id=${x.id})}" title="Ver detalle del proveedor" aria-label="Ver detalle del proveedor"
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
                         <a th:href="@{/proveedores/{id}/editar(id=${x.id})}" title="Editar proveedor" aria-label="Editar proveedor"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>

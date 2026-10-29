@@ -93,4 +93,32 @@ public class OrdenCompraResponseDTO {
      * Total de la orden: suma de los subtotales de sus ítems, sin redondear.
      */
     private BigDecimal total;
+
+    /**
+     * Cantidad de ítems (renglones) de la orden.
+     */
+    private Integer totalItems;
+
+    /**
+     * Presentaciones comerciales pedidas en total: suma de la cantidad de todos los ítems.
+     */
+    private Integer totalPedidas;
+
+    /**
+     * Presentaciones comerciales recibidas en total mediante ingresos registrados. Queda en {@code null} si el DTO se
+     * armó sin las cantidades recibidas (por ejemplo, en el listado).
+     */
+    private Double totalRecibidas;
+
+    /**
+     * Presentaciones comerciales que restan recibir en total: la suma de lo pendiente de cada ítem. Queda en
+     * {@code null} si el DTO se armó sin las cantidades recibidas.
+     */
+    private Double totalPendientes;
+
+    /**
+     * Porcentaje recibido sobre lo pedido (entero de 0 a 100, sin pasar de 100 aunque se reciba de más). Queda en
+     * {@code null} si el DTO se armó sin las cantidades recibidas.
+     */
+    private Integer porcentajeRecibido;
 }

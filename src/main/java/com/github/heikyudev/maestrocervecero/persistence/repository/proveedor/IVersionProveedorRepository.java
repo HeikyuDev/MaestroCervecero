@@ -25,7 +25,7 @@ public interface IVersionProveedorRepository extends JpaRepository<VersionProvee
     /**
      * Verifica si existe un proveedor activo cuya versión vigente tiene el CUIT dado.
      *
-     * @param cuit El CUIT normalizado (solo dígitos) a buscar.
+     * @param cuit El CUIT con el formato {@code XX-XXXXXXXX-X} a buscar.
      * @return {@code true} si ya existe un proveedor activo con ese CUIT, {@code false} en caso contrario.
      */
     @Query("SELECT CASE WHEN COUNT(v) > 0 THEN true ELSE false END FROM VersionProveedorEntity v " +
@@ -46,7 +46,7 @@ public interface IVersionProveedorRepository extends JpaRepository<VersionProvee
     /**
      * Igual que {@link #existsByCuitAndEsUltimaVersionTrue(String)}, excluyendo al proveedor con el ID indicado.
      *
-     * @param cuit El CUIT normalizado (solo dígitos) a buscar.
+     * @param cuit El CUIT con el formato {@code XX-XXXXXXXX-X} a buscar.
      * @param proveedorId El ID del proveedor a excluir de la verificación.
      * @return {@code true} si otro proveedor activo ya posee ese CUIT, {@code false} en caso contrario.
      */

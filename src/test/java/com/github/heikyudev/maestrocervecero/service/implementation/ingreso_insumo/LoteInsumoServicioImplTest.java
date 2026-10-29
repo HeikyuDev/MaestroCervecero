@@ -118,7 +118,7 @@ class LoteInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FLD-05: filtrarLotesInsumoDisponibles paginado normaliza el nombre (nombrePropio) y la identificación (código en mayúsculas) y trata los textos en blanco como no filtrar")
+    @DisplayName("CP-FLD-05: filtrarLotesInsumoDisponibles paginado normaliza el nombre (nombrePropio) y la identificación (recorta y colapsa espacios, conserva las mayúsculas) y trata los textos en blanco como no filtrar")
     void filtrarLotesInsumoDisponiblesPaginado_debeNormalizarLosTextosBuscados() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 8);
@@ -130,7 +130,7 @@ class LoteInsumoServicioImplTest {
         loteInsumoServicio.filtrarLotesInsumoDisponibles(List.of(1L), "    ", "   ", pageable);
 
         // === ASSERTS ===
-        verify(loteInsumoRepository).filtrarLotesInsumoDisponiblesParaConsumo(eq(List.of(1L)), eq("Malta Pilsen"), eq("LOTE-A"), any(), eq(pageable));
+        verify(loteInsumoRepository).filtrarLotesInsumoDisponiblesParaConsumo(eq(List.of(1L)), eq("Malta Pilsen"), eq("lote-a"), any(), eq(pageable));
         verify(loteInsumoRepository).filtrarLotesInsumoDisponiblesParaConsumo(eq(List.of(1L)), isNull(), isNull(), any(), eq(pageable));
     }
 
@@ -167,81 +167,6 @@ class LoteInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getContent()).isEmpty();
         assertThat(resultado.getTotalElements()).isZero();
-    }
-
-    // ==================== filtrarLotesInsumoPorInsumo ====================
-
-    @Test
-    @DisplayName("CP-FLI-01: filtrarLotesInsumoPorInsumo conserva el orden de la consulta, incluye los lotes agotados y marca como vencido solo el lote con vencimiento anterior a hoy")
-    void filtrarLotesInsumoPorInsumo_debeIncluirAgotadosYMarcarLosVencidos() {
-        // === PREPARACION DE DATOS ===
-        MaltaEntity malta = maltaEntity(1L);
-        LocalDate hoy = LocalDate.now();
-        LoteInsumoEntity vencido = loteInsumoEntity(12L, malta, "LOTE-C", 2.0, 0.0);
-        vencido.setFechaVencimiento(hoy.minusDays(1));
-        LoteInsumoEntity agotado = loteInsumoEntity(10L, malta, "LOTE-A", 0.0, 0.0);
-        agotado.setFechaVencimiento(hoy.plusDays(5));
-        LoteInsumoEntity vigente = loteInsumoEntity(11L, malta, "LOTE-B", 5.0, 1.0);
-        vigente.setFechaVencimiento(hoy.plusDays(9));
-        Pageable pageable = PageRequest.of(0, 8);
-        when(loteInsumoRepository.filtrarLotesInsumoPorInsumo(1L, null, pageable))
-                .thenReturn(new PageImpl<>(List.of(vencido, agotado, vigente), pageable, 3));
-
-        // === EJECUCION ===
-        Page<LoteInsumoResponseDTO> resultado = loteInsumoServicio.filtrarLotesInsumoPorInsumo(1L, null, pageable);
-
-        // === ASSERTS ===
-        assertThat(resultado.getTotalElements()).isEqualTo(3);
-        assertThat(resultado.getContent()).extracting(LoteInsumoResponseDTO::getIdentificacionLoteProveedor).containsExactly("LOTE-C", "LOTE-A", "LOTE-B");
-        assertThat(resultado.getContent()).extracting(LoteInsumoResponseDTO::isVencido).containsExactly(true, false, false);
-        assertThat(resultado.getContent().get(1).getCantidadActual()).isZero();
-    }
-
-    @Test
-    @DisplayName("CP-FLI-02: filtrarLotesInsumoPorInsumo sin insumo devuelve una página vacía sin consultar")
-    void filtrarLotesInsumoPorInsumo_debeRetornarPaginaVaciaSinInsumo() {
-        // === EJECUCION ===
-        Page<LoteInsumoResponseDTO> resultado = loteInsumoServicio.filtrarLotesInsumoPorInsumo(null, "lote", PageRequest.of(0, 8));
-
-        // === ASSERTS ===
-        assertThat(resultado.getContent()).isEmpty();
-        verifyNoInteractions(loteInsumoRepository);
-    }
-
-    @Test
-    @DisplayName("CP-FLI-03: filtrarLotesInsumoPorInsumo normaliza la identificación (código en mayúsculas) y trata un texto en blanco como no filtrar")
-    void filtrarLotesInsumoPorInsumo_debeNormalizarLaIdentificacion() {
-        // === PREPARACION DE DATOS ===
-        Pageable pageable = PageRequest.of(0, 8);
-        when(loteInsumoRepository.filtrarLotesInsumoPorInsumo(eq(1L), any(), eq(pageable)))
-                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
-
-        // === EJECUCION ===
-        loteInsumoServicio.filtrarLotesInsumoPorInsumo(1L, "  lote-a  ", pageable);
-        loteInsumoServicio.filtrarLotesInsumoPorInsumo(1L, "   ", pageable);
-
-        // === ASSERTS ===
-        verify(loteInsumoRepository).filtrarLotesInsumoPorInsumo(1L, "LOTE-A", pageable);
-        verify(loteInsumoRepository).filtrarLotesInsumoPorInsumo(eq(1L), isNull(), eq(pageable));
-    }
-
-    @Test
-    @DisplayName("CP-FLI-04: filtrarLotesInsumoPorInsumo ignora el orden del Pageable (lo define la consulta) y conserva página y tamaño")
-    void filtrarLotesInsumoPorInsumo_debeIgnorarElOrdenDelPageable() {
-        // === PREPARACION DE DATOS ===
-        Pageable pageableConOrden = PageRequest.of(1, 8, Sort.by(Sort.Direction.DESC, "id"));
-        when(loteInsumoRepository.filtrarLotesInsumoPorInsumo(any(), any(), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 8), 0));
-
-        // === EJECUCION ===
-        loteInsumoServicio.filtrarLotesInsumoPorInsumo(1L, null, pageableConOrden);
-
-        // === ASSERTS ===
-        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteInsumoRepository).filtrarLotesInsumoPorInsumo(eq(1L), isNull(), captor.capture());
-        assertThat(captor.getValue().getSort().isUnsorted()).isTrue();
-        assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
-        assertThat(captor.getValue().getPageSize()).isEqualTo(8);
     }
 
     // ==================== buscarPorId ====================

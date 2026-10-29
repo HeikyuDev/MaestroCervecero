@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  *     mayúsculas y las tildes escritas.</li>
  *     <li>{@link #codigo(String)}: códigos e identificadores. Se guardan en mayúsculas.</li>
  *     <li>{@link #correo(String)}: correos electrónicos, en minúsculas.</li>
- *     <li>{@link #cuit(String)}: CUIT sin separadores.</li>
+ *     <li>{@link #cuit(String)}: CUIT sin separadores (el proveedor lo guarda luego con el formato XX-XXXXXXXX-X).</li>
  *     <li>{@link #telefono(String)}: teléfonos, opcionales.</li>
  *     <li>{@link #username(String)}: nombres de usuario, en minúsculas.</li>
  * </ul>

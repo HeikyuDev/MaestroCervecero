@@ -109,7 +109,7 @@ class ReservaInsumoServicioImplTest {
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, crearLote());
         LoteInsumoEntity vencido = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
         vencido.setFechaVencimiento(LocalDate.now().minusDays(1));
-        when(reservaInsumoRepository.filtrarReservasConSaldo(eq(1L), eq(7L), eq("L-125"), any(LocalDate.class), any()))
+        when(reservaInsumoRepository.filtrarReservasConSaldo(eq(1L), eq(7L), eq("l-125"), any(LocalDate.class), any()))
                 .thenReturn(new PageImpl<>(List.of(reservaInsumoEntity(100L, etapaLote, vencido, 8.0))));
 
         // === EJECUCION ===
@@ -120,7 +120,7 @@ class ReservaInsumoServicioImplTest {
         assertThat(resultado.getContent()).hasSize(1);
         assertThat(resultado.getContent().get(0).getCantidadReservada()).isEqualTo(8.0);
         assertThat(resultado.getContent().get(0).getLoteInsumo().isVencido()).isTrue();
-        verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq(7L), eq("L-125"), any(LocalDate.class), eq(PageRequest.of(2, 8)));
+        verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq(7L), eq("l-125"), any(LocalDate.class), eq(PageRequest.of(2, 8)));
     }
 
     @Test

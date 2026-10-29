@@ -153,18 +153,18 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-FII-05: filtrarIngresoInsumo normaliza la identificación del lote del proveedor buscada (espacios y mayúsculas) antes de consultar")
+    @DisplayName("CP-FII-05: filtrarIngresoInsumo normaliza la identificación del lote del proveedor buscada (recorta y colapsa espacios, conserva las mayúsculas) antes de consultar")
     void filtrar_debeNormalizarLaIdentificacionDelLoteBuscada() {
         // === PREPARACION DE DATOS ===
         Pageable pageable = PageRequest.of(0, 10);
-        when(ingresoInsumoRepository.filtrarIngresoInsumo(null, "LOTE 1", null, null, null, pageable))
+        when(ingresoInsumoRepository.filtrarIngresoInsumo(null, "lote 1", null, null, null, pageable))
                 .thenReturn(new PageImpl<>(List.of()));
 
         // === EJECUCION ===
         ingresoInsumoServicio.filtrarIngresoInsumo(null, "  lote   1 ", null, null, null, pageable);
 
         // === ASSERTS ===
-        verify(ingresoInsumoRepository).filtrarIngresoInsumo(null, "LOTE 1", null, null, null, pageable);
+        verify(ingresoInsumoRepository).filtrarIngresoInsumo(null, "lote 1", null, null, null, pageable);
     }
 
     @Test
@@ -528,7 +528,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-16: registrarIngresoInsumoPorCompra normaliza la identificación del lote de proveedor (mayúsculas y espacios colapsados) para buscar y crear el lote")
+    @DisplayName("CP-RC-16: registrarIngresoInsumoPorCompra normaliza la identificación del lote de proveedor (espacios colapsados, conserva las mayúsculas) para buscar y crear el lote")
     void registrarPorCompra_debeNormalizarLaIdentificacionDelLote() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -541,7 +541,7 @@ class IngresoInsumoServicioImplTest {
         bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025 001")).thenReturn(Optional.empty());
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "l-2025 001")).thenReturn(Optional.empty());
         when(loteInsumoRepository.save(any(LoteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(ingresoInsumoRepository.save(any(IngresoInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -551,8 +551,8 @@ class IngresoInsumoServicioImplTest {
         // === ASSERTS ===
         ArgumentCaptor<LoteInsumoEntity> loteCaptor = ArgumentCaptor.forClass(LoteInsumoEntity.class);
         verify(loteInsumoRepository).save(loteCaptor.capture());
-        assertThat(loteCaptor.getValue().getIdentificacionLoteProveedor()).isEqualTo("L-2025 001");
-        verify(loteInsumoRepository).buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025 001");
+        assertThat(loteCaptor.getValue().getIdentificacionLoteProveedor()).isEqualTo("l-2025 001");
+        verify(loteInsumoRepository).buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "l-2025 001");
     }
 
     @Test
@@ -595,11 +595,11 @@ class IngresoInsumoServicioImplTest {
         bloquearOrdenCompra(detalleCompra);
         when(ingresoInsumoRepository.findByDetalleCompraIdAndEstado(DETALLE_COMPRA_ID, EstadoTransaccion.REGISTRADO)).thenReturn(List.of());
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "l-2025-001")).thenReturn(Optional.of(loteExistente));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Ya existe un lote del insumo con la identificación de lote de proveedor 'L-2025-001' pero con una fecha de vencimiento distinta");
+                .hasMessage("Ya existe un lote del insumo con la identificación de lote de proveedor 'l-2025-001' pero con una fecha de vencimiento distinta");
 
         assertThat(loteExistente.getFechaVencimiento()).isEqualTo(vencimientoDelLote);
         assertThat(loteExistente.getCantidadActual()).isEqualTo(10.0);
@@ -619,7 +619,7 @@ class IngresoInsumoServicioImplTest {
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
         when(loteInsumoRepository.save(any(LoteInsumoEntity.class)))
-                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "uk_lote_insumo_insumo_id_identificacion_lote_proveedor"));
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_lote_insumo_insumo_identificacion"));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -1495,7 +1495,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RD-13: registrarIngresoInsumoDirecto normaliza la identificación del lote de proveedor (mayúsculas y espacios colapsados) para buscar y crear el lote")
+    @DisplayName("CP-RD-13: registrarIngresoInsumoDirecto normaliza la identificación del lote de proveedor (espacios colapsados, conserva las mayúsculas) para buscar y crear el lote")
     void registrarDirecto_debeNormalizarLaIdentificacionDelLote() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1504,7 +1504,7 @@ class IngresoInsumoServicioImplTest {
                 .build();
         when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025 001")).thenReturn(Optional.empty());
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "l-2025 001")).thenReturn(Optional.empty());
         when(loteInsumoRepository.save(any(LoteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(ingresoInsumoRepository.save(any(IngresoInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1514,8 +1514,39 @@ class IngresoInsumoServicioImplTest {
         // === ASSERTS ===
         ArgumentCaptor<LoteInsumoEntity> loteCaptor = ArgumentCaptor.forClass(LoteInsumoEntity.class);
         verify(loteInsumoRepository).save(loteCaptor.capture());
-        assertThat(loteCaptor.getValue().getIdentificacionLoteProveedor()).isEqualTo("L-2025 001");
-        verify(loteInsumoRepository).buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025 001");
+        assertThat(loteCaptor.getValue().getIdentificacionLoteProveedor()).isEqualTo("l-2025 001");
+        verify(loteInsumoRepository).buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "l-2025 001");
+    }
+
+    @Test
+    @DisplayName("CP-RD-36: registrarIngresoInsumoDirecto reutiliza el lote existente aunque la identificación se escriba con otras mayúsculas y conserva la identificación con que se guardó")
+    void registrarDirecto_debeReutilizarLoteSinDistinguirMayusculas() {
+        // === PREPARACION DE DATOS ===
+        InsumoEntity insumo = insumoEntity(INSUMO_ID);
+        LocalDate fechaVencimiento = LocalDate.now().plusMonths(6);
+        IngresoInsumoDirectoFormDTO formDTO = directoValidoBuilder(INSUMO_ID)
+                .identificacionLoteProveedor(" ab1 ")
+                .fechaVencimiento(fechaVencimiento)
+                .cantidadRecibida(20.0)
+                .build();
+        LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "AB1", fechaVencimiento, 50.0, 0.0);
+        when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "ab1")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.save(loteExistente)).thenReturn(loteExistente);
+        when(ingresoInsumoRepository.save(any(IngresoInsumoEntity.class))).thenAnswer(invocation -> {
+            IngresoInsumoEntity ingreso = invocation.getArgument(0);
+            ingreso.setId(1L);
+            return ingreso;
+        });
+
+        // === EJECUCION ===
+        ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteExistente.getCantidadActual()).isEqualTo(70.0);
+        assertThat(loteExistente.getIdentificacionLoteProveedor()).isEqualTo("AB1");
+        verify(loteInsumoRepository).save(loteExistente);
     }
 
     @Test
@@ -1552,11 +1583,11 @@ class IngresoInsumoServicioImplTest {
         LoteInsumoEntity loteExistente = loteInsumoEntity(1L, insumo, "L-2025-001", vencimientoDelLote, 10.0, 0.0);
         when(insumoRepository.findById(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
-        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.of(loteExistente));
+        when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "l-2025-001")).thenReturn(Optional.of(loteExistente));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Ya existe un lote del insumo con la identificación de lote de proveedor 'L-2025-001' pero con una fecha de vencimiento distinta");
+                .hasMessage("Ya existe un lote del insumo con la identificación de lote de proveedor 'l-2025-001' pero con una fecha de vencimiento distinta");
 
         assertThat(loteExistente.getFechaVencimiento()).isEqualTo(vencimientoDelLote);
         assertThat(loteExistente.getCantidadActual()).isEqualTo(10.0);
@@ -1573,7 +1604,7 @@ class IngresoInsumoServicioImplTest {
         when(insumoRepository.buscarPorIdParaIngresar(INSUMO_ID)).thenReturn(Optional.of(insumo));
         when(loteInsumoRepository.buscarPorInsumoIdYIdentificacionLoteProveedorParaIngresar(INSUMO_ID, "L-2025-001")).thenReturn(Optional.empty());
         when(loteInsumoRepository.save(any(LoteInsumoEntity.class)))
-                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "uk_lote_insumo_insumo_id_identificacion_lote_proveedor"));
+                .thenThrow(GuardadoUnicoTest.violacionPostgres("23505", "udx_lote_insumo_insumo_identificacion"));
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoDirecto(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)

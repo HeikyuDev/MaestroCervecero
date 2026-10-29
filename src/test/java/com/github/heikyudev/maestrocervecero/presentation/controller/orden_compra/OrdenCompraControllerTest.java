@@ -647,6 +647,132 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString("name=\"detallesCompra[0].idCatalogoProveedor\" value=\"100\"")));
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-53: el listado ofrece al GERENTE_DE_COMPRAS Finalizar y Anular en las órdenes pendientes, igual que el listado de planificaciones, con sus diálogos de motivo")
+    void caso_cp_occ_53() throws Exception {
+        // Arrange
+        when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(orden(9L, EstadoSolicitud.PENDIENTE), orden(10L, EstadoSolicitud.FINALIZADA)), PageRequest.of(0, 20), 2));
+
+        // Act
+        String html = mockMvc.perform(get(URL)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("data-motivo-url=\"/ordenes-compra/9/finalizar\"", "data-motivo-url=\"/ordenes-compra/9/anular\"",
+                "data-motivo-nombre=\"Orden de compra #9\"", "title=\"Finalizar orden de compra\"", "title=\"Anular orden de compra\"",
+                "bi-check2-circle", "bi-x-circle");
+        assertThat(html).doesNotContain("/ordenes-compra/10/finalizar").doesNotContain("/ordenes-compra/10/anular");
+        assertThat(html).containsPattern("(?s)<dialog id=\"dialogo-finalizar\".*name=\"_csrf\".*</dialog>");
+        assertThat(html).containsPattern("(?s)<dialog id=\"dialogo-anular\".*name=\"_csrf\".*</dialog>");
+    }
+
+    @Test
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-OCC-54: el listado del ENCARGADO_DE_DEPOSITO solo ofrece el ojo: ni Finalizar ni Anular ni sus diálogos")
+    void caso_cp_occ_54() throws Exception {
+        // Arrange
+        when(ordenCompraServicio.filtrarOrdenesCompra(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(orden(9L, EstadoSolicitud.PENDIENTE)), PageRequest.of(0, 20), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(URL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/ordenes-compra/9\"")))
+                .andExpect(content().string(not(containsString("data-motivo-url"))))
+                .andExpect(content().string(not(containsString("id=\"dialogo-finalizar\""))))
+                .andExpect(content().string(not(containsString("id=\"dialogo-anular\""))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-55: el detalle muestra el avance de la recepción (recibido sobre pedido, porcentaje y barra) y los contadores de ítems, pedidas, recibidas y pendientes")
+    void caso_cp_occ_55() throws Exception {
+        // Arrange
+        when(ordenCompraServicio.buscarPorId(9L)).thenReturn(ordenConDetalle(EstadoSolicitud.PENDIENTE));
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/9")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        int inicio = html.indexOf("data-progreso-recepcion");
+        String avance = html.substring(inicio, inicio + 1500);
+        assertThat(avance).contains("Recibido:", "de 12 presentaciones", "(33%)", "Faltan 8", "aria-valuenow=\"33\"", "width: 33%", "bg-amber-500");
+        assertThat(html).contains("data-contador=\"items\">2<", "data-contador=\"pedidas\">12<", "data-contador=\"recibidas\">4<", "data-contador=\"pendientes\">8<");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-56: con la recepción completa la barra queda verde en 100% y dice \"Recepción completa\"")
+    void caso_cp_occ_56() throws Exception {
+        // Arrange
+        OrdenCompraResponseDTO base = ordenConDetalle(EstadoSolicitud.FINALIZADA);
+        OrdenCompraResponseDTO completa = OrdenCompraResponseDTO.builder().id(base.getId()).fechaEntregaEstimada(base.getFechaEntregaEstimada())
+                .estado(base.getEstado()).planificacionProduccion(base.getPlanificacionProduccion()).proveedor(base.getProveedor())
+                .detallesCompra(base.getDetallesCompra()).total(base.getTotal())
+                .totalItems(2).totalPedidas(12).totalRecibidas(12.0).totalPendientes(0.0).porcentajeRecibido(100).build();
+        when(ordenCompraServicio.buscarPorId(9L)).thenReturn(completa);
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/9")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        int inicio = html.indexOf("data-progreso-recepcion");
+        String avance = html.substring(inicio, inicio + 1500);
+        assertThat(avance).contains("(100%)", "Recepción completa", "width: 100%", "bg-emerald-500").doesNotContain("Faltan");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-57: el formulario con idPlanificacion llega con la planificación elegida (campo oculto y texto del selector) y sin avisos")
+    void caso_cp_occ_57() throws Exception {
+        // Arrange
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion());
+
+        // Act
+        String html = mockMvc.perform(get(URL + "/nuevo").param("idPlanificacion", "7"))
+                .andExpect(status().isOk())
+                .andExpect(view().name(VISTA_FORMULARIO))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).containsPattern("name=\"idPlanificacionProduccion\"[^>]*value=\"7\"|value=\"7\"[^>]*name=\"idPlanificacionProduccion\"");
+        assertThat(html).contains("Plan #7 - Pale Ale").doesNotContain("La planificación indicada");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-58: un idPlanificacion que no es un número o que no existe muestra un aviso y deja el selector vacío")
+    void caso_cp_occ_58() throws Exception {
+        // Arrange
+        when(planificacionServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la planificación con ID: 99"));
+
+        // Act
+        String invalida = mockMvc.perform(get(URL + "/nuevo").param("idPlanificacion", "abc"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String inexistente = mockMvc.perform(get(URL + "/nuevo").param("idPlanificacion", "99"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(invalida).contains("La planificación indicada no es válida");
+        assertThat(inexistente).contains("La planificación indicada no existe");
+        assertThat(invalida + inexistente).doesNotContain("Plan #7 - Pale Ale");
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-OCC-59: el aviso de que para cambiar la planificación o el proveedor hay que quitar los ítems es un texto pequeño y atenuado, sin banner")
+    void caso_cp_occ_59() throws Exception {
+        // Act
+        String html = mockMvc.perform(get(URL + "/nuevo")).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        int inicio = html.indexOf("data-aviso-bloqueo");
+        String aviso = html.substring(inicio, inicio + 600);
+
+        // Assert
+        assertThat(aviso).contains("text-xs", "text-slate-400", "Para cambiar la planificación o el proveedor, quite primero todos los ítems")
+                .doesNotContain("bg-amber-50").doesNotContain("border-amber-200").doesNotContain("text-amber-800");
+    }
+
     // ==================== GET /ordenes-compra/{id} ====================
 
     @Test
@@ -1386,7 +1512,8 @@ class OrdenCompraControllerTest {
                 .catalogoProveedor(item(102L, lupulo(12L, "Cascade"), presentacion(7L, "Bolsa de 1 Kg", 1.0, UnidadDeMedida.KILOGRAMO))).build();
         return OrdenCompraResponseDTO.builder().id(9L).fechaEntregaEstimada(LocalDate.parse("2027-07-15")).estado(estado)
                 .planificacionProduccion(planificacion()).proveedor(versionProveedor(List.of()))
-                .detallesCompra(List.of(pilsen, cascade)).total(new BigDecimal("12505.2468")).build();
+                .detallesCompra(List.of(pilsen, cascade)).total(new BigDecimal("12505.2468"))
+                .totalItems(2).totalPedidas(12).totalRecibidas(4.0).totalPendientes(8.0).porcentajeRecibido(33).build();
     }
 
     private static OrdenCompraResponseDTO conCierre(OrdenCompraResponseDTO base, String motivoFinalizacion, LocalDateTime fechaFinalizacion,
@@ -1394,6 +1521,8 @@ class OrdenCompraControllerTest {
         return OrdenCompraResponseDTO.builder().id(base.getId()).fechaEntregaEstimada(base.getFechaEntregaEstimada()).estado(base.getEstado())
                 .planificacionProduccion(base.getPlanificacionProduccion()).proveedor(base.getProveedor())
                 .detallesCompra(base.getDetallesCompra()).total(base.getTotal())
+                .totalItems(base.getTotalItems()).totalPedidas(base.getTotalPedidas()).totalRecibidas(base.getTotalRecibidas())
+                .totalPendientes(base.getTotalPendientes()).porcentajeRecibido(base.getPorcentajeRecibido())
                 .motivoFinalizacion(motivoFinalizacion).fechaFinalizacion(fechaFinalizacion)
                 .motivoAnulacion(motivoAnulacion).fechaAnulacion(fechaAnulacion)
                 .usuarioFinalizacion("gerente.compras").usuarioAnulacion("gerente.compras").build();

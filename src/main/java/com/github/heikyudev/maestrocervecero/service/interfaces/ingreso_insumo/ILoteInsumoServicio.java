@@ -47,22 +47,6 @@ public interface ILoteInsumoServicio {
     Page<LoteInsumoResponseDTO> filtrarLotesInsumoDisponibles(Collection<Long> idsInsumo, String nombreInsumo, String identificacion, Pageable pageable);
 
     /**
-     * Filtra, paginados, los lotes de un insumo sin importar su saldo (también los agotados), para elegir el lote existente
-     * al registrar un ingreso. Cada lote informa su vencimiento, si está vencido y su cantidad actual.
-     * <p>
-     * El orden lo da la consulta y es por fecha de vencimiento ascendente y, ante igual fecha, por ID; el orden del
-     * {@code pageable} se ignora. La identificación se busca por coincidencia parcial, sin distinguir mayúsculas, y un
-     * texto en blanco equivale a no filtrar.
-     * </p>
-     *
-     * @param idInsumo El ID del insumo; si es nulo no hay lotes que ofrecer.
-     * @param identificacion Texto a buscar dentro de la identificación del lote del proveedor, o {@code null} para no filtrar por ella.
-     * @param pageable La configuración de paginación (solo se usa el tamaño y el número de página).
-     * @return Una página de lotes de insumo.
-     */
-    Page<LoteInsumoResponseDTO> filtrarLotesInsumoPorInsumo(Long idInsumo, String identificacion, Pageable pageable);
-
-    /**
      * Busca un lote de insumo por su ID.
      *
      * @param id El ID del lote de insumo.

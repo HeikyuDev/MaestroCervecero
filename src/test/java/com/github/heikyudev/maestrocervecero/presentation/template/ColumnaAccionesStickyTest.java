@@ -150,6 +150,20 @@ class ColumnaAccionesStickyTest {
                 .contains(":where(tbody > tr:has(> .col-acciones))");
     }
 
+    @Test
+    @DisplayName("CP-CAS-05 - input.css centra la acción única de la columna de acciones")
+    void input_css_centra_la_accion_unica() throws IOException {
+        // Arrange
+        String css = Files.readString(INPUT_CSS, StandardCharsets.UTF_8);
+
+        // Act
+        Matcher regla = Pattern.compile(Pattern.quote("td.col-acciones > .flex:has(> :only-child) {") + "([^}]*)}").matcher(css);
+
+        // Assert
+        assertThat(regla.find()).as("input.css define la regla de la acción única").isTrue();
+        assertThat(regla.group(1)).as("Reglas de la acción única").contains("justify-content: center");
+    }
+
     private List<String> encabezadosDeAcciones(String html) {
         List<String> resultado = new ArrayList<>();
         Matcher tabla = TABLA.matcher(html);

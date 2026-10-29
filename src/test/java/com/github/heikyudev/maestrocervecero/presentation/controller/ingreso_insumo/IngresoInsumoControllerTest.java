@@ -17,7 +17,6 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontra
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IIngresoInsumoServicio;
-import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.ILoteInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOrdenCompraServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
@@ -100,7 +99,6 @@ class IngresoInsumoControllerTest {
     private static final String URL_BUSCADOR_ITEMS = URL + "/compra/buscador/items";
     private static final String URL_BUSCADOR_INSUMOS = URL + "/directo/buscador/insumos";
     private static final String URL_FILTRO_INSUMOS = URL + "/filtros/insumos";
-    private static final String URL_BUSCADOR_LOTES = URL + "/buscador/lotes-insumo";
     private static final String SIN_PERMISOS = "No tiene permisos para realizar esta acción";
     private static final String REGISTRADO = "Ingreso de insumo registrado correctamente";
     private static final LocalDate HOY = LocalDate.now();
@@ -116,9 +114,6 @@ class IngresoInsumoControllerTest {
 
     @MockitoBean
     private IInsumoServicio insumoServicio;
-
-    @MockitoBean
-    private ILoteInsumoServicio loteInsumoServicio;
 
     @MockitoBean
     private IProveedorServicio proveedorServicio;
@@ -154,10 +149,6 @@ class IngresoInsumoControllerTest {
         when(proveedorServicio.buscarPorId(3L)).thenReturn(ProveedorResponseDTO.builder().id(3L).version(proveedor()).build());
         when(planificacionServicio.buscarPorId(5L)).thenReturn(PlanificacionProduccionResponseDTO.builder().id(5L)
                 .versionReceta(VersionRecetaResponseDTO.builder().nombre("Pale Ale").build()).build());
-        when(loteInsumoServicio.filtrarLotesInsumoPorInsumo(any(), any(), any())).thenReturn(new PageImpl<>(List.of(
-                lote(1L, "L-124", LocalDate.of(2020, 1, 1), 0.0, true),
-                lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0, false),
-                lote(3L, "L-126", LocalDate.of(2028, 9, 1), 0.0, false)), PageRequest.of(0, 8), 3));
     }
 
     // ==================== GET /ingresos-insumo ====================
@@ -430,7 +421,7 @@ class IngresoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-IIC-16: el formulario por compra vacío tiene los campos con asterisco rojo y placeholder de ejemplo, la fecha de ingreso de hoy, el ítem y los lotes existentes deshabilitados y los dos botones de registro")
+    @DisplayName("CP-IIC-16: el formulario por compra vacío tiene los campos con asterisco rojo y placeholder de ejemplo, la fecha de ingreso de hoy, el ítem deshabilitado y el botón de registro, sin los botones de lotes existentes ni de cargar otro ítem")
     void formularioCompra_debeMostrarseVacio() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_FORMULARIO_COMPRA).with(como(Rol.ENCARGADO_DE_DEPOSITO)))
@@ -442,8 +433,9 @@ class IngresoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-ingreso");
         assertThat(formulario).contains("action=\"" + URL + "/compra\"");
         assertThat(texto(formulario)).contains("Orden de compra *", "Ítem de la orden *", "Identificación del lote del proveedor *", "Fecha de vencimiento *",
-                "Fecha de ingreso *", "Cantidad de presentaciones recibidas *", "Se guarda en mayúsculas y sin espacios de más", "Elija primero la orden de compra",
-                "Ver lotes existentes", "Elija primero el insumo", "Solo se ofrecen órdenes pendientes", "Registrar y cargar otro ítem de esta orden", "Registrar ingreso");
+                "Fecha de ingreso *", "Cantidad de presentaciones recibidas *", "Se guarda tal como figura en el envase. No se distingue entre mayúsculas y minúsculas al identificar el lote", "Elija primero la orden de compra",
+                "Solo se ofrecen órdenes pendientes", "Registrar ingreso");
+        assertThat(texto(formulario)).doesNotContain("Ver lotes existentes", "Registrar y cargar otro ítem de esta orden", "Elija primero el insumo");
         assertThat(cuenta(formulario, "title=\"Obligatorio\"")).isEqualTo(6);
         assertThat(formulario).contains("placeholder=\"Seleccione orden de compra\"").contains("placeholder=\"Seleccione ítem de la orden\"")
                 .contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 2\"");
@@ -451,60 +443,13 @@ class IngresoInsumoControllerTest {
         assertThat(campo(formulario, "fechaIngreso")).isEqualTo(HOY.toString());
         assertThat(textoDelSelector(formulario, "Seleccione orden de compra")).isEmpty();
         assertThat(apertura(formulario, "data-selector-item")).contains("data-deshabilitado");
-        assertThat(apertura(formulario, "data-lote-existente")).contains("data-deshabilitado");
-        assertThat(elementoConAtributo(formulario, "button", "name=\"cargarOtro\"")).contains("type=\"submit\"");
-        assertThat(formulario).contains("data-lote-limpiar").contains("data-ingresa-al-lote");
+        assertThat(formulario).doesNotContain("data-lote-existente").doesNotContain("data-lote-limpiar").doesNotContain("cargarOtro");
+        assertThat(formulario).contains("data-ingresa-al-lote");
         assertThat(apertura(formulario, "data-ingresa-al-lote")).contains("hidden");
         assertThat(formulario).doesNotContain("Cantidad recibida");
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL + "?tipo=compra");
         assertThat(enlaceDe(html, "Volver a ingresos")).isEqualTo(URL + "?tipo=compra");
         verifyNoInteractions(ingresoInsumoServicio);
-    }
-
-    @Test
-    @DisplayName("CP-IIC-17: con idOrdenCompra el formulario llega con la orden pendiente elegida y el selector de ítems habilitado y apuntando a esa orden")
-    void formularioCompra_conOrdenPreseleccionada() throws Exception {
-        // Act
-        String html = mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "7").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        assertThat(textoDelSelector(html, "Seleccione orden de compra")).isEqualTo("N.º 7 - Malterías del Sur S.A.");
-        assertThat(campo(html, "idOrdenCompra")).isEqualTo("7");
-        assertThat(apertura(html, "data-selector-item")).doesNotContain("data-deshabilitado");
-        assertThat(html).contains("data-buscador-url=\"" + URL_BUSCADOR_ITEMS + "?idOrdenCompra=7\"");
-        assertThat(texto(html)).doesNotContain("La orden de compra indicada no está pendiente");
-    }
-
-    @Test
-    @DisplayName("CP-IIC-18: una orden que ya no está pendiente, o que no existe, no se elige y se avisa con una alerta amarilla")
-    void formularioCompra_ordenNoPendienteONoExistente() throws Exception {
-        // Arrange
-        when(ordenCompraServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la orden de compra con ID: 99"));
-
-        // Act
-        String finalizada = mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "8").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String inexistente = mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "99").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        for (String html : List.of(finalizada, inexistente)) {
-            assertThat(texto(html)).contains("La orden de compra indicada no está pendiente, elija otra");
-            assertThat(textoDelSelector(html, "Seleccione orden de compra")).isEmpty();
-            assertThat(apertura(html, "data-selector-item")).contains("data-deshabilitado");
-        }
-    }
-
-    @Test
-    @DisplayName("CP-IIC-19: un idOrdenCompra que no es un número vuelve al origen con una alerta amarilla, sin error")
-    void formularioCompra_ordenNoNumerica() throws Exception {
-        // Act + Assert
-        mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "abc").header("Referer", URL).with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(URL))
-                .andExpect(flash().attribute("mensaje", "El valor indicado no es válido"))
-                .andExpect(flash().attribute("tipo", "warning"));
     }
 
     // ==================== POST /ingresos-insumo/compra ====================
@@ -526,44 +471,6 @@ class IngresoInsumoControllerTest {
         assertThat(dto.getValue().getCantidadPresentaciones()).isEqualTo(2);
         assertThat(dto.getValue().getFechaIngreso()).isEqualTo(HOY);
         assertThat(dto.getValue().getFechaVencimiento()).isEqualTo(HOY.plusYears(1));
-    }
-
-    @Test
-    @DisplayName("CP-IIC-21: Registrar y cargar otro ítem vuelve al formulario con la misma orden elegida mientras siga pendiente")
-    void registrarPorCompra_cargarOtroConOrdenPendiente() throws Exception {
-        // Act + Assert
-        mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO)).param("cargarOtro", "true"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(URL_FORMULARIO_COMPRA + "?idOrdenCompra=7"))
-                .andExpect(flash().attribute("mensaje", REGISTRADO))
-                .andExpect(flash().attribute("tipo", "success"));
-    }
-
-    @Test
-    @DisplayName("CP-IIC-22: Registrar y cargar otro ítem con una orden que el ingreso completó vuelve a la lista con un aviso informativo de que la orden quedó completa")
-    void registrarPorCompra_cargarOtroConOrdenCompletada() throws Exception {
-        // Arrange
-        when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenReturn(ingresoCompra(22L, EstadoTransaccion.REGISTRADO, null, 8L));
-
-        // Act + Assert
-        mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO)).param("cargarOtro", "true"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(URL + "?tipo=compra"))
-                .andExpect(flash().attribute("tipo", "info"))
-                .andExpect(flash().attribute("mensaje", REGISTRADO + ". La orden de compra N.º 8 quedó completa y ya no tiene ítems pendientes"));
-    }
-
-    @Test
-    @DisplayName("CP-IIC-23: Registrar y cargar otro ítem cuando la orden ya no se puede consultar vuelve a la lista con el aviso, sin error")
-    void registrarPorCompra_cargarOtroConOrdenInexistente() throws Exception {
-        // Arrange
-        when(ordenCompraServicio.buscarPorId(7L)).thenThrow(new RecursoNoEncontradoException("No se encontró la orden de compra con ID: 7"));
-
-        // Act + Assert
-        mockMvc.perform(postCompra(como(Rol.ENCARGADO_DE_DEPOSITO)).param("cargarOtro", "true"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl(URL + "?tipo=compra"))
-                .andExpect(flash().attribute("tipo", "info"));
     }
 
     @Test
@@ -689,7 +596,7 @@ class IngresoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-IIC-31: tras un rechazo, el formulario conserva la orden y el ítem elegidos, muestra lo pendiente, la unidad y los lotes existentes del insumo habilitados")
+    @DisplayName("CP-IIC-31: tras un rechazo, el formulario conserva la orden y el ítem elegidos, muestra lo pendiente y la unidad")
     void registrarPorCompra_rechazoConservaLaOrdenYElItem() throws Exception {
         // Arrange
         when(ingresoInsumoServicio.registrarIngresoInsumoPorCompra(any())).thenThrow(new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero"));
@@ -703,7 +610,6 @@ class IngresoInsumoControllerTest {
         assertThat(textoDelSelector(html, "Seleccione ítem de la orden")).isEqualTo("Pilsen - Bolsa");
         assertThat(campo(html, "idDetalleCompra")).isEqualTo("70");
         assertThat(apertura(html, "data-selector-item")).doesNotContain("data-deshabilitado");
-        assertThat(apertura(html, "data-lote-existente")).doesNotContain("data-deshabilitado").contains("data-buscador-url=\"" + URL_BUSCADOR_LOTES + "?idInsumo=10\"");
         assertThat(apertura(html, "data-formulario-ingreso")).contains("data-factor=\"25\"").contains("data-unidad-item=\"kg\"");
         assertThat(texto(bloque(html, "data-item-elegido"))).isEqualTo("Insumo: Pilsen · Presentación: Bolsa (25 kg) · Pedido: 4 · Recibido: 1 · Pendiente: 3 Bolsa");
         assertThat(texto(html)).contains("Cantidad de presentaciones recibidas *", "Ingresan 50 kg al lote");
@@ -789,15 +695,12 @@ class IngresoInsumoControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         String sinDetalles = mockMvc.perform(get(URL_BUSCADOR_ITEMS).param("idOrdenCompra", "12").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        String preseleccion = mockMvc.perform(get(URL_FORMULARIO_COMPRA).param("idOrdenCompra", "12").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
         assertThat(texto(formulario)).contains("La cantidad de presentaciones recibidas debe ser mayor a cero");
         assertThat(textoDelSelector(formulario, "Seleccione ítem de la orden")).isEmpty();
         assertThat(items + sinDetalles).doesNotContain("data-elegir");
         assertThat(texto(items)).contains("La orden no tiene ítems pendientes de recibir");
-        assertThat(textoDelSelector(preseleccion, "Seleccione orden de compra")).isEqualTo("N.º 12");
     }
 
     @Test
@@ -821,7 +724,7 @@ class IngresoInsumoControllerTest {
     // ==================== GET /ingresos-insumo/directo/nuevo ====================
 
     @Test
-    @DisplayName("CP-IIC-34: el formulario directo vacío tiene los campos con asterisco rojo y placeholder de ejemplo, la fecha de ingreso de hoy y los lotes existentes deshabilitados")
+    @DisplayName("CP-IIC-34: el formulario directo vacío tiene los campos con asterisco rojo y placeholder de ejemplo, la fecha de ingreso de hoy y sin el botón de lotes existentes")
     void formularioDirecto_debeMostrarseVacio() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL_FORMULARIO_DIRECTO).with(como(Rol.ENCARGADO_DE_DEPOSITO)))
@@ -833,14 +736,15 @@ class IngresoInsumoControllerTest {
         String formulario = bloque(html, "data-formulario-ingreso");
         assertThat(formulario).contains("action=\"" + URL + "/directo\"");
         assertThat(texto(formulario)).contains("Insumo *", "Identificación del lote del proveedor *", "Fecha de vencimiento *", "Fecha de ingreso *",
-                "Cantidad recibida *", "Precio unitario ($) *", "Precio de cada unidad del insumo que ingresa", "Ver lotes existentes", "Registrar ingreso");
+                "Cantidad recibida *", "Precio unitario ($) *", "Precio de cada unidad del insumo que ingresa", "Registrar ingreso");
+        assertThat(texto(formulario)).doesNotContain("Ver lotes existentes");
         assertThat(cuenta(formulario, "title=\"Obligatorio\"")).isEqualTo(6);
         assertThat(cuenta(formulario, "data-unidad-sufijo")).isEqualTo(2);
         assertThat(formulario).contains(">-<");
         assertThat(formulario).contains("placeholder=\"Seleccione insumo\"").contains("placeholder=\"Ej: L-125\"").contains("placeholder=\"Ej: 25\"").contains("placeholder=\"Ej: 12.50\"");
         assertThat(campo(formulario, "fechaIngreso")).isEqualTo(HOY.toString());
         assertThat(textoDelSelector(formulario, "Seleccione insumo")).isEmpty();
-        assertThat(apertura(formulario, "data-lote-existente")).contains("data-deshabilitado");
+        assertThat(formulario).doesNotContain("data-lote-existente");
         assertThat(formulario).contains("data-buscador-url=\"" + URL_BUSCADOR_INSUMOS + "\"");
         assertThat(enlaceDe(html, "Cancelar")).isEqualTo(URL + "?tipo=directo");
     }
@@ -927,7 +831,7 @@ class IngresoInsumoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-IIC-40: tras un rechazo, el formulario directo conserva el insumo elegido, su tipo, su unidad y los lotes existentes habilitados")
+    @DisplayName("CP-IIC-40: tras un rechazo, el formulario directo conserva el insumo elegido, su tipo, su unidad")
     void registrarDirecto_rechazoConservaElInsumo() throws Exception {
         // Arrange
         when(ingresoInsumoServicio.registrarIngresoInsumoDirecto(any())).thenThrow(new ReglaNegocioException("La cantidad recibida debe ser mayor a cero"));
@@ -942,7 +846,6 @@ class IngresoInsumoControllerTest {
         assertThat(texto(html)).contains("Cantidad recibida *", "Precio unitario ($) *");
         assertThat(cuenta(html, "data-unidad-sufijo")).isEqualTo(2);
         assertThat(html).contains(">kg<").contains(">/ kg<");
-        assertThat(apertura(html, "data-lote-existente")).doesNotContain("data-deshabilitado").contains("data-buscador-url=\"" + URL_BUSCADOR_LOTES + "?idInsumo=10\"");
     }
 
     // ==================== POST /ingresos-insumo/{id}/anular ====================
@@ -1210,62 +1113,6 @@ class IngresoInsumoControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN));
     }
 
-    // ==================== GET .../buscador/lotes-insumo ====================
-
-    @Test
-    @DisplayName("CP-IIC-56: el buscador de lotes existentes ofrece todos los lotes del insumo, también los agotados y los vencidos, de a 8, con el vencimiento y el stock actual, y el botón Elegir con el vencimiento en ISO")
-    void buscadorLotes_incluyeAgotadosYVencidos() throws Exception {
-        // Act
-        String html = mockMvc.perform(get(URL_BUSCADOR_LOTES).param("idInsumo", "10").param("identificacion", " L-12 ").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andExpect(status().isOk())
-                .andExpect(view().name("ingreso_insumo/buscador-lote-existente :: buscador"))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        ArgumentCaptor<Pageable> pagina = ArgumentCaptor.forClass(Pageable.class);
-        verify(loteInsumoServicio).filtrarLotesInsumoPorInsumo(eq(10L), eq("L-12"), pagina.capture());
-        assertThat(pagina.getValue().getPageSize()).isEqualTo(8);
-        assertThat(pagina.getValue().getSort().isUnsorted()).isTrue();
-        assertThat(celdas(html, "data-id=\"1\"")).containsExactly("L-124", "01/01/2020 Vencido", "0 kg", "Elegir");
-        assertThat(celdas(html, "data-id=\"2\"")).containsExactly("L-125", "12/03/2028", "40 kg", "Elegir");
-        assertThat(celdas(html, "data-id=\"3\"")).containsExactly("L-126", "01/09/2028", "0 kg", "Elegir");
-        assertThat(botonElegir(html, 2L)).contains("data-texto=\"L-125\"").contains("data-vencimiento=\"12/03/2028\"").contains("data-vencimiento-iso=\"2028-03-12\"").contains("shrink-0");
-        assertThat(botonElegir(html, 1L)).contains("data-vencido=\"true\"");
-        assertThat(campo(html, "idInsumo")).isEqualTo("10");
-        assertThat(campo(html, "identificacion")).isEqualTo("L-12");
-        assertThat(html).contains("action=\"" + URL_BUSCADOR_LOTES + "\"").contains("placeholder=\"Ej: L-125\"").contains("class=\"tabla-buscador\"");
-    }
-
-    @Test
-    @DisplayName("CP-IIC-57: sin insumo elegido el buscador de lotes lo informa dentro del modal sin criterios ni filas y sin consultar; sin lotes muestra el mensaje")
-    void buscadorLotes_sinInsumoYSinLotes() throws Exception {
-        // Act
-        String sinInsumo = mockMvc.perform(get(URL_BUSCADOR_LOTES).with(como(Rol.ENCARGADO_DE_DEPOSITO))).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        verifyNoInteractions(loteInsumoServicio);
-        when(loteInsumoServicio.filtrarLotesInsumoPorInsumo(any(), any(), any())).thenReturn(Page.empty());
-        String vacio = mockMvc.perform(get(URL_BUSCADOR_LOTES).param("idInsumo", "10").with(como(Rol.ENCARGADO_DE_DEPOSITO))).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        assertThat(texto(sinInsumo)).contains("Elija primero el insumo");
-        assertThat(sinInsumo).doesNotContain("data-elegir").doesNotContain("data-modal-buscar");
-        assertThat(texto(vacio)).contains("No se encontraron lotes del insumo con los criterios indicados");
-    }
-
-    @Test
-    @DisplayName("CP-IIC-58: la paginación del buscador de lotes pide la página dentro del modal y conserva el insumo y la identificación")
-    void buscadorLotes_paginacion() throws Exception {
-        // Arrange
-        when(loteInsumoServicio.filtrarLotesInsumoPorInsumo(any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote(2L, "L-125", LocalDate.of(2028, 3, 12), 40.0, false)), PageRequest.of(0, 8), 20));
-
-        // Act
-        String html = mockMvc.perform(get(URL_BUSCADOR_LOTES).param("idInsumo", "10").param("identificacion", "L-1").with(como(Rol.ENCARGADO_DE_DEPOSITO)))
-                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-
-        // Assert
-        assertThat(html).contains("data-modal-get=\"true\"");
-        assertThat(enlaceDe(html, "Siguiente")).contains(URL_BUSCADOR_LOTES).contains("pagina=1").contains("idInsumo=10").contains("identificacion=L-1");
-    }
-
     // ==================== Seguridad ====================
 
     /** Un endpoint del controller con el permiso que exige y cómo se pide. */
@@ -1288,8 +1135,7 @@ class IngresoInsumoControllerTest {
                 new Endpoint("POST anular", Permiso.INGRESO_INSUMO_ANULAR, () -> postAnular(null, "21", "Error")),
                 new Endpoint("GET buscador de órdenes", Permiso.INGRESO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_ORDENES)),
                 new Endpoint("GET buscador de ítems", Permiso.INGRESO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_ITEMS).param("idOrdenCompra", "7")),
-                new Endpoint("GET buscador de insumos", Permiso.INGRESO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_INSUMOS)),
-                new Endpoint("GET buscador de lotes", Permiso.INGRESO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_LOTES).param("idInsumo", "10")));
+                new Endpoint("GET buscador de insumos", Permiso.INGRESO_INSUMO_REGISTRAR, () -> get(URL_BUSCADOR_INSUMOS)));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -1318,7 +1164,7 @@ class IngresoInsumoControllerTest {
                     .andExpect(flash().attribute("tipo", "danger"))
                     .andExpect(flash().attribute("mensaje", SIN_PERMISOS));
         }
-        verifyNoInteractions(ingresoInsumoServicio, ordenCompraServicio, insumoServicio, loteInsumoServicio, proveedorServicio, planificacionServicio);
+        verifyNoInteractions(ingresoInsumoServicio, ordenCompraServicio, insumoServicio, proveedorServicio, planificacionServicio);
     }
 
     @ParameterizedTest(name = "{0}")

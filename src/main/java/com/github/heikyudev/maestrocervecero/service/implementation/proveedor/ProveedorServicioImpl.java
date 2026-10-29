@@ -80,6 +80,10 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      */
     private record DatosVersion(String razonSocial, String nombreComercial, String cuit, String telefono,
                                 String email, String direccion) {
+
+        DatosVersion conCuit(String cuitFormateado) {
+            return new DatosVersion(razonSocial, nombreComercial, cuitFormateado, telefono, email, direccion);
+        }
     }
 
     private final IProveedorRepository proveedorRepository;
@@ -99,7 +103,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      *
      * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
      * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
-     * @param cuit El CUIT exacto a filtrar (con o sin guiones), o {@code null} para no filtrar por él.
+     * @param cuit El CUIT exacto a filtrar (con o sin guiones; se compara con el formato {@code XX-XXXXXXXX-X} en que se guarda), o {@code null} para no filtrar por él.
      * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable Configuración de paginación y ordenamiento.
      * @return {@link Page} que contiene los objetos {@link ProveedorResponseDTO} correspondientes.
@@ -107,11 +111,12 @@ public class ProveedorServicioImpl implements IProveedorServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<ProveedorResponseDTO> filtrarProveedores(String razonSocial, String nombreComercial, String cuit, Long idLocalidad, Pageable pageable) {
-        // Los textos buscados se normalizan igual que los guardados: sin espacios de más, y el CUIT sin separadores
+        // Los textos buscados se normalizan igual que los guardados: sin espacios de más, y el CUIT con el formato
+        // XX-XXXXXXXX-X con el que se guarda (un valor que no tiene 11 dígitos no coincide con ningún proveedor)
         return proveedorRepository.filtrarProveedores(
                         vacioANulo(NormalizacionTexto.nombrePropio(razonSocial)),
                         vacioANulo(NormalizacionTexto.nombrePropio(nombreComercial)),
-                        vacioANulo(NormalizacionTexto.cuit(cuit)),
+                        vacioANulo(ValidacionesTexto.formatearCuit(NormalizacionTexto.cuit(cuit))),
                         idLocalidad, pageable)
                 .map(MapperProveedor::toDTO);
     }
@@ -140,7 +145,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * cascada toda la versión y su catálogo.
      * </p>
      * <p>
-     * Normaliza los datos de texto (el CUIT se guarda solo con sus dígitos y el correo electrónico en minúsculas),
+     * Normaliza los datos de texto (el CUIT se guarda con el formato {@code XX-XXXXXXXX-X} y el correo electrónico en minúsculas),
      * valida que sean correctos y que el CUIT y el correo electrónico no estén registrados en otro proveedor activo
      * (sin distinguir mayúsculas). La razón social no es única: el CUIT identifica al proveedor. El teléfono es
      * opcional y no tiene unicidad. La localidad es obligatoria y el catálogo debe tener entre 1 y
@@ -295,8 +300,8 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * que los datos sean obligatorios, correctos y no superen la longitud máxima.
      * <p>
      * La razón social, el nombre comercial y la dirección conservan las mayúsculas y las tildes escritas (la
-     * puntuación cuenta: {@code ACME S.A.} y {@code ACME SA} se guardan tal como se escriben); el CUIT se guarda solo
-     * con sus dígitos y el correo electrónico en minúsculas.
+     * puntuación cuenta: {@code ACME S.A.} y {@code ACME SA} se guardan tal como se escriben); el CUIT se guarda
+     * con el formato {@code XX-XXXXXXXX-X} y el correo electrónico en minúsculas.
      * </p>
      * <p>
      * Los datos se validan en el orden de los campos del formulario (razón social, nombre comercial, CUIT, teléfono,
@@ -320,6 +325,9 @@ public class ProveedorServicioImpl implements IProveedorServicio {
         validarObligatorioYLongitud(datos.razonSocial(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "La razón social", "obligatoria");
         validarObligatorioYLongitud(datos.nombreComercial(), LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre comercial", "obligatorio");
         validarCuit(datos.cuit());
+        // Desde acá el CUIT ya tiene 11 dígitos: se guarda y se compara con el formato XX-XXXXXXXX-X, de modo que
+        // "20123456786" y "20-12345678-6" son el mismo CUIT
+        datos = datos.conCuit(ValidacionesTexto.formatearCuit(datos.cuit()));
         ValidacionesTexto.validarTelefono(datos.telefono());
         validarObligatorioYLongitud(datos.email(), LimitesTecnicos.LONGITUD_MAXIMA_CORREO, "El correo electrónico", "obligatorio");
         ValidacionesTexto.validarCorreo(datos.email());
@@ -392,7 +400,7 @@ public class ProveedorServicioImpl implements IProveedorServicio {
      * Duplicado del CUIT, con el campo {@code "cuit"} para que el Controller marque ese campo del formulario.
      */
     private static RecursoDuplicadoException cuitDuplicado(String cuit) {
-        return new RecursoDuplicadoException("Ya existe un proveedor con el CUIT '" + cuit + "'", CAMPO_CUIT);
+        return new RecursoDuplicadoException("Ya existe un proveedor con el CUIT " + cuit, CAMPO_CUIT);
     }
 
     /**

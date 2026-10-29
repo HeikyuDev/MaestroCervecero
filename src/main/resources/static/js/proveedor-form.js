@@ -30,6 +30,10 @@
  * mismo insumo con la misma presentación (el mismo insumo con otra presentación sí es válido). Al enviar el formulario
  * el servidor valida todo de nuevo (Bean Validation y reglas del service).
  *
+ * CUIT: el usuario escribe solo números y el campo [data-cuit] inserta los guiones mientras escribe (XX-XXXXXXXX-X) y
+ * limita la entrada a 11 dígitos. Es solo ayuda de formato: no valida. El servidor acepta el CUIT con o sin guiones, exige
+ * 11 dígitos y lo guarda con ese formato.
+ *
  * Índices: Spring solo enlaza listas sin huecos (catalogoProveedor[0], [1], [2]...). Por eso después de cada alta o
  * baja de fila se renumeran los campos de toda la tabla, y se vuelve a hacer al enviar el formulario.
  */
@@ -51,6 +55,22 @@
     function selectorDe(dialogo, clave) {
         return dialogo.querySelector('[data-selector-de="' + clave + '"] [data-selector]');
     }
+
+    // ---------- CUIT ----------
+
+    /** Deja solo los dígitos (máximo 11) y les inserta los guiones: 20123456786 queda 20-12345678-6. */
+    function formatearCuit(texto) {
+        var digitos = texto.replace(/\D/g, '').slice(0, 11);
+        if (digitos.length <= 2) { return digitos; }
+        if (digitos.length <= 10) { return digitos.slice(0, 2) + '-' + digitos.slice(2); }
+        return digitos.slice(0, 2) + '-' + digitos.slice(2, 10) + '-' + digitos.slice(10);
+    }
+
+    document.addEventListener('input', function (evento) {
+        var campo = evento.target;
+        if (!campo.matches || !campo.matches('[data-cuit]')) { return; }
+        campo.value = formatearCuit(campo.value);
+    });
 
     // ---------- Filas e índices ----------
 
@@ -227,6 +247,9 @@
         var formulario = document.getElementById('proveedor-form');
         var secciones = document.querySelectorAll('[data-detalle]');
         secciones.forEach(sincronizar);
+        // Un CUIT cargado por el servidor (por ejemplo, tras un error) también se muestra con su formato
+        var cuit = document.querySelector('[data-cuit]');
+        if (cuit) { cuit.value = formatearCuit(cuit.value); }
         // Última garantía antes de enviar: índices sin huecos en la tabla del catálogo
         formulario.addEventListener('submit', function () {
             secciones.forEach(sincronizar);

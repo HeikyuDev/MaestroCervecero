@@ -24,3 +24,4 @@
 | **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
 | --- | --- | --- | --- | --- |
 | **CP-CAS-04** | La hoja de estilos define la columna fija con el fondo de su fila | `frontend/tailwind/input.css` | La regla `.col-acciones` incluye `position: sticky`, `right: 0` y `background-color: inherit`, y el archivo define el fondo por defecto `:where(tbody > tr:has(> .col-acciones))` | El test pasa. Si falta alguna de esas reglas, falla. |
+| **CP-CAS-05** | La hoja de estilos centra la acción única de la columna | `frontend/tailwind/input.css` | Existe la regla `td.col-acciones > .flex:has(> :only-child)` con `justify-content: center`, de modo que una celda con una sola acción (ojo, Abrir, Finalizar o Anular) la muestra centrada y con dos o más acciones el grupo queda a la derecha | El test pasa. Si falta la regla, falla. |

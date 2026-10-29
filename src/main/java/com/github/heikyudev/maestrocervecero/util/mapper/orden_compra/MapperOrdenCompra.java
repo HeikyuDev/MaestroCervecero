@@ -53,7 +53,28 @@ public class MapperOrdenCompra {
                 .map(mapeadorDetalle)
                 .toList();
 
+        int totalPedidas = detallesCompra.stream()
+                .map(DetalleCompraResponseDTO::getCantidad)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        boolean conCantidades = !detallesCompra.isEmpty()
+                && detallesCompra.stream().allMatch(detalle -> detalle.getCantidadRecibida() != null && detalle.getCantidadPendiente() != null);
+        Double totalRecibidas = conCantidades
+                ? detallesCompra.stream().mapToDouble(DetalleCompraResponseDTO::getCantidadRecibida).sum() : null;
+        Double totalPendientes = conCantidades
+                ? detallesCompra.stream().mapToDouble(detalle -> Math.max(0.0, detalle.getCantidadPendiente())).sum() : null;
+        Integer porcentajeRecibido = null;
+        if (conCantidades) {
+            porcentajeRecibido = totalPedidas > 0 ? (int) Math.min(100, Math.round(totalRecibidas * 100.0 / totalPedidas)) : 0;
+        }
+
         return OrdenCompraResponseDTO.builder()
+                .totalItems(detallesCompra.size())
+                .totalPedidas(totalPedidas)
+                .totalRecibidas(totalRecibidas)
+                .totalPendientes(totalPendientes)
+                .porcentajeRecibido(porcentajeRecibido)
                 .id(ordenCompraEntity.getId())
                 .fechaEntregaEstimada(ordenCompraEntity.getFechaEntregaEstimada())
                 .estado(ordenCompraEntity.getEstado())

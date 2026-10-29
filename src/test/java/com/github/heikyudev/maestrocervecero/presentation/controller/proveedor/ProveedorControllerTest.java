@@ -82,7 +82,7 @@ class ProveedorControllerTest {
             "(?s).*href=\"/proveedores\"[^>]*bg-amber-500/10[^>]*>\\s*<i class=\"bi text-lg bi-truck\"></i>\\s*<span>Gestión de Proveedores</span>.*";
     /** Los campos enlazados con th:field escapan los caracteres no ASCII como entidades HTML. */
     private static final String RAZON_SOCIAL_ESCAPADA = "Malter&iacute;as del Sur S.A.";
-    private static final String MENSAJE_DUPLICADO_CUIT = "Ya existe un proveedor con el CUIT '30712345678'";
+    private static final String MENSAJE_DUPLICADO_CUIT = "Ya existe un proveedor con el CUIT 30-71234567-8";
     private static final String MENSAJE_DUPLICADO_CORREO = "Ya existe un proveedor con el correo electrónico 'ventas@malteriasdelsur.com'";
 
     @Autowired
@@ -364,7 +364,7 @@ class ProveedorControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: ventas@malteriasdelsur.com\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Av. Italia 1234\"")))
                 .andExpect(content().string(containsString("placeholder=\"Seleccione localidad\"")))
-                .andExpect(content().string(containsString("11 dígitos, con o sin guiones. Único entre los proveedores.</p>")))
+                .andExpect(content().string(containsString("Escriba solo los 11 números, los guiones se agregan solos. Único entre los proveedores.</p>")))
                 .andExpect(content().string(containsString("Opcional. Solo dígitos, hasta 15.</p>")))
                 .andExpect(content().string(containsString("Único entre los proveedores, sin distinguir mayúsculas. Hasta 255 caracteres.</p>")))
                 .andExpect(content().string(containsString("Hasta 100 caracteres.</p>")))
@@ -540,7 +540,7 @@ class ProveedorControllerTest {
         mockMvc.perform(post(URL).with(csrf()).params(datosValidos()))
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA_FORMULARIO))
-                .andExpect(content().string(containsString("Ya existe un proveedor con el CUIT &#39;30712345678&#39;")))
+                .andExpect(content().string(containsString("Ya existe un proveedor con el CUIT 30-71234567-8")))
                 .andExpect(content().string(matchesPattern("(?s).*id=\"cuit\"[^>]*border-rose-400.*")))
                 .andExpect(content().string(not(matchesPattern("(?s).*id=\"email\"[^>]*border-rose-400.*"))))
                 .andExpect(content().string(matchesPattern("(?s).*id=\"cuit\"[^>]*value=\"30-71234567-8\".*")));
@@ -576,7 +576,7 @@ class ProveedorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA_FORMULARIO))
                 .andExpect(content().string(containsString("No se pudo crear el proveedor")))
-                .andExpect(content().string(containsString("Ya existe un proveedor con el CUIT &#39;30712345678&#39;")))
+                .andExpect(content().string(containsString("Ya existe un proveedor con el CUIT 30-71234567-8")))
                 .andExpect(content().string(not(matchesPattern("(?s).*id=\"cuit\"[^>]*border-rose-400.*"))))
                 .andExpect(content().string(not(matchesPattern("(?s).*id=\"email\"[^>]*border-rose-400.*"))));
         mockMvc.perform(post(URL + "/4").with(csrf()).params(datosValidos()))
@@ -593,13 +593,13 @@ class ProveedorControllerTest {
     void caso_cp_pvc_18() throws Exception {
         // Arrange
         cargarCatalogoResuelto();
-        when(proveedorServicio.altaProveedor(any())).thenThrow(new ReglaNegocioException("El CUIT debe tener 11 dígitos"));
+        when(proveedorServicio.altaProveedor(any())).thenThrow(new ReglaNegocioException("El CUIT debe tener exactamente 11 dígitos"));
 
         // Act + Assert
         mockMvc.perform(post(URL).with(csrf()).params(datosValidos()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("No se pudo crear el proveedor")))
-                .andExpect(content().string(containsString("El CUIT debe tener 11 dígitos")))
+                .andExpect(content().string(containsString("El CUIT debe tener exactamente 11 dígitos")))
                 .andExpect(content().string(containsString("value=\"" + RAZON_SOCIAL_ESCAPADA + "\"")))
                 .andExpect(content().string(containsString("value=\"ventas@malteriasdelsur.com\"")))
                 .andExpect(content().string(containsString("value=\"Río Cuarto (Córdoba)\"")))
@@ -1188,6 +1188,77 @@ class ProveedorControllerTest {
         when(insumoServicio.buscarPorId(11L)).thenReturn(MaltaResponseDTO.builder().id(11L).nombre("Pilsen").build());
         when(presentacionComercialServicio.buscarPorId(5L)).thenReturn(presentacion(5L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO));
         when(presentacionComercialServicio.buscarPorId(6L)).thenReturn(presentacion(6L, "Bolsa de 1.000 g", 1000.0, UnidadDeMedida.GRAMO));
+    }
+
+    // ==================== GET /proveedores/{id} (detalle) ====================
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-49: el detalle de solo lectura muestra los datos de la versión vigente con el CUIT con guiones y el catálogo con insumo, tipo y presentación")
+    void caso_cp_pvc_49() throws Exception {
+        // Arrange
+        when(proveedorServicio.buscarPorId(4L)).thenReturn(proveedor(4L, "3584123456"));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/4"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("proveedor/proveedor-detalle"))
+                .andExpect(content().string(containsString("Detalle del proveedor")))
+                .andExpect(content().string(containsString(">Malterías del Sur S.A.<")))
+                .andExpect(content().string(containsString(">30-71234567-8<")))
+                .andExpect(content().string(containsString(">3584123456<")))
+                .andExpect(content().string(containsString(">ventas@malteriasdelsur.com<")))
+                .andExpect(content().string(containsString(">Av. Italia 1234<")))
+                .andExpect(content().string(containsString(">Río Cuarto (Córdoba)<")))
+                .andExpect(content().string(containsString(">Pilsen<")))
+                .andExpect(content().string(containsString(">Malta<")))
+                .andExpect(content().string(containsString(">Bolsa de 25 Kg<")))
+                .andExpect(content().string(containsString(">Bolsa de 1.000 g<")))
+                .andExpect(content().string(containsString("25 kg")))
+                .andExpect(content().string(containsString("href=\"/proveedores\"")))
+                .andExpect(content().string(containsString("href=\"/proveedores/4/editar\"")))
+                .andExpect(content().string(not(containsString("id=\"proveedor-form\""))));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-50: el detalle de un proveedor inexistente redirige al origen con el motivo")
+    void caso_cp_pvc_50() throws Exception {
+        // Arrange
+        when(proveedorServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el proveedor con ID: 99"));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/99").header("Referer", URL))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl(URL))
+                .andExpect(flash().attribute("mensaje", "No se encontró el proveedor con ID: 99"))
+                .andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
+    @DisplayName("CP-PVC-51: un rol distinto de GERENTE_DE_COMPRAS no puede abrir el detalle")
+    void caso_cp_pvc_51() throws Exception {
+        // Act + Assert
+        mockMvc.perform(get(URL + "/4"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("tipo", "danger"));
+
+        verify(proveedorServicio, never()).buscarPorId(any());
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PVC-52: el listado ofrece el ojo Ver detalle antes de Editar y Dar de baja")
+    void caso_cp_pvc_52() throws Exception {
+        // Arrange
+        when(proveedorServicio.filtrarProveedores(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(proveedor(4L, "3584123456")), PageRequest.of(0, 20), 1));
+
+        // Act + Assert
+        mockMvc.perform(get(URL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*href=\"/proveedores/4\" title=\"Ver detalle del proveedor\".*bi-eye.*href=\"/proveedores/4/editar\".*")));
     }
 
     private static LocalidadResponseDTO localidad() {

@@ -12,7 +12,6 @@ import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoE
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.IIngresoInsumoServicio;
-import com.github.heikyudev.maestrocervecero.service.interfaces.ingreso_insumo.ILoteInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.orden_compra.IOrdenCompraServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
@@ -72,9 +71,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * La pantalla principal lista los ingresos en dos pestañas, "Por compra" y "Directos", con el último ingreso arriba. Un
  * ingreso por compra recibe un ítem de una orden de compra pendiente: se elige la orden con su buscador (solo
  * pendientes) y luego el ítem de esa orden que todavía tiene cantidad pendiente. Un ingreso directo no tiene orden: se
- * elige el insumo. En los dos casos el lote se identifica con el código del proveedor y su vencimiento; el botón "Ver
- * lotes existentes" ofrece los lotes ya registrados del insumo para reutilizar su código y su vencimiento. El lote no se
- * crea aparte: lo crea el primer ingreso que lo usa.
+ * elige el insumo. En los dos casos el lote se identifica con el código del proveedor y su vencimiento. El lote no se crea
+ * aparte: lo crea el primer ingreso que lo usa.
  * </p>
  * <p>
  * La orden de compra elegida en el formulario por compra es un parámetro de la pantalla y no un campo del formulario: el
@@ -94,7 +92,6 @@ public class IngresoInsumoController {
     private static final String VISTA_BUSCADOR_ORDEN = "ingreso_insumo/buscador-orden-compra :: buscador";
     private static final String VISTA_BUSCADOR_ITEM = "ingreso_insumo/buscador-item-orden :: buscador";
     private static final String VISTA_BUSCADOR_INSUMO = "ingreso_insumo/buscador-insumo :: buscador";
-    private static final String VISTA_BUSCADOR_LOTE = "ingreso_insumo/buscador-lote-existente :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "ingresoForm";
 
     private static final String URL_LISTA = "/ingresos-insumo";
@@ -103,7 +100,6 @@ public class IngresoInsumoController {
     private static final String URL_BUSCADOR_ITEMS = URL_LISTA + "/compra/buscador/items";
     private static final String URL_BUSCADOR_INSUMOS = URL_LISTA + "/directo/buscador/insumos";
     private static final String URL_FILTRO_INSUMOS = URL_LISTA + "/filtros/insumos";
-    private static final String URL_BUSCADOR_LOTES = URL_LISTA + "/buscador/lotes-insumo";
     /** Buscadores de las órdenes de compra que el encargado de depósito también puede usar (los ofrece el controller de órdenes). */
     private static final String URL_BUSCADOR_PROVEEDORES = "/ordenes-compra/buscador/proveedores";
     private static final String URL_FILTRO_PLANIFICACIONES = "/ordenes-compra/filtros/planificaciones";
@@ -117,7 +113,6 @@ public class IngresoInsumoController {
     private static final String MENSAJE_REGISTRADO = "Ingreso de insumo registrado correctamente";
     private static final String MENSAJE_ITEM_FUERA_DE_LA_ORDEN = "El ítem elegido no pertenece a la orden de compra seleccionada";
     private static final String MENSAJE_ELEGIR_ORDEN = "Elija primero la orden de compra";
-    private static final String MENSAJE_ELEGIR_INSUMO = "Elija primero el insumo";
 
     /** El último ingreso arriba: por fecha de ingreso y, ante igual fecha, el registrado más tarde. */
     private static final Sort ORDEN_INGRESOS = Sort.by(Sort.Order.desc("fechaIngreso"), Sort.Order.desc("id"));
@@ -132,7 +127,6 @@ public class IngresoInsumoController {
     private final IIngresoInsumoServicio ingresoInsumoServicio;
     private final IOrdenCompraServicio ordenCompraServicio;
     private final IInsumoServicio insumoServicio;
-    private final ILoteInsumoServicio loteInsumoServicio;
     private final IProveedorServicio proveedorServicio;
     private final IPlanificacionProduccionServicio planificacionServicio;
 
@@ -204,39 +198,26 @@ public class IngresoInsumoController {
 
     // ==================== Alta por compra ====================
 
-    /**
-     * Muestra el formulario vacío del ingreso por compra, con la fecha de ingreso de hoy. Con {@code idOrdenCompra}
-     * llega con la orden ya elegida (por ejemplo, para cargar otro ítem de la misma orden); una orden que ya no existe o
-     * que ya no está pendiente no se elige y se avisa.
-     */
+    /** Muestra el formulario vacío del ingreso por compra, con la fecha de ingreso de hoy. */
     @GetMapping("/compra/nuevo")
     @PreAuthorize(REGISTRAR)
-    public String mostrarFormularioCompra(@RequestParam(required = false) Long idOrdenCompra, Model model) {
+    public String mostrarFormularioCompra(Model model) {
         IngresoInsumoPorCompraFormDTO ingresoForm = IngresoInsumoPorCompraFormDTO.builder().fechaIngreso(LocalDate.now()).build();
-        OrdenCompraResponseDTO orden = resolverUno(idOrdenCompra, ordenCompraServicio::buscarPorId);
-        if (idOrdenCompra != null && (orden == null || orden.getEstado() != EstadoSolicitud.PENDIENTE)) {
-            orden = null;
-            model.addAttribute("mensaje", "La orden de compra indicada no está pendiente, elija otra");
-            model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
-        }
         model.addAttribute(ATRIBUTO_FORMULARIO, ingresoForm);
-        cargarModeloCompra(model, ingresoForm, orden);
+        cargarModeloCompra(model, ingresoForm, null);
         return VISTA_FORMULARIO_COMPRA;
     }
 
     /**
      * Registra el ingreso de un ítem de una orden de compra (Post-Redirect-Get). Si la validación del formulario o una
      * regla del service falla, vuelve a mostrar el formulario (sin redirigir) con lo que el usuario había cargado. Al
-     * registrar vuelve a la pestaña "Por compra" o, con {@code cargarOtro}, al formulario con la misma orden elegida
-     * mientras siga pendiente (si el ingreso la completó, vuelve a la pestaña con un aviso).
+     * registrar vuelve a la pestaña "Por compra".
      *
      * @param idOrdenCompra La orden que el usuario eligió: solo se usa para volver a mostrarla si el registro falla.
-     * @param cargarOtro Presente cuando se pidió registrar y cargar otro ítem de la misma orden.
      */
     @PostMapping("/compra")
     @PreAuthorize(REGISTRAR)
     public String registrarIngresoPorCompra(@RequestParam(required = false) Long idOrdenCompra,
-                                            @RequestParam(required = false) String cargarOtro,
                                             @Valid @ModelAttribute(ATRIBUTO_FORMULARIO) IngresoInsumoPorCompraFormDTO ingresoForm,
                                             BindingResult bindingResult,
                                             Model model,
@@ -246,9 +227,9 @@ public class IngresoInsumoController {
         }
         if (!bindingResult.hasErrors()) {
             try {
-                IngresoInsumoResponseDTO ingreso = ingresoInsumoServicio.registrarIngresoInsumoPorCompra(ingresoForm);
-                Long idOrden = ingreso != null && ingreso.getIdOrdenCompra() != null ? ingreso.getIdOrdenCompra() : idOrdenCompra;
-                return volverTrasRegistrarPorCompra(idOrden, cargarOtro != null, redirectAttributes);
+                ingresoInsumoServicio.registrarIngresoInsumoPorCompra(ingresoForm);
+                agregarMensaje(redirectAttributes, MENSAJE_REGISTRADO, TipoAlerta.SUCCESS);
+                return "redirect:" + URL_LISTA + "?tipo=" + PESTANA_COMPRA;
             } catch (RecursoDuplicadoException e) {
                 rechazarDuplicado(bindingResult, e, CAMPOS_COMPRA);
             } catch (RecursoNoEncontradoException e) {
@@ -397,28 +378,6 @@ public class IngresoInsumoController {
         return VISTA_BUSCADOR_INSUMO;
     }
 
-    /**
-     * Devuelve el contenido del modal de búsqueda de lotes ya registrados de un insumo (identificación + resultados), de
-     * a {@code TAMANIO_PAGINA_BUSCADOR}, por vencimiento ascendente y con los lotes agotados incluidos. Sin insumo
-     * elegido, el motivo se informa dentro del propio fragmento.
-     */
-    @GetMapping("/buscador/lotes-insumo")
-    @PreAuthorize(REGISTRAR)
-    public String buscarLotesExistentes(@RequestParam(required = false) Long idInsumo,
-                                        @RequestParam(required = false) String identificacion,
-                                        @RequestParam(defaultValue = "0") int pagina,
-                                        Model model) {
-        if (idInsumo == null) {
-            model.addAttribute("mensajeBuscador", MENSAJE_ELEGIR_INSUMO);
-            return VISTA_BUSCADOR_LOTE;
-        }
-        model.addAttribute("lotes", loteInsumoServicio.filtrarLotesInsumoPorInsumo(idInsumo, vacioANulo(identificacion), paginaDeBuscador(pagina)));
-        model.addAttribute("urlBuscador", URL_BUSCADOR_LOTES);
-        model.addAttribute("idInsumo", idInsumo);
-        model.addAttribute("filtroIdentificacion", vacioANulo(identificacion));
-        return VISTA_BUSCADOR_LOTE;
-    }
-
     // ==================== Buscador del filtro del listado ====================
 
     /**
@@ -447,7 +406,6 @@ public class IngresoInsumoController {
         model.addAttribute("urlCancelar", URL_LISTA + "?tipo=" + PESTANA_COMPRA);
         model.addAttribute("urlBuscadorOrdenes", URL_BUSCADOR_ORDENES);
         model.addAttribute("urlBuscadorItems", URL_BUSCADOR_ITEMS);
-        model.addAttribute("urlBuscadorLotes", URL_BUSCADOR_LOTES);
         model.addAttribute("idOrdenElegida", orden == null ? null : orden.getId());
         model.addAttribute("ordenElegidaTexto", orden == null ? null : textoDeOrden(orden));
 
@@ -466,29 +424,9 @@ public class IngresoInsumoController {
         model.addAttribute("urlAccion", URL_LISTA + "/directo");
         model.addAttribute("urlCancelar", URL_LISTA + "?tipo=" + PESTANA_DIRECTO);
         model.addAttribute("urlBuscadorInsumos", URL_BUSCADOR_INSUMOS);
-        model.addAttribute("urlBuscadorLotes", URL_BUSCADOR_LOTES);
         InsumoResponseDTO insumo = resolverUno(ingresoForm.getIdInsumo(), insumoServicio::buscarPorId);
         model.addAttribute("insumoElegido", insumo);
         model.addAttribute("tipoInsumoElegido", insumo == null ? null : etiquetaTipo(insumo));
-    }
-
-    /**
-     * Después de registrar por compra: con {@code cargarOtro} vuelve al formulario con la orden elegida si sigue
-     * pendiente; si el ingreso la completó (o ya no se puede consultar) vuelve a la pestaña con un aviso.
-     */
-    private String volverTrasRegistrarPorCompra(Long idOrdenCompra, boolean cargarOtro, RedirectAttributes redirectAttributes) {
-        if (cargarOtro && idOrdenCompra != null) {
-            OrdenCompraResponseDTO orden = resolverUno(idOrdenCompra, ordenCompraServicio::buscarPorId);
-            if (orden != null && orden.getEstado() == EstadoSolicitud.PENDIENTE) {
-                agregarMensaje(redirectAttributes, MENSAJE_REGISTRADO, TipoAlerta.SUCCESS);
-                return "redirect:" + URL_FORMULARIO_COMPRA + "?idOrdenCompra=" + idOrdenCompra;
-            }
-            agregarMensaje(redirectAttributes, MENSAJE_REGISTRADO + ". La orden de compra N.º " + idOrdenCompra
-                    + " quedó completa y ya no tiene ítems pendientes", TipoAlerta.INFO);
-            return "redirect:" + URL_LISTA + "?tipo=" + PESTANA_COMPRA;
-        }
-        agregarMensaje(redirectAttributes, MENSAJE_REGISTRADO, TipoAlerta.SUCCESS);
-        return "redirect:" + URL_LISTA + "?tipo=" + PESTANA_COMPRA;
     }
 
     // ==================== Apoyo ====================

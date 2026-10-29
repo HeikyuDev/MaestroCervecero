@@ -44,6 +44,11 @@
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
                 <i class="bi bi-plus-lg"></i> Nuevo lote
             </a>
+            <a th:if="${planificacion.estado.name() == 'PENDIENTE'}" sec:authorize="hasAuthority('ORDEN_COMPRA_REGISTRAR')"
+               th:href="@{/ordenes-compra/nuevo(idPlanificacion=${planificacion.id})}"
+               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
+                <i class="bi bi-plus-lg"></i> Registrar orden de compra
+            </a>
             <th:block th:if="${planificacion.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
                 <button type="button" data-motivo-dialogo="dialogo-finalizar"
                         th:data-motivo-url="@{/planificaciones-produccion/{id}/finalizar(id=${planificacion.id})}"

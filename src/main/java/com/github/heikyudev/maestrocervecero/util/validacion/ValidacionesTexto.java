@@ -50,11 +50,11 @@ public final class ValidacionesTexto {
      * No se verifica el prefijo ni el dígito verificador.
      *
      * @param cuit CUIT normalizado (solo dígitos).
-     * @throws ReglaNegocioException Si el CUIT es nulo o no tiene 11 dígitos ("El CUIT debe tener 11 dígitos").
+     * @throws ReglaNegocioException Si el CUIT es nulo o no tiene 11 dígitos ("El CUIT debe tener exactamente 11 dígitos").
      */
     public static void validarCuit(String cuit) {
         if (cuit == null || cuit.length() != DIGITOS_CUIT || !SOLO_DIGITOS.matcher(cuit).matches()) {
-            throw new ReglaNegocioException("El CUIT debe tener 11 dígitos");
+            throw new ReglaNegocioException("El CUIT debe tener exactamente 11 dígitos");
         }
     }
 

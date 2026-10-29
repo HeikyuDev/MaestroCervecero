@@ -5,12 +5,9 @@
  *   - Selector de la orden de compra (campo idOrdenCompra): quita el ítem elegido, habilita el selector del ítem y apunta
  *     su buscador a los ítems de esa orden (parámetro idOrdenCompra). Si se quita la orden, vuelve a deshabilitarlo.
  *   - Selector del ítem de la orden (campo idDetalleCompra): muestra su insumo, su presentación y lo pedido, recibido y
- *     pendiente en presentaciones, y habilita "Ver lotes existentes" para ese insumo.
+ *     pendiente en presentaciones.
  *   - Selector del insumo del ingreso directo (campo idInsumo): muestra su tipo y su unidad como sufijo de la cantidad y del precio,
- *     y habilita "Ver lotes existentes" para ese insumo.
- *   - "Ver lotes existentes" ([data-lote-existente]): completa la identificación y el vencimiento del lote elegido y deja
- *     el vencimiento de solo lectura. "Limpiar" ([data-lote-limpiar]) desbloquea el vencimiento y vacía los dos campos
- *     para escribir un lote nuevo. Cambiar el insumo, o escribir otra identificación, también desbloquea el vencimiento.
+ *     
  *   - Al escribir en un campo, se oculta el mensaje de error que mostraba debajo y se quita su marca roja (solo visual: el
  *     servidor vuelve a validar al enviar).
  *   - La cantidad de presentaciones recibidas del ingreso por compra informa cuánto insumo ingresa al lote (data-factor
@@ -58,61 +55,6 @@
         });
     }
 
-    // ---------- Lote existente ----------
-
-    function entradas(formulario) {
-        return {
-            identificacion: formulario.querySelector('#identificacionLoteProveedor'),
-            vencimiento: formulario.querySelector('#fechaVencimiento'),
-            aviso: formulario.querySelector('[data-lote-bloqueado]')
-        };
-    }
-
-    function bloqueado(formulario) {
-        return formulario.hasAttribute('data-lote-elegido');
-    }
-
-    /** Desbloquea el vencimiento; con {vaciar} también vacía la identificación y el vencimiento. */
-    function desbloquearLote(formulario, vaciar) {
-        var campos = entradas(formulario);
-        formulario.removeAttribute('data-lote-elegido');
-        campos.vencimiento.readOnly = false;
-        campos.vencimiento.classList.remove('bg-slate-100');
-        if (campos.aviso) { campos.aviso.hidden = true; }
-        if (vaciar) {
-            campos.identificacion.value = '';
-            campos.vencimiento.value = '';
-        }
-    }
-
-    function elegirLote(formulario, lote) {
-        var datos = lote.datos || {};
-        if (!lote.id) { return; }
-        var campos = entradas(formulario);
-        campos.identificacion.value = lote.texto || '';
-        campos.vencimiento.value = datos.vencimientoIso || '';
-        campos.vencimiento.readOnly = true;
-        campos.vencimiento.classList.add('bg-slate-100');
-        if (campos.aviso) { campos.aviso.hidden = false; }
-        formulario.setAttribute('data-lote-elegido', '');
-        // El selector del lote es solo un disparador: no conserva la elección
-        var selector = formulario.querySelector('[data-lote-existente]');
-        if (selector) { vaciarSelector(selector); }
-    }
-
-    /** El insumo del ingreso cambió (o se quitó): el botón de lotes existentes apunta a ese insumo. */
-    function alCambiarInsumo(formulario, idInsumo) {
-        var lote = formulario.querySelector('[data-lote-existente]');
-        if (lote) {
-            var base = lote.getAttribute('data-buscador-base');
-            configurarBuscador(lote, lote, idInsumo ? base + '?idInsumo=' + encodeURIComponent(idInsumo) : base, !!idInsumo);
-            var ayuda = formulario.querySelector('[data-ayuda-lote]');
-            if (ayuda) { ayuda.hidden = !!idInsumo; }
-        }
-        // Un lote elegido pertenecía al insumo anterior
-        if (bloqueado(formulario)) { desbloquearLote(formulario, true); }
-    }
-
     // ---------- Ingreso por compra ----------
 
     function mostrarItem(formulario, datos) {
@@ -143,13 +85,11 @@
         var ayuda = formulario.querySelector('[data-ayuda-item]');
         if (ayuda) { ayuda.hidden = elegida; }
         mostrarItem(formulario, null);
-        alCambiarInsumo(formulario, null);
     }
 
     function alCambiarItem(formulario, item) {
         var elegido = !!item.id;
         mostrarItem(formulario, elegido ? (item.datos || {}) : null);
-        alCambiarInsumo(formulario, elegido ? (item.datos || {}).insumoId : null);
     }
 
     // ---------- Ingreso directo ----------
@@ -164,7 +104,6 @@
             if (tipo) { tipo.textContent = datos.tipo || ''; }
         }
         fijarUnidad(formulario, elegido ? datos.unidad : '');
-        alCambiarInsumo(formulario, elegido ? insumo.id : null);
     }
 
     // ---------- Insumo que ingresa al lote ----------
@@ -211,10 +150,6 @@
         if (!formulario) { return; }
         var detalle = evento.detail || {};
 
-        if (evento.target.hasAttribute('data-lote-existente')) {
-            elegirLote(formulario, detalle);
-            return;
-        }
         var campo = campoDe(evento.target);
         if (campo === 'idOrdenCompra') {
             alCambiarOrden(formulario, detalle);
@@ -225,12 +160,6 @@
         }
     });
 
-    document.addEventListener('click', function (evento) {
-        if (!evento.target.closest('[data-lote-limpiar]')) { return; }
-        var formulario = evento.target.closest('[data-formulario-ingreso]');
-        if (formulario) { desbloquearLote(formulario, true); }
-    });
-
     document.addEventListener('input', function (evento) {
         var formulario = evento.target.closest ? evento.target.closest('[data-formulario-ingreso]') : null;
         if (!formulario) { return; }
@@ -239,10 +168,6 @@
         }
         if (evento.target.id === 'cantidadPresentaciones') {
             actualizarIngresaAlLote(formulario);
-        } else if (evento.target.id === 'identificacionLoteProveedor' && bloqueado(formulario)) {
-            // Otra identificación ya no es el lote elegido: el vencimiento vuelve a ser editable
-            desbloquearLote(formulario, false);
-            entradas(formulario).vencimiento.value = '';
         }
     });
 

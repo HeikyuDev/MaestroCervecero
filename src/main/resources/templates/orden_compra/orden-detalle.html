@@ -15,6 +15,22 @@
             </a>
             <h1 class="mt-2 text-2xl font-bold text-slate-900 tracking-tight" th:text="|Orden de compra #${orden.id}|">Orden de compra #7</h1>
             <p class="text-sm text-slate-500">Datos de la orden, ítems solicitados y cantidades recibidas.</p>
+            <!-- Avance de la recepción: presentaciones recibidas frente a las pedidas -->
+            <div class="mt-3 max-w-md" data-progreso-recepcion>
+                <p class="text-sm text-slate-700">
+                    Recibido: <strong class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: numero(${orden.totalRecibidas})}"></th:block></strong>
+                    de <th:block th:replace="~{receta/formato :: numero(${orden.totalPedidas})}"></th:block> presentaciones
+                    (<th:block th:text="${orden.porcentajeRecibido}">0</th:block>%)
+                    <span th:if="${orden.totalPendientes > 0}" class="text-slate-500" data-faltan>&middot; Faltan <th:block th:replace="~{receta/formato :: numero(${orden.totalPendientes})}"></th:block></span>
+                    <span th:unless="${orden.totalPendientes > 0}" class="text-emerald-700" data-completa>&middot; Recepción completa</span>
+                </p>
+                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-label="Avance de la recepción"
+                     aria-valuemin="0" aria-valuemax="100" th:aria-valuenow="${orden.porcentajeRecibido}">
+                    <div class="h-full rounded-full" data-barra-progreso
+                         th:classappend="${orden.porcentajeRecibido >= 100} ? 'bg-emerald-500' : 'bg-amber-500'"
+                         th:style="|width: ${orden.porcentajeRecibido}%|"></div>
+                </div>
+            </div>
         </div>
         <div th:if="${orden.estado.name() == 'PENDIENTE'}" sec:authorize="hasRole('GERENTE_DE_COMPRAS')"
              class="flex shrink-0 flex-wrap items-center justify-end gap-3">
@@ -77,6 +93,26 @@
                 <dd class="mt-1 text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</dd>
             </div>
         </dl>
+    </section>
+
+    <!-- Contadores de la recepción -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <p class="text-xs font-medium text-slate-500">Ítems</p>
+            <p class="mt-1 text-2xl font-bold text-slate-900" data-contador="items" th:text="${orden.totalItems}">0</p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <p class="text-xs font-medium text-slate-500">Presentaciones pedidas</p>
+            <p class="mt-1 text-2xl font-bold text-blue-700" data-contador="pedidas"><th:block th:replace="~{receta/formato :: numero(${orden.totalPedidas})}"></th:block></p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <p class="text-xs font-medium text-slate-500">Recibidas</p>
+            <p class="mt-1 text-2xl font-bold text-emerald-700" data-contador="recibidas"><th:block th:replace="~{receta/formato :: numero(${orden.totalRecibidas})}"></th:block></p>
+        </div>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <p class="text-xs font-medium text-slate-500">Pendientes</p>
+            <p class="mt-1 text-2xl font-bold text-amber-600" data-contador="pendientes"><th:block th:replace="~{receta/formato :: numero(${orden.totalPendientes})}"></th:block></p>
+        </div>
     </section>
 
     <!-- Ítems -->

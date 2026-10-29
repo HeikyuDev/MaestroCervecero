@@ -9,7 +9,7 @@
 
 ### 2. `filtrarLotesInsumoDisponibles(Collection<Long> idsInsumo, String nombreInsumo, String identificacion, Pageable pageable)`
 
-Ofrece, paginados, los lotes de insumo entre los que el operario elige el lote de un consumo directo. `idsInsumo` son los insumos de la etapa (los resuelve el Controller con `filtrarInsumosRequeridos`); si es nulo o vacío no hay nada que ofrecer y devuelve una página vacía sin consultar. Solo aparecen lotes con saldo disponible mayor a 0 (cantidad actual menos reservada, a 4 decimales). `nombreInsumo` (`NormalizacionTexto.nombrePropio`) e `identificacion` (`NormalizacionTexto.codigo`) se buscan por coincidencia parcial sin distinguir mayúsculas, y un texto en blanco equivale a no filtrar. Cada lote informa `vencido` (su fecha de vencimiento es anterior a hoy; si vence hoy todavía es válido), `fechaVencimiento` y `cantidadDisponible`.
+Ofrece, paginados, los lotes de insumo entre los que el operario elige el lote de un consumo directo. `idsInsumo` son los insumos de la etapa (los resuelve el Controller con `filtrarInsumosRequeridos`); si es nulo o vacío no hay nada que ofrecer y devuelve una página vacía sin consultar. Solo aparecen lotes con saldo disponible mayor a 0 (cantidad actual menos reservada, a 4 decimales). `nombreInsumo` (`NormalizacionTexto.nombrePropio`) e `identificacion` (`NormalizacionTexto.nombrePropio`, conserva las mayúsculas) se buscan por coincidencia parcial sin distinguir mayúsculas, y un texto en blanco equivale a no filtrar. Cada lote informa `vencido` (su fecha de vencimiento es anterior a hoy; si vence hoy todavía es válido), `fechaVencimiento` y `cantidadDisponible`.
 
 **Orden FEFO**, definido por la consulta para que la paginación sea estable (el orden del `Pageable` se ignora): primero los lotes vigentes por fecha de vencimiento ascendente, luego los que no tienen fecha de vencimiento y al final los vencidos, también por fecha de vencimiento ascendente; ante igual fecha, por `id`.
 
@@ -17,7 +17,7 @@ Ofrece, paginados, los lotes de insumo entre los que el operario elige el lote d
 |---|---|---|---|---|
 |**CP-FLD-03**|Conserva el orden de la consulta y marca los vencidos|`idsInsumo: [1]`; la consulta devuelve tres lotes: vence en 5 días, vence hoy y vencido ayer|`fechaVencimiento < hoy` solo para el último|Retorna la página con los lotes en el mismo orden; `vencido` es `false`, `false` y `true`; informa `fechaVencimiento` y `cantidadDisponible` (`10 - 4 = 6`).|
 |**CP-FLD-04**|Sin insumos de la etapa|`idsInsumo: null` y `idsInsumo: []`|No hay insumos para ofrecer|Retorna una página vacía en ambos casos y no consulta el repositorio.|
-|**CP-FLD-05**|Normalización de los textos buscados|`nombreInsumo: "   Malta    Pilsen "`, `identificacion: "  lote-a  "`; y por separado ambos en blanco|El service normaliza los textos; un texto en blanco se reemplaza por `null`|Consulta con `"Malta Pilsen"` y `"LOTE-A"`; y con `null` y `null`.|
+|**CP-FLD-05**|Normalización de los textos buscados|`nombreInsumo: "   Malta    Pilsen "`, `identificacion: "  lote-a  "`; y por separado ambos en blanco|El service normaliza los textos; un texto en blanco se reemplaza por `null`|Consulta con `"Malta Pilsen"` y `"lote-a"`; y con `null` y `null`.|
 |**CP-FLD-06**|El orden del `Pageable` se ignora y se pasa la fecha de hoy|`PageRequest.of(1, 8, Sort.by(DESC, "id"))`|El FEFO lo define la consulta|El repositorio recibe un `Pageable` sin orden, página `1`, tamaño `8` y `hoy = LocalDate.now()`.|
 |**CP-FLD-07**|Sin coincidencias|`nombreInsumo: "Inexistente"`|Ningún lote cumple|Retorna una página vacía con `totalElements: 0`.|
 
@@ -29,25 +29,7 @@ Ofrece, paginados, los lotes de insumo entre los que el operario elige el lote d
 |**CP-FLD-09**|Solo lotes con saldo y de los insumos pedidos|Lotes del insumo 1: uno con `cantidadActual: 10` y `cantidadReservada: 10` (saldo 0), uno con saldo `0.00001` (residuo de punto flotante), uno con saldo `5`; un lote con saldo del insumo 2; `idsInsumo: [1]`|`(cantidadActual - cantidadReservada) > 0.00005` e `i.id IN :idsInsumo`|Devuelve únicamente el lote con saldo `5` del insumo 1. El total de la página es el de la consulta de conteo.|
 |**CP-FLD-10**|Criterios de texto|Insumos "Malta Pilsen" y "Malta Caramelo" con lotes "L-123" y "L-124"; consultas con `nombreInsumo: "pils"`, con `identificacion: "L-12"`, con ambos y con ambos `null`|`UPPER(...) LIKE` parcial; un criterio nulo no restringe|Con `"pils"` devuelve los lotes de Malta Pilsen; con `"L-12"` devuelve los lotes cuya identificación contiene el texto; combinados se aplican con `AND`; con `null` devuelve todos los de `idsInsumo`.|
 
-### 3. `filtrarLotesInsumoPorInsumo(Long idInsumo, String identificacion, Pageable pageable)`
-
-Ofrece, paginados, todos los lotes de un insumo, también los agotados, para elegir el lote existente al registrar un ingreso. Si `idInsumo` es nulo devuelve una página vacía sin consultar. `identificacion` (`NormalizacionTexto.codigo`) se busca por coincidencia parcial sin distinguir mayúsculas, y un texto en blanco equivale a no filtrar. Cada lote informa `vencido` (su fecha de vencimiento es anterior a hoy), `fechaVencimiento` y `cantidadActual`. El orden lo define la consulta (fecha de vencimiento ascendente y, ante igual fecha, `id`) y el del `Pageable` se ignora.
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-FLI-01**|Incluye los agotados y marca los vencidos|`idInsumo: 1L`; la consulta devuelve un lote vencido ayer, uno agotado (`cantidadActual: 0`) y uno vigente|`fechaVencimiento < hoy` solo para el primero|Retorna la página con los tres lotes en el mismo orden; `vencido` es `true`, `false` y `false`; el lote agotado se informa con `cantidadActual: 0`.|
-|**CP-FLI-02**|Sin insumo|`idInsumo: null`|No hay insumo del que ofrecer lotes|Retorna una página vacía y no consulta el repositorio.|
-|**CP-FLI-03**|Normalización del texto buscado|`identificacion: "  lote-a  "`; y por separado `"   "`|El service normaliza el texto; un texto en blanco se reemplaza por `null`|Consulta con `"LOTE-A"`; y con `null`.|
-|**CP-FLI-04**|El orden del `Pageable` se ignora|`PageRequest.of(1, 8, Sort.by(DESC, "id"))`|El orden lo define la consulta|El repositorio recibe un `Pageable` sin orden, página `1` y tamaño `8`.|
-
-**Consulta `filtrarLotesInsumoPorInsumo` (verificación manual contra la base de datos).** No puede ejercitarse con el repositorio mockeado; se verifica ejecutándola contra PostgreSQL con datos de prueba. El contexto de Spring la valida al arrancar.
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-FLI-05**|Todos los lotes del insumo, en orden de vencimiento|Insumo 1 con tres lotes (uno agotado) y el insumo 2 con un lote; consulta con `idInsumo: 1` y `identificacion: null`|`i.id = :idInsumo`, sin condición de saldo, `ORDER BY fechaVencimiento, id`|Devuelve los tres lotes del insumo 1, el agotado incluido, ordenados por vencimiento ascendente con desempate por `id`; no devuelve el lote del insumo 2.|
-|**CP-FLI-06**|Criterio de identificación|Lotes "L-123" y "L-124" del insumo 1; consultas con `identificacion: "l-12"`, `"L-124"` y `null`|`UPPER(...) LIKE` parcial; un criterio nulo no restringe|Con `"l-12"` devuelve ambos; con `"L-124"` solo el segundo; con `null` devuelve todos los del insumo.|
-
-### 4. `buscarPorId(Long id)`
+### 3. `buscarPorId(Long id)`
 
 Sirve para volver a mostrar el lote de insumo elegido cuando el registro del consumo falla.
 

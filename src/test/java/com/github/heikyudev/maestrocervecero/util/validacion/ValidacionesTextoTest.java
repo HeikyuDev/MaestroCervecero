@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ValidacionesTextoTest {
 
-    private static final String MENSAJE_CUIT_LARGO = "El CUIT debe tener 11 dígitos";
+    private static final String MENSAJE_CUIT_LARGO = "El CUIT debe tener exactamente 11 dígitos";
     private static final String MENSAJE_TELEFONO_DIGITOS = "El teléfono solo puede contener dígitos";
     private static final String MENSAJE_USERNAME_FORMATO =
             "El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos, sin espacios";
@@ -43,7 +43,7 @@ class ValidacionesTextoTest {
     @ParameterizedTest(name = "[{index}] \"{0}\"")
     @NullSource
     @ValueSource(strings = {"", "2012345678", "201234567866", "123", "20 12345678 6", "20-12345678-6"})
-    @DisplayName("CP-VT-02: validarCuit rechaza un valor nulo o de largo distinto de 11 con \"El CUIT debe tener 11 dígitos\"")
+    @DisplayName("CP-VT-02: validarCuit rechaza un valor nulo o de largo distinto de 11 con \"El CUIT debe tener exactamente 11 dígitos\"")
     void validarCuit_debeRechazarLargoIncorrecto(String cuit) {
         assertThatThrownBy(() -> ValidacionesTexto.validarCuit(cuit))
                 .isInstanceOf(ReglaNegocioException.class)

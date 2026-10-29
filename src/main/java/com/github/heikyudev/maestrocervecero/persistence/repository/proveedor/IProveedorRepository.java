@@ -59,7 +59,7 @@ public interface IProveedorRepository extends JpaRepository<ProveedorEntity, Lon
      *
      * @param razonSocial Texto a buscar dentro de la razón social, o {@code null} para no filtrar por ella.
      * @param nombreComercial Texto a buscar dentro del nombre comercial, o {@code null} para no filtrar por él.
-     * @param cuit El CUIT exacto a filtrar, o {@code null} para no filtrar por él.
+     * @param cuit El CUIT exacto a filtrar (con el formato {@code XX-XXXXXXXX-X}), o {@code null} para no filtrar por él.
      * @param idLocalidad El ID de la localidad a filtrar, o {@code null} para no filtrar por ella.
      * @param pageable La configuración de paginación (sin ordenamiento: el orden lo define la consulta).
      * @return Una página de proveedores activos que cumplen los criterios indicados.

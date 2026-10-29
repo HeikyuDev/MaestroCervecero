@@ -58,7 +58,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     /**
      * Índice único de la base de datos que garantiza que un insumo no tenga dos lotes con la misma identificación de lote de proveedor.
      */
-    private static final String INDICE_LOTE_INSUMO = "uk_lote_insumo_insumo_id_identificacion_lote_proveedor";
+    private static final String INDICE_LOTE_INSUMO = "udx_lote_insumo_insumo_identificacion";
 
     private final IIngresoInsumoRepository ingresoInsumoRepository;
     private final ILoteInsumoRepository loteInsumoRepository;
@@ -87,8 +87,8 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     @Override
     @Transactional(readOnly = true)
     public Page<IngresoInsumoResponseDTO> filtrarIngresoInsumo(Long idInsumo, String identificacionLoteProveedor, EstadoTransaccion estado, TipoIngreso tipoIngreso, LocalDate fechaIngreso, Pageable pageable) {
-        // El texto buscado se normaliza igual que el código guardado: sin espacios de más y en mayúsculas
-        String identificacionLoteNormalizada = NormalizacionTexto.codigo(identificacionLoteProveedor);
+        // El texto buscado se normaliza igual que el código guardado: sin espacios de más (se compara sin distinguir mayúsculas)
+        String identificacionLoteNormalizada = NormalizacionTexto.nombrePropio(identificacionLoteProveedor);
         if (identificacionLoteNormalizada != null && identificacionLoteNormalizada.isEmpty()) {
             identificacionLoteNormalizada = null;
         }
@@ -513,8 +513,9 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * insumo con la misma identificación de lote de proveedor, lo reutiliza (validando que la
      * fecha de vencimiento coincida); si no existe, construye uno nuevo sin persistirlo todavía.
      * <p>
-     * La identificación se normaliza como un código (mayúsculas, sin espacios de más; la puntuación cuenta), de
-     * modo que {@code lote 12} y {@code LOTE  12} son el mismo lote. Antes de buscarlo se bloquea la fila del
+     * La identificación se guarda tal como figura en el envase del proveedor (conserva las mayúsculas; se quitan
+     * los espacios de más) y se compara sin distinguir mayúsculas, de modo que {@code lote 12} y {@code LOTE  12} son
+     * el mismo lote. Antes de buscarlo se bloquea la fila del
      * insumo ({@code PESSIMISTIC_WRITE}): los ingresos simultáneos del mismo insumo se ejecutan uno a uno, y el
      * segundo encuentra el lote que creó el primero en lugar de intentar crearlo otra vez.
      * </p>
@@ -527,7 +528,7 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * @throws RecursoNoEncontradoException Si el insumo ya no existe.
      */
     private LoteInsumoEntity resolverLoteInsumo(InsumoEntity insumoEntity, String identificacionLoteProveedor, LocalDate fechaVencimiento) {
-        String identificacion = NormalizacionTexto.codigo(identificacionLoteProveedor);
+        String identificacion = NormalizacionTexto.nombrePropio(identificacionLoteProveedor);
         if (identificacion == null || identificacion.isEmpty()) {
             throw new ReglaNegocioException("La identificación del lote del proveedor es obligatoria", "identificacionLoteProveedor");
         }

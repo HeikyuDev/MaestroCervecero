@@ -45,7 +45,7 @@ public class ReservaInsumoServicioImpl implements IReservaInsumoServicio {
         // El orden lo define la consulta: el del pageable se ignora para que la paginación sea siempre estable
         Pageable pageableSinOrden = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         return reservaInsumoRepository.filtrarReservasConSaldo(idEtapaLote, idInsumo,
-                        textoONulo(NormalizacionTexto.codigo(identificacion)), hoy, pageableSinOrden)
+                        textoONulo(NormalizacionTexto.nombrePropio(identificacion)), hoy, pageableSinOrden)
                 .map(MapperReservaInsumo::toDTO);
     }
 

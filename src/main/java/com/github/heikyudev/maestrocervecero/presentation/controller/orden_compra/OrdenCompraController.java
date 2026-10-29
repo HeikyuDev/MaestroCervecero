@@ -19,6 +19,7 @@ import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.Prov
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.VersionProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.VersionRecetaResponseDTO;
+import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
@@ -138,12 +139,24 @@ public class OrdenCompraController {
     // ==================== Alta ====================
 
     /**
-     * Muestra el formulario vacío para registrar una orden de compra.
+     * Muestra el formulario vacío para registrar una orden de compra. Con {@code idPlanificacion} (el botón "Registrar
+     * orden de compra" del detalle de una planificación) la planificación llega elegida; el estado de la
+     * planificación lo valida el service al enviar.
      */
     @GetMapping("/nuevo")
     @PreAuthorize(SOLO_GERENTE)
-    public String mostrarFormularioAlta(Model model) {
+    public String mostrarFormularioAlta(@RequestParam(required = false) String idPlanificacion, Model model) {
         OrdenCompraFormDTO ordenCompraForm = new OrdenCompraFormDTO();
+        Long idPlanificacionIndicada = aId(idPlanificacion);
+        if (vacioANulo(idPlanificacion) != null && idPlanificacionIndicada == null) {
+            agregarAvisos(model, List.of("La planificación indicada no es válida"));
+        } else if (idPlanificacionIndicada != null) {
+            if (etiquetaPlanificacion(idPlanificacionIndicada) == null) {
+                agregarAvisos(model, List.of("La planificación indicada no existe"));
+            } else {
+                ordenCompraForm.setIdPlanificacionProduccion(idPlanificacionIndicada);
+            }
+        }
         model.addAttribute(ATRIBUTO_FORMULARIO, ordenCompraForm);
         cargarModeloFormulario(model, ordenCompraForm);
         return VISTA_FORMULARIO;
@@ -424,6 +437,12 @@ public class OrdenCompraController {
      */
     private static String textoDeProveedor(VersionProveedorResponseDTO version) {
         return version.getRazonSocial() + " (" + ValidacionesTexto.formatearCuit(version.getCuit()) + ")";
+    }
+
+    /** Muestra el aviso como una alerta amarilla. */
+    private static void agregarAvisos(Model model, List<String> avisos) {
+        model.addAttribute("mensaje", MensajeConLista.deAvisos(avisos));
+        model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
     }
 
     // ==================== Apoyo: buscadores ====================

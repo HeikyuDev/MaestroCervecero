@@ -14,6 +14,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocal
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.CatalogoProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.PresentacionComercialResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.proveedor.ProveedorResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.LocalidadResponseDTO;
@@ -65,6 +66,7 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 public class ProveedorController {
 
     private static final String VISTA_LISTA = "proveedor/proveedor-lista";
+    private static final String VISTA_DETALLE = "proveedor/proveedor-detalle";
     private static final String VISTA_FORMULARIO = "proveedor/proveedor-form";
     private static final String VISTA_BUSCADOR_INSUMO = "proveedor/buscador-insumo :: buscador";
     private static final String VISTA_BUSCADOR_PRESENTACION = "proveedor/buscador-presentacion :: buscador";
@@ -149,6 +151,27 @@ public class ProveedorController {
 
         cargarModeloFormulario(model, null, proveedorForm);
         return VISTA_FORMULARIO;
+    }
+
+    /**
+     * Muestra el detalle de solo lectura de un proveedor: los datos de su versión vigente y su catálogo completo
+     * (insumo, tipo de insumo y presentación comercial de cada ítem). Si el proveedor no existe, el
+     * {@code ControllerAdvices} vuelve al origen con el motivo.
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('GERENTE_DE_COMPRAS')")
+    public String mostrarDetalle(@PathVariable Long id, Model model) {
+        ProveedorResponseDTO proveedor = proveedorServicio.buscarPorId(id);
+        Map<Long, String> tiposInsumoPorId = new HashMap<>();
+        if (proveedor.getVersion().getCatalogoProveedor() != null) {
+            proveedor.getVersion().getCatalogoProveedor().stream()
+                    .map(CatalogoProveedorResponseDTO::getInsumo)
+                    .filter(Objects::nonNull)
+                    .forEach(insumo -> tiposInsumoPorId.put(insumo.getId(), etiquetaTipo(insumo)));
+        }
+        model.addAttribute("proveedor", proveedor);
+        model.addAttribute("tiposInsumoPorId", tiposInsumoPorId);
+        return VISTA_DETALLE;
     }
 
     /**

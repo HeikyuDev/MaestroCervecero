@@ -1982,6 +1982,49 @@ class PlanificacionProduccionControllerTest {
     }
 
     @Test
+    @DisplayName("CP-PPC-105: una planificación Pendiente muestra a quien tiene ORDEN_COMPRA_REGISTRAR el link \"Registrar orden de compra\" hacia el formulario de la orden con la planificación elegida, con el mismo estilo que \"Nuevo lote\"")
+    void detalle_pendienteMuestraRegistrarOrdenDeCompra() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        String html = mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/ordenes-compra/nuevo?idPlanificacion=7\"")))
+                .andExpect(content().string(containsString("Registrar orden de compra")))
+                .andReturn().getResponse().getContentAsString();
+
+        Matcher enlace = Pattern.compile("(?s)<a[^>]*href=\"/ordenes-compra/nuevo\\?idPlanificacion=7\"[^>]*>(.*?)</a>").matcher(html);
+        assertThat(enlace.find()).isTrue();
+        assertThat(enlace.group()).contains("bi-plus-lg").contains("whitespace-nowrap").contains("bg-amber-500");
+        assertThat(html).doesNotContain("Nuevo lote");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = EstadoSolicitud.class, names = {"FINALIZADA", "ANULADA"})
+    @DisplayName("CP-PPC-106: una planificación Finalizada o Anulada no muestra el link \"Registrar orden de compra\"")
+    void detalle_cerradaNoMuestraRegistrarOrdenDeCompra(EstadoSolicitud estado) throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", estado));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_COMPRAS)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Registrar orden de compra"))))
+                .andExpect(content().string(not(containsString("/ordenes-compra/nuevo"))));
+    }
+
+    @Test
+    @DisplayName("CP-PPC-107: el GERENTE_DE_PRODUCCION (sin ORDEN_COMPRA_REGISTRAR) no ve el link \"Registrar orden de compra\"")
+    void detalle_soloElQueRegistraOrdenesVeRegistrarOrdenDeCompra() throws Exception {
+        when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
+        when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/planificaciones-produccion/7").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Registrar orden de compra"))))
+                .andExpect(content().string(not(containsString("/ordenes-compra/nuevo"))));
+    }
+
+    @Test
     @DisplayName("CP-PPC-93: la tabla de lotes lleva por fila el link \"Ver\" al detalle del lote para quien tiene LOTE_CONSULTAR")
     void detalle_laTablaDeLotesEnlazaAlDetalle() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
