@@ -458,6 +458,20 @@ class PaisControllerTest {
         verify(paisServicio, never()).bajaPais(any());
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PAC-30: el botón Elegir del buscador de países lleva el nombre del país para los selectores de ubicación enlazados")
+    void buscador_debeExponerElNombreDelPais() throws Exception {
+        // Arrange
+        when(paisServicio.filtrarPaises(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(pais(3L, "Argentina")), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get("/ubicaciones/paises/buscador"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-nombre=\"Argentina\"")));
+    }
+
     private static PaisResponseDTO pais(Long id, String nombre) {
         return PaisResponseDTO.builder().id(id).nombre(nombre).build();
     }

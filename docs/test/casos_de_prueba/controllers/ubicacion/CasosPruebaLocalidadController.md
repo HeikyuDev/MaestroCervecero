@@ -68,6 +68,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-LOC-19** | Formulario de edición con los datos actuales | Rol `ADMINISTRADOR`, `id: 8`. El service devuelve "Río Cuarto", CP "5800", provincia "Córdoba" (`id: 5`) | La localidad existe | Responde 200 con la vista `ubicacion/localidad-form`: título "Editar localidad", nombre y código postal actuales, el selector con `idProvincia=5` y el texto "Córdoba (Argentina)", `action="/ubicaciones/localidades/8"` y el botón "Guardar cambios". |
 | **CP-LOC-27** | Vuelta de crear una provincia al editar | `id: 8`, `idProvincia: 9`. `IProvinciaServicio` devuelve "Santa Fe" | La provincia recién creada llega en la URL | El selector muestra `idProvincia=9` y "Santa Fe (Argentina)" en lugar de la provincia actual. |
+| **CP-LOC-28** | El buscador acepta el filtro de provincia y expone la provincia y el país de cada localidad | Rol `GERENTE_DE_COMPRAS`, `idProvincia=5`; el service devuelve "Río Cuarto" (`id: 8`) de "Córdoba" (`id: 5`) y "Argentina" (`id: 3`) | El selector de ubicación abre el buscador con la provincia ya elegida | El criterio Provincia se muestra con "Córdoba (Argentina)", se llama a `filtrarLocalidades(null, null, 5, null, ...)` y el botón "Elegir" lleva `data-nombre="Río Cuarto"`, `data-id-provincia="5"`, `data-texto-provincia="Córdoba"`, `data-id-pais="3"` y `data-texto-pais="Argentina"`. |
 
 ---
 

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Ubicación con tres selectores de entidad enlazados: País, Provincia y Localidad. Cada uno es el selector estándar
+    (fragments/selector-entidad: campo de solo lectura que abre el buscador en un modal con filtros) y /js/ubicacion-enlazada.js
+    los mantiene coherentes entre sí:
+      - Elegir un país limpia la provincia y la localidad si no pertenecen a él; el buscador de provincias se abre ya
+        filtrado por ese país.
+      - Elegir una provincia completa el país y limpia la localidad si no pertenece a ella; el buscador de localidades
+        se abre filtrado por esa provincia.
+      - Elegir una localidad completa la provincia y el país.
+      - Los filtros precargados se pueden quitar o cambiar en el propio buscador.
+    Solo la localidad viaja con su nombre de campo; el país y la provincia (idPais, idProvincia) son ayuda de la pantalla
+    y el servidor no los usa. El servidor deja los tres campos ya cargados con la ubicación de la localidad elegida.
+
+    Parámetros:
+      campo            nombre del parámetro de la localidad (ej. 'version.idLocalidad').
+      idLocalidad      id de la localidad elegida, o null.
+      textoLocalidad   nombre de la localidad elegida, o null.
+      idProvincia      id de su provincia, o null.
+      textoProvincia   nombre de su provincia, o null.
+      idPais           id de su país, o null.
+      textoPais        nombre de su país, o null.
+      obligatorio      true para marcar los tres campos con asterisco rojo (formularios); false en los filtros.
+      invalido         true para marcar la localidad con error.
+
+    Uso: <div th:replace="~{fragments/ubicacion-enlazada :: ubicacion('version.idLocalidad', *{version.idLocalidad}, ${textoLocalidad},
+                           ${idProvinciaElegida}, ${textoProvincia}, ${idPaisElegido}, ${textoPais}, true, ${#fields.hasErrors('version.idLocalidad')})}"></div>
+-->
+<div th:fragment="ubicacion(campo, idLocalidad, textoLocalidad, idProvincia, textoProvincia, idPais, textoPais, obligatorio, invalido)"
+     data-ubicacion-enlazada class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div data-ubicacion="pais">
+        <span class="block text-xs font-medium text-slate-500 mb-1">País <span class="text-rose-600" title="Obligatorio" th:if="${obligatorio}">*</span></span>
+        <div th:replace="~{fragments/selector-entidad :: selector('idPais', ${idPais}, ${textoPais},
+                @{/ubicaciones/paises/buscador}, null, null, true, false, 'Seleccione país')}"></div>
+    </div>
+    <div data-ubicacion="provincia" th:attr="data-padre-id=${idPais}">
+        <span class="block text-xs font-medium text-slate-500 mb-1">Provincia <span class="text-rose-600" title="Obligatorio" th:if="${obligatorio}">*</span></span>
+        <div th:replace="~{fragments/selector-entidad :: selector('idProvincia', ${idProvincia}, ${textoProvincia},
+                @{/ubicaciones/provincias/buscador}, null, null, true, false, 'Seleccione provincia')}"></div>
+    </div>
+    <div data-ubicacion="localidad" th:attr="data-padre-id=${idProvincia}">
+        <span class="block text-xs font-medium text-slate-500 mb-1">Localidad <span class="text-rose-600" title="Obligatorio" th:if="${obligatorio}">*</span></span>
+        <div th:replace="~{fragments/selector-entidad :: selector(${campo}, ${idLocalidad}, ${textoLocalidad},
+                @{/ubicaciones/localidades/buscador}, null, null, true, ${invalido}, 'Seleccione localidad')}"></div>
+    </div>
+</div>
+</html>

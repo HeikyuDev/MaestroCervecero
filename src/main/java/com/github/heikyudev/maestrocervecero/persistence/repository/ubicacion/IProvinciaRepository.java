@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion;
 
-import java.util.List;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.ProvinciaEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -106,14 +105,4 @@ public interface IProvinciaRepository extends JpaRepository<ProvinciaEntity, Lon
      */
     @Query("SELECT CASE WHEN COUNT(pr) > 0 THEN true ELSE false END FROM ProvinciaEntity pr WHERE pr.pais.id = :idPais AND pr.estado = 'ACTIVO'")
     boolean existsByPaisId(@Param("idPais") Long idPais);
-
-    /**
-     * Lista las provincias activas de un país en orden alfabético por nombre (sin distinguir mayúsculas), para
-     * los selectores en cascada de ubicación.
-     *
-     * @param idPais El ID del país.
-     * @return Las provincias activas del país ordenadas por nombre.
-     */
-    @Query("SELECT pr FROM ProvinciaEntity pr WHERE pr.estado = 'ACTIVO' AND pr.pais.id = :idPais ORDER BY UPPER(pr.nombre), pr.id")
-    List<ProvinciaEntity> listarActivasPorPais(@Param("idPais") Long idPais);
 }

@@ -550,36 +550,4 @@ class PaisServicioImplTest {
         assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
         verify(paisRepository).save(existente);
     }
-
-    // ==================== listarPaisesActivos ====================
-
-    @Test
-    @DisplayName("CP-LPa-01: listarPaisesActivos retorna los países activos mapeados a DTO en el orden que entrega el repositorio")
-    void listarPaisesActivos_debeRetornarLosPaisesMapeadosAlDTO() {
-        // Arrange
-        PaisEntity argentina = crearPaisEntity(1L, "Argentina");
-        PaisEntity brasil = crearPaisEntity(2L, "Brasil");
-        when(paisRepository.listarActivos()).thenReturn(List.of(argentina, brasil));
-
-        // Act
-        List<PaisResponseDTO> resultado = paisServicio.listarPaisesActivos();
-
-        // Assert
-        assertThat(resultado).extracting(PaisResponseDTO::getId, PaisResponseDTO::getNombre)
-                .containsExactly(org.assertj.core.api.Assertions.tuple(1L, "Argentina"), org.assertj.core.api.Assertions.tuple(2L, "Brasil"));
-        verify(paisRepository).listarActivos();
-    }
-
-    @Test
-    @DisplayName("CP-LPa-02: listarPaisesActivos retorna una lista vacía cuando no hay países activos")
-    void listarPaisesActivos_debeRetornarListaVaciaSinPaises() {
-        // Arrange
-        when(paisRepository.listarActivos()).thenReturn(List.of());
-
-        // Act
-        List<PaisResponseDTO> resultado = paisServicio.listarPaisesActivos();
-
-        // Assert
-        assertThat(resultado).isEmpty();
-    }
 }

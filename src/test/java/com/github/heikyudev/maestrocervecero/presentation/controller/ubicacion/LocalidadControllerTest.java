@@ -483,6 +483,27 @@ class LocalidadControllerTest {
         verify(localidadServicio, never()).bajaLocalidad(any());
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-LOC-28: el buscador de localidades llega filtrado por la provincia elegida y cada botón Elegir expone la localidad, su provincia y su país")
+    void buscador_debeAceptarElFiltroDeProvinciaYExponerLosPadres() throws Exception {
+        // Arrange
+        when(provinciaServicio.buscarPorId(5L)).thenReturn(provincia(5L, "Córdoba"));
+        when(localidadServicio.filtrarLocalidades(any(), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(localidad(8L, "Río Cuarto", "5800")), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get("/ubicaciones/localidades/buscador").param("idProvincia", "5"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"Córdoba (Argentina)\"")))
+                .andExpect(content().string(containsString("data-nombre=\"Río Cuarto\"")))
+                .andExpect(content().string(containsString("data-id-provincia=\"5\"")))
+                .andExpect(content().string(containsString("data-texto-provincia=\"Córdoba\"")))
+                .andExpect(content().string(containsString("data-id-pais=\"3\"")))
+                .andExpect(content().string(containsString("data-texto-pais=\"Argentina\"")));
+        verify(localidadServicio).filtrarLocalidades(isNull(), isNull(), eq(5L), isNull(), any());
+    }
+
     private static PaisResponseDTO pais(Long id, String nombre) {
         return PaisResponseDTO.builder().id(id).nombre(nombre).build();
     }

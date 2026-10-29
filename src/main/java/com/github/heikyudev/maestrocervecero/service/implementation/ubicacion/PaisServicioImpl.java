@@ -1,6 +1,5 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
-import java.util.List;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
@@ -207,16 +206,5 @@ public class PaisServicioImpl implements IPaisServicio {
 
     private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe un país con el nombre '" + nombre + "'");
-    }
-
-    /**
-     * Lista todos los países activos en orden alfabético por nombre.
-     *
-     * @return Los países activos en formato DTO.
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public List<PaisResponseDTO> listarPaisesActivos() {
-        return paisRepository.listarActivos().stream().map(MapperPais::toDTO).toList();
     }
 }

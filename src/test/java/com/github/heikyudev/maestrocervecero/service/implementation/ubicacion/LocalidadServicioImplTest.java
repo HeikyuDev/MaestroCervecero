@@ -756,35 +756,4 @@ class LocalidadServicioImplTest {
         assertThat(existente.getCodigoPostal()).isEqualTo("C1428");
         assertThat(formDTO.getCodigoPostal()).isEqualTo("  c1428  ");
     }
-
-    // ==================== listarLocalidadesActivasDeProvincia ====================
-
-    @Test
-    @DisplayName("CP-LLo-01: listarLocalidadesActivasDeProvincia retorna las localidades activas de la provincia mapeadas a DTO")
-    void listarLocalidadesActivasDeProvincia_debeRetornarLasLocalidadesDeLaProvincia() {
-        // Arrange
-        ProvinciaEntity cordoba = provinciaEntity(5L);
-        LocalidadEntity rioCuarto = crearLocalidadEntity(9L, "Río Cuarto", "5800", cordoba);
-        LocalidadEntity villaMaria = crearLocalidadEntity(10L, "Villa María", "5900", cordoba);
-        when(localidadRepository.listarActivasPorProvincia(5L)).thenReturn(List.of(rioCuarto, villaMaria));
-
-        // Act
-        List<LocalidadResponseDTO> resultado = localidadServicio.listarLocalidadesActivasDeProvincia(5L);
-
-        // Assert
-        assertThat(resultado).extracting(LocalidadResponseDTO::getId, LocalidadResponseDTO::getNombre)
-                .containsExactly(org.assertj.core.api.Assertions.tuple(9L, "Río Cuarto"), org.assertj.core.api.Assertions.tuple(10L, "Villa María"));
-        verify(localidadRepository).listarActivasPorProvincia(5L);
-    }
-
-    @Test
-    @DisplayName("CP-LLo-02: listarLocalidadesActivasDeProvincia retorna una lista vacía sin consultar el repositorio cuando la provincia es nula")
-    void listarLocalidadesActivasDeProvincia_debeRetornarListaVaciaConProvinciaNula() {
-        // Act
-        List<LocalidadResponseDTO> resultado = localidadServicio.listarLocalidadesActivasDeProvincia(null);
-
-        // Assert
-        assertThat(resultado).isEmpty();
-        verifyNoInteractions(localidadRepository);
-    }
 }

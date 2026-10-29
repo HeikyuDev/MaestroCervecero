@@ -15,8 +15,6 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IInsumoSe
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IPresentacionComercialServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
-import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IPaisServicio;
-import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IProvinciaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.ubicacion.PaisResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
@@ -103,11 +101,7 @@ class ProveedorControllerTest {
     @MockitoBean
     private ILocalidadServicio localidadServicio;
 
-    @MockitoBean
-    private IProvinciaServicio provinciaServicio;
 
-    @MockitoBean
-    private IPaisServicio paisServicio;
 
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
@@ -191,24 +185,28 @@ class ProveedorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-PVC-04: el filtro por localidad usa la cascada País, Provincia y Localidad precargada con la elección; una localidad inexistente no filtra")
+    @DisplayName("CP-PVC-04: el filtro por localidad usa los selectores enlazados País, Provincia y Localidad precargados con la ubicación elegida; una localidad inexistente no filtra")
     void caso_cp_pvc_04() throws Exception {
         // Arrange
         when(proveedorServicio.filtrarProveedores(any(), any(), any(), any(), any())).thenReturn(paginaVacia());
         when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
-        cascadaDeUbicacion();
         when(localidadServicio.buscarPorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró la localidad con ID: 99"));
-        cascadaDeUbicacion();
 
         // Act + Assert
         mockMvc.perform(get(URL).param("idLocalidad", "9"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-ubicacion-cascada")))
-                .andExpect(content().string(containsString("<option value=\"3\" selected=\"selected\">Argentina</option>")))
-                .andExpect(content().string(containsString("<option value=\"2\" selected=\"selected\">Córdoba</option>")))
-                .andExpect(content().string(containsString("<option value=\"9\" selected=\"selected\">Río Cuarto</option>")))
+                .andExpect(content().string(containsString("data-ubicacion-enlazada")))
+                .andExpect(content().string(containsString("name=\"idPais\" value=\"3\"")))
+                .andExpect(content().string(containsString("name=\"idProvincia\" value=\"2\"")))
+                .andExpect(content().string(containsString("name=\"idLocalidad\" value=\"9\"")))
+                .andExpect(content().string(containsString("value=\"Argentina\"")))
+                .andExpect(content().string(containsString("value=\"Córdoba\"")))
+                .andExpect(content().string(containsString("value=\"Río Cuarto\"")))
                 .andExpect(content().string(containsString("name=\"idLocalidad\"")))
-                .andExpect(content().string(not(containsString("data-selector-limpiar"))));
+                .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/paises/buscador\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/provincias/buscador\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/localidades/buscador\"")))
+                .andExpect(content().string(not(containsString("<select data-ubicacion"))));
         mockMvc.perform(get(URL).param("idLocalidad", "99"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("value=\"99\""))));
@@ -223,7 +221,6 @@ class ProveedorControllerTest {
     void caso_cp_pvc_05() throws Exception {
         // Arrange
         when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
-        cascadaDeUbicacion();
         when(proveedorServicio.filtrarProveedores(any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(proveedor(4L, "3584123456")), PageRequest.of(1, 20), 60));
 
@@ -360,7 +357,7 @@ class ProveedorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-PVC-11: el formulario de alta muestra los campos con asterisco, placeholders y ayudas, la cascada País, Provincia y Localidad y el catálogo vacío con su ventana para agregar ítems")
+    @DisplayName("CP-PVC-11: el formulario de alta muestra los campos con asterisco, placeholders y ayudas, los selectores enlazados País, Provincia y Localidad y el catálogo vacío con su ventana para agregar ítems")
     void caso_cp_pvc_11() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL + "/nuevo"))
@@ -376,19 +373,21 @@ class ProveedorControllerTest {
                 .andExpect(content().string(containsString("placeholder=\"Ej: 3584123456\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: ventas@malteriasdelsur.com\"")))
                 .andExpect(content().string(containsString("placeholder=\"Ej: Av. Italia 1234\"")))
-                .andExpect(content().string(containsString(">Seleccione localidad</option>")))
-                .andExpect(content().string(containsString(">Seleccione país</option>")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione país\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione provincia\"")))
+                .andExpect(content().string(containsString("placeholder=\"Seleccione localidad\"")))
                 .andExpect(content().string(containsString("Escriba solo los 11 números, los guiones se agregan solos. Único entre los proveedores.</p>")))
                 .andExpect(content().string(containsString("Opcional. Solo dígitos, hasta 15.</p>")))
                 .andExpect(content().string(containsString("Único entre los proveedores, sin distinguir mayúsculas. Hasta 255 caracteres.</p>")))
                 .andExpect(content().string(containsString("Hasta 100 caracteres.</p>")))
                 .andExpect(content().string(containsString("Hasta 255 caracteres.</p>")))
                 .andExpect(content().string(containsString("Entre 1 y 100 ítems; el mismo insumo se puede ofrecer en varias presentaciones.")))
-                .andExpect(content().string(containsString("data-url-provincias=\"/ubicaciones/opciones/provincias\"")))
-                .andExpect(content().string(containsString("data-url-localidades=\"/ubicaciones/opciones/localidades\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/paises/buscador\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/provincias/buscador\"")))
+                .andExpect(content().string(containsString("data-buscador-url=\"/ubicaciones/localidades/buscador\"")))
                 .andExpect(content().string(containsString("name=\"version.idLocalidad\"")))
-                .andExpect(content().string(containsString("/js/ubicacion-cascada.js")))
-                // Los gerentes no dan de alta ubicaciones: la cascada no ofrece alta al vuelo
+                .andExpect(content().string(containsString("/js/ubicacion-enlazada.js")))
+                // Los gerentes no dan de alta ubicaciones: los selectores de ubicación no ofrecen alta al vuelo
                 .andExpect(content().string(not(containsString("data-selector-menu"))))
                 .andExpect(content().string(containsString("Agregar ítem")))
                 .andExpect(content().string(containsString(">No hay ítems en el catálogo<")))
@@ -474,7 +473,7 @@ class ProveedorControllerTest {
                 .andExpect(content().string(containsString("La localidad es obligatoria")))
                 .andExpect(content().string(containsString("El catálogo debe tener al menos un ítem")))
                 .andExpect(content().string(not(containsString("El teléfono"))))
-                .andExpect(content().string(matchesPattern("(?s).*data-ubicacion-localidad[^>]*border-rose-400.*")))
+                .andExpect(content().string(matchesPattern("(?s).*data-selector-buscar data-selector-texto[^>]*border-rose-400.*")))
                 .andExpect(content().string(matchesPattern("(?s).*class=\"border rounded-lg overflow-hidden border-rose-400\".*")));
 
         verify(proveedorServicio, never()).altaProveedor(any());
@@ -618,9 +617,12 @@ class ProveedorControllerTest {
                 .andExpect(content().string(containsString("El CUIT debe tener exactamente 11 dígitos")))
                 .andExpect(content().string(containsString("value=\"" + RAZON_SOCIAL_ESCAPADA + "\"")))
                 .andExpect(content().string(containsString("value=\"ventas@malteriasdelsur.com\"")))
-                .andExpect(content().string(containsString("<option value=\"3\" selected=\"selected\">Argentina</option>")))
-                .andExpect(content().string(containsString("<option value=\"2\" selected=\"selected\">Córdoba</option>")))
-                .andExpect(content().string(containsString("<option value=\"9\" selected=\"selected\">Río Cuarto</option>")))
+                .andExpect(content().string(containsString("name=\"idPais\" value=\"3\"")))
+                .andExpect(content().string(containsString("name=\"idProvincia\" value=\"2\"")))
+                .andExpect(content().string(containsString("name=\"version.idLocalidad\" value=\"9\"")))
+                .andExpect(content().string(containsString("value=\"Argentina\"")))
+                .andExpect(content().string(containsString("value=\"Córdoba\"")))
+                .andExpect(content().string(containsString("value=\"Río Cuarto\"")))
                 // Las dos filas del catálogo vuelven con sus ids, el insumo con su tipo y la presentación con su medida
                 .andExpect(content().string(containsString("name=\"version.catalogoProveedor[0].idInsumo\" value=\"11\"")))
                 .andExpect(content().string(containsString("name=\"version.catalogoProveedor[0].idPresentacionComercial\" value=\"5\"")))
@@ -641,7 +643,6 @@ class ProveedorControllerTest {
     void caso_cp_pvc_19() throws Exception {
         // Arrange
         when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
-        cascadaDeUbicacion();
         when(insumoServicio.buscarPorId(11L)).thenThrow(new RecursoNoEncontradoException("No se encontró el insumo con ID: 11"));
         when(presentacionComercialServicio.buscarPorId(5L)).thenThrow(new RecursoNoEncontradoException("No se encontró la presentación comercial con ID: 5"));
         when(presentacionComercialServicio.buscarPorId(6L)).thenReturn(presentacion(6L, "Bolsa de 1.000 g", 1000.0, UnidadDeMedida.GRAMO));
@@ -693,7 +694,8 @@ class ProveedorControllerTest {
                 .andExpect(content().string(containsString("value=\"3584123456\"")))
                 .andExpect(content().string(containsString("value=\"ventas@malteriasdelsur.com\"")))
                 .andExpect(content().string(containsString("value=\"Av. Italia 1234\"")))
-                .andExpect(content().string(containsString("<option value=\"9\" selected=\"selected\">Río Cuarto</option>")))
+                .andExpect(content().string(containsString("name=\"version.idLocalidad\" value=\"9\"")))
+                .andExpect(content().string(containsString("value=\"Río Cuarto\"")))
                 .andExpect(content().string(containsString("name=\"version.catalogoProveedor[0].idInsumo\" value=\"11\"")))
                 .andExpect(content().string(containsString("name=\"version.catalogoProveedor[1].idPresentacionComercial\" value=\"6\"")))
                 .andExpect(content().string(containsString(">25 kg<")))
@@ -713,7 +715,6 @@ class ProveedorControllerTest {
         when(insumoServicio.buscarPorId(11L)).thenReturn(malta);
         when(presentacionComercialServicio.buscarPorId(5L)).thenReturn(bolsa);
         when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
-        cascadaDeUbicacion();
         when(proveedorServicio.buscarPorId(4L)).thenReturn(ProveedorResponseDTO.builder().id(4L).version(
                 VersionProveedorResponseDTO.builder().razonSocial("Malterías del Sur S.A.").cuit("30712345678").localidad(localidad())
                         .catalogoProveedor(List.of(CatalogoProveedorResponseDTO.builder().insumo(malta).presentacionComercial(bolsa).build()))
@@ -1119,7 +1120,6 @@ class ProveedorControllerTest {
         MaltaResponseDTO pilsen = MaltaResponseDTO.builder().id(11L).nombre("Pilsen").build();
         when(insumoServicio.buscarPorId(11L)).thenReturn(pilsen);
         when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
-        cascadaDeUbicacion();
         when(proveedorServicio.buscarPorId(4L)).thenReturn(ProveedorResponseDTO.builder().id(4L).version(
                 VersionProveedorResponseDTO.builder().razonSocial("Malterías del Sur S.A.").cuit("30712345678").localidad(localidad())
                         .catalogoProveedor(presentaciones.stream().map(p -> CatalogoProveedorResponseDTO.builder()
@@ -1205,7 +1205,6 @@ class ProveedorControllerTest {
      */
     private void cargarCatalogoResuelto() {
         when(localidadServicio.buscarPorId(9L)).thenReturn(localidad());
-        cascadaDeUbicacion();
         when(insumoServicio.buscarPorId(11L)).thenReturn(MaltaResponseDTO.builder().id(11L).nombre("Pilsen").build());
         when(presentacionComercialServicio.buscarPorId(5L)).thenReturn(presentacion(5L, "Bolsa de 25 Kg", 25.0, UnidadDeMedida.KILOGRAMO));
         when(presentacionComercialServicio.buscarPorId(6L)).thenReturn(presentacion(6L, "Bolsa de 1.000 g", 1000.0, UnidadDeMedida.GRAMO));
@@ -1297,15 +1296,6 @@ class ProveedorControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(">Río Cuarto<")))
                 .andExpect(content().string(containsString(">Córdoba, Argentina<")));
-    }
-
-    /**
-     * Las tres listas de la cascada País, Provincia y Localidad con la elección Argentina, Córdoba y Río Cuarto.
-     */
-    private void cascadaDeUbicacion() {
-        when(paisServicio.listarPaisesActivos()).thenReturn(List.of(PaisResponseDTO.builder().id(3L).nombre("Argentina").build()));
-        when(provinciaServicio.listarProvinciasActivasDePais(3L)).thenReturn(List.of(localidad().getProvincia()));
-        when(localidadServicio.listarLocalidadesActivasDeProvincia(2L)).thenReturn(List.of(localidad()));
     }
 
     private static LocalidadResponseDTO localidad() {

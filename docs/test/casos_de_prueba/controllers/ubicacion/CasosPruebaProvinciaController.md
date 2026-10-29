@@ -69,6 +69,7 @@
 | --- | --- | --- | --- | --- |
 | **CP-PRC-19** | Formulario de edición con los datos actuales | Rol `ADMINISTRADOR`, `id: 5`. El service devuelve "Córdoba" de "Argentina" (`id: 3`) | La provincia existe | Responde 200 con la vista `ubicacion/provincia-form`: título "Editar provincia", el nombre actual, el selector con `idPais=3` y el texto "Argentina", `action="/ubicaciones/provincias/5"` y el botón "Guardar cambios". |
 | **CP-PRC-28** | Vuelta de crear un país al editar | `id: 5`, `idPais: 7`. `IPaisServicio` devuelve "Chile" | El país recién creado llega en la URL | El selector muestra `idPais=7` y "Chile" en lugar del país actual. |
+| **CP-PRC-29** | El buscador acepta el filtro de país y expone el país de cada provincia | Rol `GERENTE_DE_COMPRAS`, `idPais=3`; el service devuelve "Córdoba" (`id: 5`) del país "Argentina" | El selector de ubicación abre el buscador con el país ya elegido | El criterio País se muestra con "Argentina", se llama a `filtrarProvincias(null, 3, ...)` y el botón "Elegir" lleva `data-nombre="Córdoba"`, `data-id-pais="3"` y `data-texto-pais="Argentina"`. |
 
 ---
 

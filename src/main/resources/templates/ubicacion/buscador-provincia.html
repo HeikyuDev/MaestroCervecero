@@ -51,6 +51,7 @@
                 <td class="px-4 py-3 text-slate-700" th:text="${p.pais.nombre}">Argentina</td>
                 <td class="px-4 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${p.id}" th:data-texto="${p.nombre + ' (' + p.pais.nombre + ')'}"
+                            th:data-nombre="${p.nombre}" th:data-id-pais="${p.pais.id}" th:data-texto-pais="${p.pais.nombre}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>

@@ -68,6 +68,8 @@
                 <td class="px-4 py-3 text-slate-700" th:text="${l.provincia.pais.nombre}">Argentina</td>
                 <td class="px-4 py-3 text-right">
                     <button type="button" data-elegir th:data-id="${l.id}" th:data-texto="${l.nombre + ' (' + l.provincia.nombre + ')'}"
+                            th:data-nombre="${l.nombre}" th:data-id-provincia="${l.provincia.id}" th:data-texto-provincia="${l.provincia.nombre}"
+                            th:data-id-pais="${l.provincia.pais.id}" th:data-texto-pais="${l.provincia.pais.nombre}"
                             class="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">Elegir</button>
                 </td>
             </tr>

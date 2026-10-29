@@ -58,10 +58,3 @@
 |**CP-BPR-01**|Baja de provincia inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `localidadRepository` ni llama a `save()`.|
 |**CP-BPR-02**|Baja de provincia con localidades activas|`id: 1L` (Existe con 2 localidades activas)|`existsByProvinciaId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
 |**CP-BPR-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe y sin localidades asociadas)|`existsByProvinciaId(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO de la provincia dada de baja.|
-
-### 6. `listarProvinciasActivasDePais(Long idPais)`
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-LPr-01**|Provincias activas del país mapeadas a DTO|`idPais: 1L`; el repositorio devuelve "Córdoba" (`id: 5`) y "Misiones" (`id: 6`)|`listarActivasPorPais(1L)` entrega dos provincias|Retorna dos DTO con esos ids y nombres, en el mismo orden (el orden alfabético lo define la consulta del repositorio).|
-|**CP-LPr-02**|País nulo|`idPais: null`|No hay país por el que filtrar|Retorna una lista vacía sin consultar el repositorio.|

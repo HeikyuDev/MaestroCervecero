@@ -54,10 +54,3 @@
 |**CP-BP-01**|Baja de país inexistente|`id: 99L` (No existe en BD)|`findById(99L)` $\rightarrow$ **Optional.empty()**|Lanza `RecursoNoEncontradoException`. No consulta `provinciaRepository` ni llama a `save()`.|
 |**CP-BP-02**|Baja de país con provincias activas|`id: 1L` (Existe con 2 provincias activas)|`existsByPaisId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException`. No llama a `save()`.|
 |**CP-BP-03**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe y sin provincias asociadas)|`existsByPaisId(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` y retorna DTO del país dado de baja.|
-
-### 6. `listarPaisesActivos()`
-
-|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
-|---|---|---|---|---|
-|**CP-LPa-01**|Países activos mapeados a DTO|El repositorio devuelve "Argentina" (`id: 1`) y "Brasil" (`id: 2`)|`listarActivos()` entrega dos países|Retorna dos DTO con esos ids y nombres, en el mismo orden (el orden alfabético lo define la consulta del repositorio).|
-|**CP-LPa-02**|Sin países activos|El repositorio devuelve una lista vacía|`listarActivos()` entrega una lista vacía|Retorna una lista vacía.|

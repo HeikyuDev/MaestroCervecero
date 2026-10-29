@@ -61,6 +61,7 @@
 | **CP-PAC-18** | Rol sin permiso de alta | Rol `GERENTE_DE_COMPRAS` | `@PreAuthorize` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 | **CP-PAC-19** | Sin token CSRF | Rol `ADMINISTRADOR`, sin CSRF | Spring Security exige CSRF | La petición es rechazada (redirección) y no invoca al service. |
 | **CP-PAC-29** | Alta con retorno fuera del sitio | `nombre: "Chile"`, `retorno: "https://sitio-malicioso.com"` | Solo se aceptan rutas internas | El retorno se ignora: redirige a `/ubicaciones/paises`. |
+| **CP-PAC-30** | El buscador expone el nombre del país | Rol `GERENTE_DE_COMPRAS`; el service devuelve "Argentina" (`id: 3`) | El botón "Elegir" de cada fila | Lleva `data-nombre="Argentina"`, con el que los selectores de ubicación enlazados muestran el país elegido. |
 
 ---
 

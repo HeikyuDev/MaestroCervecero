@@ -473,6 +473,25 @@ class ProvinciaControllerTest {
         verify(provinciaServicio, never()).bajaProvincia(any());
     }
 
+    @Test
+    @WithMockUser(roles = "GERENTE_DE_COMPRAS")
+    @DisplayName("CP-PRC-29: el buscador de provincias llega filtrado por el país elegido y cada botón Elegir expone la provincia y su país")
+    void buscador_debeAceptarElFiltroDePaisYExponerElPadre() throws Exception {
+        // Arrange
+        when(paisServicio.buscarPorId(3L)).thenReturn(pais(3L, "Argentina"));
+        when(provinciaServicio.filtrarProvincias(any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(provincia(5L, "Córdoba", 3L, "Argentina")), PageRequest.of(0, 8), 1));
+
+        // Act + Assert
+        mockMvc.perform(get("/ubicaciones/provincias/buscador").param("idPais", "3"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("value=\"Argentina\"")))
+                .andExpect(content().string(containsString("data-nombre=\"Córdoba\"")))
+                .andExpect(content().string(containsString("data-id-pais=\"3\"")))
+                .andExpect(content().string(containsString("data-texto-pais=\"Argentina\"")));
+        verify(provinciaServicio).filtrarProvincias(isNull(), eq(3L), any());
+    }
+
     private static PaisResponseDTO pais(Long id, String nombre) {
         return PaisResponseDTO.builder().id(id).nombre(nombre).build();
     }
