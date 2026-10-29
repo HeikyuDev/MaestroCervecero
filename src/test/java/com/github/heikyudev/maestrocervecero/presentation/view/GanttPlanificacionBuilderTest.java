@@ -925,6 +925,66 @@ class GanttPlanificacionBuilderTest {
     }
 
     @Test
+    @DisplayName("CP-GPB-67: la limpieza queda pegada a la barra anterior y a la siguiente, sin superponerse con ninguna (la geometría calculada no se falsea)")
+    void laLimpieza_noSeSuperponeConLasBarrasContiguas() {
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(lotesDeLimpieza(), fecha(1), fecha(10), fecha(1));
+
+        // Assert
+        List<Barra> barras = vista.getCarriles().get(0).getBarras();
+        Limpieza limpieza = vista.getCarriles().get(0).getLimpiezas().get(0);
+        double finBarraAnterior = barras.get(0).getIzquierdaPct() + barras.get(0).getAnchoPct();
+        double finLimpieza = limpieza.getIzquierdaPct() + limpieza.getAnchoPct();
+        assertThat(finBarraAnterior).isCloseTo(limpieza.getIzquierdaPct(), org.assertj.core.api.Assertions.within(0.011));
+        assertThat(finLimpieza).isCloseTo(barras.get(1).getIzquierdaPct(), org.assertj.core.api.Assertions.within(0.011));
+        assertThat(limpieza.getIzquierdaPct()).isGreaterThanOrEqualTo(finBarraAnterior - 0.011);
+        assertThat(barras.get(1).getIzquierdaPct()).isGreaterThanOrEqualTo(finLimpieza - 0.011);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-68: en un eje muy largo la limpieza no usa el ancho mínimo si eso la superpone con la barra siguiente: queda en el ancho de su día")
+    void laLimpieza_enUnEjeLargo_noPisaALaBarraSiguiente() {
+        // Act: eje de más de 300 días, donde un día es menos del 0,33 % del eje
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(lotesDeLimpieza(), fecha(1), fecha(10).plusDays(330), fecha(1));
+
+        // Assert
+        List<Barra> barras = vista.getCarriles().get(0).getBarras();
+        Limpieza limpieza = vista.getCarriles().get(0).getLimpiezas().get(0);
+        assertThat(limpieza.getAnchoPct()).isLessThan(1.0);
+        assertThat(limpieza.getIzquierdaPct() + limpieza.getAnchoPct()).isLessThanOrEqualTo(barras.get(1).getIzquierdaPct() + 0.011);
+    }
+
+    @Test
+    @DisplayName("CP-GPB-69: caso inverso: la limpieza empieza donde termina la barra anterior, sin correrse hacia ella, tanto en un eje corto como en uno largo")
+    void laLimpieza_empiezaDondeTerminaLaBarraAnterior() {
+        // Act
+        for (int diasExtra : new int[]{0, 330}) {
+            GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(lotesDeLimpieza(), fecha(1), fecha(10).plusDays(diasExtra), fecha(1));
+
+            // Assert
+            Barra anterior = vista.getCarriles().get(0).getBarras().get(0);
+            Limpieza limpieza = vista.getCarriles().get(0).getLimpiezas().get(0);
+            assertThat(limpieza.getIzquierdaPct()).as("eje +%d días", diasExtra)
+                    .isCloseTo(anterior.getIzquierdaPct() + anterior.getAnchoPct(), org.assertj.core.api.Assertions.within(0.02));
+        }
+    }
+
+    @Test
+    @DisplayName("CP-GPB-70: en un eje muy largo la barra anterior no usa el ancho mínimo si eso taparía la limpieza o la barra siguiente: los tres bloques quedan lado a lado")
+    void lasBarrasYLaLimpieza_enUnEjeLargo_quedanLadoALado() {
+        // Act
+        GanttPlanificacionVista vista = GanttPlanificacionBuilder.construir(lotesDeLimpieza(), fecha(1), fecha(10).plusDays(330), fecha(1));
+
+        // Assert
+        List<Barra> barras = vista.getCarriles().get(0).getBarras();
+        Limpieza limpieza = vista.getCarriles().get(0).getLimpiezas().get(0);
+        double finAnterior = barras.get(0).getIzquierdaPct() + barras.get(0).getAnchoPct();
+        assertThat(finAnterior).isLessThanOrEqualTo(limpieza.getIzquierdaPct() + 0.011);
+        assertThat(limpieza.getIzquierdaPct() + limpieza.getAnchoPct()).isLessThanOrEqualTo(barras.get(1).getIzquierdaPct() + 0.011);
+        assertThat(barras.get(0).getAnchoPct()).isGreaterThan(0.0);
+    }
+
+    @Test
     @DisplayName("CP-GPB-45: dos lotes consecutivos (el segundo empieza el día siguiente al primero) no tienen limpieza")
     void lotesConsecutivos_noTienenLimpieza() {
         // Arrange

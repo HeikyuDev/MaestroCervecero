@@ -628,7 +628,11 @@ class CronogramaControllerTest {
         // Assert
         assertThat(bloque).contains("gantt-color--limpieza").doesNotContain("gantt-color--pendiente");
         assertThat(html).contains(".gantt-color--limpieza {").contains("container-type: inline-size")
-                .contains("@container (max-width: 15px)");
+                .contains("@container (max-width: 15px)")
+                // Separación entre bloques contiguos y borde propio de la limpieza, apilada sobre las barras
+                .contains(".gantt-barra { box-sizing: border-box; border-left: 1px solid #ffffff; border-right: 1px solid #ffffff")
+                .contains("background-clip: padding-box").contains("box-shadow: inset 0 0 0 1px #38bdf8");
+        assertThat(html).doesNotContain("z-index: 1");
     }
 
     @Test

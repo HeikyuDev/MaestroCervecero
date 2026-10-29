@@ -119,7 +119,7 @@ public class GanttPlanificacionVista {
      * Barra de un lote dentro de su carril.
      */
     @Value
-    @Builder
+    @Builder(toBuilder = true)
     public static class Barra {
         Long idLote;
 

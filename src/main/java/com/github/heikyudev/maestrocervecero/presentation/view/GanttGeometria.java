@@ -51,6 +51,8 @@ final class GanttGeometria {
 
     /** Ancho mínimo visible de una barra, en % del eje. */
     static final double ANCHO_MINIMO_BARRA_PCT = 1.0;
+    /** Diferencia (en % del eje) por debajo de la cual dos posiciones redondeadas se consideran la misma. */
+    private static final double TOLERANCIA_PCT = 0.011;
     static final int PX_POR_DIA = 24;
     static final int ANCHO_MINIMO_PX = 720;
     static final int ANCHO_MAXIMO_PX = 3600;
@@ -330,13 +332,54 @@ final class GanttGeometria {
         ordenados.sort(Comparator.<Tramo, LocalDate>comparing(Tramo::desde)
                 .thenComparing(t -> t.lote().getId(), Comparator.nullsLast(Comparator.naturalOrder())));
         List<Barra> barras = new ArrayList<>();
+        List<Tramo> tramosDibujados = new ArrayList<>();
         for (Tramo t : ordenados) {
             if (seSolapaConElEje(t, eje)) {
                 barras.add(aBarra.apply(t));
+                tramosDibujados.add(t);
             }
         }
-        List<Limpieza> limpiezas = conFermentador ? armarLimpiezas(ordenados, eje, hoy, limpiezaAtenuada) : List.of();
-        return Carril.builder().etiqueta(etiqueta).barras(barras).limpiezas(limpiezas).build();
+        List<Limpieza> limpiezas = conFermentador ? armarLimpiezas(ordenados, barras, eje, hoy, limpiezaAtenuada) : List.of();
+        return Carril.builder().etiqueta(etiqueta).barras(ajustarAnchosMinimos(barras, tramosDibujados, limpiezas, eje))
+                .limpiezas(limpiezas).build();
+    }
+
+    /**
+     * El ancho mínimo visible de una barra solo se aprovecha mientras haya lugar libre: si ensancharla la haría pisar el
+     * inicio del bloque que le sigue en el carril (otra barra o una limpieza), se acorta hasta ese inicio, sin bajar nunca
+     * del ancho que le corresponde por sus días. Así los bloques contiguos quedan lado a lado.
+     */
+    private static List<Barra> ajustarAnchosMinimos(List<Barra> barras, List<Tramo> tramos, List<Limpieza> limpiezas, Eje eje) {
+        List<Barra> ajustadas = new ArrayList<>();
+        for (int i = 0; i < barras.size(); i++) {
+            Barra barra = barras.get(i);
+            double fin = barra.getIzquierdaPct() + barra.getAnchoPct();
+            double natural = anchoNatural(tramos.get(i), eje);
+            double siguiente = Double.MAX_VALUE;
+            for (Barra otra : barras) {
+                if (otra != barra && otra.getIzquierdaPct() >= barra.getIzquierdaPct() + natural - TOLERANCIA_PCT
+                        && otra.getIzquierdaPct() > barra.getIzquierdaPct()) {
+                    siguiente = Math.min(siguiente, otra.getIzquierdaPct());
+                }
+            }
+            for (Limpieza limpieza : limpiezas) {
+                if (limpieza.getIzquierdaPct() >= barra.getIzquierdaPct() + natural - TOLERANCIA_PCT) {
+                    siguiente = Math.min(siguiente, limpieza.getIzquierdaPct());
+                }
+            }
+            if (fin > siguiente + TOLERANCIA_PCT / 2 && barra.getAnchoPct() > natural) {
+                double ancho = redondear(Math.max(natural, siguiente - barra.getIzquierdaPct()));
+                barra = barra.toBuilder().anchoPct(ancho).build();
+            }
+            ajustadas.add(barra);
+        }
+        return ajustadas;
+    }
+
+    /** Ancho (en % del eje) que le corresponde a la barra por los días visibles de su tramo, sin el mínimo. */
+    private static double anchoNatural(Tramo tramo, Eje eje) {
+        long dias = ChronoUnit.DAYS.between(mayor(tramo.desde(), eje.desde()), menor(tramo.hasta(), eje.hasta())) + 1;
+        return porcentaje(dias, eje.totalDias());
     }
 
     /**
@@ -346,7 +389,7 @@ final class GanttGeometria {
      * Dos lotes que terminan el mismo día producen un único bloque. Van ordenadas por fecha. La regla se evalúa con
      * todos los tramos recibidos, estén o no dentro del eje, pero el bloque se dibuja solo si su día cae dentro del eje.
      */
-    private static List<Limpieza> armarLimpiezas(List<Tramo> tramos, Eje eje, LocalDate hoy, Predicate<List<Tramo>> limpiezaAtenuada) {
+    private static List<Limpieza> armarLimpiezas(List<Tramo> tramos, List<Barra> barras, Eje eje, LocalDate hoy, Predicate<List<Tramo>> limpiezaAtenuada) {
         if (hoy == null) {
             return List.of();
         }
@@ -364,9 +407,13 @@ final class GanttGeometria {
 
         List<Limpieza> limpiezas = new ArrayList<>();
         terminanAntes.forEach((dia, lotes) -> {
-            double ancho = Math.max(ANCHO_MINIMO_BARRA_PCT, porcentaje(1, eje.totalDias()));
-            double izquierda = redondear(Math.min(
-                    porcentaje(ChronoUnit.DAYS.between(eje.desde(), dia), eje.totalDias()), 100.0 - ancho));
+            double anchoDelDia = porcentaje(1, eje.totalDias());
+            double izquierda = porcentaje(ChronoUnit.DAYS.between(eje.desde(), dia), eje.totalDias());
+            // El ancho mínimo visible solo se aprovecha mientras haya lugar libre: nunca pasa del inicio de la barra
+            // siguiente ni del borde del eje, para que la limpieza quede al lado de las barras y no encima de ninguna
+            double limite = barras.stream().mapToDouble(Barra::getIzquierdaPct)
+                    .filter(inicio -> inicio >= izquierda + anchoDelDia - TOLERANCIA_PCT).min().orElse(100.0);
+            double ancho = Math.max(anchoDelDia, Math.min(ANCHO_MINIMO_BARRA_PCT, limite - izquierda));
             limpiezas.add(Limpieza.builder()
                     .fecha(dia)
                     .izquierdaPct(izquierda)
