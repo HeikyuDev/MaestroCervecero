@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -225,5 +226,20 @@ public class ProvinciaServicioImpl implements IProvinciaServicio {
 
     private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe una provincia con el nombre '" + nombre + "' para el país seleccionado");
+    }
+
+    /**
+     * Lista las provincias activas de un país en orden alfabético por nombre.
+     *
+     * @param idPais El ID del país.
+     * @return Las provincias activas del país en formato DTO; vacía si el país no existe o no tiene provincias.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProvinciaResponseDTO> listarProvinciasActivasDePais(Long idPais) {
+        if (idPais == null) {
+            return List.of();
+        }
+        return provinciaRepository.listarActivasPorPais(idPais).stream().map(MapperProvincia::toDTO).toList();
     }
 }

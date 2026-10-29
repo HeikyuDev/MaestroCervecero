@@ -10,6 +10,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EscaladoLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.TipoConsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
@@ -476,7 +477,10 @@ class ConsumoInsumoServicioImplTest {
         ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO);
 
         // === ASSERTS ===
-        assertThat(reserva.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
+        assertThat(reserva.getCantidadConsumida()).isEqualTo(6.0);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.CONSUMIDA);
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(4.0);
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
@@ -508,7 +512,11 @@ class ConsumoInsumoServicioImplTest {
         ConsumoInsumoResponseDTO resultado = consumoInsumoServicio.registrarConsumoInsumoReservado(1L, formDTO);
 
         // === ASSERTS ===
-        assertThat(reserva.getCantidadReservada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadConsumida()).isEqualTo(4.0);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(reserva.getCantidadLiberada()).isEqualTo(0.0);
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(2.0);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
         assertThat(resultado.getCantidadConsumida()).isEqualTo(4.0);
@@ -595,7 +603,7 @@ class ConsumoInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(cantidadConResiduo).isNotEqualTo(0.3);
         assertThat(resultado.getCantidadConsumida()).isEqualTo(0.3);
-        assertThat(reserva.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.0);
     }
@@ -694,7 +702,7 @@ class ConsumoInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getAdvertencias()).containsExactly("Este lote de insumo se encuentra vencido (venció el " + formatearFecha(vencimiento) + ")");
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(reserva.getCantidadReservada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(2.0);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
         verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
     }
@@ -715,7 +723,7 @@ class ConsumoInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(resultado.getAdvertencias()).containsExactly("El total consumido de Malta Pilsen en esta etapa (12 kg) supera la cantidad requerida (10 kg)");
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(reserva.getCantidadReservada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(2.0);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(6.0);
         verify(consumoInsumoRepository).save(any(ConsumoInsumoEntity.class));
     }
@@ -1685,7 +1693,8 @@ class ConsumoInsumoServicioImplTest {
         LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
         EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
         LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 2.0);
-        ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 2.0);
+        // Se reservaron 6, se consumieron 4 y quedan 2 pendientes
+        ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 6.0, 4.0, 2.0, EstadoReservaInsumo.ACTIVA);
         ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 4.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
         when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
         when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
@@ -1699,7 +1708,10 @@ class ConsumoInsumoServicioImplTest {
 
         // === ASSERTS ===
         LocalDateTime despues = LocalDateTime.now().plusSeconds(1);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(6.0);
+        assertThat(reserva.getCantidadConsumida()).isEqualTo(0.0);
         assertThat(reserva.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(10.0);
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(6.0);
         assertThat(consumo.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
@@ -1757,9 +1769,64 @@ class ConsumoInsumoServicioImplTest {
 
         // === ASSERTS ===
         assertThat(0.1 + 0.2).isNotEqualTo(0.3);
-        assertThat(reserva.getCantidadReservada()).isEqualTo(0.3);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.3);
         assertThat(loteInsumo.getCantidadActual()).isEqualTo(0.3);
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.3);
+    }
+
+    @Test
+    @DisplayName("CP-AC-13: anularConsumoInsumo (RESERVADO) sobre una reserva CONSUMIDA la devuelve a ACTIVA con el saldo pendiente restituido")
+    void anularConsumoInsumo_debeReactivarUnaReservaConsumida() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 4.0, 0.0);
+        ReservaInsumoEntity reserva = reservaInsumoEntity(100L, etapaLote, loteInsumo, 6.0, 6.0, 0.0, EstadoReservaInsumo.CONSUMIDA);
+        ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 6.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 10L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        consumoInsumoServicio.anularConsumoInsumo(1L, AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Registrado por error").build());
+
+        // === ASSERTS ===
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(6.0);
+        assertThat(reserva.getCantidadConsumida()).isEqualTo(0.0);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(6.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(6.0);
+    }
+
+    @Test
+    @DisplayName("CP-AC-14: anularConsumoInsumo (RESERVADO) sobre una reserva LIBERADA por una merma la devuelve a ACTIVA y conserva lo reducido por ajuste")
+    void anularConsumoInsumo_debeReactivarUnaReservaLiberadaPorMerma() {
+        // === PREPARACION DE DATOS ===
+        MaltaEntity malta = maltaEntity(1L);
+        LoteEntity lote = crearLote(EstadoLote.EN_EJECUCION);
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, TipoEtapa.MOLIENDA, EstadoEtapaLote.EN_CURSO, lote);
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, malta, 6.0, 0.0);
+        // Se reservaron 10, se consumieron 6 y una merma quitó los 4 pendientes: la reserva quedó Liberada
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaLote).loteInsumo(loteInsumo)
+                .cantidadReservada(10.0).cantidadConsumida(6.0).cantidadReducidaPorAjuste(4.0).cantidadPendiente(0.0)
+                .estado(EstadoReservaInsumo.LIBERADA).build();
+        ConsumoInsumoEntity consumo = crearConsumoParaAnular(1L, 6.0, TipoConsumo.RESERVADO, loteInsumo, etapaLote);
+        when(consumoInsumoRepository.findById(1L)).thenReturn(Optional.of(consumo));
+        when(loteInsumoRepository.buscarPorIdParaConsumir(10L)).thenReturn(Optional.of(loteInsumo));
+        when(reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(1L, 10L)).thenReturn(Optional.of(reserva));
+        when(consumoInsumoRepository.save(any(ConsumoInsumoEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        consumoInsumoServicio.anularConsumoInsumo(1L, AnularConsumoInsumoFormDTO.builder().motivoAnulacion("Registrado por error").build());
+
+        // === ASSERTS ===
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(6.0);
+        assertThat(reserva.getCantidadConsumida()).isEqualTo(0.0);
+        assertThat(reserva.getCantidadReducidaPorAjuste()).isEqualTo(4.0);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(10.0);
     }
 
     // ==================== helpers de construcción ====================
@@ -1864,12 +1931,25 @@ class ConsumoInsumoServicioImplTest {
                 .build();
     }
 
+    private static ReservaInsumoEntity reservaInsumoEntity(Long id, EtapaLoteEntity etapaLote, LoteInsumoEntity loteInsumo,
+                                                           double original, double consumida, double pendiente, EstadoReservaInsumo estado) {
+        return ReservaInsumoEntity.builder()
+                .id(id)
+                .etapaLote(etapaLote)
+                .loteInsumo(loteInsumo)
+                .cantidadReservada(original)
+                .cantidadConsumida(consumida)
+                .cantidadPendiente(pendiente)
+                .estado(estado)
+                .build();
+    }
+
     private static ReservaInsumoEntity reservaInsumoEntity(Long id, EtapaLoteEntity etapaLote, LoteInsumoEntity loteInsumo, double cantidadReservada) {
         return ReservaInsumoEntity.builder()
                 .id(id)
                 .etapaLote(etapaLote)
                 .loteInsumo(loteInsumo)
-                .cantidadReservada(cantidadReservada)
+                .cantidadReservada(cantidadReservada).cantidadPendiente(cantidadReservada)
                 .build();
     }
 

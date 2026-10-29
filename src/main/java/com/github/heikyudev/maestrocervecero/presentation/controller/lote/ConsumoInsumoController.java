@@ -452,7 +452,7 @@ public class ConsumoInsumoController {
         Page<FilaDeBuscador> filas;
         if (tipoConsumo == TipoConsumo.RESERVADO) {
             filas = reservaInsumoServicio.filtrarReservasConSaldo(contexto.etapa().getId(), idInsumo, vacioANulo(identificacion), paginaPedida)
-                    .map(reserva -> new FilaDeBuscador(reserva.getLoteInsumo(), reserva.getCantidadReservada()));
+                    .map(reserva -> new FilaDeBuscador(reserva.getLoteInsumo(), reserva.getCantidadPendiente()));
         } else {
             filas = loteInsumoServicio.filtrarLotesInsumoDisponibles(List.of(idInsumo), null, vacioANulo(identificacion), paginaPedida)
                     .map(lote -> new FilaDeBuscador(lote, lote.getCantidadDisponible()));

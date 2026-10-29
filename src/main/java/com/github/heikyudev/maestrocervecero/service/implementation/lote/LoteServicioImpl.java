@@ -17,6 +17,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapa
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.PlanificacionProduccionEntity;
@@ -1252,9 +1253,9 @@ public class LoteServicioImpl implements ILoteServicio {
     }
 
     /**
-     * Libera un conjunto de reservas de insumo: por cada una, revierte la cantidad reservada
-     * sobre su {@link LoteInsumoEntity} y elimina la reserva — una reserva liberada deja de existir, no se
-     * conserva con algún indicador de "liberada".
+     * Libera un conjunto de reservas de insumo: por cada reserva activa (con saldo pendiente), pasa el saldo a
+     * liberado, la deja en estado Liberada y revierte ese saldo en la cantidad reservada de su {@link LoteInsumoEntity}.
+     * Las reservas nunca se borran: conservan su historial. Las que ya no tienen saldo (consumidas o liberadas) no se tocan.
      * <p>
      * Las reservas se procesan por ID de lote de insumo ascendente (orden canónico de bloqueo). Cada lote de insumo se
      * bloquea para escritura y se vuelve a leer ya bloqueado: la transacción pudo haberlo cargado antes (por ejemplo, al
@@ -1264,6 +1265,7 @@ public class LoteServicioImpl implements ILoteServicio {
      */
     private void liberarReservas(List<ReservaInsumoEntity> reservas) {
         List<ReservaInsumoEntity> reservasPorLoteInsumo = reservas.stream()
+                .filter(reserva -> reserva.getEstado() == EstadoReservaInsumo.ACTIVA)
                 .sorted(Comparator.comparing(reserva -> reserva.getLoteInsumo().getId()))
                 .toList();
         Set<Long> lotesInsumoReleidos = new HashSet<>();
@@ -1274,11 +1276,11 @@ public class LoteServicioImpl implements ILoteServicio {
             if (lotesInsumoReleidos.add(idLoteInsumo)) {
                 entityManager.refresh(loteInsumo);
             }
-            loteInsumo.liberarReserva(reserva.getCantidadReservada());
+            loteInsumo.liberarReserva(reserva.liberar());
             loteInsumoRepository.save(loteInsumo);
         }
 
-        reservaInsumoRepository.deleteAll(reservas);
+        reservaInsumoRepository.saveAll(reservasPorLoteInsumo);
     }
 
     /**
@@ -1572,11 +1574,7 @@ public class LoteServicioImpl implements ILoteServicio {
                 loteInsumo.reservar(cantidadAReservar);
                 loteInsumoRepository.save(loteInsumo);
 
-                reservas.add(ReservaInsumoEntity.builder()
-                        .etapaLote(requerimiento.etapa())
-                        .loteInsumo(loteInsumo)
-                        .cantidadReservada(cantidadAReservar)
-                        .build());
+                reservas.add(ReservaInsumoEntity.nueva(requerimiento.etapa(), loteInsumo, cantidadAReservar));
                 cantidadRestante = Redondeo.redondear(cantidadRestante - cantidadAReservar);
             }
         }

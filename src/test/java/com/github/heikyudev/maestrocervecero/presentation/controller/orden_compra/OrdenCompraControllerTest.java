@@ -697,7 +697,7 @@ class OrdenCompraControllerTest {
         // Assert
         int inicio = html.indexOf("data-progreso-recepcion");
         String avance = html.substring(inicio, inicio + 1500);
-        assertThat(avance).contains("Recibido:", "de 12 presentaciones", "(33%)", "Faltan 8", "aria-valuenow=\"33\"", "width: 33%", "bg-amber-500");
+        assertThat(avance).contains("Recibido:", "de 12 unidades", "(33%)", "Faltan 8", "aria-valuenow=\"33\"", "width: 33%", "bg-amber-500");
         assertThat(html).contains("data-contador=\"items\">2<", "data-contador=\"pedidas\">12<", "data-contador=\"recibidas\">4<", "data-contador=\"pendientes\">8<");
     }
 
@@ -799,8 +799,8 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString(">Pedida<")))
                 .andExpect(content().string(containsString(">Costo ($)<")))
                 .andExpect(content().string(containsString("Subtotal ($)")))
-                .andExpect(content().string(containsString("data-tooltip=\"Presentaciones ya recibidas mediante ingresos registrados; debajo, su equivalente en la unidad del insumo\"")))
-                .andExpect(content().string(containsString("data-tooltip=\"Presentaciones que restan recibir; debajo, su equivalente en la unidad del insumo\"")))
+                .andExpect(content().string(containsString("data-tooltip=\"Unidades ya recibidas mediante ingresos registrados; debajo, su equivalente en la unidad del insumo\"")))
+                .andExpect(content().string(containsString("data-tooltip=\"Unidades que restan recibir; debajo, su equivalente en la unidad del insumo\"")))
                 // Acciones y diálogos de cierre, con el token CSRF en cada formulario
                 .andExpect(content().string(containsString("data-motivo-url=\"/ordenes-compra/9/finalizar\"")))
                 .andExpect(content().string(containsString("data-motivo-url=\"/ordenes-compra/9/anular\"")))
@@ -816,7 +816,7 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(matchesPattern(ENLACE_RESALTADO)))
                 .andReturn().getResponse().getContentAsString();
 
-        // Assert: las cantidades recibida y pendiente van en presentaciones con su equivalente en la unidad del insumo, y los importes con el formato de la aplicación
+        // Assert: las cantidades recibida y pendiente van en unidades con su equivalente en la unidad del insumo, y los importes con el formato de la aplicación
         String filas = html.substring(html.indexOf("<tbody"), html.indexOf("</tbody>"));
         assertThat(filas).contains(">100 kg<", ">150 kg<", ">0 g<", ">2.000 g<", ">10<", ">4<", ">6<", ">0<", ">2<", ">1.250,50<", ">12.505,00<", ">0,1234<", ">0,2468<");
         assertThat(filas.indexOf("Pilsen")).isLessThan(filas.indexOf("Cascade"));
@@ -1456,7 +1456,7 @@ class OrdenCompraControllerTest {
     }
 
     /**
-     * El catálogo del proveedor 4: Pilsen en dos presentaciones (100, 101), Cascade (102), Caramelo (103, que la receta
+     * El catálogo del proveedor 4: Pilsen en dos unidades (100, 101), Cascade (102), Caramelo (103, que la receta
      * no usa) y Safale US-05 (104).
      */
     private static ProveedorResponseDTO proveedor() {

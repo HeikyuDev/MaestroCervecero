@@ -53,9 +53,19 @@
                 <dd class="mt-1 text-slate-900 break-words" th:text="${version.direccion}">Av. Italia 1234</dd>
             </div>
             <div>
+                <dt class="text-xs font-medium text-slate-500">País</dt>
+                <dd class="mt-1 text-slate-900"
+                    th:text="${version.localidad != null and version.localidad.provincia != null and version.localidad.provincia.pais != null} ? ${version.localidad.provincia.pais.nombre} : '-'">Argentina</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Provincia</dt>
+                <dd class="mt-1 text-slate-900"
+                    th:text="${version.localidad != null and version.localidad.provincia != null} ? ${version.localidad.provincia.nombre} : '-'">Córdoba</dd>
+            </div>
+            <div>
                 <dt class="text-xs font-medium text-slate-500">Localidad</dt>
                 <dd class="mt-1 text-slate-900"
-                    th:text="${version.localidad != null} ? (${version.localidad.provincia != null} ? ${version.localidad.nombre + ' (' + version.localidad.provincia.nombre + ')'} : ${version.localidad.nombre}) : '-'">Río Cuarto (Córdoba)</dd>
+                    th:text="${version.localidad != null} ? ${version.localidad.nombre} : '-'">Río Cuarto</dd>
             </div>
         </dl>
     </section>

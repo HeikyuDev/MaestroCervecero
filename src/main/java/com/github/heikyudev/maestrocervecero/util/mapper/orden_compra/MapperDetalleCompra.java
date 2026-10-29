@@ -37,7 +37,7 @@ public class MapperDetalleCompra {
 
     /**
      * Mapea una instancia de {@link DetalleCompraEntity} a {@link DetalleCompraResponseDTO} informando además las
-     * cantidades recibida y pendiente, ambas redondeadas a la escala de las cantidades: en presentaciones
+     * cantidades recibida y pendiente, ambas redondeadas a la escala de las cantidades: en unidades
      * ({@code cantidadRecibida} y {@code cantidadPendiente}) y su equivalente en la unidad del insumo.
      *
      * @param detalleCompraEntity Entidad de detalle de compra a convertir.

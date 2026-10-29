@@ -2053,7 +2053,7 @@ class ConsumoInsumoControllerTest {
     }
 
     private static ReservaInsumoResponseDTO reserva(Long id, LoteInsumoResponseDTO loteInsumo, double saldo) {
-        return ReservaInsumoResponseDTO.builder().id(id).cantidadReservada(saldo).loteInsumo(loteInsumo).build();
+        return ReservaInsumoResponseDTO.builder().id(id).cantidadReservada(saldo).cantidadPendiente(saldo).loteInsumo(loteInsumo).build();
     }
 
     private static ConsumoInsumoResponseDTO consumo(Long id, Long idEtapa, InsumoResponseDTO insumo, String identificacion, TipoConsumo tipo, double cantidad,

@@ -39,14 +39,14 @@ public class DetalleCompraResponseDTO {
     private BigDecimal subtotal;
 
     /**
-     * Presentaciones ya recibidas de este ítem mediante ingresos en estado {@code REGISTRADO}, redondeadas a la escala
+     * Unidades ya recibidas de este ítem mediante ingresos en estado {@code REGISTRADO}, redondeadas a la escala
      * de las cantidades.
      * Solo se informa en el detalle de una orden de compra; en los listados queda en {@code null}.
      */
     private Double cantidadRecibida;
 
     /**
-     * Presentaciones que restan recibir de este ítem, redondeadas a la escala de las cantidades.
+     * Unidades que restan recibir de este ítem, redondeadas a la escala de las cantidades.
      * Solo se informa en el detalle de una orden de compra; en los listados queda en {@code null}.
      */
     private Double cantidadPendiente;

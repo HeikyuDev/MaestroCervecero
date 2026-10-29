@@ -23,7 +23,10 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IFe
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMaceradorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMolinoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOllaHervorServicio;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ReservaInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IReservaInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
@@ -128,6 +131,9 @@ class LoteControllerTest {
 
     @MockitoBean
     private IConsumoInsumoServicio consumoInsumoServicio;
+
+    @MockitoBean
+    private IReservaInsumoServicio reservaInsumoServicio;
 
     @MockitoBean
     private IEnvasadoLoteServicio envasadoLoteServicio;
@@ -2982,7 +2988,7 @@ class LoteControllerTest {
             }
 
             // Act + Assert: con todos los demás permisos de lotes, consumos y envasados es rechazado
-            org.mockito.Mockito.clearInvocations(loteServicio, consumoInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
+            org.mockito.Mockito.clearInvocations(loteServicio, consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
                     ollaHervorServicio, fermentadorServicio, recetaServicio);
             Permiso[] otros = permisosDeLotes.stream().filter(p -> p != endpoint.permiso()).toArray(Permiso[]::new);
             assertRechazado(mockMvc.perform(endpoint.peticion().get().with(conPermisos(otros)).with(csrf())));
@@ -3032,7 +3038,7 @@ class LoteControllerTest {
     }
 
     private void verifyNingunService() {
-        verifyNoInteractions(loteServicio, consumoInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
+        verifyNoInteractions(loteServicio, consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
                 ollaHervorServicio, fermentadorServicio, recetaServicio);
     }
 
@@ -3245,6 +3251,66 @@ class LoteControllerTest {
         return MaltaResponseDTO.builder().id(22L).nombre("Caramelo 60").unidadDeMedida(UnidadDeMedida.KILOGRAMO).build();
     }
 
+    @Test
+    @DisplayName("CP-LCT-160: la sección Insumos de la etapa lista las reservas con su historial (insumo, lote de insumo, reservada, consumida, liberada, reducida por ajuste, pendiente y estado), las activas primero")
+    void detalle_reservasDeLaEtapaConHistorial() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 5.0, 20.0)));
+        when(reservaInsumoServicio.listarReservasDeEtapa(1003L)).thenReturn(List.of(
+                reserva("L-OLD", 10.0, 10.0, 0.0, 0.0, 0.0, EstadoReservaInsumo.CONSUMIDA),
+                reserva("L-LIB", 10.0, 4.0, 5.0, 1.0, 0.0, EstadoReservaInsumo.LIBERADA),
+                reserva("L-ACT", 8.0, 3.0, 0.0, 0.0, 5.0, EstadoReservaInsumo.ACTIVA)));
+
+        // Act
+        String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
+
+        // Assert
+        String reservas = bloque(html, "data-reservas-etapa");
+        assertThat(texto(reservas)).startsWith("Reservas de la etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida por ajuste Pendiente Estado");
+        assertThat(reservas.indexOf("L-ACT")).isLessThan(reservas.indexOf("L-OLD"));
+        assertThat(reservas.indexOf("L-OLD")).isLessThan(reservas.indexOf("L-LIB"));
+        assertThat(texto(reservas)).contains("L-ACT 8 g 3 g 0 g 0 g 5 g Activa")
+                .contains("L-OLD 10 g 10 g 0 g 0 g 0 g Consumida")
+                .contains("L-LIB 10 g 4 g 5 g 1 g 0 g Liberada");
+        assertThat(reservas).contains("data-reserva-estado=\"ACTIVA\"").contains("data-reserva-estado=\"CONSUMIDA\"").contains("data-reserva-estado=\"LIBERADA\"");
+        assertThat(reservas).contains("bg-amber-50 text-amber-700").contains("bg-emerald-50 text-emerald-700").contains("bg-slate-100 text-slate-600");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-161: las reservas de una etapa finalizada de un lote finalizado se siguen mostrando")
+    void detalle_reservasDeUnaEtapaCerrada() throws Exception {
+        // Arrange
+        List<EtapaLoteResponseDTO> cerradas = etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
+                EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA);
+        stubDetalle(detalle(EstadoLote.FINALIZADO, null, cerradas).build());
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 0.0, 20.0)));
+        when(reservaInsumoServicio.listarReservasDeEtapa(1003L)).thenReturn(List.of(
+                reserva("L-LIB", 25.0, 20.0, 5.0, 0.0, 0.0, EstadoReservaInsumo.LIBERADA)));
+
+        // Act
+        String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
+
+        // Assert
+        assertThat(texto(bloque(html, "data-reservas-etapa"))).contains("L-LIB 25 g 20 g 5 g 0 g 0 g Liberada");
+        verify(reservaInsumoServicio).listarReservasDeEtapa(1003L);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-162: sin reservas en la etapa no se muestra la tabla de reservas, y una etapa que no consume insumos no consulta reservas")
+    void detalle_sinReservas() throws Exception {
+        // Arrange
+        when(consumoInsumoServicio.filtrarInsumosRequeridos(1003L)).thenReturn(List.of(requerido(cascade(), UnidadDeMedida.GRAMO, 25.0, 25.0, 0.0)));
+        when(reservaInsumoServicio.listarReservasDeEtapa(1003L)).thenReturn(List.of());
+
+        // Act
+        String hervido = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
+        String maceracion = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "maceracion");
+
+        // Assert
+        assertThat(hervido).doesNotContain("data-reservas-etapa").doesNotContain("Reservas de la etapa");
+        assertThat(maceracion).doesNotContain("data-reservas-etapa");
+    }
+
     private static LupuloResponseDTO cascade() {
         return LupuloResponseDTO.builder().id(31L).nombre("Cascade").unidadDeMedida(UnidadDeMedida.GRAMO).build();
     }
@@ -3264,6 +3330,12 @@ class LoteControllerTest {
 
     private static LevaduraResponseDTO levadura() {
         return LevaduraResponseDTO.builder().id(41L).nombre("US-05").unidadDeMedida(UnidadDeMedida.GRAMO).build();
+    }
+
+    private static ReservaInsumoResponseDTO reserva(String lote, double original, double consumida, double liberada, double reducida, double pendiente, EstadoReservaInsumo estado) {
+        return ReservaInsumoResponseDTO.builder().cantidadReservada(original).cantidadConsumida(consumida).cantidadLiberada(liberada)
+                .cantidadReducidaPorAjuste(reducida).cantidadPendiente(pendiente).estado(estado)
+                .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor(lote).insumo(cascade()).build()).build();
     }
 
     private static InsumoRequeridoResponseDTO requerido(InsumoResponseDTO insumo, UnidadDeMedida unidad, double requerida, double reservada, double consumida) {

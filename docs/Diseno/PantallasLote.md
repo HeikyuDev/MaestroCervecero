@@ -197,6 +197,10 @@ Las seis pestañas tienen las mismas secciones, en este orden. Lo que cambia es 
 | Insumo     Requerido (g)   Reservado (g)   Consumido (g)   Avance                       |
 | Cascade    25              10              15              15 de 25 g                   |
 | Citra      15              15              0               0 de 15 g                    |
+| Reservas de la etapa                                                                     |
+| Insumo  Lote   Reservada  Consumida  Liberada  Reducida  Pendiente  Estado               |
+| Citra   L-02   15 g       0 g        0 g       0 g       15 g       Activa               |
+| Cascade L-01   25 g       15 g       0 g        0 g       10 g       Activa               |
 | Avance para finalizar:  Cascade 60% de 80% requerido (!)                                 |
 |                         Citra 0% de 80% requerido (!)                                   |
 | Registre y consulte los consumos de esta etapa          [ Gestionar consumos ]c         |
@@ -207,6 +211,7 @@ c = quien tiene CONSUMO_INSUMO_CONSULTAR (el operario), en las etapas que consum
 
 - La franja de estado lleva el nombre de la etapa y, a la derecha, "Finalizar etapa" (en Envasado, "Finalizar envasado"), la acción principal: es un formulario POST con confirmación cuando hay JavaScript. No hay una tarjeta de acciones aparte.
 - El pie de la sección de insumos tiene, a la izquierda, el texto de ayuda "Registre y consulte los consumos de esta etapa" y, a la derecha, el botón sólido ámbar "Gestionar consumos" (ícono `bi-list-check`), que lleva a la pantalla 4. Los consumos registrados no se listan en la pestaña: se consultan en esa pantalla.
+- Bajo la tabla de insumos, "Reservas de la etapa" lista las reservas de esa etapa con su historial, en solo lectura: insumo, lote de insumo (su identificación), reservada (la cantidad original), consumida, liberada, reducida por ajuste, pendiente y estado (etiqueta de color: Activa, Consumida o Liberada). Una reserva nunca se borra: al finalizar la etapa o cancelar el lote el saldo pendiente pasa a liberada y la reserva queda Liberada, por lo que las reservas de etapas cerradas y de lotes finalizados o cancelados se siguen viendo. Las activas van primero. Se muestra con el mismo permiso que ver el lote (`LOTE_CONSULTAR`) y solo si la etapa tiene reservas.
 - El avance, bajo la tabla, muestra por insumo el porcentaje consumido frente al mínimo exigido ("75% de 80% requerido"). Con mínimo 0 dice "Sin consumo mínimo requerido". Solo aparece con la etapa en curso. El botón siempre está habilitado: el avance es informativo y, si no se alcanza el mínimo, el service rechaza y su mensaje se muestra en una alerta.
 - La tarjeta de insumos solo existe en las etapas que consumen insumos: en una etapa sin insumos (Maceración, Envasado, o una etapa que la receta no usa) no se muestra la tarjeta ni el botón "Gestionar consumos".
 - En Envasado, una sección lista los envasados registrados (barril, cantidad y estado; los anulados llevan el botón "Ver detalle de la anulación") y en su cabecera lleva "Nuevo envasado" para el operario con el envasado en curso (lleva a la pantalla 5).

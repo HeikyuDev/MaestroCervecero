@@ -82,7 +82,7 @@ class MapperIngresoInsumoTest {
     }
 
     @Test
-    @DisplayName("CP-MII-05: toDTO informa a cuántas presentaciones equivale la cantidad recibida de un ingreso por compra: 50 kg de bolsas de 25 kg son 2 bolsas")
+    @DisplayName("CP-MII-05: toDTO informa a cuántas unidades equivale la cantidad recibida de un ingreso por compra: 50 kg de bolsas de 25 kg son 2 bolsas")
     void toDTO_debeInformarLasPresentacionesDeUnIngresoPorCompra() {
         // === PREPARACION DE DATOS ===
         IngresoInsumoEntity ingreso = ingreso(EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA);
@@ -98,7 +98,7 @@ class MapperIngresoInsumoTest {
     }
 
     @Test
-    @DisplayName("CP-MII-06: toDTO convierte la presentación a la unidad del insumo al informar las presentaciones: 50 kg de bolsas de 25000 g son 2 bolsas")
+    @DisplayName("CP-MII-06: toDTO convierte la presentación a la unidad del insumo al informar las unidades: 50 kg de bolsas de 25000 g son 2 bolsas")
     void toDTO_debeConvertirLaUnidadDeLaPresentacion() {
         // === PREPARACION DE DATOS ===
         IngresoInsumoEntity ingreso = ingreso(EstadoTransaccion.REGISTRADO, TipoIngreso.COMPRA);
@@ -113,7 +113,7 @@ class MapperIngresoInsumoTest {
     }
 
     @Test
-    @DisplayName("CP-MII-07: toDTO no informa presentaciones en un ingreso directo ni en uno por compra cuyo ítem no trae la presentación")
+    @DisplayName("CP-MII-07: toDTO no informa unidades en un ingreso directo ni en uno por compra cuyo ítem no trae la presentación")
     void toDTO_noDebeInformarPresentacionesSinPresentacion() {
         // === PREPARACION DE DATOS ===
         IngresoInsumoEntity directo = ingreso(EstadoTransaccion.REGISTRADO, TipoIngreso.DIRECTO);

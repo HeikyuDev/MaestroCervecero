@@ -65,3 +65,10 @@
 |**CP-BL-02**|Baja de localidad asociada a un proveedor activo|`id: 1L` (Existe y asociada a la última versión de 1 proveedor activo)|`existsByLocalidadIdAndEsUltimaVersionTrue(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("...asociada a al menos un proveedor activo"). No consulta `clienteRepository` ni llama a `save()`.|
 |**CP-BL-03**|Baja de localidad asociada a un cliente activo|`id: 1L` (Existe, sin proveedores asociados, y asociada a 1 cliente activo)|`existsByLocalidadIdAndEsUltimaVersionTrue(1L)` $\rightarrow$ **FALSE**, `existsByLocalidadId(1L)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("...asociada a al menos un cliente activo"). No llama a `save()`.|
 |**CP-BL-04**|Baja exitosa _(Baja lógica vía Estado)_|`id: 1L` (Existe, sin proveedores ni clientes asociados)|`existsByLocalidadIdAndEsUltimaVersionTrue(1L)` $\rightarrow$ **FALSE**, `existsByLocalidadId(1L)` $\rightarrow$ **FALSE**|Setea `estado = BAJA` en la entidad, invoca `save(entity)` (nunca `delete()`) y retorna DTO de la localidad dada de baja.|
+
+### 6. `listarLocalidadesActivasDeProvincia(Long idProvincia)`
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-LLo-01**|Localidades activas de la provincia mapeadas a DTO|`idProvincia: 5L`; el repositorio devuelve "Río Cuarto" (`id: 9`) y "Villa María" (`id: 10`)|`listarActivasPorProvincia(5L)` entrega dos localidades|Retorna dos DTO con esos ids y nombres, en el mismo orden (el orden alfabético lo define la consulta del repositorio).|
+|**CP-LLo-02**|Provincia nula|`idProvincia: null`|No hay provincia por la que filtrar|Retorna una lista vacía sin consultar el repositorio.|

@@ -7,7 +7,8 @@
 
     pestanas(etiqueta, clave, enlaces): <nav> con la etiqueta accesible y el atributo data-pestanas-{clave}; enlaces es un fragmento ~{::...} con las pestañas.
     pestana(url, activa, clave, icono, texto): un enlace. activa es true en la pestaña actual; clave nombra el atributo
-    data-pestana-{clave} del enlace; icono es un fragmento (por ejemplo ~{fragments/pestanas :: bi('bi-globe')}) o null.
+    data-pestana-{clave} del enlace; icono es un fragmento (por ejemplo ~{fragments/pestanas :: bi('bi-globe')}) y es obligatorio: toda pestaña lleva un ícono
+    que la acompaña (lo exige PestanasConIconoTest).
     bi(clase): icono de Bootstrap Icons.
 -->
 <nav th:fragment="pestanas(etiqueta, clave, enlaces)" class="flex flex-wrap gap-1 border-b border-slate-200" th:attr="aria-label=${etiqueta}, __${'data-pestanas-' + clave}__='true'">

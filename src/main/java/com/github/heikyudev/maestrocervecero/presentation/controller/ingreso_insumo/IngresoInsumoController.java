@@ -131,13 +131,13 @@ public class IngresoInsumoController {
     private final IPlanificacionProduccionServicio planificacionServicio;
 
     /**
-     * Una fila del buscador de ítems de la orden: el ítem con sus cantidades en presentaciones y los datos que el
+     * Una fila del buscador de ítems de la orden: el ítem con sus cantidades en unidades y los datos que el
      * formulario muestra del ítem elegido.
      */
     @Value
     public static class FilaDeItem {
         DetalleCompraResponseDTO detalle;
-        /** Presentaciones pedidas, recibidas y pendientes, ya formateadas para mostrarlas (por ejemplo "1.250" o "2,5"). */
+        /** Unidades pedidas, recibidas y pendientes, ya formateadas para mostrarlas (por ejemplo "1.250" o "2,5"). */
         String pedido;
         String recibido;
         String pendiente;
@@ -343,7 +343,7 @@ public class IngresoInsumoController {
 
     /**
      * Devuelve el contenido del modal de ítems de la orden elegida: los ítems que todavía tienen cantidad pendiente, en
-     * orden alfabético por insumo, con lo pedido, lo recibido y lo pendiente en presentaciones. Un modal no puede
+     * orden alfabético por insumo, con lo pedido, lo recibido y lo pendiente en unidades. Un modal no puede
      * redirigir: una orden sin elegir o que ya no está pendiente se informan dentro del propio fragmento; una orden que no
      * existe la resuelve el {@code ControllerAdvices} con el motivo como texto.
      */
@@ -398,8 +398,8 @@ public class IngresoInsumoController {
 
     /**
      * Carga lo que la vista del formulario por compra necesita además del DTO: la orden elegida, el ítem elegido de esa
-     * orden (con su insumo, su unidad y lo que le queda pendiente en presentaciones), lo que ingresa al lote con las
-     * presentaciones cargadas y las URL de los buscadores. Lo que ya no existe deja el selector vacío.
+     * orden (con su insumo, su unidad y lo que le queda pendiente en unidades), lo que ingresa al lote con las
+     * unidades cargadas y las URL de los buscadores. Lo que ya no existe deja el selector vacío.
      */
     private void cargarModeloCompra(Model model, IngresoInsumoPorCompraFormDTO ingresoForm, OrdenCompraResponseDTO orden) {
         model.addAttribute("urlAccion", URL_LISTA + "/compra");
@@ -467,7 +467,7 @@ public class IngresoInsumoController {
 
     /**
      * Los ítems de la orden con cantidad pendiente mayor a cero, en orden alfabético por insumo y presentación, con sus
-     * cantidades en presentaciones.
+     * cantidades en unidades.
      */
     private static List<FilaDeItem> itemsPendientes(OrdenCompraResponseDTO orden) {
         if (orden.getDetallesCompra() == null) {
@@ -496,9 +496,9 @@ public class IngresoInsumoController {
                 insumo.getNombre() + " - " + presentacion.getNombre());
     }
 
-    /** Lo que ingresa al lote con esas presentaciones, en la unidad del insumo, por ejemplo "50 kg". */
-    private static String textoDeIngresaAlLote(FilaDeItem item, int presentaciones) {
-        return textoDeCantidad(Redondeo.redondear(presentaciones * Double.parseDouble(item.getFactor()))) + " " + item.getUnidad();
+    /** Lo que ingresa al lote con esas unidades, en la unidad del insumo, por ejemplo "50 kg". */
+    private static String textoDeIngresaAlLote(FilaDeItem item, int unidades) {
+        return textoDeCantidad(Redondeo.redondear(unidades * Double.parseDouble(item.getFactor()))) + " " + item.getUnidad();
     }
 
     /** La cantidad con el formato de la aplicación: separador de miles {@code .}, coma decimal y hasta 4 decimales. */

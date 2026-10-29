@@ -36,10 +36,9 @@
             <input type="text" id="cuit" name="cuit" th:value="${filtroCuit}" autocomplete="off" placeholder="Ej: 30-71234567-8"
                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
         </div>
-        <div>
-            <span class="block text-xs font-medium text-slate-500 mb-1">Localidad</span>
-            <div th:replace="~{fragments/selector-entidad :: selector('idLocalidad', ${filtroIdLocalidad}, ${filtroLocalidadTexto},
-                    @{/ubicaciones/localidades/buscador}, null, null, true, false, 'Seleccione localidad')}"></div>
+        <div class="md:col-span-2">
+            <div th:replace="~{fragments/ubicacion-cascada :: cascada('idLocalidad', ${filtroIdLocalidad}, ${paises}, ${provincias}, ${localidades},
+                    ${idPaisElegido}, ${idProvinciaElegida}, false, false)}"></div>
         </div>
         <div class="md:col-span-2 flex items-center justify-end gap-3">
             <a th:href="@{/proveedores}"
@@ -60,7 +59,7 @@
                 <th class="px-2 py-3">Razón social</th>
                 <th class="px-2 py-3">Nombre comercial</th>
                 <th class="px-2 py-3 whitespace-nowrap">CUIT</th>
-                <th class="px-2 py-3">Localidad</th>
+                <th class="px-2 py-3">Ubicación</th>
                 <th class="px-2 py-3 whitespace-nowrap">Teléfono</th>
                 <th class="px-2 py-3">Ítems del catálogo</th>
                 <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
@@ -76,9 +75,13 @@
                 </td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(x.version.cuit)}">30-71234567-8</td>
                 <td class="px-2 py-3 text-slate-700">
-                    <span class="inline-block max-w-[9rem] truncate align-bottom" tabindex="0"
+                    <!-- Localidad y, debajo, su provincia y su país -->
+                    <span class="block max-w-[9rem] truncate" tabindex="0"
                           th:with="localidad=${x.version.localidad != null} ? ${x.version.localidad.nombre} : '-'"
                           th:data-tooltip="${localidad}" th:text="${localidad}">Río Cuarto</span>
+                    <span class="block max-w-[9rem] truncate text-xs text-slate-500" tabindex="0" th:if="${x.version.localidad != null and x.version.localidad.provincia != null}"
+                          th:with="ubicacion=${x.version.localidad.provincia.nombre + (x.version.localidad.provincia.pais != null ? ', ' + x.version.localidad.provincia.pais.nombre : '')}"
+                          th:data-tooltip="${ubicacion}" th:text="${ubicacion}">Córdoba, Argentina</span>
                 </td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${x.version.telefono != null and !#strings.isEmpty(x.version.telefono)} ? ${x.version.telefono} : '-'">3584123456</td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${x.version.catalogoProveedor != null} ? ${#lists.size(x.version.catalogoProveedor)} : 0">3</td>
@@ -118,6 +121,7 @@
     </div>
 
     <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja proveedor', 'Si tiene una orden de compra pendiente, el sistema no lo permitirá.')}"></div>
+    <script th:src="@{/js/ubicacion-cascada.js}" defer></script>
 </div>
 
 </body>

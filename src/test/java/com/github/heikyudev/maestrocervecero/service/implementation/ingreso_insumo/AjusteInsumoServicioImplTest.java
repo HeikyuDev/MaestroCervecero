@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.M
 import com.github.heikyudev.maestrocervecero.persistence.entity.ingreso_insumo.TipoAjuste;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.InsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.insumo.MaltaEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
@@ -405,8 +406,8 @@ class AjusteInsumoServicioImplTest {
         AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 14.0, "Rotura parcial de lote");
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 12.0);
         // reservaA tiene 2/3 de lo reservado (8.0), reservaB 1/3 (4.0)
-        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).build();
-        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(4.0).build();
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).cantidadPendiente(8.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(4.0).cantidadPendiente(4.0).build();
         when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
         when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
         when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
@@ -420,9 +421,82 @@ class AjusteInsumoServicioImplTest {
         assertThat(loteEntity.getCantidadActual()).isEqualTo(6.0);
         assertThat(loteEntity.getCantidadReservada()).isEqualTo(6.0);
         // reservaA pierde 6.0 * (8/12) = 4.0 → queda en 4.0; reservaB pierde 6.0 * (4/12) = 2.0 → queda en 2.0
-        assertThat(reservaA.getCantidadReservada()).isCloseTo(4.0, within(0.001));
-        assertThat(reservaB.getCantidadReservada()).isCloseTo(2.0, within(0.001));
+        assertThat(reservaA.getCantidadPendiente()).isCloseTo(4.0, within(0.001));
+        assertThat(reservaB.getCantidadPendiente()).isCloseTo(2.0, within(0.001));
+        // Lo quitado por la merma se suma a "reducida por ajuste" (no a "liberada") y la reserva sigue activa
+        assertThat(reservaA.getCantidadReducidaPorAjuste()).isCloseTo(4.0, within(0.001));
+        assertThat(reservaB.getCantidadReducidaPorAjuste()).isCloseTo(2.0, within(0.001));
+        assertThat(reservaA.getCantidadLiberada()).isEqualTo(0.0);
+        assertThat(reservaB.getCantidadLiberada()).isEqualTo(0.0);
+        assertThat(reservaA.getCantidadReservada()).isEqualTo(8.0);
+        assertThat(reservaB.getCantidadReservada()).isEqualTo(4.0);
+        assertThat(reservaA.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
+        assertThat(reservaB.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
         verify(reservaInsumoRepository).saveAll(List.of(reservaA, reservaB));
+    }
+
+    @Test
+    @DisplayName("CP-RA-16: registrarAjusteInsumo con EGRESO que agota las reservas deja Liberada la que no se consumió por completo y Consumida no se toca")
+    void registrarAjusteInsumo_debeLiberarLasReservasQueLaMermaAgota() {
+        // === PREPARACION DE DATOS ===
+        // actual = 10.0 y reservado = 10.0 → disponible 0; se pierde todo: el excedente (10.0) agota todas las reservas
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 10.0, "Pérdida total del lote");
+        LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 10.0, 10.0);
+        // reservaA: 6 reservados sin consumir; reservaB: 6 reservados, 2 consumidos y 4 pendientes
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(6.0).cantidadPendiente(6.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(6.0).cantidadConsumida(2.0).cantidadPendiente(4.0).build();
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
+        when(reservaInsumoRepository.buscarPorLoteInsumoIdParaReducir(1L)).thenReturn(List.of(reservaA, reservaB));
+        when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ajusteInsumoServicio.registrarAjusteInsumo(formDTO);
+
+        // === ASSERTS ===
+        assertThat(loteEntity.getCantidadReservada()).isEqualTo(0.0);
+        assertThat(reservaA.getCantidadPendiente()).isEqualTo(0.0);
+        assertThat(reservaA.getCantidadReducidaPorAjuste()).isEqualTo(6.0);
+        assertThat(reservaA.getCantidadLiberada()).isEqualTo(0.0);
+        assertThat(reservaA.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reservaB.getCantidadPendiente()).isEqualTo(0.0);
+        assertThat(reservaB.getCantidadReducidaPorAjuste()).isEqualTo(4.0);
+        assertThat(reservaB.getCantidadConsumida()).isEqualTo(2.0);
+        assertThat(reservaB.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+    }
+
+    @Test
+    @DisplayName("CP-RA-17: registrarAjusteInsumo con EGRESO reduce solo las reservas con saldo pendiente: las consumidas y las liberadas no participan")
+    void registrarAjusteInsumo_noDebeTocarLasReservasCerradas() {
+        // === PREPARACION DE DATOS ===
+        // disponible = 20.0 - 8.0 = 12.0; se pide descontar 14.0 → excedente de 2.0 sobre lo reservado
+        AjusteInsumoFormDTO formDTO = ajusteInsumoFormDTO(1L, 1L, 14.0, "Rotura parcial de lote");
+        LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 8.0);
+        ReservaInsumoEntity activa = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).cantidadPendiente(8.0).build();
+        ReservaInsumoEntity consumida = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(5.0).cantidadConsumida(5.0)
+                .cantidadPendiente(0.0).estado(EstadoReservaInsumo.CONSUMIDA).build();
+        ReservaInsumoEntity liberada = ReservaInsumoEntity.builder().id(102L).loteInsumo(loteEntity).cantidadReservada(5.0).cantidadLiberada(5.0)
+                .cantidadPendiente(0.0).estado(EstadoReservaInsumo.LIBERADA).build();
+        when(motivoAjusteRepository.findById(1L)).thenReturn(Optional.of(motivoAjusteEntity(1L, TipoAjuste.EGRESO)));
+        when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
+        when(loteInsumoRepository.save(loteEntity)).thenReturn(loteEntity);
+        // La consulta del repositorio solo trae las ACTIVAS; aun si llegaran cerradas, no tienen saldo que repartir
+        when(reservaInsumoRepository.buscarPorLoteInsumoIdParaReducir(1L)).thenReturn(List.of(activa, consumida, liberada));
+        when(ajusteInsumoRepository.save(any(AjusteInsumoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // === EJECUCION ===
+        ajusteInsumoServicio.registrarAjusteInsumo(formDTO);
+
+        // === ASSERTS ===
+        assertThat(activa.getCantidadPendiente()).isEqualTo(6.0);
+        assertThat(activa.getCantidadReducidaPorAjuste()).isEqualTo(2.0);
+        assertThat(activa.getEstado()).isEqualTo(EstadoReservaInsumo.ACTIVA);
+        assertThat(consumida.getCantidadReducidaPorAjuste()).isEqualTo(0.0);
+        assertThat(consumida.getEstado()).isEqualTo(EstadoReservaInsumo.CONSUMIDA);
+        assertThat(liberada.getCantidadReducidaPorAjuste()).isEqualTo(0.0);
+        assertThat(liberada.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(loteEntity.getCantidadReservada()).isEqualTo(6.0);
     }
 
     @Test
@@ -574,6 +648,8 @@ class AjusteInsumoServicioImplTest {
         assertThat(loteEntity.getCantidadActual()).isEqualTo(15.0);
         assertThat(ajusteEntity.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        // La anulación de un ajuste no restaura reservas: no se consulta ni se modifica ninguna
+        verifyNoInteractions(reservaInsumoRepository);
     }
 
     @Test
@@ -583,8 +659,8 @@ class AjusteInsumoServicioImplTest {
         // disponible = 20.0 - 12.0 = 8.0; se revierte un INGRESO de 14.0 → excedente de 6.0 sobre lo reservado
         LoteInsumoEntity loteEntity = loteInsumoEntity(1L, insumoEntity(1L), 20.0, 12.0);
         AjusteInsumoEntity ajusteEntity = ajusteInsumoEntity(1L, EstadoTransaccion.REGISTRADO, 14.0, motivoAjusteEntity(1L, TipoAjuste.INGRESO), loteEntity);
-        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).build();
-        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(4.0).build();
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(100L).loteInsumo(loteEntity).cantidadReservada(8.0).cantidadPendiente(8.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(101L).loteInsumo(loteEntity).cantidadReservada(4.0).cantidadPendiente(4.0).build();
         AnularAjusteInsumoFormDTO formDTO = anularFormDTO("Error de carga");
         when(ajusteInsumoRepository.findById(1L)).thenReturn(Optional.of(ajusteEntity));
         when(loteInsumoRepository.buscarPorIdParaAjustar(1L)).thenReturn(Optional.of(loteEntity));
@@ -598,8 +674,8 @@ class AjusteInsumoServicioImplTest {
         // === ASSERTS ===
         assertThat(loteEntity.getCantidadActual()).isEqualTo(6.0);
         assertThat(loteEntity.getCantidadReservada()).isEqualTo(6.0);
-        assertThat(reservaA.getCantidadReservada()).isCloseTo(4.0, within(0.001));
-        assertThat(reservaB.getCantidadReservada()).isCloseTo(2.0, within(0.001));
+        assertThat(reservaA.getCantidadPendiente()).isCloseTo(4.0, within(0.001));
+        assertThat(reservaB.getCantidadPendiente()).isCloseTo(2.0, within(0.001));
         verify(reservaInsumoRepository).saveAll(List.of(reservaA, reservaB));
     }
 

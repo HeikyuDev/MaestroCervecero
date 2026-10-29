@@ -53,8 +53,8 @@ public class IngresoInsumoPorCompraFormDTO {
      * Cantidad de presentaciones comerciales del ítem que llegaron (ej. 2 bolsas). El service la convierte a la
      * unidad de medida del insumo con el contenido de la presentación.
      */
-    @NotNull(message = "La cantidad de presentaciones recibidas es obligatoria")
-    @Positive(message = "La cantidad de presentaciones recibidas debe ser mayor a cero")
+    @NotNull(message = "La cantidad de unidades recibidas es obligatoria")
+    @Positive(message = "La cantidad de unidades recibidas debe ser mayor a cero")
     private Integer cantidadPresentaciones;
 
     /**

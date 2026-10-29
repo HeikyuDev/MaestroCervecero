@@ -18,10 +18,9 @@ public interface IReservaInsumoServicio {
      * mostrarle al operario qué lotes de insumo físico tiene reservados y con qué cantidad,
      * antes de registrar un consumo.
      * <p>
-     * Devuelve TODAS las reservas de ese insumo en esa etapa, incluidas las que ya se agotaron
-     * (cantidad reservada en 0, por un consumo o por una merma): mostrar solo las que todavía
-     * tienen cantidad, u ordenarlas primero, es una decisión de presentación de la vista, no un
-     * filtro de este método.
+     * Devuelve TODAS las reservas de ese insumo en esa etapa, incluidas las que ya no tienen saldo
+     * (consumidas o liberadas): mostrar solo las que todavía tienen saldo, u ordenarlas primero, es una
+     * decisión de presentación de la vista, no un filtro de este método.
      * </p>
      *
      * @param idEtapaLote El ID de la etapa de lote (obligatorio; no lo tipea el usuario, lo
@@ -45,4 +44,15 @@ public interface IReservaInsumoServicio {
      * @return Una página de reservas en formato DTO.
      */
     Page<ReservaInsumoResponseDTO> filtrarReservasConSaldo(Long idEtapaLote, Long idInsumo, String identificacion, Pageable pageable);
+
+    /**
+     * Lista todas las reservas de una etapa de lote con su historial completo (cantidad reservada original, consumida,
+     * liberada, reducida por ajuste, pendiente y estado), también las consumidas y las liberadas y las de etapas ya
+     * cerradas o lotes finalizados o cancelados. Es de solo lectura y no filtra por estado: ordenar las activas primero es
+     * decisión de la vista.
+     *
+     * @param idEtapaLote El ID de la etapa de lote.
+     * @return Las reservas de la etapa en formato DTO, por insumo alfabético y luego por vencimiento del lote de insumo.
+     */
+    List<ReservaInsumoResponseDTO> listarReservasDeEtapa(Long idEtapaLote);
 }

@@ -123,10 +123,10 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
      * de finalización y sin motivo (el motivo solo existe en la finalización forzada).
      * </p>
      *
-     * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar. La cantidad se informa en presentaciones del
+     * @param ingresoInsumoPorCompraFormDTO Los datos del ingreso a registrar. La cantidad se informa en unidades del
      *                                      ítem (ej. 2 bolsas); el service la convierte a la unidad del insumo.
      * @return El ingreso de insumo registrado.
-     * @throws ReglaNegocioException Si faltan los datos del ingreso o el ítem de la orden, si la cantidad de presentaciones recibidas no fue informada o es menor o igual a cero, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, si la orden de compra del ítem no está en estado {@code PENDIENTE}, si el insumo del ítem está dado de baja, si las presentaciones recibidas superan las presentaciones pendientes de entrega del ítem, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
+     * @throws ReglaNegocioException Si faltan los datos del ingreso o el ítem de la orden, si la cantidad de unidades recibidas no fue informada o es menor o igual a cero, si la fecha de ingreso no fue informada o es posterior a la fecha actual, si la fecha de vencimiento no fue informada o es anterior a la fecha actual, si la orden de compra del ítem no está en estado {@code PENDIENTE}, si el insumo del ítem está dado de baja, si las unidades recibidas superan las unidades pendientes de entrega del ítem, o si ya existe un lote del insumo con la misma identificación de lote de proveedor pero una fecha de vencimiento distinta, o si otra persona registró el mismo lote al mismo tiempo.
      * @throws RecursoNoEncontradoException Si el ítem de detalle de compra referenciado o su orden de compra no existen.
      */
     @Override
@@ -166,16 +166,16 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
             throw new ReglaNegocioException("No se puede registrar el ingreso porque el insumo está dado de baja");
         }
 
-        // 5. Validar que las presentaciones recibidas no superen las presentaciones pendientes de entrega del ítem.
+        // 5. Validar que las unidades recibidas no superen las unidades pendientes de entrega del ítem.
         //    El pendiente se redondea a la escala de las cantidades: el mismo criterio con el que se decide si la orden
         //    quedó completamente recibida, para que el residuo de la coma flotante (0,1 + 0,2) no rechace un ingreso exacto
         double presentacionesPendientes = calcularPresentacionesPendientes(detalleCompraEntity);
         if (cantidadPresentaciones > presentacionesPendientes) {
-            throw new ReglaNegocioException("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem ("
+            throw new ReglaNegocioException("La cantidad de unidades recibidas no puede superar la cantidad pendiente de entrega del ítem ("
                     + ValidacionesNumericas.formatearNumero(presentacionesPendientes) + ")", "cantidadPresentaciones");
         }
 
-        // La cantidad que ingresa al lote y al ingreso es la de insumo, en su unidad: presentaciones por contenido de cada una
+        // La cantidad que ingresa al lote y al ingreso es la de insumo, en su unidad: unidades por contenido de cada una
         double cantidadRecibida = CantidadesDetalleCompra.convertirPresentacionesAUnidadDelInsumo(detalleCompraEntity, cantidadPresentaciones);
 
         // 6. Resolver el insumo del ítem y validar/localizar el lote de insumo correspondiente,
@@ -389,18 +389,18 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
-     * Valida la cantidad de presentaciones recibidas de un ingreso por compra: informada y mayor a cero. El máximo lo
+     * Valida la cantidad de unidades recibidas de un ingreso por compra: informada y mayor a cero. El máximo lo
      * fija lo que resta recibir del ítem.
      *
-     * @param cantidadPresentaciones Cantidad de presentaciones a validar.
+     * @param cantidadPresentaciones Cantidad de unidades a validar.
      * @throws ReglaNegocioException Si la cantidad es nula o menor o igual a cero.
      */
     private static void validarCantidadPresentaciones(Integer cantidadPresentaciones) {
         if (cantidadPresentaciones == null) {
-            throw new ReglaNegocioException("La cantidad de presentaciones recibidas es obligatoria", "cantidadPresentaciones");
+            throw new ReglaNegocioException("La cantidad de unidades recibidas es obligatoria", "cantidadPresentaciones");
         }
         if (cantidadPresentaciones <= 0) {
-            throw new ReglaNegocioException("La cantidad de presentaciones recibidas debe ser mayor a cero", "cantidadPresentaciones");
+            throw new ReglaNegocioException("La cantidad de unidades recibidas debe ser mayor a cero", "cantidadPresentaciones");
         }
     }
 
@@ -467,11 +467,11 @@ public class IngresoInsumoServicioImpl implements IIngresoInsumoServicio {
     }
 
     /**
-     * Calcula las presentaciones que restan recibir de un ítem de detalle de compra: las pedidas menos las ya recibidas
+     * Calcula las unidades que restan recibir de un ítem de detalle de compra: las pedidas menos las ya recibidas
      * mediante ingresos en estado {@code REGISTRADO}, estas últimas convertidas desde la unidad del insumo.
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
-     * @return Presentaciones pendientes de entrega.
+     * @return Unidades pendientes de entrega.
      */
     private double calcularPresentacionesPendientes(DetalleCompraEntity detalleCompraEntity) {
         double cantidadYaRecibida = CantidadesDetalleCompra.sumarCantidadRecibida(

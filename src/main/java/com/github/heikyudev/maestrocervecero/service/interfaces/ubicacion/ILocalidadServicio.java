@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.LocalidadFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -76,4 +77,13 @@ public interface ILocalidadServicio {
      * @throws ReglaNegocioException Si la localidad se encuentra asociada a al menos un proveedor activo o a al menos un cliente activo.
      */
     LocalidadResponseDTO bajaLocalidad(Long id);
+
+    /**
+     * Lista las localidades activas de una provincia en orden alfabético, para el selector de localidad de los
+     * formularios de ubicación.
+     *
+     * @param idProvincia El ID de la provincia.
+     * @return Las localidades activas de la provincia ordenadas por nombre; vacía si la provincia no existe o no tiene localidades.
+     */
+    List<LocalidadResponseDTO> listarLocalidadesActivasDeProvincia(Long idProvincia);
 }

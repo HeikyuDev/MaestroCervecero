@@ -255,31 +255,31 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-03: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la cantidad de presentaciones recibidas es nula")
+    @DisplayName("CP-RC-03: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la cantidad de unidades recibidas es nula")
     void registrarPorCompra_debeRechazarCantidadRecibidaNula() {
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(null).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas es obligatoria");
+                .hasMessage("La cantidad de unidades recibidas es obligatoria");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
-    @DisplayName("CP-RC-04: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la cantidad de presentaciones recibidas es menor o igual a cero")
+    @DisplayName("CP-RC-04: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando la cantidad de unidades recibidas es menor o igual a cero")
     void registrarPorCompra_debeRechazarCantidadRecibidaNoPositiva() {
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(0).build();
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas debe ser mayor a cero");
+                .hasMessage("La cantidad de unidades recibidas debe ser mayor a cero");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
 
     @Test
-    @DisplayName("CP-RC-05: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando las presentaciones recibidas superan las presentaciones pendientes de entrega")
+    @DisplayName("CP-RC-05: registrarIngresoInsumoPorCompra lanza ReglaNegocioException cuando las unidades recibidas superan las unidades pendientes de entrega")
     void registrarPorCompra_debeRechazarCantidadMayorAPendiente() {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(150).build();
@@ -289,13 +289,13 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (100)");
+                .hasMessage("La cantidad de unidades recibidas no puede superar la cantidad pendiente de entrega del ítem (100)");
 
         verify(ingresoInsumoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-RC-06: registrarIngresoInsumoPorCompra calcula las presentaciones pendientes descontando solo ingresos REGISTRADO previos")
+    @DisplayName("CP-RC-06: registrarIngresoInsumoPorCompra calcula las unidades pendientes descontando solo ingresos REGISTRADO previos")
     void registrarPorCompra_debeCalcularPendienteConsiderandoSoloRegistrados() {
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(65).build();
@@ -306,7 +306,7 @@ class IngresoInsumoServicioImplTest {
 
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (60)");
+                .hasMessage("La cantidad de unidades recibidas no puede superar la cantidad pendiente de entrega del ítem (60)");
     }
 
     @Test
@@ -462,7 +462,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-14: registrarIngresoInsumoPorCompra convierte las presentaciones recibidas a la unidad del insumo multiplicando por el contenido de cada presentación: 2 bolsas de 25 kg ingresan 50 kg")
+    @DisplayName("CP-RC-14: registrarIngresoInsumoPorCompra convierte las unidades recibidas a la unidad del insumo multiplicando por el contenido de cada presentación: 2 bolsas de 25 kg ingresan 50 kg")
     void registrarPorCompra_debeMultiplicarPorContenidoDeLaPresentacionAlCalcularPendiente() {
         // === PREPARACION DE DATOS ===
         // Presentación de 25 kg por bolsa: se piden 3 bolsas y se reciben 2, que son 50 kg
@@ -500,7 +500,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-15: registrarIngresoInsumoPorCompra rechaza un ingreso con más presentaciones que las pedidas del ítem")
+    @DisplayName("CP-RC-15: registrarIngresoInsumoPorCompra rechaza un ingreso con más unidades que las pedidas del ítem")
     void registrarPorCompra_debeRechazarCantidadQueSuperaElContenidoRealDeLaPresentacion() {
         // === PREPARACION DE DATOS ===
         // Presentación de 25 kg por bolsa, se piden 3 bolsas; se intenta recibir 4
@@ -522,7 +522,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (3)");
+                .hasMessage("La cantidad de unidades recibidas no puede superar la cantidad pendiente de entrega del ítem (3)");
 
         verify(ingresoInsumoRepository, never()).save(any());
     }
@@ -848,7 +848,7 @@ class IngresoInsumoServicioImplTest {
     void registrarPorCompra_debeAceptarLoPendienteExactoConResiduoDeComaFlotante() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
-        // 5 presentaciones de 0.1 kg: los ingresos previos de 0.1 y 0.2 kg son 3 presentaciones
+        // 5 unidades de 0.1 kg: los ingresos previos de 0.1 y 0.2 kg son 3 unidades
         DetalleCompraEntity detalleCompra = detalleConPresentacion(insumo, 5, BigDecimal.TEN, 0.1, UnidadDeMedida.KILOGRAMO);
         bloquearOrdenCompra(detalleCompra);
         // 0.1 + 0.2 = 0.30000000000000004: sin redondear, el pendiente sería 1.9999999999999996 y 2 se rechazaría
@@ -864,7 +864,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-31: registrarIngresoInsumoPorCompra informa el pendiente redondeado cuando queda menos de 0,00005 presentaciones y rechaza cualquier ingreso")
+    @DisplayName("CP-RC-31: registrarIngresoInsumoPorCompra informa el pendiente redondeado cuando queda menos de 0,00005 unidades y rechaza cualquier ingreso")
     void registrarPorCompra_debeRechazarConPendienteMenorALaEscala() {
         // === PREPARACION DE DATOS ===
         DetalleCompraEntity detalleCompra = detalleCompraEntity(DETALLE_COMPRA_ID, 100, BigDecimal.TEN, EstadoSolicitud.PENDIENTE, insumoEntity(INSUMO_ID));
@@ -878,7 +878,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (0)");
+                .hasMessage("La cantidad de unidades recibidas no puede superar la cantidad pendiente de entrega del ítem (0)");
 
         verify(ingresoInsumoRepository, never()).save(any());
     }
@@ -951,7 +951,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-39: registrarIngresoInsumoPorCompra acepta recibir las 1.000.000 de presentaciones pedidas, el máximo de un ítem")
+    @DisplayName("CP-RC-39: registrarIngresoInsumoPorCompra acepta recibir las 1.000.000 de unidades pedidas, el máximo de un ítem")
     void registrarPorCompra_caso39() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1006,7 +1006,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-44: registrarIngresoInsumoPorCompra informa primero la cantidad de presentaciones recibidas cuando también faltan las fechas")
+    @DisplayName("CP-RC-44: registrarIngresoInsumoPorCompra informa primero la cantidad de unidades recibidas cuando también faltan las fechas")
     void registrarPorCompra_caso44() {
         // === PREPARACION DE DATOS ===
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(null).fechaIngreso(null).fechaVencimiento(null).build();
@@ -1014,7 +1014,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas es obligatoria");
+                .hasMessage("La cantidad de unidades recibidas es obligatoria");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1034,7 +1034,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-46: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad de presentaciones recibidas es negativa")
+    @DisplayName("CP-RC-46: registrarIngresoInsumoPorCompra lanza ReglaNegocioException y no consulta ningún repositorio cuando la cantidad de unidades recibidas es negativa")
     void registrarPorCompra_caso46() {
         // === PREPARACION DE DATOS ===
         IngresoInsumoPorCompraFormDTO formDTO = porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(-1).build();
@@ -1042,7 +1042,7 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas debe ser mayor a cero");
+                .hasMessage("La cantidad de unidades recibidas debe ser mayor a cero");
 
         verifyNoInteractions(detalleCompraRepository, ordenCompraRepository, insumoRepository, loteInsumoRepository, ingresoInsumoRepository);
     }
@@ -1187,7 +1187,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-54: registrarIngresoInsumoPorCompra convierte las presentaciones a la unidad del insumo cuando la presentación está en otra unidad: 2 bolsas de 25000 g de un insumo en kg ingresan 50 kg")
+    @DisplayName("CP-RC-54: registrarIngresoInsumoPorCompra convierte las unidades a la unidad del insumo cuando la presentación está en otra unidad: 2 bolsas de 25000 g de un insumo en kg ingresan 50 kg")
     void registrarPorCompra_debeConvertirLasPresentacionesEnGramosAKilos() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1206,7 +1206,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-55: registrarIngresoInsumoPorCompra convierte presentaciones de contenido fraccionario: 3 presentaciones de 0,5 kg ingresan 1,5 kg")
+    @DisplayName("CP-RC-55: registrarIngresoInsumoPorCompra convierte unidades de contenido fraccionario: 3 unidades de 0,5 kg ingresan 1,5 kg")
     void registrarPorCompra_debeConvertirPresentacionesDeContenidoFraccionario() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1224,7 +1224,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-56: registrarIngresoInsumoPorCompra rechaza más presentaciones que las pendientes, que descuentan los ingresos previos convertidos: 4 bolsas de 25 kg con 50 kg recibidos dejan 2 pendientes")
+    @DisplayName("CP-RC-56: registrarIngresoInsumoPorCompra rechaza más unidades que las pendientes, que descuentan los ingresos previos convertidos: 4 bolsas de 25 kg con 50 kg recibidos dejan 2 pendientes")
     void registrarPorCompra_debeRechazarMasPresentacionesQueLasPendientes() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1237,13 +1237,13 @@ class IngresoInsumoServicioImplTest {
         // === EJECUCION + ASSERTS ===
         assertThatThrownBy(() -> ingresoInsumoServicio.registrarIngresoInsumoPorCompra(porCompraValidoBuilder(DETALLE_COMPRA_ID).cantidadPresentaciones(3).build()))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La cantidad de presentaciones recibidas no puede superar la cantidad pendiente de entrega del ítem (2)");
+                .hasMessage("La cantidad de unidades recibidas no puede superar la cantidad pendiente de entrega del ítem (2)");
 
         verify(ingresoInsumoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-RC-57: registrarIngresoInsumoPorCompra finaliza automáticamente la orden cuando las presentaciones recibidas completan el ítem: 4 bolsas de 25 kg con 50 kg recibidos y 2 bolsas más")
+    @DisplayName("CP-RC-57: registrarIngresoInsumoPorCompra finaliza automáticamente la orden cuando las unidades recibidas completan el ítem: 4 bolsas de 25 kg con 50 kg recibidos y 2 bolsas más")
     void registrarPorCompra_debeFinalizarLaOrdenAlCompletarLasPresentaciones() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1268,7 +1268,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-RC-58: las conversiones de CantidadesDetalleCompra entre presentaciones y unidad del insumo se redondean a 4 decimales y no arrastran el residuo de la coma flotante")
+    @DisplayName("CP-RC-58: las conversiones de CantidadesDetalleCompra entre unidades y unidad del insumo se redondean a 4 decimales y no arrastran el residuo de la coma flotante")
     void cantidadesDetalleCompra_debeConvertirPresentacionesYUnidadDelInsumo() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);
@@ -1281,7 +1281,7 @@ class IngresoInsumoServicioImplTest {
         assertThat(CantidadesDetalleCompra.convertirAPresentaciones(bolsas, 50.0)).isEqualTo(2.0);
         assertThat(CantidadesDetalleCompra.calcularPresentacionesPendientes(bolsas, 50.0)).isEqualTo(2.0);
         assertThat(CantidadesDetalleCompra.calcularPresentacionesPendientes(bolsas, 0.0)).isEqualTo(4.0);
-        // 0.1 + 0.2 = 0.30000000000000004 kg son exactamente 3 presentaciones de 0.1 kg
+        // 0.1 + 0.2 = 0.30000000000000004 kg son exactamente 3 unidades de 0.1 kg
         assertThat(CantidadesDetalleCompra.convertirAPresentaciones(fraccionario, 0.1 + 0.2)).isEqualTo(3.0);
         assertThat(CantidadesDetalleCompra.calcularPresentacionesPendientes(fraccionario, 0.1 + 0.2)).isEqualTo(2.0);
         // 3 x 0.33333 = 0.99999, que a 4 decimales es 1.0
@@ -2266,7 +2266,7 @@ class IngresoInsumoServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-AI-20: anularIngresoInsumo reabre la orden finalizada automáticamente cuando la anulación devuelve presentaciones pendientes: 4 bolsas de 25 kg con 100 kg recibidos y una bolsa anulada")
+    @DisplayName("CP-AI-20: anularIngresoInsumo reabre la orden finalizada automáticamente cuando la anulación devuelve unidades pendientes: 4 bolsas de 25 kg con 100 kg recibidos y una bolsa anulada")
     void anular_debeReabrirLaOrdenCuandoVuelvenPresentacionesPendientes() {
         // === PREPARACION DE DATOS ===
         InsumoEntity insumo = insumoEntity(INSUMO_ID);

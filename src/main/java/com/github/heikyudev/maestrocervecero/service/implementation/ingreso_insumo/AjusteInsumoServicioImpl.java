@@ -263,9 +263,11 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
     }
 
     /**
-     * Reduce, proporcionalmente a lo que cada una ya tenía reservado, la {@code cantidadReservada}
-     * de todas las reservas de insumo activas sobre el lote de insumo indicado, y refleja esa
-     * misma reducción total en el contador agregado del propio {@link LoteInsumoEntity}.
+     * Reduce, proporcionalmente a su saldo pendiente, las reservas de insumo ACTIVAS sobre el lote de insumo
+     * indicado (las consumidas y las liberadas no participan): la cantidad quitada se suma a la
+     * {@code cantidadReducidaPorAjuste} de cada reserva (no a la liberada) y se resta de su saldo pendiente; si una
+     * reserva se agota sin haberse consumido por completo queda Liberada. Esa misma reducción total se refleja en el
+     * contador agregado del propio {@link LoteInsumoEntity}. La anulación de un ajuste no restaura las reservas.
      * <p>
      * Se bloquean las reservas para escritura antes de tocarlas, para evitar que una reserva nueva
      * o un consumo concurrente las modifique al mismo tiempo.
@@ -276,11 +278,13 @@ public class AjusteInsumoServicioImpl implements IAjusteInsumoServicio {
      */
     private void reducirReservasProporcionalmente(LoteInsumoEntity loteInsumoEntity, double excedente) {
         List<ReservaInsumoEntity> reservas = reservaInsumoRepository.buscarPorLoteInsumoIdParaReducir(loteInsumoEntity.getId());
-        double totalReservado = reservas.stream().mapToDouble(ReservaInsumoEntity::getCantidadReservada).sum();
+        double totalPendiente = reservas.stream().mapToDouble(ReservaInsumoEntity::getCantidadPendiente).sum();
 
-        for (ReservaInsumoEntity reserva : reservas) {
-            double proporcion = reserva.getCantidadReservada() / totalReservado;
-            reserva.setCantidadReservada(reserva.getCantidadReservada() - (excedente * proporcion));
+        if (totalPendiente > 0) {
+            for (ReservaInsumoEntity reserva : reservas) {
+                double proporcion = reserva.getCantidadPendiente() / totalPendiente;
+                reserva.reducirPorAjuste(excedente * proporcion);
+            }
         }
         reservaInsumoRepository.saveAll(reservas);
 

@@ -56,7 +56,7 @@ public interface IIngresoInsumoServicio {
      * quedan completamente recibidos, la orden se finaliza automáticamente.
      * </p>
      * <p>
-     * La cantidad se informa en presentaciones del ítem (por ejemplo, 2 bolsas); el ingreso y el lote guardan la
+     * La cantidad se informa en unidades del ítem (por ejemplo, 2 bolsas); el ingreso y el lote guardan la
      * cantidad equivalente en la unidad de medida del insumo.
      * </p>
      *

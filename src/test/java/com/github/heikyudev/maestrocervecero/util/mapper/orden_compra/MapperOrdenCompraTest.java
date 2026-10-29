@@ -93,7 +93,7 @@ class MapperOrdenCompraTest {
     }
 
     @Test
-    @DisplayName("CP-MOC-05: toDTOConCantidades informa recibida y pendiente en presentaciones, convirtiendo la presentación comercial a la unidad del insumo, y su equivalente en la unidad del insumo")
+    @DisplayName("CP-MOC-05: toDTOConCantidades informa recibida y pendiente en unidades, convirtiendo la presentación comercial a la unidad del insumo, y su equivalente en la unidad del insumo")
     void toDTOConCantidades_debeConvertirLaPresentacionALaUnidadDelInsumo() {
         // === PREPARACION DE DATOS ===
         OrdenCompraEntity orden = ordenCompra();
@@ -111,7 +111,7 @@ class MapperOrdenCompraTest {
     }
 
     @Test
-    @DisplayName("CP-MOC-08: toDTOConCantidades informa los totales de presentaciones pedidas, recibidas y pendientes y el porcentaje recibido")
+    @DisplayName("CP-MOC-08: toDTOConCantidades informa los totales de unidades pedidas, recibidas y pendientes y el porcentaje recibido")
     void toDTOConCantidades_debeInformarLaCompletitudDeLaOrden() {
         // === PREPARACION DE DATOS ===
         OrdenCompraEntity orden = ordenCompra();

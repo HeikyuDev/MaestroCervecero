@@ -18,6 +18,9 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMa
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMolinoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOllaHervorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IReservaInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ReservaInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ILoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IPlanificacionProduccionServicio;
@@ -98,6 +101,7 @@ public class LoteController {
 
     private final ILoteServicio loteServicio;
     private final IConsumoInsumoServicio consumoInsumoServicio;
+    private final IReservaInsumoServicio reservaInsumoServicio;
     private final IEnvasadoLoteServicio envasadoLoteServicio;
     private final IPlanificacionProduccionServicio planificacionServicio;
     private final IMolinoServicio molinoServicio;
@@ -569,6 +573,14 @@ public class LoteController {
         if (tipoEtapa.isPermiteRegistrarEnvasado()) {
             model.addAttribute("envasados", envasadoLoteServicio.filtrarEnvasadosLote(etapa.getId(), null, null, todos).getContent());
         }
+        // Las reservas de la etapa con su historial completo, también las consumidas y las liberadas, aunque la etapa o el
+        // lote ya hayan terminado; las activas van primero y el resto conserva el orden del service (insumo y vencimiento)
+        List<ReservaInsumoResponseDTO> reservas = tipoEtapa.isPermiteRegistrarConsumo()
+                ? reservaInsumoServicio.listarReservasDeEtapa(etapa.getId()).stream()
+                .sorted(Comparator.comparing((ReservaInsumoResponseDTO r) -> r.getEstado() == EstadoReservaInsumo.ACTIVA ? 0 : 1))
+                .toList()
+                : List.of();
+        model.addAttribute("reservasEtapa", reservas);
         // El avance es lo que acompaña a "Finalizar etapa": solo se calcula donde ese botón puede aparecer
         AvanceEtapaResponseDTO avance = operable && !requeridos.isEmpty() ? loteServicio.calcularAvanceDeEtapa(idLote, tipoEtapa) : null;
 

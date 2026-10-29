@@ -49,6 +49,17 @@ public class ReservaInsumoServicioImpl implements IReservaInsumoServicio {
                 .map(MapperReservaInsumo::toDTO);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaInsumoResponseDTO> listarReservasDeEtapa(Long idEtapaLote) {
+        return reservaInsumoRepository.listarPorEtapa(idEtapaLote).stream()
+                .map(MapperReservaInsumo::toDTO)
+                .toList();
+    }
+
     private static String textoONulo(String texto) {
         return texto == null || texto.isEmpty() ? null : texto;
     }

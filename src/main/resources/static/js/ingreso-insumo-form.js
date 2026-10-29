@@ -10,7 +10,7 @@
  *     
  *   - Al escribir en un campo, se oculta el mensaje de error que mostraba debajo y se quita su marca roja (solo visual: el
  *     servidor vuelve a validar al enviar).
- *   - La cantidad de presentaciones recibidas del ingreso por compra informa cuánto insumo ingresa al lote (data-factor
+ *   - La cantidad de unidades recibidas del ingreso por compra informa cuánto insumo ingresa al lote (data-factor
  *     y data-unidad-item del formulario: la cantidad de insumo que trae una presentación y el símbolo de su unidad).
  */
 (function () {
@@ -108,19 +108,19 @@
 
     // ---------- Insumo que ingresa al lote ----------
 
-    /** Muestra "Ingresan N kg al lote" con las presentaciones cargadas por lo que trae cada una; solo informa. */
+    /** Muestra "Ingresan N kg al lote" con las unidades cargadas por lo que trae cada una; solo informa. */
     function actualizarIngresaAlLote(formulario) {
         var salida = formulario.querySelector('[data-ingresa-al-lote]');
         var entrada = formulario.querySelector('#cantidadPresentaciones');
         if (!salida || !entrada) { return; }
         var factor = parseFloat(formulario.getAttribute('data-factor'));
-        var presentaciones = parseFloat(entrada.value);
-        if (!(factor > 0) || !(presentaciones > 0)) {
+        var unidades = parseFloat(entrada.value);
+        if (!(factor > 0) || !(unidades > 0)) {
             salida.hidden = true;
             return;
         }
         salida.querySelector('[data-ingresa-valor]').textContent =
-            formatearNumero(presentaciones * factor) + ' ' + (formulario.getAttribute('data-unidad-item') || '');
+            formatearNumero(unidades * factor) + ' ' + (formulario.getAttribute('data-unidad-item') || '');
         salida.hidden = false;
     }
 

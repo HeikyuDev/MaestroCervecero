@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Ubicación en cascada: tres desplegables dependientes País, Provincia y Localidad. Al elegir un país se cargan sus
+    provincias y al elegir una provincia se cargan sus localidades (/js/ubicacion-cascada.js, que pide las opciones a
+    /ubicaciones/opciones/...). Solo viaja el id de la localidad, con el nombre del parámetro indicado: el país y la
+    provincia no tienen name y no se envían. El servidor deja las tres listas ya cargadas con la elección vigente, así que
+    la pantalla también se muestra completa al editar o al volver con errores.
+
+    Parámetros:
+      campo         nombre del parámetro de la localidad (ej. 'version.idLocalidad').
+      idLocalidad   id de la localidad elegida, o null.
+      paises        opciones de país (PaisResponseDTO).
+      provincias    opciones de provincia del país elegido (ProvinciaResponseDTO); vacía sin país.
+      localidades   opciones de localidad de la provincia elegida (LocalidadResponseDTO); vacía sin provincia.
+      idPais        id del país elegido, o null.
+      idProvincia   id de la provincia elegida, o null.
+      obligatorio   true para marcar los tres campos con asterisco rojo (formularios); false en los filtros.
+      invalido      true para marcar la localidad con error.
+
+    Uso: <div th:replace="~{fragments/ubicacion-cascada :: cascada('version.idLocalidad', *{version.idLocalidad}, ${paises},
+                           ${provincias}, ${localidades}, ${idPaisElegido}, ${idProvinciaElegida}, true, ${#fields.hasErrors('version.idLocalidad')})}"></div>
+-->
+<div th:fragment="cascada(campo, idLocalidad, paises, provincias, localidades, idPais, idProvincia, obligatorio, invalido)"
+     data-ubicacion-cascada
+     th:data-url-provincias="@{/ubicaciones/opciones/provincias}" th:data-url-localidades="@{/ubicaciones/opciones/localidades}"
+     class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" th:for="${'pais-' + campo}">País <span class="text-rose-600" title="Obligatorio" th:if="${obligatorio}">*</span></label>
+        <select data-ubicacion-pais th:id="${'pais-' + campo}"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+            <option value="">Seleccione país</option>
+            <option th:each="p : ${paises}" th:value="${p.id}" th:text="${p.nombre}" th:selected="${p.id == idPais}">Argentina</option>
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" th:for="${'provincia-' + campo}">Provincia <span class="text-rose-600" title="Obligatorio" th:if="${obligatorio}">*</span></label>
+        <select data-ubicacion-provincia th:id="${'provincia-' + campo}" th:disabled="${idPais == null}"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400">
+            <option value="">Seleccione provincia</option>
+            <option th:each="p : ${provincias}" th:value="${p.id}" th:text="${p.nombre}" th:selected="${p.id == idProvincia}">Córdoba</option>
+        </select>
+    </div>
+    <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" th:for="${'localidad-' + campo}">Localidad <span class="text-rose-600" title="Obligatorio" th:if="${obligatorio}">*</span></label>
+        <select data-ubicacion-localidad th:id="${'localidad-' + campo}" th:name="${campo}" th:disabled="${idProvincia == null}"
+                class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 disabled:bg-slate-100 disabled:text-slate-400"
+                th:classappend="${invalido} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+            <option value="">Seleccione localidad</option>
+            <option th:each="l : ${localidades}" th:value="${l.id}" th:text="${l.nombre}" th:selected="${l.id == idLocalidad}">Río Cuarto</option>
+        </select>
+    </div>
+</div>
+</html>

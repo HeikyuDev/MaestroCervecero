@@ -47,7 +47,7 @@ public interface IOrdenCompraServicio {
     /**
      * Obtiene una orden de compra por su ID, en cualquier estado.
      * <p>
-     * Cada ítem informa las presentaciones recibidas y pendientes de entrega (con su equivalente en la unidad del
+     * Cada ítem informa las unidades recibidas y pendientes de entrega (con su equivalente en la unidad del
      * insumo), además de su subtotal; la orden informa su total. Los listados de {@link #filtrarOrdenesCompra} informan subtotales y total, pero no las
      * cantidades recibida y pendiente.
      * </p>

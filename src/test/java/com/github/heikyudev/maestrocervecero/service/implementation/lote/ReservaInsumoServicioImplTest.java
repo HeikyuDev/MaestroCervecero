@@ -6,6 +6,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapa
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
@@ -138,6 +139,47 @@ class ReservaInsumoServicioImplTest {
         verify(reservaInsumoRepository).filtrarReservasConSaldo(eq(1L), eq(null), eq(null), any(LocalDate.class), eq(PageRequest.of(0, 8)));
     }
 
+    // ==================== listarReservasDeEtapa ====================
+
+    @Test
+    @DisplayName("CP-LRE-01: listarReservasDeEtapa retorna todas las reservas de la etapa con su historial, también las consumidas y las liberadas")
+    void listarReservasDeEtapa_debeRetornarTodasLasReservasConSuHistorial() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, crearLote());
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
+        ReservaInsumoEntity activa = reservaInsumoEntity(100L, etapaLote, loteInsumo, 8.0);
+        ReservaInsumoEntity consumida = reservaInsumoEntity(101L, etapaLote, loteInsumo, 5.0);
+        consumida.consumir(5.0);
+        ReservaInsumoEntity liberada = reservaInsumoEntity(102L, etapaLote, loteInsumo, 4.0);
+        liberada.liberar();
+        when(reservaInsumoRepository.listarPorEtapa(1L)).thenReturn(List.of(activa, consumida, liberada));
+
+        // === EJECUCION ===
+        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.listarReservasDeEtapa(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getEstado)
+                .containsExactly(EstadoReservaInsumo.ACTIVA, EstadoReservaInsumo.CONSUMIDA, EstadoReservaInsumo.LIBERADA);
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadReservada).containsExactly(8.0, 5.0, 4.0);
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadConsumida).containsExactly(0.0, 5.0, 0.0);
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadLiberada).containsExactly(0.0, 0.0, 4.0);
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadPendiente).containsExactly(8.0, 0.0, 0.0);
+        verify(reservaInsumoRepository).listarPorEtapa(1L);
+    }
+
+    @Test
+    @DisplayName("CP-LRE-02: listarReservasDeEtapa retorna una lista vacía cuando la etapa no tiene reservas")
+    void listarReservasDeEtapa_debeRetornarListaVaciaSinReservas() {
+        // === PREPARACION DE DATOS ===
+        when(reservaInsumoRepository.listarPorEtapa(1L)).thenReturn(List.of());
+
+        // === EJECUCION ===
+        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.listarReservasDeEtapa(1L);
+
+        // === ASSERTS ===
+        assertThat(resultado).isEmpty();
+    }
+
     // ==================== helpers de construcción ====================
 
     private static MaltaEntity maltaEntity(Long id) {
@@ -160,7 +202,7 @@ class ReservaInsumoServicioImplTest {
                 .id(id)
                 .etapaLote(etapaLote)
                 .loteInsumo(loteInsumo)
-                .cantidadReservada(cantidadReservada)
+                .cantidadReservada(cantidadReservada).cantidadPendiente(cantidadReservada)
                 .build();
     }
 

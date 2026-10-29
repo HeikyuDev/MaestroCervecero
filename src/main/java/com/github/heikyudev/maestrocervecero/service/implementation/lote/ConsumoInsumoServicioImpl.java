@@ -156,7 +156,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
                 .orElseThrow(() -> new ReglaNegocioException("No existe una reserva de este lote de insumo para esta etapa: utilice el registro de consumo directo"));
 
         // 6. Validar que la cantidad consumida no supere la cantidad reservada
-        double cantidadReservada = Redondeo.redondear(reserva.getCantidadReservada());
+        double cantidadReservada = Redondeo.redondear(reserva.getCantidadPendiente());
         if (cantidadConsumida > cantidadReservada) {
             throw new ReglaNegocioException("La cantidad consumida no puede superar la cantidad reservada del lote de insumo ("
                     + describirCantidad(cantidadReservada, loteInsumo) + ")");
@@ -166,7 +166,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
         List<String> advertencias = construirAdvertencias(etapaLote, loteInsumo, cantidadConsumida);
 
         // 8. Descontar la reserva y ejecutar el consumo sobre el lote de insumo
-        reserva.setCantidadReservada(Redondeo.redondear(cantidadReservada - cantidadConsumida));
+        reserva.consumir(cantidadConsumida);
         reservaInsumoRepository.save(reserva);
 
         loteInsumo.ejecutarConsumo(cantidadConsumida);
@@ -392,7 +392,7 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
             ReservaInsumoEntity reserva = reservaInsumoRepository.buscarPorEtapaLoteIdYLoteInsumoIdParaConsumir(
                             consumoInsumo.getEtapaLote().getId(), loteInsumo.getId())
                     .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la reserva de insumo de esta etapa para este lote de insumo"));
-            reserva.setCantidadReservada(Redondeo.redondear(reserva.getCantidadReservada() + consumoInsumo.getCantidadConsumida()));
+            reserva.revertirConsumo(consumoInsumo.getCantidadConsumida());
             reservaInsumoRepository.save(reserva);
             loteInsumo.revertirConsumo(consumoInsumo.getCantidadConsumida());
         } else {

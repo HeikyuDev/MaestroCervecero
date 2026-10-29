@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.ubicacion;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.util.persistencia.GuardadoUnico;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -248,5 +249,20 @@ public class LocalidadServicioImpl implements ILocalidadServicio {
 
     private static RecursoDuplicadoException nombreDuplicado(String nombre) {
         return new RecursoDuplicadoException("Ya existe una localidad con el nombre '" + nombre + "' para la provincia seleccionada");
+    }
+
+    /**
+     * Lista las localidades activas de una provincia en orden alfabético por nombre.
+     *
+     * @param idProvincia El ID de la provincia.
+     * @return Las localidades activas de la provincia en formato DTO; vacía si la provincia no existe o no tiene localidades.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<LocalidadResponseDTO> listarLocalidadesActivasDeProvincia(Long idProvincia) {
+        if (idProvincia == null) {
+            return List.of();
+        }
+        return localidadRepository.listarActivasPorProvincia(idProvincia).stream().map(MapperLocalidad::toDTO).toList();
     }
 }

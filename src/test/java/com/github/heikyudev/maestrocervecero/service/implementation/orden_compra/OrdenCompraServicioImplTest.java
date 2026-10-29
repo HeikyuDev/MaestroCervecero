@@ -178,7 +178,7 @@ class OrdenCompraServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BI-03: buscarPorId informa por ítem las presentaciones recibidas y pendientes (con su equivalente en la unidad del insumo), el subtotal, y el total de la orden")
+    @DisplayName("CP-BI-03: buscarPorId informa por ítem las unidades recibidas y pendientes (con su equivalente en la unidad del insumo), el subtotal, y el total de la orden")
     void buscarPorId_debeInformarCantidadesRecibidaYPendienteYTotales() {
         // === PREPARACION DE DATOS ===
         // 5 bolsas de 25.000 g para un insumo en KILOGRAMO = 125 kg solicitados

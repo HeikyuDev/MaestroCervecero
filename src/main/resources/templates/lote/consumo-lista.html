@@ -84,8 +84,8 @@
     <section data-consumos-registrados th:attr="data-pestana=${pestana}" class="space-y-4">
         <div th:replace="~{fragments/pestanas :: pestanas('Tipo de consumo', 'consumo', ~{::enlaces})}">
             <th:block th:fragment="enlaces">
-                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='reservado')}, ${pestana == 'reservado'}, 'reservado', null, 'Reservados')}"></a>
-                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='directo')}, ${pestana == 'directo'}, 'directo', null, 'Directos')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='reservado')}, ${pestana == 'reservado'}, 'reservado', ~{fragments/pestanas :: bi('bi-bookmark')}, 'Reservados')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='directo')}, ${pestana == 'directo'}, 'directo', ~{fragments/pestanas :: bi('bi-box-seam')}, 'Directos')}"></a>
             </th:block>
         </div>
 

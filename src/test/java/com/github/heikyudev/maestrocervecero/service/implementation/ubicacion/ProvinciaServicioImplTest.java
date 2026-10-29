@@ -678,4 +678,35 @@ class ProvinciaServicioImplTest {
         assertThat(existente.getNombre()).isEqualTo("Pilsen Nacional");
         verify(provinciaRepository).save(existente);
     }
+
+    // ==================== listarProvinciasActivasDePais ====================
+
+    @Test
+    @DisplayName("CP-LPr-01: listarProvinciasActivasDePais retorna las provincias activas del país mapeadas a DTO")
+    void listarProvinciasActivasDePais_debeRetornarLasProvinciasDelPais() {
+        // Arrange
+        PaisEntity argentina = crearPaisEntity(1L, "Argentina");
+        ProvinciaEntity cordoba = crearProvinciaEntity(5L, "Córdoba", argentina);
+        ProvinciaEntity misiones = crearProvinciaEntity(6L, "Misiones", argentina);
+        when(provinciaRepository.listarActivasPorPais(1L)).thenReturn(List.of(cordoba, misiones));
+
+        // Act
+        List<ProvinciaResponseDTO> resultado = provinciaServicio.listarProvinciasActivasDePais(1L);
+
+        // Assert
+        assertThat(resultado).extracting(ProvinciaResponseDTO::getId, ProvinciaResponseDTO::getNombre)
+                .containsExactly(org.assertj.core.api.Assertions.tuple(5L, "Córdoba"), org.assertj.core.api.Assertions.tuple(6L, "Misiones"));
+        verify(provinciaRepository).listarActivasPorPais(1L);
+    }
+
+    @Test
+    @DisplayName("CP-LPr-02: listarProvinciasActivasDePais retorna una lista vacía sin consultar el repositorio cuando el país es nulo")
+    void listarProvinciasActivasDePais_debeRetornarListaVaciaConPaisNulo() {
+        // Act
+        List<ProvinciaResponseDTO> resultado = provinciaServicio.listarProvinciasActivasDePais(null);
+
+        // Assert
+        assertThat(resultado).isEmpty();
+        verifyNoInteractions(provinciaRepository);
+    }
 }

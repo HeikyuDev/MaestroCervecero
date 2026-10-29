@@ -10,7 +10,7 @@
     (insumo, identificación del lote del proveedor, estado y fecha de ingreso) se aplican a la pestaña activa. Un ingreso
     registrado se puede anular con un motivo; el detalle de una anulación se ve en un diálogo. La tabla es compacta (entra en unos 700 px): cada
     celda lleva dos líneas. Ingreso: fecha y estado; Insumo y lote: insumo y lote con su vencimiento; Cantidad: en "Por compra" las
-    presentaciones y debajo su equivalente en la unidad del insumo, en "Directos" la cantidad en la unidad del insumo; Precio: en
+    unidades y debajo su equivalente en la unidad del insumo, en "Directos" la cantidad en la unidad del insumo; Precio: en
     "Por compra" el de la presentación y debajo el de la unidad del insumo, en "Directos" el de la unidad del insumo.
 -->
 <div id="ingreso-lista-content" class="space-y-6">
@@ -24,8 +24,8 @@
     <section data-ingresos-registrados th:attr="data-pestana=${pestana}" class="space-y-4">
         <div th:replace="~{fragments/pestanas :: pestanas('Tipo de ingreso', 'ingreso', ~{::enlaces})}">
             <th:block th:fragment="enlaces">
-                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='compra')}, ${pestana == 'compra'}, 'compra', null, 'Por compra')}"></a>
-                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='directo')}, ${pestana == 'directo'}, 'directo', null, 'Directos')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='compra')}, ${pestana == 'compra'}, 'compra', ~{fragments/pestanas :: bi('bi-bag')}, 'Por compra')}"></a>
+                <a th:replace="~{fragments/pestanas :: pestana(@{${urlPantalla}(tipo='directo')}, ${pestana == 'directo'}, 'directo', ~{fragments/pestanas :: bi('bi-box-seam')}, 'Directos')}"></a>
             </th:block>
         </div>
 

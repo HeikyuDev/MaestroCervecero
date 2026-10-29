@@ -23,10 +23,10 @@ import java.util.Optional;
 public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEntity, Long> {
 
     /**
-     * Busca todas las reservas de insumo de un lote, sin importar a cuál de sus etapas esté
-     * asociada cada una.
+     * Busca todas las reservas de insumo de un lote (activas, consumidas y liberadas), sin importar a
+     * cuál de sus etapas esté asociada cada una.
      * <p>
-     * Se usa al cancelar un lote, para liberar todas sus reservas de insumo todavía pendientes.
+     * Se usa al cancelar un lote, para liberar las que todavía tienen saldo pendiente.
      * </p>
      *
      * @param loteId El ID del lote cuyas reservas se quieren buscar.
@@ -38,8 +38,8 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * Busca todas las reservas de insumo de una etapa de lote puntual, sin importar de qué
      * insumo ni de qué lote de insumo físico provenga cada una.
      * <p>
-     * Se usa al finalizar una etapa, para liberar las reservas que hayan quedado sin consumir de
-     * ella (a diferencia de {@link #findByEtapaLote_Lote_Id(Long)}, que libera las de TODO el
+     * Se usa al finalizar una etapa, para liberar el saldo que haya quedado sin consumir de sus
+     * reservas (a diferencia de {@link #findByEtapaLote_Lote_Id(Long)}, que libera las de TODO el
      * lote al cancelarlo).
      * </p>
      *
@@ -62,7 +62,7 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * @return Las reservas de insumo activas sobre ese lote de insumo.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM ReservaInsumoEntity r WHERE r.loteInsumo.id = :idLoteInsumo")
+    @Query("SELECT r FROM ReservaInsumoEntity r WHERE r.loteInsumo.id = :idLoteInsumo AND r.estado = com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo.ACTIVA ORDER BY r.id")
     List<ReservaInsumoEntity> buscarPorLoteInsumoIdParaReducir(@Param("idLoteInsumo") Long idLoteInsumo);
 
     /**
@@ -96,16 +96,16 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      */
     @Query("SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
             + "WHERE r.etapaLote.id = :idEtapaLote AND (:idInsumo IS NULL OR i.id = :idInsumo) "
-            + "ORDER BY CASE WHEN r.cantidadReservada > 0.00005 THEN 0 ELSE 1 END ASC, i.nombre ASC, li.fechaVencimiento ASC, r.id ASC")
+            + "ORDER BY CASE WHEN r.cantidadPendiente > 0.00005 THEN 0 ELSE 1 END ASC, i.nombre ASC, li.fechaVencimiento ASC, r.id ASC")
     List<ReservaInsumoEntity> filtrarLotesInsumoReservados(@Param("idEtapaLote") Long idEtapaLote, @Param("idInsumo") Long idInsumo);
 
     /**
-     * Suma, por insumo, el saldo que todavía está reservado en las reservas de una etapa de lote, en una sola consulta.
+     * Suma, por insumo, el saldo pendiente de las reservas de una etapa de lote, en una sola consulta.
      *
      * @param idEtapaLote El ID de la etapa de lote.
      * @return Filas {@code [idInsumo, saldoReservado]}; los insumos sin reservas no figuran.
      */
-    @Query("SELECT r.loteInsumo.insumo.id, SUM(r.cantidadReservada) FROM ReservaInsumoEntity r "
+    @Query("SELECT r.loteInsumo.insumo.id, SUM(r.cantidadPendiente) FROM ReservaInsumoEntity r "
             + "WHERE r.etapaLote.id = :idEtapaLote GROUP BY r.loteInsumo.insumo.id")
     List<Object[]> sumarSaldoReservadoPorInsumoDeEtapa(@Param("idEtapaLote") Long idEtapaLote);
 
@@ -126,13 +126,13 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
      * @return Una página de reservas con su lote de insumo y su insumo cargados.
      */
     @Query(value = "SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
-            + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadReservada > 0.00005 "
+            + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadPendiente > 0.00005 "
             + "AND (:idInsumo IS NULL OR i.id = :idInsumo) "
             + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%'))) "
             + "ORDER BY CASE WHEN li.fechaVencimiento IS NULL THEN 1 WHEN li.fechaVencimiento < :hoy THEN 2 ELSE 0 END ASC, "
             + "li.fechaVencimiento ASC, li.id ASC",
             countQuery = "SELECT COUNT(r) FROM ReservaInsumoEntity r JOIN r.loteInsumo li JOIN li.insumo i "
-                    + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadReservada > 0.00005 "
+                    + "WHERE r.etapaLote.id = :idEtapaLote AND r.cantidadPendiente > 0.00005 "
                     + "AND (:idInsumo IS NULL OR i.id = :idInsumo) "
                     + "AND (:identificacion IS NULL OR UPPER(li.identificacionLoteProveedor) LIKE UPPER(CONCAT('%', CAST(:identificacion AS string), '%')))")
     Page<ReservaInsumoEntity> filtrarReservasConSaldo(@Param("idEtapaLote") Long idEtapaLote,
@@ -140,4 +140,16 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
                                                       @Param("identificacion") String identificacion,
                                                       @Param("hoy") LocalDate hoy,
                                                       Pageable pageable);
+
+    /**
+     * Lista todas las reservas de una etapa de lote con su historial (activas, consumidas y liberadas), con su lote de
+     * insumo y su insumo cargados, por insumo alfabético y luego por vencimiento e ID. Es de solo lectura y no filtra por
+     * estado: ordenar las activas primero es decisión de la vista.
+     *
+     * @param idEtapaLote El ID de la etapa de lote.
+     * @return Las reservas de la etapa.
+     */
+    @Query("SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
+            + "WHERE r.etapaLote.id = :idEtapaLote ORDER BY i.nombre ASC, li.fechaVencimiento ASC, r.id ASC")
+    List<ReservaInsumoEntity> listarPorEtapa(@Param("idEtapaLote") Long idEtapaLote);
 }

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.PaisEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -80,4 +81,13 @@ public interface IPaisRepository extends JpaRepository<PaisEntity, Long> {
      */
     @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PaisEntity p WHERE LOWER(p.nombre) = LOWER(:nombre) AND p.id <> :id AND p.estado = 'ACTIVO'")
     boolean existsByNombreIgnoreCaseAndIdNot(@Param("nombre") String nombre, @Param("id") Long id);
+
+    /**
+     * Lista todos los países activos en orden alfabético por nombre (sin distinguir mayúsculas), para los
+     * selectores en cascada de ubicación.
+     *
+     * @return Los países activos ordenados por nombre.
+     */
+    @Query("SELECT p FROM PaisEntity p WHERE p.estado = 'ACTIVO' ORDER BY UPPER(p.nombre), p.id")
+    List<PaisEntity> listarActivos();
 }

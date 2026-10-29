@@ -45,10 +45,10 @@ public class MapperIngresoInsumo {
     }
 
     /**
-     * Calcula a cuántas presentaciones del ítem equivale la cantidad recibida de un ingreso por compra.
+     * Calcula a cuántas unidades del ítem equivale la cantidad recibida de un ingreso por compra.
      *
      * @param ingresoInsumoEntity Ingreso de insumo a evaluar.
-     * @return Las presentaciones, o {@code null} si el ingreso no es de un ítem de compra o el ítem no informa su presentación.
+     * @return Las unidades, o {@code null} si el ingreso no es de un ítem de compra o el ítem no informa su presentación.
      */
     private static Double calcularPresentaciones(IngresoInsumoEntity ingresoInsumoEntity) {
         DetalleCompraEntity detalle = ingresoInsumoEntity.getDetalleCompra();

@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.persistence.repository.ubicacion;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.persistence.entity.ubicacion.LocalidadEntity;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -117,4 +118,14 @@ public interface ILocalidadRepository extends JpaRepository<LocalidadEntity, Lon
      */
     @Query("SELECT CASE WHEN COUNT(l) > 0 THEN true ELSE false END FROM LocalidadEntity l WHERE l.provincia.id = :idProvincia AND l.estado = 'ACTIVO'")
     boolean existsByProvinciaId(@Param("idProvincia") Long idProvincia);
+
+    /**
+     * Lista las localidades activas de una provincia en orden alfabético por nombre (sin distinguir
+     * mayúsculas), para los selectores en cascada de ubicación.
+     *
+     * @param idProvincia El ID de la provincia.
+     * @return Las localidades activas de la provincia ordenadas por nombre.
+     */
+    @Query("SELECT l FROM LocalidadEntity l WHERE l.estado = 'ACTIVO' AND l.provincia.id = :idProvincia ORDER BY UPPER(l.nombre), l.id")
+    List<LocalidadEntity> listarActivasPorProvincia(@Param("idProvincia") Long idProvincia);
 }

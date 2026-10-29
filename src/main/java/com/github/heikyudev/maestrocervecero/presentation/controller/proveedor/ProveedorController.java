@@ -11,6 +11,8 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.insumo.IInsumoSe
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IPresentacionComercialServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.proveedor.IProveedorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.ILocalidadServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IPaisServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion.IProvinciaServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.InsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LupuloResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.MaltaResponseDTO;
@@ -54,8 +56,8 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
  * versiones. Modificar un proveedor registra una nueva versión.
  * </p>
  * <p>
- * El formulario de alta y de modificación es una única página. La localidad se elige con el buscador de localidades
- * (sin alta al vuelo: los gerentes no dan de alta ubicaciones). Los ítems del catálogo (insumo + presentación
+ * El formulario de alta y de modificación es una única página. La localidad se elige con tres desplegables en cascada
+ * País, Provincia y Localidad (sin alta al vuelo: los gerentes no dan de alta ubicaciones). Los ítems del catálogo (insumo + presentación
  * comercial) se agregan desde una ventana emergente que elige cada uno con su buscador; las filas agregadas viajan
  * como campos indexados del {@link ProveedorFormDTO}.
  * </p>
@@ -83,6 +85,8 @@ public class ProveedorController {
     private final IInsumoServicio insumoServicio;
     private final IPresentacionComercialServicio presentacionComercialServicio;
     private final ILocalidadServicio localidadServicio;
+    private final IProvinciaServicio provinciaServicio;
+    private final IPaisServicio paisServicio;
 
     /**
      * Lista los proveedores activos, paginados de a 20. Los criterios (razón social, nombre comercial, CUIT con o sin
@@ -98,8 +102,8 @@ public class ProveedorController {
                                     @RequestParam(required = false) Long idLocalidad,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
-        String localidadTexto = etiquetaLocalidad(idLocalidad);
-        Long idLocalidadVigente = localidadTexto == null ? null : idLocalidad;
+        LocalidadResponseDTO localidadFiltrada = buscarLocalidad(idLocalidad);
+        Long idLocalidadVigente = localidadFiltrada == null ? null : idLocalidad;
 
         Page<ProveedorResponseDTO> proveedores = proveedorServicio.filtrarProveedores(
                 vacioANulo(razonSocial), vacioANulo(nombreComercial), vacioANulo(cuit), idLocalidadVigente,
@@ -110,7 +114,7 @@ public class ProveedorController {
         model.addAttribute("filtroNombreComercial", nombreComercial);
         model.addAttribute("filtroCuit", cuit);
         model.addAttribute("filtroIdLocalidad", idLocalidadVigente);
-        model.addAttribute("filtroLocalidadTexto", localidadTexto);
+        cargarCascadaDeUbicacion(model, localidadFiltrada);
         return VISTA_LISTA;
     }
 
@@ -313,15 +317,15 @@ public class ProveedorController {
     }
 
     /**
-     * Carga lo que la vista necesita además del formulario: el id del proveedor (null en el alta), el texto de la
-     * localidad elegida y los datos de los insumos y las presentaciones comerciales referenciados por las filas del
+     * Carga lo que la vista necesita además del formulario: el id del proveedor (null en el alta), las listas de país,
+     * provincia y localidad de la cascada de ubicación y los datos de los insumos y las presentaciones comerciales referenciados por las filas del
      * catálogo, para mostrar sus nombres sin agregar campos de solo lectura al DTO. Lo que ya no existe queda sin
      * entrada en el mapa y la vista lo indica.
      */
     private void cargarModeloFormulario(Model model, Long proveedorId, ProveedorFormDTO proveedorForm) {
         model.addAttribute("proveedorId", proveedorId);
         model.addAttribute("urlCancelar", URL_LISTA);
-        model.addAttribute("localidadSeleccionada", etiquetaLocalidad(proveedorForm.getVersion().getIdLocalidad()));
+        cargarCascadaDeUbicacion(model, buscarLocalidad(proveedorForm.getVersion().getIdLocalidad()));
 
         List<CatalogoProveedorFormDTO> catalogo = proveedorForm.getVersion().getCatalogoProveedor() == null
                 ? List.of() : proveedorForm.getVersion().getCatalogoProveedor().stream().filter(Objects::nonNull).toList();
@@ -339,18 +343,30 @@ public class ProveedorController {
     }
 
     /**
-     * Texto con el que un selector muestra la localidad elegida (su nombre y, entre paréntesis, su provincia, como en el
-     * buscador de localidades), o {@code null} si no hay selección o ya no existe.
+     * Deja en el modelo las tres listas de la cascada de ubicación con la elección vigente: todos los países, las
+     * provincias del país de la localidad elegida y las localidades de su provincia (vacías sin localidad). Así el
+     * formulario y el filtro se muestran completos al editar o al volver con errores.
      */
-    private String etiquetaLocalidad(Long idLocalidad) {
+    private void cargarCascadaDeUbicacion(Model model, LocalidadResponseDTO localidad) {
+        Long idProvincia = localidad != null && localidad.getProvincia() != null ? localidad.getProvincia().getId() : null;
+        Long idPais = idProvincia != null && localidad.getProvincia().getPais() != null
+                ? localidad.getProvincia().getPais().getId() : null;
+        model.addAttribute("paises", paisServicio.listarPaisesActivos());
+        model.addAttribute("provincias", idPais == null ? List.of() : provinciaServicio.listarProvinciasActivasDePais(idPais));
+        model.addAttribute("localidades", idProvincia == null ? List.of() : localidadServicio.listarLocalidadesActivasDeProvincia(idProvincia));
+        model.addAttribute("idPaisElegido", idPais);
+        model.addAttribute("idProvinciaElegida", idProvincia);
+    }
+
+    /**
+     * La localidad elegida, o {@code null} si no hay selección o ya no existe.
+     */
+    private LocalidadResponseDTO buscarLocalidad(Long idLocalidad) {
         if (idLocalidad == null) {
             return null;
         }
         try {
-            LocalidadResponseDTO localidad = localidadServicio.buscarPorId(idLocalidad);
-            return localidad.getProvincia() != null
-                    ? localidad.getNombre() + " (" + localidad.getProvincia().getNombre() + ")"
-                    : localidad.getNombre();
+            return localidadServicio.buscarPorId(idLocalidad);
         } catch (RecursoNoEncontradoException e) {
             return null;
         }

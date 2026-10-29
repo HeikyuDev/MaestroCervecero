@@ -71,25 +71,25 @@ public final class CantidadesDetalleCompra {
     }
 
     /**
-     * Convierte una cantidad de presentaciones del ítem a la unidad de medida del insumo: el número de presentaciones
+     * Convierte una cantidad de unidades del ítem a la unidad de medida del insumo: el número de unidades
      * por el contenido de cada una, redondeado a la escala de las cantidades (ej. 2 bolsas de 25 kg de un insumo en
      * kg son 50 kg).
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
-     * @param presentaciones Cantidad de presentaciones.
+     * @param unidades Cantidad de unidades.
      * @return Cantidad de insumo equivalente, en la unidad de medida base del insumo.
      */
-    public static double convertirPresentacionesAUnidadDelInsumo(DetalleCompraEntity detalleCompraEntity, int presentaciones) {
-        return Redondeo.redondear(presentaciones * calcularCantidadPorPresentacion(detalleCompraEntity));
+    public static double convertirPresentacionesAUnidadDelInsumo(DetalleCompraEntity detalleCompraEntity, int unidades) {
+        return Redondeo.redondear(unidades * calcularCantidadPorPresentacion(detalleCompraEntity));
     }
 
     /**
-     * Convierte una cantidad de insumo a presentaciones del ítem: la cantidad dividida por el contenido de cada
+     * Convierte una cantidad de insumo a unidades del ítem: la cantidad dividida por el contenido de cada
      * presentación, redondeada a la escala de las cantidades para no arrastrar el residuo de la coma flotante.
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
      * @param cantidadEnUnidadDelInsumo Cantidad de insumo, en la unidad de medida base del insumo.
-     * @return Cantidad equivalente en presentaciones.
+     * @return Cantidad equivalente en unidades.
      * @throws IllegalStateException Si la presentación no trae una cantidad de insumo mayor a cero.
      */
     public static double convertirAPresentaciones(DetalleCompraEntity detalleCompraEntity, double cantidadEnUnidadDelInsumo) {
@@ -101,13 +101,13 @@ public final class CantidadesDetalleCompra {
     }
 
     /**
-     * Calcula las presentaciones que restan recibir de un ítem: las pedidas menos las ya recibidas, estas últimas
+     * Calcula las unidades que restan recibir de un ítem: las pedidas menos las ya recibidas, estas últimas
      * convertidas desde la unidad del insumo. Es la misma cantidad pendiente que {@link #calcularCantidadPendiente},
-     * expresada en presentaciones y redondeada a la escala de las cantidades.
+     * expresada en unidades y redondeada a la escala de las cantidades.
      *
      * @param detalleCompraEntity Ítem de detalle de compra a evaluar.
      * @param cantidadYaRecibida Cantidad ya recibida del ítem, en la unidad de medida base del insumo.
-     * @return Presentaciones pendientes de entrega.
+     * @return Unidades pendientes de entrega.
      */
     public static double calcularPresentacionesPendientes(DetalleCompraEntity detalleCompraEntity, double cantidadYaRecibida) {
         return Redondeo.redondear(detalleCompraEntity.getCantidad() - convertirAPresentaciones(detalleCompraEntity, cantidadYaRecibida));
@@ -116,7 +116,7 @@ public final class CantidadesDetalleCompra {
     /**
      * Calcula el costo por unidad de medida del insumo de un ítem de compra.
      * <p>
-     * El costo unitario del ítem es por unidad de presentación (el subtotal de la orden es cantidad de presentaciones
+     * El costo unitario del ítem es por unidad de presentación (el subtotal de la orden es cantidad de unidades
      * por costo unitario); el ingreso y el costo promedio del lote son por unidad del insumo. Se divide el costo de la
      * presentación por la cantidad de insumo que trae, con 4 decimales y redondeo {@code HALF_UP}.
      * </p>

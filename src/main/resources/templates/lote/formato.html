@@ -8,6 +8,8 @@
     finalizada, gris cancelada), con su nombre legible.
     estadoTransaccion(estado): etiqueta de color del estado de un consumo o de un envasado (verde registrado, gris
     anulado), con su nombre legible.
+    estadoReserva(estado): etiqueta de color del estado de una reserva de insumo (ámbar activa, verde consumida, gris
+    liberada), con su nombre legible.
     duracion(valor, unidad, unidadPlural): una duración con su unidad en singular o plural ("1 día", "10 días"), o un
     guion si no tiene valor.
 -->
@@ -20,6 +22,11 @@
 <span th:fragment="estadoTransaccion(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
       th:classappend="${estado.name() == 'REGISTRADO'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
       th:text="${estado.etiqueta}">Registrado</span>
+
+<span th:fragment="estadoReserva(estado)" class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      th:classappend="${estado.name() == 'ACTIVA'} ? 'bg-amber-50 text-amber-700'
+                    : (${estado.name() == 'CONSUMIDA'} ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600')"
+      th:text="${estado.etiqueta}">Activa</span>
 
 <th:block th:fragment="duracion(valor, unidad, unidadPlural)"><th:block th:text="${valor != null} ? |${valor} ${valor == 1 ? unidad : unidadPlural}| : '-'">60 min</th:block></th:block>
 

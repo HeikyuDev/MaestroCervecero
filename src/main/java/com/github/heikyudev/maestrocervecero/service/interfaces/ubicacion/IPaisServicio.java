@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.ubicacion;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.ubicacion.PaisFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -67,4 +68,11 @@ public interface IPaisServicio {
      * @throws ReglaNegocioException Si el país tiene al menos una provincia activa asociada.
      */
     PaisResponseDTO bajaPais(Long id);
+
+    /**
+     * Lista todos los países activos en orden alfabético, para el selector de país de los formularios de ubicación.
+     *
+     * @return Los países activos ordenados por nombre.
+     */
+    List<PaisResponseDTO> listarPaisesActivos();
 }

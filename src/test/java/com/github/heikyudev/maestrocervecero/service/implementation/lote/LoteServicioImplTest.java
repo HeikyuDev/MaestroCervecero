@@ -20,6 +20,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapa
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EtapaLoteEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.LoteEntity;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.ReservaInsumoEntity;
 import com.github.heikyudev.maestrocervecero.persistence.entity.planificacion_produccion.ConfiguracionProduccionEntity;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
@@ -217,9 +218,9 @@ class LoteServicioImplTest {
         LoteInsumoEntity loteInsumoA = crearLoteInsumo(300L, malta, 10.0, 7.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
         LoteInsumoEntity loteInsumoB = crearLoteInsumo(301L, malta, 10.0, 6.0, LocalDate.now().plusDays(60), BigDecimal.TEN);
         List<ReservaInsumoEntity> reservas = List.of(
-                ReservaInsumoEntity.builder().id(1L).etapaLote(etapa).loteInsumo(loteInsumoB).cantidadReservada(6.0).build(),
-                ReservaInsumoEntity.builder().id(2L).etapaLote(etapa).loteInsumo(loteInsumoA).cantidadReservada(4.0).build(),
-                ReservaInsumoEntity.builder().id(3L).etapaLote(etapa).loteInsumo(loteInsumoA).cantidadReservada(3.0).build());
+                ReservaInsumoEntity.builder().id(1L).etapaLote(etapa).loteInsumo(loteInsumoB).cantidadReservada(6.0).cantidadPendiente(6.0).build(),
+                ReservaInsumoEntity.builder().id(2L).etapaLote(etapa).loteInsumo(loteInsumoA).cantidadReservada(4.0).cantidadPendiente(4.0).build(),
+                ReservaInsumoEntity.builder().id(3L).etapaLote(etapa).loteInsumo(loteInsumoA).cantidadReservada(3.0).cantidadPendiente(3.0).build());
         when(reservaInsumoRepository.findByEtapaLote_Lote_Id(1L)).thenReturn(reservas);
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(300L)).thenReturn(Optional.of(loteInsumoA));
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(301L)).thenReturn(Optional.of(loteInsumoB));
@@ -2093,8 +2094,8 @@ class LoteServicioImplTest {
         EtapaLoteEntity etapaMaceracion = findEtapa(lote, TipoEtapa.MACERACION);
         LoteInsumoEntity loteInsumoA = crearLoteInsumo(300L, malta, 10.0, 4.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
         LoteInsumoEntity loteInsumoB = crearLoteInsumo(301L, malta, 10.0, 6.0, LocalDate.now().plusDays(60), BigDecimal.TEN);
-        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(1L).etapaLote(etapaMaceracion).loteInsumo(loteInsumoA).cantidadReservada(4.0).build();
-        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(2L).etapaLote(etapaMaceracion).loteInsumo(loteInsumoB).cantidadReservada(6.0).build();
+        ReservaInsumoEntity reservaA = ReservaInsumoEntity.builder().id(1L).etapaLote(etapaMaceracion).loteInsumo(loteInsumoA).cantidadReservada(4.0).cantidadPendiente(4.0).build();
+        ReservaInsumoEntity reservaB = ReservaInsumoEntity.builder().id(2L).etapaLote(etapaMaceracion).loteInsumo(loteInsumoB).cantidadReservada(6.0).cantidadPendiente(6.0).build();
         List<ReservaInsumoEntity> reservas = List.of(reservaA, reservaB);
         when(reservaInsumoRepository.findByEtapaLote_Lote_Id(1L)).thenReturn(reservas);
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(300L)).thenReturn(Optional.of(loteInsumoA));
@@ -2109,7 +2110,77 @@ class LoteServicioImplTest {
         assertThat(loteInsumoB.getCantidadReservada()).isEqualTo(0.0);
         verify(loteInsumoRepository).save(loteInsumoA);
         verify(loteInsumoRepository).save(loteInsumoB);
-        verify(reservaInsumoRepository).deleteAll(reservas);
+        // Las reservas no se borran: quedan liberadas, con lo reservado como liberado y nada pendiente
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
+        verify(reservaInsumoRepository).saveAll(List.of(reservaA, reservaB));
+        assertThat(reservaA.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reservaA.getCantidadLiberada()).isEqualTo(4.0);
+        assertThat(reservaA.getCantidadPendiente()).isEqualTo(0.0);
+        assertThat(reservaA.getCantidadReservada()).isEqualTo(4.0);
+        assertThat(reservaB.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reservaB.getCantidadLiberada()).isEqualTo(6.0);
+    }
+
+    @Test
+    @DisplayName("CP-CL-30: cancelarLote libera solo el saldo pendiente de una reserva parcialmente consumida y conserva la cantidad consumida")
+    void cancelarLote_debeLiberarSoloElSaldoPendienteDeUnaReservaConsumidaParcialmente() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(ordenCanonicoDeBloqueo.bloquearLote(1L, true)).thenReturn(lote);
+        mockearPlanificacionDelLoteSinCierre(lote);
+        mockearEquipamientoParaIniciar(lote);
+        MaltaEntity malta = crearMalta(10L, "MaltaCancel", 75);
+        EtapaLoteEntity etapa = findEtapa(lote, TipoEtapa.MACERACION);
+        LoteInsumoEntity loteInsumo = crearLoteInsumo(300L, malta, 10.0, 4.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
+        // Se reservaron 10, se consumieron 6 y quedan 4 pendientes
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(1L).etapaLote(etapa).loteInsumo(loteInsumo)
+                .cantidadReservada(10.0).cantidadConsumida(6.0).cantidadPendiente(4.0).build();
+        when(reservaInsumoRepository.findByEtapaLote_Lote_Id(1L)).thenReturn(List.of(reserva));
+        when(loteInsumoRepository.buscarPorIdParaLiberarReserva(300L)).thenReturn(Optional.of(loteInsumo));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reserva.getCantidadReservada()).isEqualTo(10.0);
+        assertThat(reserva.getCantidadConsumida()).isEqualTo(6.0);
+        assertThat(reserva.getCantidadLiberada()).isEqualTo(4.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("CP-CL-31: cancelarLote no toca las reservas consumidas ni las ya liberadas ni el reservado de sus lotes de insumo")
+    void cancelarLote_noDebeTocarReservasSinSaldo() {
+        // === PREPARACION DE DATOS ===
+        LoteEntity lote = crearLoteParaCancelar(EstadoLote.EN_EJECUCION, null);
+        when(ordenCanonicoDeBloqueo.bloquearLote(1L, true)).thenReturn(lote);
+        mockearPlanificacionDelLoteSinCierre(lote);
+        mockearEquipamientoParaIniciar(lote);
+        MaltaEntity malta = crearMalta(10L, "MaltaCancel", 75);
+        EtapaLoteEntity etapa = findEtapa(lote, TipoEtapa.MACERACION);
+        LoteInsumoEntity loteInsumo = crearLoteInsumo(300L, malta, 10.0, 0.0, LocalDate.now().plusDays(30), BigDecimal.TEN);
+        ReservaInsumoEntity consumida = ReservaInsumoEntity.builder().id(1L).etapaLote(etapa).loteInsumo(loteInsumo)
+                .cantidadReservada(5.0).cantidadConsumida(5.0).cantidadPendiente(0.0).estado(EstadoReservaInsumo.CONSUMIDA).build();
+        ReservaInsumoEntity liberada = ReservaInsumoEntity.builder().id(2L).etapaLote(etapa).loteInsumo(loteInsumo)
+                .cantidadReservada(5.0).cantidadLiberada(5.0).cantidadPendiente(0.0).estado(EstadoReservaInsumo.LIBERADA).build();
+        when(reservaInsumoRepository.findByEtapaLote_Lote_Id(1L)).thenReturn(List.of(consumida, liberada));
+        when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // === EJECUCION ===
+        loteServicio.cancelarLote(1L, cancelacionLoteFormDTOBase());
+
+        // === ASSERTS ===
+        assertThat(consumida.getEstado()).isEqualTo(EstadoReservaInsumo.CONSUMIDA);
+        assertThat(consumida.getCantidadLiberada()).isEqualTo(0.0);
+        assertThat(liberada.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(liberada.getCantidadLiberada()).isEqualTo(5.0);
+        assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
+        verifyNoInteractions(loteInsumoRepository);
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
     }
 
     @Test
@@ -2547,7 +2618,7 @@ class LoteServicioImplTest {
         MaltaEntity malta = MaltaEntity.builder().id(1L).nombre("Malta Pilsen").estado(Estado.ACTIVO).build();
         LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(malta).identificacionLoteProveedor("LOTE-A")
                 .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
-        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMolienda).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMolienda).loteInsumo(loteInsumo).cantidadReservada(2.0).cantidadPendiente(2.0).build();
         when(reservaInsumoRepository.findByEtapaLoteId(1L)).thenReturn(List.of(reserva));
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -2574,10 +2645,14 @@ class LoteServicioImplTest {
         verify(molinoRepository).save(molinoCaptor.capture());
         assertThat(molinoCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
 
-        // La reserva de la etapa de Molienda se libera: se devuelve al lote de insumo y se elimina la reserva
+        // La reserva de la etapa de Molienda se libera: se devuelve al lote de insumo y la reserva queda Liberada, sin borrarse
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
         verify(loteInsumoRepository).save(loteInsumo);
-        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
+        verify(reservaInsumoRepository).saveAll(List.of(reserva));
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reserva.getCantidadLiberada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
         verifyNoInteractions(maceradorRepository, ollaHervorRepository, fermentadorRepository);
         verify(loteRepository).save(lote);
     }
@@ -2829,7 +2904,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(1L, "Cascade", 5.5, FormatoLupulo.PELLET);
         LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(lupulo).identificacionLoteProveedor("LOTE-A")
                 .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
-        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaHervido).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaHervido).loteInsumo(loteInsumo).cantidadReservada(2.0).cantidadPendiente(2.0).build();
         when(reservaInsumoRepository.findByEtapaLoteId(3L)).thenReturn(List.of(reserva));
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -2856,10 +2931,14 @@ class LoteServicioImplTest {
         verify(ollaHervorRepository).save(ollaHervorCaptor.capture());
         assertThat(ollaHervorCaptor.getValue().getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
 
-        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y la reserva queda Liberada, sin borrarse
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
         verify(loteInsumoRepository).save(loteInsumo);
-        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
+        verify(reservaInsumoRepository).saveAll(List.of(reserva));
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reserva.getCantidadLiberada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
         verifyNoInteractions(molinoRepository, maceradorRepository, fermentadorRepository);
         verify(loteRepository).save(lote);
     }
@@ -2971,7 +3050,7 @@ class LoteServicioImplTest {
         LevaduraEntity levadura = crearLevadura(1L, "Levadura Ale", TipoLevadura.ALE, 2.0E10);
         LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(levadura).identificacionLoteProveedor("LOTE-A")
                 .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
-        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaFermentacion).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaFermentacion).loteInsumo(loteInsumo).cantidadReservada(2.0).cantidadPendiente(2.0).build();
         when(reservaInsumoRepository.findByEtapaLoteId(4L)).thenReturn(List.of(reserva));
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -2994,10 +3073,14 @@ class LoteServicioImplTest {
         assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
         assertThat(findEtapa(lote, TipoEtapa.ENVASADO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
 
-        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y la reserva queda Liberada, sin borrarse
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
         verify(loteInsumoRepository).save(loteInsumo);
-        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
+        verify(reservaInsumoRepository).saveAll(List.of(reserva));
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reserva.getCantidadLiberada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
 
         // Ningún equipamiento cambia de estado operativo: el fermentador sigue EN_USO sin interrupción
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);
@@ -3111,7 +3194,7 @@ class LoteServicioImplTest {
         LupuloEntity lupulo = crearLupulo(1L, "Citra Dry Hop", 12.0, FormatoLupulo.PELLET);
         LoteInsumoEntity loteInsumo = LoteInsumoEntity.builder().id(10L).insumo(lupulo).identificacionLoteProveedor("LOTE-A")
                 .fechaVencimiento(LocalDate.now().plusMonths(6)).cantidadActual(10.0).cantidadReservada(2.0).build();
-        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMaduracion).loteInsumo(loteInsumo).cantidadReservada(2.0).build();
+        ReservaInsumoEntity reserva = ReservaInsumoEntity.builder().id(100L).etapaLote(etapaMaduracion).loteInsumo(loteInsumo).cantidadReservada(2.0).cantidadPendiente(2.0).build();
         when(reservaInsumoRepository.findByEtapaLoteId(5L)).thenReturn(List.of(reserva));
         when(loteInsumoRepository.buscarPorIdParaLiberarReserva(10L)).thenReturn(Optional.of(loteInsumo));
         when(loteRepository.save(any(LoteEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -3134,10 +3217,14 @@ class LoteServicioImplTest {
         assertThat(findEtapa(lote, TipoEtapa.HERVIDO).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
         assertThat(findEtapa(lote, TipoEtapa.FERMENTACION).getEstado()).isEqualTo(EstadoEtapaLote.PENDIENTE);
 
-        // La reserva de la etapa se libera: se devuelve al lote de insumo y se elimina la reserva
+        // La reserva de la etapa se libera: se devuelve al lote de insumo y la reserva queda Liberada, sin borrarse
         assertThat(loteInsumo.getCantidadReservada()).isEqualTo(0.0);
         verify(loteInsumoRepository).save(loteInsumo);
-        verify(reservaInsumoRepository).deleteAll(List.of(reserva));
+        verify(reservaInsumoRepository, never()).deleteAll(anyList());
+        verify(reservaInsumoRepository).saveAll(List.of(reserva));
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReservaInsumo.LIBERADA);
+        assertThat(reserva.getCantidadLiberada()).isEqualTo(2.0);
+        assertThat(reserva.getCantidadPendiente()).isEqualTo(0.0);
 
         // Ningún equipamiento cambia de estado operativo: el fermentador sigue EN_USO sin interrupción
         verifyNoInteractions(molinoRepository, maceradorRepository, ollaHervorRepository, fermentadorRepository);

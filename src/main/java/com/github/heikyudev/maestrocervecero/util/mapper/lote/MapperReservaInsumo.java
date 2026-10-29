@@ -25,6 +25,11 @@ public class MapperReservaInsumo {
         return ReservaInsumoResponseDTO.builder()
                 .id(reservaInsumoEntity.getId())
                 .cantidadReservada(reservaInsumoEntity.getCantidadReservada())
+                .cantidadConsumida(reservaInsumoEntity.getCantidadConsumida())
+                .cantidadLiberada(reservaInsumoEntity.getCantidadLiberada())
+                .cantidadReducidaPorAjuste(reservaInsumoEntity.getCantidadReducidaPorAjuste())
+                .cantidadPendiente(reservaInsumoEntity.getCantidadPendiente())
+                .estado(reservaInsumoEntity.getEstado())
                 .etapaLote(MapperEtapaLote.toDTO(reservaInsumoEntity.getEtapaLote()))
                 .loteInsumo(MapperLoteInsumo.toDTO(reservaInsumoEntity.getLoteInsumo()))
                 .build();
