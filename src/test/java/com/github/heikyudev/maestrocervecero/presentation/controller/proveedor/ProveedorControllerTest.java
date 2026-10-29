@@ -1145,12 +1145,12 @@ class ProveedorControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-PVC-37: la sidebar del GERENTE_DE_COMPRAS ofrece \"Gestión de Proveedores\" en Administración, después de \"Gestión de Presentaciones\"")
+    @DisplayName("CP-PVC-37: la sidebar del GERENTE_DE_COMPRAS ofrece \"Gestión de Proveedores\" en Administración, antes de \"Gestión de Presentaciones\"")
     void caso_cp_pvc_37() throws Exception {
         // Act + Assert
         mockMvc.perform(get("/home"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(matchesPattern("(?s).*Administración.*<span>Gestión de Presentaciones</span>.*href=\"/proveedores\"[^>]*>\\s*<i class=\"bi text-lg bi-truck\"></i>\\s*<span>Gestión de Proveedores</span>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*Administración.*href=\"/proveedores\"[^>]*>\\s*<i class=\"bi text-lg bi-truck\"></i>\\s*<span>Gestión de Proveedores</span>.*<span>Gestión de Presentaciones</span>.*")))
                 // En el panel de control la opción no está resaltada
                 .andExpect(content().string(not(matchesPattern(ENLACE_RESALTADO))))
                 // "Órdenes de Compra" es un enlace real, en Operación

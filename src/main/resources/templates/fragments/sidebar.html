@@ -118,14 +118,14 @@
                 <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamiento')}"></a>
             </th:block>
 
-            <!-- GESTIÓN DE PRESENTACIONES: presentaciones comerciales de los insumos (Gerente de Compras) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
-                <a th:replace="~{fragments/sidebar ::enlace('/presentaciones-comerciales', ${opcionActiva}, 'presentaciones-comerciales', 'bi-box', 'Gestión de Presentaciones')}"></a>
-            </th:block>
-
             <!-- GESTIÓN DE PROVEEDORES: proveedores y su catálogo de insumos (Gerente de Compras) -->
             <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
                 <a th:replace="~{fragments/sidebar ::enlace('/proveedores', ${opcionActiva}, 'proveedores', 'bi-truck', 'Gestión de Proveedores')}"></a>
+            </th:block>
+
+            <!-- GESTIÓN DE PRESENTACIONES: presentaciones comerciales de los insumos (Gerente de Compras) -->
+            <th:block sec:authorize="hasRole('GERENTE_DE_COMPRAS')">
+                <a th:replace="~{fragments/sidebar ::enlace('/presentaciones-comerciales', ${opcionActiva}, 'presentaciones-comerciales', 'bi-box', 'Gestión de Presentaciones')}"></a>
             </th:block>
 
             <!-- GESTIÓN DE UBICACIONES: países, provincias y localidades en pestañas (Administrador) -->
