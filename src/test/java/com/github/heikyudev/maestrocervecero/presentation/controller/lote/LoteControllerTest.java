@@ -213,7 +213,8 @@ class LoteControllerTest {
         assertThat(celdas(html, "LOT-R7-03")).startsWith("LOT-R7-03 Pale Ale", "Plan #7 - Pale Ale Fermentador: F-01", "En ejecución Hervido", "Est. 01/07/2027 Real 01/07/2027", "Est. 05/07/2027 Real -");
         assertThat(html).contains("href=\"/lotes/nuevo\"").contains("bi-plus-lg").contains("Nuevo lote")
                 .contains("href=\"/lotes/12\"").contains("overflow-x-auto");
-        assertThat(html).doesNotContain("bi-eye").doesNotContain(">Ver<").doesNotContain("data-fila-lote");
+        assertThat(html).doesNotContain(">Ver<").doesNotContain("data-fila-lote");
+        assertThat(html).contains("href=\"/lotes/12/detalle\"").contains("aria-label=\"Ver LOT-R7-03\"").contains("bi-eye");
         assertThat(texto(html)).contains("Acciones");
         assertThat(html).contains("data-boton-abrir").contains("aria-label=\"Abrir LOT-R7-03\"").doesNotContain("data-tooltip=\"Abrir");
     }
@@ -2902,14 +2903,36 @@ class LoteControllerTest {
         Matcher boton = Pattern.compile("<a[^>]*data-boton-abrir[^>]*>.*?</a>", Pattern.DOTALL).matcher(html);
         assertThat(boton.find()).isTrue();
         assertThat(boton.group()).contains("href=\"/lotes/12\"").contains("aria-label=\"Abrir LOT-R7-03\"").doesNotContain("data-tooltip=\"Abrir").contains("bi-arrow-right").contains("hover:bg-amber-500").doesNotContain("bi-gear").doesNotContain("data-tooltip").doesNotContain("title=");
-        assertThat(html).doesNotContain("sticky right-0").contains("text-center");
+        assertThat(html).doesNotContain("sticky right-0").contains("text-center").contains("flex items-center justify-center gap-1");
         assertThat(html.substring(html.indexOf("<thead"), html.indexOf("</thead>"))).contains("text-center");
         assertThat(texto(boton.group())).isEqualTo("Abrir");
         assertThat(boton.find()).isFalse();
         assertThat(celdas(html, "LOT-R7-03").get(0)).startsWith("LOT-R7-03");
         assertThat(texto(html.substring(html.indexOf("<thead"), html.indexOf("</thead>")))).endsWith("Acciones");
         assertThat(html).doesNotContain("data-fila-lote").doesNotContain("data-href").doesNotContain("/js/lote-lista.js");
-        assertThat(html).doesNotContain("bi-eye").doesNotContain("bi-gear").doesNotContain("aria-label=\"Ver lote\"");
+        assertThat(html).doesNotContain("bi-gear").doesNotContain("aria-label=\"Ver lote\"");
+        // El operario solo ve Abrir: el ojo (detalle de solo lectura) es del gerente de producción
+        assertThat(html).doesNotContain("data-ver-lote").doesNotContain("bi-eye").doesNotContain("/detalle\"");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-173: el GERENTE_DE_PRODUCCION ve en cada fila el ojo Ver (detalle de solo lectura, sin tooltip) y a continuación el botón Abrir (panel de trabajo), centrados en la columna de acciones")
+    void listar_elGerenteVeElOjoYAbrir() throws Exception {
+        // Arrange
+        LoteCronogramaResponseDTO lote = loteDeLista(12L, "LOT-R7-03", EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, "F-01");
+        when(loteServicio.filtrarLotesParaListado(any(), any(), any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(lote)));
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        // Assert
+        Matcher ojo = Pattern.compile("<a[^>]*data-ver-lote[^>]*>").matcher(html);
+        assertThat(ojo.find()).isTrue();
+        assertThat(ojo.group()).contains("href=\"/lotes/12/detalle\"").contains("aria-label=\"Ver LOT-R7-03\"").doesNotContain("title=").doesNotContain("data-tooltip");
+        assertThat(html).contains("flex items-center justify-center gap-1");
+        assertThat(html.indexOf("data-ver-lote")).isLessThan(html.indexOf("data-boton-abrir"));
+        assertThat(html).contains("href=\"/lotes/12\"");
     }
 
     @Test
@@ -3346,12 +3369,106 @@ class LoteControllerTest {
         assertThat(bloque(hervido, "data-insumos-etapa")).contains("data-ir-consumos").contains("data-abrir-dialogo=\"dialogo-reservas-etapa\"");
     }
 
+    // ==================== Detalle del lote (solo lectura) ====================
+
     @Test
-    @DisplayName("CP-LCT-164: el GERENTE_DE_PRODUCCION ve la tarjeta Costo de producción de un lote con envasado finalizado: insumos con su costo promedio por unidad, costos adicionales, litros envasados, costo total y costo por litro")
-    void detalle_costoDeProduccionDeUnLoteFinalizado() throws Exception {
+    @DisplayName("CP-LCT-164: el panel de trabajo ya no muestra ninguna tarjeta de costos ni calcula el costo, ni siquiera para el gerente de producción")
+    void panel_noMuestraElCosto() throws Exception {
+        // Act
+        String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, "hervido");
+
+        // Assert
+        assertThat(html).doesNotContain("data-costo-produccion").doesNotContain("Costo de producción");
+        verifyNoInteractions(costoProduccionLoteServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-165: el Detalle del lote (solo del gerente de producción) muestra el encabezado, el botón Volver, el acceso Abrir al panel de trabajo y la información del lote agrupada (identificación, receta y planificación, fermentador y estimados, las cuatro fechas)")
+    void informacion_muestraElEncabezadoYLosDatos() throws Exception {
         // Arrange
-        stubDetalle(detalle(EstadoLote.FINALIZADO, null, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
-                EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA)).build());
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).abvEstimado(5.3).alcoholEstimadoLitros(15.9).build());
+
+        // Act
+        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+
+        // Assert
+        assertThat(html).contains("<title>Gestión de lotes - Maestro Cervecero</title>");
+        String cabecera = texto(bloque(html, "data-lote-cabecera"));
+        assertThat(cabecera).contains("Volver a lotes").contains("Detalle del lote LOT-R7-03").contains("En ejecución").contains("Abrir");
+        assertThat(bloque(html, "data-lote-cabecera")).contains("href=\"/lotes\"").contains("data-boton-abrir").contains("href=\"/lotes/12\"").contains("aria-label=\"Abrir LOT-R7-03\"");
+        String info = texto(bloque(html, "data-seccion-informacion"));
+        assertThat(info).contains("Información del lote").contains("Identificador LOT-R7-03").contains("Estado En ejecución").contains("Etapa actual Hervido")
+                .contains("Volumen objetivo 300 L").contains("Receta Pale Ale - versión 3 de 3").contains("Planificación Plan #7 - Pale Ale")
+                .contains("Fermentador F-01").contains("ABV estimado (%) 5,3").contains("Alcohol estimado (L) 15,9")
+                .contains("Inicio estimado 01/07/2027").contains("Fin estimado 05/07/2027").contains("Inicio real 01/07/2027 08:30").contains("Fin real -");
+        assertThat(info).doesNotContain("Cancelado por");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-166: un lote cancelado muestra en la información quién lo canceló, cuándo y el motivo")
+    void informacion_muestraLosDatosDeLaCancelacion() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.CANCELADO, null, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA,
+                EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA))
+                .fechaCancelacion(LocalDateTime.of(2027, 7, 2, 9, 0)).motivoCancelacion("Contaminación del mosto").usuarioCancelacion("gerente").build());
+
+        // Act
+        String info = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-informacion"));
+
+        // Assert
+        assertThat(info).contains("Cancelado por gerente").contains("Fecha de cancelación 02/07/2027 09:00").contains("Motivo de la cancelación Contaminación del mosto").contains("Fin real 02/07/2027 09:00");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-167: la sección Etapas lista las seis etapas con su estado, el equipo y las fechas reales de inicio y fin")
+    void informacion_muestraLasEtapas() throws Exception {
+        // Act
+        String etapas = bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-etapas");
+
+        // Assert
+        assertThat(texto(etapas)).startsWith("Etapas Etapa Estado Equipo Inicio real Fin real");
+        for (TipoEtapa etapa : TipoEtapa.values()) {
+            assertThat(etapas).contains(">" + etapa.getEtiqueta() + "<");
+        }
+    }
+
+    @Test
+    @DisplayName("CP-LCT-168: las secciones de consumos, reservas y envasados muestran sus tablas con los datos y el detalle de la anulación de lo anulado, y dicen que no hay registros cuando están vacías")
+    void informacion_muestraConsumosReservasYEnvasados() throws Exception {
+        // Arrange: vacías
+        String vacias = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+
+        // Assert
+        assertThat(texto(bloque(vacias, "data-seccion-consumos"))).contains("No hay consumos registrados");
+        assertThat(texto(bloque(vacias, "data-seccion-reservas"))).contains("No hay reservas registradas");
+        assertThat(texto(bloque(vacias, "data-seccion-envasados"))).contains("No hay envasados registrados");
+
+        // Arrange: con datos
+        when(consumoInsumoServicio.listarConsumosDelLote(12L)).thenReturn(List.of(
+                consumo(cascade(), "L-1", TipoConsumo.RESERVADO, 25.0, EstadoTransaccion.REGISTRADO, null),
+                consumo(cascade(), "L-2", TipoConsumo.DIRECTO, 5.0, EstadoTransaccion.ANULADO, "Carga equivocada")));
+        when(reservaInsumoServicio.listarReservasDelLote(12L)).thenReturn(List.of(
+                reserva("L-1", 25.0, 25.0, 0.0, 0.0, 0.0, EstadoReservaInsumo.CONSUMIDA)));
+        when(envasadoLoteServicio.listarEnvasadosDelLote(12L)).thenReturn(List.of(
+                envasado("B-001", 100.0, EstadoTransaccion.REGISTRADO, null), envasado("B-002", 20.0, EstadoTransaccion.ANULADO, "Barril equivocado")));
+
+        // Act
+        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+
+        // Assert
+        String consumos = bloque(html, "data-seccion-consumos");
+        assertThat(texto(consumos)).contains("Etapa Insumo Lote de insumo Cantidad Tipo Fecha Usuario Estado").contains("Cascade L-1 25 g Reservado").contains("Cascade L-2 5 g Directo");
+        assertThat(consumos).contains("data-detalle-motivo=\"Carga equivocada\"").contains("opacity-60");
+        assertThat(texto(bloque(html, "data-seccion-reservas"))).contains("Etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida Pendiente Estado").contains("Cascade L-1 25 g 25 g 0 g 0 g 0 g Consumida");
+        String envasados = bloque(html, "data-seccion-envasados");
+        assertThat(texto(envasados)).contains("Barril Cantidad (L) Fecha Estado").contains("B-001 100").contains("B-002 20");
+        assertThat(envasados).contains("data-detalle-motivo=\"Barril equivocado\"");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-169: el costo se ve solo para el GERENTE_DE_PRODUCCION: sección Costos con el desglose de insumos y de costos adicionales, los litros envasados, el costo total y el costo por litro")
+    void informacion_costoParaElGerente() throws Exception {
+        // Arrange
         when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.FINALIZADO)
                 .insumos(List.of(CostoInsumoLoteResponseDTO.builder().nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).cantidadConsumida(20.0)
                         .costoPromedioPorUnidad(new BigDecimal("5.0500")).subtotal(new BigDecimal("101.0000")).build()))
@@ -3361,21 +3478,21 @@ class LoteControllerTest {
                 .costoTotal(new BigDecimal("701.0000")).costoPorLitro(new BigDecimal("17.5250")).build());
 
         // Act
-        String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, "envasado");
+        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
 
         // Assert
-        String tarjeta = bloque(html, "data-costo-produccion");
-        assertThat(texto(tarjeta)).contains("Costo de producción").contains("Insumo Cantidad consumida Costo promedio por unidad ($) Subtotal ($)")
+        String costos = bloque(html, "data-seccion-costos");
+        assertThat(texto(costos)).contains("Costos").contains("Insumo Cantidad consumida Costo promedio por unidad ($) Subtotal ($)")
                 .contains("Pilsen 20 kg 5,05 / kg 101,00").contains("Total de insumos 101,00")
                 .contains("Costo adicional Costo por litro ($ por litro) Subtotal ($)").contains("Gas butano 15,00 600,00").contains("Total de costos adicionales 600,00")
                 .contains("Litros envasados 40 L").contains("Costo total ($) 701,00").contains("Costo por litro envasado ($ por litro) 17,525");
-        assertThat(tarjeta).doesNotContain("data-costo-nota");
-        assertThat(html.indexOf("data-costo-produccion")).isGreaterThan(html.indexOf("data-etapa-panel"));
+        assertThat(costos).doesNotContain("data-costo-nota");
+        assertThat(html.indexOf("data-seccion-costos")).isGreaterThan(html.indexOf("data-seccion-etapas")).isLessThan(html.indexOf("data-seccion-consumos"));
     }
 
     @Test
-    @DisplayName("CP-LCT-165: en un lote en curso la tarjeta muestra solo el costo acumulado de insumos con la nota de que los costos adicionales se suman al finalizar el envasado, y sin total ni costo por litro")
-    void detalle_costoAcumuladoDeUnLoteEnCurso() throws Exception {
+    @DisplayName("CP-LCT-170: con el lote en curso la sección Costos informa solo el costo acumulado de insumos con la nota de los costos adicionales, y sin consumos dice que no hay costos")
+    void informacion_costoEnCursoYSinDatos() throws Exception {
         // Arrange
         when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.EN_EJECUCION)
                 .insumos(List.of(CostoInsumoLoteResponseDTO.builder().nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).cantidadConsumida(4.0)
@@ -3383,58 +3500,40 @@ class LoteControllerTest {
                 .totalInsumos(new BigDecimal("20.0000")).build());
 
         // Act
-        String tarjeta = bloque(detalleHtml(Rol.GERENTE_DE_PRODUCCION, "hervido"), "data-costo-produccion");
-
-        // Assert
-        assertThat(texto(tarjeta)).contains("Costo acumulado de insumos 20,00").contains("Los costos adicionales se suman al finalizar el envasado")
-                .doesNotContain("Costo total").doesNotContain("Costo por litro envasado").doesNotContain("Total de insumos");
-        assertThat(tarjeta).contains("data-costo-nota").doesNotContain("data-costo-totales").doesNotContain("data-costo-adicionales");
-    }
-
-    @Test
-    @DisplayName("CP-LCT-166: un lote cancelado muestra el costo de los insumos que alcanzó a consumir, sin la nota de finalización ni los totales")
-    void detalle_costoDeUnLoteCancelado() throws Exception {
-        // Arrange
-        stubDetalle(detalle(EstadoLote.CANCELADO, null, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA,
-                EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA)).build());
-        when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.CANCELADO)
-                .insumos(List.of(CostoInsumoLoteResponseDTO.builder().nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).cantidadConsumida(4.0)
-                        .costoPromedioPorUnidad(new BigDecimal("5.0000")).subtotal(new BigDecimal("20.0000")).build()))
-                .totalInsumos(new BigDecimal("20.0000")).build());
-
-        // Act
-        String tarjeta = bloque(detalleHtml(Rol.GERENTE_DE_PRODUCCION, "molienda"), "data-costo-produccion");
-
-        // Assert
-        assertThat(texto(tarjeta)).contains("Pilsen 4 kg 5,00 / kg 20,00").doesNotContain("Los costos adicionales se suman");
-        assertThat(tarjeta).doesNotContain("data-costo-totales").doesNotContain("data-costo-nota");
-    }
-
-    @Test
-    @DisplayName("CP-LCT-167: sin consumos ni costos la tarjeta no se muestra")
-    void detalle_sinDatosDeCostoNoOcupaLugar() throws Exception {
-        // Arrange
+        String enCurso = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-costos"));
         when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.EN_EJECUCION).build());
-
-        // Act
-        String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, "hervido");
+        String sinDatos = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-costos"));
 
         // Assert
-        assertThat(html).doesNotContain("data-costo-produccion").doesNotContain("Costo de producción");
+        assertThat(enCurso).contains("Costo acumulado de insumos 20,00").contains("Los costos adicionales se suman al finalizar el envasado").doesNotContain("Costo total");
+        assertThat(sinDatos).contains("No hay costos registrados").doesNotContain("Los costos adicionales se suman");
     }
 
     @Test
-    @DisplayName("CP-LCT-168: los demás roles no ven la tarjeta de costo y el cálculo ni siquiera se hace")
-    void detalle_losDemasRolesNoVenElCosto() throws Exception {
-        // Arrange
-        String operario = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
-        String soloConsultar = detalleHtml(conPermisos(Permiso.LOTE_CONSULTAR), "hervido");
-
-        // Assert
-        for (String html : List.of(operario, soloConsultar)) {
-            assertThat(html).doesNotContain("data-costo-produccion").doesNotContain("Costo de producción");
+    @DisplayName("CP-LCT-171: el Detalle del lote es solo del GERENTE_DE_PRODUCCION: el operario (y quien solo tiene LOTE_CONSULTAR) es rechazado con la alerta y no se consulta ni se calcula nada")
+    void informacion_soloElGerenteDeProduccion() throws Exception {
+        // Act + Assert
+        for (RequestPostProcessor usuario : List.of(como(Rol.OPERARIO_DE_PRODUCCION), conPermisos(Permiso.LOTE_CONSULTAR), como(Rol.ENCARGADO_DE_DEPOSITO))) {
+            mockMvc.perform(get(URL + "/12/detalle").with(usuario))
+                    .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
         }
-        verifyNoInteractions(costoProduccionLoteServicio);
+        verifyNoInteractions(loteServicio, consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, costoProduccionLoteServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-172: un lote inexistente vuelve a la lista con la alerta")
+    void informacion_loteInexistente() throws Exception {
+        // Arrange
+        when(loteServicio.buscarDetallePorId(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el lote con ID: 99"));
+
+        // Act + Assert
+        mockMvc.perform(get(URL + "/99/detalle").with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    private String informacionHtml(Rol rol) throws Exception {
+        return mockMvc.perform(get(URL + "/12/detalle").with(como(rol))).andExpect(status().isOk()).andExpect(view().name("lote/lote-informacion"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     private static LupuloResponseDTO cascade() {
@@ -3461,6 +3560,7 @@ class LoteControllerTest {
     private static ReservaInsumoResponseDTO reserva(String lote, double original, double consumida, double liberada, double reducida, double pendiente, EstadoReservaInsumo estado) {
         return ReservaInsumoResponseDTO.builder().cantidadReservada(original).cantidadConsumida(consumida).cantidadLiberada(liberada)
                 .cantidadReducidaPorAjuste(reducida).cantidadPendiente(pendiente).estado(estado)
+                .etapaLote(EtapaLoteResponseDTO.builder().etapa(TipoEtapa.HERVIDO).build())
                 .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor(lote).insumo(cascade()).build()).build();
     }
 
@@ -3476,6 +3576,7 @@ class LoteControllerTest {
 
     private static ConsumoInsumoResponseDTO consumo(InsumoResponseDTO insumo, String lote, TipoConsumo tipo, double cantidad, EstadoTransaccion estado, String motivo) {
         return ConsumoInsumoResponseDTO.builder().cantidadConsumida(cantidad).tipoConsumo(tipo).estado(estado).motivoAnulacion(motivo)
+                .etapaLote(EtapaLoteResponseDTO.builder().etapa(TipoEtapa.HERVIDO).build())
                 .loteInsumo(LoteInsumoResponseDTO.builder().identificacionLoteProveedor(lote).insumo(insumo).build()).build();
     }
 

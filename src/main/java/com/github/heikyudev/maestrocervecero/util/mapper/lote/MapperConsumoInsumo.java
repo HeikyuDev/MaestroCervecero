@@ -42,6 +42,7 @@ public class MapperConsumoInsumo {
                 .cantidadConsumida(consumoInsumoEntity.getCantidadConsumida())
                 .costoUnitarioPPP(consumoInsumoEntity.getCostoUnitarioPPP())
                 .fechaRegistro(consumoInsumoEntity.getCreatedDate())
+                .usuarioRegistro(consumoInsumoEntity.getCreatedBy())
                 .fechaAnulacion(consumoInsumoEntity.getFechaAnulacion())
                 .motivoAnulacion(consumoInsumoEntity.getMotivoAnulacion())
                 .usuarioAnulacion(consumoInsumoEntity.getEstado() == EstadoTransaccion.ANULADO ? consumoInsumoEntity.getLastModifiedBy() : null)

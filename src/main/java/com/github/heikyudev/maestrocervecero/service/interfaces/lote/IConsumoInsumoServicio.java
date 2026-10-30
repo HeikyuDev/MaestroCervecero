@@ -123,6 +123,15 @@ public interface IConsumoInsumoServicio {
     List<AdicionLupuloResponseDTO> filtrarAdicionesLupulo(Long idEtapaLote);
 
     /**
+     * Lista todos los consumos de un lote (de todas sus etapas, reservados y directos, registrados y anulados) en una sola consulta, en
+     * el orden de las etapas y de registro. Es de solo lectura.
+     *
+     * @param idLote El ID del lote.
+     * @return Los consumos del lote en formato DTO.
+     */
+    List<ConsumoInsumoResponseDTO> listarConsumosDelLote(Long idLote);
+
+    /**
      * Anula un consumo de insumo existente, devolviendo el stock que había descontado.
      * <p>
      * Qué se revierte depende de por qué camino se registró el consumo ({@code

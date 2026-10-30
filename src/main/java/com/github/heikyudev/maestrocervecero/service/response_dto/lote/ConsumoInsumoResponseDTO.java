@@ -43,6 +43,11 @@ public class ConsumoInsumoResponseDTO {
     private LocalDateTime fechaAnulacion;
 
     /**
+     * Usuario que registró el consumo.
+     */
+    private String usuarioRegistro;
+
+    /**
      * Motivo de anulación del consumo. Nulo salvo que haya sido anulado.
      */
     private String motivoAnulacion;

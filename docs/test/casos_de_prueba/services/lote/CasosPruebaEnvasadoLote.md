@@ -109,3 +109,12 @@ Indica si el lote tiene al menos un envasado en estado REGISTRADO (los anulados 
 |---|---|---|---|---|
 |**CP-EER-01**|Lote no informado o inexistente|(a) `idLote: null`; (b) `idLote: 99L` que no existe|Datos obligatorios y lote registrado|(a) Lanza `ReglaNegocioException` ("El lote es obligatorio"); (b) Lanza `RecursoNoEncontradoException` ("No se encontró el lote con ID: 99"). No consulta los envasados.|
 |**CP-EER-02**|Con y sin envasados registrados|Lote existente; `existsByEtapaLote_Lote_IdAndEstado(1L, REGISTRADO)` devuelve `true` y luego `false`|Solo cuentan los envasados REGISTRADO|Devuelve `true` y luego `false`.|
+
+### 7. `listarEnvasadosDelLote(Long idLote)`
+
+Lista todos los envasados de un lote (registrados y anulados) con su barril en una sola consulta (`listarDelLote`), en el orden de registro. Es de solo lectura y lo usa el Detalle del lote.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-LEL-01**|Todos los envasados del lote|`idLote: 7L`; un envasado registrado (`40.0`) y uno anulado (`10.0`)|`listarDelLote(7L)` entrega ambos|Retorna 2 DTO en el mismo orden con las cantidades `40.0` y `10.0` y los estados `REGISTRADO` y `ANULADO`.|
+|**CP-LEL-02**|Lote sin envasados|`idLote: 7L`, sin envasados|`listarDelLote(7L)` está vacío|Retorna una lista vacía.|

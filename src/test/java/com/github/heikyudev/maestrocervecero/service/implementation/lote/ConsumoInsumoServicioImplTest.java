@@ -174,6 +174,38 @@ class ConsumoInsumoServicioImplTest {
         verifyNoInteractions(loteRepository, loteInsumoRepository);
     }
 
+    // ==================== listarConsumosDelLote ====================
+
+    @Test
+    @DisplayName("CP-LCL-01: listarConsumosDelLote retorna, en una sola consulta, todos los consumos del lote (registrados y anulados) mapeados a DTO y con el usuario que los registró")
+    void listarConsumosDelLote_debeRetornarTodosLosConsumosMapeados() {
+        // === PREPARACION DE DATOS ===
+        ConsumoInsumoEntity registrado = crearConsumoBase(1L, 5.0);
+        registrado.setCreatedBy("operario");
+        ConsumoInsumoEntity anulado = crearConsumoBase(2L, 3.0);
+        anulado.setEstado(EstadoTransaccion.ANULADO);
+        when(consumoInsumoRepository.listarDelLote(7L)).thenReturn(List.of(registrado, anulado));
+
+        // === EJECUCION ===
+        List<ConsumoInsumoResponseDTO> resultado = consumoInsumoServicio.listarConsumosDelLote(7L);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(ConsumoInsumoResponseDTO::getCantidadConsumida).containsExactly(5.0, 3.0);
+        assertThat(resultado).extracting(ConsumoInsumoResponseDTO::getEstado).containsExactly(EstadoTransaccion.REGISTRADO, EstadoTransaccion.ANULADO);
+        assertThat(resultado.get(0).getUsuarioRegistro()).isEqualTo("operario");
+        verify(consumoInsumoRepository).listarDelLote(7L);
+    }
+
+    @Test
+    @DisplayName("CP-LCL-02: listarConsumosDelLote retorna una lista vacía cuando el lote no tiene consumos")
+    void listarConsumosDelLote_debeRetornarListaVaciaSinConsumos() {
+        // === PREPARACION DE DATOS ===
+        when(consumoInsumoRepository.listarDelLote(7L)).thenReturn(List.of());
+
+        // === EJECUCION + ASSERTS ===
+        assertThat(consumoInsumoServicio.listarConsumosDelLote(7L)).isEmpty();
+    }
+
     // ==================== filtrarConsumosInsumo ====================
 
     @Test

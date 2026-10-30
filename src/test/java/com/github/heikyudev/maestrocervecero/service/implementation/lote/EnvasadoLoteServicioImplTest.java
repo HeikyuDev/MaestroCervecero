@@ -1205,6 +1205,37 @@ class EnvasadoLoteServicioImplTest {
                 .build();
     }
 
+    // ==================== listarEnvasadosDelLote ====================
+
+    @Test
+    @DisplayName("CP-LEL-01: listarEnvasadosDelLote retorna todos los envasados del lote (registrados y anulados) con su barril, mapeados a DTO")
+    void listarEnvasadosDelLote_debeRetornarTodosLosEnvasadosMapeados() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapa = crearEtapaLoteEntity(6L, crearLoteEntity(EstadoLote.FINALIZADO), TipoEtapa.ENVASADO, EstadoEtapaLote.FINALIZADA);
+        BarrilEntity barril = crearBarrilEntity(3L, 50.0, 30.0, EstadoOperativoBarril.CON_CERVEZA);
+        EnvasadoLoteEntity registrado = crearEnvasadoLoteEntity(1L, etapa, barril, 40.0, EstadoTransaccion.REGISTRADO);
+        EnvasadoLoteEntity anulado = crearEnvasadoLoteEntity(2L, etapa, barril, 10.0, EstadoTransaccion.ANULADO);
+        when(envasadoLoteRepository.listarDelLote(7L)).thenReturn(List.of(registrado, anulado));
+
+        // === EJECUCION ===
+        List<EnvasadoLoteResponseDTO> resultado = envasadoLoteServicio.listarEnvasadosDelLote(7L);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(EnvasadoLoteResponseDTO::getCantidadEnvasada).containsExactly(40.0, 10.0);
+        assertThat(resultado).extracting(EnvasadoLoteResponseDTO::getEstado).containsExactly(EstadoTransaccion.REGISTRADO, EstadoTransaccion.ANULADO);
+        verify(envasadoLoteRepository).listarDelLote(7L);
+    }
+
+    @Test
+    @DisplayName("CP-LEL-02: listarEnvasadosDelLote retorna una lista vacía cuando el lote no tiene envasados")
+    void listarEnvasadosDelLote_debeRetornarListaVaciaSinEnvasados() {
+        // === PREPARACION DE DATOS ===
+        when(envasadoLoteRepository.listarDelLote(7L)).thenReturn(List.of());
+
+        // === EJECUCION + ASSERTS ===
+        assertThat(envasadoLoteServicio.listarEnvasadosDelLote(7L)).isEmpty();
+    }
+
     private static EnvasadoLoteEntity crearEnvasadoLoteEntity(Long id, EtapaLoteEntity etapaLote, BarrilEntity barril, Double cantidadEnvasada, EstadoTransaccion estado) {
         return EnvasadoLoteEntity.builder()
                 .id(id)

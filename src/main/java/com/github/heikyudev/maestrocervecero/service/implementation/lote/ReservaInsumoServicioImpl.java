@@ -60,6 +60,15 @@ public class ReservaInsumoServicioImpl implements IReservaInsumoServicio {
                 .toList();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaInsumoResponseDTO> listarReservasDelLote(Long idLote) {
+        return reservaInsumoRepository.listarPorLote(idLote).stream().map(MapperReservaInsumo::toDTO).toList();
+    }
+
     private static String textoONulo(String texto) {
         return texto == null || texto.isEmpty() ? null : texto;
     }

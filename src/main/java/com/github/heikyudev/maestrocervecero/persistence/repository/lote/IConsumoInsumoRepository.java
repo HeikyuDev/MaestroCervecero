@@ -30,6 +30,17 @@ public interface IConsumoInsumoRepository extends JpaRepository<ConsumoInsumoEnt
     List<ConsumoInsumoEntity> findByEtapaLoteIdAndEstado(Long idEtapaLote, EstadoTransaccion estado);
 
     /**
+     * Lista todos los consumos de un lote (de todas sus etapas, reservados y directos, registrados y anulados), con su etapa, su lote
+     * de insumo y su insumo cargados, en el orden de las etapas y de registro.
+     *
+     * @param idLote El ID del lote.
+     * @return Los consumos del lote.
+     */
+    @Query("SELECT c FROM ConsumoInsumoEntity c JOIN FETCH c.etapaLote e JOIN FETCH c.loteInsumo li JOIN FETCH li.insumo "
+            + "WHERE e.lote.id = :idLote ORDER BY e.id, c.id")
+    List<ConsumoInsumoEntity> listarDelLote(@Param("idLote") Long idLote);
+
+    /**
      * Resume, en una sola consulta agrupada por insumo, lo consumido en un lote sin contar los consumos anulados (de todas sus
      * etapas, reservados y directos): la cantidad consumida y el costo, que es la suma de cantidad por costo promedio ponderado que
      * tenía el lote de insumo al consumir.

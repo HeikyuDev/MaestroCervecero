@@ -180,6 +180,38 @@ class ReservaInsumoServicioImplTest {
         assertThat(resultado).isEmpty();
     }
 
+    // ==================== listarReservasDelLote ====================
+
+    @Test
+    @DisplayName("CP-LRL-01: listarReservasDelLote retorna todas las reservas del lote (activas, consumidas y liberadas) con su historial, mapeadas a DTO")
+    void listarReservasDelLote_debeRetornarTodasLasReservasDelLote() {
+        // === PREPARACION DE DATOS ===
+        EtapaLoteEntity etapaLote = crearEtapaLote(1L, crearLote());
+        LoteInsumoEntity loteInsumo = loteInsumoEntity(10L, maltaEntity(1L), "LOTE-A");
+        ReservaInsumoEntity activa = reservaInsumoEntity(100L, etapaLote, loteInsumo, 8.0);
+        ReservaInsumoEntity liberada = reservaInsumoEntity(101L, etapaLote, loteInsumo, 4.0);
+        liberada.liberar();
+        when(reservaInsumoRepository.listarPorLote(7L)).thenReturn(List.of(activa, liberada));
+
+        // === EJECUCION ===
+        List<ReservaInsumoResponseDTO> resultado = reservaInsumoServicio.listarReservasDelLote(7L);
+
+        // === ASSERTS ===
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getEstado).containsExactly(EstadoReservaInsumo.ACTIVA, EstadoReservaInsumo.LIBERADA);
+        assertThat(resultado).extracting(ReservaInsumoResponseDTO::getCantidadLiberada).containsExactly(0.0, 4.0);
+        verify(reservaInsumoRepository).listarPorLote(7L);
+    }
+
+    @Test
+    @DisplayName("CP-LRL-02: listarReservasDelLote retorna una lista vacía cuando el lote no tiene reservas")
+    void listarReservasDelLote_debeRetornarListaVaciaSinReservas() {
+        // === PREPARACION DE DATOS ===
+        when(reservaInsumoRepository.listarPorLote(7L)).thenReturn(List.of());
+
+        // === EJECUCION + ASSERTS ===
+        assertThat(reservaInsumoServicio.listarReservasDelLote(7L)).isEmpty();
+    }
+
     // ==================== helpers de construcción ====================
 
     private static MaltaEntity maltaEntity(Long id) {

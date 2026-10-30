@@ -27,3 +27,12 @@ Lista la trazabilidad de las reservas de una etapa: la cantidad reservada origin
 |---|---|---|---|---|
 |**CP-LRE-01**|Todas las reservas de la etapa con su historial|`idEtapaLote: 1L`; una reserva activa (`8.0`), una consumida por completo (`5.0`) y una liberada sin consumir (`4.0`)|`listarPorEtapa(1L)` entrega las tres|Retorna 3 DTO en el mismo orden con estados `ACTIVA`, `CONSUMIDA` y `LIBERADA`; reservada `8.0`, `5.0`, `4.0`; consumida `0.0`, `5.0`, `0.0`; liberada `0.0`, `0.0`, `4.0`; pendiente `8.0`, `0.0`, `0.0`.|
 |**CP-LRE-02**|Etapa sin reservas|`idEtapaLote: 1L`, sin reservas|`listarPorEtapa(1L)` está vacío|Retorna una lista vacía.|
+
+### 4. `listarReservasDelLote(Long idLote)`
+
+Lista todas las reservas de un lote con su historial completo (de todas sus etapas; activas, consumidas y liberadas) en una sola consulta (`listarPorLote`), en el orden de las etapas y luego por insumo. Es de solo lectura y lo usa el Detalle del lote.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-LRL-01**|Todas las reservas del lote|`idLote: 7L`; una reserva activa (`8.0`) y una liberada sin consumir (`4.0`)|`listarPorLote(7L)` entrega ambas|Retorna 2 DTO con los estados `ACTIVA` y `LIBERADA` y la cantidad liberada `0.0` y `4.0`.|
+|**CP-LRL-02**|Lote sin reservas|`idLote: 7L`, sin reservas|`listarPorLote(7L)` está vacío|Retorna una lista vacía.|

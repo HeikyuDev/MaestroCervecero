@@ -161,3 +161,12 @@ Devuelve las adiciones de lúpulo de la etapa (cantidad, uso y tiempo de hervor 
 | --- | --- | --- | --- | --- |
 |**CP-FAL-01**|La etapa no existe|`idEtapaLote: 99` sin etapa en el repositorio|`findById` $\rightarrow$ vacío|Lanza `RecursoNoEncontradoException` con el mensaje "No se encontró la etapa de lote con ID: 99" y no invoca al servicio de escalado.|
 |**CP-FAL-02**|Mapea cada adición|El servicio de escalado devuelve tres adiciones del mismo lúpulo: HERVOR `215` a los 60 min, HERVOR `25.5` a los 15 min y WHIRLPOOL `10`|Cada adición es un elemento del resultado|3 DTO, en el mismo orden, con las cantidades `215.0`, `25.5` y `10.0`, los tiempos `60.0`, `15.0` y `0.0`, los usos HERVOR, HERVOR y WHIRLPOOL y el nombre del lúpulo.|
+
+### 8. `listarConsumosDelLote(Long idLote)`
+
+Lista todos los consumos de un lote (de todas sus etapas, reservados y directos, registrados y anulados) en una sola consulta (`listarDelLote`, con la etapa, el lote de insumo y el insumo cargados), en el orden de las etapas y de registro. Es de solo lectura y lo usa el Detalle del lote.
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-LCL-01**|Todos los consumos del lote|`idLote: 7L`; el repositorio devuelve un consumo registrado (creado por "operario") y uno anulado|`listarDelLote(7L)` entrega ambos|Retorna 2 DTO en el mismo orden, con las cantidades `5.0` y `3.0`, los estados `REGISTRADO` y `ANULADO` y `usuarioRegistro = "operario"` en el primero.|
+|**CP-LCL-02**|Lote sin consumos|`idLote: 7L`, sin consumos|`listarDelLote(7L)` está vacío|Retorna una lista vacía.|

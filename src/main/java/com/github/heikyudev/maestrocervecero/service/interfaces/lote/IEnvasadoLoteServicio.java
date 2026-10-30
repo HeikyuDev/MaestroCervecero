@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.service.interfaces.lote;
 
-import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
+import java.util.List;
+import com.github.heikyudev.maestrocervecero.persistence.enums  .EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.AnularEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.lote.RegistrarEnvasadoLoteFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
@@ -105,4 +106,13 @@ public interface IEnvasadoLoteServicio {
      * @throws ReglaNegocioException Si no se informó el lote.
      */
     boolean existenEnvasadosRegistrados(Long idLote);
+
+    /**
+     * Lista todos los envasados de un lote (registrados y anulados, de su etapa de Envasado) con su barril, en una sola consulta y en
+     * el orden de registro. Es de solo lectura.
+     *
+     * @param idLote El ID del lote.
+     * @return Los envasados del lote en formato DTO.
+     */
+    List<EnvasadoLoteResponseDTO> listarEnvasadosDelLote(Long idLote);
 }

@@ -2029,7 +2029,7 @@ class PlanificacionProduccionControllerTest {
     }
 
     @Test
-    @DisplayName("CP-PPC-93: la tabla de lotes lleva por fila el link \"Ver\" al detalle del lote para quien tiene LOTE_CONSULTAR")
+    @DisplayName("CP-PPC-93: la tabla de lotes lleva por fila el ojo \"Ver lote\" al Detalle del lote (solo lectura, /lotes/{id}/detalle) para quien tiene LOTE_CONSULTAR")
     void detalle_laTablaDeLotesEnlazaAlDetalle() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of(
@@ -2046,8 +2046,9 @@ class PlanificacionProduccionControllerTest {
             enlaces.add(m.group());
         }
         assertThat(enlaces).hasSize(2);
-        assertThat(enlaces.get(0)).contains("href=\"/lotes/11\"").contains("title=\"Ver lote\"").contains("bi-eye").contains("Ver");
-        assertThat(enlaces.get(1)).contains("href=\"/lotes/12\"");
+        assertThat(enlaces.get(0)).contains("href=\"/lotes/11/detalle\"").contains("title=\"Ver lote\"").contains("bi-eye").contains("Ver");
+        assertThat(enlaces.get(1)).contains("href=\"/lotes/12/detalle\"");
+        assertThat(html).doesNotContain("data-boton-abrir");
     }
 
     @Test

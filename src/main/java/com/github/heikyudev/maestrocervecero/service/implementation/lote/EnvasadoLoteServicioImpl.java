@@ -1,5 +1,6 @@
 package com.github.heikyudev.maestrocervecero.service.implementation.lote;
 
+import java.util.List;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.AccionAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.audit.ConceptoAuditoria;
 import com.github.heikyudev.maestrocervecero.persistence.entity.barril.BarrilEntity;
@@ -375,5 +376,14 @@ public class EnvasadoLoteServicioImpl implements IEnvasadoLoteServicio {
             throw new RecursoNoEncontradoException("No se encontró el lote con ID: " + idLote);
         }
         return envasadoLoteRepository.existsByEtapaLote_Lote_IdAndEstado(idLote, EstadoTransaccion.REGISTRADO);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<EnvasadoLoteResponseDTO> listarEnvasadosDelLote(Long idLote) {
+        return envasadoLoteRepository.listarDelLote(idLote).stream().map(MapperEnvasadoLote::toDTO).toList();
     }
 }

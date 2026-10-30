@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.presentation.controller.lote;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo;
+import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.receta.UsoLupulo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.insumo.LevaduraResponseDTO;
@@ -49,7 +50,6 @@ import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -97,6 +97,7 @@ public class LoteController {
     private static final String VISTA_BUSCADOR_EQUIPO = "lote/buscador-equipo :: buscador";
     private static final String VISTA_FILTRO_PLANIFICACION = "lote/filtro-planificacion :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "loteForm";
+    private static final String VISTA_INFORMACION = "lote/lote-informacion";
     private static final String URL_LISTA = "/lotes";
     private static final String URL_BUSCADOR_RECETAS = "/lotes/buscador/recetas";
     private static final String URL_FILTRO_RECETAS = "/lotes/filtros/recetas";
@@ -293,20 +294,14 @@ public class LoteController {
     /**
      * Muestra el detalle del lote: la cabecera con sus acciones, las seis pestañas (una por etapa, con su estado) y el
      * panel de una sola etapa. Sin {@code etapa} se abre la que el service indica (la etapa en curso). Solo se
-     * calculan los datos de la etapa mostrada. Al GERENTE_DE_PRODUCCION se le agrega el costo de producción del lote (los
-     * costos son datos reservados a ese rol; a los demás no se les calcula). Un lote inexistente lo resuelve el
-     * {@code ControllerAdvices}.
+     * calculan los datos de la etapa mostrada. Un lote inexistente lo resuelve el {@code ControllerAdvices}.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String mostrarDetalle(@PathVariable Long id,
                                  @RequestParam(required = false) String etapa,
-                                 Authentication authentication,
                                  Model model) {
         LoteDetalleResponseDTO lote = loteServicio.buscarDetallePorId(id);
-        if (authentication != null && authentication.getAuthorities().stream().anyMatch(a -> "ROLE_GERENTE_DE_PRODUCCION".equals(a.getAuthority()))) {
-            model.addAttribute("costoProduccion", costoProduccionLoteServicio.calcularCostoProduccion(id));
-        }
 
         TipoEtapa tipoEtapa = lote.getEtapaPorDefecto() != null ? lote.getEtapaPorDefecto() : TipoEtapa.MOLIENDA;
         if (vacioANulo(etapa) != null) {
@@ -341,6 +336,29 @@ public class LoteController {
         model.addAttribute("tituloFinalizar", tipoEtapa == TipoEtapa.ENVASADO ? "Finalizar envasado" : "Finalizar etapa");
         model.addAttribute("mensajeFinalizar", mensajeDeFinalizacion(tipoEtapa));
         return VISTA_DETALLE;
+    }
+
+    /**
+     * Muestra el "Detalle del lote": una pantalla de solo lectura con toda la información del lote (datos, etapas, costos,
+     * consumos, reservas y envasados), distinta del panel de trabajo ({@link #mostrarDetalle}). Es solo del GERENTE_DE_PRODUCCION
+     * (el operario trabaja en el panel y no ve costos). Las consultas son de todo el lote y no se repiten por etapa. Un lote
+     * inexistente lo resuelve el {@code ControllerAdvices}.
+     */
+    @GetMapping("/{id}/detalle")
+    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    public String mostrarInformacionDelLote(@PathVariable Long id, Model model) {
+        LoteDetalleResponseDTO lote = loteServicio.buscarDetallePorId(id);
+        VersionRecetaResponseDTO receta = lote.getVersionReceta() != null ? lote.getVersionReceta().getVersion() : null;
+
+        model.addAttribute("lote", lote);
+        model.addAttribute("receta", receta);
+        model.addAttribute("planificacionTexto", EtiquetaPlanificacion.de(lote.getIdPlanificacionProduccion(), receta != null ? receta.getNombre() : null));
+        model.addAttribute("etapaActual", lote.getEtapas().stream().filter(e -> e.getEstado() == EstadoEtapaLote.EN_CURSO).map(EtapaLoteResponseDTO::getEtapa).findFirst().orElse(null));
+        model.addAttribute("consumos", consumoInsumoServicio.listarConsumosDelLote(id));
+        model.addAttribute("reservas", reservaInsumoServicio.listarReservasDelLote(id));
+        model.addAttribute("envasados", envasadoLoteServicio.listarEnvasadosDelLote(id));
+        model.addAttribute("costoProduccion", costoProduccionLoteServicio.calcularCostoProduccion(id));
+        return VISTA_INFORMACION;
     }
 
     // ==================== Iniciar y cancelar ====================

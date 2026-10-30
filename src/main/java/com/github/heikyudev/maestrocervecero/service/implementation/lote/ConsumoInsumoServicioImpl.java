@@ -333,6 +333,15 @@ public class ConsumoInsumoServicioImpl implements IConsumoInsumoServicio {
     }
 
     /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConsumoInsumoResponseDTO> listarConsumosDelLote(Long idLote) {
+        return consumoInsumoRepository.listarDelLote(idLote).stream().map(MapperConsumoInsumo::toDTO).toList();
+    }
+
+    /**
      * Anula un consumo de insumo existente, devolviendo el stock que había descontado.
      *
      * @param id El ID del consumo de insumo a anular.

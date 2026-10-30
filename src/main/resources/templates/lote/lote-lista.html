@@ -103,8 +103,15 @@
                         <div data-fecha-fin-real><span class="inline-block w-6 text-xs text-slate-400">Real</span> <th:block th:replace="~{planificacion_produccion/formato :: fecha(${l.fechaFinalizacion})}"></th:block></div>
                     </div>
                 </td>
-                <td class="col-acciones px-2 py-3 text-center">
-                    <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${l.id})}, 'Abrir ' + ${l.identificadorInterno})}"></th:block>
+                <td class="col-acciones px-2 py-3">
+                    <div class="flex items-center justify-center gap-1">
+                        <!-- El ojo (solo el gerente de producción) es el detalle de solo lectura del lote; "Abrir" es la entrada al panel de trabajo -->
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/lotes/{id}/detalle(id=${l.id})}" th:aria-label="'Ver ' + ${l.identificadorInterno}" data-ver-lote
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
+                        <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${l.id})}, 'Abrir ' + ${l.identificadorInterno})}"></th:block>
+                    </div>
                 </td>
             </tr>
             <tr th:if="${lotes.empty}">

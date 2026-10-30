@@ -142,6 +142,17 @@ public interface IReservaInsumoRepository extends JpaRepository<ReservaInsumoEnt
                                                       Pageable pageable);
 
     /**
+     * Lista todas las reservas de un lote (de todas sus etapas, activas, consumidas y liberadas), con su etapa, su lote de insumo y su
+     * insumo cargados, en el orden de las etapas y luego por insumo.
+     *
+     * @param idLote El ID del lote.
+     * @return Las reservas del lote.
+     */
+    @Query("SELECT r FROM ReservaInsumoEntity r JOIN FETCH r.etapaLote e JOIN FETCH r.loteInsumo li JOIN FETCH li.insumo i "
+            + "WHERE e.lote.id = :idLote ORDER BY e.id, i.nombre ASC, li.fechaVencimiento ASC, r.id ASC")
+    List<ReservaInsumoEntity> listarPorLote(@Param("idLote") Long idLote);
+
+    /**
      * Lista todas las reservas de una etapa de lote con su historial (activas, consumidas y liberadas), con su lote de
      * insumo y su insumo cargados, por insumo alfabético y luego por vencimiento e ID. Es de solo lectura y no filtra por
      * estado: ordenar las activas primero es decisión de la vista.

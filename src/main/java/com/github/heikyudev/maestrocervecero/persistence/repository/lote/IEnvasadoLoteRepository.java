@@ -119,6 +119,10 @@ public interface IEnvasadoLoteRepository extends JpaRepository<EnvasadoLoteEntit
      * @param id El ID del envasado de lote.
      * @return El ID del lote, o vacío si el envasado no existe.
      */
+    @Query("SELECT e FROM EnvasadoLoteEntity e JOIN FETCH e.etapaLote et JOIN FETCH e.barril b JOIN FETCH b.fabricante "
+            + "WHERE et.lote.id = :idLote ORDER BY e.id")
+    List<EnvasadoLoteEntity> listarDelLote(@Param("idLote") Long idLote);
+
     @Query("SELECT e.etapaLote.lote.id FROM EnvasadoLoteEntity e WHERE e.id = :id")
     Optional<Long> buscarIdLoteDelEnvasado(@Param("id") Long id);
 }

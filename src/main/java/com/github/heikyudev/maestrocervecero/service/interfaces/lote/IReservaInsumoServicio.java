@@ -55,4 +55,13 @@ public interface IReservaInsumoServicio {
      * @return Las reservas de la etapa en formato DTO, por insumo alfabético y luego por vencimiento del lote de insumo.
      */
     List<ReservaInsumoResponseDTO> listarReservasDeEtapa(Long idEtapaLote);
+
+    /**
+     * Lista todas las reservas de un lote con su historial completo (de todas sus etapas, activas, consumidas y liberadas) en una sola
+     * consulta, en el orden de las etapas y luego por insumo. Es de solo lectura.
+     *
+     * @param idLote El ID del lote.
+     * @return Las reservas del lote en formato DTO.
+     */
+    List<ReservaInsumoResponseDTO> listarReservasDelLote(Long idLote);
 }
