@@ -74,5 +74,8 @@
 <!-- Diálogo del detalle de una anulación o cancelación, compartido por todas las pantallas -->
 <div th:replace="~{fragments/dialogo-detalle-anulacion :: dialogo}"></div>
 
+<!-- Conserva el scroll del sidebar y, al cambiar de pestaña, el de la página; va al final para restaurar sin parpadeo -->
+<script th:src="@{/js/conservar-scroll.js}"></script>
+
 </body>
 </html>
