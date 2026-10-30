@@ -2,7 +2,7 @@
 
 **Tipo de prueba:** guarda de consistencia (JUnit 5 plano, clase `OrdenDeCamposTest`). No levanta Spring ni simula peticiones: lee del sistema de archivos las plantillas de `src/main/resources/templates`.
 
-**Objetivo:** el formulario y el detalle del proveedor agrupan los datos por sentido (identificación, contacto, ubicación) y la dirección nunca comparte fila con el correo (regla "Orden y agrupación de campos" de `docs/EstandaresUI.md`).
+**Objetivo:** los formularios y los detalles agrupan los datos por sentido y cada fila (una grilla) trata un solo tema: la dirección del proveedor nunca comparte fila con el correo y, en el resto de las pantallas, identidad, origen, medidas, mantenimiento, fechas y estado van en filas separadas (regla "Orden y agrupación de campos" de `docs/EstandaresUI.md`).
 
 ---
 
@@ -10,3 +10,13 @@
 | --- | --- | --- | --- | --- |
 | **CP-ODC-01** | Orden del detalle del proveedor | `proveedor/proveedor-detalle.html` | Posición de cada dato | Razón social, CUIT, teléfono, correo, país, provincia y localidad aparecen en ese orden y la dirección va después de la localidad, en una fila propia (`lg:col-span-3`); el correo ocupa dos columnas junto al teléfono (`lg:col-span-2`). |
 | **CP-ODC-02** | Orden del formulario del proveedor | `proveedor/proveedor-form.html` | Posición de cada campo | Razón social, CUIT, teléfono, correo y los selectores de ubicación aparecen en ese orden y la dirección va después de la ubicación, en una fila propia (`md:col-span-3`); el correo ocupa dos columnas junto al teléfono (`md:col-span-2`). |
+| **CP-ODC-03** | Equipamiento y barril | `olla-form`, `macerador-form`, `molino-form`, `fermentador-form` y `barril-form` | Una grilla por tema | Capacidades, parámetros de proceso (evaporación, pérdida por trub, eficiencia, rendimiento) y usos antes de mantenimiento van en grillas distintas; en el barril el número de serie y el fabricante comparten fila y la capacidad y los usos van aparte. |
+| **CP-ODC-04** | Insumos | `levadura-form`, `lupulo-form` y `malta-form` | Identificación y característica | Nombre y tipo (o formato) comparten fila; células viables, ácidos alfa y extracto potencial van en otra. |
+| **CP-ODC-05** | Planificación | `planificacion-detalle` y `planificacion-form` | Receta, cantidad y fechas | La receta, la cantidad a producir y las fechas estimadas ocupan cada una su fila; en el detalle el estado va en la suya, sin fechas. |
+| **CP-ODC-06** | Orden de compra | `orden-detalle` y `orden-form` | Origen, fecha y estado, total | Planificación y proveedor comparten fila; fecha de entrega y estado van en otra; el total va solo. El formulario pone los dos selectores de origen juntos y la fecha aparte. |
+| **CP-ODC-07** | Receta | `receta-datos` y `receta-form` | Identificación, medidas y objetivos | Código y nombre; volumen base y relación de empaste; OG, FG, IBU y ABV estimado, cada grupo en su fila. En el formulario el nombre va separado de las medidas base. |
+| **CP-ODC-08** | Ingresos de insumo | `ingreso-compra-form` y `ingreso-directo-form` | Lote, cantidad y fecha | El lote del proveedor, la cantidad (con el precio unitario en el ingreso directo) y la fecha de ingreso van en filas separadas. |
+| **CP-ODC-09** | Formularios simples | `usuario-form`, `localidad-form`, `presentacion-form`, `costo-directo-form` y `configuracion-produccion` | Un tema por fila | Nombre y apellido sin teléfono ni correo; usuario y contraseña sin rol; nombre y código postal sin provincia; nombre sin cantidad ni costo; capacidad y velocidad sin el porcentaje de avance. |
+| **CP-ODC-10** | Lote | `lote-informacion`, `lote-detalle` y `lote-guias` | Filas por tema y sin ABV en el panel | Información del lote: identidad; origen (receta, planificación, fermentador); producto (volumen objetivo, OG, FG y alcohol estimado); fechas estimadas; fechas reales. Panel de trabajo: origen, producto (volumen objetivo y alcohol estimado), fechas estimadas y fechas reales. Ni las pantallas de lote ni las guías muestran el ABV, y las guías tampoco el alcohol estimado. |
+| **CP-ODC-11** | Guías de etapa | `lote-guias` | Equipo, densidades, insumos y agua | El equipo y la duración, las densidades (OG y FG), los insumos (malta, lúpulos, levadura) y el agua van cada uno en su fila. |
+| **CP-ODC-12** | Tabla Etapas | `lote-informacion` | Relleno horizontal | Los cinco encabezados y las cinco celdas usan `px-4`, de modo que cada encabezado queda en el mismo borde izquierdo que su contenido. |

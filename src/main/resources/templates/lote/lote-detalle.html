@@ -51,61 +51,65 @@
         <p th:if="${tieneEnvasados}" sec:authorize="hasAuthority('LOTE_ANULAR')" data-aviso-cancelacion
            class="text-sm text-slate-500">Anule los envasados registrados para poder cancelar el lote</p>
 
-        <dl class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm"
-            th:with="fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Planificación</dt>
-                <dd class="text-slate-900">
-                    <a sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')" th:href="@{/planificaciones-produccion/{id}(id=${lote.idPlanificacionProduccion})}"
-                       class="text-amber-700 hover:underline" th:text="${planificacionTexto}">Plan #7 - Pale Ale</a>
-                    <span sec:authorize="!hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')" th:text="${planificacionTexto}">Plan #7 - Pale Ale</span>
-                </dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Receta</dt>
-                <dd class="text-slate-900" th:if="${lote.versionReceta != null and receta != null}"
-                    th:text="|${receta.nombre} - versión ${lote.versionReceta.numeroVersion} de ${lote.versionReceta.cantidadVersiones}|">Pale Ale - versión 3 de 3</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
-                <dd class="text-slate-900" th:text="${lote.identificadorInternoFermentador != null} ? ${lote.identificadorInternoFermentador} : '-'">F-01</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
-            </div>
-            <div data-abv-estimado>
-                <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado a partir de la OG y la FG objetivo de la receta, no es una medición del lote">ABV estimado (%)</span></dt>
-                <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.abvEstimado})}"></th:block></dd>
-            </div>
-            <div data-alcohol-estimado>
-                <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
-                <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.alcoholEstimadoLitros})}"></th:block></dd>
-            </div>
-            <!-- Fechas: las estimadas son las vigentes en el cronograma; las reales se muestran cuando ocurrieron -->
-            <div data-fecha-inicio-estimada>
-                <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaInicioEstimada})}"></th:block></dd>
-            </div>
-            <div data-fecha-fin-estimado>
-                <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
-                <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaFinalizacionEstimada})}"></th:block></dd>
-            </div>
-            <div data-fecha-inicio-real>
-                <dt class="text-xs font-medium text-slate-500">Inicio real</dt>
-                <dd class="text-slate-900">
-                    <th:block th:if="${lote.fechaInicio != null}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaInicio})}"></th:block></th:block>
-                    <th:block th:unless="${lote.fechaInicio != null}">-</th:block>
-                </dd>
-            </div>
-            <div data-fecha-fin-real>
-                <dt class="text-xs font-medium text-slate-500">Fin real</dt>
-                <dd class="text-slate-900">
-                    <th:block th:if="${fechaFinReal != null}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${fechaFinReal})}"></th:block></th:block>
-                    <th:block th:unless="${fechaFinReal != null}">-</th:block>
-                </dd>
-            </div>
-        </dl>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4 text-sm"
+             th:with="fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
+            <!-- Una fila por tema: origen, producto (volumen y alcohol estimado), fechas estimadas (las vigentes en el cronograma), fechas reales -->
+            <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Planificación</dt>
+                    <dd class="text-slate-900">
+                        <a sec:authorize="hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')" th:href="@{/planificaciones-produccion/{id}(id=${lote.idPlanificacionProduccion})}"
+                           class="text-amber-700 hover:underline" th:text="${planificacionTexto}">Plan #7 - Pale Ale</a>
+                        <span sec:authorize="!hasAuthority('PLANIFICACION_PRODUCCION_CONSULTAR')" th:text="${planificacionTexto}">Plan #7 - Pale Ale</span>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Receta</dt>
+                    <dd class="text-slate-900" th:if="${lote.versionReceta != null and receta != null}"
+                        th:text="|${receta.nombre} - versión ${lote.versionReceta.numeroVersion} de ${lote.versionReceta.cantidadVersiones}|">Pale Ale - versión 3 de 3</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
+                    <dd class="text-slate-900" th:text="${lote.identificadorInternoFermentador != null} ? ${lote.identificadorInternoFermentador} : '-'">F-01</dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
+                    <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
+                </div>
+                <div data-alcohol-estimado>
+                    <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
+                    <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.alcoholEstimadoLitros})}"></th:block></dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
+                <div data-fecha-inicio-estimada>
+                    <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
+                    <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaInicioEstimada})}"></th:block></dd>
+                </div>
+                <div data-fecha-fin-estimado>
+                    <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
+                    <dd class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${lote.fechaFinalizacionEstimada})}"></th:block></dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
+                <div data-fecha-inicio-real>
+                    <dt class="text-xs font-medium text-slate-500">Inicio real</dt>
+                    <dd class="text-slate-900">
+                        <th:block th:if="${lote.fechaInicio != null}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${lote.fechaInicio})}"></th:block></th:block>
+                        <th:block th:unless="${lote.fechaInicio != null}">-</th:block>
+                    </dd>
+                </div>
+                <div data-fecha-fin-real>
+                    <dt class="text-xs font-medium text-slate-500">Fin real</dt>
+                    <dd class="text-slate-900">
+                        <th:block th:if="${fechaFinReal != null}"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${fechaFinReal})}"></th:block></th:block>
+                        <th:block th:unless="${fechaFinReal != null}">-</th:block>
+                    </dd>
+                </div>
+            </dl>
+        </div>
     </section>
 
     <!-- Pestañas: una por etapa, son enlaces (funcionan sin JavaScript) -->

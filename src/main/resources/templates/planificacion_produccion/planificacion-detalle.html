@@ -69,36 +69,45 @@
     <!-- Datos de la planificación -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la planificación</h2>
-        <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Receta</dt>
-                <dd class="mt-1 font-medium text-slate-900" th:text="${planificacion.versionReceta.nombre}">Pale Ale</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Cantidad a producir (L)</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planificacion.cantidadAProducir})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${planificacion.fechaInicioEstimada})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${planificacion.fechaFinalizacionEstimada})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Estado</dt>
-                <dd class="mt-1 flex items-center gap-2"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${planificacion.estado})}"></span>
-                    <th:block th:if="${planificacion.estado.name() == 'ANULADA'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${planificacion.motivoAnulacion}, ${planificacion.usuarioAnulacion}, ${planificacion.fechaAnulacion})}"></th:block></th:block>
-                </dd>
-            </div>
-            <div th:if="${planificacion.motivoFinalizacion != null}" class="sm:col-span-2 lg:col-span-5">
-                <dt class="text-xs font-medium text-slate-500">
-                    Motivo de la finalización (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${planificacion.fechaFinalizacion})}"></th:block>)
-                </dt>
-                <dd class="mt-1 text-slate-900" th:text="${planificacion.motivoFinalizacion}">Motivo</dd>
-            </div>
-        </dl>
+        <!-- Una fila por tema: receta, cantidad, fechas, y estado con su motivo -->
+        <div class="space-y-5 p-5">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Receta</dt>
+                    <dd class="mt-1 font-medium text-slate-900" th:text="${planificacion.versionReceta.nombre}">Pale Ale</dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Cantidad a producir (L)</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${planificacion.cantidadAProducir})}"></th:block></dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Inicio estimado</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${planificacion.fechaInicioEstimada})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Fin estimado</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${planificacion.fechaFinalizacionEstimada})}"></th:block></dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Estado</dt>
+                    <dd class="mt-1 flex items-center gap-2"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${planificacion.estado})}"></span>
+                        <th:block th:if="${planificacion.estado.name() == 'ANULADA'}"><th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${planificacion.motivoAnulacion}, ${planificacion.usuarioAnulacion}, ${planificacion.fechaAnulacion})}"></th:block></th:block>
+                    </dd>
+                </div>
+                <div th:if="${planificacion.motivoFinalizacion != null}" class="sm:col-span-2 lg:col-span-5">
+                    <dt class="text-xs font-medium text-slate-500">
+                        Motivo de la finalización (<th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${planificacion.fechaFinalizacion})}"></th:block>)
+                    </dt>
+                    <dd class="mt-1 text-slate-900" th:text="${planificacion.motivoFinalizacion}">Motivo</dd>
+                </div>
+            </dl>
+        </div>
     </section>
 
     <!-- Contadores de lotes -->

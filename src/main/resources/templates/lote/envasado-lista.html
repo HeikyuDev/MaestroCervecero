@@ -75,7 +75,7 @@
         <p class="px-5 pt-4 text-sm text-slate-500">Los campos marcados con <span class="text-rose-600 font-semibold">*</span> son obligatorios.</p>
         <form th:action="@{/lotes/{id}/envasados(id=${lote.id})}" method="post" novalidate data-un-solo-envio
               class="p-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div>
+            <div class="lg:col-span-2">
                 <span class="block text-sm font-medium text-slate-700 mb-1">Barril <span class="text-rose-600" title="Obligatorio">*</span></span>
                 <div th:replace="~{fragments/selector-entidad :: selector('idBarril', ${idBarrilElegido}, ${barrilElegidoTexto},
                         ${urlBuscador}, null, null, false, ${formularioConError == true and #fields.hasErrors('idBarril')}, 'Seleccione barril')}"></div>

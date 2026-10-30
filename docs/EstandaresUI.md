@@ -31,9 +31,12 @@ Es el estándar para abrir una vista de detalle de solo lectura: órdenes de com
 
 En todos los formularios y los detalles de solo lectura los datos se agrupan por sentido y se leen de izquierda a derecha y de arriba abajo, con los campos relacionados en la misma fila lógica:
 
+- Un tema por fila: cada fila (una grilla) trata un solo tema y se lee de izquierda a derecha. Si un tema no completa la fila, la fila queda incompleta (o el campo ocupa más columnas); nunca se rellena con datos de otro tema. Orden de los temas: identidad, relación u origen, medidas con su unidad, mantenimiento, fechas (estimadas y luego reales) y estado u observaciones.
 - Nunca se mezclan en una misma fila datos de temas distintos (por ejemplo, dirección junto al correo): identidad con identidad, contacto con contacto, ubicación con ubicación, cantidades con sus unidades y fechas con fechas.
 - Orden habitual: identificación, contacto, ubicación (país, provincia y localidad en una fila y la dirección debajo, a todo el ancho).
 - Un dato largo (dirección, observaciones) ocupa su propia fila con `col-span` a todo el ancho.
 - El formulario y el detalle del mismo módulo usan el mismo orden.
 - Los títulos de bloque se usan solo donde ayudan; se conservan el asterisco rojo, los placeholders, los `id` y los `name` de los campos.
-- Proveedor es la referencia (protegida por `OrdenDeCamposTest`).
+- Los datos estimados poco importantes (ABV y alcohol estimado del lote) viven solo en el Detalle del lote, nunca en el panel de trabajo ni en las guías de etapa.
+- En una tabla el encabezado y la celda de cada columna usan el mismo relleno horizontal, para que queden en el mismo borde izquierdo.
+- Proveedor es la referencia y el resto de las pantallas siguen la misma regla (protegidas por `OrdenDeCamposTest`).

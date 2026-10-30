@@ -33,38 +33,41 @@
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos de la levadura</h2>
             <p class="mt-1 mb-4 text-xs text-slate-400">Unidad de medida: gramos (la define el sistema).</p>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                <div>
-                    <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="text" id="nombre" th:field="*{nombre}" autofocus autocomplete="off" placeholder="Ej: Safale US-05"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+            <!-- Una fila por tema: identificación y características del insumo -->
+            <div class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="text" id="nombre" th:field="*{nombre}" autofocus autocomplete="off" placeholder="Ej: Safale US-05"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('nombre')}" th:errors="*{nombre}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                    <div>
+                        <label for="tipo" class="block text-sm font-medium text-slate-700 mb-1">Tipo <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <select id="tipo" th:field="*{tipo}"
+                                class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                                th:classappend="${#fields.hasErrors('tipo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                            <option value="">Seleccione tipo</option>
+                            <option th:each="t : ${tipos}" th:value="${t}"><th:block th:replace="~{receta/formato :: tipoLevadura(${t})}">Ale</th:block></option>
+                        </select>
+                        <p th:if="${#fields.hasErrors('tipo')}" th:errors="*{tipo}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
                 </div>
-
-                <div>
-                    <label for="tipo" class="block text-sm font-medium text-slate-700 mb-1">Tipo <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <select id="tipo" th:field="*{tipo}"
-                            class="w-full px-3 py-2 rounded-lg border text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                            th:classappend="${#fields.hasErrors('tipo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <option value="">Seleccione tipo</option>
-                        <option th:each="t : ${tipos}" th:value="${t}"><th:block th:replace="~{receta/formato :: tipoLevadura(${t})}">Ale</th:block></option>
-                    </select>
-                    <p th:if="${#fields.hasErrors('tipo')}" th:errors="*{tipo}" class="mt-1 text-xs text-rose-600"></p>
-                </div>
-
-                <div>
-                    <!--
-                        El usuario ingresa las células en MILLONES (20000 son 20.000.000.000). El formulario las
-                        convierte con celulasEnMillones; el sistema guarda y valida el valor en células.
-                    -->
-                    <label for="celulasEnMillones" class="block text-sm font-medium text-slate-700 mb-1">Células viables (millones/g) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="celulasEnMillones" th:field="*{celulasEnMillones}" min="6000" max="20000" step="1" autocomplete="off" placeholder="Ej: 20000"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('celulasEnMillones')}" th:errors="*{celulasEnMillones}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:if="${#fields.hasErrors('cantidadCelulasPorGramo')}" th:errors="*{cantidadCelulasPorGramo}" class="mt-1 text-xs text-rose-600"></p>
-                    <p th:unless="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')}" class="mt-1 text-xs text-slate-400">Ingrese el valor en millones: 20000 equivale a 20.000.000.000 células por gramo. Un número entre 6000 y 20000.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div>
+                        <!--
+                            El usuario ingresa las células en MILLONES (20000 son 20.000.000.000). El formulario las
+                            convierte con celulasEnMillones; el sistema guarda y valida el valor en células.
+                        -->
+                        <label for="celulasEnMillones" class="block text-sm font-medium text-slate-700 mb-1">Células viables (millones/g) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="number" id="celulasEnMillones" th:field="*{celulasEnMillones}" min="6000" max="20000" step="1" autocomplete="off" placeholder="Ej: 20000"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('celulasEnMillones')}" th:errors="*{celulasEnMillones}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:if="${#fields.hasErrors('cantidadCelulasPorGramo')}" th:errors="*{cantidadCelulasPorGramo}" class="mt-1 text-xs text-rose-600"></p>
+                        <p th:unless="${#fields.hasErrors('celulasEnMillones') or #fields.hasErrors('cantidadCelulasPorGramo')}" class="mt-1 text-xs text-slate-400">Ingrese el valor en millones: 20000 equivale a 20.000.000.000 células por gramo. Un número entre 6000 y 20000.</p>
+                    </div>
                 </div>
             </div>
         </section>

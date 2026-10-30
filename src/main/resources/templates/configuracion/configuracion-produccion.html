@@ -23,30 +23,35 @@
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Tiempos y capacidades</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 items-start gap-5">
-                <div>
-                    <label for="capacidadLoteEstandar" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Capacidad de lote estándar (L) <span class="text-rose-600" title="Obligatorio">*</span></span></label>
-                    <input type="number" id="capacidadLoteEstandar" name="capacidadLoteEstandar" th:value="${configuracionForm.capacidadLoteEstandar != null ? (configuracionForm.capacidadLoteEstandar == configuracionForm.capacidadLoteEstandar.intValue() ? configuracionForm.capacidadLoteEstandar.intValue() : configuracionForm.capacidadLoteEstandar) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 300"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('capacidadLoteEstandar')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('capacidadLoteEstandar')}" th:errors="*{capacidadLoteEstandar}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Volumen por lote que usa la simulación al sugerir la fecha de finalización de una planificación. Mayor a 0.</p>
+            <!-- Una fila por tema: capacidad y velocidad de producción, y regla de avance de etapa -->
+            <div class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-3 items-start gap-5">
+                    <div>
+                        <label for="capacidadLoteEstandar" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Capacidad de lote estándar (L) <span class="text-rose-600" title="Obligatorio">*</span></span></label>
+                        <input type="number" id="capacidadLoteEstandar" name="capacidadLoteEstandar" th:value="${configuracionForm.capacidadLoteEstandar != null ? (configuracionForm.capacidadLoteEstandar == configuracionForm.capacidadLoteEstandar.intValue() ? configuracionForm.capacidadLoteEstandar.intValue() : configuracionForm.capacidadLoteEstandar) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 300"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('capacidadLoteEstandar')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('capacidadLoteEstandar')}" th:errors="*{capacidadLoteEstandar}" class="mt-1 text-xs text-rose-600"></p>
+                        <p class="mt-1 text-xs text-slate-400">Volumen por lote que usa la simulación al sugerir la fecha de finalización de una planificación. Mayor a 0.</p>
+                    </div>
+                    <div>
+                        <label for="velocidadEstandarEnvasado" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Velocidad de envasado (L/h) <span class="text-rose-600" title="Obligatorio">*</span></span></label>
+                        <input type="number" id="velocidadEstandarEnvasado" name="velocidadEstandarEnvasado" th:value="${configuracionForm.velocidadEstandarEnvasado != null ? (configuracionForm.velocidadEstandarEnvasado == configuracionForm.velocidadEstandarEnvasado.intValue() ? configuracionForm.velocidadEstandarEnvasado.intValue() : configuracionForm.velocidadEstandarEnvasado) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 100"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('velocidadEstandarEnvasado')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('velocidadEstandarEnvasado')}" th:errors="*{velocidadEstandarEnvasado}" class="mt-1 text-xs text-rose-600"></p>
+                        <p class="mt-1 text-xs text-slate-400">Se usa para estimar la duración del envasado al calcular las fechas de cada lote. Mayor a 0.</p>
+                    </div>
                 </div>
-                <div>
-                    <label for="velocidadEstandarEnvasado" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Velocidad de envasado (L/h) <span class="text-rose-600" title="Obligatorio">*</span></span></label>
-                    <input type="number" id="velocidadEstandarEnvasado" name="velocidadEstandarEnvasado" th:value="${configuracionForm.velocidadEstandarEnvasado != null ? (configuracionForm.velocidadEstandarEnvasado == configuracionForm.velocidadEstandarEnvasado.intValue() ? configuracionForm.velocidadEstandarEnvasado.intValue() : configuracionForm.velocidadEstandarEnvasado) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 100"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('velocidadEstandarEnvasado')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('velocidadEstandarEnvasado')}" th:errors="*{velocidadEstandarEnvasado}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Se usa para estimar la duración del envasado al calcular las fechas de cada lote. Mayor a 0.</p>
-                </div>
-                <div>
-                    <label for="porcentajeMinimoConsumoParaAvanzarEtapa" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Porcentaje mínimo de consumo (%) <span class="text-rose-600" title="Obligatorio">*</span></span></label>
-                    <input type="number" id="porcentajeMinimoConsumoParaAvanzarEtapa" name="porcentajeMinimoConsumoParaAvanzarEtapa" th:value="${configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa != null ? (configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa == configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa.intValue() ? configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa.intValue() : configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa) : null}" min="0" max="100" step="any" autocomplete="off" placeholder="Ej: 90"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('porcentajeMinimoConsumoParaAvanzarEtapa')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('porcentajeMinimoConsumoParaAvanzarEtapa')}" th:errors="*{porcentajeMinimoConsumoParaAvanzarEtapa}" class="mt-1 text-xs text-rose-600"></p>
-                    <p class="mt-1 text-xs text-slate-400">Porcentaje de la cantidad requerida que debe estar consumido en cada insumo de la etapa para poder avanzar a la siguiente. Un número entre 0 y 100.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 items-start gap-5">
+                    <div>
+                        <label for="porcentajeMinimoConsumoParaAvanzarEtapa" class="flex items-end min-h-[2.5rem] text-sm font-medium text-slate-700 mb-1"><span>Porcentaje mínimo de consumo (%) <span class="text-rose-600" title="Obligatorio">*</span></span></label>
+                        <input type="number" id="porcentajeMinimoConsumoParaAvanzarEtapa" name="porcentajeMinimoConsumoParaAvanzarEtapa" th:value="${configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa != null ? (configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa == configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa.intValue() ? configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa.intValue() : configuracionForm.porcentajeMinimoConsumoParaAvanzarEtapa) : null}" min="0" max="100" step="any" autocomplete="off" placeholder="Ej: 90"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('porcentajeMinimoConsumoParaAvanzarEtapa')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('porcentajeMinimoConsumoParaAvanzarEtapa')}" th:errors="*{porcentajeMinimoConsumoParaAvanzarEtapa}" class="mt-1 text-xs text-rose-600"></p>
+                        <p class="mt-1 text-xs text-slate-400">Porcentaje de la cantidad requerida que debe estar consumido en cada insumo de la etapa para poder avanzar a la siguiente. Un número entre 0 y 100.</p>
+                    </div>
                 </div>
             </div>
         </section>

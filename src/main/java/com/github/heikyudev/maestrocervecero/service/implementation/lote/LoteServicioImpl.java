@@ -271,7 +271,6 @@ public class LoteServicioImpl implements ILoteServicio {
                 .usuarioCancelacion(lote.getEstado() == EstadoLote.CANCELADO ? lote.getLastModifiedBy() : null)
                 .idPlanificacionProduccion(idPlanificacion)
                 .versionReceta(versionReceta)
-                .abvEstimado(abvEstimado)
                 .alcoholEstimadoLitros(CalculosCerveza.calcularAlcoholLitros(abvEstimado, lote.getVolumenObjetivo()))
                 .idFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getId() : null)
                 .identificadorInternoFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getIdentificadorInterno() : null)

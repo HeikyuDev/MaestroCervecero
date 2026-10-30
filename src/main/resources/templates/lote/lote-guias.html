@@ -19,26 +19,41 @@
     <li th:each="r : ${lista}"><span th:text="${r.insumo.nombre}">Pilsner</span>: <th:block th:replace="~{receta/formato :: medida(${r.cantidadRequerida}, ${r.unidadDeMedida.simbolo})}"></th:block></li>
 </ul>
 
-<!-- Molienda -->
-<dl th:fragment="molienda" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-    <div>
-        <dt class="text-xs font-medium text-slate-500">Molino</dt>
-        <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">M-01</dd>
-    </div>
-    <div class="sm:col-span-2 xl:col-span-3" data-malta-a-moler>
-        <dt class="text-xs font-medium text-slate-500">Malta a moler</dt>
-        <dd class="font-semibold text-slate-900">
-            <ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${requeridos})}"></ul>
-        </dd>
-    </div>
-</dl>
+<!-- Molienda: una fila por tema (equipo, insumo) -->
+<div th:fragment="molienda" class="space-y-4">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Molino</dt>
+            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">M-01</dd>
+        </div>
+    </dl>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div class="sm:col-span-2 xl:col-span-4" data-malta-a-moler>
+            <dt class="text-xs font-medium text-slate-500">Malta a moler</dt>
+            <dd class="font-semibold text-slate-900">
+                <ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${requeridos})}"></ul>
+            </dd>
+        </div>
+    </dl>
+</div>
 
 <!-- Maceración -->
 <div th:fragment="maceracion" class="space-y-3">
     <div th:replace="~{lote/lote-guias :: avisoAgua}"></div>
+    <!-- Una fila por tema: ejecución (equipo y duración), insumo (malta) y agua -->
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Macerador</dt>
+            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">MA-01</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaceracion}, 'min', 'min')}"></th:block></dd>
+        </div>
+    </dl>
+    <dl th:if="${maltaMolida != null or agua != null}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <!-- Malta que se agrega al macerador: la realmente molida (consumos registrados en la Molienda); sin consumos, la requerida por la receta -->
-        <div th:if="${maltaMolida != null or agua != null}" data-malta-molida class="sm:col-span-2"
+        <div th:if="${maltaMolida != null or agua != null}" data-malta-molida class="sm:col-span-2 xl:col-span-4"
              th:attr="data-origen=${maltaMolida != null and maltaMolida.conConsumos} ? 'molienda' : 'receta'">
             <th:block th:if="${maltaMolida != null and maltaMolida.conConsumos}">
                 <dt class="text-xs font-medium text-slate-500">Malta molida a agregar</dt>
@@ -59,6 +74,8 @@
                 </dd>
             </th:block>
         </div>
+    </dl>
+    <dl th:if="${agua != null}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <th:block th:if="${agua != null}">
             <div data-agua-macerado>
                 <dt class="flex items-center gap-1 text-xs font-medium text-slate-500">
@@ -86,14 +103,6 @@
                 <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: medida(${agua.aguaTotal}, 'L')}"></th:block></dd>
             </div>
         </th:block>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaceracion}, 'min', 'min')}"></th:block></dd>
-        </div>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Macerador</dt>
-            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">MA-01</dd>
-        </div>
     </dl>
 
     <th:block th:if="${agua != null}">
@@ -102,22 +111,26 @@
     </th:block>
 </div>
 
-<!-- Hervido -->
-<div th:fragment="hervido" class="space-y-3">
+<!-- Hervido: una fila por tema (ejecución, volumen, insumos) -->
+<div th:fragment="hervido" class="space-y-4">
     <div th:replace="~{lote/lote-guias :: avisoAgua}"></div>
     <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-        <div th:if="${agua != null}" data-volumen-pre-hervor>
-            <dt class="text-xs font-medium text-slate-500">Volumen pre-hervor</dt>
-            <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: medida(${agua.volumenPreHervor}, 'L')}"></th:block></dd>
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Olla de hervor</dt>
+            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">OH-01</dd>
         </div>
         <div>
             <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
             <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionHervido}, 'min', 'min')}"></th:block></dd>
         </div>
-        <div>
-            <dt class="text-xs font-medium text-slate-500">Olla de hervor</dt>
-            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">OH-01</dd>
+    </dl>
+    <dl th:if="${agua != null}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div th:if="${agua != null}" data-volumen-pre-hervor>
+            <dt class="text-xs font-medium text-slate-500">Volumen pre-hervor</dt>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: medida(${agua.volumenPreHervor}, 'L')}"></th:block></dd>
         </div>
+    </dl>
+    <dl th:unless="${#lists.isEmpty(adiciones)}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
         <div th:unless="${#lists.isEmpty(adiciones)}" class="sm:col-span-2 xl:col-span-4" data-lupulos-a-agregar>
             <dt class="text-xs font-medium text-slate-500">Lúpulos a agregar</dt>
             <dd class="text-slate-900">
@@ -132,57 +145,59 @@
     </dl>
 </div>
 
-<!-- Fermentación -->
-<dl th:fragment="fermentacion" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-    <div th:unless="${#lists.isEmpty(levaduras)}" data-levadura-a-utilizar>
-        <dt class="text-xs font-medium text-slate-500">Levadura a utilizar</dt>
-        <dd class="font-semibold text-slate-900"><ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${levaduras})}"></ul></dd>
-    </div>
-    <div>
-        <dt class="text-xs font-medium text-slate-500">OG objetivo</dt>
-        <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${receta?.ogObjetivo})}"></th:block></dd>
-    </div>
-    <div>
-        <dt class="text-xs font-medium text-slate-500">FG objetivo</dt>
-        <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${receta?.fgObjetivo})}"></th:block></dd>
-    </div>
-    <div data-abv-estimado>
-        <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado a partir de la OG y la FG objetivo de la receta, no es una medición del lote">ABV estimado (%)</span></dt>
-        <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote?.abvEstimado})}"></th:block></dd>
-    </div>
-    <div data-alcohol-estimado>
-        <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
-        <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote?.alcoholEstimadoLitros})}"></th:block></dd>
-    </div>
-    <div>
-        <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-        <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionFermentacion}, 'día', 'días')}"></th:block></dd>
-    </div>
-    <div>
-        <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
-        <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">F-01</dd>
-    </div>
-    <div th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="sm:col-span-2 xl:col-span-4" data-lupulos-en-seco>
-        <dt class="text-xs font-medium text-slate-500">Lúpulos a agregar en seco</dt>
-        <dd class="font-semibold text-slate-900"><ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${lupulosEnSeco})}"></ul></dd>
-    </div>
-</dl>
+<!-- Fermentación: una fila por tema (ejecución, objetivos de densidad, insumos) -->
+<div th:fragment="fermentacion" class="space-y-4">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
+            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">F-01</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionFermentacion}, 'día', 'días')}"></th:block></dd>
+        </div>
+    </dl>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div>
+            <dt class="text-xs font-medium text-slate-500">OG objetivo</dt>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${receta?.ogObjetivo})}"></th:block></dd>
+        </div>
+        <div>
+            <dt class="text-xs font-medium text-slate-500">FG objetivo</dt>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${receta?.fgObjetivo})}"></th:block></dd>
+        </div>
+    </dl>
+    <dl th:if="${!#lists.isEmpty(levaduras) or !#lists.isEmpty(lupulosEnSeco)}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div th:unless="${#lists.isEmpty(levaduras)}" data-levadura-a-utilizar>
+            <dt class="text-xs font-medium text-slate-500">Levadura a utilizar</dt>
+            <dd class="font-semibold text-slate-900"><ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${levaduras})}"></ul></dd>
+        </div>
+        <div th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="sm:col-span-2" data-lupulos-en-seco>
+            <dt class="text-xs font-medium text-slate-500">Lúpulos a agregar en seco</dt>
+            <dd class="font-semibold text-slate-900"><ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${lupulosEnSeco})}"></ul></dd>
+        </div>
+    </dl>
+</div>
 
-<!-- Maduración -->
-<dl th:fragment="maduracion" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-    <div>
-        <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
-        <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaduracion}, 'día', 'días')}"></th:block></dd>
-    </div>
-    <div>
-        <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
-        <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">F-01</dd>
-    </div>
-    <div th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="sm:col-span-2" data-lupulos-en-seco>
-        <dt class="text-xs font-medium text-slate-500">Lúpulos a agregar en seco</dt>
-        <dd class="font-semibold text-slate-900"><ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${lupulosEnSeco})}"></ul></dd>
-    </div>
-</dl>
+<!-- Maduración: una fila por tema (ejecución, insumos) -->
+<div th:fragment="maduracion" class="space-y-4">
+    <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
+            <dd class="font-semibold text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">F-01</dd>
+        </div>
+        <div>
+            <dt class="text-xs font-medium text-slate-500">Duración estimada</dt>
+            <dd class="font-semibold text-slate-900"><th:block th:replace="~{lote/formato :: duracion(${receta?.duracionMaduracion}, 'día', 'días')}"></th:block></dd>
+        </div>
+    </dl>
+    <dl th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+        <div th:unless="${#lists.isEmpty(lupulosEnSeco)}" class="sm:col-span-2" data-lupulos-en-seco>
+            <dt class="text-xs font-medium text-slate-500">Lúpulos a agregar en seco</dt>
+            <dd class="font-semibold text-slate-900"><ul th:replace="~{lote/lote-guias :: cantidadesDeInsumos(${lupulosEnSeco})}"></ul></dd>
+        </div>
+    </dl>
+</div>
 
 <!-- Envasado -->
 <div th:fragment="envasado" class="space-y-3">

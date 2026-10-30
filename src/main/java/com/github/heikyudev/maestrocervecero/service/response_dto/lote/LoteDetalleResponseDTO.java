@@ -75,13 +75,8 @@ public class LoteDetalleResponseDTO {
      */
     private VersionRecetaDePlanificacionResponseDTO versionReceta;
     /**
-     * Alcohol por volumen estimado (%) a partir de los objetivos de la receta del lote, con un decimal. Nulo si la
-     * receta no permite calcularlo.
-     */
-    private Double abvEstimado;
-    /**
-     * Litros de alcohol estimados del lote (volumen objetivo x ABV estimado / 100), con un decimal. Nulo si no hay
-     * ABV estimado.
+     * Litros de alcohol estimados del lote (volumen objetivo x ABV de la receta / 100), con un decimal. Nulo si la
+     * receta no permite calcular su ABV.
      */
     private Double alcoholEstimadoLitros;
     /**

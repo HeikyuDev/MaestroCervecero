@@ -52,47 +52,54 @@
     <!-- Datos de la orden -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la orden</h2>
-        <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Planificación de producción</dt>
-                <dd class="mt-1 font-medium text-slate-900 break-words" th:text="${orden.planificacionProduccion.etiqueta}">Plan #7 - Pale Ale</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Proveedor</dt>
-                <dd class="mt-1 text-slate-900 break-words">
-                    <span class="font-medium" th:text="${orden.proveedor.razonSocial}">Malterías del Sur S.A.</span>
-                    <span class="block text-xs text-slate-500 whitespace-nowrap">CUIT <th:block th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(orden.proveedor.cuit)}">30-71234567-8</th:block></span>
-                </dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Fecha de entrega estimada</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${orden.fechaEntregaEstimada})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Estado</dt>
-                <dd class="mt-1 flex items-center gap-2">
-                    <span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${orden.estado})}"></span>
-                    <!-- El motivo y la fecha del cierre van en un diálogo, no en línea -->
-                    <th:block th:if="${orden.estado.name() == 'ANULADA'}">
-                        <th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${orden.motivoAnulacion}, ${orden.usuarioAnulacion}, ${orden.fechaAnulacion})}"></th:block>
-                    </th:block>
-                    <button th:if="${orden.estado.name() == 'FINALIZADA'}" type="button" data-detalle-anulacion data-detalle-finalizacion
-                            data-detalle-etiqueta-usuario="Finalizada por"
-                            th:data-detalle-titulo="${orden.motivoFinalizacion != null} ? 'Detalle de la finalización' : 'Finalizada automáticamente'"
-                            th:data-detalle-motivo="${orden.motivoFinalizacion}"
-                            th:data-detalle-usuario="${orden.usuarioFinalizacion}"
-                            th:data-detalle-fecha="${orden.fechaFinalizacion != null} ? ${#temporals.format(orden.fechaFinalizacion, 'dd/MM/yyyy HH:mm')}"
-                            aria-label="Ver detalle de la finalización" title="Ver detalle de la finalización"
-                            class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Total ($)</dt>
-                <dd class="mt-1 text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</dd>
-            </div>
-        </dl>
+        <!-- Una fila por tema: origen de la orden, fecha y estado, y total -->
+        <div class="space-y-5 p-5">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Planificación de producción</dt>
+                    <dd class="mt-1 font-medium text-slate-900 break-words" th:text="${orden.planificacionProduccion.etiqueta}">Plan #7 - Pale Ale</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Proveedor</dt>
+                    <dd class="mt-1 text-slate-900 break-words">
+                        <span class="font-medium" th:text="${orden.proveedor.razonSocial}">Malterías del Sur S.A.</span>
+                        <span class="block text-xs text-slate-500 whitespace-nowrap">CUIT <th:block th:text="${T(com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesTexto).formatearCuit(orden.proveedor.cuit)}">30-71234567-8</th:block></span>
+                    </dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Fecha de entrega estimada</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${orden.fechaEntregaEstimada})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Estado</dt>
+                    <dd class="mt-1 flex items-center gap-2">
+                        <span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${orden.estado})}"></span>
+                        <!-- El motivo y la fecha del cierre van en un diálogo, no en línea -->
+                        <th:block th:if="${orden.estado.name() == 'ANULADA'}">
+                            <th:block th:replace="~{fragments/detalle-anulacion :: boton(false, ${orden.motivoAnulacion}, ${orden.usuarioAnulacion}, ${orden.fechaAnulacion})}"></th:block>
+                        </th:block>
+                        <button th:if="${orden.estado.name() == 'FINALIZADA'}" type="button" data-detalle-anulacion data-detalle-finalizacion
+                                data-detalle-etiqueta-usuario="Finalizada por"
+                                th:data-detalle-titulo="${orden.motivoFinalizacion != null} ? 'Detalle de la finalización' : 'Finalizada automáticamente'"
+                                th:data-detalle-motivo="${orden.motivoFinalizacion}"
+                                th:data-detalle-usuario="${orden.usuarioFinalizacion}"
+                                th:data-detalle-fecha="${orden.fechaFinalizacion != null} ? ${#temporals.format(orden.fechaFinalizacion, 'dd/MM/yyyy HH:mm')}"
+                                aria-label="Ver detalle de la finalización" title="Ver detalle de la finalización"
+                                class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        </button>
+                    </dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Total ($)</dt>
+                    <dd class="mt-1 text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</dd>
+                </div>
+            </dl>
+        </div>
     </section>
 
     <!-- Contadores de la recepción -->

@@ -14,40 +14,47 @@
     <!-- Datos generales -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
         <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Datos de la receta</h2>
-        <dl class="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Código</dt>
-                <dd class="mt-1 font-medium text-slate-900" th:text="'R' + ${idReceta}">R7</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Nombre</dt>
-                <dd class="mt-1 font-medium text-slate-900" th:text="${version.nombre}">Pale Ale</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Volumen base (L)</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.volumenBase})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Relación de empaste (L/kg)</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.relacionDeEmpaste})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">OG objetivo</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${version.ogObjetivo})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">FG objetivo</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${version.fgObjetivo})}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">IBU objetivo</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.ibuObjetivo})}"></th:block></dd>
-            </div>
-            <div data-abv>
-                <dt class="text-xs font-medium text-slate-500">ABV estimado (%)</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${version.abv})}"></th:block></dd>
-            </div>
-        </dl>
+        <!-- Una fila por tema: identificación, medidas base y objetivos con su ABV estimado -->
+        <div class="space-y-5 p-5">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Código</dt>
+                    <dd class="mt-1 font-medium text-slate-900" th:text="'R' + ${idReceta}">R7</dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Nombre</dt>
+                    <dd class="mt-1 font-medium text-slate-900" th:text="${version.nombre}">Pale Ale</dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Volumen base (L)</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.volumenBase})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">Relación de empaste (L/kg)</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.relacionDeEmpaste})}"></th:block></dd>
+                </div>
+            </dl>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">OG objetivo</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${version.ogObjetivo})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">FG objetivo</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${version.fgObjetivo})}"></th:block></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-medium text-slate-500">IBU objetivo</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: numero(${version.ibuObjetivo})}"></th:block></dd>
+                </div>
+                <div data-abv>
+                    <dt class="text-xs font-medium text-slate-500">ABV estimado (%)</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${version.abv})}"></th:block></dd>
+                </div>
+            </dl>
+        </div>
     </section>
 
     <!-- Duraciones estimadas -->

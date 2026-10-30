@@ -6421,8 +6421,8 @@ class LoteServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BD-11: buscarDetallePorId informa el ABV estimado de la receta y los litros de alcohol estimados del volumen objetivo")
-    void buscarDetallePorId_debeInformarElAbvYElAlcoholEstimados() {
+    @DisplayName("CP-BD-11: buscarDetallePorId informa los litros de alcohol estimados del volumen objetivo")
+    void buscarDetallePorId_debeInformarElAlcoholEstimado() {
         // === PREPARACION DE DATOS ===
         LoteEntity lote = crearLoteParaCancelar(EstadoLote.PENDIENTE, null); // volumen objetivo 20 L
         when(loteRepository.buscarConEtapasParaDetalle(1L)).thenReturn(Optional.of(lote));
@@ -6433,13 +6433,12 @@ class LoteServicioImplTest {
         LoteDetalleResponseDTO resultado = loteServicio.buscarDetallePorId(1L);
 
         // === ASSERTS ===
-        assertThat(resultado.getAbvEstimado()).isEqualTo(5.3);
         assertThat(resultado.getAlcoholEstimadoLitros()).isEqualTo(1.1);
     }
 
     @Test
     @DisplayName("CP-BD-12: buscarDetallePorId deja el ABV y el alcohol estimados en null si la receta no tiene ABV")
-    void buscarDetallePorId_debeDejarElAbvYElAlcoholEnNullSiNoHayAbv() {
+    void buscarDetallePorId_debeDejarElAlcoholEnNullSiNoHayAbv() {
         // === PREPARACION DE DATOS ===
         mockearDetalle(crearLoteParaCancelar(EstadoLote.PENDIENTE, null)); // la versión de receta llega sin datos
 
@@ -6447,7 +6446,6 @@ class LoteServicioImplTest {
         LoteDetalleResponseDTO resultado = loteServicio.buscarDetallePorId(1L);
 
         // === ASSERTS ===
-        assertThat(resultado.getAbvEstimado()).isNull();
         assertThat(resultado.getAlcoholEstimadoLitros()).isNull();
     }
 

@@ -26,47 +26,51 @@
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos de la planificación</h2>
 
-            <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div>
-                    <span class="block text-sm font-medium text-slate-700 mb-1">Receta <span class="text-rose-600" title="Obligatorio">*</span></span>
-                    <div th:replace="~{fragments/selector-entidad :: selector('idReceta', *{idReceta}, ${recetaTexto},
-                            @{/planificaciones-produccion/buscador/recetas}, null, null, false, ${#fields.hasErrors('idReceta')}, 'Seleccione receta')}"></div>
-                    <p th:if="${#fields.hasErrors('idReceta')}" th:errors="*{idReceta}" class="mt-1 text-xs text-rose-600"></p>
-                </div>
-
-                <div>
-                    <label for="cantidadAProducir" class="block text-sm font-medium text-slate-700 mb-1">Cantidad a producir (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="cantidadAProducir" name="cantidadAProducir"
-                           th:value="${planificacionForm.cantidadAProducir != null ? (planificacionForm.cantidadAProducir == planificacionForm.cantidadAProducir.intValue() ? planificacionForm.cantidadAProducir.intValue() : planificacionForm.cantidadAProducir) : null}"
-                           min="0" step="any" autocomplete="off" placeholder="Ej: 600"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('cantidadAProducir')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('cantidadAProducir')}" th:errors="*{cantidadAProducir}" class="mt-1 text-xs text-rose-600"></p>
-                </div>
-
-                <div>
-                    <label for="fechaInicioEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de inicio estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="date" id="fechaInicioEstimada" th:field="*{fechaInicioEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 01/07/2027"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('fechaInicioEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('fechaInicioEstimada')}" th:errors="*{fechaInicioEstimada}" class="mt-1 text-xs text-rose-600"></p>
-                </div>
-
-                <div>
-                    <label for="fechaFinalizacionEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de finalización estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <div class="flex items-stretch gap-2">
-                        <input type="date" id="fechaFinalizacionEstimada" th:field="*{fechaFinalizacionEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 25/07/2027"
-                               class="min-w-0 flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                               th:classappend="${#fields.hasErrors('fechaFinalizacionEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                        <button type="button" data-sugerir-fecha th:data-sugerencia-url="@{/planificaciones-produccion/sugerencia-fecha}"
-                                title="Calcula una fecha de finalización a partir de la receta, la cantidad y la fecha de inicio"
-                                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
-                            <i class="bi bi-magic"></i> Sugerir fecha
-                        </button>
+            <!-- Una fila por tema: receta, cantidad y fechas estimadas -->
+            <div class="space-y-5 mt-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div>
+                        <span class="block text-sm font-medium text-slate-700 mb-1">Receta <span class="text-rose-600" title="Obligatorio">*</span></span>
+                        <div th:replace="~{fragments/selector-entidad :: selector('idReceta', *{idReceta}, ${recetaTexto},
+                                @{/planificaciones-produccion/buscador/recetas}, null, null, false, ${#fields.hasErrors('idReceta')}, 'Seleccione receta')}"></div>
+                        <p th:if="${#fields.hasErrors('idReceta')}" th:errors="*{idReceta}" class="mt-1 text-xs text-rose-600"></p>
                     </div>
-                    <p th:if="${#fields.hasErrors('fechaFinalizacionEstimada')}" th:errors="*{fechaFinalizacionEstimada}" class="mt-1 text-xs text-rose-600"></p>
-                    <!-- Aquí se muestra la sugerencia (fragmento HTML del servidor) -->
-                    <div data-sugerencia-destino aria-live="polite" class="mt-2"></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div>
+                        <label for="cantidadAProducir" class="block text-sm font-medium text-slate-700 mb-1">Cantidad a producir (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="number" id="cantidadAProducir" name="cantidadAProducir"
+                               th:value="${planificacionForm.cantidadAProducir != null ? (planificacionForm.cantidadAProducir == planificacionForm.cantidadAProducir.intValue() ? planificacionForm.cantidadAProducir.intValue() : planificacionForm.cantidadAProducir) : null}"
+                               min="0" step="any" autocomplete="off" placeholder="Ej: 600"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('cantidadAProducir')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('cantidadAProducir')}" th:errors="*{cantidadAProducir}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    <div>
+                        <label for="fechaInicioEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de inicio estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="date" id="fechaInicioEstimada" th:field="*{fechaInicioEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 01/07/2027"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('fechaInicioEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('fechaInicioEstimada')}" th:errors="*{fechaInicioEstimada}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                    <div>
+                        <label for="fechaFinalizacionEstimada" class="block text-sm font-medium text-slate-700 mb-1">Fecha de finalización estimada <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <div class="flex items-stretch gap-2">
+                            <input type="date" id="fechaFinalizacionEstimada" th:field="*{fechaFinalizacionEstimada}" th:min="${#temporals.format(#temporals.createToday(), 'yyyy-MM-dd')}" autocomplete="off" placeholder="Ej: 25/07/2027"
+                                   class="min-w-0 flex-1 px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                                   th:classappend="${#fields.hasErrors('fechaFinalizacionEstimada')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                            <button type="button" data-sugerir-fecha th:data-sugerencia-url="@{/planificaciones-produccion/sugerencia-fecha}"
+                                    title="Calcula una fecha de finalización a partir de la receta, la cantidad y la fecha de inicio"
+                                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-3 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+                                <i class="bi bi-magic"></i> Sugerir fecha
+                            </button>
+                        </div>
+                        <p th:if="${#fields.hasErrors('fechaFinalizacionEstimada')}" th:errors="*{fechaFinalizacionEstimada}" class="mt-1 text-xs text-rose-600"></p>
+                        <!-- Aquí se muestra la sugerencia (fragmento HTML del servidor) -->
+                        <div data-sugerencia-destino aria-live="polite" class="mt-2"></div>
+                    </div>
                 </div>
             </div>
         </section>

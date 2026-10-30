@@ -29,29 +29,32 @@
         <section class="p-6">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Datos de la receta</h2>
 
-            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div>
-                    <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="text" id="nombre" th:field="*{version.nombre}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('version.nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('version.nombre')}" th:errors="*{version.nombre}" class="mt-1 text-xs text-rose-600"></p>
+            <!-- Una fila por tema: identificación y medidas base -->
+            <div class="space-y-5 mt-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">Nombre <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="text" id="nombre" th:field="*{version.nombre}" autofocus autocomplete="off" placeholder="Ej: Pale Ale"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('version.nombre')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('version.nombre')}" th:errors="*{version.nombre}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
                 </div>
-
-                <div>
-                    <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="volumenBase" name="version.volumenBase" th:value="${recetaForm.version.volumenBase != null ? (recetaForm.version.volumenBase == recetaForm.version.volumenBase.intValue() ? recetaForm.version.volumenBase.intValue() : recetaForm.version.volumenBase) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 20"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('version.volumenBase')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('version.volumenBase')}" th:errors="*{version.volumenBase}" class="mt-1 text-xs text-rose-600"></p>
-                </div>
-
-                <div>
-                    <label for="relacionDeEmpaste" class="block text-sm font-medium text-slate-700 mb-1">Relación de empaste (L/kg) <span class="text-rose-600" title="Obligatorio">*</span></label>
-                    <input type="number" id="relacionDeEmpaste" name="version.relacionDeEmpaste" th:value="${recetaForm.version.relacionDeEmpaste != null ? (recetaForm.version.relacionDeEmpaste == recetaForm.version.relacionDeEmpaste.intValue() ? recetaForm.version.relacionDeEmpaste.intValue() : recetaForm.version.relacionDeEmpaste) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 3"
-                           class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
-                           th:classappend="${#fields.hasErrors('version.relacionDeEmpaste')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
-                    <p th:if="${#fields.hasErrors('version.relacionDeEmpaste')}" th:errors="*{version.relacionDeEmpaste}" class="mt-1 text-xs text-rose-600"></p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label for="volumenBase" class="block text-sm font-medium text-slate-700 mb-1">Volumen base (L) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="number" id="volumenBase" name="version.volumenBase" th:value="${recetaForm.version.volumenBase != null ? (recetaForm.version.volumenBase == recetaForm.version.volumenBase.intValue() ? recetaForm.version.volumenBase.intValue() : recetaForm.version.volumenBase) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 20"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('version.volumenBase')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('version.volumenBase')}" th:errors="*{version.volumenBase}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
+                    <div>
+                        <label for="relacionDeEmpaste" class="block text-sm font-medium text-slate-700 mb-1">Relación de empaste (L/kg) <span class="text-rose-600" title="Obligatorio">*</span></label>
+                        <input type="number" id="relacionDeEmpaste" name="version.relacionDeEmpaste" th:value="${recetaForm.version.relacionDeEmpaste != null ? (recetaForm.version.relacionDeEmpaste == recetaForm.version.relacionDeEmpaste.intValue() ? recetaForm.version.relacionDeEmpaste.intValue() : recetaForm.version.relacionDeEmpaste) : null}" min="0" step="any" autocomplete="off" placeholder="Ej: 3"
+                               class="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500"
+                               th:classappend="${#fields.hasErrors('version.relacionDeEmpaste')} ? 'border-rose-400 bg-rose-50' : 'border-slate-300'">
+                        <p th:if="${#fields.hasErrors('version.relacionDeEmpaste')}" th:errors="*{version.relacionDeEmpaste}" class="mt-1 text-xs text-rose-600"></p>
+                    </div>
                 </div>
             </div>
         </section>

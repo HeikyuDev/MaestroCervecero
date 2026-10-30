@@ -3087,48 +3087,71 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-157: la cabecera del detalle muestra el ABV estimado y el alcohol estimado en litros con un decimal y un tooltip que aclara que son estimaciones de la receta")
-    void detalle_cabeceraMuestraElAbvYElAlcoholEstimados() throws Exception {
+    @DisplayName("CP-LCT-157: la cabecera del panel de trabajo muestra el alcohol estimado en litros con un decimal y un tooltip que aclara que es una estimación, y no muestra el ABV")
+    void detalle_cabeceraMuestraElAlcoholEstimadoSinAbv() throws Exception {
         // Arrange
-        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).abvEstimado(5.3).alcoholEstimadoLitros(15.9).build());
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).alcoholEstimadoLitros(15.9).build());
 
         // Act
         String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, null);
 
         // Assert
-        String cabecera = texto(bloque(html, "data-lote-cabecera"));
-        assertThat(cabecera).contains("ABV estimado (%) 5,3", "Alcohol estimado (L) 15,9");
-        assertThat(bloque(html, "data-abv-estimado")).contains("data-tooltip=\"Estimado a partir de la OG y la FG objetivo de la receta");
+        assertThat(texto(bloque(html, "data-lote-cabecera"))).contains("Alcohol estimado (L) 15,9").doesNotContain("ABV");
         assertThat(bloque(html, "data-alcohol-estimado")).contains("data-tooltip=\"Estimado como volumen objetivo x ABV estimado");
+        assertThat(html).doesNotContain("data-abv-estimado").doesNotContain("ABV estimado (%)");
     }
 
     @Test
-    @DisplayName("CP-LCT-158: la guía de Fermentación muestra el ABV estimado y el alcohol estimado junto a la OG y la FG objetivo")
-    void detalle_guiaDeFermentacionMuestraElAbvYElAlcoholEstimados() throws Exception {
+    @DisplayName("CP-LCT-158: la guía de Fermentación muestra la OG y la FG objetivo y no el ABV ni el alcohol estimado")
+    void detalle_guiaDeFermentacionMuestraSoloOgYFg() throws Exception {
         // Arrange
-        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).abvEstimado(5.3).alcoholEstimadoLitros(15.9).build());
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).alcoholEstimadoLitros(15.9).build());
         when(consumoInsumoServicio.filtrarInsumosRequeridos(1004L)).thenReturn(List.of());
 
         // Act
         String guia = texto(bloque(detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "fermentacion"), "data-guia"));
 
         // Assert
-        assertThat(guia).contains("OG objetivo 1,050", "FG objetivo 1,010", "ABV estimado (%) 5,3", "Alcohol estimado (L) 15,9");
+        assertThat(guia).contains("OG objetivo 1,050", "FG objetivo 1,010").doesNotContain("ABV").doesNotContain("Alcohol estimado");
     }
 
     @Test
-    @DisplayName("CP-LCT-159: sin ABV estimado la cabecera y la guía de Fermentación muestran un guion en ambos datos")
-    void detalle_sinAbvMuestraGuion() throws Exception {
+    @DisplayName("CP-LCT-159: el Detalle del lote muestra el alcohol estimado con un decimal y un guion si no se puede calcular, y no muestra el ABV")
+    void informacion_muestraElAlcoholOUnGuion() throws Exception {
         // Arrange
-        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.FERMENTACION, etapasEnCurso(TipoEtapa.FERMENTACION)).build());
-        when(consumoInsumoServicio.filtrarInsumosRequeridos(1004L)).thenReturn(List.of());
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).alcoholEstimadoLitros(15.9).build());
+        String conDatos = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-informacion"));
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).build());
 
         // Act
-        String html = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "fermentacion");
+        String sinDatos = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-informacion"));
 
         // Assert
-        assertThat(texto(bloque(html, "data-lote-cabecera"))).contains("ABV estimado (%) - ", "Alcohol estimado (L) - ");
-        assertThat(texto(bloque(html, "data-guia"))).contains("ABV estimado (%) -", "Alcohol estimado (L) -");
+        assertThat(conDatos).contains("Alcohol estimado (L) 15,9").doesNotContain("ABV");
+        assertThat(sinDatos).contains("Alcohol estimado (L) -").doesNotContain("ABV");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-174: la información del lote va en filas de un solo tema: identidad, origen, producto (volumen, densidades y alcohol estimado), fechas estimadas y fechas reales")
+    void informacion_agrupaLosDatosEnFilasPorTema() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).alcoholEstimadoLitros(15.9).build());
+
+        // Act
+        String html = bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-informacion");
+        List<String> filas = new java.util.ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("<dl\\b.*?</dl>", java.util.regex.Pattern.DOTALL).matcher(html);
+        while (m.find()) {
+            filas.add(texto(m.group()));
+        }
+
+        // Assert
+        assertThat(filas).hasSize(5);
+        assertThat(filas.get(0)).contains("Identificador", "Estado", "Etapa actual").doesNotContain("Receta").doesNotContain("Volumen");
+        assertThat(filas.get(1)).contains("Receta", "Planificación", "Fermentador").doesNotContain("Volumen").doesNotContain("Inicio");
+        assertThat(filas.get(2)).contains("Volumen objetivo", "OG objetivo", "FG objetivo", "Alcohol estimado").doesNotContain("ABV").doesNotContain("Fermentador").doesNotContain("Inicio");
+        assertThat(filas.get(3)).contains("Inicio estimado", "Fin estimado").doesNotContain("real");
+        assertThat(filas.get(4)).contains("Inicio real", "Fin real").doesNotContain("estimado");
     }
 
     private void stubDetalle(LoteDetalleResponseDTO detalle) {
@@ -3386,7 +3409,7 @@ class LoteControllerTest {
     @DisplayName("CP-LCT-165: el Detalle del lote (solo del gerente de producción) muestra el encabezado, el botón Volver, el acceso Abrir al panel de trabajo y la información del lote agrupada (identificación, receta y planificación, fermentador y estimados, las cuatro fechas)")
     void informacion_muestraElEncabezadoYLosDatos() throws Exception {
         // Arrange
-        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).abvEstimado(5.3).alcoholEstimadoLitros(15.9).build());
+        stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).alcoholEstimadoLitros(15.9).build());
 
         // Act
         String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
@@ -3399,7 +3422,7 @@ class LoteControllerTest {
         String info = texto(bloque(html, "data-seccion-informacion"));
         assertThat(info).contains("Información del lote").contains("Identificador LOT-R7-03").contains("Estado En ejecución").contains("Etapa actual Hervido")
                 .contains("Volumen objetivo 300 L").contains("Receta Pale Ale - versión 3 de 3").contains("Planificación Plan #7 - Pale Ale")
-                .contains("Fermentador F-01").contains("ABV estimado (%) 5,3").contains("Alcohol estimado (L) 15,9")
+                .contains("Fermentador F-01").contains("OG objetivo 1,050").contains("FG objetivo 1,010").contains("Alcohol estimado (L) 15,9")
                 .contains("Inicio estimado 01/07/2027").contains("Fin estimado 05/07/2027").contains("Inicio real 01/07/2027 08:30").contains("Fin real -");
         assertThat(info).doesNotContain("Cancelado por");
     }
