@@ -65,7 +65,7 @@
                 <th class="px-2 py-3 whitespace-nowrap">Proveedor</th>
                 <th class="px-2 py-3">Entrega estimada</th>
                 <th class="px-2 py-3 whitespace-nowrap">Estado</th>
-                <th class="px-2 py-3 whitespace-nowrap text-right">Total ($)</th>
+                <th class="px-2 py-3 whitespace-nowrap text-right">Total</th>
                 <th class="col-acciones px-2 py-3 text-right whitespace-nowrap">Acciones</th>
             </tr>
             </thead>
@@ -80,7 +80,7 @@
                 </td>
                 <td class="px-2 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fecha(${o.fechaEntregaEstimada})}"></th:block></td>
                 <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{planificacion_produccion/formato :: estadoPlanificacion(${o.estado})}"></span></td>
-                <td class="px-2 py-3 text-slate-700 whitespace-nowrap text-right" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(o.total)}">12.500,00</td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap text-right" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(o.total)}">12.500,00</td>
                 <td class="col-acciones px-2 py-3">
                     <div class="flex items-center justify-end gap-0.5">
                         <a th:href="@{/ordenes-compra/{id}(id=${o.id})}" title="Ver detalle" aria-label="Ver detalle"

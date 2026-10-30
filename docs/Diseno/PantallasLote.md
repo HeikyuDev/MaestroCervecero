@@ -162,7 +162,7 @@ PRODUCCIÓN
 PALE_ALE-R7-3                                    [Pendiente | En ejecución | Finalizado | Cancelado]
                                               [ Iniciar lote ]o   [ Cancelar lote ]g
 
-Planificación  Plan #7 (link solo para el gerente)    Receta  Pale Ale - versión 3 de 3
+Planificación  Plan #7 (link solo para el gerente)    Receta  Pale Ale (link para el gerente)
 Fermentador    F-01                                   Volumen objetivo  300 L
 Inicio estimado 01/07/2027   Fin estimado 05/07/2027   Inicio real 01/07/2027 08:30   Fin real -
 
@@ -221,7 +221,7 @@ Pantalla de solo lectura con toda la información del lote, solo para el gerente
 **Información del lote (siempre visible).** Tarjeta compacta de tres filas de un solo tema, de izquierda a derecha, más una de cancelación si corresponde:
 
 1. Identidad: identificador, estado, etapa actual y volumen objetivo.
-2. Origen: receta con su versión y el enlace "Ver receta" (`bi-journal-text`, solo para el gerente de producción, lleva al detalle de la receta de la planificación), planificación y fermentador.
+2. Origen: receta, planificación y fermentador. El nombre de la receta es un enlace ámbar al detalle de la receta de la planificación (solo para el gerente de producción; para otros roles es texto), sin versión ni texto "Ver receta".
 3. Fechas: inicio y fin estimados e inicio y fin reales, en una sola fila.
 4. Si está cancelado: quién lo canceló, cuándo y el motivo.
 

@@ -34,11 +34,6 @@
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
                 <i class="bi bi-arrow-left"></i> Volver a planificaciones
             </a>
-            <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')"
-               th:href="@{/planificaciones-produccion/{id}/receta(id=${planificacion.id})}"
-               class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">
-                <i class="bi bi-journal-text"></i> Ver receta
-            </a>
             <a th:if="${planificacion.estado.name() == 'PENDIENTE'}" sec:authorize="hasAuthority('LOTE_REGISTRAR')"
                th:href="@{/lotes/nuevo(idPlanificacion=${planificacion.id})}"
                class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
@@ -74,7 +69,12 @@
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Receta</dt>
-                    <dd class="mt-1 font-medium text-slate-900" th:text="${planificacion.versionReceta.nombre}">Pale Ale</dd>
+                    <dd class="mt-1 font-medium text-slate-900">
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" data-ver-receta
+                           th:href="@{/planificaciones-produccion/{id}/receta(id=${planificacion.id})}" th:attr="aria-label='Ver la receta ' + ${planificacion.versionReceta.nombre}"
+                           class="font-normal text-amber-700 hover:underline" th:text="${planificacion.versionReceta.nombre}">Pale Ale</a>
+                        <span sec:authorize="!hasRole('GERENTE_DE_PRODUCCION')" th:text="${planificacion.versionReceta.nombre}">Pale Ale</span>
+                    </dd>
                 </div>
             </dl>
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">

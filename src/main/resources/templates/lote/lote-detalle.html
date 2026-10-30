@@ -65,8 +65,12 @@
                 </div>
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Receta</dt>
-                    <dd class="text-slate-900" th:if="${lote.versionReceta != null and receta != null}"
-                        th:text="|${receta.nombre} - versión ${lote.versionReceta.numeroVersion} de ${lote.versionReceta.cantidadVersiones}|">Pale Ale - versión 3 de 3</dd>
+                    <dd class="text-slate-900" th:if="${receta != null}">
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" data-ver-receta
+                           th:href="@{/planificaciones-produccion/{id}/receta(id=${lote.idPlanificacionProduccion})}" th:attr="aria-label='Ver la receta ' + ${receta.nombre}"
+                           class="text-amber-700 hover:underline" th:text="${receta.nombre}">Pale Ale</a>
+                        <span sec:authorize="!hasRole('GERENTE_DE_PRODUCCION')" th:text="${receta.nombre}">Pale Ale</span>
+                    </dd>
                 </div>
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Fermentador</dt>

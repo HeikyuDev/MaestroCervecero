@@ -180,9 +180,9 @@ class IngresoInsumoControllerTest {
         String html = html(Rol.ENCARGADO_DE_DEPOSITO);
 
         // Assert
-        assertThat(texto(bloque(html, "thead"))).isEqualTo("Ingreso Insumo y lote Cantidad Precio ($) Orden Acciones");
-        assertThat(celdas(html, "data-ingreso=\"21\"")).containsExactly("01/07/2027 Registrado", "Pilsen Lote L-125 · vence 12/03/2028", "2 Bolsa 25 kg 50 kg", "12.000,00 = 480,00 / kg", "N.º 7", "Anular");
-        assertThat(celdas(html, "data-ingreso=\"20\"")).containsExactly("01/07/2027 Anulado", "Pilsen Lote L-125 · vence 12/03/2028", "2 Bolsa 25 kg 50 kg", "12.000,00 = 480,00 / kg", "N.º 7", "");
+        assertThat(texto(bloque(html, "thead"))).isEqualTo("Ingreso Insumo y lote Cantidad Precio Orden Acciones");
+        assertThat(celdas(html, "data-ingreso=\"21\"")).containsExactly("01/07/2027 Registrado", "Pilsen Lote L-125 · vence 12/03/2028", "2 Bolsa 25 kg 50 kg", "$ 12.000,00 = $ 480,00 / kg", "N.º 7", "Anular");
+        assertThat(celdas(html, "data-ingreso=\"20\"")).containsExactly("01/07/2027 Anulado", "Pilsen Lote L-125 · vence 12/03/2028", "2 Bolsa 25 kg 50 kg", "$ 12.000,00 = $ 480,00 / kg", "N.º 7", "");
         assertThat(enlaceDe(html, "N.º 7")).isEqualTo("/ordenes-compra/7");
         assertThat(elementoConAtributo(html, "tr", "data-ingreso=\"21\"")).contains("data-motivo-dialogo=\"dialogo-anular\"").contains("data-motivo-url=\"/ingresos-insumo/21/anular\"");
         assertThat(elementoConAtributo(html, "tr", "data-ingreso=\"20\"")).doesNotContain("data-motivo-url").contains("opacity-60");
@@ -198,7 +198,7 @@ class IngresoInsumoControllerTest {
         // Assert
         verify(ingresoInsumoServicio).filtrarIngresoInsumo(isNull(), isNull(), isNull(), eq(TipoIngreso.DIRECTO), isNull(), any(Pageable.class));
         assertThat(html).contains("data-pestana=\"directo\"").doesNotContain("data-orden-compra");
-        assertThat(texto(bloque(html, "thead"))).doesNotContain("Orden").endsWith("Precio ($) Acciones");
+        assertThat(texto(bloque(html, "thead"))).doesNotContain("Orden").endsWith("Precio Acciones");
         assertThat(enlaceDe(html, "Nuevo ingreso directo")).isEqualTo(URL_FORMULARIO_DIRECTO);
         assertThat(elementoConAtributo(html, "a", "data-pestana-directo")).contains("aria-current=\"page\"");
         assertThat(elementoConAtributo(html, "a", "data-pestana-compra")).doesNotContain("aria-current");
@@ -403,8 +403,8 @@ class IngresoInsumoControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         // Assert
-        assertThat(texto(bloque(html, "thead"))).isEqualTo("Ingreso Insumo y lote Cantidad Precio ($) Acciones");
-        assertThat(celdas(html, "data-ingreso=\"30\"")).containsExactly("01/07/2027 Registrado", "Pilsen Lote L-125 · vence 12/03/2028", "50 kg", "12,50 / kg", "Anular");
+        assertThat(texto(bloque(html, "thead"))).isEqualTo("Ingreso Insumo y lote Cantidad Precio Acciones");
+        assertThat(celdas(html, "data-ingreso=\"30\"")).containsExactly("01/07/2027 Registrado", "Pilsen Lote L-125 · vence 12/03/2028", "50 kg", "$ 12,50 / kg", "Anular");
         assertThat(html).doesNotContain("data-precio-presentacion");
     }
 
@@ -415,8 +415,8 @@ class IngresoInsumoControllerTest {
         String html = html(Rol.ENCARGADO_DE_DEPOSITO);
 
         // Assert
-        assertThat(texto(bloque(html, "thead"))).contains("Precio ($)").doesNotContain("Precio por");
-        assertThat(html).contains("12.000 por Bolsa 25 kg = 480 por kg").contains("data-precio-presentacion").contains("data-precio-unidad").contains("col-acciones");
+        assertThat(texto(bloque(html, "thead"))).contains("Precio").doesNotContain("Precio por");
+        assertThat(html).contains("$ 12.000 por Bolsa 25 kg = $ 480 por kg").contains("data-precio-presentacion").contains("data-precio-unidad").contains("col-acciones");
         assertThat(html).doesNotContain("whitespace-nowrap\">Cantidad recibida").contains("overflow-x-auto");
     }
 

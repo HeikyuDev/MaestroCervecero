@@ -57,13 +57,13 @@
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Receta</dt>
                     <dd class="mt-1 text-slate-900">
-                        <th:block th:if="${lote.versionReceta != null and receta != null}">
-                            <span th:text="|${receta.nombre} - versión ${lote.versionReceta.numeroVersion} de ${lote.versionReceta.cantidadVersiones}|">Pale Ale - versión 3 de 3</span>
+                        <th:block th:if="${receta != null}">
                             <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" data-ver-receta
-                               th:href="@{/planificaciones-produccion/{id}/receta(id=${lote.idPlanificacionProduccion})}" aria-label="Ver receta"
-                               class="ml-2 inline-flex items-center gap-1 text-amber-700 hover:underline"><i class="bi bi-journal-text"></i> Ver receta</a>
+                               th:href="@{/planificaciones-produccion/{id}/receta(id=${lote.idPlanificacionProduccion})}" th:attr="aria-label='Ver la receta ' + ${receta.nombre}"
+                               class="text-amber-700 hover:underline" th:text="${receta.nombre}">Pale Ale</a>
+                            <span sec:authorize="!hasRole('GERENTE_DE_PRODUCCION')" th:text="${receta.nombre}">Pale Ale</span>
                         </th:block>
-                        <th:block th:unless="${lote.versionReceta != null and receta != null}">-</th:block>
+                        <th:block th:unless="${receta != null}">-</th:block>
                     </dd>
                 </div>
                 <div>
@@ -260,16 +260,16 @@
                     <tr>
                         <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
                         <th class="px-4 py-3 whitespace-nowrap">Cantidad consumida</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Costo promedio por unidad ($)</th>
-                        <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal ($)</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Costo promedio por unidad</th>
+                        <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                     <tr th:each="i : ${costoProduccion.insumos}" class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${i.nombre}">Pilsen</td>
                         <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadConsumida}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoPromedioPorUnidad) + ' / ' + i.unidadDeMedida.simbolo}">480 / kg</td>
-                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.subtotal)}">12.000</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(i.costoPromedioPorUnidad) + ' / ' + i.unidadDeMedida.simbolo}">480 / kg</td>
+                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(i.subtotal)}">12.000</td>
                     </tr>
                     </tbody>
                 </table>
@@ -283,15 +283,15 @@
                     <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <tr>
                         <th class="px-4 py-3 whitespace-nowrap">Costo</th>
-                        <th class="px-4 py-3 whitespace-nowrap">Costo por litro aplicado ($ por litro)</th>
-                        <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal ($)</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Costo por litro aplicado</th>
+                        <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal</th>
                     </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                     <tr th:each="a : ${costoProduccion.adicionales}" class="hover:bg-slate-50">
                         <td class="px-4 py-3 font-medium text-slate-900" th:text="${a.nombre}">Gas butano</td>
-                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(a.costoPorLitroAplicado)}">12,50</td>
-                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(a.subtotal)}">500</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(a.costoPorLitroAplicado) + ' / L'}">12,50</td>
+                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(a.subtotal)}">500</td>
                     </tr>
                     </tbody>
                 </table>
@@ -316,28 +316,28 @@
                     <tr th:if="${costoProduccion.costoTotal == null}" class="hover:bg-slate-50">
                         <td class="px-4 py-3 text-slate-700"
                             th:text="${costoProduccion.estadoLote.name() == 'FINALIZADO' or costoProduccion.envasadoFinalizado} ? 'Total de insumos' : 'Costo acumulado de insumos'">Costo acumulado de insumos</td>
-                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalInsumos)}">12.000</td>
+                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoProduccion.totalInsumos)}">12.000</td>
                     </tr>
                     <th:block th:if="${costoProduccion.costoTotal != null}">
                         <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 text-slate-700">Costo de insumos ($)</td>
-                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalInsumos)}">12.000</td>
+                            <td class="px-4 py-3 text-slate-700">Costo de insumos</td>
+                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoProduccion.totalInsumos)}">12.000</td>
                         </tr>
                         <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 text-slate-700">Costos directos adicionales ($)</td>
-                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-adicionales th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalAdicionales)}">500</td>
+                            <td class="px-4 py-3 text-slate-700">Costos directos adicionales</td>
+                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-adicionales th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoProduccion.totalAdicionales)}">500</td>
                         </tr>
                         <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 font-semibold text-slate-900">Costo total ($)</td>
-                            <td class="px-4 py-3 font-semibold text-slate-900 text-right whitespace-nowrap" data-costo-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.costoTotal)}">12.500</td>
+                            <td class="px-4 py-3 font-semibold text-slate-900">Costo total</td>
+                            <td class="px-4 py-3 font-semibold text-slate-900 text-right whitespace-nowrap" data-costo-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoProduccion.costoTotal)}">12.500</td>
                         </tr>
                         <tr class="hover:bg-slate-50">
                             <td class="px-4 py-3 text-slate-700">Litros envasados</td>
                             <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${costoProduccion.litrosEnvasados}, 'L')}"></th:block></td>
                         </tr>
                         <tr class="hover:bg-slate-50">
-                            <td class="px-4 py-3 font-semibold text-slate-900">Costo por litro envasado ($ por litro)</td>
-                            <td class="px-4 py-3 font-semibold text-slate-900 text-right whitespace-nowrap" data-costo-por-litro th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.costoPorLitro)}">62,50</td>
+                            <td class="px-4 py-3 font-semibold text-slate-900">Costo por litro envasado</td>
+                            <td class="px-4 py-3 font-semibold text-slate-900 text-right whitespace-nowrap" data-costo-por-litro th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoProduccion.costoPorLitro) + ' / L'}">62,50</td>
                         </tr>
                     </th:block>
                     </tbody>

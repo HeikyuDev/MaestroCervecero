@@ -31,9 +31,9 @@
     </td>
     <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" data-celda="cantidad" th:text="${cantidad}">10</td>
     <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" data-celda="costoUnitario"
-        th:text="${costoUnitario != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoUnitario)}">1.250,50</td>
+        th:text="${costoUnitario != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoUnitario)}">1.250,50</td>
     <td class="px-3 py-3 text-right font-medium text-slate-900 whitespace-nowrap" data-celda="subtotal"
-        th:text="${cantidad != null and costoUnitario != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoUnitario * cantidad)}">12.505,00</td>
+        th:text="${cantidad != null and costoUnitario != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(costoUnitario * cantidad)}">12.505,00</td>
     <td class="col-acciones px-3 py-3 text-right">
         <button type="button" data-quitar-fila
                 class="inline-flex items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors">

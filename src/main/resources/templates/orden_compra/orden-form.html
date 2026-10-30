@@ -102,7 +102,7 @@
                             <th class="px-3 py-3">Presentación comercial</th>
                             <th class="px-3 py-3 text-right">Cantidad (unidades)</th>
                             <th class="px-3 py-3 text-right"><span tabindex="0" data-tooltip="Costo de una unidad de la presentación comercial, no del insumo">Costo por presentación ($)</span></th>
-                            <th class="px-3 py-3 text-right">Subtotal ($)</th>
+                            <th class="px-3 py-3 text-right">Subtotal</th>
                             <th class="col-acciones w-32 px-3 py-3 text-right"></th>
                         </tr>
                         </thead>
@@ -125,7 +125,7 @@
                 <p th:each="mensaje : ${#sets.toSet(#fields.errors('detallesCompra*'))}" th:text="${mensaje}" class="text-xs text-rose-600"></p>
             </div>
             <p class="mt-3 text-right text-sm text-slate-700">
-                Total ($): <strong class="text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(total)}">0,00</strong>
+                Total: <strong class="text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(total)}">0,00</strong>
             </p>
             <template data-plantilla="item">
                 <tr th:replace="~{orden_compra/orden-form-filas :: item(0, null, null, null, null, null, null, false)}"></tr>

@@ -1616,7 +1616,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-71: el estado actual de una planificación pendiente incluye el link \"Ver receta\" junto a \"Volver a planificaciones\"")
+    @DisplayName("CP-PPC-71: el detalle de una planificación pendiente muestra el nombre de la receta como link al detalle de la receta, sin texto \"Ver receta\"")
     void detalle_debeMostrarElBotonVerReceta() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
@@ -1624,13 +1624,15 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/planificaciones-produccion/7/receta\"")))
-                .andExpect(content().string(containsString("Ver receta")))
-                .andExpect(content().string(matchesPattern("(?s).*Volver a planificaciones.*?<a [^>]*href=\"/planificaciones-produccion/7/receta\"[^>]*whitespace-nowrap[^>]*>\\s*<i class=\"bi bi-journal-text\"></i> Ver receta.*")));
+                .andExpect(content().string(containsString("data-ver-receta")))
+                .andExpect(content().string(containsString("aria-label=\"Ver la receta Pale Ale\"")))
+                .andExpect(content().string(matchesPattern("(?s).*<a [^>]*data-ver-receta[^>]*text-amber-700[^>]*>Pale Ale</a>.*")))
+                .andExpect(content().string(not(containsString("Ver receta"))));
     }
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-72: el link \"Ver receta\" aparece también en una planificación finalizada y en una anulada, aunque no tengan botones de cierre")
+    @DisplayName("CP-PPC-72: el link a la receta aparece también en una planificación finalizada y en una anulada, aunque no tengan botones de cierre")
     void detalle_elBotonVerRecetaAparecaEnCualquierEstado() throws Exception {
         for (EstadoSolicitud estado : List.of(EstadoSolicitud.FINALIZADA, EstadoSolicitud.ANULADA)) {
             when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", estado));
@@ -1639,7 +1641,7 @@ class PlanificacionProduccionControllerTest {
             mockMvc.perform(get("/planificaciones-produccion/7"))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("href=\"/planificaciones-produccion/7/receta\"")))
-                    .andExpect(content().string(containsString("Ver receta")))
+                    .andExpect(content().string(containsString("data-ver-receta")))
                     .andExpect(content().string(not(containsString("/planificaciones-produccion/7/finalizar"))))
                     .andExpect(content().string(not(containsString("/planificaciones-produccion/7/anular"))));
         }
@@ -1647,15 +1649,16 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_COMPRAS")
-    @DisplayName("CP-PPC-73: el GERENTE_DE_COMPRAS no ve el link \"Ver receta\" en el estado actual")
+    @DisplayName("CP-PPC-73: el GERENTE_DE_COMPRAS ve el nombre de la receta como texto, sin link")
     void detalle_elGerenteDeComprasNoVeElBotonVerReceta() throws Exception {
         when(planificacionServicio.buscarPorId(7L)).thenReturn(planificacion(7L, "Pale Ale", EstadoSolicitud.PENDIENTE));
         when(loteServicio.listarLotesDePlanificacion(7L)).thenReturn(List.of());
 
         mockMvc.perform(get("/planificaciones-produccion/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Ver receta"))))
-                .andExpect(content().string(not(containsString("/planificaciones-produccion/7/receta"))));
+                .andExpect(content().string(not(containsString("data-ver-receta"))))
+                .andExpect(content().string(not(containsString("/planificaciones-produccion/7/receta"))))
+                .andExpect(content().string(containsString("Pale Ale")));
     }
 
     // ==================== GET /planificaciones-produccion/{id}/receta ====================
@@ -1954,7 +1957,7 @@ class PlanificacionProduccionControllerTest {
         Matcher enlace = Pattern.compile("(?s)<a[^>]*href=\"/lotes/nuevo\\?idPlanificacion=7\"[^>]*>(.*?)</a>").matcher(html);
         assertThat(enlace.find()).isTrue();
         assertThat(enlace.group()).contains("bi-plus-lg").contains("whitespace-nowrap");
-        assertThat(html).contains("Ver receta").contains("data-motivo-url=\"/planificaciones-produccion/7/finalizar\"")
+        assertThat(html).contains("data-ver-receta").contains("data-motivo-url=\"/planificaciones-produccion/7/finalizar\"")
                 .contains("data-motivo-url=\"/planificaciones-produccion/7/anular\"");
     }
 

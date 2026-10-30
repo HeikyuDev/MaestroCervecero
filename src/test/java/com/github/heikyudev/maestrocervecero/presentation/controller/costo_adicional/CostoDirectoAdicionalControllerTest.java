@@ -80,7 +80,7 @@ class CostoDirectoAdicionalControllerTest {
 
         // Assert
         assertThat(html).contains("<title>Configuración de producción - Maestro Cervecero</title>").contains("data-costos-directos").contains("href=\"" + URL + "/nuevo\"")
-                .contains("Nuevo costo directo adicional").contains(">12,50<").contains(">1.234,50<").contains("Costo por litro ($ por litro)")
+                .contains("Nuevo costo directo adicional").contains(">$ 12,50 / L<").contains(">$ 1.234,50 / L<").contains("Costo por litro").doesNotContain("($ por litro)")
                 .contains("href=\"" + URL + "/5/editar\"").contains("data-baja-url=\"" + URL + "/6/baja\"").contains("data-baja-nombre=\"Gas butano\"")
                 .contains("class=\"col-acciones px-4 py-3 text-right\">Acciones");
         assertThat(html).containsPattern("(?s)data-pestana-costos[^>]*aria-current=\"page\"").contains("data-pestana-parametros").contains("bi-cash-coin").contains("bi-sliders");

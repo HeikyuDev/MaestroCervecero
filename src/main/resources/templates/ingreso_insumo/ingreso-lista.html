@@ -83,8 +83,8 @@
                         <th class="px-3 py-3">Insumo y lote</th>
                         <th class="px-3 py-3">Cantidad</th>
                         <th class="px-3 py-3 text-right" data-columna-precio>
-                            <span th:if="${pestana == 'compra'}" tabindex="0" data-tooltip="Arriba, el precio de una presentación del ítem de la orden; debajo, el precio de cada unidad del insumo (el de la presentación dividido por lo que trae). Por ejemplo, 12.000 por Bolsa 25 kg = 480 por kg">Precio ($)</span>
-                            <span th:if="${pestana == 'directo'}" tabindex="0" data-tooltip="Precio de cada unidad del insumo (g, kg o t), tal como se cargó en el ingreso">Precio ($)</span>
+                            <span th:if="${pestana == 'compra'}" tabindex="0" data-tooltip="Arriba, el precio de una presentación del ítem de la orden; debajo, el precio de cada unidad del insumo (el de la presentación dividido por lo que trae). Por ejemplo, $ 12.000 por Bolsa 25 kg = $ 480 por kg">Precio</span>
+                            <span th:if="${pestana == 'directo'}" tabindex="0" data-tooltip="Precio de cada unidad del insumo (g, kg o t), tal como se cargó en el ingreso">Precio</span>
                         </th>
                         <th th:if="${pestana == 'compra'}" class="px-3 py-3">Orden</th>
                         <th sec:authorize="hasAuthority('INGRESO_INSUMO_ANULAR')" class="col-acciones px-3 py-3 text-right">Acciones</th>
@@ -123,12 +123,12 @@
                         <td class="px-3 py-3 text-slate-700 text-right align-top whitespace-nowrap" data-precio>
                             <th:block th:if="${pestana == 'compra'}">
                                 <span class="block" data-precio-presentacion
-                                      th:text="${i.detalleCompra != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.detalleCompra.costoUnitario)} : '-'">12.000,00</span>
+                                      th:text="${i.detalleCompra != null} ? ${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(i.detalleCompra.costoUnitario)} : '-'">12.000,00</span>
                                 <span class="block text-xs text-slate-500" data-precio-unidad
-                                      th:text="${'= ' + T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoUnitario) + ' / ' + i.loteInsumo.insumo.unidadDeMedida.simbolo}">= 480,00 / kg</span>
+                                      th:text="${'= ' + T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(i.costoUnitario) + ' / ' + i.loteInsumo.insumo.unidadDeMedida.simbolo}">= 480,00 / kg</span>
                             </th:block>
                             <span th:if="${pestana == 'directo'}" data-precio-unidad
-                                  th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoUnitario) + ' / ' + i.loteInsumo.insumo.unidadDeMedida.simbolo}">12,50 / kg</span>
+                                  th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(i.costoUnitario) + ' / ' + i.loteInsumo.insumo.unidadDeMedida.simbolo}">12,50 / kg</span>
                         </td>
                         <td th:if="${pestana == 'compra'}" class="px-3 py-3 text-slate-700 whitespace-nowrap align-top">
                             <a th:if="${i.idOrdenCompra != null}" sec:authorize="hasAnyRole('GERENTE_DE_COMPRAS', 'ENCARGADO_DE_DEPOSITO')" data-orden-compra

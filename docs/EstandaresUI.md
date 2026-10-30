@@ -48,3 +48,9 @@ En todos los formularios y los detalles de solo lectura los datos se agrupan por
 - Al cambiar de pestaña (`fragments/pestanas` y las pestañas de etapa del lote) se conserva también el scroll del contenedor `<main>` (`scroll-pestana`, solo si la ruta cargada es la del enlace pulsado). El resto de las navegaciones abre arriba.
 - Todo acceso a `sessionStorage` va en `try/catch`. Protegido por `ConservarScrollTest`.
 
+## Importes
+
+- Todo importe en pesos que se muestra lleva el símbolo delante con un espacio y el formato numérico de `FormatoImporte` (`FormatoImporte.conSimbolo`, o `conSimbolo` en el cálculo de `orden-compra-form.js`): `$ 23.460,00`. Un importe por unidad se escribe `$ 5,05 / kg` o `$ 15,00 / L`.
+- Los encabezados y etiquetas de valores mostrados no repiten la unidad ("Subtotal", no "Subtotal ($)"). En los campos de formulario el sufijo `campo-unidad` ("$", "$ por litro") se mantiene porque es una unidad de entrada.
+- Protegido por `ImporteConSimboloTest`.
+

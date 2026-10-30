@@ -13,3 +13,4 @@
 | **CP-FI-01** | Miles y dos decimales como mínimo | `1250.5`, `1000000` y `0` | Separadores y decimales mínimos | `1.250,50`, `1.000.000,00` y `0,00`. |
 | **CP-FI-02** | De 2 a 4 decimales | `0.1234`, `12.30`, `0.123` y `0.12345` | Se conservan hasta 4 decimales y el resto se redondea | `0,1234`, `12,30`, `0,123` y `0,1235`. |
 | **CP-FI-03** | Importe nulo | `null` | Sin valor | Devuelve `-`. |
+| **CP-FI-04** | Importe con símbolo | `23460`, `0.1234` y `null` | Símbolo y espacio delante del formato de la aplicación | `$ 23.460,00`, `$ 0,1234` y `-`. |

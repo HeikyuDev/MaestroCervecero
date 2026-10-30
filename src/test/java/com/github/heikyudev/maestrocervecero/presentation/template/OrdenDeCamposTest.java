@@ -155,7 +155,7 @@ class OrdenDeCamposTest {
         // Assert
         assertThat(origen).contains(">Planificación de producción<").doesNotContain("Fecha de entrega").doesNotContain("Total");
         assertThat(filaCon(detalle, ">Fecha de entrega estimada<")).contains(">Estado<").doesNotContain("Total").doesNotContain("Proveedor");
-        assertThat(filaCon(detalle, ">Total ($)<")).doesNotContain(">Estado<").doesNotContain("Fecha");
+        assertThat(filaCon(detalle, ">Total<")).doesNotContain(">Estado<").doesNotContain("Fecha");
         assertThat(filaCon(formulario, "data-selector-de=\"proveedor\"")).contains("data-selector-de=\"planificacion\"").doesNotContain("fechaEntregaEstimada");
     }
 

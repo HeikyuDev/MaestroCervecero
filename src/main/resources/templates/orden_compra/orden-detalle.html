@@ -95,8 +95,8 @@
             </dl>
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
                 <div>
-                    <dt class="text-xs font-medium text-slate-500">Total ($)</dt>
-                    <dd class="mt-1 text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</dd>
+                    <dt class="text-xs font-medium text-slate-500">Total</dt>
+                    <dd class="mt-1 text-base font-semibold text-slate-900" data-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(orden.total)}">12.500,00</dd>
                 </div>
             </dl>
         </div>
@@ -137,8 +137,8 @@
                     <th class="px-3 py-3 text-right">
                         <span tabindex="0" data-tooltip="Unidades que restan recibir; debajo, su equivalente en la unidad del insumo">Pendiente</span>
                     </th>
-                    <th class="px-3 py-3 text-right"><span tabindex="0" data-tooltip="Costo de una unidad de la presentación comercial, no del insumo">Costo ($)</span></th>
-                    <th class="px-3 py-3 text-right">Subtotal ($)</th>
+                    <th class="px-3 py-3 text-right"><span tabindex="0" data-tooltip="Costo de una unidad de la presentación comercial, no del insumo">Costo</span></th>
+                    <th class="px-3 py-3 text-right">Subtotal</th>
                 </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
@@ -158,8 +158,8 @@
                         <span class="block" data-pendiente><th:block th:replace="~{receta/formato :: numero(${d.cantidadPendiente})}"></th:block></span>
                         <span class="block text-xs text-slate-500" data-pendiente-insumo><th:block th:replace="~{receta/formato :: medida(${d.cantidadPendienteEnUnidadDelInsumo}, ${insumo.unidadDeMedida?.simbolo})}"></th:block></span>
                     </td>
-                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(d.costoUnitario)}">1.250,50</td>
-                    <td class="px-3 py-3 text-right font-medium text-slate-900 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(d.subtotal)}">12.505,00</td>
+                    <td class="px-3 py-3 text-right text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(d.costoUnitario)}">1.250,50</td>
+                    <td class="px-3 py-3 text-right font-medium text-slate-900 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(d.subtotal)}">12.505,00</td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(orden.detallesCompra)}">
                     <td colspan="6" class="px-4 py-6 text-center text-slate-400">La orden no tiene ítems</td>
@@ -168,7 +168,7 @@
             </table>
         </div>
         <p class="px-5 py-3 border-t border-slate-100 bg-slate-50 text-right text-sm text-slate-700">
-            Total ($): <strong class="text-base font-semibold text-slate-900" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(orden.total)}">12.500,00</strong>
+            Total: <strong class="text-base font-semibold text-slate-900" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).conSimbolo(orden.total)}">12.500,00</strong>
         </p>
     </section>
 

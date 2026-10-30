@@ -31,4 +31,13 @@ class FormatoImporteTest {
     void formatear_debeEscribirGuionConImporteNulo() {
         assertThat(FormatoImporte.formatear(null)).isEqualTo("-");
     }
+
+    @Test
+    @DisplayName("CP-FI-04: conSimbolo antepone el símbolo de pesos y un espacio al importe formateado, y escribe un guion si es nulo")
+    void conSimbolo_debeAnteponerElSimbolo() {
+        // Arrange + Act + Assert
+        assertThat(FormatoImporte.conSimbolo(new BigDecimal("23460"))).isEqualTo("$ 23.460,00");
+        assertThat(FormatoImporte.conSimbolo(new BigDecimal("0.1234"))).isEqualTo("$ 0,1234");
+        assertThat(FormatoImporte.conSimbolo(null)).isEqualTo("-");
+    }
 }

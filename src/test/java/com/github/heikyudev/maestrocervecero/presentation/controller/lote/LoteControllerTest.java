@@ -913,7 +913,7 @@ class LoteControllerTest {
 
         // Assert
         String cabecera = texto(bloque(html, "data-lote-cabecera"));
-        assertThat(cabecera).contains("LOT-R7-03", "En ejecución", "Plan #7 - Pale Ale", "Pale Ale - versión 3 de 3", "Fermentador F-01",
+        assertThat(cabecera).contains("LOT-R7-03", "En ejecución", "Plan #7 - Pale Ale", "Receta Pale Ale", "Fermentador F-01",
                 "Volumen objetivo 300 L", "Inicio estimado 01/07/2027", "Fin estimado 05/07/2027", "Inicio real 01/07/2027 08:30", "Fin real -", "Volver a lotes");
         assertThat(html).contains("href=\"/planificaciones-produccion/7\"").contains("href=\"/lotes\"");
         assertThat(texto(elementoConAtributo(html, "p", "data-lote-receta"))).isEqualTo("Pale Ale");
@@ -3126,8 +3126,8 @@ class LoteControllerTest {
         // Assert
         String info = texto(bloque(html, "data-seccion-informacion"));
         assertThat(info).doesNotContain("OG objetivo").doesNotContain("FG objetivo").doesNotContain("IBU").doesNotContain("ABV").doesNotContain("Alcohol");
-        assertThat(info).contains("Receta Pale Ale - versión 3 de 3 Ver receta");
-        assertThat(elementoConAtributo(html, "a", "data-ver-receta")).contains("href=\"/planificaciones-produccion/7/receta\"").contains("aria-label=\"Ver receta\"").contains("bi-journal-text");
+        assertThat(info).contains("Receta Pale Ale Planificación").doesNotContain("versión").doesNotContain("Ver receta");
+        assertThat(elementoConAtributo(html, "a", "data-ver-receta")).contains("href=\"/planificaciones-produccion/7/receta\"").contains("aria-label=\"Ver la receta Pale Ale\"").contains("text-amber-700").contains(">Pale Ale<");
     }
 
     @Test
@@ -3429,7 +3429,7 @@ class LoteControllerTest {
         assertThat(bloque(html, "data-lote-cabecera")).contains("href=\"/lotes\"").contains("data-boton-abrir").contains("href=\"/lotes/12\"").contains("aria-label=\"Abrir LOT-R7-03\"");
         String info = texto(bloque(html, "data-seccion-informacion"));
         assertThat(info).contains("Información del lote").contains("Identificador LOT-R7-03").contains("Estado En ejecución").contains("Etapa actual Hervido")
-                .contains("Volumen objetivo 300 L").contains("Receta Pale Ale - versión 3 de 3").contains("Planificación Plan #7 - Pale Ale")
+                .contains("Volumen objetivo 300 L").contains("Receta Pale Ale").contains("Planificación Plan #7 - Pale Ale")
                 .contains("Fermentador F-01")
                 .contains("Inicio estimado 01/07/2027").contains("Fin estimado 05/07/2027").contains("Inicio real 01/07/2027 08:30").contains("Fin real -");
         assertThat(info).doesNotContain("Cancelado por");
@@ -3517,11 +3517,12 @@ class LoteControllerTest {
 
         // Assert
         String costos = bloque(html, "data-seccion-costos");
-        assertThat(texto(costos)).contains("Costos de insumos").contains("Insumo Cantidad consumida Costo promedio por unidad ($) Subtotal ($)")
-                .contains("Pilsen 20 kg 5,05 / kg 101,00")
-                .contains("Costos directos adicionales").contains("Costo Costo por litro aplicado ($ por litro) Subtotal ($)").contains("Gas butano 15,00 600,00")
-                .contains("Resumen del costo").contains("Concepto Importe").contains("Costo de insumos ($) 101,00").contains("Costos directos adicionales ($) 600,00")
-                .contains("Costo total ($) 701,00").contains("Litros envasados 40 L").contains("Costo por litro envasado ($ por litro) 17,525");
+        assertThat(texto(costos)).contains("Costos de insumos").contains("Insumo Cantidad consumida Costo promedio por unidad Subtotal")
+                .contains("Pilsen 20 kg $ 5,05 / kg $ 101,00")
+                .contains("Costos directos adicionales").contains("Costo Costo por litro aplicado Subtotal").contains("Gas butano $ 15,00 / L $ 600,00")
+                .contains("Resumen del costo").contains("Concepto Importe").contains("Costo de insumos $ 101,00").contains("Costos directos adicionales $ 600,00")
+                .contains("Costo total $ 701,00").contains("Litros envasados 40 L").contains("Costo por litro envasado $ 17,525 / L");
+        assertThat(texto(costos)).doesNotContain("($)").doesNotContain("($ por litro)");
         assertThat(costos).doesNotContain("data-costo-nota").doesNotContain("<tfoot").doesNotContain("data-fila-total");
         assertThat(texto(bloque(costos, "data-costo-insumos"))).doesNotContain("Total");
         assertThat(texto(bloque(costos, "data-costo-adicionales"))).doesNotContain("Total");
@@ -3545,7 +3546,7 @@ class LoteControllerTest {
         String sinDatos = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION, "costos"), "data-seccion-costos"));
 
         // Assert
-        assertThat(enCurso).contains("Resumen del costo").contains("Costo acumulado de insumos 20,00").contains("Los costos adicionales se suman al finalizar el envasado").doesNotContain("Costo total");
+        assertThat(enCurso).contains("Resumen del costo").contains("Costo acumulado de insumos $ 20,00").contains("Los costos adicionales se suman al finalizar el envasado").doesNotContain("Costo total");
         assertThat(sinDatos).contains("No hay costos registrados").doesNotContain("Los costos adicionales se suman");
     }
 

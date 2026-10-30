@@ -130,13 +130,13 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Proveedor</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Entrega estimada</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Estado</th>.*")))
-                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Total \\(\\$\\)</th>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*<th class=\"[^\"]*\">Total</th>.*")))
                 .andExpect(content().string(matchesPattern("(?s).*<td class=\"[^\"]*\">9</td>.*")))
                 .andExpect(content().string(containsString(">Plan #7 - Pale Ale<")))
                 .andExpect(content().string(containsString(">Malterías del Sur S.A.<")))
                 .andExpect(content().string(containsString(">15/07/2027<")))
                 .andExpect(content().string(containsString(">Pendiente<")))
-                .andExpect(content().string(containsString(">12.505,2468<")))
+                .andExpect(content().string(containsString(">$ 12.505,2468<")))
                 .andExpect(content().string(containsString("href=\"/ordenes-compra/9\"")))
                 .andExpect(content().string(containsString("href=\"/ordenes-compra/nuevo\"")))
                 .andExpect(content().string(containsString("Nueva orden de compra")))
@@ -302,7 +302,7 @@ class OrdenCompraControllerTest {
         assertThat(tabla).contains("data-tooltip=\"Plan #7 - " + largo + "\"", "data-tooltip=\"" + largo + "\"")
                 .contains("<th class=\"col-acciones px-2 py-3 text-right whitespace-nowrap\">Acciones</th>")
                 .contains("<td class=\"col-acciones px-2 py-3\">")
-                .contains(">0,00<");
+                .contains(">$ 0,00<");
         assertThat(Pattern.compile("inline-block max-w-\\[(10|9)rem\\] truncate").matcher(tabla).results().count()).isEqualTo(2);
         assertThat(html.indexOf("overflow-x-auto")).isLessThan(html.indexOf("<table"));
     }
@@ -366,8 +366,8 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString(">No hay ítems en la orden<")))
                 .andExpect(content().string(containsString("<template data-plantilla=\"item\">")))
                 .andExpect(content().string(containsString("Costo por presentación ($)")))
-                .andExpect(content().string(containsString("Subtotal ($)")))
-                .andExpect(content().string(containsString("Total ($):")))
+                .andExpect(content().string(containsString("Subtotal")))
+                .andExpect(content().string(containsString("Total:")))
                 .andExpect(content().string(containsString("/js/orden-compra-form.js")))
                 .andExpect(content().string(containsString("Registrar orden de compra")))
                 .andExpect(content().string(matchesPattern("(?s).*href=\"/ordenes-compra\"[^>]*>\\s*<i[^>]*></i>\\s*<span>Volver a órdenes de compra.*")))
@@ -609,11 +609,11 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString(">Bolsa de 25 Kg<")))
                 .andExpect(content().string(containsString(">25 kg<")))
                 .andExpect(content().string(containsString(">Cascade<")))
-                .andExpect(content().string(containsString(">1.250,50<")))
-                .andExpect(content().string(containsString(">12.505,00<")))
-                .andExpect(content().string(containsString(">0,1234<")))
-                .andExpect(content().string(containsString(">0,2468<")))
-                .andExpect(content().string(containsString("data-total>12.505,2468<")))
+                .andExpect(content().string(containsString(">$ 1.250,50<")))
+                .andExpect(content().string(containsString(">$ 12.505,00<")))
+                .andExpect(content().string(containsString(">$ 0,1234<")))
+                .andExpect(content().string(containsString(">$ 0,2468<")))
+                .andExpect(content().string(containsString("data-total>$ 12.505,2468<")))
                 .andExpect(content().string(matchesPattern("(?s).*<tr data-fila-vacia hidden=\"hidden\">.*")))
                 .andReturn().getResponse().getContentAsString();
 
@@ -793,12 +793,12 @@ class OrdenCompraControllerTest {
                 .andExpect(content().string(containsString(">Malterías del Sur S.A.<")))
                 .andExpect(content().string(containsString("CUIT 30-71234567-8")))
                 .andExpect(content().string(containsString(">15/07/2027<")))
-                .andExpect(content().string(containsString("data-total>12.505,2468<")))
-                .andExpect(content().string(containsString("Total ($)")))
+                .andExpect(content().string(containsString("data-total>$ 12.505,2468<")))
+                .andExpect(content().string(containsString("Total")))
                 // Columnas de los ítems, con la unidad en el encabezado
                 .andExpect(content().string(containsString(">Pedida<")))
-                .andExpect(content().string(containsString(">Costo ($)<")))
-                .andExpect(content().string(containsString("Subtotal ($)")))
+                .andExpect(content().string(containsString(">Costo<")))
+                .andExpect(content().string(containsString("Subtotal")))
                 .andExpect(content().string(containsString("data-tooltip=\"Unidades ya recibidas mediante ingresos registrados; debajo, su equivalente en la unidad del insumo\"")))
                 .andExpect(content().string(containsString("data-tooltip=\"Unidades que restan recibir; debajo, su equivalente en la unidad del insumo\"")))
                 // Acciones y diálogos de cierre, con el token CSRF en cada formulario
@@ -818,7 +818,7 @@ class OrdenCompraControllerTest {
 
         // Assert: las cantidades recibida y pendiente van en unidades con su equivalente en la unidad del insumo, y los importes con el formato de la aplicación
         String filas = html.substring(html.indexOf("<tbody"), html.indexOf("</tbody>"));
-        assertThat(filas).contains(">100 kg<", ">150 kg<", ">0 g<", ">2.000 g<", ">10<", ">4<", ">6<", ">0<", ">2<", ">1.250,50<", ">12.505,00<", ">0,1234<", ">0,2468<");
+        assertThat(filas).contains(">100 kg<", ">150 kg<", ">0 g<", ">2.000 g<", ">10<", ">4<", ">6<", ">0<", ">2<", ">$ 1.250,50<", ">$ 12.505,00<", ">$ 0,1234<", ">$ 0,2468<");
         assertThat(filas.indexOf("Pilsen")).isLessThan(filas.indexOf("Cascade"));
         assertThat(filas).contains(">25 kg<", ">1 kg<");
     }
@@ -834,7 +834,7 @@ class OrdenCompraControllerTest {
         mockMvc.perform(get(URL + "/9"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Orden de compra #9")))
-                .andExpect(content().string(containsString("data-total>12.505,2468<")))
+                .andExpect(content().string(containsString("data-total>$ 12.505,2468<")))
                 .andExpect(content().string(not(containsString("data-motivo-url"))))
                 .andExpect(content().string(not(containsString("id=\"dialogo-finalizar\""))))
                 .andExpect(content().string(not(containsString("id=\"dialogo-anular\""))));
@@ -1342,7 +1342,7 @@ class OrdenCompraControllerTest {
         mockMvc.perform(post(URL).with(csrf()).params(datos))
                 .andExpect(status().isOk())
                 .andExpect(view().name(VISTA_FORMULARIO))
-                .andExpect(content().string(containsString("data-total>0,2468<")));
+                .andExpect(content().string(containsString("data-total>$ 0,2468<")));
     }
 
     /**

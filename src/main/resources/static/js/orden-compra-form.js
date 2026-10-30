@@ -50,14 +50,14 @@
         return BigInt((partes[1] || '0') + decimales);
     }
 
-    /** El importe (entero en escala de 4 decimales) escrito como FormatoImporte: 1.250,50 o 0,1234. */
+    /** El importe (entero en escala de 4 decimales) escrito como FormatoImporte.conSimbolo: $ 1.250,50 o $ 0,1234. */
     function formatear(importe) {
         var digitos = importe.toString();
         while (digitos.length <= ESCALA) { digitos = '0' + digitos; }
         var entera = digitos.slice(0, digitos.length - ESCALA);
         var decimales = digitos.slice(digitos.length - ESCALA).replace(/0+$/, '');
         while (decimales.length < 2) { decimales += '0'; }
-        return entera.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + decimales;
+        return '$ ' + entera.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + decimales;
     }
 
     function esEntero(texto) {
