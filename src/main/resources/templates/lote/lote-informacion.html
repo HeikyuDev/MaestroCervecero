@@ -69,12 +69,19 @@
                     <dd class="mt-1 text-slate-900" th:text="${lote.identificadorInternoFermentador != null} ? ${lote.identificadorInternoFermentador} : '-'">F-01</dd>
                 </div>
             </dl>
-            <!-- producto: volumen, densidades y alcohol estimado -->
+            <!-- cantidades del producto: volumen y alcohol estimado -->
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
                     <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
                 </div>
+                <div data-alcohol-estimado>
+                    <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.alcoholEstimadoLitros})}"></th:block></dd>
+                </div>
+            </dl>
+            <!-- composición del producto: densidades e IBU objetivo de la receta -->
+            <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                 <div>
                     <dt class="text-xs font-medium text-slate-500">OG objetivo</dt>
                     <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${receta?.ogObjetivo})}"></th:block></dd>
@@ -83,9 +90,9 @@
                     <dt class="text-xs font-medium text-slate-500">FG objetivo</dt>
                     <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: gravedad(${receta?.fgObjetivo})}"></th:block></dd>
                 </div>
-                <div data-alcohol-estimado>
-                    <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
-                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.alcoholEstimadoLitros})}"></th:block></dd>
+                <div data-ibu-objetivo>
+                    <dt class="text-xs font-medium text-slate-500">IBU objetivo</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${receta?.ibuObjetivo})}"></th:block></dd>
                 </div>
             </dl>
             <!-- fechas-estimadas -->

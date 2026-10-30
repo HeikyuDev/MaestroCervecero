@@ -230,13 +230,15 @@ class OrdenDeCamposTest {
         // Assert
         assertThat(identidad).contains(">Estado<", ">Etapa actual<").doesNotContain("Receta").doesNotContain("Volumen");
         assertThat(filaCon(informacion, ">Receta<")).contains(">Planificación<", ">Fermentador<").doesNotContain("Volumen").doesNotContain("Inicio");
-        assertThat(filaCon(informacion, ">Volumen objetivo<")).contains(">OG objetivo<", ">FG objetivo<", "Alcohol estimado (L)").doesNotContain("Fermentador").doesNotContain("Inicio");
+        assertThat(filaCon(informacion, ">Volumen objetivo<")).contains("Alcohol estimado (L)").doesNotContain("OG objetivo").doesNotContain("IBU").doesNotContain("Inicio");
+        assertThat(filaCon(informacion, ">OG objetivo<")).contains(">FG objetivo<", ">IBU objetivo<").doesNotContain("Volumen").doesNotContain("Alcohol");
         assertThat(filaCon(informacion, ">Inicio estimado<")).contains(">Fin estimado<").doesNotContain("real");
         assertThat(filaCon(informacion, ">Inicio real<")).contains(">Fin real<").doesNotContain("estimado");
         assertThat(filaCon(panel, ">Planificación<")).contains(">Receta<", ">Fermentador<").doesNotContain("Volumen").doesNotContain("Inicio");
         assertThat(filaCon(panel, ">Volumen objetivo<")).contains("Alcohol estimado (L)").doesNotContain("Inicio").doesNotContain(">Receta<");
         assertThat(filaCon(panel, ">Inicio estimado<")).doesNotContain("real");
         assertThat(filaCon(panel, ">Inicio real<")).doesNotContain("estimado");
+        assertThat(guias + leer("lote/lote-detalle.html")).doesNotContain("IBU");
         assertThat(guias).doesNotContain("abvEstimado").doesNotContain("alcoholEstimado");
         assertThat(leer("lote/lote-informacion.html") + leer("lote/lote-detalle.html")).doesNotContain("abvEstimado").doesNotContain("ABV estimado (%)");
     }

@@ -3132,7 +3132,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-174: la información del lote va en filas de un solo tema: identidad, origen, producto (volumen, densidades y alcohol estimado), fechas estimadas y fechas reales")
+    @DisplayName("CP-LCT-174: la información del lote va en filas de un solo tema: identidad, origen, cantidades del producto, composición del producto, fechas estimadas y fechas reales")
     void informacion_agrupaLosDatosEnFilasPorTema() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).alcoholEstimadoLitros(15.9).build());
@@ -3146,12 +3146,13 @@ class LoteControllerTest {
         }
 
         // Assert
-        assertThat(filas).hasSize(5);
+        assertThat(filas).hasSize(6);
         assertThat(filas.get(0)).contains("Identificador", "Estado", "Etapa actual").doesNotContain("Receta").doesNotContain("Volumen");
         assertThat(filas.get(1)).contains("Receta", "Planificación", "Fermentador").doesNotContain("Volumen").doesNotContain("Inicio");
-        assertThat(filas.get(2)).contains("Volumen objetivo", "OG objetivo", "FG objetivo", "Alcohol estimado").doesNotContain("ABV").doesNotContain("Fermentador").doesNotContain("Inicio");
-        assertThat(filas.get(3)).contains("Inicio estimado", "Fin estimado").doesNotContain("real");
-        assertThat(filas.get(4)).contains("Inicio real", "Fin real").doesNotContain("estimado");
+        assertThat(filas.get(2)).contains("Volumen objetivo", "Alcohol estimado").doesNotContain("OG").doesNotContain("IBU").doesNotContain("ABV");
+        assertThat(filas.get(3)).contains("OG objetivo", "FG objetivo", "IBU objetivo 32,0").doesNotContain("Volumen").doesNotContain("Alcohol");
+        assertThat(filas.get(4)).contains("Inicio estimado", "Fin estimado").doesNotContain("real");
+        assertThat(filas.get(5)).contains("Inicio real", "Fin real").doesNotContain("estimado");
     }
 
     private void stubDetalle(LoteDetalleResponseDTO detalle) {
@@ -3255,7 +3256,7 @@ class LoteControllerTest {
     }
 
     private static VersionRecetaResponseDTO receta() {
-        return VersionRecetaResponseDTO.builder().id(30L).nombre("Pale Ale").relacionDeEmpaste(3.0).ogObjetivo(1.050).fgObjetivo(1.010)
+        return VersionRecetaResponseDTO.builder().id(30L).nombre("Pale Ale").relacionDeEmpaste(3.0).ogObjetivo(1.050).fgObjetivo(1.010).ibuObjetivo(32.0)
                 .duracionMaceracion(60).duracionHervido(90).duracionFermentacion(10).duracionMaduracion(4)
                 .detallesLupulo(List.of(
                         DetalleLupuloResponseDTO.builder().cantidad(25.0).uso(UsoLupulo.HERVOR).etapaDeUso(TipoEtapa.HERVIDO).tiempoDeHervor(60.0).lupulo(cascade()).build(),
@@ -3422,7 +3423,7 @@ class LoteControllerTest {
         String info = texto(bloque(html, "data-seccion-informacion"));
         assertThat(info).contains("Información del lote").contains("Identificador LOT-R7-03").contains("Estado En ejecución").contains("Etapa actual Hervido")
                 .contains("Volumen objetivo 300 L").contains("Receta Pale Ale - versión 3 de 3").contains("Planificación Plan #7 - Pale Ale")
-                .contains("Fermentador F-01").contains("OG objetivo 1,050").contains("FG objetivo 1,010").contains("Alcohol estimado (L) 15,9")
+                .contains("Fermentador F-01").contains("OG objetivo 1,050").contains("FG objetivo 1,010").contains("IBU objetivo 32,0").contains("Alcohol estimado (L) 15,9")
                 .contains("Inicio estimado 01/07/2027").contains("Fin estimado 05/07/2027").contains("Inicio real 01/07/2027 08:30").contains("Fin real -");
         assertThat(info).doesNotContain("Cancelado por");
     }
