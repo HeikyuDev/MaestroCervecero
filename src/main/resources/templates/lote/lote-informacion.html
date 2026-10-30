@@ -5,8 +5,8 @@
 <body>
 
 <!--
-    Detalle del lote (solo el gerente de producción): pantalla de solo lectura con toda la información del lote, de lo más importante a lo secundario:
-    datos del lote, etapas, costos, consumos, reservas y envasados. El panel de trabajo
+    Detalle del lote (solo el gerente de producción): pantalla de solo lectura con toda la información del lote, con los datos del lote siempre visibles y,
+    debajo, una pestaña por tema: etapas, consumos, reservas, envasados y, al final, costos. El panel de trabajo
     (lote/lote-detalle) es otra pantalla y se abre con "Abrir".
 -->
 <div id="lote-informacion-content" class="space-y-6">
@@ -135,9 +135,12 @@
         </div>
     </section>
 
+    <!-- Pestañas: una por tema, cada una es el mismo detalle con ?pestana=; solo se carga lo de la pestaña activa -->
+    <div class="space-y-6">
+        <th:block th:replace="~{lote/tabs-informacion :: tabs(${pestana}, ${lote.id})}"></th:block>
+
     <!-- 2. Etapas -->
-    <section data-seccion-etapas class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Etapas</h2>
+    <section th:if="${pestana == 'etapas'}" data-seccion-etapas class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm text-left">
                 <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -162,86 +165,8 @@
         </div>
     </section>
 
-    <!-- 3. Costos: se calculan, no se guardan -->
-    <section th:if="${costoProduccion != null}" data-seccion-costos
-             class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Costos</h2>
-        <p th:unless="${costoProduccion.hayDatos}" class="px-5 py-6 text-sm text-slate-400">No hay costos registrados</p>
-
-        <div th:unless="${#lists.isEmpty(costoProduccion.insumos)}" class="overflow-x-auto" data-costo-insumos>
-            <table class="w-full text-sm text-left">
-                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <tr>
-                    <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Cantidad consumida</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Costo promedio por unidad ($)</th>
-                    <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal ($)</th>
-                </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                <tr th:each="i : ${costoProduccion.insumos}" class="hover:bg-slate-50">
-                    <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${i.nombre}">Pilsen</td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadConsumida}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoPromedioPorUnidad) + ' / ' + i.unidadDeMedida.simbolo}">480 / kg</td>
-                    <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.subtotal)}">12.000</td>
-                </tr>
-                </tbody>
-                <tfoot>
-                <tr class="bg-slate-50 font-semibold text-slate-800">
-                    <td class="px-4 py-3" colspan="3"
-                        th:text="${costoProduccion.estadoLote.name() == 'FINALIZADO' or costoProduccion.envasadoFinalizado} ? 'Total de insumos' : 'Costo acumulado de insumos'">Total de insumos</td>
-                    <td class="px-4 py-3 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalInsumos)}">12.000</td>
-                </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <div th:unless="${#lists.isEmpty(costoProduccion.adicionales)}" class="overflow-x-auto border-t border-slate-100" data-costo-adicionales>
-            <table class="w-full text-sm text-left">
-                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <tr>
-                    <th class="px-4 py-3 whitespace-nowrap">Costo adicional</th>
-                    <th class="px-4 py-3 whitespace-nowrap">Costo por litro ($ por litro)</th>
-                    <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal ($)</th>
-                </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                <tr th:each="a : ${costoProduccion.adicionales}" class="hover:bg-slate-50">
-                    <td class="px-4 py-3 font-medium text-slate-900" th:text="${a.nombre}">Gas butano</td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(a.costoPorLitroAplicado)}">12,50</td>
-                    <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(a.subtotal)}">500</td>
-                </tr>
-                </tbody>
-                <tfoot>
-                <tr class="bg-slate-50 font-semibold text-slate-800">
-                    <td class="px-4 py-3" colspan="2">Total de costos adicionales</td>
-                    <td class="px-4 py-3 text-right whitespace-nowrap" data-total-adicionales th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalAdicionales)}">500</td>
-                </tr>
-                </tfoot>
-            </table>
-        </div>
-
-        <dl th:if="${costoProduccion.costoTotal != null}" data-costo-totales class="px-5 py-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Litros envasados</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${costoProduccion.litrosEnvasados}, 'L')}"></th:block></dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Costo total ($)</dt>
-                <dd class="mt-1 text-base font-semibold text-slate-900" data-costo-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.costoTotal)}">12.500</dd>
-            </div>
-            <div>
-                <dt class="text-xs font-medium text-slate-500">Costo por litro envasado ($ por litro)</dt>
-                <dd class="mt-1 text-base font-semibold text-slate-900" data-costo-por-litro th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.costoPorLitro)}">62,50</dd>
-            </div>
-        </dl>
-        <p th:if="${costoProduccion.hayDatos and costoProduccion.costoTotal == null and (costoProduccion.estadoLote.name() == 'PENDIENTE' or costoProduccion.estadoLote.name() == 'EN_EJECUCION')}" data-costo-nota
-           class="px-5 py-3 border-t border-slate-100 text-xs text-slate-500">Los costos adicionales se suman al finalizar el envasado.</p>
-    </section>
-
-    <!-- 4. Consumos -->
-    <section data-seccion-consumos class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Consumos</h2>
+    <!-- 3. Consumos -->
+    <section th:if="${pestana == 'consumos'}" data-seccion-consumos class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <p th:if="${#lists.isEmpty(consumos)}" class="px-5 py-6 text-sm text-slate-400">No hay consumos registrados</p>
         <div th:unless="${#lists.isEmpty(consumos)}" class="overflow-x-auto">
             <table class="w-full text-sm text-left">
@@ -276,9 +201,8 @@
         </div>
     </section>
 
-    <!-- 5. Reservas: historial completo por etapa -->
-    <section data-seccion-reservas class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Reservas</h2>
+    <!-- 4. Reservas: historial completo por etapa -->
+    <section th:if="${pestana == 'reservas'}" data-seccion-reservas class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <p th:if="${#lists.isEmpty(reservas)}" class="px-5 py-6 text-sm text-slate-400">No hay reservas registradas</p>
         <div th:unless="${#lists.isEmpty(reservas)}" class="overflow-x-auto">
             <table class="w-full text-sm text-left">
@@ -313,9 +237,8 @@
         </div>
     </section>
 
-    <!-- 6. Envasados -->
-    <section data-seccion-envasados class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Envasados</h2>
+    <!-- 5. Envasados -->
+    <section th:if="${pestana == 'envasados'}" data-seccion-envasados class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <p th:if="${#lists.isEmpty(envasados)}" class="px-5 py-6 text-sm text-slate-400">No hay envasados registrados</p>
         <div th:unless="${#lists.isEmpty(envasados)}" class="overflow-x-auto">
             <table class="w-full text-sm text-left">
@@ -341,6 +264,107 @@
             </table>
         </div>
     </section>
+
+    <!-- 6. Costos: se calculan, no se guardan; van al final porque dependen de los consumos y los envasados. Los totales viven en el resumen -->
+    <article th:if="${pestana == 'costos' and costoProduccion != null}" data-seccion-costos class="space-y-6">
+        <section th:unless="${costoProduccion.hayDatos}" class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <p class="px-5 py-6 text-sm text-slate-400">No hay costos registrados</p>
+        </section>
+
+        <section th:unless="${#lists.isEmpty(costoProduccion.insumos)}" data-costo-insumos class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Costos de insumos</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Insumo</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Cantidad consumida</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Costo promedio por unidad ($)</th>
+                        <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal ($)</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="i : ${costoProduccion.insumos}" class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap" th:text="${i.nombre}">Pilsen</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${i.cantidadConsumida}, ${i.unidadDeMedida.simbolo})}"></th:block></td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.costoPromedioPorUnidad) + ' / ' + i.unidadDeMedida.simbolo}">480 / kg</td>
+                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(i.subtotal)}">12.000</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section th:if="${costoProduccion.hayDatos}" data-costo-adicionales class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Costos directos adicionales</h2>
+            <div th:unless="${#lists.isEmpty(costoProduccion.adicionales)}" class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Costo</th>
+                        <th class="px-4 py-3 whitespace-nowrap">Costo por litro aplicado ($ por litro)</th>
+                        <th class="px-4 py-3 whitespace-nowrap text-right">Subtotal ($)</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:each="a : ${costoProduccion.adicionales}" class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-medium text-slate-900" th:text="${a.nombre}">Gas butano</td>
+                        <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(a.costoPorLitroAplicado)}">12,50</td>
+                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(a.subtotal)}">500</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p th:if="${#lists.isEmpty(costoProduccion.adicionales) and costoProduccion.costoTotal == null and (costoProduccion.estadoLote.name() == 'PENDIENTE' or costoProduccion.estadoLote.name() == 'EN_EJECUCION')}" data-costo-nota
+               class="px-5 py-6 text-sm text-slate-400">Los costos adicionales se suman al finalizar el envasado.</p>
+            <p th:if="${#lists.isEmpty(costoProduccion.adicionales) and not (costoProduccion.costoTotal == null and (costoProduccion.estadoLote.name() == 'PENDIENTE' or costoProduccion.estadoLote.name() == 'EN_EJECUCION'))}"
+               class="px-5 py-6 text-sm text-slate-400">No hay costos directos adicionales</p>
+        </section>
+
+        <section th:if="${costoProduccion.hayDatos}" data-costo-resumen class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Resumen del costo</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                        <th class="px-4 py-3 whitespace-nowrap">Concepto</th>
+                        <th class="px-4 py-3 whitespace-nowrap text-right">Importe</th>
+                    </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                    <tr th:if="${costoProduccion.costoTotal == null}" class="hover:bg-slate-50">
+                        <td class="px-4 py-3 text-slate-700"
+                            th:text="${costoProduccion.estadoLote.name() == 'FINALIZADO' or costoProduccion.envasadoFinalizado} ? 'Total de insumos' : 'Costo acumulado de insumos'">Costo acumulado de insumos</td>
+                        <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalInsumos)}">12.000</td>
+                    </tr>
+                    <th:block th:if="${costoProduccion.costoTotal != null}">
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 text-slate-700">Costo de insumos ($)</td>
+                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-insumos th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalInsumos)}">12.000</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 text-slate-700">Costos directos adicionales ($)</td>
+                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap" data-total-adicionales th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.totalAdicionales)}">500</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 font-semibold text-slate-900">Costo total ($)</td>
+                            <td class="px-4 py-3 font-semibold text-slate-900 text-right whitespace-nowrap" data-costo-total th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.costoTotal)}">12.500</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 text-slate-700">Litros envasados</td>
+                            <td class="px-4 py-3 text-slate-900 text-right whitespace-nowrap"><th:block th:replace="~{receta/formato :: medida(${costoProduccion.litrosEnvasados}, 'L')}"></th:block></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3 font-semibold text-slate-900">Costo por litro envasado ($ por litro)</td>
+                            <td class="px-4 py-3 font-semibold text-slate-900 text-right whitespace-nowrap" data-costo-por-litro th:text="${T(com.github.heikyudev.maestrocervecero.util.FormatoImporte).formatear(costoProduccion.costoPorLitro)}">62,50</td>
+                        </tr>
+                    </th:block>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </article>
+    </div>
 </div>
 
 </body>

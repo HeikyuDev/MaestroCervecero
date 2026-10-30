@@ -98,6 +98,8 @@ public class LoteController {
     private static final String VISTA_FILTRO_PLANIFICACION = "lote/filtro-planificacion :: buscador";
     private static final String ATRIBUTO_FORMULARIO = "loteForm";
     private static final String VISTA_INFORMACION = "lote/lote-informacion";
+    /** Pestañas del Detalle del lote, en orden; la primera es la que se abre por defecto. */
+    private static final List<String> PESTANAS_INFORMACION = List.of("etapas", "consumos", "reservas", "envasados", "costos");
     private static final String URL_LISTA = "/lotes";
     private static final String URL_BUSCADOR_RECETAS = "/lotes/buscador/recetas";
     private static final String URL_FILTRO_RECETAS = "/lotes/filtros/recetas";
@@ -339,25 +341,32 @@ public class LoteController {
     }
 
     /**
-     * Muestra el "Detalle del lote": una pantalla de solo lectura con toda la información del lote (datos, etapas, costos,
-     * consumos, reservas y envasados), distinta del panel de trabajo ({@link #mostrarDetalle}). Es solo del GERENTE_DE_PRODUCCION
-     * (el operario trabaja en el panel y no ve costos). Las consultas son de todo el lote y no se repiten por etapa. Un lote
-     * inexistente lo resuelve el {@code ControllerAdvices}.
+     * Muestra el "Detalle del lote": una pantalla de solo lectura con la información del lote siempre visible y, debajo,
+     * una pestaña por tema (etapas, consumos, reservas, envasados y costos), distinta del panel de trabajo
+     * ({@link #mostrarDetalle}). Es solo del GERENTE_DE_PRODUCCION (el operario trabaja en el panel y no ve costos). La
+     * pestaña activa viaja en {@code ?pestana=} y solo se cargan los datos de esa pestaña (el costo solo se calcula al
+     * abrir Costos); sin pestaña, o con una desconocida, se abre Etapas. Un lote inexistente lo resuelve el
+     * {@code ControllerAdvices}.
      */
     @GetMapping("/{id}/detalle")
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
-    public String mostrarInformacionDelLote(@PathVariable Long id, Model model) {
+    public String mostrarInformacionDelLote(@PathVariable Long id, @RequestParam(required = false) String pestana, Model model) {
         LoteDetalleResponseDTO lote = loteServicio.buscarDetallePorId(id);
         VersionRecetaResponseDTO receta = lote.getVersionReceta() != null ? lote.getVersionReceta().getVersion() : null;
+        String pestanaActiva = pestana != null && PESTANAS_INFORMACION.contains(pestana) ? pestana : PESTANAS_INFORMACION.get(0);
 
         model.addAttribute("lote", lote);
         model.addAttribute("receta", receta);
         model.addAttribute("planificacionTexto", EtiquetaPlanificacion.de(lote.getIdPlanificacionProduccion(), receta != null ? receta.getNombre() : null));
         model.addAttribute("etapaActual", lote.getEtapas().stream().filter(e -> e.getEstado() == EstadoEtapaLote.EN_CURSO).map(EtapaLoteResponseDTO::getEtapa).findFirst().orElse(null));
-        model.addAttribute("consumos", consumoInsumoServicio.listarConsumosDelLote(id));
-        model.addAttribute("reservas", reservaInsumoServicio.listarReservasDelLote(id));
-        model.addAttribute("envasados", envasadoLoteServicio.listarEnvasadosDelLote(id));
-        model.addAttribute("costoProduccion", costoProduccionLoteServicio.calcularCostoProduccion(id));
+        model.addAttribute("pestana", pestanaActiva);
+        switch (pestanaActiva) {
+            case "consumos" -> model.addAttribute("consumos", consumoInsumoServicio.listarConsumosDelLote(id));
+            case "reservas" -> model.addAttribute("reservas", reservaInsumoServicio.listarReservasDelLote(id));
+            case "envasados" -> model.addAttribute("envasados", envasadoLoteServicio.listarEnvasadosDelLote(id));
+            case "costos" -> model.addAttribute("costoProduccion", costoProduccionLoteServicio.calcularCostoProduccion(id));
+            default -> { /* Etapas sale del propio lote */ }
+        }
         return VISTA_INFORMACION;
     }
 

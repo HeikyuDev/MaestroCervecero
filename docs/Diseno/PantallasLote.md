@@ -216,16 +216,27 @@ c = quien tiene CONSUMO_INSUMO_CONSULTAR (el operario), en las etapas que consum
 
 ### 6.3.1 Detalle del lote (`/lotes/{id}/detalle`)
 
-Pantalla de solo lectura con toda la información del lote, solo para el gerente de producción (permiso por rol; el operario trabaja en el panel y no ve costos). Se abre con el ojo "Ver" de la lista de lotes y de la tabla de lotes del detalle de la planificación; el botón "Abrir" del encabezado lleva al panel de trabajo (`/lotes/{id}`). Encabezado: "Volver a lotes", "Detalle del lote LOT-RX-NN", el estado y "Abrir". Secciones, de lo más importante a lo secundario:
+Pantalla de solo lectura con toda la información del lote, solo para el gerente de producción (permiso por rol; el operario trabaja en el panel y no ve costos). Se abre con el ojo "Ver" de la lista de lotes y de la tabla de lotes del detalle de la planificación; el botón "Abrir" del encabezado lleva al panel de trabajo (`/lotes/{id}`). Encabezado: "Volver a lotes", "Detalle del lote LOT-RX-NN", el estado y "Abrir". Debajo, siempre visible, el bloque "Información del lote" y, más abajo, cinco pestañas (`fragments/pestanas`, cada una con su ícono) que son la misma pantalla con `?pestana=<clave>`: Etapas (`etapas`, `bi-diagram-3`), Consumos (`consumos`, `bi-basket`), Reservas (`reservas`, `bi-bookmark-check`), Envasados (`envasados`, `bi-box-seam`) y Costos (`costos`, `bi-cash-coin`), en ese orden. Sin `pestana`, o con una desconocida, se abre Etapas. La pestaña activa viaja en la dirección, de modo que sobrevive a recargar la página, funciona sin JavaScript y se puede guardar en favoritos. El Controller solo carga los datos de la pestaña abierta: el costo se calcula únicamente al abrir Costos. Las pestañas no muestran contadores.
 
-1. **Información del lote:** identificador, estado, etapa actual, volumen objetivo; receta y planificación; fermentador, ABV y alcohol estimados; las cuatro fechas (inicio y fin estimados, inicio y fin reales); y, si está cancelado, quién lo canceló, cuándo y el motivo.
-2. **Etapas:** una fila por etapa con su estado, el equipo y las fechas reales de inicio y fin.
-3. **Costos:** se calculan, no se guardan. Desglose por insumo (cantidad consumida con su unidad, costo promedio por unidad y subtotal) con el total de insumos; los costos adicionales aplicados al finalizar el envasado (nombre, costo por litro y subtotal) con su total; y, con el envasado finalizado y litros mayores a cero, los litros envasados, el costo total y el costo por litro envasado. Con el lote en curso muestra el "Costo acumulado de insumos" y la nota "Los costos adicionales se suman al finalizar el envasado"; un lote cancelado muestra el costo de lo que alcanzó a consumir; sin consumos dice "No hay costos registrados".
-4. **Consumos:** todos los del lote por etapa (insumo, lote de insumo, cantidad con su unidad, tipo, fecha, usuario y estado; los anulados, atenuados y con el botón de detalle de la anulación). Sin consumos dice "No hay consumos registrados".
-5. **Reservas:** el historial completo por etapa (reservada, consumida, liberada, reducida por ajuste, pendiente y estado). Sin reservas dice "No hay reservas registradas".
-6. **Envasados:** barril, cantidad, fecha y estado, con el detalle de la anulación. Sin envasados dice "No hay envasados registrados".
+**Información del lote (siempre visible).** Filas de un solo tema, de izquierda a derecha:
 
-Las tablas son compactas (con scroll horizontal solo si hace falta), sin tooltips largos. Las consultas son de todo el lote (consumos, reservas, envasados y costos), no una por etapa.
+1. Identidad: identificador, estado y etapa actual.
+2. Origen: receta con su versión, planificación y fermentador.
+3. Cantidades del producto: volumen objetivo y alcohol estimado.
+4. Composición del producto: OG, FG e IBU objetivo de la receta.
+5. Fechas estimadas: inicio y fin.
+6. Fechas reales: inicio y fin.
+7. Si está cancelado: quién lo canceló, cuándo y el motivo.
+
+**Pestañas:**
+
+- **Etapas:** una fila por etapa con su estado, el equipo y las fechas reales de inicio y fin.
+- **Consumos:** todos los del lote por etapa (insumo, lote de insumo, cantidad con su unidad, tipo, fecha, usuario y estado; los anulados, atenuados y con el botón de detalle de la anulación). Sin consumos dice "No hay consumos registrados".
+- **Reservas:** el historial completo por etapa (reservada, consumida, liberada, reducida por ajuste, pendiente y estado). Sin reservas dice "No hay reservas registradas".
+- **Envasados:** barril, cantidad, fecha y estado, con el detalle de la anulación. Sin envasados dice "No hay envasados registrados".
+- **Costos:** se calculan, no se guardan. Tres tarjetas separadas, cada una con su título y su tabla del sistema: "Costos de insumos" (insumo, cantidad consumida con su unidad, costo promedio por unidad y subtotal), "Costos directos adicionales" (costo, costo por litro aplicado y subtotal; se aplican al finalizar el envasado, y mientras no existen dice "Los costos adicionales se suman al finalizar el envasado") y "Resumen del costo" (tabla Concepto e Importe: costo de insumos, costos directos adicionales, costo total en negrita, litros envasados y costo por litro envasado en negrita). Las tablas de detalle no llevan fila de total: los totales viven en el resumen. Con el lote en curso el resumen tiene solo el "Costo acumulado de insumos"; un lote cancelado muestra el costo de lo que alcanzó a consumir; sin consumos dice "No hay costos registrados".
+
+Las tablas son compactas (con scroll horizontal solo si hace falta), sin tooltips largos.
 
 ### 6.4 Tarjeta guía de cada etapa
 

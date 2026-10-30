@@ -269,7 +269,7 @@ class OrdenDeCamposTest {
     void la_tabla_de_etapas_alinea_encabezados_y_celdas() throws IOException {
         // Arrange
         String html = leer("lote/lote-informacion.html");
-        String tabla = html.substring(html.indexOf("data-seccion-etapas"), html.indexOf("data-seccion-costos"));
+        String tabla = html.substring(html.indexOf("data-seccion-etapas"), html.indexOf("data-seccion-consumos"));
 
         // Act
         Matcher encabezados = Pattern.compile("<th class=\"(px-\\d+)").matcher(tabla);
@@ -284,6 +284,42 @@ class OrdenDeCamposTest {
 
         // Assert
         assertThat(rellenos).hasSize(10).containsOnly("px-4");
+    }
+
+    @Test
+    @DisplayName("CP-ODC-13 - La pestaña Costos del detalle del lote es la última, usa tres tarjetas con tabla del sistema y los totales viven solo en el resumen, sin filas con el estilo del encabezado")
+    void los_costos_son_tablas_del_sistema_y_los_totales_viven_en_el_resumen() throws IOException {
+        // Arrange
+        String html = leer("lote/lote-informacion.html");
+        String tabs = leer("lote/tabs-informacion.html");
+
+        // Act
+        String costos = html.substring(html.indexOf("data-seccion-costos"));
+
+        // Assert
+        assertThat(tabs.indexOf("pestana='costos'")).as("Costos es la última pestaña").isGreaterThan(tabs.indexOf("pestana='envasados'"));
+        assertThat(html.indexOf("data-seccion-costos")).as("y la última sección").isGreaterThan(html.indexOf("data-seccion-envasados"));
+        assertThat(costos).contains("Costos de insumos</h2>").contains("Costos directos adicionales</h2>").contains("Resumen del costo</h2>").contains("space-y-6");
+        assertThat(costos).doesNotContain("<tfoot").doesNotContain("data-fila-total").doesNotContain("amber").doesNotContain("text-lg").doesNotContain("text-xl").doesNotContain("underline").doesNotContain("border-b-2");
+        assertThat(costos.split("<table", -1)).hasSize(4);
+        assertThat(costos.split("<thead class=\"bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider\">", -1)).as("cada tabla usa el encabezado del sistema").hasSize(4);
+        assertThat(costos.split("<tbody class=\"divide-y divide-slate-100\">", -1)).hasSize(4);
+    }
+
+    @Test
+    @DisplayName("CP-ODC-14 - El contenido de las pestañas del detalle del lote va separado del selector con el mismo espaciado (space-y-6) que las demás pantallas con pestañas")
+    void las_pestanas_del_lote_separan_el_contenido_como_el_resto() throws IOException {
+        // Arrange
+        String lote = leer("lote/lote-informacion.html");
+        String insumos = leer("insumo/malta-lista.html");
+
+        // Act
+        int selector = lote.indexOf("lote/tabs-informacion :: tabs");
+        String contenedor = lote.substring(lote.lastIndexOf("<div", selector), selector);
+
+        // Assert
+        assertThat(insumos).as("el patrón: las pestañas y su contenido son hermanos de un contenedor space-y-6").contains("id=\"malta-lista-content\" class=\"space-y-6\"");
+        assertThat(contenedor).contains("space-y-6");
     }
 
     /** Cada grilla (div o dl con la clase grid) es una fila lógica: devuelve el contenido de cada una. */

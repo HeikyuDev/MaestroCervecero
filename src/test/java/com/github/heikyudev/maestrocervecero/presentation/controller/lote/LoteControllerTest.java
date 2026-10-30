@@ -3450,22 +3450,24 @@ class LoteControllerTest {
         String etapas = bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-etapas");
 
         // Assert
-        assertThat(texto(etapas)).startsWith("Etapas Etapa Estado Equipo Inicio real Fin real");
+        assertThat(texto(etapas)).startsWith("Etapa Estado Equipo Inicio real Fin real");
         for (TipoEtapa etapa : TipoEtapa.values()) {
             assertThat(etapas).contains(">" + etapa.getEtiqueta() + "<");
         }
     }
 
     @Test
-    @DisplayName("CP-LCT-168: las secciones de consumos, reservas y envasados muestran sus tablas con los datos y el detalle de la anulación de lo anulado, y dicen que no hay registros cuando están vacías")
+    @DisplayName("CP-LCT-168: las pestañas de consumos, reservas y envasados muestran sus tablas con los datos y el detalle de la anulación de lo anulado, y dicen que no hay registros cuando están vacías")
     void informacion_muestraConsumosReservasYEnvasados() throws Exception {
         // Arrange: vacías
-        String vacias = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+        String consumosVacios = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "consumos");
+        String reservasVacias = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "reservas");
+        String envasadosVacios = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "envasados");
 
         // Assert
-        assertThat(texto(bloque(vacias, "data-seccion-consumos"))).contains("No hay consumos registrados");
-        assertThat(texto(bloque(vacias, "data-seccion-reservas"))).contains("No hay reservas registradas");
-        assertThat(texto(bloque(vacias, "data-seccion-envasados"))).contains("No hay envasados registrados");
+        assertThat(texto(bloque(consumosVacios, "data-seccion-consumos"))).contains("No hay consumos registrados");
+        assertThat(texto(bloque(reservasVacias, "data-seccion-reservas"))).contains("No hay reservas registradas");
+        assertThat(texto(bloque(envasadosVacios, "data-seccion-envasados"))).contains("No hay envasados registrados");
 
         // Arrange: con datos
         when(consumoInsumoServicio.listarConsumosDelLote(12L)).thenReturn(List.of(
@@ -3477,20 +3479,22 @@ class LoteControllerTest {
                 envasado("B-001", 100.0, EstadoTransaccion.REGISTRADO, null), envasado("B-002", 20.0, EstadoTransaccion.ANULADO, "Barril equivocado")));
 
         // Act
-        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+        String htmlConsumos = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "consumos");
+        String htmlReservas = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "reservas");
+        String htmlEnvasados = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "envasados");
 
         // Assert
-        String consumos = bloque(html, "data-seccion-consumos");
+        String consumos = bloque(htmlConsumos, "data-seccion-consumos");
         assertThat(texto(consumos)).contains("Etapa Insumo Lote de insumo Cantidad Tipo Fecha Usuario Estado").contains("Cascade L-1 25 g Reservado").contains("Cascade L-2 5 g Directo");
         assertThat(consumos).contains("data-detalle-motivo=\"Carga equivocada\"").contains("opacity-60");
-        assertThat(texto(bloque(html, "data-seccion-reservas"))).contains("Etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida Pendiente Estado").contains("Cascade L-1 25 g 25 g 0 g 0 g 0 g Consumida");
-        String envasados = bloque(html, "data-seccion-envasados");
+        assertThat(texto(bloque(htmlReservas, "data-seccion-reservas"))).contains("Etapa Insumo Lote de insumo Reservada Consumida Liberada Reducida Pendiente Estado").contains("Cascade L-1 25 g 25 g 0 g 0 g 0 g Consumida");
+        String envasados = bloque(htmlEnvasados, "data-seccion-envasados");
         assertThat(texto(envasados)).contains("Barril Cantidad (L) Fecha Estado").contains("B-001 100").contains("B-002 20");
         assertThat(envasados).contains("data-detalle-motivo=\"Barril equivocado\"");
     }
 
     @Test
-    @DisplayName("CP-LCT-169: el costo se ve solo para el GERENTE_DE_PRODUCCION: sección Costos con el desglose de insumos y de costos adicionales, los litros envasados, el costo total y el costo por litro")
+    @DisplayName("CP-LCT-169: el costo se ve solo para el GERENTE_DE_PRODUCCION: pestaña Costos, en tres tarjetas con su tabla: costos de insumos, costos directos adicionales y resumen del costo con el costo total, los litros envasados y el costo por litro")
     void informacion_costoParaElGerente() throws Exception {
         // Arrange
         when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.FINALIZADO)
@@ -3502,16 +3506,21 @@ class LoteControllerTest {
                 .costoTotal(new BigDecimal("701.0000")).costoPorLitro(new BigDecimal("17.5250")).build());
 
         // Act
-        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "costos");
 
         // Assert
         String costos = bloque(html, "data-seccion-costos");
-        assertThat(texto(costos)).contains("Costos").contains("Insumo Cantidad consumida Costo promedio por unidad ($) Subtotal ($)")
-                .contains("Pilsen 20 kg 5,05 / kg 101,00").contains("Total de insumos 101,00")
-                .contains("Costo adicional Costo por litro ($ por litro) Subtotal ($)").contains("Gas butano 15,00 600,00").contains("Total de costos adicionales 600,00")
-                .contains("Litros envasados 40 L").contains("Costo total ($) 701,00").contains("Costo por litro envasado ($ por litro) 17,525");
-        assertThat(costos).doesNotContain("data-costo-nota");
-        assertThat(html.indexOf("data-seccion-costos")).isGreaterThan(html.indexOf("data-seccion-etapas")).isLessThan(html.indexOf("data-seccion-consumos"));
+        assertThat(texto(costos)).contains("Costos de insumos").contains("Insumo Cantidad consumida Costo promedio por unidad ($) Subtotal ($)")
+                .contains("Pilsen 20 kg 5,05 / kg 101,00")
+                .contains("Costos directos adicionales").contains("Costo Costo por litro aplicado ($ por litro) Subtotal ($)").contains("Gas butano 15,00 600,00")
+                .contains("Resumen del costo").contains("Concepto Importe").contains("Costo de insumos ($) 101,00").contains("Costos directos adicionales ($) 600,00")
+                .contains("Costo total ($) 701,00").contains("Litros envasados 40 L").contains("Costo por litro envasado ($ por litro) 17,525");
+        assertThat(costos).doesNotContain("data-costo-nota").doesNotContain("<tfoot").doesNotContain("data-fila-total");
+        assertThat(texto(bloque(costos, "data-costo-insumos"))).doesNotContain("Total");
+        assertThat(texto(bloque(costos, "data-costo-adicionales"))).doesNotContain("Total");
+        assertThat(costos.split("<table", -1)).as("una tabla por tarjeta").hasSize(4);
+        assertThat(elementoConAtributo(costos, "td", "data-costo-total")).contains("font-semibold");
+        assertThat(html).doesNotContain("data-seccion-etapas").doesNotContain("data-seccion-consumos").doesNotContain("data-seccion-reservas").doesNotContain("data-seccion-envasados");
     }
 
     @Test
@@ -3524,12 +3533,12 @@ class LoteControllerTest {
                 .totalInsumos(new BigDecimal("20.0000")).build());
 
         // Act
-        String enCurso = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-costos"));
+        String enCurso = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION, "costos"), "data-seccion-costos"));
         when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.EN_EJECUCION).build());
-        String sinDatos = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION), "data-seccion-costos"));
+        String sinDatos = texto(bloque(informacionHtml(Rol.GERENTE_DE_PRODUCCION, "costos"), "data-seccion-costos"));
 
         // Assert
-        assertThat(enCurso).contains("Costo acumulado de insumos 20,00").contains("Los costos adicionales se suman al finalizar el envasado").doesNotContain("Costo total");
+        assertThat(enCurso).contains("Resumen del costo").contains("Costo acumulado de insumos 20,00").contains("Los costos adicionales se suman al finalizar el envasado").doesNotContain("Costo total");
         assertThat(sinDatos).contains("No hay costos registrados").doesNotContain("Los costos adicionales se suman");
     }
 
@@ -3538,10 +3547,63 @@ class LoteControllerTest {
     void informacion_soloElGerenteDeProduccion() throws Exception {
         // Act + Assert
         for (RequestPostProcessor usuario : List.of(como(Rol.OPERARIO_DE_PRODUCCION), conPermisos(Permiso.LOTE_CONSULTAR), como(Rol.ENCARGADO_DE_DEPOSITO))) {
-            mockMvc.perform(get(URL + "/12/detalle").with(usuario))
+            mockMvc.perform(get(URL + "/12/detalle").param("pestana", "costos").with(usuario))
                     .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
         }
         verifyNoInteractions(loteServicio, consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, costoProduccionLoteServicio);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-175: el Detalle del lote muestra las pestañas Etapas, Consumos, Reservas, Envasados y Costos (en ese orden, cada una con su ícono y su enlace con ?pestana=) y marca la activa")
+    void informacion_muestraLasPestanasConSuIcono() throws Exception {
+        // Act
+        String html = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "reservas");
+
+        // Assert
+        String nav = bloque(html, "data-pestanas-lote");
+        assertThat(texto(nav)).isEqualTo("Etapas Consumos Reservas Envasados Costos");
+        assertThat(nav.indexOf("data-pestana-etapas")).isLessThan(nav.indexOf("data-pestana-consumos"));
+        assertThat(nav.indexOf("data-pestana-consumos")).isLessThan(nav.indexOf("data-pestana-reservas"));
+        assertThat(nav.indexOf("data-pestana-reservas")).isLessThan(nav.indexOf("data-pestana-envasados"));
+        assertThat(nav.indexOf("data-pestana-envasados")).isLessThan(nav.indexOf("data-pestana-costos"));
+        assertThat(nav).contains("bi-diagram-3", "bi-basket", "bi-bookmark-check", "bi-box-seam", "bi-cash-coin")
+                .contains("href=\"/lotes/12/detalle?pestana=costos\"");
+        assertThat(elementoConAtributo(nav, "a", "data-pestana-reservas")).contains("aria-current=\"page\"");
+        assertThat(elementoConAtributo(nav, "a", "data-pestana-etapas")).doesNotContain("aria-current");
+        assertThat(bloque(html, "data-seccion-informacion")).contains("Información del lote");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-176: cada pestaña muestra solo su contenido y el service solo consulta lo de la pestaña abierta: el costo se calcula únicamente en Costos")
+    void informacion_cargaSoloLaPestanaActiva() throws Exception {
+        // Act
+        String etapas = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "etapas");
+        verifyNoInteractions(consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, costoProduccionLoteServicio);
+        String consumos = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "consumos");
+        verify(consumoInsumoServicio).listarConsumosDelLote(12L);
+        verifyNoInteractions(costoProduccionLoteServicio);
+        String costos = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "costos");
+
+        // Assert
+        assertThat(etapas).contains("data-seccion-etapas").doesNotContain("data-seccion-consumos").doesNotContain("data-seccion-costos");
+        assertThat(consumos).contains("data-seccion-consumos").doesNotContain("data-seccion-etapas").doesNotContain("data-seccion-reservas");
+        assertThat(costos).doesNotContain("data-seccion-etapas").doesNotContain("data-seccion-consumos");
+        verify(costoProduccionLoteServicio).calcularCostoProduccion(12L);
+    }
+
+    @Test
+    @DisplayName("CP-LCT-177: sin pestaña, o con una desconocida, el Detalle del lote abre Etapas")
+    void informacion_pestanaInvalidaAbreEtapas() throws Exception {
+        // Act
+        String sinPestana = informacionHtml(Rol.GERENTE_DE_PRODUCCION);
+        String invalida = informacionHtml(Rol.GERENTE_DE_PRODUCCION, "inexistente");
+
+        // Assert
+        for (String html : List.of(sinPestana, invalida)) {
+            assertThat(html).contains("data-seccion-etapas").doesNotContain("data-seccion-costos").doesNotContain("data-seccion-consumos");
+            assertThat(elementoConAtributo(bloque(html, "data-pestanas-lote"), "a", "data-pestana-etapas")).contains("aria-current=\"page\"");
+        }
+        verifyNoInteractions(costoProduccionLoteServicio);
     }
 
     @Test
@@ -3553,6 +3615,11 @@ class LoteControllerTest {
         // Act + Assert
         mockMvc.perform(get(URL + "/99/detalle").with(como(Rol.GERENTE_DE_PRODUCCION)))
                 .andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    private String informacionHtml(Rol rol, String pestana) throws Exception {
+        return mockMvc.perform(get(URL + "/12/detalle").param("pestana", pestana).with(como(rol))).andExpect(status().isOk()).andExpect(view().name("lote/lote-informacion"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     private String informacionHtml(Rol rol) throws Exception {

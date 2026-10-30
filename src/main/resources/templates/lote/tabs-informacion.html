@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!-- Pestañas del Detalle del lote (componente fragments/pestanas): cada una es la misma URL con ?pestana=<clave>. activa = 'etapas' | 'consumos' | 'reservas' | 'envasados' | 'costos' -->
+<th:block th:fragment="tabs(activa, idLote)">
+    <th:block th:replace="~{fragments/pestanas :: pestanas('Información del lote', 'lote', ~{::enlaces})}">
+        <th:block th:fragment="enlaces">
+            <a th:replace="~{fragments/pestanas :: pestana(@{/lotes/{id}/detalle(id=${idLote}, pestana='etapas')}, ${activa == 'etapas'}, 'etapas', ~{fragments/pestanas :: bi('bi-diagram-3')}, 'Etapas')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/lotes/{id}/detalle(id=${idLote}, pestana='consumos')}, ${activa == 'consumos'}, 'consumos', ~{fragments/pestanas :: bi('bi-basket')}, 'Consumos')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/lotes/{id}/detalle(id=${idLote}, pestana='reservas')}, ${activa == 'reservas'}, 'reservas', ~{fragments/pestanas :: bi('bi-bookmark-check')}, 'Reservas')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/lotes/{id}/detalle(id=${idLote}, pestana='envasados')}, ${activa == 'envasados'}, 'envasados', ~{fragments/pestanas :: bi('bi-box-seam')}, 'Envasados')}"></a>
+            <a th:replace="~{fragments/pestanas :: pestana(@{/lotes/{id}/detalle(id=${idLote}, pestana='costos')}, ${activa == 'costos'}, 'costos', ~{fragments/pestanas :: bi('bi-cash-coin')}, 'Costos')}"></a>
+        </th:block>
+    </th:block>
+</th:block>
+
+</html>
