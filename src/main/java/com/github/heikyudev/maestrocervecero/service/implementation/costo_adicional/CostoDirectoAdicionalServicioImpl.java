@@ -79,7 +79,8 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
      * @param costoDirectoAdicionalFormDTO Los datos del costo directo adicional a registrar.
      * @return El costo directo adicional registrado.
      * @throws RecursoDuplicadoException Si ya existe un costo directo adicional activo con el mismo nombre (case-insensitive).
-     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el costo por litro es nulo o menor o igual a cero.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el costo por litro no fue informado, es menor
+     *                               o igual a cero, supera el máximo o tiene más de 4 decimales.
      */
     @Override
     @Transactional
@@ -91,13 +92,13 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
 
-        // 3. Validar que no exista otro costo directo adicional con el mismo nombre (case-insensitive)
+        // 3. Validar el costo por litro: informado, mayor a cero, con tope máximo y con a lo sumo 4 decimales
+        validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
+
+        // 4. Validar que no exista otro costo directo adicional activo con el mismo nombre (case-insensitive)
         if (costoDirectoAdicionalRepository.existsByNombreIgnoreCase(nombre)) {
             throw nombreDuplicado(nombre);
         }
-
-        // 4. Validar que el costo por litro sea mayor a cero
-        validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
         // 5. Construir la entidad que se va a almacenar en la base de datos
         CostoDirectoAdicionalEntity costoDirectoAdicionalEntity = CostoDirectoAdicionalEntity.builder()
@@ -120,7 +121,8 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
      * @return El costo directo adicional modificado.
      * @throws RecursoNoEncontradoException Si no existe un costo directo adicional activo con el ID especificado.
      * @throws RecursoDuplicadoException Si el nuevo nombre ya pertenece a otro costo directo adicional activo (case-insensitive).
-     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el costo por litro es nulo o menor o igual a cero.
+     * @throws ReglaNegocioException Si el nombre falta o supera los 100 caracteres, o si el costo por litro no fue informado, es menor
+     *                               o igual a cero, supera el máximo o tiene más de 4 decimales.
      */
     @Override
     @Transactional
@@ -132,17 +134,17 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
         // 2. Validar que el nombre sea obligatorio y no supere la longitud máxima
         validarNombre(nombre);
 
-        // 3. Localizar el costo directo adicional existente. Si no existe, se dispara RecursoNoEncontradoException
+        // 3. Validar el costo por litro: informado, mayor a cero, con tope máximo y con a lo sumo 4 decimales
+        validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
+
+        // 4. Localizar el costo directo adicional existente. Si no existe, se dispara RecursoNoEncontradoException
         CostoDirectoAdicionalEntity costoDirectoAdicionalEntity = costoDirectoAdicionalRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el costo directo adicional con ID: " + id));
 
-        // 4. Validar que no exista otro costo directo adicional con el mismo nombre, excluyendo el propio ID
+        // 5. Validar que no exista otro costo directo adicional activo con el mismo nombre, excluyendo el propio ID
         if (costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot(nombre, id)) {
             throw nombreDuplicado(nombre);
         }
-
-        // 5. Validar que el costo por litro sea mayor a cero
-        validarCostoPorLitro(costoDirectoAdicionalFormDTO.getCostoPorLitro());
 
         // 6. Recién si todas las validaciones pasaron, aplicar los cambios sobre la entidad
         costoDirectoAdicionalEntity.setNombre(nombre);
@@ -183,14 +185,27 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
     }
 
     /**
-     * Valida la regla de negocio del costo por litro.
+     * Valida el costo por litro: informado, mayor a cero, que no supere
+     * {@link LimitesTecnicos#COSTO_DIRECTO_ADICIONAL_MAXIMO_POR_LITRO} y con no más de
+     * {@link LimitesTecnicos#ESCALA_COSTO_UNITARIO} decimales.
      *
      * @param costoPorLitro Costo por litro a validar.
-     * @throws ReglaNegocioException Si el costo por litro es nulo o menor o igual a cero.
+     * @throws ReglaNegocioException Si el costo no fue informado, es menor o igual a cero, supera el máximo o tiene más decimales que la escala.
      */
     private static void validarCostoPorLitro(BigDecimal costoPorLitro) {
-        if (costoPorLitro == null || costoPorLitro.signum() <= 0) {
-            throw new ReglaNegocioException("El costo por litro debe ser mayor a cero");
+        if (costoPorLitro == null) {
+            throw new ReglaNegocioException("El costo por litro es obligatorio", "costoPorLitro");
+        }
+        if (costoPorLitro.signum() <= 0) {
+            throw new ReglaNegocioException("El costo por litro debe ser mayor a cero", "costoPorLitro");
+        }
+        if (costoPorLitro.compareTo(BigDecimal.valueOf(LimitesTecnicos.COSTO_DIRECTO_ADICIONAL_MAXIMO_POR_LITRO)) > 0) {
+            throw new ReglaNegocioException("El costo por litro no puede superar "
+                    + ValidacionesNumericas.formatearNumero(LimitesTecnicos.COSTO_DIRECTO_ADICIONAL_MAXIMO_POR_LITRO), "costoPorLitro");
+        }
+        if (costoPorLitro.stripTrailingZeros().scale() > LimitesTecnicos.ESCALA_COSTO_UNITARIO) {
+            throw new ReglaNegocioException("El costo por litro no puede tener más de "
+                    + LimitesTecnicos.ESCALA_COSTO_UNITARIO + " decimales", "costoPorLitro");
         }
     }
 
@@ -202,9 +217,9 @@ public class CostoDirectoAdicionalServicioImpl implements ICostoDirectoAdicional
      */
     private static void validarNombre(String nombre) {
         if (nombre == null || nombre.isEmpty()) {
-            throw new ReglaNegocioException("El nombre es obligatorio");
+            throw new ReglaNegocioException("El nombre es obligatorio", "nombre");
         }
-        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre");
+        ValidacionesNumericas.validarLongitudMaxima(nombre, LimitesTecnicos.LONGITUD_MAXIMA_NOMBRE, "El nombre", "nombre");
     }
 
     private static RecursoDuplicadoException nombreDuplicado(String nombre) {

@@ -191,11 +191,10 @@ class CostoDirectoAdicionalServicioImplTest {
     @DisplayName("CP-ACD-03: altaCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro es nulo")
     void altaCostoDirectoAdicional_debeRechazarCostoPorLitroNulo() {
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Gas natural", null);
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Gas natural")).thenReturn(false);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro es obligatorio");
 
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }
@@ -204,7 +203,6 @@ class CostoDirectoAdicionalServicioImplTest {
     @DisplayName("CP-ACD-04: altaCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro es cero (límite)")
     void altaCostoDirectoAdicional_debeRechazarCostoPorLitroEnCero() {
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Gas natural", BigDecimal.ZERO);
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Gas natural")).thenReturn(false);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -217,7 +215,6 @@ class CostoDirectoAdicionalServicioImplTest {
     @DisplayName("CP-ACD-05: altaCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro es negativo")
     void altaCostoDirectoAdicional_debeRechazarCostoPorLitroNegativo() {
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Gas natural", new BigDecimal("-0.01"));
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Gas natural")).thenReturn(false);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -227,15 +224,15 @@ class CostoDirectoAdicionalServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-ACD-06: altaCostoDirectoAdicional valida el nombre duplicado antes que el costo por litro")
-    void altaCostoDirectoAdicional_debeValidarDuplicadoAntesQueCosto() {
+    @DisplayName("CP-ACD-06: altaCostoDirectoAdicional valida el costo por litro antes de consultar si el nombre está duplicado")
+    void altaCostoDirectoAdicional_debeValidarCostoAntesQueDuplicado() {
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Energía eléctrica", BigDecimal.ZERO);
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Energía eléctrica")).thenReturn(true);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
-                .isInstanceOf(RecursoDuplicadoException.class)
-                .hasMessage("Ya existe un costo directo adicional con el nombre 'Energía eléctrica'");
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo por litro debe ser mayor a cero");
 
+        verify(costoDirectoAdicionalRepository, never()).existsByNombreIgnoreCase(any());
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }
 
@@ -346,14 +343,11 @@ class CostoDirectoAdicionalServicioImplTest {
     @Test
     @DisplayName("CP-MCD-04: modificarCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro es nulo")
     void modificarCostoDirectoAdicional_debeRechazarCostoPorLitroNulo() {
-        CostoDirectoAdicionalEntity costoEntity = crearCostoDirectoAdicionalEntity(1L, "Energía eléctrica", new BigDecimal("5.00"));
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Energía eléctrica", null);
-        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(costoEntity));
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("Energía eléctrica", 1L)).thenReturn(false);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El costo por litro debe ser mayor a cero");
+                .hasMessage("El costo por litro es obligatorio");
 
         verify(costoDirectoAdicionalRepository, never()).save(any());
     }
@@ -361,10 +355,7 @@ class CostoDirectoAdicionalServicioImplTest {
     @Test
     @DisplayName("CP-MCD-05: modificarCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro es cero (límite)")
     void modificarCostoDirectoAdicional_debeRechazarCostoPorLitroEnCero() {
-        CostoDirectoAdicionalEntity costoEntity = crearCostoDirectoAdicionalEntity(1L, "Energía eléctrica", new BigDecimal("5.00"));
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Energía eléctrica", BigDecimal.ZERO);
-        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(costoEntity));
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("Energía eléctrica", 1L)).thenReturn(false);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -376,10 +367,7 @@ class CostoDirectoAdicionalServicioImplTest {
     @Test
     @DisplayName("CP-MCD-06: modificarCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro es negativo")
     void modificarCostoDirectoAdicional_debeRechazarCostoPorLitroNegativo() {
-        CostoDirectoAdicionalEntity costoEntity = crearCostoDirectoAdicionalEntity(1L, "Energía eléctrica", new BigDecimal("5.00"));
         CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Energía eléctrica", new BigDecimal("-0.01"));
-        when(costoDirectoAdicionalRepository.findById(1L)).thenReturn(Optional.of(costoEntity));
-        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCaseAndIdNot("Energía eléctrica", 1L)).thenReturn(false);
 
         assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -415,6 +403,71 @@ class CostoDirectoAdicionalServicioImplTest {
     }
 
     // ==================== bajaCostoDirectoAdicional ====================
+
+    @Test
+    @DisplayName("CP-ACD-15: altaCostoDirectoAdicional lanza ReglaNegocioException indicando el campo cuando el costo por litro supera el máximo")
+    void altaCostoDirectoAdicional_debeRechazarCostoPorLitroSobreElMaximo() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Gas natural", new BigDecimal("1000000.0001"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo por litro no puede superar 1.000.000")
+                .extracting(e -> ((ReglaNegocioException) e).getCampo()).isEqualTo("costoPorLitro");
+
+        verify(costoDirectoAdicionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ACD-16: altaCostoDirectoAdicional acepta el costo por litro en el máximo (límite)")
+    void altaCostoDirectoAdicional_debeAceptarCostoPorLitroEnElMaximo() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Gas natural", new BigDecimal("1000000"));
+        when(costoDirectoAdicionalRepository.existsByNombreIgnoreCase("Gas natural")).thenReturn(false);
+        when(costoDirectoAdicionalRepository.save(any(CostoDirectoAdicionalEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO);
+
+        verify(costoDirectoAdicionalRepository).save(any(CostoDirectoAdicionalEntity.class));
+    }
+
+    @Test
+    @DisplayName("CP-ACD-17: altaCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro tiene más de 4 decimales")
+    void altaCostoDirectoAdicional_debeRechazarCostoPorLitroConMasDeCuatroDecimales() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("Gas natural", new BigDecimal("1.00001"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El costo por litro no puede tener más de 4 decimales");
+
+        verify(costoDirectoAdicionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-MCD-13: modificarCostoDirectoAdicional lanza ReglaNegocioException cuando el costo por litro supera el máximo o tiene más de 4 decimales")
+    void modificarCostoDirectoAdicional_debeRechazarCostoPorLitroInvalido() {
+        CostoDirectoAdicionalFormDTO sobreElMaximo = costoDirectoAdicionalFormDTO("Energía eléctrica", new BigDecimal("1000001"));
+        CostoDirectoAdicionalFormDTO conDecimales = costoDirectoAdicionalFormDTO("Energía eléctrica", new BigDecimal("2.12345"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, sobreElMaximo))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El costo por litro no puede superar 1.000.000");
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(1L, conDecimales))
+                .isInstanceOf(ReglaNegocioException.class).hasMessage("El costo por litro no puede tener más de 4 decimales");
+
+        verify(costoDirectoAdicionalRepository, never()).findById(any());
+        verify(costoDirectoAdicionalRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ACD-18: altaCostoDirectoAdicional lanza ReglaNegocioException indicando el campo cuando el nombre supera los 100 caracteres")
+    void altaCostoDirectoAdicional_debeRechazarNombreMuyLargo() {
+        CostoDirectoAdicionalFormDTO formDTO = costoDirectoAdicionalFormDTO("a".repeat(101), new BigDecimal("1.50"));
+
+        assertThatThrownBy(() -> costoDirectoAdicionalServicio.altaCostoDirectoAdicional(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El nombre no puede superar 100 caracteres")
+                .extracting(e -> ((ReglaNegocioException) e).getCampo()).isEqualTo("nombre");
+
+        verify(costoDirectoAdicionalRepository, never()).save(any());
+    }
 
     @Test
     @DisplayName("CP-BCD-01: bajaCostoDirectoAdicional lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")

@@ -117,6 +117,9 @@ public final class LimitesTecnicos {
     /** Cantidad máxima de decimales del costo unitario de un ítem de una orden de compra (la escala de la columna de la base de datos). */
     public static final int ESCALA_COSTO_UNITARIO = 4;
 
+    /** Costo máximo por litro de un costo directo adicional ($ por litro). */
+    public static final double COSTO_DIRECTO_ADICIONAL_MAXIMO_POR_LITRO = 1_000_000.0;
+
     /** Cantidad máxima que se puede recibir en un solo ingreso de insumo, en la unidad de medida del insumo. */
     public static final double CANTIDAD_INGRESO_MAXIMA = 1_000_000.0;
 
