@@ -25,6 +25,10 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMo
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOllaHervorServicio;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ReservaInsumoResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ICostoProduccionLoteServicio;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.CostoAdicionalLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.CostoInsumoLoteResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.lote.CostoProduccionLoteResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IReservaInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IEnvasadoLoteServicio;
@@ -84,6 +88,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.util.HtmlUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -134,6 +139,9 @@ class LoteControllerTest {
 
     @MockitoBean
     private IReservaInsumoServicio reservaInsumoServicio;
+
+    @MockitoBean
+    private ICostoProduccionLoteServicio costoProduccionLoteServicio;
 
     @MockitoBean
     private IEnvasadoLoteServicio envasadoLoteServicio;
@@ -2994,7 +3002,7 @@ class LoteControllerTest {
             }
 
             // Act + Assert: con todos los demás permisos de lotes, consumos y envasados es rechazado
-            org.mockito.Mockito.clearInvocations(loteServicio, consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
+            org.mockito.Mockito.clearInvocations(loteServicio, consumoInsumoServicio, reservaInsumoServicio, costoProduccionLoteServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
                     ollaHervorServicio, fermentadorServicio, recetaServicio);
             Permiso[] otros = permisosDeLotes.stream().filter(p -> p != endpoint.permiso()).toArray(Permiso[]::new);
             assertRechazado(mockMvc.perform(endpoint.peticion().get().with(conPermisos(otros)).with(csrf())));
@@ -3044,7 +3052,7 @@ class LoteControllerTest {
     }
 
     private void verifyNingunService() {
-        verifyNoInteractions(loteServicio, consumoInsumoServicio, reservaInsumoServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
+        verifyNoInteractions(loteServicio, consumoInsumoServicio, reservaInsumoServicio, costoProduccionLoteServicio, envasadoLoteServicio, planificacionServicio, molinoServicio, maceradorServicio,
                 ollaHervorServicio, fermentadorServicio, recetaServicio);
     }
 
@@ -3336,6 +3344,97 @@ class LoteControllerTest {
         assertThat(bloque(envasado, "data-registros-etapa")).contains("data-ir-envasados").contains("href=\"/lotes/12/envasados\"").contains("Gestionar envasados");
         assertThat(envasado).doesNotContain("Nuevo envasado");
         assertThat(bloque(hervido, "data-insumos-etapa")).contains("data-ir-consumos").contains("data-abrir-dialogo=\"dialogo-reservas-etapa\"");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-164: el GERENTE_DE_PRODUCCION ve la tarjeta Costo de producción de un lote con envasado finalizado: insumos con su costo promedio por unidad, costos adicionales, litros envasados, costo total y costo por litro")
+    void detalle_costoDeProduccionDeUnLoteFinalizado() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.FINALIZADO, null, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA,
+                EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.FINALIZADA)).build());
+        when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.FINALIZADO)
+                .insumos(List.of(CostoInsumoLoteResponseDTO.builder().nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).cantidadConsumida(20.0)
+                        .costoPromedioPorUnidad(new BigDecimal("5.0500")).subtotal(new BigDecimal("101.0000")).build()))
+                .totalInsumos(new BigDecimal("101.0000"))
+                .adicionales(List.of(CostoAdicionalLoteResponseDTO.builder().nombre("Gas butano").costoPorLitroAplicado(new BigDecimal("15.0000")).subtotal(new BigDecimal("600.0000")).build()))
+                .totalAdicionales(new BigDecimal("600.0000")).envasadoFinalizado(true).litrosEnvasados(40.0)
+                .costoTotal(new BigDecimal("701.0000")).costoPorLitro(new BigDecimal("17.5250")).build());
+
+        // Act
+        String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, "envasado");
+
+        // Assert
+        String tarjeta = bloque(html, "data-costo-produccion");
+        assertThat(texto(tarjeta)).contains("Costo de producción").contains("Insumo Cantidad consumida Costo promedio por unidad ($) Subtotal ($)")
+                .contains("Pilsen 20 kg 5,05 / kg 101,00").contains("Total de insumos 101,00")
+                .contains("Costo adicional Costo por litro ($ por litro) Subtotal ($)").contains("Gas butano 15,00 600,00").contains("Total de costos adicionales 600,00")
+                .contains("Litros envasados 40 L").contains("Costo total ($) 701,00").contains("Costo por litro envasado ($ por litro) 17,525");
+        assertThat(tarjeta).doesNotContain("data-costo-nota");
+        assertThat(html.indexOf("data-costo-produccion")).isGreaterThan(html.indexOf("data-etapa-panel"));
+    }
+
+    @Test
+    @DisplayName("CP-LCT-165: en un lote en curso la tarjeta muestra solo el costo acumulado de insumos con la nota de que los costos adicionales se suman al finalizar el envasado, y sin total ni costo por litro")
+    void detalle_costoAcumuladoDeUnLoteEnCurso() throws Exception {
+        // Arrange
+        when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.EN_EJECUCION)
+                .insumos(List.of(CostoInsumoLoteResponseDTO.builder().nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).cantidadConsumida(4.0)
+                        .costoPromedioPorUnidad(new BigDecimal("5.0000")).subtotal(new BigDecimal("20.0000")).build()))
+                .totalInsumos(new BigDecimal("20.0000")).build());
+
+        // Act
+        String tarjeta = bloque(detalleHtml(Rol.GERENTE_DE_PRODUCCION, "hervido"), "data-costo-produccion");
+
+        // Assert
+        assertThat(texto(tarjeta)).contains("Costo acumulado de insumos 20,00").contains("Los costos adicionales se suman al finalizar el envasado")
+                .doesNotContain("Costo total").doesNotContain("Costo por litro envasado").doesNotContain("Total de insumos");
+        assertThat(tarjeta).contains("data-costo-nota").doesNotContain("data-costo-totales").doesNotContain("data-costo-adicionales");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-166: un lote cancelado muestra el costo de los insumos que alcanzó a consumir, sin la nota de finalización ni los totales")
+    void detalle_costoDeUnLoteCancelado() throws Exception {
+        // Arrange
+        stubDetalle(detalle(EstadoLote.CANCELADO, null, etapas(EstadoEtapaLote.FINALIZADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA,
+                EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA, EstadoEtapaLote.CANCELADA)).build());
+        when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.CANCELADO)
+                .insumos(List.of(CostoInsumoLoteResponseDTO.builder().nombre("Pilsen").unidadDeMedida(UnidadDeMedida.KILOGRAMO).cantidadConsumida(4.0)
+                        .costoPromedioPorUnidad(new BigDecimal("5.0000")).subtotal(new BigDecimal("20.0000")).build()))
+                .totalInsumos(new BigDecimal("20.0000")).build());
+
+        // Act
+        String tarjeta = bloque(detalleHtml(Rol.GERENTE_DE_PRODUCCION, "molienda"), "data-costo-produccion");
+
+        // Assert
+        assertThat(texto(tarjeta)).contains("Pilsen 4 kg 5,00 / kg 20,00").doesNotContain("Los costos adicionales se suman");
+        assertThat(tarjeta).doesNotContain("data-costo-totales").doesNotContain("data-costo-nota");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-167: sin consumos ni costos la tarjeta no se muestra")
+    void detalle_sinDatosDeCostoNoOcupaLugar() throws Exception {
+        // Arrange
+        when(costoProduccionLoteServicio.calcularCostoProduccion(12L)).thenReturn(CostoProduccionLoteResponseDTO.builder().estadoLote(EstadoLote.EN_EJECUCION).build());
+
+        // Act
+        String html = detalleHtml(Rol.GERENTE_DE_PRODUCCION, "hervido");
+
+        // Assert
+        assertThat(html).doesNotContain("data-costo-produccion").doesNotContain("Costo de producción");
+    }
+
+    @Test
+    @DisplayName("CP-LCT-168: los demás roles no ven la tarjeta de costo y el cálculo ni siquiera se hace")
+    void detalle_losDemasRolesNoVenElCosto() throws Exception {
+        // Arrange
+        String operario = detalleHtml(Rol.OPERARIO_DE_PRODUCCION, "hervido");
+        String soloConsultar = detalleHtml(conPermisos(Permiso.LOTE_CONSULTAR), "hervido");
+
+        // Assert
+        for (String html : List.of(operario, soloConsultar)) {
+            assertThat(html).doesNotContain("data-costo-produccion").doesNotContain("Costo de producción");
+        }
+        verifyNoInteractions(costoProduccionLoteServicio);
     }
 
     private static LupuloResponseDTO cascade() {

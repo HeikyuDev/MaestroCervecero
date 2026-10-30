@@ -18,6 +18,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -59,6 +63,68 @@ class CostoDirectoAdicionalControllerTest {
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
 
+    // ==================== GET (lista) ====================
+
+    @Test
+    @DisplayName("CP-CDC-16: el GERENTE_DE_PRODUCCION ve la pestaña Costos directos adicionales con el botón de alta a la derecha del encabezado, los costos en orden alfabético con el importe formateado y las acciones de editar y dar de baja")
+    void lista_debeMostrarLosCostos() throws Exception {
+        // Arrange
+        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(
+                respuesta(5L, "Gas butano", "12.5000"), respuesta(6L, "Dióxido de carbono", "1234.5")), PageRequest.of(0, 20), 2));
+
+        // Act
+        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("configuracion/costos-directos-lista"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(html).contains("<title>Configuración de producción - Maestro Cervecero</title>").contains("data-costos-directos").contains("href=\"" + URL + "/nuevo\"")
+                .contains("Nuevo costo directo adicional").contains(">12,50<").contains(">1.234,50<").contains("Costo por litro ($ por litro)")
+                .contains("href=\"" + URL + "/5/editar\"").contains("data-baja-url=\"" + URL + "/6/baja\"").contains("data-baja-nombre=\"Gas butano\"")
+                .contains("class=\"col-acciones px-4 py-3 text-right\">Acciones");
+        assertThat(html).containsPattern("(?s)data-pestana-costos[^>]*aria-current=\"page\"").contains("data-pestana-parametros").contains("bi-cash-coin").contains("bi-sliders");
+        assertThat(html).containsPattern("(?s)<dialog id=\"dialogo-baja\".*name=\"_csrf\".*</dialog>");
+        assertThat(html.indexOf("data-nuevo-costo-directo")).isLessThan(html.indexOf("data-pestanas-configuracion"));
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(costoDirectoAdicionalServicio).filtrarCostosDirectosAdicionales(org.mockito.ArgumentMatchers.isNull(), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(20);
+        assertThat(captor.getValue().getSort().stream().map(Sort.Order::getProperty).toList()).containsExactly("nombre", "id");
+    }
+
+    @Test
+    @DisplayName("CP-CDC-17: sin costos la lista lo informa; sin permisos de modificar, dar de baja o crear no se muestran esas acciones; sin consultar, la lista es rechazada")
+    void lista_sinCostosOSinPermisos() throws Exception {
+        // Arrange
+        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(respuesta(5L, "Gas", "1")), PageRequest.of(0, 20), 1));
+        RequestPostProcessor soloConsultar = user("c").authorities(new SimpleGrantedAuthority("ROLE_GERENTE_DE_PRODUCCION"), new SimpleGrantedAuthority("COSTO_DIRECTO_ADICIONAL_CONSULTAR"));
+
+        // Act
+        String consulta = mockMvc.perform(get(URL).with(soloConsultar)).andReturn().getResponse().getContentAsString();
+        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        String vacia = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andReturn().getResponse().getContentAsString();
+
+        // Assert
+        assertThat(consulta).doesNotContain("Nuevo costo directo adicional").doesNotContain("/editar").doesNotContain("data-baja-url").doesNotContain("dialogo-baja");
+        assertThat(vacia).contains("No hay costos directos adicionales registrados");
+        mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().is3xxRedirection()).andExpect(flash().attribute("tipo", "danger"));
+    }
+
+    @Test
+    @DisplayName("CP-CDC-18: la lista pide la página indicada")
+    void lista_debePedirLaPagina() throws Exception {
+        // Arrange
+        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 20), 25));
+
+        // Act
+        mockMvc.perform(get(URL).param("pagina", "1").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk());
+
+        // Assert
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(costoDirectoAdicionalServicio).filtrarCostosDirectosAdicionales(any(), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isEqualTo(1);
+    }
+
     // ==================== GET /nuevo ====================
 
     @Test
@@ -74,7 +140,7 @@ class CostoDirectoAdicionalControllerTest {
         assertThat(html).contains("Nuevo costo directo adicional").contains("action=\"" + URL + "\"").contains("novalidate")
                 .contains("placeholder=\"Ej: Gas butano, Dióxido de carbono\"").contains("placeholder=\"Ej: 12,50\"")
                 .contains("$ por litro").contains("data-grupo-unidad").contains("Crear costo directo adicional")
-                .contains("href=\"/configuracion-produccion\"").contains("Volver a Configuración de Producción");
+                .contains("href=\"" + URL + "\"").contains("Volver a costos directos adicionales");
         assertThat(html.split(java.util.regex.Pattern.quote(OBLIGATORIO), -1)).hasSize(3);
     }
 
@@ -90,7 +156,7 @@ class CostoDirectoAdicionalControllerTest {
     // ==================== POST (alta) ====================
 
     @Test
-    @DisplayName("CP-CDC-03: el alta válida llega al service con el nombre y el costo y vuelve a Configuración de Producción con el mensaje de éxito")
+    @DisplayName("CP-CDC-03: el alta válida llega al service con el nombre y el costo y vuelve a la pestaña de costos con el mensaje de éxito")
     void alta_debeRegistrarYVolverALaConfiguracion() throws Exception {
         // Arrange
         when(costoDirectoAdicionalServicio.altaCostoDirectoAdicional(any())).thenReturn(respuesta(5L, "Gas butano", "12.5000"));
@@ -98,7 +164,7 @@ class CostoDirectoAdicionalControllerTest {
         // Act + Assert
         mockMvc.perform(post(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).param("nombre", "Gas butano").param("costoPorLitro", "12.5"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/configuracion-produccion"))
+                .andExpect(redirectedUrl(URL))
                 .andExpect(flash().attribute("mensaje", "Costo directo adicional creado correctamente"))
                 .andExpect(flash().attribute("tipo", "success"));
 
@@ -210,7 +276,7 @@ class CostoDirectoAdicionalControllerTest {
     // ==================== POST /{id} ====================
 
     @Test
-    @DisplayName("CP-CDC-11: la modificación válida llega al service con el id y vuelve a Configuración de Producción con el mensaje de éxito")
+    @DisplayName("CP-CDC-11: la modificación válida llega al service con el id y vuelve a la pestaña de costos con el mensaje de éxito")
     void modificacion_debeActualizarYVolverALaConfiguracion() throws Exception {
         // Arrange
         when(costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(eq(5L), any())).thenReturn(respuesta(5L, "Gas butano", "15"));
@@ -218,7 +284,7 @@ class CostoDirectoAdicionalControllerTest {
         // Act + Assert
         mockMvc.perform(post(URL + "/5").with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).param("nombre", "Gas butano").param("costoPorLitro", "15"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/configuracion-produccion"))
+                .andExpect(redirectedUrl(URL))
                 .andExpect(flash().attribute("mensaje", "Costo directo adicional modificado correctamente"));
         verify(costoDirectoAdicionalServicio).modificarCostoDirectoAdicional(eq(5L), any());
     }
@@ -244,12 +310,12 @@ class CostoDirectoAdicionalControllerTest {
     // ==================== POST /{id}/baja ====================
 
     @Test
-    @DisplayName("CP-CDC-13: la baja llama al service y vuelve a Configuración de Producción con el mensaje de éxito")
+    @DisplayName("CP-CDC-13: la baja llama al service y vuelve a la pestaña de costos con el mensaje de éxito")
     void baja_debeDarDeBajaYVolver() throws Exception {
         // Act + Assert
         mockMvc.perform(post(URL + "/5/baja").with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/configuracion-produccion"))
+                .andExpect(redirectedUrl(URL))
                 .andExpect(flash().attribute("mensaje", "Costo directo adicional dado de baja correctamente"));
         verify(costoDirectoAdicionalServicio).bajaCostoDirectoAdicional(5L);
     }

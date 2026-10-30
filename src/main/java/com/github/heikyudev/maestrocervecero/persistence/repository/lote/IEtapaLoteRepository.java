@@ -76,6 +76,9 @@ public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Lon
      * @param idEtapaLote El ID de la etapa de lote.
      * @return El ID del lote, o vacío si la etapa no existe.
      */
+    @Query("SELECT e FROM EtapaLoteEntity e WHERE e.lote.id = :idLote AND e.etapa = com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa.ENVASADO")
+    Optional<EtapaLoteEntity> buscarEtapaDeEnvasadoDelLote(@Param("idLote") Long idLote);
+
     @Query("SELECT e.lote.id FROM EtapaLoteEntity e WHERE e.id = :idEtapaLote")
     Optional<Long> buscarIdLoteDeLaEtapa(@Param("idEtapaLote") Long idEtapaLote);
 }

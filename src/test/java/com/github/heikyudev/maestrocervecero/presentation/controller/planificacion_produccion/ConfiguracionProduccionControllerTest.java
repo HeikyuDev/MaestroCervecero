@@ -9,16 +9,10 @@ import com.github.heikyudev.maestrocervecero.presentation.form_dto.planificacion
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioException;
 import com.github.heikyudev.maestrocervecero.service.implementation.usuario.UserDetailServiceImpl;
-import com.github.heikyudev.maestrocervecero.service.interfaces.costo_adicional.ICostoDirectoAdicionalServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.planificacion_produccion.IConfiguracionProduccionServicio;
-import com.github.heikyudev.maestrocervecero.service.response_dto.costo_adicional.CostoDirectoAdicionalResponseDTO;
 import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Rol;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import com.github.heikyudev.maestrocervecero.service.response_dto.planificacion_produccion.ConfiguracionProduccionResponseDTO;
@@ -67,9 +61,6 @@ class ConfiguracionProduccionControllerTest {
 
     @MockitoBean
     private IConfiguracionProduccionServicio configuracionServicio;
-
-    @MockitoBean
-    private ICostoDirectoAdicionalServicio costoDirectoAdicionalServicio;
 
     @MockitoBean
     private UserDetailServiceImpl userDetailService;
@@ -365,67 +356,54 @@ class ConfiguracionProduccionControllerTest {
                 .build();
     }
 
-    // ==================== Sección "Costos directos adicionales" ====================
+    // ==================== Pestañas de Configuración de Producción ====================
 
     @Test
-    @DisplayName("CP-CPC-16: el GERENTE_DE_PRODUCCION ve la sección Costos directos adicionales con el botón de alta, los costos en orden alfabético con el importe formateado y las acciones de editar y dar de baja")
-    void seccionDeCostosDirectos_debeMostrarLaLista() throws Exception {
+    @DisplayName("CP-CPC-16: la pantalla muestra las pestañas Parámetros de producción (activa) y Costos directos adicionales, cada una con su ícono y su propia ruta")
+    void pestanas_debenMostrarseConLaDeParametrosActiva() throws Exception {
         // Arrange
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
-        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(
-                costo(5L, "Gas butano", "12.5000"), costo(6L, "Dióxido de carbono", "1234.5")), PageRequest.of(0, 20), 2));
 
         // Act
-        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        String html = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(html).contains("data-costos-directos").contains("Costos directos adicionales").contains("href=\"/configuracion-produccion/costos-directos-adicionales/nuevo\"")
-                .contains("Nuevo costo directo adicional").contains(">12,50<").contains(">1.234,50<").contains("Costo por litro ($ por litro)")
-                .contains("href=\"/configuracion-produccion/costos-directos-adicionales/5/editar\"")
-                .contains("data-baja-url=\"/configuracion-produccion/costos-directos-adicionales/6/baja\"").contains("data-baja-nombre=\"Gas butano\"")
-                .contains("class=\"col-acciones px-4 py-3 text-right\">Acciones");
-        assertThat(html).containsPattern("(?s)<dialog id=\"dialogo-baja\".*name=\"_csrf\".*</dialog>");
-        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(costoDirectoAdicionalServicio).filtrarCostosDirectosAdicionales(org.mockito.ArgumentMatchers.isNull(), captor.capture());
-        assertThat(captor.getValue().getPageSize()).isEqualTo(20);
-        assertThat(captor.getValue().getSort().stream().map(org.springframework.data.domain.Sort.Order::getProperty).toList()).containsExactly("nombre", "id");
+        assertThat(html).contains("data-pestanas-configuracion").contains("aria-label=\"Configuración de Producción\"")
+                .contains("href=\"/configuracion-produccion\"").contains("data-pestana-parametros").contains("bi-sliders").contains("Parámetros de producción")
+                .contains("href=\"/configuracion-produccion/costos-directos-adicionales\"").contains("data-pestana-costos").contains("bi-cash-coin")
+                .contains("Costos directos adicionales");
+        assertThat(html).containsPattern("(?s)data-pestana-parametros[^>]*aria-current=\"page\"");
+        assertThat(html).doesNotContain("data-costos-directos").doesNotContain("Nuevo costo directo adicional");
+        assertThat(html).containsPattern("Guardar configuración");
     }
 
     @Test
-    @DisplayName("CP-CPC-17: sin costos la sección lo informa, y sin los permisos de costos la sección no se muestra")
-    void seccionDeCostosDirectos_sinCostosOSinPermisos() throws Exception {
+    @DisplayName("CP-CPC-17: sin el permiso de consultar costos la pantalla no muestra la pestaña de costos, y el formulario sigue siendo un único guardado")
+    void pestanas_sinPermisoDeCostos_noMuestraLaPestanaDeCostos() throws Exception {
         // Arrange
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
-        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         // Act
-        String vacia = mockMvc.perform(get(URL).with(como(Rol.GERENTE_DE_PRODUCCION))).andReturn().getResponse().getContentAsString();
-        String sinPermisos = mockMvc.perform(get(URL).with(user("gp").authorities(new SimpleGrantedAuthority("ROLE_GERENTE_DE_PRODUCCION"))))
+        String html = mockMvc.perform(get(URL).with(user("gp").authorities(new SimpleGrantedAuthority("ROLE_GERENTE_DE_PRODUCCION"))))
                 .andReturn().getResponse().getContentAsString();
 
         // Assert
-        assertThat(vacia).contains("No hay costos directos adicionales registrados");
-        assertThat(sinPermisos).doesNotContain("data-costos-directos").doesNotContain("Nuevo costo directo adicional").doesNotContain("dialogo-baja");
+        assertThat(html).contains("data-pestana-parametros").doesNotContain("data-pestana-costos");
+        assertThat(html.split("Guardar configuración", -1)).hasSize(2);
+        assertThat(html.split("<form", -1).length - 1).isGreaterThanOrEqualTo(1);
     }
 
     @Test
-    @DisplayName("CP-CPC-18: la lista de costos pide la página indicada y, con la configuración rechazada, la pantalla vuelve con la sección cargada")
-    void seccionDeCostosDirectos_debePedirLaPaginaYVolverCargadaConErrores() throws Exception {
+    @DisplayName("CP-CPC-18: al volver con errores la pantalla mantiene las pestañas y la de parámetros activa")
+    void pestanas_alVolverConErrores_semantienen() throws Exception {
         // Arrange
         when(configuracionServicio.buscarConfiguracion()).thenReturn(configuracion());
-        when(costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(any(), any())).thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 20), 25));
 
-        // Act
-        mockMvc.perform(get(URL).param("pagina", "1").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk());
+        // Act + Assert
         mockMvc.perform(post(URL).with(como(Rol.GERENTE_DE_PRODUCCION)).with(csrf()).param("capacidadLoteEstandar", ""))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("data-costos-directos")));
-
-        // Assert
-        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(costoDirectoAdicionalServicio, org.mockito.Mockito.atLeastOnce()).filtrarCostosDirectosAdicionales(any(), captor.capture());
-        assertThat(captor.getAllValues().get(0).getPageNumber()).isEqualTo(1);
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-pestana-parametros")))
+                .andExpect(content().string(containsString("data-pestana-costos")));
     }
 
     private static RequestPostProcessor como(Rol rol) {
@@ -435,7 +413,4 @@ class ConfiguracionProduccionControllerTest {
         return user(rol.name()).authorities(autoridades);
     }
 
-    private static CostoDirectoAdicionalResponseDTO costo(Long id, String nombre, String importe) {
-        return CostoDirectoAdicionalResponseDTO.builder().id(id).nombre(nombre).costoPorLitro(new BigDecimal(importe)).build();
-    }
 }

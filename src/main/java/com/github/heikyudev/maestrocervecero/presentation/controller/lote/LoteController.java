@@ -18,6 +18,7 @@ import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMa
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMolinoServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IOllaHervorServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IConsumoInsumoServicio;
+import com.github.heikyudev.maestrocervecero.service.interfaces.lote.ICostoProduccionLoteServicio;
 import com.github.heikyudev.maestrocervecero.service.interfaces.lote.IReservaInsumoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.lote.ReservaInsumoResponseDTO;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoReservaInsumo;
@@ -48,6 +49,7 @@ import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -102,6 +104,7 @@ public class LoteController {
     private final ILoteServicio loteServicio;
     private final IConsumoInsumoServicio consumoInsumoServicio;
     private final IReservaInsumoServicio reservaInsumoServicio;
+    private final ICostoProduccionLoteServicio costoProduccionLoteServicio;
     private final IEnvasadoLoteServicio envasadoLoteServicio;
     private final IPlanificacionProduccionServicio planificacionServicio;
     private final IMolinoServicio molinoServicio;
@@ -290,14 +293,20 @@ public class LoteController {
     /**
      * Muestra el detalle del lote: la cabecera con sus acciones, las seis pestañas (una por etapa, con su estado) y el
      * panel de una sola etapa. Sin {@code etapa} se abre la que el service indica (la etapa en curso). Solo se
-     * calculan los datos de la etapa mostrada. Un lote inexistente lo resuelve el {@code ControllerAdvices}.
+     * calculan los datos de la etapa mostrada. Al GERENTE_DE_PRODUCCION se le agrega el costo de producción del lote (los
+     * costos son datos reservados a ese rol; a los demás no se les calcula). Un lote inexistente lo resuelve el
+     * {@code ControllerAdvices}.
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('LOTE_CONSULTAR')")
     public String mostrarDetalle(@PathVariable Long id,
                                  @RequestParam(required = false) String etapa,
+                                 Authentication authentication,
                                  Model model) {
         LoteDetalleResponseDTO lote = loteServicio.buscarDetallePorId(id);
+        if (authentication != null && authentication.getAuthorities().stream().anyMatch(a -> "ROLE_GERENTE_DE_PRODUCCION".equals(a.getAuthority()))) {
+            model.addAttribute("costoProduccion", costoProduccionLoteServicio.calcularCostoProduccion(id));
+        }
 
         TipoEtapa tipoEtapa = lote.getEtapaPorDefecto() != null ? lote.getEtapaPorDefecto() : TipoEtapa.MOLIENDA;
         if (vacioANulo(etapa) != null) {

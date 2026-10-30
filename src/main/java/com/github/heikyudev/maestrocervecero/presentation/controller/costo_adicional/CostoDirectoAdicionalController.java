@@ -6,8 +6,11 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.costo_adicional.ICostoDirectoAdicionalServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.costo_adicional.CostoDirectoAdicionalResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
+import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,16 +20,18 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.ORDEN_ALFABETICO;
+import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.TAMANIO_PAGINA;
 import static com.github.heikyudev.maestrocervecero.presentation.controller.MetodosControlador.agregarMensaje;
 
 /**
- * Controller del alta, la modificación y la baja de los costos directos adicionales. No tiene lista propia: la lista vive en
- * la sección "Costos directos adicionales" de la pantalla de Configuración de Producción
- * ({@code ConfiguracionProduccionController}) y todas las operaciones vuelven a ella.
+ * Controller de los costos directos adicionales: la lista (pestaña "Costos directos adicionales" de Configuración de Producción) y su
+ * alta, modificación y baja, que vuelven a esa pestaña.
  * <p>
  * Modificar el costo por litro afecta solo a los lotes que se finalicen después: los lotes cerrados conservan el costo
  * aplicado ya guardado. La baja es lógica: el costo deja de aplicarse a los lotes nuevos y los lotes viejos conservan su detalle.
@@ -37,11 +42,25 @@ import static com.github.heikyudev.maestrocervecero.presentation.controller.Meto
 @RequiredArgsConstructor
 public class CostoDirectoAdicionalController {
 
+    private static final String VISTA_LISTA = "configuracion/costos-directos-lista";
     private static final String VISTA_FORMULARIO = "configuracion/costo-directo-form";
     private static final String ATRIBUTO_FORMULARIO = "costoDirectoForm";
-    private static final String URL_CONFIGURACION = "/configuracion-produccion";
+    private static final String URL_LISTA = "/configuracion-produccion/costos-directos-adicionales";
 
     private final ICostoDirectoAdicionalServicio costoDirectoAdicionalServicio;
+
+    /**
+     * Lista los costos directos adicionales activos, paginados de a 20, en orden alfabético por nombre. Es la pestaña "Costos
+     * directos adicionales" de Configuración de Producción.
+     */
+    @GetMapping
+    @PreAuthorize("hasAuthority('COSTO_DIRECTO_ADICIONAL_CONSULTAR')")
+    public String listarCostosDirectosAdicionales(@RequestParam(defaultValue = "0") int pagina, Model model) {
+        Page<CostoDirectoAdicionalResponseDTO> costosDirectos = costoDirectoAdicionalServicio.filtrarCostosDirectosAdicionales(
+                null, PageRequest.of(Paginacion.numeroDePagina(pagina), TAMANIO_PAGINA, ORDEN_ALFABETICO));
+        model.addAttribute("costosDirectos", costosDirectos);
+        return VISTA_LISTA;
+    }
 
     /**
      * Muestra el formulario vacío para dar de alta un costo directo adicional.
@@ -68,7 +87,7 @@ public class CostoDirectoAdicionalController {
             try {
                 costoDirectoAdicionalServicio.altaCostoDirectoAdicional(costoDirectoForm);
                 agregarMensaje(redirectAttributes, "Costo directo adicional creado correctamente", TipoAlerta.SUCCESS);
-                return "redirect:" + URL_CONFIGURACION;
+                return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
@@ -110,7 +129,7 @@ public class CostoDirectoAdicionalController {
             try {
                 costoDirectoAdicionalServicio.modificarCostoDirectoAdicional(id, costoDirectoForm);
                 agregarMensaje(redirectAttributes, "Costo directo adicional modificado correctamente", TipoAlerta.SUCCESS);
-                return "redirect:" + URL_CONFIGURACION;
+                return "redirect:" + URL_LISTA;
             } catch (RecursoDuplicadoException e) {
                 bindingResult.rejectValue("nombre", "duplicado", e.getMessage());
             } catch (ReglaNegocioException e) {
@@ -130,7 +149,7 @@ public class CostoDirectoAdicionalController {
     public String bajaCostoDirectoAdicional(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         costoDirectoAdicionalServicio.bajaCostoDirectoAdicional(id);
         agregarMensaje(redirectAttributes, "Costo directo adicional dado de baja correctamente", TipoAlerta.SUCCESS);
-        return "redirect:" + URL_CONFIGURACION;
+        return "redirect:" + URL_LISTA;
     }
 
     /**
@@ -146,7 +165,7 @@ public class CostoDirectoAdicionalController {
 
     private void cargarModeloFormulario(Model model, Long costoId) {
         model.addAttribute("costoId", costoId);
-        model.addAttribute("urlCancelar", URL_CONFIGURACION);
+        model.addAttribute("urlCancelar", URL_LISTA);
     }
 
     /**

@@ -1,0 +1,14 @@
+### 1. `calcularCostoProduccion(Long idLote)`
+
+El costo de producción de un lote se calcula cada vez, no se guarda un total. Los insumos salen de los consumos no anulados de todas las etapas (reservados y directos): una sola consulta agrupada por insumo (`resumirCostoDeInsumosDelLote`) suma la cantidad consumida y la cantidad por el costo promedio ponderado que tenía el lote de insumo al consumir (la foto al momento del consumo). Los costos adicionales salen de los detalles de costo directo del lote, que se crean al finalizar el envasado (`listarDelLote`, una consulta con el costo directo cargado). El costo total y el costo por litro solo existen con el envasado finalizado y litros envasados mayores a cero. Todos los importes tienen 4 decimales con redondeo `HALF_UP` y el costo promedio por unidad es el subtotal dividido por la cantidad consumida. Se muestra solo al `GERENTE_DE_PRODUCCION` (ver `CasosPruebaLoteController`).
+
+|**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
+|---|---|---|---|---|
+|**CP-CPL-01**|Lote inexistente|`idLote: 99L`, `findById` $\rightarrow$ **Optional.empty()**|El lote debe existir|Lanza `RecursoNoEncontradoException` ("No se encontró el lote con ID: 99"). No consulta consumos, detalles ni envasados.|
+|**CP-CPL-02**|Sin consumos ni costos adicionales|Lote `EN_EJECUCION`, sin filas de consumo ni detalles|Resumen vacío|Insumos y adicionales vacíos, `totalInsumos = 0`, `isHayDatos() = false`, sin costo total ni costo por litro.|
+|**CP-CPL-03**|Lote en curso con consumos|Cascade (100 g, costo `12`) y Pilsen (20 kg, costo `101`: 18 kg reservados a 5 y 2 kg directos a 5,5)|Envasado sin finalizar|Insumos por nombre; Pilsen con costo promedio por unidad `5,05` y subtotal `101`; `totalInsumos = 113`; sin total ni costo por litro.|
+|**CP-CPL-04**|Envasado finalizado con costos adicionales|Pilsen `101`; adicionales "Dióxido de carbono" (`2,5`, subtotal `100`) y "Gas butano" (`15`, subtotal `600`); 40 L envasados|`envasadoFinalizado` y litros > 0|`totalAdicionales = 700`, `costoTotal = 801` y `costoPorLitro = 20,025`.|
+|**CP-CPL-05**|Envasado finalizado con cero litros|Pilsen `101`; 0 L envasados|Litros no mayores a cero|Se informan los insumos; `costoTotal` y `costoPorLitro` son nulos.|
+|**CP-CPL-06**|Redondeo `HALF_UP` a 4 decimales|Pilsen 3 kg con costo `10`; 3 L envasados|`10 / 3`|Costo promedio por unidad y costo por litro `3,3333` (escala 4).|
+|**CP-CPL-07**|Lote cancelado|Lote `CANCELADO` con 4 kg de Pilsen a costo `20`|Sin envasado finalizado|Informa el costo de lo que alcanzó a consumir (`20`); sin total, sin costo por litro y sin litros.|
+|**CP-CPL-08**|Cantidad consumida en cero|Fila con cantidad `0` y costo `0`|División por cero|El costo promedio por unidad es `0` (no divide).|
