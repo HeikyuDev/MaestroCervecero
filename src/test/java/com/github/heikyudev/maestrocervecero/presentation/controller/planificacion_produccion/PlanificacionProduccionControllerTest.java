@@ -1711,7 +1711,7 @@ class PlanificacionProduccionControllerTest {
 
     @Test
     @WithMockUser(roles = "GERENTE_DE_PRODUCCION")
-    @DisplayName("CP-PPC-76: una versión histórica muestra la etiqueta \"Versión histórica\" y el aviso, con los datos de esa versión")
+    @DisplayName("CP-PPC-76: una versión histórica muestra \"Versión 1 de 3\", la etiqueta \"Versión histórica\" y el aviso, con los datos de esa versión")
     void recetaDePlanificacion_debeAvisarQueLaVersionEsHistorica() throws Exception {
         when(planificacionServicio.buscarVersionRecetaDePlanificacion(7L)).thenReturn(
                 recetaDePlanificacion(versionDeRecetaBuilder("Pale Ale Clásica", false).build(), 1, 3, Estado.ACTIVO));
@@ -1719,7 +1719,8 @@ class PlanificacionProduccionControllerTest {
         mockMvc.perform(get("/planificaciones-produccion/7/receta"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Pale Ale Clásica")))
-                .andExpect(content().string(not(containsString("Versión 1 de 3"))))
+                .andExpect(content().string(containsString("Versión 1 de 3")))
+                .andExpect(content().string(containsString("data-numero-version")))
                 .andExpect(content().string(containsString("Versión histórica")))
                 .andExpect(content().string(containsString("Esta planificación usa una versión anterior de la receta; los datos mostrados son los de esa versión y no los de la versión vigente")))
                 .andExpect(content().string(not(containsString("Versión vigente"))));
