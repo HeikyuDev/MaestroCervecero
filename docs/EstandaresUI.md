@@ -37,7 +37,7 @@ En todos los formularios y los detalles de solo lectura los datos se agrupan por
 - Un dato largo (dirección, observaciones) ocupa su propia fila con `col-span` a todo el ancho.
 - El formulario y el detalle del mismo módulo usan el mismo orden.
 - Los títulos de bloque se usan solo donde ayudan; se conservan el asterisco rojo, los placeholders, los `id` y los `name` de los campos.
-- Los datos estimados poco importantes (ABV y alcohol estimado del lote) viven solo en el Detalle del lote, nunca en el panel de trabajo ni en las guías de etapa.
+- El ABV vive solo en la receta; ninguna pantalla de lote muestra ABV ni alcohol estimado. Los datos de la receta (OG, FG, IBU) se ven en la guía de Fermentación y en el detalle de la receta, no en el Detalle del lote, que enlaza con la receta.
 - Totales: los totales van en una tabla de resumen (Concepto e Importe, con el total en negrita) o en una fila de total con estilo propio (fondo blanco, borde superior marcado y negrita); nunca con el estilo del encabezado de columnas (fondo gris suave, mayúsculas y texto gris). Las tablas de detalle de costos no llevan fila de total y cada una va en su propia tarjeta con título, separadas verticalmente.
 - En una tabla el encabezado y la celda de cada columna usan el mismo relleno horizontal, para que queden en el mismo borde izquierdo.
 - Proveedor es la referencia y el resto de las pantallas siguen la misma regla (protegidas por `OrdenDeCamposTest`).

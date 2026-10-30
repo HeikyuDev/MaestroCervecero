@@ -66,7 +66,6 @@ import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLote;
 import com.github.heikyudev.maestrocervecero.util.mapper.lote.MapperLoteCronograma;
 import com.github.heikyudev.maestrocervecero.util.method.GeneradorIdentificador;
 import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.method.CalculosCerveza;
 import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
 import com.github.heikyudev.maestrocervecero.util.validacion.Redondeo;
 import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
@@ -255,7 +254,6 @@ public class LoteServicioImpl implements ILoteServicio {
         Long idPlanificacion = lote.getPlanificacionProduccion().getId();
 
         VersionRecetaDePlanificacionResponseDTO versionReceta = planificacionProduccionServicio.buscarVersionRecetaDePlanificacion(idPlanificacion);
-        Double abvEstimado = versionReceta != null && versionReceta.getVersion() != null ? versionReceta.getVersion().getAbv() : null;
 
         return LoteDetalleResponseDTO.builder()
                 .id(lote.getId())
@@ -271,7 +269,6 @@ public class LoteServicioImpl implements ILoteServicio {
                 .usuarioCancelacion(lote.getEstado() == EstadoLote.CANCELADO ? lote.getLastModifiedBy() : null)
                 .idPlanificacionProduccion(idPlanificacion)
                 .versionReceta(versionReceta)
-                .alcoholEstimadoLitros(CalculosCerveza.calcularAlcoholLitros(abvEstimado, lote.getVolumenObjetivo()))
                 .idFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getId() : null)
                 .identificadorInternoFermentador(etapaFermentacion != null ? etapaFermentacion.getEquipamiento().getIdentificadorInterno() : null)
                 .etapas(etapas.stream().map(MapperEtapaLote::toDTO).toList())

@@ -217,30 +217,28 @@ class OrdenDeCamposTest {
     }
 
     @Test
-    @DisplayName("CP-ODC-10 - La información del lote y la cabecera del panel de trabajo van en filas por tema las guías de etapa no muestran ABV ni alcohol y el ABV no aparece en ninguna pantalla de lote")
-    void el_lote_agrupa_por_tema_y_las_guias_no_tienen_abv() throws IOException {
+    @DisplayName("CP-ODC-10 - La información del lote es compacta (identidad, origen y fechas), sin datos de la receta; la cabecera del panel agrupa origen, producción y fechas; la guía de Fermentación lleva OG, FG e IBU y ninguna pantalla de lote muestra ABV ni alcohol")
+    void el_lote_agrupa_por_tema_y_las_guias_llevan_los_objetivos() throws IOException {
         // Arrange
-        List<String> informacion = filas(leer("lote/lote-informacion.html"));
+        String informacionHtml = leer("lote/lote-informacion.html");
+        List<String> informacion = filas(informacionHtml);
         List<String> panel = filas(leer("lote/lote-detalle.html"));
         String guias = leer("lote/lote-guias.html");
+        List<String> guiasFilas = filas(guias);
 
         // Act
         String identidad = filaCon(informacion, ">Identificador<");
 
         // Assert
-        assertThat(identidad).contains(">Estado<", ">Etapa actual<").doesNotContain("Receta").doesNotContain("Volumen");
-        assertThat(filaCon(informacion, ">Receta<")).contains(">Planificación<", ">Fermentador<").doesNotContain("Volumen").doesNotContain("Inicio");
-        assertThat(filaCon(informacion, ">Volumen objetivo<")).contains("Alcohol estimado (L)").doesNotContain("OG objetivo").doesNotContain("IBU").doesNotContain("Inicio");
-        assertThat(filaCon(informacion, ">OG objetivo<")).contains(">FG objetivo<", ">IBU objetivo<").doesNotContain("Volumen").doesNotContain("Alcohol");
-        assertThat(filaCon(informacion, ">Inicio estimado<")).contains(">Fin estimado<").doesNotContain("real");
-        assertThat(filaCon(informacion, ">Inicio real<")).contains(">Fin real<").doesNotContain("estimado");
-        assertThat(filaCon(panel, ">Planificación<")).contains(">Receta<", ">Fermentador<").doesNotContain("Volumen").doesNotContain("Inicio");
-        assertThat(filaCon(panel, ">Volumen objetivo<")).contains("Alcohol estimado (L)").doesNotContain("Inicio").doesNotContain(">Receta<");
+        assertThat(identidad).contains(">Estado<", ">Etapa actual<", ">Volumen objetivo<").doesNotContain("Receta").doesNotContain("Fermentador");
+        assertThat(filaCon(informacion, ">Receta<")).contains(">Planificación<", ">Fermentador<").doesNotContain("Volumen").doesNotContain("Inicio").contains("data-ver-receta");
+        assertThat(filaCon(informacion, ">Inicio estimado<")).contains(">Fin estimado<", ">Inicio real<", ">Fin real<").doesNotContain("Fermentador");
+        assertThat(informacionHtml).doesNotContain("OG objetivo").doesNotContain("FG objetivo").doesNotContain("IBU").doesNotContain("gravedad(");
+        assertThat(filaCon(panel, ">Planificación<")).contains(">Receta<", ">Fermentador<", ">Volumen objetivo<").doesNotContain("Inicio");
         assertThat(filaCon(panel, ">Inicio estimado<")).doesNotContain("real");
         assertThat(filaCon(panel, ">Inicio real<")).doesNotContain("estimado");
-        assertThat(guias + leer("lote/lote-detalle.html")).doesNotContain("IBU");
-        assertThat(guias).doesNotContain("abvEstimado").doesNotContain("alcoholEstimado");
-        assertThat(leer("lote/lote-informacion.html") + leer("lote/lote-detalle.html")).doesNotContain("abvEstimado").doesNotContain("ABV estimado (%)");
+        assertThat(filaCon(guiasFilas, ">OG objetivo<")).contains(">FG objetivo<", ">IBU objetivo<").doesNotContain("Fermentador");
+        assertThat(informacionHtml + leer("lote/lote-detalle.html") + guias).doesNotContainIgnoringCase("alcohol").doesNotContain("abvEstimado").doesNotContain("ABV");
     }
 
     @Test

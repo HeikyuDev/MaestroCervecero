@@ -17,7 +17,6 @@ public final class CalculosCerveza {
      * Factor de la fórmula estándar del alcohol por volumen: ABV (%) = (OG - FG) x 131,25.
      */
     private static final BigDecimal FACTOR_ABV = new BigDecimal("131.25");
-    private static final BigDecimal CIEN = BigDecimal.valueOf(100);
     private static final int DECIMALES = 1;
 
     private CalculosCerveza() {
@@ -38,23 +37,6 @@ public final class CalculosCerveza {
         return BigDecimal.valueOf(og).subtract(BigDecimal.valueOf(fg))
                 .multiply(FACTOR_ABV)
                 .setScale(DECIMALES, RoundingMode.HALF_UP)
-                .doubleValue();
-    }
-
-    /**
-     * Calcula los litros de alcohol estimados de un volumen: {@code volumen x ABV / 100}.
-     *
-     * @param abv            Alcohol por volumen en porcentaje.
-     * @param volumenLitros  Volumen en litros.
-     * @return Los litros de alcohol con un decimal (redondeo {@code HALF_UP}), o {@code null} si alguno de los
-     * datos es {@code null}.
-     */
-    public static Double calcularAlcoholLitros(Double abv, Double volumenLitros) {
-        if (abv == null || volumenLitros == null) {
-            return null;
-        }
-        return BigDecimal.valueOf(volumenLitros).multiply(BigDecimal.valueOf(abv))
-                .divide(CIEN, DECIMALES, RoundingMode.HALF_UP)
                 .doubleValue();
     }
 }

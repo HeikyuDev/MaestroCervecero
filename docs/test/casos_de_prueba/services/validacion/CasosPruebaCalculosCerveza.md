@@ -18,10 +18,3 @@
 | **CP-CC-06** | Valores grandes | OG/FG `1.12`/`1.0` y `2.0`/`1.0` | Se mantiene la precisión | `15.8` (15,75) y `131.3` (131,25). |
 
 ---
-
-### `calcularAlcoholLitros(Double, Double)`
-
-| **ID** | **Nombre del Caso** | **Datos de Entrada (Escenario)** | **Condición Evaluada** | **Resultado Esperado** |
-| --- | --- | --- | --- | --- |
-| **CP-CC-07** | Litros con un decimal | ABV/volumen `5.3`/`20`, `5.0`/`300`, `4.5`/`10` y `6.5`/`10.5` | `volumen x ABV / 100` redondeado a un decimal hacia arriba en la mitad | `1.1` (1,06), `15.0`, `0.5` (0,45) y `0.7` (0,6825). |
-| **CP-CC-08** | Falta el ABV o el volumen | (a) ABV `null`; (b) volumen `null`; (c) ambos `null` | Datos incompletos | Devuelve `null` en los tres casos. |

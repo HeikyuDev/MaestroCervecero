@@ -64,23 +64,4 @@ class CalculosCervezaTest {
         assertThat(CalculosCerveza.calcularAbv(1.12, 1.0)).isEqualTo(15.8);
         assertThat(CalculosCerveza.calcularAbv(2.0, 1.0)).isEqualTo(131.3);
     }
-
-    @Test
-    @DisplayName("CP-CC-07: calcularAlcoholLitros multiplica el volumen por el ABV sobre 100 con un decimal hacia arriba en la mitad")
-    void calcularAlcoholLitros_debeCalcularLosLitrosConUnDecimal() {
-        // Act y Assert
-        assertThat(CalculosCerveza.calcularAlcoholLitros(5.3, 20.0)).isEqualTo(1.1);
-        assertThat(CalculosCerveza.calcularAlcoholLitros(5.0, 300.0)).isEqualTo(15.0);
-        assertThat(CalculosCerveza.calcularAlcoholLitros(4.5, 10.0)).isEqualTo(0.5);
-        assertThat(CalculosCerveza.calcularAlcoholLitros(6.5, 10.5)).isEqualTo(0.7);
-    }
-
-    @Test
-    @DisplayName("CP-CC-08: calcularAlcoholLitros devuelve null si falta el ABV o el volumen")
-    void calcularAlcoholLitros_debeDevolverNullSiFaltanDatos() {
-        // Act y Assert
-        assertThat(CalculosCerveza.calcularAlcoholLitros(null, 20.0)).isNull();
-        assertThat(CalculosCerveza.calcularAlcoholLitros(5.3, null)).isNull();
-        assertThat(CalculosCerveza.calcularAlcoholLitros(null, null)).isNull();
-    }
 }

@@ -53,7 +53,7 @@
 
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4 text-sm"
              th:with="fechaFinReal=${lote.fechaFinalizacion != null ? lote.fechaFinalizacion : lote.fechaCancelacion}">
-            <!-- Una fila por tema: origen, producto (volumen y alcohol estimado), fechas estimadas (las vigentes en el cronograma), fechas reales -->
+            <!-- Una fila por tema: origen y producción (planificación, receta, fermentador y volumen objetivo), fechas estimadas (las vigentes en el cronograma), fechas reales -->
             <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Planificación</dt>
@@ -72,15 +72,9 @@
                     <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
                     <dd class="text-slate-900" th:text="${lote.identificadorInternoFermentador != null} ? ${lote.identificadorInternoFermentador} : '-'">F-01</dd>
                 </div>
-            </dl>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
                     <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: medida(${lote.volumenObjetivo}, 'L')}"></th:block></dd>
-                </div>
-                <div data-alcohol-estimado>
-                    <dt class="text-xs font-medium text-slate-500"><span tabindex="0" class="cursor-help underline decoration-dotted" data-tooltip="Estimado como volumen objetivo x ABV estimado, no es una medición del lote">Alcohol estimado (L)</span></dt>
-                    <dd class="text-slate-900"><th:block th:replace="~{receta/formato :: unDecimal(${lote.alcoholEstimadoLitros})}"></th:block></dd>
                 </div>
             </dl>
             <dl class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-4">
