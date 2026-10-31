@@ -24,8 +24,7 @@ public class MapperMantenimientoEquipamiento {
 
         return MantenimientoEquipamientoResponseDTO.builder()
                 .id(mantenimientoEquipamientoEntity.getId())
-                .fechaInicio(mantenimientoEquipamientoEntity.getFecha())
-                .fechaFin(mantenimientoEquipamientoEntity.getFechaFin())
+                .fecha(mantenimientoEquipamientoEntity.getFecha())
                 .estado(mantenimientoEquipamientoEntity.getEstado())
                 .observaciones(mantenimientoEquipamientoEntity.getObservaciones())
                 .fechaAnulacion(mantenimientoEquipamientoEntity.getFechaAnulacion())

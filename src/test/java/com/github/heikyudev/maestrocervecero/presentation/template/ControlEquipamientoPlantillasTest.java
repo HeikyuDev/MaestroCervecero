@@ -33,13 +33,13 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-02: el formulario de registro lleva las fechas en una fila y las observaciones en otra, con asterisco y ejemplo, y es novalidate")
+    @DisplayName("CP-PEQ-02: el formulario de registro lleva la fecha en una fila y las observaciones en otra, con asterisco y ejemplo, y es novalidate")
     void formularioPorTema() throws IOException {
         String html = leer("control_equipamiento/control-panel.html");
         List<String> filas = filas(html);
 
-        assertThat(filaCon(filas, "for=\"fechaInicio\"")).contains("for=\"fechaFin\"").doesNotContain("observaciones");
-        assertThat(filaCon(filas, "for=\"observaciones\"")).doesNotContain("fechaInicio").contains("th:placeholder");
+        assertThat(filaCon(filas, "for=\"fecha\"")).doesNotContain("observaciones").doesNotContain("fechaFin");
+        assertThat(filaCon(filas, "for=\"observaciones\"")).doesNotContain("fecha\"").contains("th:placeholder");
         assertThat(html).contains("novalidate").contains("datetime-local").contains("text-rose-600");
     }
 
@@ -99,15 +99,14 @@ class ControlEquipamientoPlantillasTest {
     }
 
     @Test
-    @DisplayName("CP-PEQ-09: el diagrama dibuja los bloques cortos como marcadores con ícono, la leyenda lleva los íconos de limpieza, falla y mantenimiento y los lotes conservan sus clases")
-    void ganttConMarcadoresEIconos() throws IOException {
+    @DisplayName("CP-PEQ-09: el diagrama del equipo usa barras rectangulares sin marcadores ni íconos, con leyenda de cuadrados de color, y los diagramas de lotes conservan sus clases y el ícono de la limpieza")
+    void ganttSinMarcadoresNiIconos() throws IOException {
         String html = leer("planificacion_produccion/gantt.html");
+        String leyendaEquipo = html.substring(html.indexOf("th:if=\"${vista.leyendaEquipamiento != null}\""), html.indexOf("th:unless=\"${vista.leyendaEquipamiento != null}\""));
 
-        assertThat(html).contains("gantt-barra--marcador").contains("gantt-icono")
-                .contains("gantt-color--equipo-limpieza\"><i class=\"bi bi-stars")
-                .contains("gantt-color--equipo-falla\"><i class=\"bi bi-exclamation-triangle-fill")
-                .contains("gantt-color--equipo-mantenimiento\"><i class=\"bi bi-wrench")
-                .contains("gantt-color--pendiente").contains("gantt-color--en-ejecucion").contains("gantt-color--finalizado");
+        assertThat(html).doesNotContain("marcador").doesNotContain("gantt-icono").doesNotContain("b.icono");
+        assertThat(leyendaEquipo).doesNotContain("<i ").contains("vista.leyendaEquipamiento").contains("gantt-muestra gantt-color--${e.clave}");
+        assertThat(html).contains("gantt-color--pendiente").contains("gantt-color--limpieza").contains("bi bi-stars gantt-limpieza-icono").contains("data-gantt-leyenda-limpieza-icono");
     }
 
     @Test

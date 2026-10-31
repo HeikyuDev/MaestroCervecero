@@ -83,7 +83,7 @@ class MapperControlEquipamientoTest {
 
     private static LimpiezaEquipamientoEntity limpieza(EstadoTransaccion estado) {
         LimpiezaEquipamientoEntity limpieza = LimpiezaEquipamientoEntity.builder()
-                .id(5L).fecha(FIN.minusHours(2)).fechaFin(FIN).observaciones("Limpieza con soda cáustica")
+                .id(5L).fecha(FIN.minusHours(2)).observaciones("Limpieza con soda cáustica")
                 .estado(estado).estadoOperativoResultante(EstadoOperativo.DISPONIBLE)
                 .equipamiento(FermentadorEntity.builder().id(3L).identificadorInterno("FER-01").build())
                 .build();

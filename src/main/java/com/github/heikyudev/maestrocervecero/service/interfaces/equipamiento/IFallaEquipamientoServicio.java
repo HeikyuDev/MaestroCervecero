@@ -27,8 +27,8 @@ public interface IFallaEquipamientoServicio {
      *
      * @param idEquipamiento El ID del equipamiento a filtrar, o {@code null} para no filtrar por él.
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
-     * @param fechaFallaDesde Límite inferior (inclusive) del rango de fecha de inicio de la falla, o {@code null} para no acotarlo.
-     * @param fechaFallaHasta Límite superior (inclusive) del rango de fecha de inicio de la falla, o {@code null} para no acotarlo.
+     * @param fechaFallaDesde Límite inferior (inclusive) del rango de fecha de la falla, o {@code null} para no acotarlo.
+     * @param fechaFallaHasta Límite superior (inclusive) del rango de fecha de la falla, o {@code null} para no acotarlo.
      * @param tipoEquipamiento El tipo concreto de equipamiento a filtrar (Molino/Macerador/OllaHervor/Fermentador), o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de fallas de equipamiento en formato DTO que cumplen los criterios indicados.
@@ -49,7 +49,7 @@ public interface IFallaEquipamientoServicio {
      *
      * @param fallaEquipamientoFormDTO Los datos de la falla a registrar.
      * @return La falla de equipamiento registrada.
-     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
+     * @throws ReglaNegocioException Si la fecha no fue informada o es futura, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     FallaEquipamientoResponseDTO registrarFallaEquipamiento(FallaEquipamientoFormDTO fallaEquipamientoFormDTO);

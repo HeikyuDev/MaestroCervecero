@@ -39,14 +39,6 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public abstract class OperacionCicloVidaEquipamiento extends OperacionCicloVida {
 
-    /**
-     * Fecha y hora de fin de la operación. Nunca es anterior a {@code fecha} (el inicio) ni
-     * posterior al momento en que se registró. La "última operación" de un equipamiento se mide
-     * por este valor.
-     */
-    @Column(name = "fecha_fin", nullable = false)
-    private LocalDateTime fechaFin;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "equipamiento_id", nullable = false)
     private EquipamientoEntity equipamiento;

@@ -57,12 +57,12 @@ public class EquipamientoResumenResponseDTO {
     /**
      * Fecha y hora de fin de la última limpieza registrada, o {@code null} si nunca tuvo una.
      */
-    private LocalDateTime fechaFinUltimaLimpieza;
+    private LocalDateTime fechaUltimaLimpieza;
 
     /**
      * Fecha y hora de fin del último mantenimiento registrado, o {@code null} si nunca tuvo uno.
      */
-    private LocalDateTime fechaFinUltimoMantenimiento;
+    private LocalDateTime fechaUltimoMantenimiento;
 
     /**
      * Capacidad total en litros (macerador, olla de hervor y fermentador), o {@code null}.

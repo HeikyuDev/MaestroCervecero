@@ -24,14 +24,9 @@ public class LimpiezaEquipamientoResponseDTO {
     private Long id;
 
     /**
-     * Fecha y hora de inicio de la limpieza.
+     * Fecha y hora en la que se realizó la operación.
      */
-    private LocalDateTime fechaInicio;
-
-    /**
-     * Fecha y hora de fin de la limpieza.
-     */
-    private LocalDateTime fechaFin;
+    private LocalDateTime fecha;
 
     /**
      * Observaciones sobre la limpieza.

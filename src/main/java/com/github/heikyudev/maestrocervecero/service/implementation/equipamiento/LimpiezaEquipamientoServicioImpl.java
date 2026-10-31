@@ -80,7 +80,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
     /**
      * Registra una nueva limpieza de equipamiento.
      * <p>
-     * La limpieza ocupa un intervalo (fecha de inicio y fecha de fin). Evalúa la cantidad de limpiezas
+     * La limpieza tiene una única fecha y hora. Evalúa la cantidad de limpiezas
      * registradas desde el último mantenimiento del equipamiento (o desde siempre, si nunca tuvo uno), sumando
      * esta limpieza, y la compara contra {@code usosMaximosAntesMantenimiento}: si la alcanza o la supera, el
      * equipamiento pasa a {@code EN_MANTENIMIENTO} en lugar de {@code DISPONIBLE}. Ese resultado queda grabado en
@@ -94,15 +94,15 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
      *
      * @param limpiezaEquipamientoFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de equipamiento registrada.
-     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas o superan el máximo, si el equipamiento está dado de baja o no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
+     * @throws ReglaNegocioException Si la fecha no fue informada o es futura, si las observaciones no fueron informadas o superan el máximo, si el equipamiento está dado de baja o no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si la fecha no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LIMPIEZA_EQUIPAMIENTO)
     public LimpiezaEquipamientoResponseDTO registrarLimpiezaEquipamiento(LimpiezaEquipamientoFormDTO limpiezaEquipamientoFormDTO) {
-        // 1. Validar las fechas de inicio y de fin
-        MetodosCicloVidaEquipamiento.validarFechas(limpiezaEquipamientoFormDTO.getFechaInicio(), limpiezaEquipamientoFormDTO.getFechaFin());
+        // 1. Validar la fecha de la operación
+        MetodosCicloVidaEquipamiento.validarFecha(limpiezaEquipamientoFormDTO.getFecha());
 
         // 2. Validar las observaciones
         String observaciones = MetodosCicloVidaEquipamiento.validarObservaciones(limpiezaEquipamientoFormDTO.getObservaciones());
@@ -115,18 +115,18 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
         // 4. Validar que el equipamiento se encuentre en estado operativo EN_LIMPIEZA
         MetodosCicloVidaEquipamiento.validarEstadoOperativoParaRegistrar(equipamientoEntity.getEstadoOperativo(), EstadoOperativo.EN_LIMPIEZA, "una limpieza");
 
-        // 5. Validar que el inicio sea posterior al fin de la última operación registrada y de la última
+        // 5. Validar que la fecha sea posterior a la de la última operación registrada y al fin de la última
         //    participación del equipamiento en un lote
-        MetodosCicloVidaEquipamiento.validarInicioPosteriorALaActividadAnterior(
-                limpiezaEquipamientoFormDTO.getFechaInicio(),
-                operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(idEquipamiento).orElse(null),
+        MetodosCicloVidaEquipamiento.validarFechaPosteriorALaActividadAnterior(
+                limpiezaEquipamientoFormDTO.getFecha(),
+                operacionCicloVidaEquipamientoRepository.buscarFechaUltimaOperacionRegistrada(idEquipamiento).orElse(null),
                 etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
 
-        // 6. Contar los usos del equipamiento desde el fin de su último mantenimiento (o desde siempre, si
+        // 6. Contar los usos del equipamiento desde la fecha de su último mantenimiento (o desde siempre, si
         //    nunca tuvo uno), sumando la limpieza que se está registrando, y comparar contra el máximo de usos
         //    antes de mantenimiento para decidir el estado operativo resultante
-        LocalDateTime fechaFinUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaFinUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
-        long cantidadUsos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaFinUltimoMantenimiento) + 1;
+        LocalDateTime fechaUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
+        long cantidadUsos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaUltimoMantenimiento) + 1;
         EstadoOperativo estadoOperativoResultante = cantidadUsos >= equipamientoEntity.getUsosMaximosAntesMantenimiento()
                 ? EstadoOperativo.EN_MANTENIMIENTO
                 : EstadoOperativo.DISPONIBLE;
@@ -137,8 +137,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
 
         // 8. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaEquipamientoEntity limpiezaEquipamientoEntity = LimpiezaEquipamientoEntity.builder()
-                .fecha(limpiezaEquipamientoFormDTO.getFechaInicio())
-                .fechaFin(limpiezaEquipamientoFormDTO.getFechaFin())
+                .fecha(limpiezaEquipamientoFormDTO.getFecha())
                 .observaciones(observaciones)
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -151,7 +150,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
     /**
      * Anula una limpieza de equipamiento existente.
      * <p>
-     * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha de fin, y a igual fecha la de mayor ID, entre sus
+     * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha, y a igual fecha la de mayor ID, entre sus
      * limpiezas, fallas y mantenimientos) y si el equipamiento asociado sigue exactamente en el estado operativo
      * que dejó esta limpieza puntual ({@code estadoOperativoResultante}), no en cualquiera de los dos estados
      * posibles en general: evita revertir una limpieza vieja cuando el estado actual del equipamiento en realidad
@@ -193,7 +192,7 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
             throw new ReglaNegocioException("Solo se pueden anular limpiezas de equipamiento en estado Registrado");
         }
 
-        // 5. Validar que sea la última operación registrada del equipamiento (mayor fecha de fin y, a igualdad, mayor ID)
+        // 5. Validar que sea la última operación registrada del equipamiento (mayor fecha y, a igualdad, mayor ID)
         MetodosCicloVidaEquipamiento.validarEsLaUltimaOperacion(
                 limpiezaEquipamientoEntity.getId(),
                 operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null));

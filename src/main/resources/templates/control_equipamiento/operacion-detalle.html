@@ -5,7 +5,7 @@
 
 <!--
     Detalle de una operación de un equipamiento (limpieza, falla o mantenimiento): pantalla de solo lectura con la información
-    del equipo y los datos de la operación. Una fila por tema: tipo y estado; inicio y fin; observaciones; registrado por y fecha
+    del equipo y los datos de la operación. Una fila por tema: tipo y estado; fecha de la operación; observaciones; registrado por y fecha
     de registro; y, si está anulada, cuándo y el motivo.
 -->
 <div id="operacion-detalle-content" class="space-y-6">
@@ -39,15 +39,11 @@
                     <dd class="mt-1"><span th:replace="~{lote/formato :: estadoTransaccion(${operacion.estado})}"></span></dd>
                 </div>
             </dl>
-            <!-- fechas de la operación -->
+            <!-- fecha de la operación -->
             <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
-                <div data-operacion-inicio>
-                    <dt class="text-xs font-medium text-slate-500">Fecha y hora de inicio</dt>
-                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${operacion.fechaInicio})}"></th:block></dd>
-                </div>
-                <div data-operacion-fin>
-                    <dt class="text-xs font-medium text-slate-500">Fecha y hora de fin</dt>
-                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${operacion.fechaFin})}"></th:block></dd>
+                <div data-operacion-fecha>
+                    <dt class="text-xs font-medium text-slate-500">Fecha de la operación</dt>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${operacion.fecha})}"></th:block></dd>
                 </div>
             </dl>
             <!-- observaciones -->

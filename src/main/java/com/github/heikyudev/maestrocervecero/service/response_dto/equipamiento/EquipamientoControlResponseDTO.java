@@ -59,5 +59,5 @@ public class EquipamientoControlResponseDTO {
     /**
      * Fecha y hora de fin de la última operación registrada, o {@code null} si el equipamiento no tiene ninguna.
      */
-    private LocalDateTime fechaFinUltimaOperacion;
+    private LocalDateTime fechaUltimaOperacion;
 }

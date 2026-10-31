@@ -48,7 +48,7 @@ public class MapperControlEquipamiento {
                 .usosDesdeUltimoMantenimiento(usosDesdeUltimoMantenimiento)
                 .usosMaximosAntesMantenimiento(equipamiento.getUsosMaximosAntesMantenimiento())
                 .tipoUltimaOperacion(ultimaOperacion != null ? TipoOperacionEquipamiento.deOperacion(ultimaOperacion) : null)
-                .fechaFinUltimaOperacion(ultimaOperacion != null ? ultimaOperacion.getFechaFin() : null)
+                .fechaUltimaOperacion(ultimaOperacion != null ? ultimaOperacion.getFecha() : null)
                 .build();
     }
 
@@ -58,12 +58,12 @@ public class MapperControlEquipamiento {
      *
      * @param equipamiento Equipamiento a convertir (no un proxy).
      * @param usosDesdeUltimoMantenimiento Cantidad de usos desde el último mantenimiento.
-     * @param fechaFinUltimaLimpieza Fecha de fin de la última limpieza registrada, o {@code null}.
-     * @param fechaFinUltimoMantenimiento Fecha de fin del último mantenimiento registrado, o {@code null}.
+     * @param fechaUltimaLimpieza Fecha de fin de la última limpieza registrada, o {@code null}.
+     * @param fechaUltimoMantenimiento Fecha de fin del último mantenimiento registrado, o {@code null}.
      * @return El DTO correspondiente o {@code null} si el equipamiento es nulo.
      */
     public static EquipamientoResumenResponseDTO toResumenDTO(EquipamientoEntity equipamiento, long usosDesdeUltimoMantenimiento,
-                                                             LocalDateTime fechaFinUltimaLimpieza, LocalDateTime fechaFinUltimoMantenimiento) {
+                                                             LocalDateTime fechaUltimaLimpieza, LocalDateTime fechaUltimoMantenimiento) {
         if (equipamiento == null) {
             return null;
         }
@@ -74,8 +74,8 @@ public class MapperControlEquipamiento {
                 .estadoOperativo(equipamiento.getEstadoOperativo())
                 .usosMaximosAntesMantenimiento(equipamiento.getUsosMaximosAntesMantenimiento())
                 .usosDesdeUltimoMantenimiento(usosDesdeUltimoMantenimiento)
-                .fechaFinUltimaLimpieza(fechaFinUltimaLimpieza)
-                .fechaFinUltimoMantenimiento(fechaFinUltimoMantenimiento);
+                .fechaUltimaLimpieza(fechaUltimaLimpieza)
+                .fechaUltimoMantenimiento(fechaUltimoMantenimiento);
 
         if (equipamiento instanceof MolinoEntity molino) {
             builder.rendimientoMolienda(molino.getRendimientoMolienda());
@@ -111,8 +111,7 @@ public class MapperControlEquipamiento {
                 .id(operacion.getId())
                 .tipo(TipoOperacionEquipamiento.deOperacion(operacion))
                 .estado(operacion.getEstado())
-                .fechaInicio(operacion.getFecha())
-                .fechaFin(operacion.getFechaFin())
+                .fecha(operacion.getFecha())
                 .observaciones(operacion.getObservaciones())
                 .registradoPor(operacion.getCreatedBy())
                 .fechaRegistro(operacion.getCreatedDate())
@@ -167,7 +166,7 @@ public class MapperControlEquipamiento {
                 .idReferencia(operacion.getId())
                 .observaciones(operacion.getObservaciones())
                 .fechaInicio(operacion.getFecha())
-                .fechaFin(operacion.getFechaFin())
+                .fechaFin(operacion.getFecha())
                 .finProvisorio(false)
                 .build();
     }

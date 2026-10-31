@@ -23,14 +23,9 @@ public class MantenimientoEquipamientoResponseDTO {
     private Long id;
 
     /**
-     * Fecha y hora de inicio del mantenimiento.
+     * Fecha y hora en la que se realizó la operación.
      */
-    private LocalDateTime fechaInicio;
-
-    /**
-     * Fecha y hora de fin del mantenimiento.
-     */
-    private LocalDateTime fechaFin;
+    private LocalDateTime fecha;
 
     /**
      * Estado transaccional del mantenimiento (REGISTRADO/ANULADO).

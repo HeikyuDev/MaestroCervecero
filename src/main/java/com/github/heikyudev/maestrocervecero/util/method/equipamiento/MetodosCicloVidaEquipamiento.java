@@ -14,7 +14,7 @@ import java.util.Optional;
 
 /**
  * Validaciones compartidas por las tres operaciones del ciclo de vida de un equipamiento (limpieza, falla y
- * mantenimiento): fechas de inicio y fin, orden respecto de la actividad anterior del equipamiento, localización del
+ * mantenimiento): fecha, orden respecto de la actividad anterior del equipamiento, localización del
  * equipamiento, estado operativo requerido y textos obligatorios.
  * <p>
  * Cada regla tiene una única redacción, usada por las tres operaciones. Los mensajes de los campos informan el campo del
@@ -25,10 +25,8 @@ public final class MetodosCicloVidaEquipamiento {
 
     /** Nombre del campo del formulario con el equipamiento afectado. */
     public static final String CAMPO_EQUIPAMIENTO = "idEquipamiento";
-    /** Nombre del campo del formulario con la fecha de inicio. */
-    public static final String CAMPO_FECHA_INICIO = "fechaInicio";
-    /** Nombre del campo del formulario con la fecha de fin. */
-    public static final String CAMPO_FECHA_FIN = "fechaFin";
+    /** Nombre del campo del formulario con la fecha y hora de la operación. */
+    public static final String CAMPO_FECHA = "fecha";
     /** Nombre del campo del formulario con las observaciones. */
     public static final String CAMPO_OBSERVACIONES = "observaciones";
     /** Nombre del campo del formulario con el motivo de anulación. */
@@ -72,49 +70,40 @@ public final class MetodosCicloVidaEquipamiento {
     }
 
     /**
-     * Valida las fechas de una operación: ambas son obligatorias, el fin no puede ser anterior al inicio (que sean
-     * iguales se acepta) y el fin no puede ser posterior a la fecha y hora actual. Como el inicio nunca supera al fin,
-     * tampoco puede ser futuro.
+     * Valida la fecha y hora de una operación: es obligatoria y no puede ser posterior a la fecha y hora actual.
      *
-     * @param fechaInicio Fecha y hora de inicio de la operación.
-     * @param fechaFin Fecha y hora de fin de la operación.
-     * @throws ReglaNegocioException Si alguna falta, si el fin es anterior al inicio o si el fin es futuro.
+     * @param fecha Fecha y hora en que se realizó la operación.
+     * @throws ReglaNegocioException Si no fue informada o es futura.
      */
-    public static void validarFechas(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
-        if (fechaInicio == null) {
-            throw new ReglaNegocioException("La fecha de inicio es obligatoria", CAMPO_FECHA_INICIO);
+    public static void validarFecha(LocalDateTime fecha) {
+        if (fecha == null) {
+            throw new ReglaNegocioException("La fecha de la operación es obligatoria", CAMPO_FECHA);
         }
-        if (fechaFin == null) {
-            throw new ReglaNegocioException("La fecha de fin es obligatoria", CAMPO_FECHA_FIN);
-        }
-        if (fechaFin.isBefore(fechaInicio)) {
-            throw new ReglaNegocioException("La fecha de fin no puede ser anterior a la fecha de inicio", CAMPO_FECHA_FIN);
-        }
-        if (fechaFin.isAfter(LocalDateTime.now())) {
-            throw new ReglaNegocioException("La fecha de fin no puede ser posterior a la fecha y hora actual", CAMPO_FECHA_FIN);
+        if (fecha.isAfter(LocalDateTime.now())) {
+            throw new ReglaNegocioException("La fecha de la operación no puede ser posterior a la fecha y hora actual", CAMPO_FECHA);
         }
     }
 
     /**
-     * Valida que la operación a registrar empiece estrictamente después de la actividad anterior del equipamiento:
-     * el fin de su última operación registrada y el fin de su última participación en un lote. Dos actividades del
-     * mismo equipamiento no pueden solaparse ni tocarse en el mismo instante.
+     * Valida que la operación a registrar sea estrictamente posterior a la actividad anterior del equipamiento: la fecha
+     * de su última operación registrada y el fin de su última participación en un lote. Dos actividades del mismo
+     * equipamiento no pueden ocurrir en el mismo instante ni en orden inverso.
      *
-     * @param fechaInicio Fecha y hora de inicio de la operación a registrar.
-     * @param finesAnteriores Fin de la última operación registrada y fin de la última participación en un lote (cualquiera puede ser {@code null} si no existe).
-     * @throws ReglaNegocioException Si alguna fecha dada es posterior o igual a {@code fechaInicio}.
+     * @param fecha Fecha y hora de la operación a registrar.
+     * @param actividadesAnteriores Fecha de la última operación registrada y fin de la última participación en un lote (cualquiera puede ser {@code null} si no existe).
+     * @throws ReglaNegocioException Si alguna fecha dada es posterior o igual a {@code fecha}.
      */
-    public static void validarInicioPosteriorALaActividadAnterior(LocalDateTime fechaInicio, LocalDateTime... finesAnteriores) {
-        for (LocalDateTime finAnterior : finesAnteriores) {
-            if (finAnterior != null && !finAnterior.isBefore(fechaInicio)) {
-                throw new ReglaNegocioException("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento", CAMPO_FECHA_INICIO);
+    public static void validarFechaPosteriorALaActividadAnterior(LocalDateTime fecha, LocalDateTime... actividadesAnteriores) {
+        for (LocalDateTime anterior : actividadesAnteriores) {
+            if (anterior != null && !anterior.isBefore(fecha)) {
+                throw new ReglaNegocioException("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento", CAMPO_FECHA);
             }
         }
     }
 
     /**
      * Valida que la operación a anular sea la última operación registrada del equipamiento. La "última" es la de mayor
-     * fecha de fin entre sus limpiezas, fallas y mantenimientos y, ante igual fecha de fin (posible en datos migrados),
+     * fecha entre sus limpiezas, fallas y mantenimientos y, ante igual fecha (posible en datos migrados),
      * la de mayor ID.
      *
      * @param idEstaOperacion ID de la operación que se quiere anular.

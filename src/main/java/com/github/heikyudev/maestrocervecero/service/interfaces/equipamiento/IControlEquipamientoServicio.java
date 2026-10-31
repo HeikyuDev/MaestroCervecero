@@ -39,7 +39,7 @@ public interface IControlEquipamientoServicio {
 
     /**
      * Obtiene el resumen de un equipamiento activo: sus datos, los parámetros propios de su tipo, sus usos desde el
-     * último mantenimiento y las fechas de fin de su última limpieza y su último mantenimiento registrados.
+     * último mantenimiento y las fechas de su última limpieza y su último mantenimiento registrados.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return El resumen del equipamiento.
@@ -49,8 +49,8 @@ public interface IControlEquipamientoServicio {
 
     /**
      * Lista las operaciones de un equipamiento agrupadas por tipo (limpiezas, fallas y mantenimientos), anuladas
-     * incluidas, de la de inicio más reciente a la más antigua. Solo la última operación registrada del equipamiento
-     * (la de mayor fecha de fin y, a igualdad, la de mayor ID; de cualquier tipo) se marca como anulable.
+     * incluidas, de la de fecha más reciente a la más antigua. Solo la última operación registrada del equipamiento
+     * (la de mayor fecha y, a igualdad, la de mayor ID; de cualquier tipo) se marca como anulable.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return Las operaciones del equipamiento.
@@ -60,7 +60,7 @@ public interface IControlEquipamientoServicio {
 
     /**
      * Arma la línea de tiempo de un equipamiento para un período: un bloque por cada etapa de lote con uso real y por
-     * cada operación registrada (nunca las anuladas) que se superponga con el período, ordenados por inicio. Un
+     * cada operación registrada (nunca las anuladas) que se superponga con el período, ordenados por fecha. Un
      * extremo nulo no acota el período por ese lado. Los bloques conservan sus fechas reales, sin recortarlas al
      * período.
      *

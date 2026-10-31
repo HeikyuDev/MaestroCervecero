@@ -16,8 +16,7 @@ import java.time.LocalDateTime;
 /**
  * DTO de formulario para el registro de un mantenimiento de equipamiento.
  * <p>
- * Contiene únicamente los datos ingresados por el usuario. La operación ocupa un intervalo: empieza en
- * {@code fechaInicio} y termina en {@code fechaFin}.
+ * Contiene únicamente los datos ingresados por el usuario. La operación tiene una única fecha y hora: el momento en que se realizó.
  * </p>
  */
 @Getter
@@ -34,18 +33,11 @@ public class MantenimientoEquipamientoFormDTO {
     private Long idEquipamiento;
 
     /**
-     * Fecha y hora en la que empezó el mantenimiento.
+     * Fecha y hora en la que se realizó la operación.
      */
-    @NotNull(message = "La fecha de inicio es obligatoria")
+    @NotNull(message = "La fecha de la operación es obligatoria")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    private LocalDateTime fechaInicio;
-
-    /**
-     * Fecha y hora en la que terminó el mantenimiento.
-     */
-    @NotNull(message = "La fecha de fin es obligatoria")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    private LocalDateTime fechaFin;
+    private LocalDateTime fecha;
 
     /**
      * Observaciones sobre el mantenimiento.

@@ -108,13 +108,13 @@ class ControlEquipamientoServicioImplTest {
         assertThat(dtoMolino.getUsosDesdeUltimoMantenimiento()).isEqualTo(7L);
         assertThat(dtoMolino.getUsosMaximosAntesMantenimiento()).isEqualTo(100);
         assertThat(dtoMolino.getTipoUltimaOperacion()).isEqualTo(TipoOperacionEquipamiento.LIMPIEZA);
-        assertThat(dtoMolino.getFechaFinUltimaOperacion()).isEqualTo(FIN);
+        assertThat(dtoMolino.getFechaUltimaOperacion()).isEqualTo(FIN);
         // El macerador no tiene usos ni operaciones registradas
         EquipamientoControlResponseDTO dtoMacerador = resultado.getContent().get(1);
         assertThat(dtoMacerador.getTipo()).isEqualTo(TipoEquipamiento.MACERADOR);
         assertThat(dtoMacerador.getUsosDesdeUltimoMantenimiento()).isZero();
         assertThat(dtoMacerador.getTipoUltimaOperacion()).isNull();
-        assertThat(dtoMacerador.getFechaFinUltimaOperacion()).isNull();
+        assertThat(dtoMacerador.getFechaUltimaOperacion()).isNull();
         verify(limpiezaEquipamientoRepository).contarUsosDesdeUltimoMantenimiento(List.of(1L, 2L));
         verify(operacionCicloVidaEquipamientoRepository).buscarUltimasOperacionesRegistradas(List.of(1L, 2L));
     }
@@ -172,14 +172,14 @@ class ControlEquipamientoServicioImplTest {
     // ==================== buscarResumen ====================
 
     @Test
-    @DisplayName("CP-CE-05: buscarResumen de un molino informa su rendimiento, sus usos y las fechas de fin de su última limpieza y último mantenimiento")
+    @DisplayName("CP-CE-05: buscarResumen de un molino informa su rendimiento, sus usos y las fechas de su última limpieza y último mantenimiento")
     void buscarResumen_debeResumirUnMolino() {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         LocalDateTime finMantenimiento = INICIO.minusDays(10);
         when(equipamientoRepository.findById(1L)).thenReturn(Optional.of(molino));
-        when(mantenimientoEquipamientoRepository.buscarFechaFinUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.of(finMantenimiento));
-        when(limpiezaEquipamientoRepository.buscarFechaFinUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.of(FIN));
+        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.of(finMantenimiento));
+        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(1L)).thenReturn(Optional.of(FIN));
         when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, finMantenimiento)).thenReturn(4L);
 
         // === EJECUCION ===
@@ -191,8 +191,8 @@ class ControlEquipamientoServicioImplTest {
         assertThat(resultado.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(resultado.getUsosMaximosAntesMantenimiento()).isEqualTo(100);
         assertThat(resultado.getUsosDesdeUltimoMantenimiento()).isEqualTo(4L);
-        assertThat(resultado.getFechaFinUltimaLimpieza()).isEqualTo(FIN);
-        assertThat(resultado.getFechaFinUltimoMantenimiento()).isEqualTo(finMantenimiento);
+        assertThat(resultado.getFechaUltimaLimpieza()).isEqualTo(FIN);
+        assertThat(resultado.getFechaUltimoMantenimiento()).isEqualTo(finMantenimiento);
         assertThat(resultado.getRendimientoMolienda()).isEqualTo(120.0);
         assertThat(resultado.getCapacidadTotal()).isNull();
         assertThat(resultado.getEvaporacion()).isNull();
@@ -258,8 +258,8 @@ class ControlEquipamientoServicioImplTest {
         assertThat(resultado.getCapacidadTotal()).isEqualTo(1000.0);
         assertThat(resultado.getCapacidadUtil()).isEqualTo(900.0);
         assertThat(resultado.getUsosDesdeUltimoMantenimiento()).isZero();
-        assertThat(resultado.getFechaFinUltimaLimpieza()).isNull();
-        assertThat(resultado.getFechaFinUltimoMantenimiento()).isNull();
+        assertThat(resultado.getFechaUltimaLimpieza()).isNull();
+        assertThat(resultado.getFechaUltimoMantenimiento()).isNull();
         verify(limpiezaEquipamientoRepository).contarLimpiezasRegistradasDesde(4L, null);
     }
 
@@ -320,8 +320,7 @@ class ControlEquipamientoServicioImplTest {
         assertThat(ultima.getId()).isEqualTo(30L);
         assertThat(ultima.getTipo()).isEqualTo(TipoOperacionEquipamiento.LIMPIEZA);
         assertThat(ultima.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(ultima.getFechaInicio()).isEqualTo(INICIO.plusDays(2));
-        assertThat(ultima.getFechaFin()).isEqualTo(FIN.plusDays(2));
+        assertThat(ultima.getFecha()).isEqualTo(FIN.plusDays(2));
         assertThat(ultima.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(ultima.isAnulable()).isTrue();
 
@@ -425,7 +424,7 @@ class ControlEquipamientoServicioImplTest {
         assertThat(bloqueFalla.getIdReferencia()).isEqualTo(9L);
         assertThat(bloqueFalla.getCodigoLote()).isNull();
         assertThat(bloqueFalla.getObservaciones()).isEqualTo("Observaciones de prueba");
-        assertThat(bloqueFalla.getFechaInicio()).isEqualTo(INICIO);
+        assertThat(bloqueFalla.getFechaInicio()).isEqualTo(FIN);
         assertThat(bloqueFalla.getFechaFin()).isEqualTo(FIN);
     }
 
@@ -447,7 +446,6 @@ class ControlEquipamientoServicioImplTest {
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).isFinProvisorio()).isTrue();
         assertThat(resultado.get(0).getEstadoEtapa()).isEqualTo(EstadoEtapaLote.EN_CURSO);
-        assertThat(resultado.get(0).getFechaFin()).isBetween(antes, LocalDateTime.now());
     }
 
     @Test
@@ -464,7 +462,6 @@ class ControlEquipamientoServicioImplTest {
         List<BloqueLineaTiempoEquipamientoResponseDTO> resultado = controlEquipamientoServicio.listarLineaDeTiempo(1L, null, null);
 
         // === ASSERTS ===
-        assertThat(resultado.get(0).getFechaFin()).isEqualTo(INICIO);
         assertThat(resultado.get(0).isFinProvisorio()).isFalse();
     }
 
@@ -541,8 +538,7 @@ class ControlEquipamientoServicioImplTest {
     private static LimpiezaEquipamientoEntity limpieza(Long id, EstadoTransaccion estado, EquipamientoEntity equipamiento, LocalDateTime fechaFin) {
         return LimpiezaEquipamientoEntity.builder()
                 .id(id)
-                .fecha(fechaFin.minusHours(2))
-                .fechaFin(fechaFin)
+                .fecha(fechaFin)
                 .observaciones("Observaciones de prueba")
                 .estado(estado)
                 .estadoOperativoResultante(EstadoOperativo.DISPONIBLE)
@@ -553,8 +549,7 @@ class ControlEquipamientoServicioImplTest {
     private static FallaEquipamientoEntity falla(Long id, EstadoTransaccion estado, EquipamientoEntity equipamiento, LocalDateTime fechaFin) {
         return FallaEquipamientoEntity.builder()
                 .id(id)
-                .fecha(fechaFin.minusHours(2))
-                .fechaFin(fechaFin)
+                .fecha(fechaFin)
                 .observaciones("Observaciones de prueba")
                 .estado(estado)
                 .equipamiento(equipamiento)
@@ -564,8 +559,7 @@ class ControlEquipamientoServicioImplTest {
     private static MantenimientoEquipamientoEntity mantenimiento(Long id, EstadoTransaccion estado, EquipamientoEntity equipamiento, LocalDateTime fechaFin) {
         return MantenimientoEquipamientoEntity.builder()
                 .id(id)
-                .fecha(fechaFin.minusHours(2))
-                .fechaFin(fechaFin)
+                .fecha(fechaFin)
                 .observaciones("Observaciones de prueba")
                 .estado(estado)
                 .equipamiento(equipamiento)

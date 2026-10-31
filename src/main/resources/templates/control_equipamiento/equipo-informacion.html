@@ -69,11 +69,11 @@
             </div>
             <div data-equipo-ultima-limpieza>
                 <dt class="text-xs font-medium text-slate-500">Última limpieza</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${equipo.fechaFinUltimaLimpieza})}"></th:block></dd>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${equipo.fechaUltimaLimpieza})}"></th:block></dd>
             </div>
             <div data-equipo-ultimo-mantenimiento>
                 <dt class="text-xs font-medium text-slate-500">Último mantenimiento</dt>
-                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${equipo.fechaFinUltimoMantenimiento})}"></th:block></dd>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${equipo.fechaUltimoMantenimiento})}"></th:block></dd>
             </div>
         </dl>
     </div>

@@ -36,14 +36,9 @@ public class OperacionEquipamientoResponseDTO {
     private EstadoTransaccion estado;
 
     /**
-     * Fecha y hora de inicio de la operación.
+     * Fecha y hora en la que se realizó la operación.
      */
-    private LocalDateTime fechaInicio;
-
-    /**
-     * Fecha y hora de fin de la operación.
-     */
-    private LocalDateTime fechaFin;
+    private LocalDateTime fecha;
 
     /**
      * Observaciones sobre la operación.
@@ -76,7 +71,7 @@ public class OperacionEquipamientoResponseDTO {
     private EstadoOperativo estadoOperativoResultante;
 
     /**
-     * {@code true} solo en la última operación registrada del equipamiento (la de mayor fecha de fin entre sus
+     * {@code true} solo en la última operación registrada del equipamiento (la de mayor fecha entre sus
      * limpiezas, fallas y mantenimientos), la única que admite anulación.
      */
     private boolean anulable;

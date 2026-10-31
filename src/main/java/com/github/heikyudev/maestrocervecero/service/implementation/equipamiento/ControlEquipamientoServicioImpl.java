@@ -90,7 +90,7 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
                 usosPorEquipamiento.put(((Number) fila[0]).longValue(), ((Number) fila[1]).longValue());
             }
             for (OperacionCicloVidaEquipamiento operacion : operacionCicloVidaEquipamientoRepository.buscarUltimasOperacionesRegistradas(ids)) {
-                // Ante un empate de fecha de fin (datos anteriores a la regla de orden estricto) se queda con la de mayor ID
+                // Ante un empate de fecha (datos anteriores a la regla de orden estricto) se queda con la de mayor ID
                 ultimaOperacionPorEquipamiento.merge(operacion.getEquipamiento().getId(), operacion,
                         (actual, nueva) -> nueva.getId() > actual.getId() ? nueva : actual);
             }
@@ -104,7 +104,7 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
 
     /**
      * Obtiene el resumen de un equipamiento activo: sus datos, los parámetros propios de su tipo, sus usos desde el
-     * último mantenimiento y las fechas de fin de su última limpieza y su último mantenimiento registrados.
+     * último mantenimiento y las fechas de su última limpieza y su último mantenimiento registrados.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return El resumen del equipamiento.
@@ -118,16 +118,16 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
                 .filter(entidad -> entidad.getEstado() == Estado.ACTIVO)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + idEquipamiento));
 
-        LocalDateTime fechaFinUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaFinUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
-        LocalDateTime fechaFinUltimaLimpieza = limpiezaEquipamientoRepository.buscarFechaFinUltimaLimpiezaRegistrada(idEquipamiento).orElse(null);
-        long usos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaFinUltimoMantenimiento);
+        LocalDateTime fechaUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
+        LocalDateTime fechaUltimaLimpieza = limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null);
+        long usos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaUltimoMantenimiento);
 
-        return MapperControlEquipamiento.toResumenDTO(equipamiento, usos, fechaFinUltimaLimpieza, fechaFinUltimoMantenimiento);
+        return MapperControlEquipamiento.toResumenDTO(equipamiento, usos, fechaUltimaLimpieza, fechaUltimoMantenimiento);
     }
 
     /**
-     * Lista las operaciones de un equipamiento agrupadas por tipo, anuladas incluidas, de la de inicio más reciente a
-     * la más antigua. Solo la última operación registrada (mayor fecha de fin y, a igualdad, mayor ID, de cualquier tipo) se marca como anulable.
+     * Lista las operaciones de un equipamiento agrupadas por tipo, anuladas incluidas, de la de fecha más reciente a
+     * la más antigua. Solo la última operación registrada (mayor fecha y, a igualdad, mayor ID, de cualquier tipo) se marca como anulable.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return Las operaciones del equipamiento.
@@ -149,11 +149,11 @@ public class ControlEquipamientoServicioImpl implements IControlEquipamientoServ
 
     /**
      * Arma la línea de tiempo de un equipamiento para un período: un bloque por cada etapa de lote con uso real y por
-     * cada operación registrada (nunca las anuladas) que se superponga con el período, ordenados por inicio.
+     * cada operación registrada (nunca las anuladas) que se superponga con el período, ordenados por fecha.
      * <p>
      * Tienen uso real las etapas {@code EN_CURSO}, {@code FINALIZADA} y {@code CANCELADA} con fecha de inicio. La
      * etapa en curso usa el momento de la consulta como fin provisorio. Los bloques conservan sus fechas reales, sin
-     * recortarlas al período. Ante igual inicio, el bloque que termina antes va primero.
+     * recortarlas al período. Ante igual inicio, el bloque que termina antes va primero (las operaciones son un instante).
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento.

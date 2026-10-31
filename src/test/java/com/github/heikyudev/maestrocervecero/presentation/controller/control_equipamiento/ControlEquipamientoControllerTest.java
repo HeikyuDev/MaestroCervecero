@@ -77,7 +77,7 @@ public class ControlEquipamientoControllerTest {
         when(servicio.filtrarEquipamientosParaControl(any(), any(), any(), any())).thenReturn(new PageImpl<>(List.of(
                 EquipamientoControlResponseDTO.builder().id(5L).identificadorInterno("FER-01").tipo(TipoEquipamiento.FERMENTADOR)
                         .estadoOperativo(EstadoOperativo.EN_LIMPIEZA).usosDesdeUltimoMantenimiento(3L).usosMaximosAntesMantenimiento(10)
-                        .tipoUltimaOperacion(TipoOperacionEquipamiento.LIMPIEZA).fechaFinUltimaOperacion(FIN).build())));
+                        .tipoUltimaOperacion(TipoOperacionEquipamiento.LIMPIEZA).fechaUltimaOperacion(FIN).build())));
         configurarEquipo(EstadoOperativo.EN_LIMPIEZA);
         when(servicio.buscarResumen(99L)).thenThrow(new RecursoNoEncontradoException("No se encontró el equipamiento con ID: 99"));
         when(servicio.listarLineaDeTiempo(eq(5L), any(), any())).thenReturn(List.of(
@@ -92,7 +92,7 @@ public class ControlEquipamientoControllerTest {
     private void configurarEquipo(EstadoOperativo estado) {
         when(servicio.buscarResumen(5L)).thenReturn(EquipamientoResumenResponseDTO.builder().id(5L).identificadorInterno("FER-01")
                 .tipo(TipoEquipamiento.FERMENTADOR).estadoOperativo(estado).usosMaximosAntesMantenimiento(10).usosDesdeUltimoMantenimiento(3L)
-                .capacidadTotal(1000.0).capacidadUtil(900.0).fechaFinUltimaLimpieza(FIN).build());
+                .capacidadTotal(1000.0).capacidadUtil(900.0).fechaUltimaLimpieza(FIN).build());
         when(servicio.listarOperaciones(5L)).thenReturn(OperacionesEquipamientoResponseDTO.builder()
                 .limpiezas(List.of(
                         operacion(7L, TipoOperacionEquipamiento.LIMPIEZA, EstadoTransaccion.REGISTRADO, true),
@@ -101,7 +101,7 @@ public class ControlEquipamientoControllerTest {
     }
 
     private static OperacionEquipamientoResponseDTO operacion(Long id, TipoOperacionEquipamiento tipo, EstadoTransaccion estado, boolean anulable) {
-        return OperacionEquipamientoResponseDTO.builder().id(id).tipo(tipo).estado(estado).fechaInicio(FIN.minusHours(2)).fechaFin(FIN)
+        return OperacionEquipamientoResponseDTO.builder().id(id).tipo(tipo).estado(estado).fecha(FIN)
                 .observaciones("Limpieza con soda cáustica").registradoPor("operario1").fechaRegistro(FIN.plusMinutes(5))
                 .motivoAnulacion(estado == EstadoTransaccion.ANULADO ? "Error de carga" : null)
                 .fechaAnulacion(estado == EstadoTransaccion.ANULADO ? FIN.plusHours(1) : null).anulable(anulable).build();
@@ -172,7 +172,7 @@ public class ControlEquipamientoControllerTest {
         assertThat(desde.getValue().toLocalDate()).isEqualTo(LocalDate.now().minusDays(29));
         assertThat(hasta.getValue().toLocalDate()).isEqualTo(LocalDate.now());
         assertThat(html).contains("data-informacion-equipo").contains("LOT-R1-01 · Fermentación").contains("/lotes/12/detalle")
-                .contains("/control-equipamiento/5/operaciones/limpieza/7").contains("Uso en un lote").contains("Mantenimiento")
+                .contains("/control-equipamiento/5/operaciones/limpieza/7").contains("Etapa de lote finalizada").contains("Limpieza")
                 .contains("Inicio: ").contains("Fin: ").contains("(30 días)");
     }
 
@@ -220,8 +220,7 @@ public class ControlEquipamientoControllerTest {
     void panel_operarioConFormulario() throws Exception {
         String html = html(get("/control-equipamiento/5").with(como(Rol.OPERARIO_DE_PRODUCCION)), "control_equipamiento/control-panel");
 
-        assertThat(html).contains("data-registrar-operacion").contains("type=\"datetime-local\"").contains("name=\"fechaInicio\"")
-                .contains("name=\"fechaFin\"").contains("Ej: Limpieza con soda cáustica y enjuague").contains("novalidate")
+        assertThat(html).contains("data-registrar-operacion").contains("type=\"datetime-local\"").contains("name=\"fecha\"").doesNotContain("fechaFin").doesNotContain("fechaInicio").contains("Ej: Limpieza con soda cáustica y enjuague").contains("novalidate")
                 .contains("/control-equipamiento/5/limpiezas").contains("data-pestanas-operaciones");
         assertThat(count(html, "data-motivo-url")).isEqualTo(1);
         assertThat(html).contains("/control-equipamiento/5/limpiezas/7/anular").doesNotContain("/limpiezas/6/anular");

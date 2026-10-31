@@ -62,7 +62,7 @@ public interface IFallaEquipamientoRepository extends JpaRepository<FallaEquipam
                                                              Pageable pageable);
 
     /**
-     * Lista todas las fallas de un equipamiento, anuladas incluidas, de la de inicio más reciente a la más antigua.
+     * Lista todas las fallas de un equipamiento, anuladas incluidas, de la de fecha más reciente a la más antigua.
      *
      * @param idEquipamiento El ID del equipamiento.
      * @return Las fallas del equipamiento.

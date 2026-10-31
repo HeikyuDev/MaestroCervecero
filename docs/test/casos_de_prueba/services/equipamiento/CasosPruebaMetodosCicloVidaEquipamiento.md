@@ -12,32 +12,29 @@ Ambos textos son obligatorios, se normalizan (sin espacios en los extremos ni re
 |**CP-MCV-04**|Motivo de anulación nulo, vacío o en blanco|`null`, `""` y `"   "`|`motivoAnulacion` sin contenido $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("El motivo de anulación es obligatorio", campo `motivoAnulacion`).|
 |**CP-MCV-05**|Motivo de anulación en el límite de 255 caracteres y normalización|`"  Carga   por error "`, 255 y 256 caracteres|`length() > 255`|Devuelve `"Carga por error"`. Con 255 no lanza excepción. Con 256 lanza `ReglaNegocioException` ("El motivo de anulación no puede superar 255 caracteres", campo `motivoAnulacion`).|
 
-### 2. `validarFechas(LocalDateTime fechaInicio, LocalDateTime fechaFin)`
+### 2. `validarFecha(LocalDateTime fecha)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-MCV-06**|Intervalo válido y fin igual al inicio _(Borde)_|Inicio 10:00 y fin 12:00; inicio y fin iguales|El fin no es anterior al inicio ni futuro|No lanza excepción.|
-|**CP-MCV-07**|Fecha de inicio nula|`fechaInicio: null`|`fechaInicio == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de inicio es obligatoria", campo `fechaInicio`).|
-|**CP-MCV-08**|Fecha de fin nula|`fechaFin: null`|`fechaFin == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de fin es obligatoria", campo `fechaFin`).|
-|**CP-MCV-09**|Fin anterior al inicio|Inicio 12:00 y fin 10:00|`fechaFin.isBefore(fechaInicio)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de fin no puede ser anterior a la fecha de inicio", campo `fechaFin`).|
-|**CP-MCV-10**|Fin posterior a la fecha y hora actual|`fechaFin`: ahora + 5 minutos|`fechaFin.isAfter(LocalDateTime.now())` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de fin no puede ser posterior a la fecha y hora actual", campo `fechaFin`).|
+|**CP-MCV-06**|Fecha pasada o igual al momento actual _(Borde)_|Una fecha pasada y la fecha y hora actual menos 1 segundo|La fecha no es nula ni futura|No lanza excepción.|
+|**CP-MCV-07**|Fecha nula|`fecha: null`|`fecha == null` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de la operación es obligatoria", campo `fecha`).|
 
-### 3. `validarInicioPosteriorALaActividadAnterior(LocalDateTime fechaInicio, LocalDateTime... finesAnteriores)`
+### 3. `validarFechaPosteriorALaActividadAnterior(LocalDateTime fecha, LocalDateTime... actividadesAnteriores)`
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
-|**CP-MCV-11**|Inicio posterior a toda la actividad anterior, o sin actividad|Fines anteriores: 1 segundo y 3 días antes del inicio; o ambos nulos|Todos los fines son anteriores al inicio|No lanza excepción.|
-|**CP-MCV-12**|Inicio igual al fin de una actividad anterior|Un fin anterior igual al inicio|`!finAnterior.isBefore(fechaInicio)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento", campo `fechaInicio`).|
-|**CP-MCV-13**|Inicio anterior al fin de cualquiera de las actividades|Fines anteriores: 1 día antes del inicio y 1 hora después|El segundo fin es posterior al inicio|Lanza `ReglaNegocioException` (mismo mensaje que CP-MCV-12).|
+|**CP-MCV-11**|Fecha posterior a toda la actividad anterior, o sin actividad|Actividades anteriores: 1 segundo y 3 días antes de la fecha; o ambas nulas|Todas son anteriores a la fecha|No lanza excepción.|
+|**CP-MCV-12**|Fecha igual a la de una actividad anterior|Una actividad anterior igual a la fecha|`!anterior.isBefore(fecha)` $\rightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("La fecha de la operación debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento", campo `fecha`).|
+|**CP-MCV-13**|Fecha anterior a la de cualquiera de las actividades|Actividades anteriores: 1 día antes de la fecha y 1 hora después|La segunda es posterior a la fecha|Lanza `ReglaNegocioException` (mismo mensaje que CP-MCV-12).|
 
 ### 4. `validarEsLaUltimaOperacion(Long idEstaOperacion, Long idUltimaOperacion)`
 
-La "última" operación registrada es la de mayor fecha de fin y, ante igual fecha de fin (posible en datos migrados), la de mayor ID. La consulta que la resuelve devuelve su ID; esta validación compara contra el ID de la operación a anular.
+La "última" operación registrada es la de mayor fecha y, ante igual fecha (posible en datos migrados), la de mayor ID. La consulta que la resuelve devuelve su ID; esta validación compara contra el ID de la operación a anular.
 
 |**ID**|**Nombre del Caso**|**Datos de Entrada (Escenario)**|**Condición Evaluada**|**Resultado Esperado**|
 |---|---|---|---|---|
 |**CP-MCV-14**|Es la última operación|ID de la operación igual al ID de la última; o ID de la última nulo (sin operaciones)|Los IDs coinciden o no hay última|No lanza excepción.|
-|**CP-MCV-15**|La última es otra operación (incluye el empate de fecha de fin)|ID de la operación 5 e ID de la última 6|`idUltimaOperacion != idEstaOperacion` $ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores").|
+|**CP-MCV-15**|La última es otra operación (incluye el empate de fecha)|ID de la operación 5 e ID de la última 6|`idUltimaOperacion != idEstaOperacion` $ightarrow$ **TRUE**|Lanza `ReglaNegocioException` ("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores").|
 
 ### 5. `resolverEquipamientoActivo(Optional<EquipamientoEntity> equipamiento, Long idEquipamiento)`
 
