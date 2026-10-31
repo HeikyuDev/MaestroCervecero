@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Pestañas del panel operativo de un equipamiento (componente fragments/pestanas): una por tipo de operación que el usuario
+    puede consultar, cada una es la misma URL con ?pestana=<clave>.
+    Parámetros: activa (la PestanaOperacion activa), idEquipo y pestanas (las PestanaOperacion que se muestran).
+-->
+<th:block th:fragment="tabs(activa, idEquipo, pestanas)">
+    <th:block th:replace="~{fragments/pestanas :: pestanas('Operaciones del equipamiento', 'operaciones', ~{::enlaces})}">
+        <th:block th:fragment="enlaces">
+            <th:block th:if="${#lists.contains(pestanas, T(com.github.heikyudev.maestrocervecero.presentation.controller.control_equipamiento.PestanaOperacion).LIMPIEZAS)}"><a th:replace="~{fragments/pestanas :: pestana(@{/control-equipamiento/{id}(id=${idEquipo}, pestana='limpiezas')}, ${activa.clave == 'limpiezas'}, 'limpiezas', ~{fragments/pestanas :: bi('bi-stars')}, 'Limpiezas')}"></a></th:block>
+            <th:block th:if="${#lists.contains(pestanas, T(com.github.heikyudev.maestrocervecero.presentation.controller.control_equipamiento.PestanaOperacion).FALLAS)}"><a th:replace="~{fragments/pestanas :: pestana(@{/control-equipamiento/{id}(id=${idEquipo}, pestana='fallas')}, ${activa.clave == 'fallas'}, 'fallas', ~{fragments/pestanas :: bi('bi-exclamation-triangle')}, 'Fallas')}"></a></th:block>
+            <th:block th:if="${#lists.contains(pestanas, T(com.github.heikyudev.maestrocervecero.presentation.controller.control_equipamiento.PestanaOperacion).MANTENIMIENTOS)}"><a th:replace="~{fragments/pestanas :: pestana(@{/control-equipamiento/{id}(id=${idEquipo}, pestana='mantenimientos')}, ${activa.clave == 'mantenimientos'}, 'mantenimientos', ~{fragments/pestanas :: bi('bi-wrench')}, 'Mantenimientos')}"></a></th:block>
+        </th:block>
+    </th:block>
+</th:block>
+
+</html>

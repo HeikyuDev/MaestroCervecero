@@ -76,6 +76,10 @@
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">50</td>
                 <td class="col-acciones px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
+                        <a th:href="@{/equipamiento/{id}/detalle(id=${x.id})}" th:aria-label="'Ver ' + ${x.identificadorInterno}" data-ver-equipo
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
                         <a th:href="@{/equipamiento/maceradores/{id}/editar(id=${x.id})}" title="Editar macerador" aria-label="Editar macerador"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>

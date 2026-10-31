@@ -34,6 +34,11 @@ public class BloqueLineaTiempoEquipamientoResponseDTO {
     private Long idReferencia;
 
     /**
+     * Identificador del lote (solo bloques de lote), o {@code null}.
+     */
+    private Long idLote;
+
+    /**
      * Código del lote (solo bloques de lote), o {@code null}.
      */
     private String codigoLote;

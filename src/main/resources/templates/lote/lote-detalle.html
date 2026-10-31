@@ -74,7 +74,7 @@
                 </div>
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
-                    <dd class="text-slate-900" th:text="${lote.identificadorInternoFermentador != null} ? ${lote.identificadorInternoFermentador} : '-'">F-01</dd>
+                    <dd class="text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${lote.idFermentador}, ${lote.identificadorInternoFermentador})}"></th:block></dd>
                 </div>
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Volumen objetivo</dt>
@@ -134,7 +134,7 @@
             <div class="flex flex-wrap items-center gap-x-8 gap-y-2">
                 <h2 class="text-base font-semibold text-slate-900" th:text="${tipoEtapa.etiqueta}">Molienda</h2>
                 <div class="flex items-center gap-2"><span class="text-xs font-medium text-slate-500">Estado</span> <span th:replace="~{lote/formato :: estadoEtapa(${etapaMostrada.estado})}"></span></div>
-                <div><span class="text-xs font-medium text-slate-500">Equipo</span> <strong class="text-slate-900" th:text="${etapaMostrada.equipamiento != null} ? ${etapaMostrada.equipamiento.identificadorInterno} : '-'">M-01</strong></div>
+                <div><span class="text-xs font-medium text-slate-500">Equipo</span> <strong class="text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${etapaMostrada.equipamiento?.id}, ${etapaMostrada.equipamiento?.identificadorInterno})}"></th:block></strong></div>
                 <div><span class="text-xs font-medium text-slate-500">Inicio</span> <span class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${etapaMostrada.fechaInicio})}"></th:block></span></div>
                 <div><span class="text-xs font-medium text-slate-500">Fin</span> <span class="text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${etapaMostrada.fechaFinalizacion})}"></th:block></span></div>
             </div>

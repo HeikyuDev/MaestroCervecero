@@ -11,12 +11,15 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum TipoEquipamiento {
-    MOLINO(MolinoEntity.class),
-    MACERADOR(MaceradorEntity.class),
-    OLLA_HERVOR(OllaHervorEntity.class),
-    FERMENTADOR(FermentadorEntity.class);
+    MOLINO(MolinoEntity.class, "Molino"),
+    MACERADOR(MaceradorEntity.class, "Macerador"),
+    OLLA_HERVOR(OllaHervorEntity.class, "Olla de hervor"),
+    FERMENTADOR(FermentadorEntity.class, "Fermentador");
 
     private final Class<? extends EquipamientoEntity> entityClass;
+
+    /** Nombre del tipo para mostrar en pantalla. */
+    private final String etiqueta;
 
     /**
      * Resuelve el tipo concreto de un equipamiento a partir de su clase.

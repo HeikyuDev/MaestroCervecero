@@ -4,12 +4,14 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Est
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoEtapaLote;
 import com.github.heikyudev.maestrocervecero.persistence.entity.lote.EstadoLote;
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
+import com.github.heikyudev.maestrocervecero.persistence.entity.usuario.Permiso;
 import com.github.heikyudev.maestrocervecero.persistence.enums.TipoEtapa;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.response_dto.receta.RecetaResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -58,6 +60,18 @@ public final class MetodosControlador {
     public static final String VISTA_BUSCADOR_RECETA = "planificacion_produccion/buscador-receta :: buscador";
 
     private MetodosControlador() {
+    }
+
+    /**
+     * Indica si el usuario autenticado tiene un permiso.
+     *
+     * @param authentication La autenticación actual, o {@code null}.
+     * @param permiso El permiso a verificar.
+     * @return {@code true} si la autenticación existe y lo incluye.
+     */
+    public static boolean tienePermiso(Authentication authentication, Permiso permiso) {
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> permiso.name().equals(authority.getAuthority()));
     }
 
     /**

@@ -297,7 +297,6 @@ class ControlEquipamientoServicioImplTest {
         // === PREPARACION DE DATOS ===
         MolinoEntity molino = molino(1L, EstadoOperativo.DISPONIBLE);
         LimpiezaEquipamientoEntity limpiezaUltima = limpieza(30L, EstadoTransaccion.REGISTRADO, molino, FIN.plusDays(2));
-        limpiezaUltima.setCreatedBy("operario1");
         LimpiezaEquipamientoEntity limpiezaAnulada = limpieza(20L, EstadoTransaccion.ANULADO, molino, FIN.plusDays(2));
         limpiezaAnulada.setFechaAnulacion(FIN.plusDays(3));
         limpiezaAnulada.setMotivoAnulacion("Carga por error");
@@ -323,7 +322,6 @@ class ControlEquipamientoServicioImplTest {
         assertThat(ultima.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
         assertThat(ultima.getFechaInicio()).isEqualTo(INICIO.plusDays(2));
         assertThat(ultima.getFechaFin()).isEqualTo(FIN.plusDays(2));
-        assertThat(ultima.getResponsable()).isEqualTo("operario1");
         assertThat(ultima.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(ultima.isAnulable()).isTrue();
 

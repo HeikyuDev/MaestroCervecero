@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<!--
+    Información de un equipamiento, siempre igual: la usan el detalle del equipamiento, el cronograma del equipo y su panel
+    operativo. Una fila por tema: identidad (identificador, tipo y estado operativo), parámetros propios del tipo (solo los
+    que tienen valor, con su unidad) y mantenimiento (usos desde el último mantenimiento, última limpieza y último
+    mantenimiento).
+
+    Parámetro: equipo (EquipamientoResumenResponseDTO).
+
+    Uso: <th:block th:replace="~{control_equipamiento/equipo-informacion :: informacion(${equipo})}"></th:block>
+-->
+<section th:fragment="informacion(equipo)" data-informacion-equipo class="bg-white border border-slate-200 rounded-xl shadow-sm">
+    <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Información del equipamiento</h2>
+    <div class="p-4 space-y-3 text-sm">
+        <!-- identidad -->
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Identificador</dt>
+                <dd class="mt-1 font-medium text-slate-900" data-equipo-identificador th:text="${equipo.identificadorInterno}">FER-01</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Tipo</dt>
+                <dd class="mt-1 text-slate-900" th:text="${equipo.tipo.etiqueta}">Fermentador</dd>
+            </div>
+            <div>
+                <dt class="text-xs font-medium text-slate-500">Estado operativo</dt>
+                <dd class="mt-1"><span th:replace="~{equipamiento/estado :: badge(${equipo.estadoOperativo})}"></span></dd>
+            </div>
+        </dl>
+        <!-- parámetros propios del tipo -->
+        <dl data-equipo-parametros th:if="${equipo.capacidadTotal != null or equipo.capacidadUtil != null or equipo.rendimientoMolienda != null or equipo.espacioMuerto != null or equipo.eficienciaMaceracion != null or equipo.evaporacion != null or equipo.perdidaPorTrub != null}"
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div th:if="${equipo.capacidadTotal != null}">
+                <dt class="text-xs font-medium text-slate-500">Capacidad total</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.capacidadTotal}, 'L')}"></th:block></dd>
+            </div>
+            <div th:if="${equipo.capacidadUtil != null}">
+                <dt class="text-xs font-medium text-slate-500">Capacidad útil</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.capacidadUtil}, 'L')}"></th:block></dd>
+            </div>
+            <div th:if="${equipo.rendimientoMolienda != null}">
+                <dt class="text-xs font-medium text-slate-500">Rendimiento de molienda</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.rendimientoMolienda}, 'kg/h')}"></th:block></dd>
+            </div>
+            <div th:if="${equipo.espacioMuerto != null}">
+                <dt class="text-xs font-medium text-slate-500">Espacio muerto</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.espacioMuerto}, 'L')}"></th:block></dd>
+            </div>
+            <div th:if="${equipo.eficienciaMaceracion != null}">
+                <dt class="text-xs font-medium text-slate-500">Eficiencia de maceración</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.eficienciaMaceracion}, '%')}"></th:block></dd>
+            </div>
+            <div th:if="${equipo.evaporacion != null}">
+                <dt class="text-xs font-medium text-slate-500">Evaporación</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.evaporacion}, 'L/h')}"></th:block></dd>
+            </div>
+            <div th:if="${equipo.perdidaPorTrub != null}">
+                <dt class="text-xs font-medium text-slate-500">Pérdida por trub</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{receta/formato :: medida(${equipo.perdidaPorTrub}, 'L')}"></th:block></dd>
+            </div>
+        </dl>
+        <!-- mantenimiento -->
+        <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+            <div data-equipo-usos>
+                <dt class="text-xs font-medium text-slate-500">Usos desde el último mantenimiento</dt>
+                <dd class="mt-1 text-slate-900" th:text="|${equipo.usosDesdeUltimoMantenimiento} de ${equipo.usosMaximosAntesMantenimiento}|">3 de 10</dd>
+            </div>
+            <div data-equipo-ultima-limpieza>
+                <dt class="text-xs font-medium text-slate-500">Última limpieza</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${equipo.fechaFinUltimaLimpieza})}"></th:block></dd>
+            </div>
+            <div data-equipo-ultimo-mantenimiento>
+                <dt class="text-xs font-medium text-slate-500">Último mantenimiento</dt>
+                <dd class="mt-1 text-slate-900"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${equipo.fechaFinUltimoMantenimiento})}"></th:block></dd>
+            </div>
+        </dl>
+    </div>
+</section>
+
+</html>

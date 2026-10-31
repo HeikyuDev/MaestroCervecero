@@ -51,9 +51,14 @@ public class OperacionEquipamientoResponseDTO {
     private String observaciones;
 
     /**
-     * Usuario que registró la operación.
+     * Usuario que registró la operación (auditoría), para el detalle de la operación.
      */
-    private String responsable;
+    private String registradoPor;
+
+    /**
+     * Fecha y hora en la que se registró la operación.
+     */
+    private LocalDateTime fechaRegistro;
 
     /**
      * Fecha y hora en la que se anuló la operación, o {@code null} si sigue registrada.

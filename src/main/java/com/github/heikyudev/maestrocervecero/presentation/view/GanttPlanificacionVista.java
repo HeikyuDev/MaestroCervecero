@@ -80,6 +80,12 @@ public class GanttPlanificacionVista {
      */
     boolean planificacionResaltada;
 
+    /** Título de la columna fija de los carriles, o {@code null} para "Fermentador" (el de los cronogramas de lotes). */
+    String tituloCarriles;
+
+    /** {@code true} en la línea de tiempo de un equipo: la leyenda lista sus bloques (lote, limpieza, falla y mantenimiento). */
+    boolean leyendaEquipamiento;
+
     /**
      * Carril del diagrama: un fermentador con sus lotes en orden cronológico. Puede no tener barras.
      */
@@ -91,6 +97,9 @@ public class GanttPlanificacionVista {
 
         /** Bloques de limpieza del fermentador y demás equipamiento, ordenados por fecha. Vacía en el carril "Sin fermentador". */
         List<Limpieza> limpiezas;
+
+        /** Alto del carril en rem cuando sus bloques se reparten en subcarriles, o {@code null} para el alto estándar. */
+        Double alturaRem;
     }
 
     /**
@@ -133,6 +142,18 @@ public class GanttPlanificacionVista {
         String estadoClave;
 
         String estadoEtiqueta;
+
+        /** Destino del enlace de la barra, o {@code null} para llevar al detalle del lote {@code idLote}. */
+        String enlace;
+
+        /** Ícono Bootstrap Icons de la barra, o {@code null} si no lleva (las barras de lotes no llevan). */
+        String icono;
+
+        /** {@code true} si el bloque es muy corto para una barra y se dibuja como un marcador de ancho fijo con su ícono. */
+        boolean marcador;
+
+        /** Estilo en línea completo de la barra, o {@code null} para el estándar (izquierda y ancho en %). */
+        String estilo;
         LocalDate desde;
         LocalDate hasta;
 

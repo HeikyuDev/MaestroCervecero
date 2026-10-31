@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{layout/base :: layout(~{::#control-lista-content}, 'control-equipamiento')}">
+<body>
+
+<!--
+    Lista de control de equipamiento: todos los equipamientos activos (molinos, maceradores, ollas de hervor y fermentadores)
+    en una sola tabla, con su estado, sus usos y su última operación. El operario de producción entra al panel operativo con
+    "Abrir"; el gerente de producción, que solo consulta, además ve el cronograma del equipo con el ojo.
+-->
+<div id="control-lista-content" class="space-y-6">
+
+    <!-- Encabezado de la página -->
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Control de Equipamiento</h1>
+        <p class="text-sm text-slate-500">Equipamientos de la planta con su estado operativo y su última operación, en orden por identificador.</p>
+    </div>
+
+    <!-- Criterios de búsqueda -->
+    <form th:action="@{/control-equipamiento}" method="get" novalidate
+          class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+        <div>
+            <label for="identificador" class="block text-xs font-medium text-slate-500 mb-1">Identificador</label>
+            <input type="text" id="identificador" name="identificador" th:value="${filtroIdentificador}" autocomplete="off" placeholder="Ej: FER-01"
+                   class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+        </div>
+        <div>
+            <label for="tipo" class="block text-xs font-medium text-slate-500 mb-1">Tipo</label>
+            <select id="tipo" name="tipo"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="t : ${tipos}" th:value="${t}" th:selected="${t == filtroTipo}" th:text="${t.etiqueta}">Fermentador</option>
+            </select>
+        </div>
+        <div>
+            <label for="estadoOperativo" class="block text-xs font-medium text-slate-500 mb-1">Estado operativo</label>
+            <select id="estadoOperativo" name="estadoOperativo"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500">
+                <option value="">Todos</option>
+                <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Disponible</option>
+            </select>
+        </div>
+        <div class="flex items-center justify-end gap-3">
+            <a th:href="@{/control-equipamiento}"
+               class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
+            <button type="submit"
+                    class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-5 py-2 rounded-lg text-sm font-semibold bg-slate-800 text-white hover:bg-slate-900 shadow-sm transition-colors">
+                <i class="bi bi-search"></i> Buscar
+            </button>
+        </div>
+    </form>
+
+    <!-- Resultados -->
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <tr>
+                <th class="px-2 py-3">Identificador</th>
+                <th class="px-2 py-3">Tipo</th>
+                <th class="px-2 py-3">Estado operativo</th>
+                <th class="px-2 py-3 whitespace-nowrap">Usos</th>
+                <th class="px-2 py-3 whitespace-nowrap">Última operación</th>
+                <th class="col-acciones px-2 py-3 text-center whitespace-nowrap">Acciones</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="e : ${equipos.content}" class="hover:bg-slate-50 align-top">
+                <td class="px-2 py-3 font-medium text-slate-900 whitespace-nowrap" data-equipo-identificador>
+                    <th:block th:replace="~{fragments/enlace-equipo :: enlace(${e.id}, ${e.identificadorInterno})}"></th:block>
+                </td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap" th:text="${e.tipo.etiqueta}">Fermentador</td>
+                <td class="px-2 py-3 whitespace-nowrap"><span th:replace="~{equipamiento/estado :: badge(${e.estadoOperativo})}"></span></td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-equipo-usos
+                    th:text="|${e.usosDesdeUltimoMantenimiento} de ${e.usosMaximosAntesMantenimiento}|">3 de 10</td>
+                <td class="px-2 py-3 text-slate-700 whitespace-nowrap" data-equipo-ultima-operacion>
+                    <th:block th:if="${e.tipoUltimaOperacion != null}">
+                        <div th:text="${e.tipoUltimaOperacion.etiqueta}">Limpieza</div>
+                        <div class="mt-0.5 text-xs text-slate-500"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaFinUltimaOperacion})}"></th:block></div>
+                    </th:block>
+                    <th:block th:if="${e.tipoUltimaOperacion == null}">-</th:block>
+                </td>
+                <td class="col-acciones px-2 py-3">
+                    <div class="flex items-center justify-center gap-1">
+                        <!-- El ojo (solo el gerente de producción) es el cronograma del equipo; "Abrir" es el panel operativo -->
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/control-equipamiento/{id}/cronograma(id=${e.id})}"
+                           th:aria-label="'Ver el cronograma de ' + ${e.identificadorInterno}" data-ver-cronograma
+                           class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                            <i class="bi bi-eye text-lg"></i>
+                        </a>
+                        <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/control-equipamiento/{id}(id=${e.id})}, 'Abrir ' + ${e.identificadorInterno})}"></th:block>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${equipos.empty}">
+                <td colspan="6" class="px-4 py-10 text-center text-slate-400">
+                    <i class="bi bi-wrench-adjustable block text-3xl mb-2"></i>
+                    No se encontraron equipamientos con los criterios indicados
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <div th:replace="~{fragments/paginacion :: paginacion(${equipos}, 'equipamiento|equipamientos',
+                ${equipos.hasPrevious()} ? @{/control-equipamiento(pagina=${equipos.number - 1}, identificador=${filtroIdentificador}, tipo=${filtroTipo}, estadoOperativo=${filtroEstado})} : null,
+                ${equipos.hasNext()} ? @{/control-equipamiento(pagina=${equipos.number + 1}, identificador=${filtroIdentificador}, tipo=${filtroTipo}, estadoOperativo=${filtroEstado})} : null,
+                false)}"></div>
+    </div>
+</div>
+
+</body>
+</html>

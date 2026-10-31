@@ -22,4 +22,20 @@
     <i class="bi bi-info-circle" aria-hidden="true"></i>
 </button>
 
+<!--
+    Igual que "boton" pero sin el usuario: el diálogo muestra solo el motivo y la fecha y hora. Lo usa el control de equipamiento,
+    que no muestra personas.
+
+    Parámetros: cancelacion (true para una cancelación, false para una anulación), motivo y fecha (LocalDateTime).
+-->
+<button th:fragment="botonSinUsuario(cancelacion, motivo, fecha)" type="button" th:if="${motivo != null}" data-detalle-anulacion data-detalle-sin-usuario
+        th:data-detalle-titulo="${cancelacion} ? 'Detalle de la cancelación' : 'Detalle de la anulación'"
+        th:data-detalle-motivo="${motivo}"
+        th:data-detalle-fecha="${fecha != null} ? ${#temporals.format(fecha, 'dd/MM/yyyy HH:mm')}"
+        th:aria-label="${cancelacion} ? 'Ver detalle de la cancelación' : 'Ver detalle de la anulación'"
+        th:title="${cancelacion} ? 'Ver detalle de la cancelación' : 'Ver detalle de la anulación'"
+        class="inline-flex shrink-0 items-center rounded p-1 text-slate-400 hover:text-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-colors">
+    <i class="bi bi-info-circle" aria-hidden="true"></i>
+</button>
+
 </html>

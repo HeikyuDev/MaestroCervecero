@@ -7,7 +7,7 @@
 <!--
     Detalle del lote (solo el gerente de producción): pantalla de solo lectura con toda la información del lote, con los datos del lote siempre visibles y,
     debajo, una pestaña por tema: etapas, consumos, reservas, envasados y, al final, costos. El panel de trabajo
-    (lote/lote-detalle) es otra pantalla y se abre con "Abrir".
+    (lote/lote-detalle) es otra pantalla y se abre con "Abrir" desde la lista de lotes.
 -->
 <div id="lote-informacion-content" class="space-y-6">
 
@@ -24,7 +24,7 @@
                 </div>
                 <p th:if="${receta != null}" data-lote-receta class="mt-1 text-lg font-semibold text-amber-700" th:text="${receta.nombre}">Pale Ale</p>
             </div>
-            <th:block th:replace="~{fragments/boton-abrir :: abrir(@{/lotes/{id}(id=${lote.id})}, 'Abrir ' + ${lote.identificadorInterno})}"></th:block>
+
         </div>
     </section>
 
@@ -76,7 +76,7 @@
                 </div>
                 <div>
                     <dt class="text-xs font-medium text-slate-500">Fermentador</dt>
-                    <dd class="mt-1 text-slate-900" th:text="${lote.identificadorInternoFermentador != null} ? ${lote.identificadorInternoFermentador} : '-'">F-01</dd>
+                    <dd class="mt-1 text-slate-900"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${lote.idFermentador}, ${lote.identificadorInternoFermentador})}"></th:block></dd>
                 </div>
             </dl>
             <!-- fechas -->
@@ -137,7 +137,7 @@
                 <tr th:each="e : ${lote.etapas}" class="hover:bg-slate-50">
                     <td class="px-4 py-3 font-medium text-slate-900" th:text="${e.etapa.etiqueta}">Molienda</td>
                     <td class="px-4 py-3"><span th:replace="~{lote/formato :: estadoEtapa(${e.estado})}"></span></td>
-                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${e.equipamiento != null} ? ${e.equipamiento.identificadorInterno} : '-'">M-01</td>
+                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${e.equipamiento?.id}, ${e.equipamiento?.identificadorInterno})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaInicio})}"></th:block></td>
                     <td class="px-4 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{planificacion_produccion/formato :: fechaHora(${e.fechaFinalizacion})}"></th:block></td>
                 </tr>

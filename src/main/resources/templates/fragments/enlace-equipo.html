@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6">
+
+<!--
+    Identificador de un equipamiento (molino, macerador, olla de hervor o fermentador) dentro de otra pantalla. Es un
+    enlace ámbar al detalle del equipamiento para quien tiene el permiso EQUIPAMIENTO_CONSULTAR (el gerente y el operario de
+    producción) y texto plano para los demás roles. Si no hay equipamiento se muestra "-".
+
+    Parámetros: id (del equipamiento, o null si no hay un enlace posible) e identificador (su identificador interno).
+
+    Uso: <th:block th:replace="~{fragments/enlace-equipo :: enlace(${lote.idFermentador}, ${lote.identificadorInternoFermentador})}"></th:block>
+-->
+<th:block th:fragment="enlace(id, identificador)">
+    <th:block th:if="${identificador != null and id != null}">
+        <a sec:authorize="hasAuthority('EQUIPAMIENTO_CONSULTAR')" data-ver-equipo th:href="@{/equipamiento/{id}/detalle(id=${id})}"
+           th:attr="aria-label='Ver el equipamiento ' + ${identificador}"
+           class="text-amber-700 hover:underline" th:text="${identificador}">F-01</a>
+        <span sec:authorize="!hasAuthority('EQUIPAMIENTO_CONSULTAR')" th:text="${identificador}">F-01</span>
+    </th:block>
+    <th:block th:if="${identificador != null and id == null}" th:text="${identificador}">F-01</th:block>
+    <th:block th:if="${identificador == null}">-</th:block>
+</th:block>
+
+</html>

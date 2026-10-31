@@ -227,6 +227,8 @@
         asignar('[data-detalle-etiqueta-usuario-destino]', 'data-detalle-etiqueta-usuario');
         asignar('[data-detalle-usuario-destino]', 'data-detalle-usuario');
         asignar('[data-detalle-fecha-destino]', 'data-detalle-fecha');
+        // Un detalle sin usuario (data-detalle-sin-usuario) omite la fila "Anulado por"
+        dialogo.querySelector('[data-detalle-fila-usuario]').hidden = boton.hasAttribute('data-detalle-sin-usuario');
         dialogo.showModal();
     }
 

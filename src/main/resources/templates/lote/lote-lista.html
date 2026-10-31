@@ -84,8 +84,7 @@
                 </td>
                 <td class="px-2 py-3 text-slate-700 min-w-[9rem]">
                     <div class="break-words" data-planificacion-etiqueta th:text="${l.etiquetaPlanificacion}">Plan #7 - Pale Ale</div>
-                    <div class="mt-0.5 text-xs text-slate-500 whitespace-nowrap">Fermentador: <span data-lote-fermentador class="text-slate-700"
-                         th:text="${l.identificadorInternoFermentador != null} ? ${l.identificadorInternoFermentador} : '-'">F-01</span></div>
+                    <div class="mt-0.5 text-xs text-slate-500 whitespace-nowrap">Fermentador: <span data-lote-fermentador class="text-slate-700"><th:block th:replace="~{fragments/enlace-equipo :: enlace(${l.idFermentador}, ${l.identificadorInternoFermentador})}"></th:block></span></div>
                 </td>
                 <td class="px-2 py-3 whitespace-nowrap">
                     <span th:replace="~{planificacion_produccion/formato :: estadoLote(${l.estado})}"></span>

@@ -16,6 +16,10 @@ Es el estándar para abrir una vista de detalle de solo lectura: órdenes de com
 
 **Ojo y "Abrir" juntos.** Cuando un registro tiene una pantalla de detalle de solo lectura y además un panel de trabajo, el ojo "Ver" abre el detalle y "Abrir" el panel. Ejemplo, el lote: la lista de lotes ofrece al GERENTE_DE_PRODUCCION el ojo (`/lotes/{id}/detalle`, "Detalle del lote": información, etapas, costos, consumos, reservas y envasados) y a continuación "Abrir" (`/lotes/{id}`, panel de trabajo); el OPERARIO_DE_PRODUCCION ve solo "Abrir", porque el detalle y sus costos son del gerente. Ambos van centrados en la columna de acciones y el ojo lleva solo `aria-label` ("Ver LOT-R1-02"), sin tooltip. Las barras del Gantt y las colas del cronograma siguen llevando al panel de trabajo.
 
+**Equipamiento.** En la lista de Control de Equipamiento el ojo (solo el GERENTE_DE_PRODUCCION) abre el cronograma del equipo (`/control-equipamiento/{id}/cronograma`) y "Abrir" el panel operativo (`/control-equipamiento/{id}`), que el gerente ve en solo lectura. En las listas de Gestión de Equipamiento el ojo abre el detalle del equipamiento (`/equipamiento/{id}/detalle`).
+
+**Identificador de equipo.** Cuando una pantalla muestra el identificador de un equipamiento (el fermentador del lote, el equipo de una etapa) lo hace con el fragmento `fragments/enlace-equipo :: enlace(id, identificador)`: un enlace ámbar al detalle del equipamiento para quien tiene `EQUIPAMIENTO_CONSULTAR` y texto plano para los demás roles.
+
 ## Otros estándares
 
 - Columna de acciones fija a la derecha: clase `col-acciones` (protegida por `ColumnaAccionesStickyTest`).

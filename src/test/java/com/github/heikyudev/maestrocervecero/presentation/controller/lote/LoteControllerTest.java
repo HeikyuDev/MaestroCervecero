@@ -2912,7 +2912,7 @@ class LoteControllerTest {
         assertThat(html).doesNotContain("data-fila-lote").doesNotContain("data-href").doesNotContain("/js/lote-lista.js");
         assertThat(html).doesNotContain("bi-gear").doesNotContain("aria-label=\"Ver lote\"");
         // El operario solo ve Abrir: el ojo (detalle de solo lectura) es del gerente de producción
-        assertThat(html).doesNotContain("data-ver-lote").doesNotContain("bi-eye").doesNotContain("/detalle\"");
+        assertThat(html).doesNotContain("data-ver-lote").doesNotContain("bi-eye").doesNotContain("/lotes/12/detalle\"");
     }
 
     @Test
@@ -3414,7 +3414,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-165: el Detalle del lote (solo del gerente de producción) muestra el encabezado, el botón Volver, el acceso Abrir al panel de trabajo y la información del lote agrupada (identificación, receta y planificación, fermentador y estimados, las cuatro fechas)")
+    @DisplayName("CP-LCT-165: el Detalle del lote (solo del gerente de producción) muestra el encabezado, el botón Volver (sin acceso Abrir) y la información del lote agrupada (identificación, receta y planificación, fermentador y estimados, las cuatro fechas)")
     void informacion_muestraElEncabezadoYLosDatos() throws Exception {
         // Arrange
         stubDetalle(detalle(EstadoLote.EN_EJECUCION, TipoEtapa.HERVIDO, etapasEnCurso(TipoEtapa.HERVIDO)).build());
@@ -3425,8 +3425,8 @@ class LoteControllerTest {
         // Assert
         assertThat(html).contains("<title>Gestión de lotes - Maestro Cervecero</title>");
         String cabecera = texto(bloque(html, "data-lote-cabecera"));
-        assertThat(cabecera).contains("Volver a lotes").contains("Detalle del lote LOT-R7-03").contains("En ejecución").contains("Abrir");
-        assertThat(bloque(html, "data-lote-cabecera")).contains("href=\"/lotes\"").contains("data-boton-abrir").contains("href=\"/lotes/12\"").contains("aria-label=\"Abrir LOT-R7-03\"");
+        assertThat(cabecera).contains("Volver a lotes").contains("Detalle del lote LOT-R7-03").contains("En ejecución").doesNotContain("Abrir");
+        assertThat(bloque(html, "data-lote-cabecera")).contains("href=\"/lotes\"").doesNotContain("data-boton-abrir").doesNotContain("bi-arrow-right");
         String info = texto(bloque(html, "data-seccion-informacion"));
         assertThat(info).contains("Información del lote").contains("Identificador LOT-R7-03").contains("Estado En ejecución").contains("Etapa actual Hervido")
                 .contains("Volumen objetivo 300 L").contains("Receta Pale Ale").contains("Planificación Plan #7 - Pale Ale")
