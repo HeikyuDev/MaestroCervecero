@@ -38,7 +38,9 @@
         .gantt-color--finalizado { background: #047857; color: #ffffff; }
         .gantt-color--limpieza { background: #e0f2fe; color: #0284c7; box-shadow: inset 0 0 0 1px #38bdf8; }
         /* Línea de tiempo de un equipo: un color por tipo de bloque (lote, limpieza, falla y mantenimiento) */
-        .gantt-color--equipo-falla { background: #f43f5e; color: #ffffff; }
+        .gantt-color--equipo-limpieza { background: #0e7490; color: #ffffff; }
+        .gantt-color--equipo-falla { background: #dc2626; color: #ffffff; }
+        .gantt-color--equipo-mantenimiento { background: #7c3aed; color: #ffffff; }
         .gantt-color--equipo-cancelada { background: #64748b; color: #ffffff; }
         /* Bloques contiguos (una barra y la limpieza que le sigue o antecede): el builder no los superpone y cada barra lleva a
            los lados un borde blanco de 1 px que no cambia su posición ni su ancho (box-sizing: border-box, fondo recortado al
@@ -97,7 +99,7 @@
             <!-- Columna fija de fermentadores -->
             <div class="sticky left-0 z-20 w-36 shrink-0 border-r border-slate-200 bg-white">
                 <div class="h-10 border-b border-slate-200 bg-slate-50 px-3 flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider" th:text="${vista.tituloCarriles != null} ? ${vista.tituloCarriles} : 'Fermentador'">Fermentador</div>
-                <div th:each="c : ${vista.carriles}" th:text="${c.etiqueta}" th:title="${c.etiqueta}" th:style="${c.alturaRem != null} ? |height: ${c.alturaRem}rem|"
+                <div th:each="c : ${vista.carriles}" th:text="${c.etiqueta}" th:title="${c.etiqueta}"
                      class="h-12 border-b border-slate-100 px-3 flex items-center truncate text-sm font-medium text-slate-800">F-01</div>
             </div>
 
@@ -134,7 +136,7 @@
                 </div>
 
                 <!-- Carriles con sus barras -->
-                <div th:each="c : ${vista.carriles}" th:style="${c.alturaRem != null} ? |height: ${c.alturaRem}rem|" class="relative h-12 border-b border-slate-100">
+                <div th:each="c : ${vista.carriles}" class="relative h-12 border-b border-slate-100">
                     <span th:if="${#lists.isEmpty(c.barras)}" data-gantt-carril-vacio
                           class="absolute inset-0 flex items-center px-3 text-xs italic text-slate-400">Sin lotes en este período</span>
                     <!-- Limpieza de equipamientos: un día libre entre dos lotes vivos, solo hoy o más adelante -->
@@ -154,7 +156,7 @@
                         <a th:if="${enlazar}" th:href="${b.enlace != null} ? @{${b.enlace}} : @{/lotes/{id}(id=${b.idLote})}" th:attr="aria-label=${b.tooltip}" data-gantt-barra-enlace
                            class="absolute inset-0 z-10 rounded-md focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"></a>
                         <i th:if="${b.continuaAntes}" class="bi bi-chevron-left gantt-continua" aria-hidden="true"></i>
-                        <span th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
+                        <span th:if="${not #strings.isEmpty(b.etiqueta)}" th:text="${b.etiqueta}" class="relative min-w-0 truncate px-2 text-xs font-medium">PILSEN-1 - Pendiente</span>
                         <span th:if="${b.etiquetaAtraso != null}" th:text="${b.etiquetaAtraso}"
                               data-gantt-atraso-etiqueta class="gantt-etiqueta-atraso">Atrasado 3 días</span>
                         <i th:if="${b.continuaDespues}" class="bi bi-chevron-right gantt-continua ml-auto" aria-hidden="true"></i>

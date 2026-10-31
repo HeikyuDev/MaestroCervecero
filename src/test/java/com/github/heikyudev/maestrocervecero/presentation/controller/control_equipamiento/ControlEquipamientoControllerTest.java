@@ -60,6 +60,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class ControlEquipamientoControllerTest {
 
     private static final String SIN_PERMISOS = "No tiene permisos para realizar esta acción";
+    private static final LocalDate LUNES = LocalDate.now().with(java.time.DayOfWeek.MONDAY);
     private static final LocalDateTime FIN = LocalDateTime.of(2026, 10, 20, 12, 0);
 
     @Autowired
@@ -83,10 +84,10 @@ public class ControlEquipamientoControllerTest {
         when(servicio.listarLineaDeTiempo(eq(5L), any(), any())).thenReturn(List.of(
                 BloqueLineaTiempoEquipamientoResponseDTO.builder().tipo(TipoBloqueLineaTiempo.LOTE).idReferencia(1L).idLote(12L)
                         .codigoLote("LOT-R1-01").etapa(TipoEtapa.FERMENTACION).estadoEtapa(EstadoEtapaLote.FINALIZADA)
-                        .fechaInicio(LocalDateTime.now().minusDays(5)).fechaFin(LocalDateTime.now().minusDays(2)).build(),
+                        .fechaInicio(LUNES.atStartOfDay()).fechaFin(LUNES.plusDays(2).atStartOfDay()).build(),
                 BloqueLineaTiempoEquipamientoResponseDTO.builder().tipo(TipoBloqueLineaTiempo.LIMPIEZA).idReferencia(7L)
                         .observaciones("Limpieza con soda")
-                        .fechaInicio(LocalDateTime.now().minusDays(1)).fechaFin(LocalDateTime.now().minusDays(1).plusHours(2)).build()));
+                        .fechaInicio(LUNES.plusDays(3).atTime(8, 0)).fechaFin(LUNES.plusDays(3).atTime(8, 0)).build()));
     }
 
     private void configurarEquipo(EstadoOperativo estado) {
@@ -162,18 +163,22 @@ public class ControlEquipamientoControllerTest {
     // ==================== Cronograma ====================
 
     @Test
-    @DisplayName("CP-CCE-06: el cronograma del gerente pide los últimos 30 días hasta hoy y dibuja un bloque por actividad con enlaces y leyenda")
+    @DisplayName("CP-CCE-06: el cronograma del gerente pide la semana actual (de lunes a domingo), dibuja las barras con enlaces y leyenda, y la tabla de actividad coincide con el gráfico")
     void cronograma_gerente() throws Exception {
         String html = html(get("/control-equipamiento/5/cronograma").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
 
         ArgumentCaptor<LocalDateTime> desde = ArgumentCaptor.forClass(LocalDateTime.class);
         ArgumentCaptor<LocalDateTime> hasta = ArgumentCaptor.forClass(LocalDateTime.class);
         verify(servicio).listarLineaDeTiempo(eq(5L), desde.capture(), hasta.capture());
-        assertThat(desde.getValue().toLocalDate()).isEqualTo(LocalDate.now().minusDays(29));
-        assertThat(hasta.getValue().toLocalDate()).isEqualTo(LocalDate.now());
+        assertThat(desde.getValue().toLocalDate()).isEqualTo(LUNES);
+        assertThat(hasta.getValue().toLocalDate()).isEqualTo(LUNES.plusDays(6));
         assertThat(html).contains("data-informacion-equipo").contains("LOT-R1-01 · Fermentación").contains("/lotes/12/detalle")
                 .contains("/control-equipamiento/5/operaciones/limpieza/7").contains("Etapa de lote finalizada").contains("Limpieza")
-                .contains("Inicio: ").contains("Fin: ").contains("(30 días)");
+                .contains("Inicio: ").contains("Fin: ").contains("Semana: ").contains("Cronograma de la semana");
+        String tabla = html.substring(html.indexOf("data-actividad-semana"));
+        assertThat(tabla).contains("Actividad de la semana").contains("Fecha y hora").contains("Tipo").contains("Detalle")
+                .contains("LOT-R1-01 · Fermentación").contains("Limpieza con soda").contains("href=\"/lotes/12/detalle\"");
+        assertThat(html).doesNotContain("gantt-barra--marcador").doesNotContain("bi-stars gantt-icono");
     }
 
     @Test
@@ -185,32 +190,33 @@ public class ControlEquipamientoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CCE-08: sin actividad en el período el cronograma muestra el mensaje de vacío y no el diagrama")
+    @DisplayName("CP-CCE-08: sin actividad en la semana el cronograma muestra el mensaje de vacío, sin el diagrama ni la tabla")
     void cronograma_sinActividad() throws Exception {
         when(servicio.listarLineaDeTiempo(eq(5L), any(), any())).thenReturn(List.of());
 
         String html = html(get("/control-equipamiento/5/cronograma").with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
 
-        assertThat(html).contains("El equipamiento no tiene actividad en el período").doesNotContain("data-gantt");
+        assertThat(html).contains("El equipamiento no tiene actividad en la semana").doesNotContain("data-gantt").doesNotContain("data-actividad-semana");
     }
 
     @Test
-    @DisplayName("CP-CCE-09: Anterior y Siguiente desplazan el período su misma longitud y Hoy vuelve al período por defecto")
+    @DisplayName("CP-CCE-09: cualquier fecha pedida lleva a su semana de lunes a domingo; Anterior y Siguiente se mueven una semana y Hoy vuelve a la semana actual")
     void cronograma_navegacion() throws Exception {
-        String html = html(get("/control-equipamiento/5/cronograma").param("desde", "2026-10-01").param("hasta", "2026-10-10")
+        String html = html(get("/control-equipamiento/5/cronograma").param("semana", "2026-10-29")
                 .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
 
-        assertThat(html).contains("/control-equipamiento/5/cronograma?desde=2026-09-21&amp;hasta=2026-09-30")
-                .contains("/control-equipamiento/5/cronograma?desde=2026-10-11&amp;hasta=2026-10-20").contains("(10 días)");
+        assertThat(html).contains("Semana: 26/10/2026 al 01/11/2026")
+                .contains("/control-equipamiento/5/cronograma?semana=2026-10-19").contains("/control-equipamiento/5/cronograma?semana=2026-11-02")
+                .doesNotContain("desde=").doesNotContain("hasta=");
     }
 
     @Test
-    @DisplayName("CP-CCE-10: un período inválido se avisa y se muestra el período por defecto")
-    void cronograma_periodoInvalido() throws Exception {
-        String html = html(get("/control-equipamiento/5/cronograma").param("desde", "2026-10-10").param("hasta", "2026-10-01")
+    @DisplayName("CP-CCE-10: una semana inválida se avisa y se muestra la semana actual")
+    void cronograma_semanaInvalida() throws Exception {
+        String html = html(get("/control-equipamiento/5/cronograma").param("semana", "ayer")
                 .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
 
-        assertThat(html).contains("La fecha de fin del período no puede ser anterior a la fecha de inicio").contains("(30 días)");
+        assertThat(html).contains("La semana indicada no es válida, se muestra la semana actual").contains("Semana: ");
     }
 
     // ==================== Panel ====================
@@ -300,15 +306,15 @@ public class ControlEquipamientoControllerTest {
     }
 
     @Test
-    @DisplayName("CP-CCE-19: un período en el borde del rango de fechas no ofrece el enlace que se saldría del rango y una fecha fuera de rango se avisa como inválida")
-    void cronograma_periodoEnElBordeDelRango() throws Exception {
-        String borde = html(get("/control-equipamiento/5/cronograma").param("desde", "2200-12-20").param("hasta", "2200-12-31")
+    @DisplayName("CP-CCE-19: la semana en el borde del rango de fechas no ofrece el enlace que se saldría del rango y una fecha fuera de rango se avisa como inválida")
+    void cronograma_semanaEnElBordeDelRango() throws Exception {
+        String borde = html(get("/control-equipamiento/5/cronograma").param("semana", "2200-12-31")
                 .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
-        String fuera = html(get("/control-equipamiento/5/cronograma").param("desde", "9999-12-31")
+        String fuera = html(get("/control-equipamiento/5/cronograma").param("semana", "9999-12-31")
                 .with(como(Rol.GERENTE_DE_PRODUCCION)), "control_equipamiento/control-cronograma");
 
         assertThat(borde).contains("data-periodo-anterior").doesNotContain("data-periodo-siguiente");
-        assertThat(fuera).contains("El período indicado no es válido").contains("(30 días)");
+        assertThat(fuera).contains("La semana indicada no es válida");
     }
 
     // ==================== Apoyo ====================

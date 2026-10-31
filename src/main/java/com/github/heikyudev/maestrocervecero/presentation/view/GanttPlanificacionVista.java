@@ -105,8 +105,6 @@ public class GanttPlanificacionVista {
         /** Bloques de limpieza del fermentador y demás equipamiento, ordenados por fecha. Vacía en el carril "Sin fermentador". */
         List<Limpieza> limpiezas;
 
-        /** Alto del carril en rem cuando sus bloques se reparten en subcarriles, o {@code null} para el alto estándar. */
-        Double alturaRem;
     }
 
     /**

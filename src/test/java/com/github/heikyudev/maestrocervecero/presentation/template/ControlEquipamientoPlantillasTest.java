@@ -106,6 +106,8 @@ class ControlEquipamientoPlantillasTest {
 
         assertThat(html).doesNotContain("marcador").doesNotContain("gantt-icono").doesNotContain("b.icono");
         assertThat(leyendaEquipo).doesNotContain("<i ").contains("vista.leyendaEquipamiento").contains("gantt-muestra gantt-color--${e.clave}");
+        assertThat(html).contains(".gantt-color--equipo-limpieza { background: #0e7490").contains(".gantt-color--equipo-falla { background: #dc2626").contains(".gantt-color--equipo-mantenimiento { background: #7c3aed")
+                .doesNotContain("alturaRem");
         assertThat(html).contains("gantt-color--pendiente").contains("gantt-color--limpieza").contains("bi bi-stars gantt-limpieza-icono").contains("data-gantt-leyenda-limpieza-icono");
     }
 

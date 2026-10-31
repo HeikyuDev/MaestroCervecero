@@ -4,28 +4,31 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttGeometria.Eje;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Barra;
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.Carril;
+import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.EntradaLeyenda;
+import com.github.heikyudev.maestrocervecero.presentation.view.GanttPlanificacionVista.MarcaEje;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoBloqueLineaTiempo;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
- * Arma el diagrama de la línea de tiempo de un equipo: el mismo diagrama que el de los lotes
- * ({@link GanttPlanificacionVista}, eje en días y clases {@code gantt-*}), con un único carril donde cada bloque es una
- * etapa de lote en la que se usó el equipo o una operación registrada de su ciclo de vida (limpieza, falla o
- * mantenimiento).
+ * Arma el diagrama de la línea de tiempo de un equipo para una semana: el mismo diagrama que el de los lotes
+ * ({@link GanttPlanificacionVista}, clases {@code gantt-*}), en una única fila, con una escala más ancha para que las
+ * etapas y operaciones de pocas horas se vean con su proporción real.
  * <p>
- * A diferencia de los lotes, que ocupan días completos, los bloques se ubican por fecha y hora, porque una operación
- * puede durar unas pocas horas. Para que los cortos se vean y se puedan presionar, ningún bloque es más angosto que
- * {@link #ANCHO_MINIMO_BLOQUE_PX} píxeles del ancho mínimo del eje. Un bloque que sale del período se recorta en el
- * borde y se marca como continuación; su tooltip conserva las fechas reales.
+ * Las actividades de un equipo son secuenciales (nunca se superponen), así que hay una sola fila y nada se apila. El ancho
+ * de una etapa de lote es proporcional a su duración real (una etapa en curso llega hasta ahora); una operación es un
+ * instante y se dibuja como un rectángulo angosto de ancho fijo. El texto va dentro de la barra solo si entra completo; si
+ * no, la barra va sin texto y se identifica por su color, su tooltip y su enlace.
  * </p>
  * <p>
  * Es una clase sin estado ni dependencias de Spring.
@@ -33,151 +36,124 @@ import java.util.Locale;
  */
 public final class GanttEquipamientoBuilder {
 
-    /** Ancho mínimo de una barra de lote, en px, para leer su texto completo (código del lote y etapa). */
-    static final int ANCHO_MINIMO_LOTE_PX = 170;
-    /** Ancho mínimo de una barra de operación, en px, para leer su texto completo (Limpieza, Falla, Mantenimiento). */
-    static final int ANCHO_MINIMO_OPERACION_PX = 120;
-    private static final double SEPARACION_PX = 3;
-    /** Alto de una fila de un solo subcarril (h-12), en rem. */
-    private static final double ALTO_FILA_BASE_REM = 3.0;
-    /** Distancia vertical entre subcarriles, en rem. */
-    private static final double PASO_SUBCARRIL_REM = 3.0;
+    /** Días del período: una semana. */
+    static final int DIAS_DE_LA_SEMANA = 7;
+    /** Píxeles por día del eje (10 px por hora), mucho más ancho que el eje de los cronogramas de lotes. */
+    static final int PX_POR_DIA = 240;
+    /** Ancho fijo de la barra de una operación, en px. */
+    static final int ANCHO_OPERACION_PX = 9;
+    /** Ancho mínimo de la barra de una etapa de lote, en px, para que una etapa brevísima no desaparezca. */
+    static final int ANCHO_MINIMO_LOTE_PX = 6;
+    /** Ancho estimado de un carácter del texto de la barra (text-xs, font-medium), con margen. */
+    private static final double PX_POR_CARACTER = 7.2;
+    /** Relleno horizontal de la barra (px-2) más el chevrón de continuación, en px. */
+    private static final int RELLENO_PX = 24;
     static final String TITULO_CARRILES = "Equipo";
     static final String FIN_EN_CURSO = "En curso";
 
     private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final DateTimeFormatter FORMATO_DIA_MES = DateTimeFormatter.ofPattern("dd/MM");
+    private static final Locale ES = Locale.forLanguageTag("es");
     private static final String SIN_DATO = "-";
 
     private GanttEquipamientoBuilder() {
     }
 
     /**
-     * Arma el modelo de vista del diagrama.
-     * <p>
-     * Todos los bloques son barras rectangulares con su texto. Cada barra empieza en su posición real del eje y tiene un
-     * ancho mínimo suficiente para leer su texto completo ({@link #ANCHO_MINIMO_LOTE_PX} y
-     * {@link #ANCHO_MINIMO_OPERACION_PX} píxeles), aunque su duración real sea de minutos u horas: crece hacia la derecha.
-     * Las barras que por eso se superponen se reparten en subcarriles de la misma fila, que crece lo necesario.
-     * </p>
+     * Arma el modelo de vista del diagrama de una semana.
      *
      * @param idEquipamiento ID del equipo, para los enlaces a sus operaciones
      * @param identificador identificador interno del equipo, que rotula el carril
-     * @param bloques bloques de la línea de tiempo (puede ser {@code null} o vacía); los que no tocan el período se omiten
-     * @param desde primer día del período
-     * @param hasta último día del período, inclusive
-     * @param hoy el día actual, para la marca de "hoy"
+     * @param bloques bloques de la línea de tiempo (puede ser {@code null} o vacía); los que no tocan la semana se omiten
+     * @param lunes primer día de la semana
+     * @param ahora el momento actual, para la marca de "hoy"
      * @return el modelo de vista con la geometría calculada
      */
     public static GanttPlanificacionVista construir(Long idEquipamiento, String identificador,
                                                     List<BloqueLineaTiempoEquipamientoResponseDTO> bloques,
-                                                    LocalDate desde, LocalDate hasta, LocalDate hoy) {
-        Eje eje = GanttGeometria.armarEjeDelPeriodo(desde, hasta, hoy);
-        LocalDateTime inicioEje = desde.atStartOfDay();
-        LocalDateTime finEje = hasta.plusDays(1).atStartOfDay();
+                                                    LocalDate lunes, LocalDateTime ahora) {
+        LocalDate domingo = lunes.plusDays(DIAS_DE_LA_SEMANA - 1L);
+        Eje eje = GanttGeometria.armarEjeDelPeriodo(lunes, domingo, ahora.toLocalDate());
+        LocalDateTime inicioEje = lunes.atStartOfDay();
+        LocalDateTime finEje = domingo.plusDays(1).atStartOfDay();
+        double totalMinutos = (double) DIAS_DE_LA_SEMANA * 24 * 60;
+        double anchoEjePx = (double) DIAS_DE_LA_SEMANA * PX_POR_DIA;
 
-        List<Item> items = new ArrayList<>();
+        List<Barra> barras = new ArrayList<>();
+        List<BloqueLineaTiempoEquipamientoResponseDTO> visibles = new ArrayList<>();
         if (bloques != null) {
             for (BloqueLineaTiempoEquipamientoResponseDTO bloque : bloques) {
                 if (bloque.getFechaInicio() == null || bloque.getFechaFin() == null
                         || !bloque.getFechaInicio().isBefore(finEje) || bloque.getFechaFin().isBefore(inicioEje)) {
                     continue;
                 }
-                items.add(itemDe(bloque, idEquipamiento, eje, inicioEje, finEje));
+                visibles.add(bloque);
+                barras.add(barraDe(bloque, idEquipamiento, inicioEje, finEje, totalMinutos, anchoEjePx));
             }
         }
 
-        int subcarriles = repartirEnSubcarriles(items);
-        List<Barra> barras = new ArrayList<>();
-        for (Item item : items) {
-            barras.add(item.base.toBuilder().estilo(estilo(item, subcarriles > 1)).build());
-        }
-
-        Double altura = subcarriles > 1 ? ALTO_FILA_BASE_REM + (subcarriles - 1) * PASO_SUBCARRIL_REM : null;
-        List<Carril> carriles = List.of(Carril.builder().etiqueta(identificador).barras(barras).limpiezas(List.of()).alturaRem(altura).build());
+        Double hoyPct = ahora.isBefore(inicioEje) || !ahora.isBefore(finEje) ? null
+                : redondear(pct(ChronoUnit.MINUTES.between(inicioEje, ahora), totalMinutos));
+        List<Carril> carriles = List.of(Carril.builder().etiqueta(identificador).barras(barras).limpiezas(List.of()).build());
         return GanttGeometria.vistaBase(eje, barras.isEmpty(), carriles)
+                .anchoMinimoPx((int) anchoEjePx)
+                .marcasEje(marcasDelEje(lunes))
+                .hoyPct(hoyPct)
+                .hoyAlineacion(hoyPct == null ? null : GanttGeometria.alineacionPara(hoyPct))
                 .tituloCarriles(TITULO_CARRILES)
-                .leyendaEquipamiento(leyenda(bloques == null ? List.of() : bloques))
+                .leyendaEquipamiento(leyenda(visibles))
                 .build();
     }
 
-    /** Un bloque ya ubicado en el eje, antes de repartirlo en subcarriles. */
-    private static final class Item {
-        Barra base;
-        int minimoPx;
-        double izquierdaPct;
-        double anchoPct;
-        double izquierdaPx;
-        double anchoPx;
-        int subcarril;
+    /** Un rótulo por día (día de la semana y fecha) y uno cada 6 horas: a 10 px por hora entran sin tocarse. */
+    private static List<MarcaEje> marcasDelEje(LocalDate lunes) {
+        List<MarcaEje> marcas = new ArrayList<>();
+        for (int dia = 0; dia < DIAS_DE_LA_SEMANA; dia++) {
+            LocalDate fecha = lunes.plusDays(dia);
+            for (int hora = 0; hora < 24; hora += 6) {
+                double posicion = redondear((dia * 24 + hora) * 100.0 / (DIAS_DE_LA_SEMANA * 24));
+                String etiqueta = hora == 0
+                        ? fecha.getDayOfWeek().getDisplayName(TextStyle.SHORT, ES).replace(".", "") + " " + fecha.format(FORMATO_DIA_MES)
+                        : String.format("%02d:00", hora);
+                marcas.add(new MarcaEje(posicion, etiqueta, GanttGeometria.alineacionPara(posicion)));
+            }
+        }
+        return marcas;
     }
 
-    private static Item itemDe(BloqueLineaTiempoEquipamientoResponseDTO bloque, Long idEquipamiento, Eje eje,
-                               LocalDateTime inicioEje, LocalDateTime finEje) {
+    private static Barra barraDe(BloqueLineaTiempoEquipamientoResponseDTO bloque, Long idEquipamiento,
+                                 LocalDateTime inicioEje, LocalDateTime finEje, double totalMinutos, double anchoEjePx) {
+        boolean esLote = bloque.getTipo() == TipoBloqueLineaTiempo.LOTE;
         LocalDateTime visibleDesde = bloque.getFechaInicio().isBefore(inicioEje) ? inicioEje : bloque.getFechaInicio();
         LocalDateTime visibleHasta = bloque.getFechaFin().isAfter(finEje) ? finEje : bloque.getFechaFin();
-        double totalMinutos = (double) eje.totalDias() * 24 * 60;
-        double anchoEjePx = eje.anchoMinimoPx();
-
-        double naturalPct = pct(ChronoUnit.MINUTES.between(visibleDesde, visibleHasta), totalMinutos);
-        double inicioPct = pct(ChronoUnit.MINUTES.between(inicioEje, visibleDesde), totalMinutos);
-        int minimoPx = bloque.getTipo() == TipoBloqueLineaTiempo.LOTE ? ANCHO_MINIMO_LOTE_PX : ANCHO_MINIMO_OPERACION_PX;
         boolean continuaAntes = bloque.getFechaInicio().isBefore(inicioEje);
         boolean continuaDespues = bloque.getFechaFin().isAfter(finEje);
 
-        Item item = new Item();
-        item.minimoPx = minimoPx;
-        item.izquierdaPct = redondear(inicioPct);
-        item.anchoPct = redondear(naturalPct);
-        // La barra no se sale del eje por la derecha: el reparto en subcarriles usa su posición ya corrida
-        item.izquierdaPx = Math.min(inicioPct * anchoEjePx / 100.0, Math.max(0, anchoEjePx - minimoPx));
-        item.anchoPx = Math.max(minimoPx, naturalPct * anchoEjePx / 100.0);
-        item.base = Barra.builder()
+        double inicioPct = pct(ChronoUnit.MINUTES.between(inicioEje, visibleDesde), totalMinutos);
+        double anchoPct = esLote ? pct(ChronoUnit.MINUTES.between(visibleDesde, visibleHasta), totalMinutos) : ANCHO_OPERACION_PX * 100.0 / anchoEjePx;
+        double anchoPx = esLote ? Math.max(ANCHO_MINIMO_LOTE_PX, anchoPct * anchoEjePx / 100.0) : ANCHO_OPERACION_PX;
+
+        String texto = etiqueta(bloque);
+        boolean entraElTexto = esLote && anchoPx >= texto.length() * PX_POR_CARACTER + RELLENO_PX + (continuaAntes ? 14 : 0) + (continuaDespues ? 14 : 0);
+        String estilo = esLote
+                ? "left: " + redondear(inicioPct) + "%; width: " + redondear(anchoPct) + "%; min-width: " + ANCHO_MINIMO_LOTE_PX + "px"
+                : "left: min(" + redondear(inicioPct) + "%, calc(100% - " + ANCHO_OPERACION_PX + "px)); width: " + ANCHO_OPERACION_PX + "px";
+
+        return Barra.builder()
                 .idLote(bloque.getIdLote())
-                .etiqueta(etiqueta(bloque))
+                .etiqueta(entraElTexto ? texto : "")
                 .tooltip(tooltip(bloque, continuaAntes, continuaDespues))
                 .estadoClave(clave(bloque))
                 .estadoEtiqueta(tipoTexto(bloque.getTipo()))
                 .enlace(enlace(bloque, idEquipamiento))
                 .desde(bloque.getFechaInicio().toLocalDate())
                 .hasta(bloque.getFechaFin().toLocalDate())
-                .izquierdaPct(item.izquierdaPct)
-                .anchoPct(item.anchoPct)
+                .izquierdaPct(redondear(inicioPct))
+                .anchoPct(redondear(anchoPct))
+                .estilo(estilo)
                 .continuaAntes(continuaAntes)
                 .continuaDespues(continuaDespues)
                 .build();
-        return item;
-    }
-
-    /** Asigna a cada bloque el primer subcarril donde no pisa a otro, y devuelve cuántos subcarriles se usan. */
-    private static int repartirEnSubcarriles(List<Item> items) {
-        List<Item> ordenados = new ArrayList<>(items);
-        ordenados.sort(Comparator.comparingDouble((Item i) -> i.izquierdaPx));
-        List<Double> finales = new ArrayList<>();
-        for (Item item : ordenados) {
-            int carril = 0;
-            while (carril < finales.size() && finales.get(carril) + SEPARACION_PX > item.izquierdaPx) {
-                carril++;
-            }
-            if (carril == finales.size()) {
-                finales.add(0.0);
-            }
-            finales.set(carril, item.izquierdaPx + item.anchoPx);
-            item.subcarril = carril;
-        }
-        return Math.max(1, finales.size());
-    }
-
-    /**
-     * Estilo en línea de la barra: empieza en su posición real (sin salirse del eje por la derecha), mide su duración real y
-     * no menos que su ancho mínimo; con subcarriles, además su posición vertical.
-     */
-    private static String estilo(Item item, boolean conSubcarriles) {
-        String base = "left: min(" + item.izquierdaPct + "%, calc(100% - " + item.minimoPx + "px)); width: " + item.anchoPct
-                + "%; min-width: " + item.minimoPx + "px";
-        if (!conSubcarriles) {
-            return base;
-        }
-        return base + "; top: " + (0.5 + item.subcarril * PASO_SUBCARRIL_REM) + "rem; bottom: auto; height: 2rem";
     }
 
     private static String etiqueta(BloqueLineaTiempoEquipamientoResponseDTO bloque) {
@@ -193,23 +169,19 @@ public final class GanttEquipamientoBuilder {
             texto.append("Lote ").append(bloque.getCodigoLote()).append('\n');
             texto.append("Etapa: ").append(bloque.getEtapa().getEtiqueta()).append('\n');
             texto.append("Estado de la etapa: ").append(bloque.getEstadoEtapa().getEtiqueta()).append('\n');
-        } else {
-            texto.append(tipoTexto(bloque.getTipo())).append('\n');
-            texto.append("Observaciones: ").append(textoODash(bloque.getObservaciones())).append('\n');
-        }
-        if (continuaAntes) {
-            texto.append("Continúa antes del período\n");
-        }
-        if (continuaDespues) {
-            texto.append("Continúa después del período\n");
-        }
-        if (bloque.getTipo() != TipoBloqueLineaTiempo.LOTE) {
-            // Una operación es un instante: su fecha y hora
-            texto.append("Fecha y hora: ").append(bloque.getFechaInicio().format(FORMATO_FECHA_HORA));
+            if (continuaAntes) {
+                texto.append("Continúa antes de la semana\n");
+            }
+            if (continuaDespues) {
+                texto.append("Continúa después de la semana\n");
+            }
+            texto.append("Inicio: ").append(bloque.getFechaInicio().format(FORMATO_FECHA_HORA)).append('\n');
+            texto.append("Fin: ").append(bloque.isFinProvisorio() ? FIN_EN_CURSO : bloque.getFechaFin().format(FORMATO_FECHA_HORA));
             return texto.toString();
         }
-        texto.append("Inicio: ").append(bloque.getFechaInicio().format(FORMATO_FECHA_HORA)).append('\n');
-        texto.append("Fin: ").append(bloque.isFinProvisorio() ? FIN_EN_CURSO : bloque.getFechaFin().format(FORMATO_FECHA_HORA));
+        texto.append(tipoTexto(bloque.getTipo())).append('\n');
+        texto.append("Observaciones: ").append(textoODash(bloque.getObservaciones())).append('\n');
+        texto.append("Fecha y hora: ").append(bloque.getFechaInicio().format(FORMATO_FECHA_HORA));
         return texto.toString();
     }
 
@@ -221,7 +193,7 @@ public final class GanttEquipamientoBuilder {
                 + bloque.getTipo().name().toLowerCase(Locale.ROOT) + "/" + bloque.getIdReferencia();
     }
 
-    /** Clase de color: los lotes por el estado de su etapa y las operaciones con colores de la paleta del diagrama. */
+    /** Clase de color: los lotes por el estado de su etapa y cada tipo de operación con su color sólido. */
     private static String clave(BloqueLineaTiempoEquipamientoResponseDTO bloque) {
         return switch (bloque.getTipo()) {
             case LOTE -> switch (bloque.getEstadoEtapa()) {
@@ -229,23 +201,27 @@ public final class GanttEquipamientoBuilder {
                 case FINALIZADA -> "finalizado";
                 default -> "equipo-cancelada";
             };
-            case LIMPIEZA -> "limpieza";
+            case LIMPIEZA -> "equipo-limpieza";
             case FALLA -> "equipo-falla";
-            case MANTENIMIENTO -> "pendiente";
+            case MANTENIMIENTO -> "equipo-mantenimiento";
         };
     }
 
     /** La leyenda con solo los tipos de bloque presentes, en un orden fijo. */
-    private static List<GanttPlanificacionVista.EntradaLeyenda> leyenda(List<BloqueLineaTiempoEquipamientoResponseDTO> bloques) {
-        java.util.Map<String, String> entradas = new java.util.LinkedHashMap<>();
-        for (String[] posible : new String[][]{{"en-ejecucion", "Etapa de lote en curso"}, {"finalizado", "Etapa de lote finalizada"},
-                {"equipo-cancelada", "Etapa de lote cancelada"}, {"limpieza", "Limpieza"}, {"equipo-falla", "Falla"}, {"pendiente", "Mantenimiento"}}) {
-            if (bloques.stream().anyMatch(bloque -> posible[0].equals(clave(bloque)))) {
-                entradas.put(posible[0], posible[1]);
+    private static List<EntradaLeyenda> leyenda(List<BloqueLineaTiempoEquipamientoResponseDTO> bloques) {
+        Map<String, String> posibles = new LinkedHashMap<>();
+        posibles.put("en-ejecucion", "Etapa de lote en curso");
+        posibles.put("finalizado", "Etapa de lote finalizada");
+        posibles.put("equipo-cancelada", "Etapa de lote cancelada");
+        posibles.put("equipo-limpieza", "Limpieza");
+        posibles.put("equipo-falla", "Falla");
+        posibles.put("equipo-mantenimiento", "Mantenimiento");
+        List<EntradaLeyenda> resultado = new ArrayList<>();
+        posibles.forEach((clave, texto) -> {
+            if (bloques.stream().anyMatch(bloque -> clave.equals(clave(bloque)))) {
+                resultado.add(new EntradaLeyenda(clave, texto));
             }
-        }
-        List<GanttPlanificacionVista.EntradaLeyenda> resultado = new ArrayList<>();
-        entradas.forEach((clave, texto) -> resultado.add(new GanttPlanificacionVista.EntradaLeyenda(clave, texto)));
+        });
         return resultado;
     }
 

@@ -5,15 +5,16 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.presentation.view.GanttEquipamientoBuilder;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoNoEncontradoException;
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IControlEquipamientoServicio;
+import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoOperacionEquipamiento;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.BloqueLineaTiempoEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoControlResponseDTO;
+import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.TipoBloqueLineaTiempo;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.EquipamientoResumenResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.OperacionesEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.MensajeConLista;
 import com.github.heikyudev.maestrocervecero.util.Paginacion;
 import com.github.heikyudev.maestrocervecero.util.TipoAlerta;
-import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,10 +28,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -59,28 +62,19 @@ public class ControlEquipamientoController {
     static final String ATRIBUTO_FORMULARIO = "operacionForm";
     private static final String URL_CONTROL = "/control-equipamiento";
 
-    /** Período por defecto del cronograma de un equipo: los últimos 30 días, hasta hoy inclusive. */
-    private static final int DIAS_DEL_PERIODO_POR_DEFECTO = 30;
-
-    /** Rango de fechas admitido para el período: fuera de él la fecha se considera inválida y no se ofrece el período vecino. */
+    /** Rango de fechas admitido para la semana: fuera de él la fecha se considera inválida y no se ofrece la semana vecina. */
     private static final LocalDate FECHA_MINIMA = LocalDate.of(1900, 1, 1);
     private static final LocalDate FECHA_MAXIMA = LocalDate.of(2200, 12, 31);
 
     private static final Pattern FECHA_ISO = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
-    private static final String AVISO_PERIODO_INVALIDO = "El período indicado no es válido, se muestra el período por defecto";
-    private static final String AVISO_PERIODO_INVERTIDO = "La fecha de fin del período no puede ser anterior a la fecha de inicio, se muestra el período por defecto";
-    private static final String AVISO_PERIODO_EXCEDIDO = "El período no puede superar los "
-            + ValidacionesNumericas.formatearNumero(LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS + 1)
-            + " días (5 años), se muestra el período por defecto";
+    private static final String AVISO_SEMANA_INVALIDA = "La semana indicada no es válida, se muestra la semana actual";
+    private static final DateTimeFormatter FORMATO_FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final String AVISO_TIPO_INVALIDO = "El tipo indicado no es válido, se muestran todos";
 
     private final IControlEquipamientoServicio controlEquipamientoServicio;
 
-    private record Periodo(LocalDate desde, LocalDate hasta) {
-
-        long dias() {
-            return ChronoUnit.DAYS.between(desde, hasta) + 1;
-        }
+    /** Una fila de la tabla de actividad de la semana. */
+    public record FilaActividad(String fecha, String tipo, String detalle, String enlace) {
     }
 
     // ==================== Lista ====================
@@ -127,40 +121,56 @@ public class ControlEquipamientoController {
     // ==================== Cronograma del equipo ====================
 
     /**
-     * Muestra el cronograma de un equipo: su información y su línea de tiempo en un período (por defecto, los últimos
-     * 30 días). Un período inválido se avisa y se muestra el período por defecto. Es una pantalla del gerente de
-     * producción.
+     * Muestra el cronograma de un equipo: su información, su línea de tiempo de una semana (de lunes a domingo; por
+     * defecto la que contiene hoy) y la tabla con la actividad de esa semana. {@code semana} es cualquier fecha de la
+     * semana pedida; una fecha inválida se avisa y se muestra la semana actual. Es una pantalla del gerente de producción.
      */
     @GetMapping("/{id}/cronograma")
     @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
     public String mostrarCronograma(@PathVariable Long id,
-                                    @RequestParam(required = false) String desde,
-                                    @RequestParam(required = false) String hasta,
+                                    @RequestParam(required = false) String semana,
                                     Model model) {
-        LocalDate hoy = LocalDate.now();
+        LocalDateTime ahora = LocalDateTime.now();
         List<String> avisos = new ArrayList<>();
-        Periodo periodo = resolverPeriodo(desde, hasta, hoy, avisos);
+        LocalDate lunes = resolverSemana(semana, ahora.toLocalDate(), avisos);
+        LocalDate domingo = lunes.plusDays(6);
 
         EquipamientoResumenResponseDTO equipo = controlEquipamientoServicio.buscarResumen(id);
-        var bloques = controlEquipamientoServicio.listarLineaDeTiempo(id, periodo.desde().atStartOfDay(), periodo.hasta().atTime(LocalTime.MAX));
+        List<BloqueLineaTiempoEquipamientoResponseDTO> bloques = controlEquipamientoServicio.listarLineaDeTiempo(id, lunes.atStartOfDay(), domingo.atTime(LocalTime.MAX));
 
-        long dias = periodo.dias();
         model.addAttribute("equipo", equipo);
-        model.addAttribute("gantt", GanttEquipamientoBuilder.construir(id, equipo.getIdentificadorInterno(), bloques, periodo.desde(), periodo.hasta(), hoy));
-        model.addAttribute("periodoDesde", periodo.desde());
-        model.addAttribute("periodoHasta", periodo.hasta());
-        model.addAttribute("periodoDias", dias);
-        // Sin enlace cuando el período vecino se saldría del rango de fechas admitido
-        boolean hayAnterior = !periodo.desde().minusDays(dias).isBefore(FECHA_MINIMA);
-        boolean haySiguiente = !periodo.hasta().plusDays(dias).isAfter(FECHA_MAXIMA);
-        model.addAttribute("urlPeriodoAnterior", hayAnterior ? urlCronograma(id, periodo.desde().minusDays(dias), periodo.desde().minusDays(1)) : null);
-        model.addAttribute("urlPeriodoSiguiente", haySiguiente ? urlCronograma(id, periodo.hasta().plusDays(1), periodo.hasta().plusDays(dias)) : null);
-        model.addAttribute("urlPeriodoHoy", urlCronograma(id, null, null));
+        model.addAttribute("gantt", GanttEquipamientoBuilder.construir(id, equipo.getIdentificadorInterno(), bloques, lunes, ahora));
+        model.addAttribute("filasActividad", filasDeActividad(bloques));
+        model.addAttribute("periodoDesde", lunes);
+        model.addAttribute("periodoHasta", domingo);
+        // Sin enlace cuando la semana vecina se saldría del rango de fechas admitido
+        model.addAttribute("urlPeriodoAnterior", lunes.minusWeeks(1).isBefore(FECHA_MINIMA) ? null : urlCronograma(id, lunes.minusWeeks(1)));
+        model.addAttribute("urlPeriodoSiguiente", lunes.plusWeeks(1).isAfter(FECHA_MAXIMA) ? null : urlCronograma(id, lunes.plusWeeks(1)));
+        model.addAttribute("urlPeriodoHoy", urlCronograma(id, null));
         if (!avisos.isEmpty()) {
             model.addAttribute("mensaje", MensajeConLista.deAvisos(avisos));
             model.addAttribute("tipo", TipoAlerta.WARNING.getCodigo());
         }
         return VISTA_CRONOGRAMA;
+    }
+
+    /** La tabla de actividad: una fila por bloque, con su fecha (o inicio y fin), su tipo y su detalle. */
+    private static List<FilaActividad> filasDeActividad(List<BloqueLineaTiempoEquipamientoResponseDTO> bloques) {
+        List<FilaActividad> filas = new ArrayList<>();
+        for (BloqueLineaTiempoEquipamientoResponseDTO bloque : bloques) {
+            if (bloque.getTipo() == TipoBloqueLineaTiempo.LOTE) {
+                String fin = bloque.isFinProvisorio() ? "En curso" : bloque.getFechaFin().format(FORMATO_FECHA_HORA);
+                filas.add(new FilaActividad(bloque.getFechaInicio().format(FORMATO_FECHA_HORA) + " - " + fin, "Lote",
+                        bloque.getCodigoLote() + " · " + bloque.getEtapa().getEtiqueta(),
+                        bloque.getIdLote() == null ? null : "/lotes/" + bloque.getIdLote() + "/detalle"));
+            } else {
+                filas.add(new FilaActividad(bloque.getFechaInicio().format(FORMATO_FECHA_HORA),
+                        TipoOperacionEquipamiento.valueOf(bloque.getTipo().name()).getEtiqueta(),
+                        bloque.getObservaciones() == null ? "-" : bloque.getObservaciones(),
+                        null));
+            }
+        }
+        return filas;
     }
 
     // ==================== Panel operativo ====================
@@ -258,48 +268,20 @@ public class ControlEquipamientoController {
         }
     }
 
-    /**
-     * Resuelve el período pedido. Sin ningún extremo es el período por defecto; con uno solo, se completa a 30 días;
-     * un extremo inválido, un período invertido o uno de más de 5 años se avisa y se usa el período por defecto.
-     */
-    private static Periodo resolverPeriodo(String desdeTexto, String hastaTexto, LocalDate hoy, List<String> avisos) {
-        String textoDesde = vacioANulo(desdeTexto);
-        String textoHasta = vacioANulo(hastaTexto);
-        LocalDate desde = aFecha(textoDesde);
-        LocalDate hasta = aFecha(textoHasta);
-        Periodo porDefecto = new Periodo(hoy.minusDays(DIAS_DEL_PERIODO_POR_DEFECTO - 1L), hoy);
-
-        if ((textoDesde != null && desde == null) || (textoHasta != null && hasta == null)) {
-            avisos.add(AVISO_PERIODO_INVALIDO);
-            return porDefecto;
+    /** El lunes de la semana pedida (cualquier fecha de ella); sin fecha o con una inválida, el de la semana actual. */
+    private static LocalDate resolverSemana(String semanaTexto, LocalDate hoy, List<String> avisos) {
+        String texto = vacioANulo(semanaTexto);
+        LocalDate fecha = aFecha(texto);
+        if (texto != null && fecha == null) {
+            avisos.add(AVISO_SEMANA_INVALIDA);
         }
-        if (desde != null && hasta != null) {
-            if (hasta.isBefore(desde)) {
-                avisos.add(AVISO_PERIODO_INVERTIDO);
-                return porDefecto;
-            }
-            if (ChronoUnit.DAYS.between(desde, hasta) > LimitesTecnicos.RANGO_MAXIMO_CRONOGRAMA_DIAS) {
-                avisos.add(AVISO_PERIODO_EXCEDIDO);
-                return porDefecto;
-            }
-            return new Periodo(desde, hasta);
-        }
-        if (desde != null) {
-            return new Periodo(desde, desde.plusDays(DIAS_DEL_PERIODO_POR_DEFECTO - 1L));
-        }
-        if (hasta != null) {
-            return new Periodo(hasta.minusDays(DIAS_DEL_PERIODO_POR_DEFECTO - 1L), hasta);
-        }
-        return porDefecto;
+        return (fecha != null ? fecha : hoy).with(DayOfWeek.MONDAY);
     }
 
-    private static String urlCronograma(Long id, LocalDate desde, LocalDate hasta) {
+    private static String urlCronograma(Long id, LocalDate semana) {
         UriComponentsBuilder url = UriComponentsBuilder.fromPath(URL_CONTROL + "/" + id + "/cronograma");
-        if (desde != null) {
-            url.queryParam("desde", desde);
-        }
-        if (hasta != null) {
-            url.queryParam("hasta", hasta);
+        if (semana != null) {
+            url.queryParam("semana", semana);
         }
         return url.build().toUriString();
     }

@@ -5,7 +5,7 @@
 <body>
 
 <!--
-    Cronograma de un equipamiento (solo el gerente de producción): su información y su línea de tiempo en un período, con un bloque
+    Cronograma de un equipamiento (solo el gerente de producción): su información y su línea de tiempo en una semana, con un bloque
     por cada etapa de lote en la que se usó y por cada limpieza, falla y mantenimiento registrado. El diagrama es el mismo
     fragmento del cronograma de producción (planificacion_produccion/gantt). Los bloques llevan su detalle en un tooltip y son
     enlaces al lote o a la operación. Anterior y Siguiente desplazan el período su misma longitud; Hoy vuelve al período por defecto.
@@ -27,12 +27,12 @@
 
     <th:block th:replace="~{control_equipamiento/equipo-informacion :: informacion(${equipo})}"></th:block>
 
-    <!-- Período mostrado y navegación -->
+    <!-- Semana mostrada y navegación -->
     <div class="flex flex-wrap items-center justify-between gap-3">
         <p data-cronograma-periodo class="text-sm font-medium text-slate-700"
-           th:text="|Período: ${#temporals.format(periodoDesde, 'dd/MM/yyyy')} al ${#temporals.format(periodoHasta, 'dd/MM/yyyy')} (${periodoDias} ${periodoDias == 1 ? 'día' : 'días'})|">Período: 01/10/2026 al 30/10/2026 (30 días)</p>
+           th:text="|Semana: ${#temporals.format(periodoDesde, 'dd/MM/yyyy')} al ${#temporals.format(periodoHasta, 'dd/MM/yyyy')}|">Semana: 26/10/2026 al 01/11/2026</p>
         <div class="flex items-center gap-2">
-            <a th:if="${urlPeriodoAnterior != null}" th:href="${urlPeriodoAnterior}" data-periodo-anterior title="Período anterior" aria-label="Período anterior"
+            <a th:if="${urlPeriodoAnterior != null}" th:href="${urlPeriodoAnterior}" data-periodo-anterior title="Semana anterior" aria-label="Semana anterior"
                class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
                 <i class="bi bi-arrow-left"></i> Anterior
             </a>
@@ -40,11 +40,11 @@
                   class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-600 cursor-not-allowed opacity-40">
                 <i class="bi bi-arrow-left"></i> Anterior
             </span>
-            <a th:href="${urlPeriodoHoy}" data-periodo-hoy title="Volver al período por defecto" aria-label="Hoy"
+            <a th:href="${urlPeriodoHoy}" data-periodo-hoy title="Volver a la semana actual" aria-label="Hoy"
                class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
                 <i class="bi bi-calendar-event"></i> Hoy
             </a>
-            <a th:if="${urlPeriodoSiguiente != null}" th:href="${urlPeriodoSiguiente}" data-periodo-siguiente title="Período siguiente" aria-label="Período siguiente"
+            <a th:if="${urlPeriodoSiguiente != null}" th:href="${urlPeriodoSiguiente}" data-periodo-siguiente title="Semana siguiente" aria-label="Semana siguiente"
                class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
                 Siguiente <i class="bi bi-arrow-right"></i>
             </a>
@@ -55,17 +55,43 @@
         </div>
     </div>
 
-    <!-- Línea de tiempo del equipo -->
+    <!-- Línea de tiempo del equipo: una sola fila, con las actividades una después de la otra -->
     <section class="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Actividad del equipamiento</h2>
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Cronograma de la semana</h2>
         <div class="p-5">
             <div th:if="${gantt.vacio}" data-cronograma-sin-actividad class="py-8 text-center text-slate-400">
                 <i class="bi bi-bar-chart-steps block text-3xl mb-2"></i>
-                <span>El equipamiento no tiene actividad en el período</span>
+                <span>El equipamiento no tiene actividad en la semana</span>
             </div>
             <th:block th:unless="${gantt.vacio}">
                 <div th:replace="~{planificacion_produccion/gantt :: gantt(${gantt}, ${#authorization.expression('hasAuthority(''LOTE_CONSULTAR'')')})}"></div>
             </th:block>
+        </div>
+    </section>
+
+    <!-- Actividad de la semana: lo mismo que el gráfico, en una tabla -->
+    <section th:unless="${gantt.vacio}" data-actividad-semana class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <h2 class="px-5 py-3 border-b border-slate-200 text-sm font-semibold text-slate-700">Actividad de la semana</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr>
+                    <th class="px-4 py-3 whitespace-nowrap">Fecha y hora</th>
+                    <th class="px-4 py-3 whitespace-nowrap">Tipo</th>
+                    <th class="px-4 py-3">Detalle</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <tr th:each="f : ${filasActividad}" class="hover:bg-slate-50 align-top">
+                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${f.fecha}">31/10/2026 08:00 - 31/10/2026 11:00</td>
+                    <td class="px-4 py-3 text-slate-700 whitespace-nowrap" th:text="${f.tipo}">Lote</td>
+                    <td class="px-4 py-3 text-slate-900 break-words">
+                        <a th:if="${f.enlace != null}" th:href="@{${f.enlace}}" class="text-amber-700 hover:underline" th:text="${f.detalle}">LOT-001 · Molienda</a>
+                        <th:block th:if="${f.enlace == null}" th:text="${f.detalle}">Limpieza con soda cáustica</th:block>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
         </div>
     </section>
 </div>
