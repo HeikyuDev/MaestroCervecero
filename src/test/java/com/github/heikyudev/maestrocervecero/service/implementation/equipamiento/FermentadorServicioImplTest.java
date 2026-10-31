@@ -5,6 +5,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -53,6 +55,12 @@ class FermentadorServicioImplTest {
 
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
+
+    @Mock
+    private IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
+
+    @Mock
+    private IEquipamientoRepository equipamientoRepository;
 
     @InjectMocks
     private FermentadorServicioImpl fermentadorServicio;
@@ -487,7 +495,7 @@ class FermentadorServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO)).doesNotThrowAnyException();
 
         verify(fermentadorRepository).save(fermentadorEntity);
-        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
+        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
     }
 
     @Test
@@ -501,17 +509,18 @@ class FermentadorServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> fermentadorServicio.modificarFermentador(1L, fermentadorFormDTO)).doesNotThrowAnyException();
 
         verify(fermentadorRepository).save(fermentadorEntity);
-        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
+        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
     }
 
     // ==================== bajaFermentador ====================
 
     @Test
-    @DisplayName("bajaFermentador marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    @DisplayName("CP-BF-02: bajaFermentador marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
     void bajaFermentador_debeMarcarBajaYRetornarFermentadorExistente() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
         when(fermentadorRepository.save(fermentadorEntity)).thenReturn(fermentadorEntity);
 
         FermentadorResponseDTO resultado = fermentadorServicio.bajaFermentador(1L);
@@ -520,36 +529,37 @@ class FermentadorServicioImplTest {
         assertThat(fermentadorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertFermentadorDTO(fermentadorEntity, resultado);
         verify(fermentadorRepository).findById(1L);
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(etapaLoteRepository).existsEtapaAsociada(1L);
         verify(fermentadorRepository).save(fermentadorEntity);
         verify(fermentadorRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("bajaFermentador lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    @DisplayName("CP-BF-01: bajaFermentador lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaFermentador_debeLanzarExcepcionYNoPersistirSiNoExiste() {
-        when(fermentadorRepository.findById(99L)).thenReturn(Optional.empty());
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el fermentador con ID: 99");
 
-        verify(fermentadorRepository).findById(99L);
+        verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(99L);
         verify(fermentadorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene comprometida una etapa en estado Pendiente de un lote")
-    void bajaFermentador_debeRechazarAsociacionALotePendiente() {
+    @DisplayName("CP-BF-03: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene lotes asociados")
+    void bajaFermentador_debeRechazarAsociacionALotes() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
+                .hasMessage("No se puede dar de baja el fermentador porque tiene lotes asociados");
 
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(etapaLoteRepository).existsEtapaAsociada(1L);
         verify(fermentadorRepository, never()).save(any());
     }
 
@@ -558,7 +568,8 @@ class FermentadorServicioImplTest {
     void bajaFermentador_debeRechazarSiEstaEnUso() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_USO);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -572,7 +583,8 @@ class FermentadorServicioImplTest {
     void bajaFermentador_debeRechazarSiEstaEnLimpieza() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_LIMPIEZA);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -586,7 +598,8 @@ class FermentadorServicioImplTest {
     void bajaFermentador_debeRechazarSiEstaEnMantenimiento() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_MANTENIMIENTO);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -596,17 +609,90 @@ class FermentadorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BF-07: bajaFermentador informa primero la etapa en estado Pendiente de un lote cuando el fermentador además no está disponible")
-    void bajaFermentador_debePriorizarEtapaPendienteSobreNoDisponible() {
+    @DisplayName("CP-BF-07: bajaFermentador informa primero los lotes asociados cuando el fermentador además no está disponible")
+    void bajaFermentador_debePriorizarLotesAsociadosSobreNoDisponible() {
         FermentadorEntity fermentadorEntity = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_USO);
         when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(fermentadorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(fermentadorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
+                .hasMessage("No se puede dar de baja el fermentador porque tiene lotes asociados");
 
         verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-08: bajaFermentador lanza ReglaNegocioException y no persiste cuando el fermentador tiene operaciones registradas")
+    void bajaFermentador_debeRechazarSiTieneOperacionesRegistradas() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque tiene operaciones registradas");
+        verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-09: bajaFermentador informa primero los lotes asociados cuando el fermentador además tiene operaciones registradas")
+    void bajaFermentador_debePriorizarLotesAsociadosSobreOperacionesRegistradas() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque tiene lotes asociados");
+        verify(operacionCicloVidaEquipamientoRepository, never()).existsOperacionRegistrada(any());
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-10: bajaFermentador informa primero las operaciones registradas cuando el fermentador además no está disponible")
+    void bajaFermentador_debePriorizarOperacionesRegistradasSobreNoDisponible() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0, EstadoOperativo.EN_USO);
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> fermentadorServicio.bajaFermentador(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja el fermentador porque tiene operaciones registradas");
+        verify(fermentadorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BF-13: bajaFermentador bloquea el equipamiento antes de consultar los lotes asociados y las operaciones registradas")
+    void bajaFermentador_debeBloquearElEquipamientoAntesDeConsultarLotesYOperaciones() {
+        // === PREPARACION DE DATOS ===
+        FermentadorEntity entidad = crearFermentadorEntity(1L, "FERM-01", 100.0, 80.0);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(fermentadorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        fermentadorServicio.bajaFermentador(1L);
+
+        // === ASSERTS ===
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(equipamientoRepository, etapaLoteRepository, operacionCicloVidaEquipamientoRepository, fermentadorRepository);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
+        orden.verify(etapaLoteRepository).existsEtapaAsociada(1L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
+        orden.verify(fermentadorRepository).save(entidad);
     }
 
     // ==================== validaciones técnicas de Fermentador (números finitos, techos y longitudes) ====================

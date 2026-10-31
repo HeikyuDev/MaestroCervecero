@@ -28,6 +28,9 @@ public enum Rol {
             Permiso.EQUIPAMIENTO_MODIFICAR,
             Permiso.EQUIPAMIENTO_ELIMINAR,
             Permiso.EQUIPAMIENTO_CONSULTAR,
+            Permiso.LIMPIEZA_EQUIPAMIENTO_CONSULTAR,
+            Permiso.FALLA_EQUIPAMIENTO_CONSULTAR,
+            Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR,
             Permiso.RECETA_CREAR,
             Permiso.RECETA_MODIFICAR,
             Permiso.RECETA_ELIMINAR,
@@ -88,7 +91,10 @@ public enum Rol {
             Permiso.FRACCIONAMIENTO_BARRIL_ANULAR,
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR,
             Permiso.MANTENIMIENTO_EQUIPAMIENTO_ANULAR,
-            Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR
+            Permiso.MANTENIMIENTO_EQUIPAMIENTO_CONSULTAR,
+            Permiso.FALLA_EQUIPAMIENTO_REGISTRAR,
+            Permiso.FALLA_EQUIPAMIENTO_ANULAR,
+            Permiso.FALLA_EQUIPAMIENTO_CONSULTAR
     )),
 
     GERENTE_DE_COMPRAS("Gerente de Compras", Set.of(

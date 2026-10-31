@@ -17,4 +17,26 @@ public enum TipoEquipamiento {
     FERMENTADOR(FermentadorEntity.class);
 
     private final Class<? extends EquipamientoEntity> entityClass;
+
+    /**
+     * Resuelve el tipo concreto de un equipamiento a partir de su clase.
+     *
+     * @param equipamiento El equipamiento (no un proxy).
+     * @return El tipo concreto, o {@code null} si el equipamiento es nulo o de una clase desconocida.
+     */
+    public static TipoEquipamiento deEquipamiento(EquipamientoEntity equipamiento) {
+        if (equipamiento instanceof MolinoEntity) {
+            return MOLINO;
+        }
+        if (equipamiento instanceof MaceradorEntity) {
+            return MACERADOR;
+        }
+        if (equipamiento instanceof OllaHervorEntity) {
+            return OLLA_HERVOR;
+        }
+        if (equipamiento instanceof FermentadorEntity) {
+            return FERMENTADOR;
+        }
+        return null;
+    }
 }

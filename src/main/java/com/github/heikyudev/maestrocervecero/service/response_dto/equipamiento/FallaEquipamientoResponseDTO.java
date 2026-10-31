@@ -23,9 +23,14 @@ public class FallaEquipamientoResponseDTO {
     private Long id;
 
     /**
-     * Fecha y hora en la que ocurrió la falla.
+     * Fecha y hora de inicio de la falla.
      */
-    private LocalDateTime fechaFalla;
+    private LocalDateTime fechaInicio;
+
+    /**
+     * Fecha y hora de fin de la falla.
+     */
+    private LocalDateTime fechaFin;
 
     /**
      * Estado transaccional de la falla (REGISTRADO/ANULADO).

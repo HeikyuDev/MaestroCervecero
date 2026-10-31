@@ -8,7 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Lim
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
@@ -20,10 +20,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.ILimpiezaEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.LimpiezaEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperLimpiezaEquipamiento;
-import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
-import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
-import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosCicloVidaEquipamiento;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,8 +35,8 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
 
     private final ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     private final IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
-    private final IFallaEquipamientoRepository fallaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
@@ -83,76 +80,65 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
     /**
      * Registra una nueva limpieza de equipamiento.
      * <p>
-     * Evalúa la cantidad de limpiezas registradas desde el último mantenimiento del equipamiento
-     * (o desde siempre, si nunca tuvo uno), sumando esta limpieza, y la compara contra
-     * {@code usosMaximosAntesMantenimiento}: si la alcanza o la supera, el equipamiento pasa a
-     * {@code EN_MANTENIMIENTO} en lugar de {@code DISPONIBLE}. Ese resultado queda grabado en la
-     * propia limpieza ({@code estadoOperativoResultante}) para que una eventual anulación pueda
-     * validar contra el estado exacto que esta limpieza puntual dejó.
+     * La limpieza ocupa un intervalo (fecha de inicio y fecha de fin). Evalúa la cantidad de limpiezas
+     * registradas desde el último mantenimiento del equipamiento (o desde siempre, si nunca tuvo uno), sumando
+     * esta limpieza, y la compara contra {@code usosMaximosAntesMantenimiento}: si la alcanza o la supera, el
+     * equipamiento pasa a {@code EN_MANTENIMIENTO} en lugar de {@code DISPONIBLE}. Ese resultado queda grabado en
+     * la propia limpieza ({@code estadoOperativoResultante}) para que una eventual anulación pueda validar contra
+     * el estado exacto que esta limpieza puntual dejó.
+     * </p>
+     * <p>
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el equipamiento, antes de leer su última
+     * operación, su última participación en un lote o sus usos. Es el único lock de la operación.
      * </p>
      *
      * @param limpiezaEquipamientoFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si la fecha de limpieza no es posterior a la última operación registrada sobre ese equipamiento.
+     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas o superan el máximo, si el equipamiento está dado de baja o no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.LIMPIEZA_EQUIPAMIENTO)
     public LimpiezaEquipamientoResponseDTO registrarLimpiezaEquipamiento(LimpiezaEquipamientoFormDTO limpiezaEquipamientoFormDTO) {
-        // 1. Validar que se haya informado la fecha de limpieza
-        if (limpiezaEquipamientoFormDTO.getFechaLimpieza() == null) {
-            throw new ReglaNegocioException("La fecha de limpieza es obligatoria");
-        }
+        // 1. Validar las fechas de inicio y de fin
+        MetodosCicloVidaEquipamiento.validarFechas(limpiezaEquipamientoFormDTO.getFechaInicio(), limpiezaEquipamientoFormDTO.getFechaFin());
 
-        // 2. Validar que la fecha de limpieza no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(limpiezaEquipamientoFormDTO.getFechaLimpieza());
+        // 2. Validar las observaciones
+        String observaciones = MetodosCicloVidaEquipamiento.validarObservaciones(limpiezaEquipamientoFormDTO.getObservaciones());
 
-        // 3. Validar que se hayan informado las observaciones
-        String observaciones = NormalizacionTexto.nombrePropio(limpiezaEquipamientoFormDTO.getObservaciones());
-        if (observaciones == null || observaciones.isEmpty()) {
-            throw new ReglaNegocioException("Las observaciones son obligatorias");
-        }
-        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
-            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
-        }
-
-        // 4. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
+        // 3. Localizar el equipamiento, bloqueado para escritura, antes de leer cualquier otro dato
         Long idEquipamiento = limpiezaEquipamientoFormDTO.getIdEquipamiento();
-        EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(idEquipamiento)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + idEquipamiento));
+        EquipamientoEntity equipamientoEntity = MetodosCicloVidaEquipamiento.resolverEquipamientoActivo(
+                equipamientoRepository.buscarPorIdParaOperacionCicloVida(idEquipamiento), idEquipamiento);
 
-        // 5. Validar que el equipamiento se encuentre en estado operativo EN_LIMPIEZA
-        if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_LIMPIEZA) {
-            throw new ReglaNegocioException("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo En limpieza");
-        }
+        // 4. Validar que el equipamiento se encuentre en estado operativo EN_LIMPIEZA
+        MetodosCicloVidaEquipamiento.validarEstadoOperativoParaRegistrar(equipamientoEntity.getEstadoOperativo(), EstadoOperativo.EN_LIMPIEZA, "una limpieza");
 
-        // 6. Validar que la fecha de limpieza sea posterior a la última operación registrada sobre
-        //    este equipamiento, considerando también la última etapa de lote en la que participó
-        LocalDateTime fechaUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                limpiezaEquipamientoFormDTO.getFechaLimpieza(),
-                "equipamiento",
-                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
-                fechaUltimoMantenimiento,
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null),
+        // 5. Validar que el inicio sea posterior al fin de la última operación registrada y de la última
+        //    participación del equipamiento en un lote
+        MetodosCicloVidaEquipamiento.validarInicioPosteriorALaActividadAnterior(
+                limpiezaEquipamientoFormDTO.getFechaInicio(),
+                operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(idEquipamiento).orElse(null),
                 etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
 
-        // 7. Contar los usos del equipamiento desde su último mantenimiento (o desde siempre, si
-        //    nunca tuvo uno), sumando la limpieza que se está registrando, y comparar contra el
-        //    máximo de usos antes de mantenimiento para decidir el estado operativo resultante
-        long cantidadUsos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaUltimoMantenimiento) + 1;
+        // 6. Contar los usos del equipamiento desde el fin de su último mantenimiento (o desde siempre, si
+        //    nunca tuvo uno), sumando la limpieza que se está registrando, y comparar contra el máximo de usos
+        //    antes de mantenimiento para decidir el estado operativo resultante
+        LocalDateTime fechaFinUltimoMantenimiento = mantenimientoEquipamientoRepository.buscarFechaFinUltimoMantenimientoRegistrado(idEquipamiento).orElse(null);
+        long cantidadUsos = limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(idEquipamiento, fechaFinUltimoMantenimiento) + 1;
         EstadoOperativo estadoOperativoResultante = cantidadUsos >= equipamientoEntity.getUsosMaximosAntesMantenimiento()
                 ? EstadoOperativo.EN_MANTENIMIENTO
                 : EstadoOperativo.DISPONIBLE;
 
-        // 8. Aplicar el estado operativo resultante sobre el equipamiento y persistirlo
+        // 7. Aplicar el estado operativo resultante sobre el equipamiento y persistirlo
         equipamientoEntity.setEstadoOperativo(estadoOperativoResultante);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 9. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
+        // 8. Construir y persistir la limpieza, y retornar el DTO de respuesta correspondiente
         LimpiezaEquipamientoEntity limpiezaEquipamientoEntity = LimpiezaEquipamientoEntity.builder()
-                .fecha(limpiezaEquipamientoFormDTO.getFechaLimpieza())
+                .fecha(limpiezaEquipamientoFormDTO.getFechaInicio())
+                .fechaFin(limpiezaEquipamientoFormDTO.getFechaFin())
                 .observaciones(observaciones)
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -165,63 +151,63 @@ public class LimpiezaEquipamientoServicioImpl implements ILimpiezaEquipamientoSe
     /**
      * Anula una limpieza de equipamiento existente.
      * <p>
-     * Solo procede si el equipamiento asociado sigue exactamente en el estado operativo que dejó
-     * esta limpieza puntual ({@code estadoOperativoResultante}), no en cualquiera de los dos
-     * estados posibles en general: evita revertir una limpieza vieja cuando el estado actual del
-     * equipamiento en realidad lo dejó un mantenimiento u otra limpieza posterior. Restablece al
-     * equipamiento a estado operativo {@code EN_LIMPIEZA}.
+     * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha de fin, y a igual fecha la de mayor ID, entre sus
+     * limpiezas, fallas y mantenimientos) y si el equipamiento asociado sigue exactamente en el estado operativo
+     * que dejó esta limpieza puntual ({@code estadoOperativoResultante}), no en cualquiera de los dos estados
+     * posibles en general: evita revertir una limpieza vieja cuando el estado actual del equipamiento en realidad
+     * lo dejó un mantenimiento u otra limpieza posterior. Restablece al equipamiento a estado operativo
+     * {@code EN_LIMPIEZA}.
+     * </p>
+     * <p>
+     * Orden de locks: igual que al registrar, se bloquea primero el equipamiento (el ID se resuelve con una consulta
+     * escalar, sin cargar la limpieza) y recién después se lee la limpieza y se verifica que sea la última. Es el
+     * único lock de la operación.
      * </p>
      *
      * @param id El ID de la limpieza de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La limpieza de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
      * @throws RecursoNoEncontradoException Si la limpieza de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.LIMPIEZA_EQUIPAMIENTO)
     public LimpiezaEquipamientoResponseDTO anularLimpiezaEquipamiento(Long id, AnulacionLimpiezaEquipamientoFormDTO anulacionFormDTO) {
-        // 1. Validar que se haya informado el motivo de anulación
-        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
-        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
-            throw new ReglaNegocioException("El motivo de anulación es obligatorio");
-        }
-        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
+        // 1. Validar el motivo de anulación
+        String motivoAnulacion = MetodosCicloVidaEquipamiento.validarMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
 
-        // 2. Localizar la limpieza de equipamiento. Si no existe, se dispara RecursoNoEncontradoException
+        // 2. Resolver el equipamiento de la limpieza sin cargarla y bloquearlo para escritura. Si la limpieza no
+        //    existe, se dispara RecursoNoEncontradoException
+        Long idEquipamiento = operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la limpieza de equipamiento con ID: " + id));
+        EquipamientoEntity equipamientoEntity = MetodosCicloVidaEquipamiento.resolverEquipamientoActivo(
+                equipamientoRepository.buscarPorIdParaOperacionCicloVida(idEquipamiento), idEquipamiento);
+
+        // 3. Localizar la limpieza, ya con el equipamiento bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         LimpiezaEquipamientoEntity limpiezaEquipamientoEntity = limpiezaEquipamientoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró la limpieza de equipamiento con ID: " + id));
 
-        // 3. Validar que la limpieza se encuentre en estado REGISTRADO
+        // 4. Validar que la limpieza se encuentre en estado REGISTRADO
         if (limpiezaEquipamientoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
             throw new ReglaNegocioException("Solo se pueden anular limpiezas de equipamiento en estado Registrado");
         }
 
-        // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
-        //    comparando contra las 3 tablas del ciclo de vida (evita anular un registro viejo
-        //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
-        Long idEquipamiento = limpiezaEquipamientoEntity.getEquipamiento().getId();
-        MetodosCicloVida.validarEsOperacionMasReciente(
-                limpiezaEquipamientoEntity.getFecha(),
-                "equipamiento",
-                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
-                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null));
+        // 5. Validar que sea la última operación registrada del equipamiento (mayor fecha de fin y, a igualdad, mayor ID)
+        MetodosCicloVidaEquipamiento.validarEsLaUltimaOperacion(
+                limpiezaEquipamientoEntity.getId(),
+                operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null));
 
-        // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
-        //    encuentre exactamente en el estado operativo que dejó esta limpieza puntual
-        EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(limpiezaEquipamientoEntity.getEquipamiento().getId())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + limpiezaEquipamientoEntity.getEquipamiento().getId()));
+        // 6. Validar que el equipamiento se encuentre exactamente en el estado operativo que dejó esta limpieza
         if (equipamientoEntity.getEstadoOperativo() != limpiezaEquipamientoEntity.getEstadoOperativoResultante()) {
             throw new ReglaNegocioException("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo " + limpiezaEquipamientoEntity.getEstadoOperativoResultante().getEtiqueta());
         }
 
-        // 6. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo
+        // 7. Restablecer el estado operativo del equipamiento a EN_LIMPIEZA y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_LIMPIEZA);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 7. Aplicar la anulación sobre la limpieza y persistirla
+        // 8. Aplicar la anulación sobre la limpieza y persistirla
         limpiezaEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         limpiezaEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         limpiezaEquipamientoEntity.setMotivoAnulacion(motivoAnulacion);

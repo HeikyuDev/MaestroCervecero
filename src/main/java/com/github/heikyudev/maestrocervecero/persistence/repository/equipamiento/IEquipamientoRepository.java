@@ -75,4 +75,22 @@ public interface IEquipamientoRepository extends JpaRepository<EquipamientoEntit
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id AND e.estado = 'ACTIVO'")
     Optional<EquipamientoEntity> buscarPorIdParaCambiarEstadoOperativo(@Param("id") Long id);
+
+    /**
+     * Busca, bloqueándolo para escritura, un equipamiento por su ID sin importar su tipo concreto ni si fue dado de
+     * baja.
+     * <p>
+     * Se usa al registrar o anular una operación de su ciclo de vida (limpieza, falla o mantenimiento): a diferencia de
+     * {@link #buscarPorIdParaCambiarEstadoOperativo(Long)}, permite distinguir un equipamiento inexistente de uno dado
+     * de baja. Es el único lock que toman esas operaciones: el equipamiento se bloquea siempre antes de leer o validar
+     * cualquier otro dato (última operación, última participación en un lote), para que dos transacciones concurrentes
+     * sobre el mismo equipamiento se serialicen.
+     * </p>
+     *
+     * @param id El ID del equipamiento.
+     * @return Un Optional que contiene el equipamiento si existe (activo o dado de baja), o vacío si no existe.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT e FROM EquipamientoEntity e WHERE e.id = :id")
+    Optional<EquipamientoEntity> buscarPorIdParaOperacionCicloVida(@Param("id") Long id);
 }

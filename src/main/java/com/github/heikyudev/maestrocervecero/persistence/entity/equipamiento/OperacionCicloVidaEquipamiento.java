@@ -1,6 +1,7 @@
 package com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento;
 
 import com.github.heikyudev.maestrocervecero.persistence.entity.ciclo_vida.OperacionCicloVida;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Inheritance;
@@ -8,6 +9,8 @@ import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -21,8 +24,8 @@ import lombok.experimental.SuperBuilder;
  * Solo las subclases concretas pueden instanciarse.
  * <p>
  * Extiende {@link OperacionCicloVida} para heredar los datos comunes a toda operación del ciclo
- * de vida (fecha, observaciones, estado transaccional y datos de anulación), y agrega la
- * relación con el {@link EquipamientoEntity} afectado, común a todas sus subclases. Esta
+ * de vida (fecha de inicio, observaciones, estado transaccional y datos de anulación), y agrega la
+ * fecha de fin y la relación con el {@link EquipamientoEntity} afectado, comunes a todas sus subclases. Esta
  * relación es lo que permite, con una única consulta polimórfica sobre esta clase, encontrar la
  * última operación registrada de cualquier tipo sobre un equipamiento determinado.
  * </p>
@@ -35,6 +38,14 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @NoArgsConstructor
 public abstract class OperacionCicloVidaEquipamiento extends OperacionCicloVida {
+
+    /**
+     * Fecha y hora de fin de la operación. Nunca es anterior a {@code fecha} (el inicio) ni
+     * posterior al momento en que se registró. La "última operación" de un equipamiento se mide
+     * por este valor.
+     */
+    @Column(name = "fecha_fin", nullable = false)
+    private LocalDateTime fechaFin;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "equipamiento_id", nullable = false)

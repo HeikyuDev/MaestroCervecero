@@ -8,8 +8,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Man
 import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.TipoEquipamiento;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
-import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.AnulacionMantenimientoEquipamientoFormDTO;
@@ -20,10 +19,7 @@ import com.github.heikyudev.maestrocervecero.service.exception.ReglaNegocioExcep
 import com.github.heikyudev.maestrocervecero.service.interfaces.equipamiento.IMantenimientoEquipamientoServicio;
 import com.github.heikyudev.maestrocervecero.service.response_dto.equipamiento.MantenimientoEquipamientoResponseDTO;
 import com.github.heikyudev.maestrocervecero.util.mapper.equipamiento.MapperMantenimientoEquipamiento;
-import com.github.heikyudev.maestrocervecero.util.method.MetodosCicloVida;
-import com.github.heikyudev.maestrocervecero.util.validacion.LimitesTecnicos;
-import com.github.heikyudev.maestrocervecero.util.validacion.NormalizacionTexto;
-import com.github.heikyudev.maestrocervecero.util.validacion.ValidacionesNumericas;
+import com.github.heikyudev.maestrocervecero.util.method.equipamiento.MetodosCicloVidaEquipamiento;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,9 +33,8 @@ import java.time.LocalDateTime;
 public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEquipamientoServicio {
 
     private final IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
-    private final IFallaEquipamientoRepository fallaEquipamientoRepository;
-    private final ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
     private final IEquipamientoRepository equipamientoRepository;
+    private final IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
 
     /**
@@ -83,63 +78,54 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
     /**
      * Registra un nuevo mantenimiento de equipamiento.
      * <p>
-     * Deja al equipamiento afectado en estado operativo {@code DISPONIBLE}: el mantenimiento
-     * cierra el ciclo abierto por una falla o por un mantenimiento preventivo, devolviendo el
-     * equipamiento a producción.
+     * El mantenimiento ocupa un intervalo (fecha de inicio y fecha de fin) y deja al equipamiento en estado
+     * operativo {@code DISPONIBLE}. Solo se registra sobre un equipamiento ya en mantenimiento, ya sea por una
+     * falla o por haber alcanzado el máximo de usos: no existe el mantenimiento voluntario sobre un equipamiento
+     * disponible.
+     * </p>
+     * <p>
+     * Orden de locks: lo primero que se bloquea (PESSIMISTIC_WRITE) es el equipamiento, antes de leer su última
+     * operación o su última participación en un lote. Es el único lock de la operación.
      * </p>
      *
      * @param mantenimientoEquipamientoFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de equipamiento registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si es posterior a la fecha y hora actual, si las observaciones no fueron informadas, si el equipamiento no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si la fecha de mantenimiento no es posterior a la última operación registrada sobre ese equipamiento.
+     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas o superan el máximo, si el equipamiento está dado de baja o no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.CREAR, conceptoAuditoria = ConceptoAuditoria.MANTENIMIENTO_EQUIPAMIENTO)
     public MantenimientoEquipamientoResponseDTO registrarMantenimientoEquipamiento(MantenimientoEquipamientoFormDTO mantenimientoEquipamientoFormDTO) {
-        // 1. Validar que se haya informado la fecha de mantenimiento
-        if (mantenimientoEquipamientoFormDTO.getFechaMantenimiento() == null) {
-            throw new ReglaNegocioException("La fecha de mantenimiento es obligatoria");
-        }
+        // 1. Validar las fechas de inicio y de fin
+        MetodosCicloVidaEquipamiento.validarFechas(mantenimientoEquipamientoFormDTO.getFechaInicio(), mantenimientoEquipamientoFormDTO.getFechaFin());
 
-        // 2. Validar que la fecha de mantenimiento no sea posterior a la fecha y hora actual
-        MetodosCicloVida.validarFechaNoFutura(mantenimientoEquipamientoFormDTO.getFechaMantenimiento());
+        // 2. Validar las observaciones
+        String observaciones = MetodosCicloVidaEquipamiento.validarObservaciones(mantenimientoEquipamientoFormDTO.getObservaciones());
 
-        // 3. Validar que se hayan informado las observaciones
-        String observaciones = NormalizacionTexto.nombrePropio(mantenimientoEquipamientoFormDTO.getObservaciones());
-        if (observaciones == null || observaciones.isEmpty()) {
-            throw new ReglaNegocioException("Las observaciones son obligatorias");
-        }
-        if (observaciones.length() > LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO) {
-            throw new ReglaNegocioException("Las observaciones no pueden superar " + LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO + " caracteres");
-        }
+        // 3. Localizar el equipamiento, bloqueado para escritura, antes de leer cualquier otro dato
+        Long idEquipamiento = mantenimientoEquipamientoFormDTO.getIdEquipamiento();
+        EquipamientoEntity equipamientoEntity = MetodosCicloVidaEquipamiento.resolverEquipamientoActivo(
+                equipamientoRepository.buscarPorIdParaOperacionCicloVida(idEquipamiento), idEquipamiento);
 
-        // 4. Localizar el equipamiento, bloqueado para escritura. Si no existe, se dispara RecursoNoEncontradoException
-        EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(mantenimientoEquipamientoFormDTO.getIdEquipamiento())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + mantenimientoEquipamientoFormDTO.getIdEquipamiento()));
+        // 4. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO
+        MetodosCicloVidaEquipamiento.validarEstadoOperativoParaRegistrar(equipamientoEntity.getEstadoOperativo(), EstadoOperativo.EN_MANTENIMIENTO, "un mantenimiento");
 
-        // 5. Validar que el equipamiento se encuentre en estado operativo EN_MANTENIMIENTO
-        if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.EN_MANTENIMIENTO) {
-            throw new ReglaNegocioException("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo En mantenimiento");
-        }
+        // 5. Validar que el inicio sea posterior al fin de la última operación registrada y de la última
+        //    participación del equipamiento en un lote
+        MetodosCicloVidaEquipamiento.validarInicioPosteriorALaActividadAnterior(
+                mantenimientoEquipamientoFormDTO.getFechaInicio(),
+                operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(idEquipamiento).orElse(null),
+                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(idEquipamiento).orElse(null));
 
-        // 6. Validar que la fecha de mantenimiento sea posterior a la última operación registrada
-        //    sobre este equipamiento, considerando también la última etapa de lote en la que participó
-        MetodosCicloVida.validarFechaPosteriorAUltimaOperacion(
-                mantenimientoEquipamientoFormDTO.getFechaMantenimiento(),
-                "equipamiento",
-                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(equipamientoEntity.getId()).orElse(null),
-                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(equipamientoEntity.getId()).orElse(null),
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(equipamientoEntity.getId()).orElse(null),
-                etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(equipamientoEntity.getId()).orElse(null));
-
-        // 7. Cambiar el estado operativo del equipamiento a DISPONIBLE y persistirlo
+        // 6. Cambiar el estado operativo del equipamiento a DISPONIBLE y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.DISPONIBLE);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 8. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
+        // 7. Construir y persistir el mantenimiento, y retornar el DTO de respuesta correspondiente
         MantenimientoEquipamientoEntity mantenimientoEquipamientoEntity = MantenimientoEquipamientoEntity.builder()
-                .fecha(mantenimientoEquipamientoFormDTO.getFechaMantenimiento())
+                .fecha(mantenimientoEquipamientoFormDTO.getFechaInicio())
+                .fechaFin(mantenimientoEquipamientoFormDTO.getFechaFin())
                 .observaciones(observaciones)
                 .equipamiento(equipamientoEntity)
                 .estado(EstadoTransaccion.REGISTRADO)
@@ -151,62 +137,61 @@ public class MantenimientoEquipamientoServicioImpl implements IMantenimientoEqui
     /**
      * Anula un mantenimiento de equipamiento existente.
      * <p>
-     * Restablece al equipamiento afectado a estado operativo {@code EN_MANTENIMIENTO}: solo
-     * procede si ese equipamiento todavía se encuentra en {@code DISPONIBLE}, para garantizar que
-     * la transición de vuelta sea coherente.
+     * Solo procede si es la última operación registrada del equipamiento (la de mayor fecha de fin, y a igual fecha la de mayor ID, entre sus
+     * limpiezas, fallas y mantenimientos) y si el equipamiento asociado se encuentra en estado operativo
+     * {@code DISPONIBLE}; el equipamiento vuelve a {@code EN_MANTENIMIENTO}.
+     * </p>
+     * <p>
+     * Orden de locks: igual que al registrar, se bloquea primero el equipamiento (el ID se resuelve con una consulta
+     * escalar, sin cargar el mantenimiento) y recién después se lee el mantenimiento y se verifica que sea el último.
+     * Es el único lock de la operación.
      * </p>
      *
      * @param id El ID del mantenimiento de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return El mantenimiento de equipamiento anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado o supera el máximo, si el equipamiento está dado de baja, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
      * @throws RecursoNoEncontradoException Si el mantenimiento de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ANULAR, conceptoAuditoria = ConceptoAuditoria.MANTENIMIENTO_EQUIPAMIENTO)
     public MantenimientoEquipamientoResponseDTO anularMantenimientoEquipamiento(Long id, AnulacionMantenimientoEquipamientoFormDTO anulacionFormDTO) {
-        // 1. Validar que se haya informado el motivo de anulación
-        String motivoAnulacion = NormalizacionTexto.nombrePropio(anulacionFormDTO.getMotivoAnulacion());
-        if (motivoAnulacion == null || motivoAnulacion.isEmpty()) {
-            throw new ReglaNegocioException("El motivo de anulación es obligatorio");
-        }
-        ValidacionesNumericas.validarLongitudMaxima(motivoAnulacion, LimitesTecnicos.LONGITUD_MAXIMA_MOTIVO, "El motivo de anulación");
+        // 1. Validar el motivo de anulación
+        String motivoAnulacion = MetodosCicloVidaEquipamiento.validarMotivoAnulacion(anulacionFormDTO.getMotivoAnulacion());
 
-        // 2. Localizar el mantenimiento de equipamiento. Si no existe, se dispara RecursoNoEncontradoException
+        // 2. Resolver el equipamiento del mantenimiento sin cargarlo y bloquearlo para escritura. Si el
+        //    mantenimiento no existe, se dispara RecursoNoEncontradoException
+        Long idEquipamiento = operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el mantenimiento de equipamiento con ID: " + id));
+        EquipamientoEntity equipamientoEntity = MetodosCicloVidaEquipamiento.resolverEquipamientoActivo(
+                equipamientoRepository.buscarPorIdParaOperacionCicloVida(idEquipamiento), idEquipamiento);
+
+        // 3. Localizar el mantenimiento, ya con el equipamiento bloqueado. Si no existe, se dispara RecursoNoEncontradoException
         MantenimientoEquipamientoEntity mantenimientoEquipamientoEntity = mantenimientoEquipamientoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el mantenimiento de equipamiento con ID: " + id));
 
-        // 3. Validar que el mantenimiento se encuentre en estado REGISTRADO
+        // 4. Validar que el mantenimiento se encuentre en estado REGISTRADO
         if (mantenimientoEquipamientoEntity.getEstado() != EstadoTransaccion.REGISTRADO) {
             throw new ReglaNegocioException("Solo se pueden anular mantenimientos de equipamiento en estado Registrado");
         }
 
-        // 4. Validar que sea la operación más reciente registrada sobre el equipamiento,
-        //    comparando contra las 3 tablas del ciclo de vida (evita anular un registro viejo
-        //    cuando una operación posterior ya dejó al equipamiento en un estado distinto)
-        Long idEquipamiento = mantenimientoEquipamientoEntity.getEquipamiento().getId();
-        MetodosCicloVida.validarEsOperacionMasReciente(
-                mantenimientoEquipamientoEntity.getFecha(),
-                "equipamiento",
-                fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(idEquipamiento).orElse(null),
-                mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(idEquipamiento).orElse(null),
-                limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(idEquipamiento).orElse(null));
+        // 5. Validar que sea la última operación registrada del equipamiento (mayor fecha de fin y, a igualdad, mayor ID)
+        MetodosCicloVidaEquipamiento.validarEsLaUltimaOperacion(
+                mantenimientoEquipamientoEntity.getId(),
+                operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(idEquipamiento).orElse(null));
 
-        // 5. Localizar el equipamiento asociado, bloqueado para escritura, y validar que se
-        //    encuentre en estado operativo DISPONIBLE, para garantizar que la transición de
-        //    vuelta a EN_MANTENIMIENTO sea coherente
-        EquipamientoEntity equipamientoEntity = equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(mantenimientoEquipamientoEntity.getEquipamiento().getId())
-                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el equipamiento con ID: " + mantenimientoEquipamientoEntity.getEquipamiento().getId()));
+        // 6. Validar que el equipamiento se encuentre en estado operativo DISPONIBLE, para garantizar que la
+        //    transición de vuelta a EN_MANTENIMIENTO sea coherente
         if (equipamientoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
             throw new ReglaNegocioException("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo Disponible");
         }
 
-        // 6. Restablecer el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
+        // 7. Restablecer el estado operativo del equipamiento a EN_MANTENIMIENTO y persistirlo
         equipamientoEntity.setEstadoOperativo(EstadoOperativo.EN_MANTENIMIENTO);
         equipamientoRepository.save(equipamientoEntity);
 
-        // 7. Aplicar la anulación sobre el mantenimiento y persistirlo
+        // 8. Aplicar la anulación sobre el mantenimiento y persistirlo
         mantenimientoEquipamientoEntity.setEstado(EstadoTransaccion.ANULADO);
         mantenimientoEquipamientoEntity.setFechaAnulacion(LocalDateTime.now());
         mantenimientoEquipamientoEntity.setMotivoAnulacion(motivoAnulacion);

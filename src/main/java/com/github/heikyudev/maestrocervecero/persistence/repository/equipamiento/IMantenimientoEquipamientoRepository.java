@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -63,15 +64,24 @@ public interface IMantenimientoEquipamientoRepository extends JpaRepository<Mant
                                                                              Pageable pageable);
 
     /**
-     * Busca la fecha del mantenimiento registrado más reciente de un equipamiento determinado.
+     * Busca la fecha de fin del mantenimiento registrado más reciente de un equipamiento determinado.
      * <p>
      * Se usa para acotar, al registrar una limpieza, el conteo de usos del equipamiento al
      * período posterior a su último mantenimiento: un mantenimiento reinicia el ciclo de uso.
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento cuya fecha de último mantenimiento se quiere obtener.
-     * @return La fecha del mantenimiento registrado más reciente, o vacío si el equipamiento nunca tuvo uno.
+     * @return La fecha de fin del mantenimiento registrado más reciente, o vacío si el equipamiento nunca tuvo uno.
      */
-    @Query("SELECT MAX(m.fecha) FROM MantenimientoEquipamientoEntity m WHERE m.equipamiento.id = :idEquipamiento AND m.estado = 'REGISTRADO'")
-    Optional<LocalDateTime> buscarFechaUltimoMantenimientoRegistrado(@Param("idEquipamiento") Long idEquipamiento);
+    @Query("SELECT MAX(m.fechaFin) FROM MantenimientoEquipamientoEntity m WHERE m.equipamiento.id = :idEquipamiento AND m.estado = 'REGISTRADO'")
+    Optional<LocalDateTime> buscarFechaFinUltimoMantenimientoRegistrado(@Param("idEquipamiento") Long idEquipamiento);
+
+    /**
+     * Lista todos los mantenimientos de un equipamiento, anulados incluidos, del de inicio más reciente al más antiguo.
+     *
+     * @param idEquipamiento El ID del equipamiento.
+     * @return Los mantenimientos del equipamiento.
+     */
+    @Query("SELECT m FROM MantenimientoEquipamientoEntity m WHERE m.equipamiento.id = :idEquipamiento ORDER BY m.fecha DESC, m.id DESC")
+    List<MantenimientoEquipamientoEntity> listarPorEquipamiento(@Param("idEquipamiento") Long idEquipamiento);
 }

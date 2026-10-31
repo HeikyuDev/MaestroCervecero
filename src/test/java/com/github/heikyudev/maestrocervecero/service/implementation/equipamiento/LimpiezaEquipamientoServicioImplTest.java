@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -37,6 +39,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -50,7 +53,7 @@ class LimpiezaEquipamientoServicioImplTest {
     @Mock
     private IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
     @Mock
-    private IFallaEquipamientoRepository fallaEquipamientoRepository;
+    private IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
     @Mock
@@ -188,194 +191,343 @@ class LimpiezaEquipamientoServicioImplTest {
     // ==================== registrarLimpiezaEquipamiento ====================
 
     @Test
-    @DisplayName("CP-RLE-01: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de limpieza es nula")
-    void registrar_debeRechazarFechaLimpiezaNula() {
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, null, "Limpieza CIP estándar");
+    @DisplayName("CP-RLE-01: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de inicio es nula")
+    void registrar_debeRechazarFechaInicioNula() {
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, null, FIN, "Ruido anormal");
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de limpieza es obligatoria");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository);
+                .hasMessage("La fecha de inicio es obligatoria")
+                .extracting("campo").isEqualTo("fechaInicio");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RLE-02: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones son nulas")
+    @DisplayName("CP-RLE-02: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de fin es nula")
+    void registrar_debeRechazarFechaFinNula() {
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, null, "Ruido anormal");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin es obligatoria")
+                .extracting("campo").isEqualTo("fechaFin");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RLE-03: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de fin es anterior a la de inicio")
+    void registrar_debeRechazarFinAnteriorAlInicio() {
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, INICIO.minusMinutes(1), "Ruido anormal");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin no puede ser anterior a la fecha de inicio")
+                .extracting("campo").isEqualTo("fechaFin");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RLE-04: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de fin es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFinFuturo() {
+        // === PREPARACION DE DATOS ===
+        LocalDateTime manana = LocalDateTime.now().plusDays(1);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, manana, "Ruido anormal");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin no puede ser posterior a la fecha y hora actual")
+                .extracting("campo").isEqualTo("fechaFin");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RLE-05: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), null);
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, null);
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las observaciones son obligatorias");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository);
+                .hasMessage("Las observaciones son obligatorias")
+                .extracting("campo").isEqualTo("observaciones");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RLE-03: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    @DisplayName("CP-RLE-06: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "   ");
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "   ");
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Las observaciones son obligatorias");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository);
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RLE-11: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    @DisplayName("CP-RLE-07: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "a".repeat(256));
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las observaciones no pueden superar 255 caracteres");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, limpiezaEquipamientoRepository);
+                .hasMessage("El texto de las observaciones no puede superar 255 caracteres")
+                .extracting("campo").isEqualTo("observaciones");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RLE-04: registrarLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
-    void registrar_debeRechazarEquipamientoInexistente() {
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
+    @DisplayName("CP-RLE-08: registrarLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
+    void registrar_debeLanzarExcepcionSiElEquipamientoNoExiste() {
+        // === PREPARACION DE DATOS ===
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(99L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(99L)).thenReturn(Optional.empty());
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el equipamiento con ID: 99");
-
-        verify(limpiezaEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RLE-05: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando el equipamiento no está en estado operativo EN_LIMPIEZA")
-    void registrar_debeRechazarEquipamientoNoEnLimpieza() {
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.DISPONIBLE, 50);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-
-        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar una limpieza sobre un equipamiento en estado operativo En limpieza");
-
         verify(equipamientoRepository, never()).save(any());
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-RLE-06: registrarLimpiezaEquipamiento pasa el equipamiento a DISPONIBLE cuando la cantidad de usos queda por debajo del máximo, sin mantenimiento previo")
-    void registrar_debePasarADisponibleSinMantenimientoPrevio() {
+    @DisplayName("CP-RLE-09: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando el equipamiento está dado de baja")
+    void registrar_debeRechazarEquipamientoDadoDeBaja() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fechaLimpieza = LocalDateTime.of(2026, 1, 20, 9, 0);
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, fechaLimpieza, "Limpieza CIP estándar");
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        macerador.setEstado(Estado.BAJA);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El equipamiento está dado de baja");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-10: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando el equipamiento está en uso")
+    void registrar_debeRechazarEquipamientoEnUso() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_USO);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar una limpieza porque el equipamiento está en uso");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-11: registrarLimpiezaEquipamiento orienta con la operación previa cuando el equipamiento está disponible")
+    void registrar_debeOrientarSegunElEstadoOperativo1() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar una limpieza porque el equipamiento está disponible");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-12: registrarLimpiezaEquipamiento orienta con la operación previa cuando el equipamiento está en mantenimiento")
+    void registrar_debeOrientarSegunElEstadoOperativo2() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Para registrar una limpieza, primero registre el mantenimiento del equipamiento");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-13: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando el inicio coincide con el fin de la última operación registrada")
+    void registrar_debeRechazarInicioIgualAlFinDeLaUltimaOperacion() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento")
+                .extracting("campo").isEqualTo("fechaInicio");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-14: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando el inicio es anterior al fin de la última operación registrada")
+    void registrar_debeRechazarInicioAnteriorAlFinDeLaUltimaOperacion() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.plusHours(1)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-15: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando el inicio no es posterior al fin de la última participación en un lote")
+    void registrar_debeRechazarInicioNoPosteriorALaUltimaParticipacionEnLote() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RLE-16: registrarLimpiezaEquipamiento acepta una operación instantánea (fin igual al inicio) posterior a la actividad anterior")
+    void registrar_debeAceptarFinIgualAlInicio() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, INICIO, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusSeconds(1)));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(1)));
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getFechaInicio()).isEqualTo(INICIO);
+        assertThat(resultado.getFechaFin()).isEqualTo(INICIO);
+    }
+
+    @Test
+    @DisplayName("CP-RLE-17: registrarLimpiezaEquipamiento registra la operación, deja el equipamiento en el estado operativo esperado y bloquea el equipamiento antes de consultar la última operación (camino feliz)")
+    void registrar_debeRegistrarYBloquearElEquipamientoPrimero() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "  ruido anormal en el motor  ");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(2)));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(1)));
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(resultado.getFechaInicio()).isEqualTo(INICIO);
+        assertThat(resultado.getFechaFin()).isEqualTo(FIN);
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+        verify(equipamientoRepository).save(macerador);
+
+        ArgumentCaptor<LimpiezaEquipamientoEntity> captor = ArgumentCaptor.forClass(LimpiezaEquipamientoEntity.class);
+        verify(limpiezaEquipamientoRepository).save(captor.capture());
+        assertThat(captor.getValue().getFecha()).isEqualTo(INICIO);
+        assertThat(captor.getValue().getFechaFin()).isEqualTo(FIN);
+        assertThat(captor.getValue().getObservaciones()).isEqualTo("ruido anormal en el motor");
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(captor.getValue().getEquipamiento()).isSameAs(macerador);
+
+        InOrder orden = inOrder(equipamientoRepository, operacionCicloVidaEquipamientoRepository, etapaLoteRepository);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarFechaFinUltimaOperacionRegistrada(1L);
+        orden.verify(etapaLoteRepository).buscarFechaUltimaParticipacionRegistrada(1L);
+    }
+
+    @Test
+    @DisplayName("CP-RLE-18: registrarLimpiezaEquipamiento pasa el equipamiento a DISPONIBLE cuando la cantidad de usos queda por debajo del máximo, sin mantenimiento previo")
+    void registrar_debePasarADisponibleCuandoLosUsosQuedanPorDebajoDelMaximo() {
+        // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA, 50);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
-        when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(10L);
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocation -> {
-            LimpiezaEquipamientoEntity entidad = invocation.getArgument(0);
-            entidad.setId(1L);
-            return entidad;
-        });
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Limpieza CIP estándar");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(48L);
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         // === EJECUCION ===
         LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO);
 
         // === ASSERTS ===
         assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-        verify(equipamientoRepository).save(macerador);
-
-        ArgumentCaptor<LimpiezaEquipamientoEntity> captor = ArgumentCaptor.forClass(LimpiezaEquipamientoEntity.class);
-        verify(limpiezaEquipamientoRepository).save(captor.capture());
-        LimpiezaEquipamientoEntity limpiezaGuardada = captor.getValue();
-        assertThat(limpiezaGuardada.getFecha()).isEqualTo(fechaLimpieza);
-        assertThat(limpiezaGuardada.getObservaciones()).isEqualTo("Limpieza CIP estándar");
-        assertThat(limpiezaGuardada.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(limpiezaGuardada.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
-        assertThat(limpiezaGuardada.getEquipamiento()).isSameAs(macerador);
-
         assertThat(resultado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
     }
 
     @Test
-    @DisplayName("CP-RLE-07: registrarLimpiezaEquipamiento pasa el equipamiento a EN_MANTENIMIENTO cuando la cantidad de usos alcanza el máximo (límite), sin mantenimiento previo")
-    void registrar_debePasarAEnMantenimientoAlAlcanzarElMaximo() {
+    @DisplayName("CP-RLE-19: registrarLimpiezaEquipamiento pasa el equipamiento a EN_MANTENIMIENTO cuando la cantidad de usos alcanza el máximo (límite), sin mantenimiento previo")
+    void registrar_debePasarAEnMantenimientoCuandoLosUsosAlcanzanElMaximo() {
         // === PREPARACION DE DATOS ===
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA, 50);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.empty());
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Limpieza CIP estándar");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
         when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, null)).thenReturn(49L);
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         // === EJECUCION ===
         LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO);
 
         // === ASSERTS ===
         assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
-
-        ArgumentCaptor<LimpiezaEquipamientoEntity> captor = ArgumentCaptor.forClass(LimpiezaEquipamientoEntity.class);
-        verify(limpiezaEquipamientoRepository).save(captor.capture());
-        assertThat(captor.getValue().getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
-
         assertThat(resultado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
     }
 
     @Test
-    @DisplayName("CP-RLE-08: registrarLimpiezaEquipamiento acota el conteo de usos a partir del último mantenimiento registrado")
-    void registrar_debeAcotarConteoAlUltimoMantenimiento() {
+    @DisplayName("CP-RLE-20: registrarLimpiezaEquipamiento acota el conteo de usos a partir del fin del último mantenimiento registrado")
+    void registrar_debeAcotarElConteoDeUsosAlFinDelUltimoMantenimiento() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fechaUltimoMantenimiento = LocalDateTime.of(2026, 1, 10, 0, 0);
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA, 50);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.of(fechaUltimoMantenimiento));
-        when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, fechaUltimoMantenimiento)).thenReturn(5L);
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        LocalDateTime finUltimoMantenimiento = INICIO.minusDays(10);
+        LimpiezaEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Limpieza CIP estándar");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.buscarFechaFinUltimoMantenimientoRegistrado(1L)).thenReturn(Optional.of(finUltimoMantenimiento));
+        when(limpiezaEquipamientoRepository.contarLimpiezasRegistradasDesde(1L, finUltimoMantenimiento)).thenReturn(3L);
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         // === EJECUCION ===
-        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO);
+        limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO);
 
         // === ASSERTS ===
-        verify(limpiezaEquipamientoRepository).contarLimpiezasRegistradasDesde(1L, fechaUltimoMantenimiento);
+        verify(limpiezaEquipamientoRepository).contarLimpiezasRegistradasDesde(1L, finUltimoMantenimiento);
         assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-        assertThat(resultado.getEstadoOperativoResultante()).isEqualTo(EstadoOperativo.DISPONIBLE);
-    }
-
-    @Test
-    @DisplayName("CP-RLE-09: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando existe una participación en etapa de lote posterior")
-    void registrar_debeRechazarSiExisteParticipacionEnEtapaPosterior() {
-        // === PREPARACION DE DATOS ===
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar");
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA, 50);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento");
-
-        verify(equipamientoRepository, never()).save(any());
-        verify(limpiezaEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RLE-10: registrarLimpiezaEquipamiento lanza ReglaNegocioException cuando la fecha de limpieza es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaLimpiezaFutura() {
-        // === PREPARACION DE DATOS ===
-        LimpiezaEquipamientoFormDTO formDTO = limpiezaEquipamientoFormDTO(1L, LocalDateTime.now().plusDays(1), "Limpieza CIP estándar");
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> limpiezaEquipamientoServicio.registrarLimpiezaEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
-
-        verifyNoInteractions(equipamientoRepository, limpiezaEquipamientoRepository);
     }
 
     // ==================== anularLimpiezaEquipamiento ====================
@@ -383,206 +535,298 @@ class LimpiezaEquipamientoServicioImplTest {
     @Test
     @DisplayName("CP-ALE-01: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el motivo de anulación es nulo")
     void anular_debeRechazarMotivoNulo() {
+        // === PREPARACION DE DATOS ===
         AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO(null);
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El motivo de anulación es obligatorio");
-
-        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
+                .hasMessage("El motivo de anulación es obligatorio")
+                .extracting("campo").isEqualTo("motivoAnulacion");
+        verifyNoInteractions(limpiezaEquipamientoRepository, operacionCicloVidaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-ALE-02: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el motivo de anulación está en blanco")
     void anular_debeRechazarMotivoEnBlanco() {
+        // === PREPARACION DE DATOS ===
         AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("   ");
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
-
-        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
+        verifyNoInteractions(limpiezaEquipamientoRepository, operacionCicloVidaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-ALE-11: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    @DisplayName("CP-ALE-03: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
     void anular_debeRechazarMotivoDe256Caracteres() {
+        // === PREPARACION DE DATOS ===
         AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("a".repeat(256));
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
-
-        verifyNoInteractions(limpiezaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres")
+                .extracting("campo").isEqualTo("motivoAnulacion");
+        verifyNoInteractions(limpiezaEquipamientoRepository, operacionCicloVidaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-ALE-03: anularLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando la limpieza no existe")
-    void anular_debeLanzarExcepcionSiNoExiste() {
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(99L)).thenReturn(Optional.empty());
+    @DisplayName("CP-ALE-04: anularLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando la operación no existe")
+    void anular_debeLanzarExcepcionSiLaOperacionNoExiste() {
+        // === PREPARACION DE DATOS ===
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(99L)).thenReturn(Optional.empty());
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la limpieza de equipamiento con ID: 99");
-
-        verify(limpiezaEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-ALE-04: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando la limpieza no se encuentra en estado REGISTRADO")
-    void anular_debeRechazarLimpiezaNoRegistrada() {
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.ANULADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-
-        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular limpiezas de equipamiento en estado Registrado");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository, fallaEquipamientoRepository);
+        verifyNoInteractions(equipamientoRepository);
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("CP-ALE-05: anularLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento asociado no existe")
-    void anular_debeRechazarEquipamientoAsociadoInexistente() {
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
+    void anular_debeLanzarExcepcionSiElEquipamientoNoExiste() {
+        // === PREPARACION DE DATOS ===
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.empty());
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el equipamiento con ID: 2");
-
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-ALE-06: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el equipamiento asociado no está en el estado operativo que dejó la limpieza")
-    void anular_debeRechazarEquipamientoEnOtroEstado() {
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_MANTENIMIENTO, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
+    @DisplayName("CP-ALE-06: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el equipamiento asociado está dado de baja")
+    void anular_debeRechazarEquipamientoDadoDeBaja() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        macerador.setEstado(Estado.BAJA);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo Disponible");
+                .hasMessage("El equipamiento está dado de baja");
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
 
+    @Test
+    @DisplayName("CP-ALE-07: anularLimpiezaEquipamiento lanza RecursoNoEncontradoException cuando el ID corresponde a una operación de otro tipo")
+    void anular_debeLanzarExcepcionSiLaOperacionEsDeOtroTipo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró la limpieza de equipamiento con ID: 1");
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ALE-08: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando la operación no se encuentra en estado REGISTRADO")
+    void anular_debeRechazarOperacionNoRegistrada() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.ANULADO, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden anular limpiezas de equipamiento en estado Registrado");
         verify(equipamientoRepository, never()).save(any());
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-ALE-07: anularLimpiezaEquipamiento anula la limpieza cuando dejó el equipamiento DISPONIBLE (camino feliz)")
-    void anular_debeAnularCuandoResultanteEsDisponible() {
+    @DisplayName("CP-ALE-09: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando la última operación registrada es otra")
+    void anular_debeRechazarSiNoEsLaUltimaOperacion() {
         // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
-        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(limpiezaEquipamientoRepository.save(limpieza)).thenReturn(limpieza);
-
-        // === EJECUCION ===
-        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO);
-
-        // === ASSERTS ===
-        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
-        assertThat(limpieza.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
-        assertThat(limpieza.getFechaAnulacion()).isNotNull();
-        assertThat(limpieza.getMotivoAnulacion()).isEqualTo("Limpieza cargada por error");
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
-        verify(equipamientoRepository).save(macerador);
-        verify(limpiezaEquipamientoRepository).save(limpieza);
-    }
-
-    @Test
-    @DisplayName("CP-ALE-08: anularLimpiezaEquipamiento anula la limpieza cuando dejó el equipamiento EN_MANTENIMIENTO (camino feliz)")
-    void anular_debeAnularCuandoResultanteEsEnMantenimiento() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_MANTENIMIENTO, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.EN_MANTENIMIENTO, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
-        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(limpiezaEquipamientoRepository.save(limpieza)).thenReturn(limpieza);
-
-        // === EJECUCION ===
-        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO);
-
-        // === ASSERTS ===
-        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
-        assertThat(limpieza.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
-        verify(equipamientoRepository).save(macerador);
-        verify(limpiezaEquipamientoRepository).save(limpieza);
-    }
-
-    @Test
-    @DisplayName("CP-ALE-09: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando existe una limpieza posterior del mismo tipo sobre el equipamiento")
-    void anular_debeRechazarSiExisteLimpiezaPosterior() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 25, 9, 0)));
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(99L));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
-
-        verifyNoInteractions(equipamientoRepository);
+                .hasMessage("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores");
+        verify(equipamientoRepository, never()).save(any());
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-ALE-10: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando existe una operación posterior de otro tipo sobre el equipamiento")
-    void anular_debeRechazarSiExisteOperacionPosteriorDeOtroTipo() {
+    @DisplayName("CP-ALE-10: anularLimpiezaEquipamiento lanza ReglaNegocioException cuando el equipamiento asociado no está en el estado operativo que dejó la operación")
+    void anular_debeRechazarEstadoOperativoIncorrecto() {
         // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE, 50);
-        LimpiezaEquipamientoEntity limpieza = crearLimpiezaEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Limpieza CIP estándar", EstadoOperativo.DISPONIBLE, macerador);
-        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Limpieza cargada por error");
-        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(limpieza));
-        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
-        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_MANTENIMIENTO);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
+                .hasMessage("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo Disponible");
+        verify(equipamientoRepository, never()).save(any());
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
 
-        verifyNoInteractions(equipamientoRepository);
+    @Test
+    @DisplayName("CP-ALE-11: anularLimpiezaEquipamiento anula la operación y restablece el equipamiento (camino feliz)")
+    void anular_debeAnularYRestablecerElEstadoOperativo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("  carga por error  ");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(resultado.getMotivoAnulacion()).isEqualTo("carga por error");
+        assertThat(resultado.getFechaAnulacion()).isNotNull();
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+        verify(equipamientoRepository).save(macerador);
+        verify(limpiezaEquipamientoRepository).save(operacion);
+    }
+
+    @Test
+    @DisplayName("CP-ALE-12: anularLimpiezaEquipamiento bloquea el equipamiento antes de leer la operación y de verificar que sea la última")
+    void anular_debeBloquearElEquipamientoAntesDeVerificarLaUltima() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(operacionCicloVidaEquipamientoRepository, equipamientoRepository, limpiezaEquipamientoRepository);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdEquipamientoDeLaOperacion(1L);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(2L);
+        orden.verify(limpiezaEquipamientoRepository).findById(1L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdUltimaOperacionRegistrada(2L);
+    }
+
+
+    @Test
+    @DisplayName("CP-ALE-13: anularLimpiezaEquipamiento anula la limpieza cuando dejó el equipamiento EN_MANTENIMIENTO (camino feliz)")
+    void anular_debeAnularLimpiezaQueDejoEnMantenimiento() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_MANTENIMIENTO);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        operacion.setEstadoOperativoResultante(EstadoOperativo.EN_MANTENIMIENTO);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(limpiezaEquipamientoRepository.save(any(LimpiezaEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        LimpiezaEquipamientoResponseDTO resultado = limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_LIMPIEZA);
+    }
+
+    @Test
+    @DisplayName("CP-ALE-14: anularLimpiezaEquipamiento exige el estado operativo exacto que dejó la limpieza, no cualquiera de los dos posibles")
+    void anular_debeExigirElEstadoOperativoExactoQueDejoLaLimpieza() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        operacion.setEstadoOperativoResultante(EstadoOperativo.EN_MANTENIMIENTO);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular una limpieza cuyo equipamiento asociado se encuentre en estado operativo En mantenimiento");
+        verify(limpiezaEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-ALE-15: anularLimpiezaEquipamiento lanza ReglaNegocioException ante un empate de fecha de fin cuando la última es la de mayor ID")
+    void anular_debeRechazarSiLaUltimaEsOtraConIgualFechaDeFin() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        LimpiezaEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionLimpiezaEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(limpiezaEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(2L));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> limpiezaEquipamientoServicio.anularLimpiezaEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores");
         verify(limpiezaEquipamientoRepository, never()).save(any());
     }
 
     // ==================== helpers de construcción ====================
 
-    private static LimpiezaEquipamientoFormDTO limpiezaEquipamientoFormDTO(Long idEquipamiento, LocalDateTime fechaLimpieza, String observaciones) {
+    private static final LocalDateTime INICIO = LocalDateTime.of(2026, 1, 15, 10, 0);
+    private static final LocalDateTime FIN = LocalDateTime.of(2026, 1, 15, 12, 0);
+
+    private static LimpiezaEquipamientoFormDTO registroFormDTO(Long idEquipamiento, LocalDateTime fechaInicio, LocalDateTime fechaFin, String observaciones) {
         return LimpiezaEquipamientoFormDTO.builder()
                 .idEquipamiento(idEquipamiento)
-                .fechaLimpieza(fechaLimpieza)
+                .fechaInicio(fechaInicio)
+                .fechaFin(fechaFin)
                 .observaciones(observaciones)
                 .build();
     }
 
     private static AnulacionLimpiezaEquipamientoFormDTO anulacionFormDTO(String motivoAnulacion) {
         return AnulacionLimpiezaEquipamientoFormDTO.builder().motivoAnulacion(motivoAnulacion).build();
+    }
+
+    private static MaceradorEntity crearMaceradorEntity(Long id, EstadoOperativo estadoOperativo) {
+        return crearMaceradorEntity(id, estadoOperativo, 100);
     }
 
     private static MaceradorEntity crearMaceradorEntity(Long id, EstadoOperativo estadoOperativo, Integer usosMaximosAntesMantenimiento) {
@@ -599,10 +843,23 @@ class LimpiezaEquipamientoServicioImplTest {
                 .build();
     }
 
-    private static LimpiezaEquipamientoEntity crearLimpiezaEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaLimpieza, String observaciones, EstadoOperativo estadoOperativoResultante, EquipamientoEntity equipamiento) {
+    private static LimpiezaEquipamientoEntity nuevaOperacion(Long id, EstadoTransaccion estado, EquipamientoEntity equipamiento) {
         return LimpiezaEquipamientoEntity.builder()
                 .id(id)
-                .fecha(fechaLimpieza)
+                .fecha(INICIO)
+                .fechaFin(FIN)
+                .observaciones("Observaciones de prueba")
+                .estado(estado)
+                .estadoOperativoResultante(EstadoOperativo.DISPONIBLE)
+                .equipamiento(equipamiento)
+                .build();
+    }
+
+    private static LimpiezaEquipamientoEntity crearLimpiezaEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaInicio, String observaciones, EstadoOperativo estadoOperativoResultante, EquipamientoEntity equipamiento) {
+        return LimpiezaEquipamientoEntity.builder()
+                .id(id)
+                .fecha(fechaInicio)
+                .fechaFin(fechaInicio.plusHours(2))
                 .observaciones(observaciones)
                 .estado(estado)
                 .estadoOperativoResultante(estadoOperativoResultante)

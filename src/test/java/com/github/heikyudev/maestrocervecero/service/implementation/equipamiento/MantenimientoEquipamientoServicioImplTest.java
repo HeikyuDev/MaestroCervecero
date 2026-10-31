@@ -9,6 +9,7 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Tip
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.enums.EstadoTransaccion;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFallaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.ILimpiezaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMantenimientoEquipamientoRepository;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -37,6 +39,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -48,9 +51,7 @@ class MantenimientoEquipamientoServicioImplTest {
     @Mock
     private IMantenimientoEquipamientoRepository mantenimientoEquipamientoRepository;
     @Mock
-    private IFallaEquipamientoRepository fallaEquipamientoRepository;
-    @Mock
-    private ILimpiezaEquipamientoRepository limpiezaEquipamientoRepository;
+    private IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
     @Mock
     private IEquipamientoRepository equipamientoRepository;
     @Mock
@@ -188,320 +189,535 @@ class MantenimientoEquipamientoServicioImplTest {
     // ==================== registrarMantenimientoEquipamiento ====================
 
     @Test
-    @DisplayName("CP-RME-01: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de mantenimiento es nula")
-    void registrar_debeRechazarFechaMantenimientoNula() {
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, null, "Se reemplazó el rodamiento");
+    @DisplayName("CP-RME-01: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de inicio es nula")
+    void registrar_debeRechazarFechaInicioNula() {
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, null, FIN, "Ruido anormal");
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de mantenimiento es obligatoria");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
+                .hasMessage("La fecha de inicio es obligatoria")
+                .extracting("campo").isEqualTo("fechaInicio");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RME-02: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones son nulas")
+    @DisplayName("CP-RME-02: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de fin es nula")
+    void registrar_debeRechazarFechaFinNula() {
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, null, "Ruido anormal");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin es obligatoria")
+                .extracting("campo").isEqualTo("fechaFin");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RME-03: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de fin es anterior a la de inicio")
+    void registrar_debeRechazarFinAnteriorAlInicio() {
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, INICIO.minusMinutes(1), "Ruido anormal");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin no puede ser anterior a la fecha de inicio")
+                .extracting("campo").isEqualTo("fechaFin");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RME-04: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de fin es posterior a la fecha y hora actual")
+    void registrar_debeRechazarFinFuturo() {
+        // === PREPARACION DE DATOS ===
+        LocalDateTime manana = LocalDateTime.now().plusDays(1);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, manana, "Ruido anormal");
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de fin no puede ser posterior a la fecha y hora actual")
+                .extracting("campo").isEqualTo("fechaFin");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
+    }
+
+    @Test
+    @DisplayName("CP-RME-05: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones son nulas")
     void registrar_debeRechazarObservacionesNulas() {
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), null);
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, null);
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las observaciones son obligatorias");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
+                .hasMessage("Las observaciones son obligatorias")
+                .extracting("campo").isEqualTo("observaciones");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RME-03: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    @DisplayName("CP-RME-06: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
     void registrar_debeRechazarObservacionesEnBlanco() {
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "   ");
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "   ");
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("Las observaciones son obligatorias");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RME-09: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones están en blanco")
+    @DisplayName("CP-RME-07: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando las observaciones tienen 256 caracteres")
     void registrar_debeRechazarObservacionesDe256Caracteres() {
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "a".repeat(256));
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "a".repeat(256));
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Las observaciones no pueden superar 255 caracteres");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
+                .hasMessage("El texto de las observaciones no puede superar 255 caracteres")
+                .extracting("campo").isEqualTo("observaciones");
+        verifyNoInteractions(equipamientoRepository, operacionCicloVidaEquipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-RME-04: registrarMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
-    void registrar_debeRechazarEquipamientoInexistente() {
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(99L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento");
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(99L)).thenReturn(Optional.empty());
+    @DisplayName("CP-RME-08: registrarMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento no existe")
+    void registrar_debeLanzarExcepcionSiElEquipamientoNoExiste() {
+        // === PREPARACION DE DATOS ===
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(99L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(99L)).thenReturn(Optional.empty());
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el equipamiento con ID: 99");
-
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RME-05: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento no está en estado operativo EN_MANTENIMIENTO")
-    void registrar_debeRechazarEquipamientoNoEnMantenimiento() {
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento");
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.DISPONIBLE);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede registrar un mantenimiento sobre un equipamiento en estado operativo En mantenimiento");
-
         verify(equipamientoRepository, never()).save(any());
         verify(mantenimientoEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-RME-06: registrarMantenimientoEquipamiento registra el mantenimiento y pasa el equipamiento a DISPONIBLE (camino feliz)")
-    void registrar_debeRegistrarCorrectamente() {
+    @DisplayName("CP-RME-09: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento está dado de baja")
+    void registrar_debeRechazarEquipamientoDadoDeBaja() {
         // === PREPARACION DE DATOS ===
-        LocalDateTime fechaMantenimiento = LocalDateTime.of(2026, 1, 20, 9, 0);
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, fechaMantenimiento, "Se reemplazó el rodamiento y se lubricó el eje");
         MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocation -> {
-            MantenimientoEquipamientoEntity entidad = invocation.getArgument(0);
-            entidad.setId(1L);
-            return entidad;
-        });
+        macerador.setEstado(Estado.BAJA);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("El equipamiento está dado de baja");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-10: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento está en uso")
+    void registrar_debeRechazarEquipamientoEnUso() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_USO);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar un mantenimiento porque el equipamiento está en uso");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-11: registrarMantenimientoEquipamiento orienta con la operación previa cuando el equipamiento está en limpieza")
+    void registrar_debeOrientarSegunElEstadoOperativo1() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_LIMPIEZA);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Para registrar un mantenimiento, primero registre la limpieza del equipamiento");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-12: registrarMantenimientoEquipamiento orienta con la operación previa cuando el equipamiento está disponible")
+    void registrar_debeOrientarSegunElEstadoOperativo2() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede registrar un mantenimiento porque el equipamiento está disponible");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-13: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando el inicio coincide con el fin de la última operación registrada")
+    void registrar_debeRechazarInicioIgualAlFinDeLaUltimaOperacion() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento")
+                .extracting("campo").isEqualTo("fechaInicio");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-14: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando el inicio es anterior al fin de la última operación registrada")
+    void registrar_debeRechazarInicioAnteriorAlFinDeLaUltimaOperacion() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.plusHours(1)));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-15: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando el inicio no es posterior al fin de la última participación en un lote")
+    void registrar_debeRechazarInicioNoPosteriorALaUltimaParticipacionEnLote() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("La fecha de inicio debe ser posterior a la última operación registrada o al último uso en un lote del equipamiento");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-RME-16: registrarMantenimientoEquipamiento acepta una operación instantánea (fin igual al inicio) posterior a la actividad anterior")
+    void registrar_debeAceptarFinIgualAlInicio() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, INICIO, "Ruido anormal");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusSeconds(1)));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(1)));
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         // === EJECUCION ===
         MantenimientoEquipamientoResponseDTO resultado = mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO);
 
         // === ASSERTS ===
+        assertThat(resultado.getFechaInicio()).isEqualTo(INICIO);
+        assertThat(resultado.getFechaFin()).isEqualTo(INICIO);
+    }
+
+    @Test
+    @DisplayName("CP-RME-17: registrarMantenimientoEquipamiento registra la operación, deja el equipamiento en el estado operativo esperado y bloquea el equipamiento antes de consultar la última operación (camino feliz)")
+    void registrar_debeRegistrarYBloquearElEquipamientoPrimero() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
+        MantenimientoEquipamientoFormDTO formDTO = registroFormDTO(1L, INICIO, FIN, "  ruido anormal en el motor  ");
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(macerador));
+        when(operacionCicloVidaEquipamientoRepository.buscarFechaFinUltimaOperacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(2)));
+        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(INICIO.minusDays(1)));
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        MantenimientoEquipamientoResponseDTO resultado = mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO);
+
+        // === ASSERTS ===
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(resultado.getFechaInicio()).isEqualTo(INICIO);
+        assertThat(resultado.getFechaFin()).isEqualTo(FIN);
         assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         verify(equipamientoRepository).save(macerador);
 
         ArgumentCaptor<MantenimientoEquipamientoEntity> captor = ArgumentCaptor.forClass(MantenimientoEquipamientoEntity.class);
         verify(mantenimientoEquipamientoRepository).save(captor.capture());
-        MantenimientoEquipamientoEntity mantenimientoGuardado = captor.getValue();
-        assertThat(mantenimientoGuardado.getFecha()).isEqualTo(fechaMantenimiento);
-        assertThat(mantenimientoGuardado.getObservaciones()).isEqualTo("Se reemplazó el rodamiento y se lubricó el eje");
-        assertThat(mantenimientoGuardado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
-        assertThat(mantenimientoGuardado.getEquipamiento()).isSameAs(macerador);
+        assertThat(captor.getValue().getFecha()).isEqualTo(INICIO);
+        assertThat(captor.getValue().getFechaFin()).isEqualTo(FIN);
+        assertThat(captor.getValue().getObservaciones()).isEqualTo("ruido anormal en el motor");
+        assertThat(captor.getValue().getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        assertThat(captor.getValue().getEquipamiento()).isSameAs(macerador);
 
-        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.REGISTRADO);
+        InOrder orden = inOrder(equipamientoRepository, operacionCicloVidaEquipamientoRepository, etapaLoteRepository);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarFechaFinUltimaOperacionRegistrada(1L);
+        orden.verify(etapaLoteRepository).buscarFechaUltimaParticipacionRegistrada(1L);
     }
 
-    @Test
-    @DisplayName("CP-RME-07: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando existe una participación en etapa de lote posterior")
-    void registrar_debeRechazarSiExisteParticipacionEnEtapaPosterior() {
-        // === PREPARACION DE DATOS ===
-        LocalDateTime fechaMantenimiento = LocalDateTime.of(2026, 1, 20, 9, 0);
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, fechaMantenimiento, "Se reemplazó el rodamiento y se lubricó el eje");
-        MaceradorEntity macerador = crearMaceradorEntity(1L, EstadoOperativo.EN_MANTENIMIENTO);
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(1L)).thenReturn(Optional.of(macerador));
-        when(etapaLoteRepository.buscarFechaUltimaParticipacionRegistrada(1L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación debe ser posterior a la última operación registrada sobre este equipamiento");
-
-        verify(equipamientoRepository, never()).save(any());
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-RME-08: registrarMantenimientoEquipamiento lanza ReglaNegocioException cuando la fecha de mantenimiento es posterior a la fecha y hora actual")
-    void registrar_debeRechazarFechaMantenimientoFutura() {
-        // === PREPARACION DE DATOS ===
-        MantenimientoEquipamientoFormDTO formDTO = mantenimientoEquipamientoFormDTO(1L, LocalDateTime.now().plusDays(1), "Se reemplazó el rodamiento y se lubricó el eje");
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.registrarMantenimientoEquipamiento(formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("La fecha de esta operación no puede ser posterior a la fecha y hora actual");
-
-        verifyNoInteractions(equipamientoRepository, mantenimientoEquipamientoRepository);
-    }
 
     // ==================== anularMantenimientoEquipamiento ====================
 
     @Test
     @DisplayName("CP-AME-01: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el motivo de anulación es nulo")
     void anular_debeRechazarMotivoNulo() {
+        // === PREPARACION DE DATOS ===
         AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO(null);
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El motivo de anulación es obligatorio");
-
-        verifyNoInteractions(mantenimientoEquipamientoRepository, fallaEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
+                .hasMessage("El motivo de anulación es obligatorio")
+                .extracting("campo").isEqualTo("motivoAnulacion");
+        verifyNoInteractions(mantenimientoEquipamientoRepository, operacionCicloVidaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
     @DisplayName("CP-AME-02: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el motivo de anulación está en blanco")
     void anular_debeRechazarMotivoEnBlanco() {
+        // === PREPARACION DE DATOS ===
         AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("   ");
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
                 .hasMessage("El motivo de anulación es obligatorio");
-
-        verifyNoInteractions(mantenimientoEquipamientoRepository, fallaEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
+        verifyNoInteractions(mantenimientoEquipamientoRepository, operacionCicloVidaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-AME-10: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
+    @DisplayName("CP-AME-03: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el motivo de anulación tiene 256 caracteres")
     void anular_debeRechazarMotivoDe256Caracteres() {
+        // === PREPARACION DE DATOS ===
         AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("a".repeat(256));
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("El motivo de anulación no puede superar 255 caracteres");
-
-        verifyNoInteractions(mantenimientoEquipamientoRepository, fallaEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
+                .hasMessage("El motivo de anulación no puede superar 255 caracteres")
+                .extracting("campo").isEqualTo("motivoAnulacion");
+        verifyNoInteractions(mantenimientoEquipamientoRepository, operacionCicloVidaEquipamientoRepository, equipamientoRepository);
     }
 
     @Test
-    @DisplayName("CP-AME-03: anularMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el mantenimiento no existe")
-    void anular_debeLanzarExcepcionSiNoExiste() {
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(99L)).thenReturn(Optional.empty());
+    @DisplayName("CP-AME-04: anularMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando la operación no existe")
+    void anular_debeLanzarExcepcionSiLaOperacionNoExiste() {
+        // === PREPARACION DE DATOS ===
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(99L)).thenReturn(Optional.empty());
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(99L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el mantenimiento de equipamiento con ID: 99");
-
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AME-04: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el mantenimiento no se encuentra en estado REGISTRADO")
-    void anular_debeRechazarMantenimientoNoRegistrado() {
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
-        MantenimientoEquipamientoEntity mantenimiento = crearMantenimientoEntity(1L, EstadoTransaccion.ANULADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento", macerador);
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(mantenimiento));
-
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se pueden anular mantenimientos de equipamiento en estado Registrado");
-
-        verifyNoInteractions(fallaEquipamientoRepository, limpiezaEquipamientoRepository, equipamientoRepository);
+        verifyNoInteractions(equipamientoRepository);
         verify(mantenimientoEquipamientoRepository, never()).save(any());
     }
 
     @Test
     @DisplayName("CP-AME-05: anularMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el equipamiento asociado no existe")
-    void anular_debeRechazarEquipamientoAsociadoInexistente() {
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
-        MantenimientoEquipamientoEntity mantenimiento = crearMantenimientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento", macerador);
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(mantenimiento));
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.empty());
+    void anular_debeLanzarExcepcionSiElEquipamientoNoExiste() {
+        // === PREPARACION DE DATOS ===
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.empty());
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró el equipamiento con ID: 2");
-
         verify(mantenimientoEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-AME-06: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento asociado no está en estado operativo DISPONIBLE")
-    void anular_debeRechazarEquipamientoNoDisponible() {
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_USO);
-        MantenimientoEquipamientoEntity mantenimiento = crearMantenimientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento", macerador);
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(mantenimiento));
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
+    @DisplayName("CP-AME-06: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento asociado está dado de baja")
+    void anular_debeRechazarEquipamientoDadoDeBaja() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        macerador.setEstado(Estado.BAJA);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
 
+        // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo Disponible");
+                .hasMessage("El equipamiento está dado de baja");
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
 
+    @Test
+    @DisplayName("CP-AME-07: anularMantenimientoEquipamiento lanza RecursoNoEncontradoException cuando el ID corresponde a una operación de otro tipo")
+    void anular_debeLanzarExcepcionSiLaOperacionEsDeOtroTipo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.empty());
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(RecursoNoEncontradoException.class)
+                .hasMessage("No se encontró el mantenimiento de equipamiento con ID: 1");
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AME-08: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando la operación no se encuentra en estado REGISTRADO")
+    void anular_debeRechazarOperacionNoRegistrada() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.ANULADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se pueden anular mantenimientos de equipamiento en estado Registrado");
         verify(equipamientoRepository, never()).save(any());
         verify(mantenimientoEquipamientoRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-AME-07: anularMantenimientoEquipamiento anula el mantenimiento y restablece el equipamiento a EN_MANTENIMIENTO (camino feliz)")
-    void anular_debeAnularCorrectamente() {
+    @DisplayName("CP-AME-09: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando la última operación registrada es otra")
+    void anular_debeRechazarSiNoEsLaUltimaOperacion() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
-        MantenimientoEquipamientoEntity mantenimiento = crearMantenimientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento", macerador);
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(mantenimiento));
-        when(fallaEquipamientoRepository.buscarFechaUltimaFallaRegistrada(2L)).thenReturn(Optional.empty());
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
-        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.empty());
-        when(equipamientoRepository.buscarPorIdParaCambiarEstadoOperativo(2L)).thenReturn(Optional.of(macerador));
-        when(equipamientoRepository.save(macerador)).thenReturn(macerador);
-        when(mantenimientoEquipamientoRepository.save(mantenimiento)).thenReturn(mantenimiento);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(99L));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AME-10: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando el equipamiento asociado no está en el estado operativo que dejó la operación")
+    void anular_debeRechazarEstadoOperativoIncorrecto() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.EN_LIMPIEZA);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("Solo se puede anular un mantenimiento cuyo equipamiento asociado se encuentre en estado operativo Disponible");
+        verify(equipamientoRepository, never()).save(any());
+        verify(mantenimientoEquipamientoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-AME-11: anularMantenimientoEquipamiento anula la operación y restablece el equipamiento (camino feliz)")
+    void anular_debeAnularYRestablecerElEstadoOperativo() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("  carga por error  ");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
 
         // === EJECUCION ===
         MantenimientoEquipamientoResponseDTO resultado = mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO);
 
         // === ASSERTS ===
-        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
-        assertThat(mantenimiento.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
-        assertThat(mantenimiento.getFechaAnulacion()).isNotNull();
-        assertThat(mantenimiento.getMotivoAnulacion()).isEqualTo("Mantenimiento cargado por error");
         assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.ANULADO);
+        assertThat(resultado.getMotivoAnulacion()).isEqualTo("carga por error");
+        assertThat(resultado.getFechaAnulacion()).isNotNull();
+        assertThat(macerador.getEstadoOperativo()).isEqualTo(EstadoOperativo.EN_MANTENIMIENTO);
         verify(equipamientoRepository).save(macerador);
-        verify(mantenimientoEquipamientoRepository).save(mantenimiento);
+        verify(mantenimientoEquipamientoRepository).save(operacion);
     }
 
     @Test
-    @DisplayName("CP-AME-08: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando existe un mantenimiento posterior del mismo tipo sobre el equipamiento")
-    void anular_debeRechazarSiExisteMantenimientoPosterior() {
+    @DisplayName("CP-AME-12: anularMantenimientoEquipamiento bloquea el equipamiento antes de leer la operación y de verificar que sea la última")
+    void anular_debeBloquearElEquipamientoAntesDeVerificarLaUltima() {
         // === PREPARACION DE DATOS ===
         MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
-        MantenimientoEquipamientoEntity mantenimiento = crearMantenimientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento", macerador);
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(mantenimiento));
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 25, 9, 0)));
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(1L));
+        when(mantenimientoEquipamientoRepository.save(any(MantenimientoEquipamientoEntity.class))).thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        // === EJECUCION ===
+        mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO);
+
+        // === ASSERTS ===
+        InOrder orden = inOrder(operacionCicloVidaEquipamientoRepository, equipamientoRepository, mantenimientoEquipamientoRepository);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdEquipamientoDeLaOperacion(1L);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(2L);
+        orden.verify(mantenimientoEquipamientoRepository).findById(1L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).buscarIdUltimaOperacionRegistrada(2L);
+    }
+
+
+    @Test
+    @DisplayName("CP-AME-13: anularMantenimientoEquipamiento lanza ReglaNegocioException ante un empate de fecha de fin cuando la última es la de mayor ID")
+    void anular_debeRechazarSiLaUltimaEsOtraConIgualFechaDeFin() {
+        // === PREPARACION DE DATOS ===
+        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
+        MantenimientoEquipamientoEntity operacion = nuevaOperacion(1L, EstadoTransaccion.REGISTRADO, macerador);
+        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Carga por error");
+        when(operacionCicloVidaEquipamientoRepository.buscarIdEquipamientoDeLaOperacion(1L)).thenReturn(Optional.of(2L));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(2L)).thenReturn(Optional.of(macerador));
+        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(operacion));
+        when(operacionCicloVidaEquipamientoRepository.buscarIdUltimaOperacionRegistrada(2L)).thenReturn(Optional.of(2L));
 
         // === EJECUCION Y ASSERTS ===
         assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
-
-        verifyNoInteractions(equipamientoRepository);
-        verify(mantenimientoEquipamientoRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("CP-AME-09: anularMantenimientoEquipamiento lanza ReglaNegocioException cuando existe una operación posterior de otro tipo sobre el equipamiento")
-    void anular_debeRechazarSiExisteOperacionPosteriorDeOtroTipo() {
-        // === PREPARACION DE DATOS ===
-        MaceradorEntity macerador = crearMaceradorEntity(2L, EstadoOperativo.DISPONIBLE);
-        MantenimientoEquipamientoEntity mantenimiento = crearMantenimientoEntity(1L, EstadoTransaccion.REGISTRADO, LocalDateTime.of(2026, 1, 20, 9, 0), "Se reemplazó el rodamiento", macerador);
-        AnulacionMantenimientoEquipamientoFormDTO formDTO = anulacionFormDTO("Mantenimiento cargado por error");
-        when(mantenimientoEquipamientoRepository.findById(1L)).thenReturn(Optional.of(mantenimiento));
-        when(mantenimientoEquipamientoRepository.buscarFechaUltimoMantenimientoRegistrado(2L)).thenReturn(Optional.empty());
-        when(limpiezaEquipamientoRepository.buscarFechaUltimaLimpiezaRegistrada(2L)).thenReturn(Optional.of(LocalDateTime.of(2026, 1, 22, 9, 0)));
-
-        // === EJECUCION Y ASSERTS ===
-        assertThatThrownBy(() -> mantenimientoEquipamientoServicio.anularMantenimientoEquipamiento(1L, formDTO))
-                .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("Solo se puede anular la operación más reciente registrada sobre este equipamiento");
-
-        verifyNoInteractions(equipamientoRepository);
+                .hasMessage("Solo se puede anular la última operación registrada del equipamiento; anule primero las operaciones posteriores");
         verify(mantenimientoEquipamientoRepository, never()).save(any());
     }
 
     // ==================== helpers de construcción ====================
 
-    private static MantenimientoEquipamientoFormDTO mantenimientoEquipamientoFormDTO(Long idEquipamiento, LocalDateTime fechaMantenimiento, String observaciones) {
+    private static final LocalDateTime INICIO = LocalDateTime.of(2026, 1, 15, 10, 0);
+    private static final LocalDateTime FIN = LocalDateTime.of(2026, 1, 15, 12, 0);
+
+    private static MantenimientoEquipamientoFormDTO registroFormDTO(Long idEquipamiento, LocalDateTime fechaInicio, LocalDateTime fechaFin, String observaciones) {
         return MantenimientoEquipamientoFormDTO.builder()
                 .idEquipamiento(idEquipamiento)
-                .fechaMantenimiento(fechaMantenimiento)
+                .fechaInicio(fechaInicio)
+                .fechaFin(fechaFin)
                 .observaciones(observaciones)
                 .build();
     }
@@ -511,11 +727,15 @@ class MantenimientoEquipamientoServicioImplTest {
     }
 
     private static MaceradorEntity crearMaceradorEntity(Long id, EstadoOperativo estadoOperativo) {
+        return crearMaceradorEntity(id, estadoOperativo, 100);
+    }
+
+    private static MaceradorEntity crearMaceradorEntity(Long id, EstadoOperativo estadoOperativo, Integer usosMaximosAntesMantenimiento) {
         return MaceradorEntity.builder()
                 .id(id)
                 .identificadorInterno("MAC-" + id)
                 .estadoOperativo(estadoOperativo)
-                .usosMaximosAntesMantenimiento(100)
+                .usosMaximosAntesMantenimiento(usosMaximosAntesMantenimiento)
                 .estado(Estado.ACTIVO)
                 .capacidadTotal(500.0)
                 .capacidadUtil(450.0)
@@ -524,10 +744,22 @@ class MantenimientoEquipamientoServicioImplTest {
                 .build();
     }
 
-    private static MantenimientoEquipamientoEntity crearMantenimientoEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaMantenimiento, String observaciones, EquipamientoEntity equipamiento) {
+    private static MantenimientoEquipamientoEntity nuevaOperacion(Long id, EstadoTransaccion estado, EquipamientoEntity equipamiento) {
         return MantenimientoEquipamientoEntity.builder()
                 .id(id)
-                .fecha(fechaMantenimiento)
+                .fecha(INICIO)
+                .fechaFin(FIN)
+                .observaciones("Observaciones de prueba")
+                .estado(estado)
+                .equipamiento(equipamiento)
+                .build();
+    }
+
+    private static MantenimientoEquipamientoEntity crearMantenimientoEntity(Long id, EstadoTransaccion estado, LocalDateTime fechaInicio, String observaciones, EquipamientoEntity equipamiento) {
+        return MantenimientoEquipamientoEntity.builder()
+                .id(id)
+                .fecha(fechaInicio)
+                .fechaFin(fechaInicio.plusHours(2))
                 .observaciones(observaciones)
                 .estado(estado)
                 .equipamiento(equipamiento)

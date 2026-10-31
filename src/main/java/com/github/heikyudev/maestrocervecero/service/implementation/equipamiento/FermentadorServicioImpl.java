@@ -7,6 +7,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Fer
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IFermentadorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.FermentadorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -34,6 +36,8 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     private final IFermentadorRepository fermentadorRepository;
     private final ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
+    private final IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
+    private final IEquipamientoRepository equipamientoRepository;
 
 
     /**
@@ -211,7 +215,7 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
      * @param id Identificador clave primaria del fermentador a dar de baja.
      * @return {@link FermentadorResponseDTO} con los datos del fermentador ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el fermentador con el ID especificado no existe o ya fue dado de baja.
-     * @throws ReglaNegocioException Si el fermentador tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el fermentador tiene lotes asociados o operaciones registradas, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
@@ -219,23 +223,35 @@ public class FermentadorServicioImpl implements IFermentadorServicio {
     public FermentadorResponseDTO bajaFermentador(Long id) {
 
         // 1. Buscar el fermentador existente por su ID.
+        // Bloquear el equipamiento (PESSIMISTIC_WRITE) antes de consultar lotes y operaciones, con el mismo lock que usan registrar
+        // y anular una operación de su ciclo de vida: así una baja concurrente con un registro se serializa y no deja un equipo
+        // dado de baja con una operación registrada. Orden de locks: equipamiento y luego, solo lectura, lotes y operaciones.
+        equipamientoRepository.buscarPorIdParaOperacionCicloVida(id)
+                .filter(equipamiento -> equipamiento.getEstado() == Estado.ACTIVO)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
+
         FermentadorEntity fermentadorEntity = fermentadorRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el fermentador con ID: " + id));
 
-        // 2. Validar que el fermentador no tenga comprometida una etapa en estado Pendiente de un lote.
-        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene comprometida una etapa en estado Pendiente de un lote");
+        // 2. Validar que el fermentador no tenga lotes asociados (en cualquier estado).
+        if (etapaLoteRepository.existsEtapaAsociada(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene lotes asociados");
         }
 
-        // 3. Validar que el fermentador se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
+        // 3. Validar que el fermentador no tenga operaciones registradas (limpiezas, fallas o mantenimientos). Las anuladas no cuentan.
+        if (operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el fermentador porque tiene operaciones registradas");
+        }
+
+        // 4. Validar que el fermentador se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
         if (fermentadorEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
             throw new ReglaNegocioException("No se puede dar de baja el fermentador porque no se encuentra disponible");
         }
 
-        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 5. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         fermentadorEntity.setEstado(Estado.BAJA);
 
-        // 5. Retornar el DTO del fermentador dado de baja
+        // 6. Retornar el DTO del fermentador dado de baja
         return MapperFermentador.toDTO(fermentadorRepository.save(fermentadorEntity));
     }
 }

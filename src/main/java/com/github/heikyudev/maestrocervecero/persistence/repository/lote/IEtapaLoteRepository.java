@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,33 +22,45 @@ import java.util.Optional;
 @Repository
 public interface IEtapaLoteRepository extends JpaRepository<EtapaLoteEntity, Long> {
 
+
     /**
-     * Verifica si el equipamiento indicado tiene por delante, todavía sin arrancar, alguna etapa
-     * {@code PENDIENTE} de un lote {@code PENDIENTE} o {@code EN_EJECUCION}.
+     * Verifica si el equipamiento indicado está asociado a alguna etapa de lote, en cualquier estado de la etapa y del
+     * lote.
      * <p>
-     * Se utiliza para impedir la modificación o baja de un equipamiento (Molino, Macerador,
-     * Olla de Hervor o Fermentador) que ya está comprometido con trabajo futuro. Cubre tanto un
-     * lote {@code PENDIENTE} (ninguna de sus etapas arrancó todavía) como un lote ya
-     * {@code EN_EJECUCION} que tiene una etapa <em>posterior</em> todavía {@code PENDIENTE} — por
-     * ejemplo, el Fermentador reservado para la etapa de Fermentación mientras el lote todavía
-     * está en Molienda: ese lote ya está {@code EN_EJECUCION}, pero el Fermentador sigue
-     * comprometido con una etapa futura que aún no llegó.
-     * </p>
-     * <p>
-     * No hace falta contemplar la etapa {@code EN_CURSO} aquí: mientras una etapa está en curso,
-     * el equipamiento que usa queda en estado operativo {@code EN_USO}, y eso ya lo bloquea cada
-     * service por separado (ver {@link com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.EstadoOperativo}).
-     * Tampoco etapas {@code FINALIZADA} o {@code CANCELADA}: ya no representan un compromiso
-     * futuro sobre el equipamiento.
+     * Se utiliza para impedir la baja de un equipamiento (Molino, Macerador, Olla de Hervor o Fermentador) que forma
+     * parte del historial o de la planificación de algún lote: ni una etapa pendiente, ni una en curso, ni una ya
+     * finalizada o cancelada puede quedar apuntando a un equipamiento dado de baja.
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento a verificar.
-     * @return {@code true} si existe al menos una etapa pendiente asociada, {@code false} en caso contrario.
+     * @return {@code true} si existe al menos una etapa asociada, {@code false} en caso contrario.
      */
-    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EtapaLoteEntity e " +
-            "WHERE e.equipamiento.id = :idEquipamiento AND e.estado = 'PENDIENTE' " +
-            "AND e.lote.estado IN ('PENDIENTE', 'EN_EJECUCION')")
-    boolean existsLotePendienteAsociado(@Param("idEquipamiento") Long idEquipamiento);
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM EtapaLoteEntity e WHERE e.equipamiento.id = :idEquipamiento")
+    boolean existsEtapaAsociada(@Param("idEquipamiento") Long idEquipamiento);
+
+    /**
+     * Busca las etapas en las que el equipamiento indicado se usó de verdad y cuyo intervalo se superpone con el período
+     * indicado, con su lote ya cargado (una sola consulta, sin N+1), ordenadas por fecha de inicio.
+     * <p>
+     * Tienen uso real las etapas {@code EN_CURSO}, {@code FINALIZADA} y {@code CANCELADA} con {@code fechaInicio} no
+     * nula. Una etapa {@code EN_CURSO} no tiene fecha de finalización: siempre se considera dentro del límite superior
+     * del período. Un extremo nulo no acota el período por ese lado.
+     * </p>
+     *
+     * @param idEquipamiento El ID del equipamiento.
+     * @param desde Inicio del período, o {@code null} para no acotarlo.
+     * @param hasta Fin del período, o {@code null} para no acotarlo.
+     * @return Las etapas con uso real del equipamiento dentro del período.
+     */
+    @Query("SELECT e FROM EtapaLoteEntity e JOIN FETCH e.lote WHERE e.equipamiento.id = :idEquipamiento "
+            + "AND e.fechaInicio IS NOT NULL "
+            + "AND e.estado IN ('EN_CURSO', 'FINALIZADA', 'CANCELADA') "
+            + "AND (CAST(:desde AS LocalDateTime) IS NULL OR e.fechaFinalizacion IS NULL OR e.fechaFinalizacion >= :desde) "
+            + "AND (CAST(:hasta AS LocalDateTime) IS NULL OR e.fechaInicio <= :hasta) "
+            + "ORDER BY e.fechaInicio, e.id")
+    List<EtapaLoteEntity> buscarEtapasConUsoRealEnPeriodo(@Param("idEquipamiento") Long idEquipamiento,
+                                                           @Param("desde") LocalDateTime desde,
+                                                           @Param("hasta") LocalDateTime hasta);
 
     /**
      * Busca la fecha de finalización de la última etapa en la que el equipamiento indicado

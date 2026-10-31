@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 
 /**
  * Repositorio JPA de las fallas de equipamiento ({@link FallaEquipamientoEntity}).
@@ -62,15 +62,11 @@ public interface IFallaEquipamientoRepository extends JpaRepository<FallaEquipam
                                                              Pageable pageable);
 
     /**
-     * Busca la fecha de la última falla registrada de un equipamiento determinado.
-     * <p>
-     * Se usa para validar que una falla sea la operación más reciente del ciclo de vida del
-     * equipamiento (entre fallas, mantenimientos y limpiezas) antes de permitir su anulación.
-     * </p>
+     * Lista todas las fallas de un equipamiento, anuladas incluidas, de la de inicio más reciente a la más antigua.
      *
-     * @param idEquipamiento El ID del equipamiento cuya última falla se quiere buscar.
-     * @return La fecha de la última falla registrada del equipamiento, o {@link Optional#empty()} si nunca tuvo una.
+     * @param idEquipamiento El ID del equipamiento.
+     * @return Las fallas del equipamiento.
      */
-    @Query("SELECT MAX(f.fecha) FROM FallaEquipamientoEntity f WHERE f.equipamiento.id = :idEquipamiento AND f.estado = 'REGISTRADO'")
-    Optional<LocalDateTime> buscarFechaUltimaFallaRegistrada(@Param("idEquipamiento") Long idEquipamiento);
+    @Query("SELECT f FROM FallaEquipamientoEntity f WHERE f.equipamiento.id = :idEquipamiento ORDER BY f.fecha DESC, f.id DESC")
+    List<FallaEquipamientoEntity> listarPorEquipamiento(@Param("idEquipamiento") Long idEquipamiento);
 }

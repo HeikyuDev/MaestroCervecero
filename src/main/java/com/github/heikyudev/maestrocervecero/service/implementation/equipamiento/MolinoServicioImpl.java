@@ -7,6 +7,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Mol
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IMolinoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.MolinoFormDTO;
 import com.github.heikyudev.maestrocervecero.service.aspect.AuditableAction;
@@ -35,6 +37,8 @@ public class MolinoServicioImpl implements IMolinoServicio {
     private final IMolinoRepository molinoRepository;
     private final ISecuenciaIdentificadorRepository secuenciaIdentificadorRepository;
     private final IEtapaLoteRepository etapaLoteRepository;
+    private final IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
+    private final IEquipamientoRepository equipamientoRepository;
 
     /**
      * Recupera una página de Molinos activos registrados en el sistema, filtrados opcionalmente
@@ -150,30 +154,42 @@ public class MolinoServicioImpl implements IMolinoServicio {
      * @param id ID del molino a dar de baja.
      * @return {@link MolinoResponseDTO} con los datos del molino ya marcado como dado de baja.
      * @throws RecursoNoEncontradoException Si el molino con el ID proporcionado no existe.
-     * @throws ReglaNegocioException Si el molino tiene comprometida una etapa en estado Pendiente de un lote, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
+     * @throws ReglaNegocioException Si el molino tiene lotes asociados o operaciones registradas, o si no se encuentra disponible (en uso, en limpieza o en mantenimiento).
      */
     @Override
     @Transactional
     @AuditableAction(accion = AccionAuditoria.ELIMINAR, conceptoAuditoria = ConceptoAuditoria.MOLINO)
     public MolinoResponseDTO bajaMolino(Long id) {
         // 1. Buscar el molino existente por su ID.
+        // Bloquear el equipamiento (PESSIMISTIC_WRITE) antes de consultar lotes y operaciones, con el mismo lock que usan registrar
+        // y anular una operación de su ciclo de vida: así una baja concurrente con un registro se serializa y no deja un equipo
+        // dado de baja con una operación registrada. Orden de locks: equipamiento y luego, solo lectura, lotes y operaciones.
+        equipamientoRepository.buscarPorIdParaOperacionCicloVida(id)
+                .filter(equipamiento -> equipamiento.getEstado() == Estado.ACTIVO)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
+
         MolinoEntity molinoEntity = molinoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No se encontró el molino con ID: " + id));
 
-        // 2. Validar que el molino no tenga comprometida una etapa en estado Pendiente de un lote.
-        if (etapaLoteRepository.existsLotePendienteAsociado(id)) {
-            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene comprometida una etapa en estado Pendiente de un lote");
+        // 2. Validar que el molino no tenga lotes asociados (en cualquier estado).
+        if (etapaLoteRepository.existsEtapaAsociada(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene lotes asociados");
         }
 
-        // 3. Validar que el molino se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
+        // 3. Validar que el molino no tenga operaciones registradas (limpiezas, fallas o mantenimientos). Las anuladas no cuentan.
+        if (operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(id)) {
+            throw new ReglaNegocioException("No se puede dar de baja el molino porque tiene operaciones registradas");
+        }
+
+        // 4. Validar que el molino se encuentre disponible (no en uso, en limpieza ni en mantenimiento).
         if (molinoEntity.getEstadoOperativo() != EstadoOperativo.DISPONIBLE) {
             throw new ReglaNegocioException("No se puede dar de baja el molino porque no se encuentra disponible");
         }
 
-        // 4. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
+        // 5. Ejecutamos la baja lógica: cambiamos el estado y persistimos el cambio
         molinoEntity.setEstado(Estado.BAJA);
 
-        // 5. Retornar el DTO del molino dado de baja
+        // 6. Retornar el DTO del molino dado de baja
         return MapperMolino.toDTO(molinoRepository.save(molinoEntity));
     }
 

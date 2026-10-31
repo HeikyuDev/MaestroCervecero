@@ -5,6 +5,8 @@ import com.github.heikyudev.maestrocervecero.persistence.entity.equipamiento.Oll
 import com.github.heikyudev.maestrocervecero.persistence.enums.Estado;
 import com.github.heikyudev.maestrocervecero.persistence.repository.ISecuenciaIdentificadorRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOllaHervorRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IEquipamientoRepository;
+import com.github.heikyudev.maestrocervecero.persistence.repository.equipamiento.IOperacionCicloVidaEquipamientoRepository;
 import com.github.heikyudev.maestrocervecero.persistence.repository.lote.IEtapaLoteRepository;
 import com.github.heikyudev.maestrocervecero.presentation.form_dto.equipamiento.OllaHervorFormDTO;
 import com.github.heikyudev.maestrocervecero.service.exception.RecursoDuplicadoException;
@@ -53,6 +55,12 @@ class OllaHervorServicioImplTest {
 
     @Mock
     private IEtapaLoteRepository etapaLoteRepository;
+
+    @Mock
+    private IOperacionCicloVidaEquipamientoRepository operacionCicloVidaEquipamientoRepository;
+
+    @Mock
+    private IEquipamientoRepository equipamientoRepository;
 
     @InjectMocks
     private OllaHervorServicioImpl ollaHervorServicio;
@@ -506,7 +514,7 @@ class OllaHervorServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO)).doesNotThrowAnyException();
 
         verify(ollaHervorRepository).save(ollaHervorEntity);
-        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
+        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
     }
 
     @Test
@@ -520,17 +528,18 @@ class OllaHervorServicioImplTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> ollaHervorServicio.modificarOllaHervor(1L, ollaHervorFormDTO)).doesNotThrowAnyException();
 
         verify(ollaHervorRepository).save(ollaHervorEntity);
-        verify(etapaLoteRepository, never()).existsLotePendienteAsociado(any());
+        verify(etapaLoteRepository, never()).existsEtapaAsociada(any());
     }
 
     // ==================== bajaOllaHervor ====================
 
     @Test
-    @DisplayName("bajaOllaHervor marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
+    @DisplayName("CP-BO-02: bajaOllaHervor marca el estado como BAJA, persiste y retorna el DTO cuando el ID existe")
     void bajaOllaHervor_debeMarcarBajaYRetornarOllaHervorExistente() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
         when(ollaHervorRepository.save(ollaHervorEntity)).thenReturn(ollaHervorEntity);
 
         OllaHervorResponseDTO resultado = ollaHervorServicio.bajaOllaHervor(1L);
@@ -539,36 +548,37 @@ class OllaHervorServicioImplTest {
         assertThat(ollaHervorEntity.getEstado()).isEqualTo(Estado.BAJA);
         assertOllaHervorDTO(ollaHervorEntity, resultado);
         verify(ollaHervorRepository).findById(1L);
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(etapaLoteRepository).existsEtapaAsociada(1L);
         verify(ollaHervorRepository).save(ollaHervorEntity);
         verify(ollaHervorRepository, never()).delete(any());
     }
 
     @Test
-    @DisplayName("bajaOllaHervor lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
+    @DisplayName("CP-BO-01: bajaOllaHervor lanza RecursoNoEncontradoException y no persiste cuando el ID no existe")
     void bajaOllaHervor_debeLanzarExcepcionYNoPersistirSiNoExiste() {
-        when(ollaHervorRepository.findById(99L)).thenReturn(Optional.empty());
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(99L))
                 .isInstanceOf(RecursoNoEncontradoException.class)
                 .hasMessage("No se encontró la olla de hervor con ID: 99");
 
-        verify(ollaHervorRepository).findById(99L);
+        verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(99L);
         verify(ollaHervorRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene comprometida una etapa en estado Pendiente de un lote")
-    void bajaOllaHervor_debeRechazarAsociacionALotePendiente() {
+    @DisplayName("CP-BO-03: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene lotes asociados")
+    void bajaOllaHervor_debeRechazarAsociacionALotes() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene lotes asociados");
 
-        verify(etapaLoteRepository).existsLotePendienteAsociado(1L);
+        verify(etapaLoteRepository).existsEtapaAsociada(1L);
         verify(ollaHervorRepository, never()).save(any());
     }
 
@@ -577,7 +587,8 @@ class OllaHervorServicioImplTest {
     void bajaOllaHervor_debeRechazarSiEstaEnUso() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_USO);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -591,7 +602,8 @@ class OllaHervorServicioImplTest {
     void bajaOllaHervor_debeRechazarSiEstaEnLimpieza() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_LIMPIEZA);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -605,7 +617,8 @@ class OllaHervorServicioImplTest {
     void bajaOllaHervor_debeRechazarSiEstaEnMantenimiento() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_MANTENIMIENTO);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(false);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
@@ -615,17 +628,90 @@ class OllaHervorServicioImplTest {
     }
 
     @Test
-    @DisplayName("CP-BO-07: bajaOllaHervor informa primero la etapa en estado Pendiente de un lote cuando el olla de hervor además no está disponible")
-    void bajaOllaHervor_debePriorizarEtapaPendienteSobreNoDisponible() {
+    @DisplayName("CP-BO-07: bajaOllaHervor informa primero los lotes asociados cuando el olla de hervor además no está disponible")
+    void bajaOllaHervor_debePriorizarLotesAsociadosSobreNoDisponible() {
         OllaHervorEntity ollaHervorEntity = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_USO);
         when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(ollaHervorEntity));
-        when(etapaLoteRepository.existsLotePendienteAsociado(1L)).thenReturn(true);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(ollaHervorEntity));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
                 .isInstanceOf(ReglaNegocioException.class)
-                .hasMessage("No se puede dar de baja la olla de hervor porque tiene comprometida una etapa en estado Pendiente de un lote");
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene lotes asociados");
 
         verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-08: bajaOllaHervor lanza ReglaNegocioException y no persiste cuando la olla de hervor tiene operaciones registradas")
+    void bajaOllaHervor_debeRechazarSiTieneOperacionesRegistradas() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene operaciones registradas");
+        verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-09: bajaOllaHervor informa primero los lotes asociados cuando la olla de hervor además tiene operaciones registradas")
+    void bajaOllaHervor_debePriorizarLotesAsociadosSobreOperacionesRegistradas() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene lotes asociados");
+        verify(operacionCicloVidaEquipamientoRepository, never()).existsOperacionRegistrada(any());
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-10: bajaOllaHervor informa primero las operaciones registradas cuando la olla de hervor además no está disponible")
+    void bajaOllaHervor_debePriorizarOperacionesRegistradasSobreNoDisponible() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0, EstadoOperativo.EN_USO);
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(etapaLoteRepository.existsEtapaAsociada(1L)).thenReturn(false);
+        when(operacionCicloVidaEquipamientoRepository.existsOperacionRegistrada(1L)).thenReturn(true);
+
+        // === EJECUCION Y ASSERTS ===
+        assertThatThrownBy(() -> ollaHervorServicio.bajaOllaHervor(1L))
+                .isInstanceOf(ReglaNegocioException.class)
+                .hasMessage("No se puede dar de baja la olla de hervor porque tiene operaciones registradas");
+        verify(ollaHervorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("CP-BO-13: bajaOllaHervor bloquea el equipamiento antes de consultar los lotes asociados y las operaciones registradas")
+    void bajaOllaHervor_debeBloquearElEquipamientoAntesDeConsultarLotesYOperaciones() {
+        // === PREPARACION DE DATOS ===
+        OllaHervorEntity entidad = crearOllaHervorEntity(1L, "OLLA-01", 100.0, 80.0, 10.0, 3.0);
+        when(equipamientoRepository.buscarPorIdParaOperacionCicloVida(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.findById(1L)).thenReturn(Optional.of(entidad));
+        when(ollaHervorRepository.save(entidad)).thenReturn(entidad);
+
+        // === EJECUCION ===
+        ollaHervorServicio.bajaOllaHervor(1L);
+
+        // === ASSERTS ===
+        org.mockito.InOrder orden = org.mockito.Mockito.inOrder(equipamientoRepository, etapaLoteRepository, operacionCicloVidaEquipamientoRepository, ollaHervorRepository);
+        orden.verify(equipamientoRepository).buscarPorIdParaOperacionCicloVida(1L);
+        orden.verify(etapaLoteRepository).existsEtapaAsociada(1L);
+        orden.verify(operacionCicloVidaEquipamientoRepository).existsOperacionRegistrada(1L);
+        orden.verify(ollaHervorRepository).save(entidad);
     }
 
     // ==================== validaciones técnicas de OllaHervor (números finitos, techos y longitudes) ====================

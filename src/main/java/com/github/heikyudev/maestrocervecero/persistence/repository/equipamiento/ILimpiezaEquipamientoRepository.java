@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -69,7 +71,8 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
      * Se usa para determinar la cantidad de usos del equipamiento desde su último mantenimiento
      * (o desde siempre, si {@code fechaDesde} es {@code null} porque el equipamiento nunca tuvo
      * uno), y decidir si corresponde pasarlo a {@code DISPONIBLE} o a {@code EN_MANTENIMIENTO} al
-     * registrar una nueva limpieza.
+     * registrar una nueva limpieza. Una limpieza cuenta como uso si empezó después de la fecha dada
+     * (el fin del último mantenimiento).
      * </p>
      *
      * @param idEquipamiento El ID del equipamiento cuyas limpiezas se quieren contar.
@@ -82,15 +85,35 @@ public interface ILimpiezaEquipamientoRepository extends JpaRepository<LimpiezaE
     long contarLimpiezasRegistradasDesde(@Param("idEquipamiento") Long idEquipamiento, @Param("fechaDesde") LocalDateTime fechaDesde);
 
     /**
-     * Busca la fecha de la última limpieza registrada de un equipamiento determinado.
-     * <p>
-     * Se usa para validar que una limpieza sea la operación más reciente del ciclo de vida del
-     * equipamiento (entre fallas, mantenimientos y limpiezas) antes de permitir su anulación.
-     * </p>
+     * Cuenta, para cada equipamiento indicado y en una sola consulta, sus usos desde el último mantenimiento: las
+     * limpiezas registradas que empezaron después del fin del último mantenimiento registrado (o todas, si nunca tuvo
+     * uno). Un equipamiento sin usos no aparece en el resultado.
+     *
+     * @param idsEquipamiento Los IDs de los equipamientos.
+     * @return Filas {@code [idEquipamiento, cantidadDeUsos]}.
+     */
+    @Query("SELECT l.equipamiento.id, COUNT(l) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id IN :idsEquipamiento "
+            + "AND l.estado = 'REGISTRADO' "
+            + "AND (NOT EXISTS (SELECT 1 FROM MantenimientoEquipamientoEntity m WHERE m.equipamiento.id = l.equipamiento.id AND m.estado = 'REGISTRADO') "
+            + "OR l.fecha > (SELECT MAX(m2.fechaFin) FROM MantenimientoEquipamientoEntity m2 WHERE m2.equipamiento.id = l.equipamiento.id AND m2.estado = 'REGISTRADO')) "
+            + "GROUP BY l.equipamiento.id")
+    List<Object[]> contarUsosDesdeUltimoMantenimiento(@Param("idsEquipamiento") Collection<Long> idsEquipamiento);
+
+    /**
+     * Busca la fecha de fin de la última limpieza registrada de un equipamiento determinado.
      *
      * @param idEquipamiento El ID del equipamiento cuya última limpieza se quiere buscar.
-     * @return La fecha de la última limpieza registrada del equipamiento, o {@link Optional#empty()} si nunca tuvo una.
+     * @return La fecha de fin de la última limpieza registrada, o {@link Optional#empty()} si nunca tuvo una.
      */
-    @Query("SELECT MAX(l.fecha) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento AND l.estado = 'REGISTRADO'")
-    Optional<LocalDateTime> buscarFechaUltimaLimpiezaRegistrada(@Param("idEquipamiento") Long idEquipamiento);
+    @Query("SELECT MAX(l.fechaFin) FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento AND l.estado = 'REGISTRADO'")
+    Optional<LocalDateTime> buscarFechaFinUltimaLimpiezaRegistrada(@Param("idEquipamiento") Long idEquipamiento);
+
+    /**
+     * Lista todas las limpiezas de un equipamiento, anuladas incluidas, de la de inicio más reciente a la más antigua.
+     *
+     * @param idEquipamiento El ID del equipamiento.
+     * @return Las limpiezas del equipamiento.
+     */
+    @Query("SELECT l FROM LimpiezaEquipamientoEntity l WHERE l.equipamiento.id = :idEquipamiento ORDER BY l.fecha DESC, l.id DESC")
+    List<LimpiezaEquipamientoEntity> listarPorEquipamiento(@Param("idEquipamiento") Long idEquipamiento);
 }

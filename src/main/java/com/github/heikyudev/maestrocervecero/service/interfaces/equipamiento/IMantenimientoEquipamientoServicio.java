@@ -25,13 +25,13 @@ public interface IMantenimientoEquipamientoServicio {
 
     /**
      * Filtra los mantenimientos de equipamiento, opcionalmente por equipamiento, tipo concreto de
-     * equipamiento, estado y/o rango de fecha de mantenimiento.
+     * equipamiento, estado y/o rango de fecha de inicio del mantenimiento.
      *
      * @param idEquipamiento El ID del equipamiento a filtrar, o {@code null} para no filtrar por él.
      * @param tipoEquipamiento El tipo concreto de equipamiento a filtrar (Molino/Macerador/OllaHervor/Fermentador), o {@code null} para no filtrar por él.
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
-     * @param fechaMantenimientoDesde Límite inferior (inclusive) del rango de fecha de mantenimiento, o {@code null} para no acotarlo.
-     * @param fechaMantenimientoHasta Límite superior (inclusive) del rango de fecha de mantenimiento, o {@code null} para no acotarlo.
+     * @param fechaMantenimientoDesde Límite inferior (inclusive) del rango de fecha de inicio del mantenimiento, o {@code null} para no acotarlo.
+     * @param fechaMantenimientoHasta Límite superior (inclusive) del rango de fecha de inicio del mantenimiento, o {@code null} para no acotarlo.
      * @param pageable La configuración de paginación.
      * @return Una página de mantenimientos de equipamiento en formato DTO que cumplen los criterios indicados.
      */
@@ -51,7 +51,7 @@ public interface IMantenimientoEquipamientoServicio {
      *
      * @param mantenimientoEquipamientoFormDTO Los datos del mantenimiento a registrar.
      * @return El mantenimiento de equipamiento registrado.
-     * @throws ReglaNegocioException Si la fecha de mantenimiento no fue informada, si las observaciones no fueron informadas, o si el equipamiento no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     MantenimientoEquipamientoResponseDTO registrarMantenimientoEquipamiento(MantenimientoEquipamientoFormDTO mantenimientoEquipamientoFormDTO);
@@ -62,7 +62,7 @@ public interface IMantenimientoEquipamientoServicio {
      * @param id El ID del mantenimiento de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return El mantenimiento de equipamiento anulado.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si el mantenimiento no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento está dado de baja, o si el equipamiento asociado no se encuentra en estado operativo {@code DISPONIBLE}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el mantenimiento de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     MantenimientoEquipamientoResponseDTO anularMantenimientoEquipamiento(Long id, AnulacionMantenimientoEquipamientoFormDTO anulacionFormDTO);

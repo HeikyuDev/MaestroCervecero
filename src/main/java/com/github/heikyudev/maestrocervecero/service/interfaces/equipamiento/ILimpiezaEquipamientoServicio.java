@@ -26,13 +26,13 @@ public interface ILimpiezaEquipamientoServicio {
 
     /**
      * Filtra las limpiezas de equipamiento, opcionalmente por equipamiento, tipo concreto de
-     * equipamiento, estado y/o rango de fecha de limpieza.
+     * equipamiento, estado y/o rango de fecha de inicio de la limpieza.
      *
      * @param idEquipamiento El ID del equipamiento a filtrar, o {@code null} para no filtrar por él.
      * @param tipoEquipamiento El tipo concreto de equipamiento a filtrar (Molino/Macerador/OllaHervor/Fermentador), o {@code null} para no filtrar por él.
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
-     * @param fechaLimpiezaDesde Límite inferior (inclusive) del rango de fecha de limpieza, o {@code null} para no acotarlo.
-     * @param fechaLimpiezaHasta Límite superior (inclusive) del rango de fecha de limpieza, o {@code null} para no acotarlo.
+     * @param fechaLimpiezaDesde Límite inferior (inclusive) del rango de fecha de inicio de la limpieza, o {@code null} para no acotarlo.
+     * @param fechaLimpiezaHasta Límite superior (inclusive) del rango de fecha de inicio de la limpieza, o {@code null} para no acotarlo.
      * @param pageable La configuración de paginación.
      * @return Una página de limpiezas de equipamiento en formato DTO que cumplen los criterios indicados.
      */
@@ -52,7 +52,7 @@ public interface ILimpiezaEquipamientoServicio {
      *
      * @param limpiezaEquipamientoFormDTO Los datos de la limpieza a registrar.
      * @return La limpieza de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha de limpieza no fue informada, si las observaciones no fueron informadas, o si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}.
+     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code EN_LIMPIEZA}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     LimpiezaEquipamientoResponseDTO registrarLimpiezaEquipamiento(LimpiezaEquipamientoFormDTO limpiezaEquipamientoFormDTO);
@@ -63,7 +63,7 @@ public interface ILimpiezaEquipamientoServicio {
      * @param id El ID de la limpieza de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La limpieza de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la limpieza no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento está dado de baja, o si el equipamiento asociado no se encuentra en el estado operativo que dejó esta limpieza.
      * @throws RecursoNoEncontradoException Si la limpieza de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     LimpiezaEquipamientoResponseDTO anularLimpiezaEquipamiento(Long id, AnulacionLimpiezaEquipamientoFormDTO anulacionFormDTO);

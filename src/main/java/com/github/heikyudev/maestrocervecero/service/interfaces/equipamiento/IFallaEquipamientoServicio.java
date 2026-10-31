@@ -27,8 +27,8 @@ public interface IFallaEquipamientoServicio {
      *
      * @param idEquipamiento El ID del equipamiento a filtrar, o {@code null} para no filtrar por él.
      * @param estado El estado transaccional a filtrar, o {@code null} para no filtrar por él.
-     * @param fechaFallaDesde Límite inferior (inclusive) del rango de fecha de falla, o {@code null} para no acotarlo.
-     * @param fechaFallaHasta Límite superior (inclusive) del rango de fecha de falla, o {@code null} para no acotarlo.
+     * @param fechaFallaDesde Límite inferior (inclusive) del rango de fecha de inicio de la falla, o {@code null} para no acotarlo.
+     * @param fechaFallaHasta Límite superior (inclusive) del rango de fecha de inicio de la falla, o {@code null} para no acotarlo.
      * @param tipoEquipamiento El tipo concreto de equipamiento a filtrar (Molino/Macerador/OllaHervor/Fermentador), o {@code null} para no filtrar por él.
      * @param pageable La configuración de paginación.
      * @return Una página de fallas de equipamiento en formato DTO que cumplen los criterios indicados.
@@ -49,7 +49,7 @@ public interface IFallaEquipamientoServicio {
      *
      * @param fallaEquipamientoFormDTO Los datos de la falla a registrar.
      * @return La falla de equipamiento registrada.
-     * @throws ReglaNegocioException Si la fecha de falla no fue informada, si las observaciones no fueron informadas, o si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}.
+     * @throws ReglaNegocioException Si alguna fecha no fue informada, si el fin es anterior al inicio o futuro, si las observaciones no fueron informadas, si el equipamiento está dado de baja, si el equipamiento no se encuentra en estado operativo {@code DISPONIBLE}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si el equipamiento referenciado no existe.
      */
     FallaEquipamientoResponseDTO registrarFallaEquipamiento(FallaEquipamientoFormDTO fallaEquipamientoFormDTO);
@@ -60,7 +60,7 @@ public interface IFallaEquipamientoServicio {
      * @param id El ID de la falla de equipamiento a anular.
      * @param anulacionFormDTO Los datos de la anulación (motivo).
      * @return La falla de equipamiento anulada.
-     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la operación más reciente registrada sobre el equipamiento, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}.
+     * @throws ReglaNegocioException Si el motivo de anulación no fue informado, si la falla no se encuentra en estado {@code REGISTRADO}, si no es la última operación registrada del equipamiento, si el equipamiento está dado de baja, o si el equipamiento asociado no se encuentra en estado operativo {@code EN_MANTENIMIENTO}, o si el inicio no es posterior a la última operación registrada ni al último uso del equipamiento en un lote.
      * @throws RecursoNoEncontradoException Si la falla de equipamiento con el ID especificado no existe, o si el equipamiento asociado no existe.
      */
     FallaEquipamientoResponseDTO anularFallaEquipamiento(Long id, AnulacionFallaEquipamientoFormDTO anulacionFormDTO);
