@@ -71,6 +71,30 @@ class EquipamientoDetalleControllerTest {
         verifyNoInteractions(servicio);
     }
 
+    private static final String ENLACE_RESALTADO = "bg-amber-500/10 text-amber-500 border-amber-500";
+
+    @Test
+    @DisplayName("CP-EQD-04: el gerente de producción ve el detalle dentro de la Gestión de Equipamiento: resalta su opción del menú y Volver lleva a la lista del tipo del equipo")
+    void detalleDentroDeLaGestion() throws Exception {
+        String html = mockMvc.perform(get("/equipamiento/5/detalle").with(como(Rol.GERENTE_DE_PRODUCCION))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(html).contains("Volver a ollas de hervor").contains("href=\"/equipamiento/ollas-hervor\"");
+        assertThat(html.substring(html.indexOf("Gestión de Equipamiento") - 600, html.indexOf("Gestión de Equipamiento"))).contains(ENLACE_RESALTADO);
+        assertThat(html.substring(html.indexOf("Control de Equipamiento") - 600, html.indexOf("Control de Equipamiento"))).doesNotContain(ENLACE_RESALTADO);
+        assertThat(html).doesNotContain("Volver a control de equipamiento");
+    }
+
+    @Test
+    @DisplayName("CP-EQD-05: el operario de producción, que ahora consulta la Gestión de Equipamiento, ve el detalle igual que el gerente: opción resaltada y Volver a la lista del tipo")
+    void detalleDelOperario() throws Exception {
+        String html = mockMvc.perform(get("/equipamiento/5/detalle").with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(html).contains("Volver a ollas de hervor").contains("href=\"/equipamiento/ollas-hervor\"").doesNotContain("Volver a control de equipamiento");
+        assertThat(html.substring(html.indexOf("Gestión de Equipamiento") - 600, html.indexOf("Gestión de Equipamiento"))).contains(ENLACE_RESALTADO);
+    }
+
     @Test
     @DisplayName("CP-EQD-03: un equipamiento inexistente o dado de baja vuelve al origen con alerta de error")
     void inexistente() throws Exception {

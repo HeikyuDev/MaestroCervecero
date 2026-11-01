@@ -47,7 +47,7 @@ public class FabricanteBarrilController {
      * nombre es opcional.
      */
     @GetMapping
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String listarFabricantes(@RequestParam(required = false) String nombre,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {

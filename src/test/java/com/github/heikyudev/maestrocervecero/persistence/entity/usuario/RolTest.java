@@ -37,6 +37,31 @@ class RolTest {
         }
     }
 
+    // ==================== el operario solo consulta insumos, recetas, barriles y equipamiento ====================
+
+    @Test
+    @DisplayName("CP-RO-06: el Operario de Producción consulta insumos, recetas, barriles y equipamiento y no los crea, modifica ni elimina")
+    void permisos_operarioDeProduccionSoloConsultaInsumosRecetasBarrilesYEquipamiento() {
+        Rol operario = Rol.OPERARIO_DE_PRODUCCION;
+
+        assertThat(operario.getPermisos()).contains(Permiso.INSUMO_CONSULTAR, Permiso.RECETA_CONSULTAR, Permiso.BARRIL_CONSULTAR, Permiso.EQUIPAMIENTO_CONSULTAR);
+        assertThat(operario.getPermisos()).doesNotContain(
+                Permiso.INSUMO_CREAR, Permiso.INSUMO_MODIFICAR, Permiso.INSUMO_ELIMINAR,
+                Permiso.RECETA_CREAR, Permiso.RECETA_MODIFICAR, Permiso.RECETA_ELIMINAR,
+                Permiso.BARRIL_CREAR, Permiso.BARRIL_MODIFICAR, Permiso.BARRIL_ELIMINAR,
+                Permiso.EQUIPAMIENTO_CREAR, Permiso.EQUIPAMIENTO_MODIFICAR, Permiso.EQUIPAMIENTO_ELIMINAR);
+    }
+
+    @Test
+    @DisplayName("CP-RO-07: el Gerente de Producción conserva todos los permisos de insumos, recetas, barriles y equipamiento")
+    void permisos_gerenteDeProduccionConservaLaGestion() {
+        assertThat(Rol.GERENTE_DE_PRODUCCION.getPermisos()).contains(
+                Permiso.INSUMO_CREAR, Permiso.INSUMO_MODIFICAR, Permiso.INSUMO_ELIMINAR, Permiso.INSUMO_CONSULTAR,
+                Permiso.RECETA_CREAR, Permiso.RECETA_MODIFICAR, Permiso.RECETA_ELIMINAR, Permiso.RECETA_CONSULTAR,
+                Permiso.BARRIL_CREAR, Permiso.BARRIL_MODIFICAR, Permiso.BARRIL_ELIMINAR, Permiso.BARRIL_CONSULTAR,
+                Permiso.EQUIPAMIENTO_CREAR, Permiso.EQUIPAMIENTO_MODIFICAR, Permiso.EQUIPAMIENTO_ELIMINAR, Permiso.EQUIPAMIENTO_CONSULTAR);
+    }
+
     // ==================== permisos de control de equipamiento ====================
 
     @Test

@@ -51,7 +51,7 @@ public class MaltaController {
      * Lista las maltas activas, paginadas de a 20, en orden alfabético. Los criterios son opcionales.
      */
     @GetMapping
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String listarMaltas(@RequestParam(required = false) String nombre,
                                @RequestParam(required = false) TipoMalta tipo,
                                @RequestParam(defaultValue = "0") int pagina,

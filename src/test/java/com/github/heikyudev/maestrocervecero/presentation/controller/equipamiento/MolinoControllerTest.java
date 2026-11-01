@@ -135,8 +135,8 @@ class MolinoControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
-    @DisplayName("CP-MOC-05: el OPERARIO_DE_PRODUCCION no accede a la gestión: el listado es rechazado y no llega al service")
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-MOC-05: el ENCARGADO_DE_DEPOSITO no accede a la gestión: el listado es rechazado y no llega al service")
     void caso_cp_moc_05() throws Exception {
         mockMvc.perform(get("/equipamiento/molinos"))
                 .andExpect(status().is3xxRedirection())

@@ -99,7 +99,7 @@ public class RecetaController {
      * vive en la versión y no en la receta: por eso el {@code Pageable} no lleva ordenamiento.
      */
     @GetMapping
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String listarRecetas(@RequestParam(required = false) String nombre,
                                 @RequestParam(defaultValue = "0") int pagina,
                                 Model model) {
@@ -154,7 +154,7 @@ public class RecetaController {
      * Muestra el detalle completo de una receta (los datos de su versión vigente).
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String mostrarDetalle(@PathVariable Long id, Model model) {
         model.addAttribute("receta", recetaServicio.buscarPorId(id));
         return VISTA_DETALLE;

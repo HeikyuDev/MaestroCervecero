@@ -297,8 +297,8 @@ class BarrilControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
-    @DisplayName("CP-BCT-12: el OPERARIO_DE_PRODUCCION no accede a la gestión: el listado es rechazado y no llega al service")
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-BCT-12: el ENCARGADO_DE_DEPOSITO no accede a la gestión: el listado es rechazado y no llega al service")
     void caso_cp_bct_12() throws Exception {
         // Act + Assert
         mockMvc.perform(get("/barriles"))
@@ -848,8 +848,8 @@ class BarrilControllerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMINISTRADOR", "OPERARIO_DE_PRODUCCION", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
-    @DisplayName("CP-BCT-43: la sidebar de los demás roles no muestra \"Gestión de Barriles\"")
+    @ValueSource(strings = {"ADMINISTRADOR", "GERENTE_DE_COMPRAS", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL"})
+    @DisplayName("CP-BCT-43: la sidebar de los demás roles (el operario sí lo ve, para consultarlo) no muestra \"Gestión de Barriles\"")
     void caso_cp_bct_43(String rol) throws Exception {
         // Act + Assert
         mockMvc.perform(get("/home").with(user("usuario").roles(rol)))

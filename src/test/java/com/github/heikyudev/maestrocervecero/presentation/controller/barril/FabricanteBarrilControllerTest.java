@@ -161,8 +161,8 @@ class FabricanteBarrilControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
-    @DisplayName("CP-FBC-06: el OPERARIO_DE_PRODUCCION no accede a la gestión: el listado es rechazado y no llega al service")
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-FBC-06: el ENCARGADO_DE_DEPOSITO no accede a la gestión: el listado es rechazado y no llega al service")
     void caso_cp_fbc_06() throws Exception {
         // Act + Assert
         mockMvc.perform(get(URL))

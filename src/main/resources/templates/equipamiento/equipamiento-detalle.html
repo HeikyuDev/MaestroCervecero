@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
-      th:replace="~{layout/base :: layout(~{::#equipamiento-detalle-content}, 'control-equipamiento')}">
+      th:replace="~{layout/base :: layout(~{::#equipamiento-detalle-content}, 'equipamiento')}">
 <body>
 
 <!--
-    Detalle de un equipamiento: pantalla de solo lectura con su información. Se llega con el identificador del equipo desde las
-    pantallas de lote y desde la lista de control de equipamiento, y con el ojo desde la gestión de equipamiento.
+    Detalle de un equipamiento: pantalla de solo lectura con su información. Pertenece a la Gestión de Equipamiento: se llega con el ojo de sus listas
+    y con el identificador del equipo desde las pantallas de lote. Resalta esa opción del menú y vuelve a la lista del tipo del equipo.
 -->
 <div id="equipamiento-detalle-content" class="space-y-6">
 
     <!-- Encabezado -->
     <section data-equipo-cabecera class="space-y-4">
-        <a th:href="@{/control-equipamiento}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
-            <i class="bi bi-arrow-left"></i> Volver
+        <a th:href="@{${urlVolver}}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-amber-600 transition-colors">
+            <i class="bi bi-arrow-left"></i> <span th:text="${textoVolver}">Volver a molinos</span>
         </a>
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3">

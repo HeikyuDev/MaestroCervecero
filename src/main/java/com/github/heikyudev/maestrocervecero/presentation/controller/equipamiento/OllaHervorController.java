@@ -52,7 +52,7 @@ public class OllaHervorController {
      * criterios (identificador y estado operativo) son opcionales.
      */
     @GetMapping
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String listarOllasHervor(@RequestParam(required = false) String identificador,
                        @RequestParam(required = false) EstadoOperativo estadoOperativo,
                        @RequestParam(defaultValue = "0") int pagina,

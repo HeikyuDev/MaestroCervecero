@@ -662,15 +662,15 @@ class PresentacionComercialControllerTest {
     }
 
     @Test
-    @DisplayName("CP-PCC-35: la sección Administración sigue apareciendo solo para el GERENTE_DE_PRODUCCION y el ADMINISTRADOR entre los demás roles")
+    @DisplayName("CP-PCC-35: la sección Administración aparece para el GERENTE_DE_PRODUCCION, el OPERARIO_DE_PRODUCCION (con sus pantallas de consulta) y el ADMINISTRADOR, y no para los demás roles")
     void caso_cp_pcc_35() throws Exception {
         // Act + Assert
-        for (String rol : List.of("GERENTE_DE_PRODUCCION", "ADMINISTRADOR")) {
+        for (String rol : List.of("GERENTE_DE_PRODUCCION", "OPERARIO_DE_PRODUCCION", "ADMINISTRADOR")) {
             mockMvc.perform(get("/home").with(user("usuario").roles(rol)))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("Administración")));
         }
-        for (String rol : List.of("OPERARIO_DE_PRODUCCION", "ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL")) {
+        for (String rol : List.of("ENCARGADO_DE_DEPOSITO", "GERENTE_COMERCIAL")) {
             mockMvc.perform(get("/home").with(user("usuario").roles(rol)))
                     .andExpect(status().isOk())
                     .andExpect(content().string(not(containsString("Administración"))));

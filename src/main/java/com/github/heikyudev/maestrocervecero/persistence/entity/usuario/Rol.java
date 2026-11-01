@@ -64,6 +64,8 @@ public enum Rol {
     )),
 
     OPERARIO_DE_PRODUCCION("Operario de Producción", Set.of(
+            Permiso.INSUMO_CONSULTAR,
+            Permiso.RECETA_CONSULTAR,
             Permiso.EQUIPAMIENTO_CONSULTAR,
             Permiso.BARRIL_CONSULTAR,
             Permiso.LOTE_INICIAR,

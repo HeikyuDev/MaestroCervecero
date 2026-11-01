@@ -528,7 +528,7 @@ class LoteControllerTest {
     }
 
     @Test
-    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Gestión de Lotes y Cronograma de Producción, y no Planificación de Producción ni la sección Administración")
+    @DisplayName("CP-LCT-17: la sidebar del OPERARIO_DE_PRODUCCION tiene Gestión de Lotes y Cronograma de Producción, no Planificación de Producción, y la sección Administración solo con las pantallas de consulta (insumos, recetas, barriles y equipamiento)")
     void sidebar_elOperarioVeGestionDeLotes() throws Exception {
         // Act
         String html = mockMvc.perform(get(URL).with(como(Rol.OPERARIO_DE_PRODUCCION))).andExpect(status().isOk())
@@ -537,7 +537,8 @@ class LoteControllerTest {
         // Assert
         assertThat(html).contains("href=\"/lotes\"").contains("Gestión de Lotes").contains("Operación")
                 .contains("href=\"/cronograma-produccion\"").contains("Cronograma de Producción")
-                .doesNotContain("Planificación de Producción").doesNotContain("Administración");
+                .doesNotContain("Planificación de Producción").doesNotContain("Configuración de Producción")
+                .contains("Administración").contains("Gestión de Insumos").contains("Gestión de Recetas").contains("Gestión de Barriles").contains("Gestión de Equipamiento");
         assertThat(html.indexOf("Cronograma de Producción")).isLessThan(html.indexOf("Gestión de Lotes"));
     }
 

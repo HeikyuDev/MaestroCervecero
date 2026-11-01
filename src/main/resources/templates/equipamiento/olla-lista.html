@@ -12,7 +12,7 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Equipamiento</h1>
             <p class="text-sm text-slate-500">Molinos, maceradores, ollas de hervor y fermentadores de la planta, en orden alfabético.</p>
         </div>
-        <a th:href="@{/equipamiento/ollas-hervor/nuevo}"
+        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/equipamiento/ollas-hervor/nuevo}"
            class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
             <i class="bi bi-plus-lg"></i> Nueva olla de hervor
         </a>
@@ -60,7 +60,7 @@
                 <th class="px-4 py-3">Evaporación (L/h)</th>
                 <th class="px-4 py-3">Pérdida por trub (L)</th>
                 <th class="px-4 py-3">Usos antes de mantenimiento</th>
-                <th class="col-acciones px-4 py-3 text-right">Acciones</th>
+                <th class="col-acciones px-4 py-3" th:classappend="${#authorization.expression('hasRole(''GERENTE_DE_PRODUCCION'')')} ? 'text-right' : 'text-center'">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -75,16 +75,16 @@
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.perdidaPorTrub})}"></th:block></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">50</td>
                 <td class="col-acciones px-4 py-3">
-                    <div class="flex items-center justify-end gap-1">
+                    <div class="flex items-center gap-1" th:classappend="${#authorization.expression('hasRole(''GERENTE_DE_PRODUCCION'')')} ? 'justify-end' : 'justify-center'">
                         <a th:href="@{/equipamiento/{id}/detalle(id=${x.id})}" th:aria-label="'Ver ' + ${x.identificadorInterno}" data-ver-equipo
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-eye text-lg"></i>
                         </a>
-                        <a th:href="@{/equipamiento/ollas-hervor/{id}/editar(id=${x.id})}" title="Editar olla de hervor" aria-label="Editar olla de hervor"
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/equipamiento/ollas-hervor/{id}/editar(id=${x.id})}" title="Editar olla de hervor" aria-label="Editar olla de hervor"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>
                         </a>
-                        <button type="button" title="Dar de baja olla de hervor" aria-label="Dar de baja olla de hervor"
+                        <button type="button" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" title="Dar de baja olla de hervor" aria-label="Dar de baja olla de hervor"
                                 th:data-baja-url="@{/equipamiento/ollas-hervor/{id}/baja(id=${x.id})}"
                                 th:data-baja-nombre="${x.identificadorInterno}"
                                 class="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
@@ -109,7 +109,9 @@
                 false)}"></div>
     </div>
 
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Si no está Disponible o tiene lotes en estado Pendiente asociados, el sistema no lo permitirá.')}"></div>
+    <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+        <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja olla de hervor', 'Si no está Disponible o tiene lotes en estado Pendiente asociados, el sistema no lo permitirá.')}"></div>
+    </th:block>
 </div>
 
 </body>

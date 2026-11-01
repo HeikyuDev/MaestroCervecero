@@ -21,7 +21,7 @@
 | **CP-FBC-03** | El criterio de nombre llega recortado al service; un texto en blanco equivale a no filtrar | `nombre: " ton "`, `pagina: 1`; y por separado `nombre: "   "` | Un texto en blanco equivale a no filtrar | Llama al service con `nombre: "ton"` en la página 1; con el texto en blanco lo llama con `nombre: null`. |
 | **CP-FBC-04** | El criterio queda en el formulario y en los links de paginación | `nombre: "ton"`. El service devuelve una página con anterior y siguiente | El criterio se conserva al paginar | El campo "Nombre" muestra "ton" (placeholder "Ej: Tonelería del Sur"). Los links de página anterior y siguiente incluyen `pagina` y `nombre`. El link "Limpiar" apunta a `/barriles/fabricantes` sin parámetros. |
 | **CP-FBC-05** | Sin resultados muestra un mensaje claro en vez de una tabla vacía | Rol `GERENTE_DE_PRODUCCION`, el service devuelve una página vacía | La página no tiene elementos | Muestra "No se encontraron fabricantes de barril con los criterios indicados" en lugar de una tabla vacía. |
-| **CP-FBC-06** | El OPERARIO_DE_PRODUCCION no accede a la gestión: el listado es rechazado y no llega al service | Rol `OPERARIO_DE_PRODUCCION` | `@PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
+| **CP-FBC-06** | El ENCARGADO_DE_DEPOSITO no accede a la gestión: el listado es rechazado y no llega al service | Rol `ENCARGADO_DE_DEPOSITO` | `@PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")` $\rightarrow$ **Rechaza** | Redirige con alerta de tipo `danger`. No invoca al service. |
 
 ---
 

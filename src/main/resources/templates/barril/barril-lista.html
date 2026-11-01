@@ -12,7 +12,7 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Barriles</h1>
             <p class="text-sm text-slate-500">Barriles y fabricantes de barril, en orden alfabético.</p>
         </div>
-        <a th:href="@{/barriles/nuevo}"
+        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/barriles/nuevo}"
            class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
             <i class="bi bi-plus-lg"></i> Nuevo barril
         </a>
@@ -75,7 +75,7 @@
                 <th class="px-4 py-3">Contenido actual (L)</th>
                 <th class="px-4 py-3">Estado operativo</th>
                 <th class="px-4 py-3">Usos máximos</th>
-                <th class="col-acciones px-4 py-3 text-right">Acciones</th>
+                <th sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" class="col-acciones px-4 py-3 text-right">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -93,13 +93,13 @@
                 <td class="px-4 py-3 text-slate-700"><th:block th:replace="~{receta/formato :: numero(${x.contenidoActual})}"></th:block></td>
                 <td class="px-4 py-3"><span th:replace="~{barril/estado :: badge(${x.estadoOperativo})}"></span></td>
                 <td class="px-4 py-3 text-slate-700" th:text="${x.usosMaximosAntesMantenimiento}">100</td>
-                <td class="col-acciones px-4 py-3">
+                <td sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" class="col-acciones px-4 py-3">
                     <div class="flex items-center justify-end gap-1">
-                        <a th:href="@{/barriles/{id}/editar(id=${x.id})}" title="Editar barril" aria-label="Editar barril"
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/barriles/{id}/editar(id=${x.id})}" title="Editar barril" aria-label="Editar barril"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>
                         </a>
-                        <button type="button" title="Dar de baja barril" aria-label="Dar de baja barril"
+                        <button type="button" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" title="Dar de baja barril" aria-label="Dar de baja barril"
                                 th:data-baja-url="@{/barriles/{id}/baja(id=${x.id})}"
                                 th:data-baja-nombre="${x.identificadorInterno}"
                                 class="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
@@ -109,7 +109,7 @@
                 </td>
             </tr>
             <tr th:if="${barriles.empty}">
-                <td colspan="8" class="px-4 py-10 text-center text-slate-400">
+                <td th:attr="colspan=${#authorization.expression('hasRole(''GERENTE_DE_PRODUCCION'')')} ? 8 : 7" class="px-4 py-10 text-center text-slate-400">
                     <i class="bi bi-boxes text-3xl block mb-2"></i>
                     No se encontraron barriles con los criterios indicados
                 </td>
@@ -124,7 +124,9 @@
                 false)}"></div>
     </div>
 
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja barril', 'Si no está Disponible, el sistema no lo permitirá.')}"></div>
+    <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+        <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja barril', 'Si no está Disponible, el sistema no lo permitirá.')}"></div>
+    </th:block>
 </div>
 
 </body>

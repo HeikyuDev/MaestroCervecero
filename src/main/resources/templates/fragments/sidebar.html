@@ -100,26 +100,26 @@
             ADMINISTRACIÓN: los datos que se definen una vez (insumos, equipamiento, recetas, presentaciones comerciales,
             proveedores, ubicaciones, usuarios) y alimentan al resto del sistema. Va debajo de la operación diaria.
         -->
-        <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'GERENTE_DE_COMPRAS', 'ADMINISTRADOR')">
+        <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION', 'GERENTE_DE_COMPRAS', 'ADMINISTRADOR')">
             <p th:replace="~{fragments/sidebar ::seccion('Administración')}"></p>
 
-            <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+            <!-- GESTIÓN DE INSUMOS: maltas, lúpulos y levaduras en pestañas (Gerente de Producción; el Operario de Producción solo consulta) -->
+            <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/insumos/maltas', ${opcionActiva}, 'insumos', 'bi-box-seam', 'Gestión de Insumos')}"></a>
             </th:block>
 
-            <!-- GESTIÓN DE RECETAS (Gerente de Producción) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+            <!-- GESTIÓN DE RECETAS (Gerente de Producción; el Operario de Producción solo consulta) -->
+            <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/recetas', ${opcionActiva}, 'recetas', 'bi-journal-bookmark', 'Gestión de Recetas')}"></a>
             </th:block>
 
-            <!-- GESTIÓN DE BARRILES: barriles y fabricantes de barril en pestañas (Gerente de Producción) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+            <!-- GESTIÓN DE BARRILES: barriles y fabricantes de barril en pestañas (Gerente de Producción; el Operario de Producción solo consulta) -->
+            <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/barriles', ${opcionActiva}, 'barriles', 'bi-boxes', 'Gestión de Barriles')}"></a>
             </th:block>
 
-            <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción) -->
-            <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+            <!-- GESTIÓN DE EQUIPAMIENTO: molinos, maceradores, ollas de hervor y fermentadores en pestañas (Gerente de Producción; el Operario de Producción solo consulta) -->
+            <th:block sec:authorize="hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')">
                 <a th:replace="~{fragments/sidebar ::enlace('/equipamiento/molinos', ${opcionActiva}, 'equipamiento', 'bi-tools', 'Gestión de Equipamiento')}"></a>
             </th:block>
 

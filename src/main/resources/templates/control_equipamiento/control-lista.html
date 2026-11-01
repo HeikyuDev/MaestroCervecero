@@ -41,7 +41,7 @@
                 <option th:each="e : ${estados}" th:value="${e}" th:selected="${e == filtroEstado}" th:text="${e.etiqueta}">Disponible</option>
             </select>
         </div>
-        <div class="flex items-center justify-end gap-3">
+        <div class="md:col-span-2 lg:col-span-3 flex items-center justify-end gap-3">
             <a th:href="@{/control-equipamiento}"
                class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors">Limpiar</a>
             <button type="submit"

@@ -12,7 +12,7 @@
             <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Gestión de Recetas</h1>
             <p class="text-sm text-slate-500">Recetas activas con los datos de su versión vigente, en orden alfabético.</p>
         </div>
-        <a th:href="@{/recetas/nuevo}"
+        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/recetas/nuevo}"
            class="inline-flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-colors">
             <i class="bi bi-plus-lg"></i> Nueva receta
         </a>
@@ -49,7 +49,7 @@
                 <th class="px-3 py-3 whitespace-nowrap" title="FG objetivo">FG</th>
                 <th class="px-3 py-3 whitespace-nowrap" title="IBU objetivo">IBU</th>
                 <th class="px-3 py-3 whitespace-nowrap" title="ABV estimado (%) a partir de la OG y la FG objetivo">ABV (%)</th>
-                <th class="col-acciones px-3 py-3 text-right whitespace-nowrap">Acciones</th>
+                <th class="col-acciones px-3 py-3 whitespace-nowrap" th:classappend="${#authorization.expression('hasRole(''GERENTE_DE_PRODUCCION'')')} ? 'text-right' : 'text-center'">Acciones</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -62,16 +62,16 @@
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap"><th:block th:replace="~{receta/formato :: numero(${r.version.ibuObjetivo})}"></th:block></td>
                 <td class="px-3 py-3 text-slate-700 whitespace-nowrap" data-abv><th:block th:replace="~{receta/formato :: unDecimal(${r.version.abv})}"></th:block></td>
                 <td class="col-acciones px-3 py-3">
-                    <div class="flex items-center justify-end gap-0.5">
+                    <div class="flex items-center gap-0.5" th:classappend="${#authorization.expression('hasRole(''GERENTE_DE_PRODUCCION'')')} ? 'justify-end' : 'justify-center'">
                         <a th:href="@{/recetas/{id}(id=${r.id})}" title="Ver detalle de la receta" aria-label="Ver detalle de la receta"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-eye text-lg"></i>
                         </a>
-                        <a th:href="@{/recetas/{id}/editar(id=${r.id})}" title="Editar receta" aria-label="Editar receta"
+                        <a sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" th:href="@{/recetas/{id}/editar(id=${r.id})}" title="Editar receta" aria-label="Editar receta"
                            class="p-2 rounded-lg text-slate-500 hover:bg-amber-50 hover:text-amber-600 transition-colors">
                             <i class="bi bi-pencil-square text-lg"></i>
                         </a>
-                        <button type="button" title="Dar de baja receta" aria-label="Dar de baja receta"
+                        <button type="button" sec:authorize="hasRole('GERENTE_DE_PRODUCCION')" title="Dar de baja receta" aria-label="Dar de baja receta"
                                 th:data-baja-url="@{/recetas/{id}/baja(id=${r.id})}"
                                 th:data-baja-nombre="${r.version.nombre}"
                                 class="shrink-0 whitespace-nowrap p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors">
@@ -96,7 +96,9 @@
                 false)}"></div>
     </div>
 
-    <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja receta', 'Si tiene una planificación de producción en estado Pendiente, el sistema no lo permitirá.')}"></div>
+    <th:block sec:authorize="hasRole('GERENTE_DE_PRODUCCION')">
+        <div th:replace="~{fragments/dialogo-baja :: dialogo('Dar de baja receta', 'Si tiene una planificación de producción en estado Pendiente, el sistema no lo permitirá.')}"></div>
+    </th:block>
 </div>
 
 </body>

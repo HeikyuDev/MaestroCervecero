@@ -224,8 +224,8 @@ class RecetaControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
-    @DisplayName("CP-RCC-09: solo el GERENTE_DE_PRODUCCION accede al listado: otro rol es rechazado y no llega al service")
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-RCC-09: solo el GERENTE_DE_PRODUCCION y el OPERARIO_DE_PRODUCCION (que solo consulta) acceden al listado: otro rol es rechazado y no llega al service")
     void listado_debeRechazarRolNoAutorizado() throws Exception {
         mockMvc.perform(get("/recetas"))
                 .andExpect(status().is3xxRedirection())

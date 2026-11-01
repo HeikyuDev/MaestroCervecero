@@ -138,8 +138,8 @@ class OllaHervorControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
-    @DisplayName("CP-OHC-05: el OPERARIO_DE_PRODUCCION no accede a la gestión: el listado es rechazado y no llega al service")
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-OHC-05: el ENCARGADO_DE_DEPOSITO no accede a la gestión: el listado es rechazado y no llega al service")
     void caso_cp_ohc_05() throws Exception {
         mockMvc.perform(get("/equipamiento/ollas-hervor"))
                 .andExpect(status().is3xxRedirection())

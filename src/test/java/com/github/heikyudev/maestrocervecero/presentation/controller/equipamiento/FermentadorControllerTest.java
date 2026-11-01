@@ -136,8 +136,8 @@ class FermentadorControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "OPERARIO_DE_PRODUCCION")
-    @DisplayName("CP-FEC-05: el OPERARIO_DE_PRODUCCION no accede a la gestión: el listado es rechazado y no llega al service")
+    @WithMockUser(roles = "ENCARGADO_DE_DEPOSITO")
+    @DisplayName("CP-FEC-05: el ENCARGADO_DE_DEPOSITO no accede a la gestión: el listado es rechazado y no llega al service")
     void caso_cp_fec_05() throws Exception {
         mockMvc.perform(get("/equipamiento/fermentadores"))
                 .andExpect(status().is3xxRedirection())

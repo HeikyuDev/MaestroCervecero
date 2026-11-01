@@ -14,6 +14,8 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 | Ver el detalle de un equipamiento | `EQUIPAMIENTO_CONSULTAR` | Sí | Sí |
 | Ver el formulario y registrar una limpieza, una falla o un mantenimiento | `LIMPIEZA_EQUIPAMIENTO_REGISTRAR`, `FALLA_EQUIPAMIENTO_REGISTRAR`, `MANTENIMIENTO_EQUIPAMIENTO_REGISTRAR` | No | Sí |
 | Anular la última operación del equipo | `LIMPIEZA_EQUIPAMIENTO_ANULAR`, `FALLA_EQUIPAMIENTO_ANULAR`, `MANTENIMIENTO_EQUIPAMIENTO_ANULAR` | No | Sí |
+| Consultar las listas y detalles de Gestión de Equipamiento, de Insumos, de Barriles y de Recetas | `EQUIPAMIENTO_CONSULTAR`, `INSUMO_CONSULTAR`, `BARRIL_CONSULTAR`, `RECETA_CONSULTAR` (los controllers de gestión autorizan por rol: `hasAnyRole` de ambos) | Sí | Sí, solo consulta |
+| Alta, modificación y baja en esos módulos | `*_CREAR`, `*_MODIFICAR`, `*_ELIMINAR` (`hasRole('GERENTE_DE_PRODUCCION')`) | Sí | No |
 
 - Cada método lleva `@PreAuthorize` con su permiso y cada botón se oculta con `sec:authorize`.
 - Un acceso no autorizado no devuelve un 403: el `ControllerAdvices` redirige con la alerta `danger` "No tiene permisos para realizar esta acción".
@@ -34,7 +36,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 
 ## 3. Descripción de cada pantalla
 
-**Lista de control.** Todos los equipamientos activos en una tabla, con filtros Identificador (placeholder "Ej: FER-01"), Tipo y Estado operativo, botón Limpiar y paginación de 20, en orden natural por identificador. Columnas: Identificador (enlace al detalle del equipamiento), Tipo, Estado operativo, Usos ("3 de 10"), Última operación (tipo y fecha) y Acciones. El gerente ve el ojo (historial) y "Abrir"; el operario solo "Abrir". Los equipos dados de baja no aparecen.
+**Lista de control.** Todos los equipamientos activos en una tabla, con filtros Identificador (placeholder "Ej: FER-01"), Tipo y Estado operativo, botón Limpiar y paginación de 20, en orden natural por identificador. Columnas: Identificador (enlace al detalle del equipamiento), Tipo, Estado operativo, Usos ("3 de 10"), Última operación (tipo y fecha) y Acciones. El gerente ve el ojo (historial) y "Abrir"; el operario solo "Abrir". Los botones Limpiar y Buscar van a la derecha de la tarjeta de filtros. Los equipos dados de baja no aparecen.
 
 **Bloque de información del equipo.** Fragmento `control_equipamiento/equipo-informacion` usado en el detalle del equipamiento, el historial, el panel y el detalle de una operación. Una fila por tema: identificador, tipo y estado operativo; los parámetros propios del tipo que tienen valor, con su unidad; usos desde el último mantenimiento, última limpieza y último mantenimiento (fecha y hora, "-" si no hay).
 
@@ -46,7 +48,7 @@ La aplicación es un monolito MVC con Thymeleaf: el servidor devuelve páginas H
 
 **Detalle de una operación.** Bloque de información y los datos de la operación por tema: tipo y estado; fecha de la operación; observaciones; "Registrado por" y fecha de registro; y, si está anulada, cuándo y el motivo.
 
-**Detalle del equipamiento.** Bloque de información y el botón Volver. Se llega desde el ojo de las listas de Gestión de Equipamiento y desde el identificador del equipo, que en las pantallas de lote y de planificación es un enlace ámbar para quien tiene `EQUIPAMIENTO_CONSULTAR`.
+**Detalle del equipamiento.** Pertenece a la Gestión de Equipamiento. Bloque de información y el botón Volver. Se llega desde el ojo de las listas de Gestión de Equipamiento y desde el identificador del equipo, que en las pantallas de lote y de planificación es un enlace ámbar para quien tiene `EQUIPAMIENTO_CONSULTAR` (el gerente y el operario de producción). Resalta la opción "Gestión de Equipamiento" del menú y "Volver a molinos / maceradores / ollas de hervor / fermentadores" lleva a la lista del tipo del equipo, para ambos roles. El operario solo consulta esas listas: no ve los botones de alta, modificar ni baja.
 
 ## 4. Recorridos
 

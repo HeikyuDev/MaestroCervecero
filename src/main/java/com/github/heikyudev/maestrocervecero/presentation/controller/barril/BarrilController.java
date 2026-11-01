@@ -66,7 +66,7 @@ public class BarrilController {
      * (identificador interno, número de serie, capacidad, estado operativo y fabricante) son opcionales.
      */
     @GetMapping
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String listarBarriles(@RequestParam(required = false) String identificadorInterno,
                                  @RequestParam(required = false) String numeroSerie,
                                  @RequestParam(required = false) Double capacidad,
@@ -98,7 +98,7 @@ public class BarrilController {
      * que usan el selector del formulario y el filtro del listado.
      */
     @GetMapping("/buscador/fabricantes")
-    @PreAuthorize("hasRole('GERENTE_DE_PRODUCCION')")
+    @PreAuthorize("hasAnyRole('GERENTE_DE_PRODUCCION', 'OPERARIO_DE_PRODUCCION')")
     public String buscarFabricantes(@RequestParam(required = false) String nombre,
                                     @RequestParam(defaultValue = "0") int pagina,
                                     Model model) {
